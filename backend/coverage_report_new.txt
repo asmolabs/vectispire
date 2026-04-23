@@ -1,0 +1,146 @@
+
+> backend@0.0.1 test:cov
+> jest --coverage
+
+[31m[Nest] 77961  - [39m04/09/2026, 6:38:51 AM [31m  ERROR[39m [38;5;3m[ScanProcessor] [39m[31mJob failed for scan id 1: Unexpected end of JSON input[39m
+[31m[Nest] 77961  - [39m04/09/2026, 6:38:51 AM [31m  ERROR[39m [38;5;3m[ScanProcessor] [39m[31mJob failed for scan id 1: Clone failed[39m
+(node:77961) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL src/repository/scan.processor.spec.ts
+  ● ScanProcessor › process › should complete successfully and update scan with summary
+
+    SyntaxError: Unexpected end of JSON input
+        at JSON.parse (<anonymous>)
+
+      84 |       
+      85 |       fs.writeFileSync(sbomPath, syftResult.stdout);
+    > 86 |       const sbom = JSON.parse(syftResult.stdout);
+         |                         ^
+      87 |
+      88 |       // 3. Grype - Analyze SBOM for CVEs
+      89 |       const cvesPath = path.join(workDir, 'cves.json');
+
+      at ScanProcessor.parse [as process] (repository/scan.processor.ts:86:25)
+      at Object.<anonymous> (repository/scan.processor.spec.ts:108:7)
+
+  ● ScanProcessor › process › should handle failure and set status to failed
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: 1, {"status": "failed"}
+    Received
+           1
+              1,
+              Object {
+            -   "status": "failed",
+            +   "status": "scanning",
+              },
+           2
+              1,
+              Object {
+            +   "error": "Clone failed",
+                "status": "failed",
+              },
+
+    Number of calls: 2
+
+      144 |       await expect(processor.process(mockJob)).rejects.toThrow('Clone failed');
+      145 |
+    > 146 |       expect(scanModel.update).toHaveBeenCalledWith(1, { status: 'failed' });
+          |                                ^
+      147 |       expect(notificationGateway.sendScanUpdate).toHaveBeenCalledWith(1, 'failed');
+      148 |       
+      149 |       // Verify cleanup regardless of failure
+
+      at Object.<anonymous> (repository/scan.processor.spec.ts:146:32)
+
+PASS src/auth/auth.service.spec.ts
+PASS src/auth/auth.controller.spec.ts
+FAIL src/common/encryption.service.spec.ts
+  ● EncryptionService › should throw error for invalid encrypted format during decryption
+
+    ENCRYPTION_KEY must be a 64-character hex string (32 bytes)
+
+      11 |     const hexKey = this.configService.get<string>('ENCRYPTION_KEY');
+      12 |     if (!hexKey || hexKey.length !== 64) {
+    > 13 |       throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+         |             ^
+      14 |     }
+      15 |     this.key = Buffer.from(hexKey, 'hex');
+      16 |   }
+
+      at new EncryptionService (common/encryption.service.ts:13:13)
+      at TestingInjector.instantiateClass (../node_modules/@nestjs/core/injector/injector.js:422:19)
+      at callback (../node_modules/@nestjs/core/injector/injector.js:70:45)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:170:24)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:75:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:103:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (common/encryption.service.spec.ts:16:35)
+
+PASS src/repository/repository.controller.spec.ts
+PASS src/repository/repository.service.spec.ts
+PASS src/repository/notification.gateway.spec.ts
+PASS src/app.controller.spec.ts
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+File                         | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                   
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+All files                    |   54.94 |    45.74 |    37.5 |   54.83 |                                     
+ src                         |   27.08 |       75 |   42.85 |   21.42 |                                     
+  app.controller.ts          |     100 |       75 |     100 |     100 | 6                                   
+  app.module.ts              |       0 |      100 |       0 |       0 | 1-57                                
+  app.service.ts             |     100 |      100 |     100 |     100 |                                     
+  main.ts                    |       0 |      100 |       0 |       0 | 1-25                                
+ src/auth                    |   58.88 |       45 |   61.53 |   58.33 |                                     
+  auth.controller.ts         |   85.71 |       75 |   57.14 |   84.61 | 50-60                               
+  auth.module.ts             |       0 |      100 |       0 |       0 | 1-41                                
+  auth.service.ts            |   64.44 |    40.38 |      80 |   62.79 | 29,53-83                            
+ src/auth/decorators         |     100 |      100 |     100 |     100 |                                     
+  public.decorator.ts        |     100 |      100 |     100 |     100 |                                     
+ src/auth/entities           |     100 |       75 |     100 |     100 |                                     
+  user.entity.ts             |     100 |       75 |     100 |     100 | 27-30                               
+ src/auth/guards             |       0 |        0 |       0 |       0 |                                     
+  jwt-auth.guard.ts          |       0 |        0 |       0 |       0 | 1-20                                
+ src/auth/strategies         |       0 |        0 |       0 |       0 |                                     
+  github.strategy.ts         |       0 |        0 |       0 |       0 | 1-38                                
+  jwt.strategy.ts            |       0 |        0 |       0 |       0 | 1-28                                
+  keycloak.strategy.ts       |       0 |        0 |       0 |       0 | 1-52                                
+ src/common                  |   96.42 |    84.61 |     100 |   96.15 |                                     
+  encryption.service.ts      |   96.42 |    84.61 |     100 |   96.15 | 35                                  
+ src/repository              |   68.62 |    66.35 |      60 |   68.58 |                                     
+  notification.gateway.ts    |     100 |    83.33 |     100 |     100 | 18                                  
+  repository.controller.ts   |   84.37 |       75 |   54.54 |   83.33 | 30,35,40,45,55                      
+  repository.module.ts       |       0 |      100 |     100 |       0 | 1-26                                
+  repository.service.ts      |   73.91 |    69.23 |      50 |      75 | 48-49,52-53,56-57,70-73,105-128,156 
+  scan.processor.ts          |   65.78 |    54.54 |   66.66 |   64.86 | 44,49-52,89-140,158                 
+ src/repository/dto          |     100 |      100 |     100 |     100 |                                     
+  create-repository.dto.ts   |     100 |      100 |     100 |     100 |                                     
+  create-vex-decision.dto.ts |     100 |      100 |     100 |     100 |                                     
+  update-repository.dto.ts   |     100 |      100 |     100 |     100 |                                     
+ src/repository/entities     |   83.33 |       75 |       0 |   89.65 |                                     
+  repository.entity.ts       |   71.42 |       75 |       0 |   81.25 | 21,24,27                            
+  scan.entity.ts             |   89.47 |     87.5 |       0 |   93.75 | 36                                  
+  ssh-key.entity.ts          |   84.61 |       75 |       0 |      90 | 21                                  
+  vex-decision.entity.ts     |   89.47 |    66.66 |       0 |   93.75 | 30                                  
+ src/repository/ssh-key      |   13.84 |       25 |       0 |   11.86 |                                     
+  ssh-key.controller.ts      |       0 |        0 |       0 |       0 | 1-28                                
+  ssh-key.module.ts          |       0 |      100 |     100 |       0 | 1-14                                
+  ssh-key.service.ts         |   21.95 |     37.5 |       0 |   17.94 | 13-90                               
+ src/repository/ssh-key/dto  |       0 |      100 |     100 |       0 |                                     
+  create-ssh-key.dto.ts      |       0 |      100 |     100 |       0 | 1-14                                
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+
+Test Suites: 2 failed, 6 passed, 8 total
+Tests:       3 failed, 33 passed, 36 total
+Snapshots:   0 total
+Time:        6.16 s
+Ran all test suites.

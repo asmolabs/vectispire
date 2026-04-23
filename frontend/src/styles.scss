@@ -1,0 +1,88 @@
+/* PrimeNG v21+ Core & Themes are managed via providePrimeNG in app.config.ts using @primeuix/themes */
+@import "primeicons/primeicons.css";
+@import "primeflex/primeflex.css";
+
+/* Sakai Layout Structure */
+@import "./assets/layout/layout.scss";
+
+/* Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap');
+
+html {
+    font-size: 14px;
+    scroll-behavior: smooth;
+}
+
+body {
+    /* PrimeNG 21 Design tokens */
+    --p-font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    
+    /* Mapping legacy Sakai variables to PrimeNG 21 Tokens */
+    --surface-ground: var(--p-surface-50, #f8fafc); /* Sakai standard background */
+    --surface-section: var(--p-surface-0);
+    --surface-card: var(--p-surface-0);
+    --surface-overlay: var(--p-surface-0);
+    --surface-border: var(--p-content-border-color);
+    --surface-hover: var(--p-content-hover-background);
+    
+    --text-color: var(--p-text-color);
+    --text-color-secondary: var(--p-text-muted-color);
+    --primary-color: var(--p-primary-color);
+    --primary-color-text: var(--p-primary-contrast-color);
+    
+    /* Legacy variables used in layout */
+    --surface-900: var(--p-text-color);
+
+    font-family: var(--p-font-family);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: var(--surface-ground);
+    color: var(--text-color);
+    -webkit-font-smoothing: antialiased;
+}
+
+html.app-dark body {
+    --surface-ground: var(--p-surface-950, #09090b);
+    --surface-card: var(--p-surface-900, #18181b);
+    --surface-section: var(--p-surface-900, #18181b);
+    --surface-overlay: var(--p-surface-900, #18181b);
+}
+
+.card {
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+    border-radius: 12px;
+}
+
+/* Custom Status Dot for Real-time indicator */
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    display: inline-block;
+}
+.status-dot.online {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--surface-border);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-color-secondary);
+}

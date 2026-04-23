@@ -1,0 +1,194 @@
+
+> backend@0.0.1 test:cov
+> jest --coverage
+
+(node:8050) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/app.controller.spec.ts
+(node:8053) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/repository/notification.gateway.spec.ts
+(node:8051) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/repository/repository.service.spec.ts
+(node:8052) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/repository/repository.controller.spec.ts
+(node:8049) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL src/repository/scan.processor.spec.ts
+  ● ScanProcessor › should be defined
+
+    Nest can't resolve dependencies of the ScanProcessor (ScanRepository, NotificationGateway, ?). Please make sure that the argument SSHKeyService at index [2] is available in the RootTestModule module.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If SSHKeyService is a provider, is it part of the current RootTestModule?
+    - If SSHKeyService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing SSHKeyService */ ]
+      })
+
+    For more common dependency resolution issues, see: https://docs.nestjs.com/faq/common-errors
+
+      28 |
+      29 |   beforeEach(async () => {
+    > 30 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+      31 |       providers: [
+      32 |         ScanProcessor,
+      33 |         {
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:290:19)
+      at TestingInjector.resolveComponentWrapper (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:140:38)
+          at async Promise.all (index 2)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:169:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:75:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:103:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (repository/scan.processor.spec.ts:30:35)
+
+  ● ScanProcessor › process › should complete successfully and update scan with summary
+
+    Nest can't resolve dependencies of the ScanProcessor (ScanRepository, NotificationGateway, ?). Please make sure that the argument SSHKeyService at index [2] is available in the RootTestModule module.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If SSHKeyService is a provider, is it part of the current RootTestModule?
+    - If SSHKeyService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing SSHKeyService */ ]
+      })
+
+    For more common dependency resolution issues, see: https://docs.nestjs.com/faq/common-errors
+
+      28 |
+      29 |   beforeEach(async () => {
+    > 30 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+      31 |       providers: [
+      32 |         ScanProcessor,
+      33 |         {
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:290:19)
+      at TestingInjector.resolveComponentWrapper (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:140:38)
+          at async Promise.all (index 2)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:169:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:75:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:103:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (repository/scan.processor.spec.ts:30:35)
+
+  ● ScanProcessor › process › should handle failure and set status to failed
+
+    Nest can't resolve dependencies of the ScanProcessor (ScanRepository, NotificationGateway, ?). Please make sure that the argument SSHKeyService at index [2] is available in the RootTestModule module.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If SSHKeyService is a provider, is it part of the current RootTestModule?
+    - If SSHKeyService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing SSHKeyService */ ]
+      })
+
+    For more common dependency resolution issues, see: https://docs.nestjs.com/faq/common-errors
+
+      28 |
+      29 |   beforeEach(async () => {
+    > 30 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+      31 |       providers: [
+      32 |         ScanProcessor,
+      33 |         {
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:290:19)
+      at TestingInjector.resolveComponentWrapper (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:140:38)
+          at async Promise.all (index 2)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:169:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:75:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:103:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (repository/scan.processor.spec.ts:30:35)
+
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+File                         | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                   
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+All files                    |   34.52 |    29.96 |   21.59 |   33.69 |                                     
+ src                         |   27.08 |       75 |   42.85 |   21.42 |                                     
+  app.controller.ts          |     100 |       75 |     100 |     100 | 6                                   
+  app.module.ts              |       0 |      100 |       0 |       0 | 1-57                                
+  app.service.ts             |     100 |      100 |     100 |     100 |                                     
+  main.ts                    |       0 |      100 |       0 |       0 | 1-25                                
+ src/auth                    |       0 |        0 |       0 |       0 |                                     
+  auth.controller.ts         |       0 |        0 |       0 |       0 | 1-74                                
+  auth.module.ts             |       0 |      100 |       0 |       0 | 1-41                                
+  auth.service.ts            |       0 |        0 |       0 |       0 | 1-95                                
+ src/auth/decorators         |       0 |      100 |       0 |       0 |                                     
+  public.decorator.ts        |       0 |      100 |       0 |       0 | 1-4                                 
+ src/auth/entities           |       0 |        0 |     100 |       0 |                                     
+  user.entity.ts             |       0 |        0 |     100 |       0 | 1-30                                
+ src/auth/guards             |       0 |        0 |       0 |       0 |                                     
+  jwt-auth.guard.ts          |       0 |        0 |       0 |       0 | 1-20                                
+ src/auth/strategies         |       0 |        0 |       0 |       0 |                                     
+  github.strategy.ts         |       0 |        0 |       0 |       0 | 1-38                                
+  jwt.strategy.ts            |       0 |        0 |       0 |       0 | 1-28                                
+  keycloak.strategy.ts       |       0 |        0 |       0 |       0 | 1-52                                
+ src/common                  |   21.42 |    23.07 |       0 |   15.38 |                                     
+  encryption.service.ts      |   21.42 |    23.07 |       0 |   15.38 | 7-47                                
+ src/repository              |   51.96 |    57.94 |   53.33 |   50.78 |                                     
+  notification.gateway.ts    |     100 |    83.33 |     100 |     100 | 18                                  
+  repository.controller.ts   |   84.37 |       75 |   54.54 |   83.33 | 30,35,40,45,55                      
+  repository.module.ts       |       0 |      100 |     100 |       0 | 1-26                                
+  repository.service.ts      |   73.91 |    69.23 |      50 |      75 | 48-49,52-53,56-57,70-73,105-128,156 
+  scan.processor.ts          |   21.05 |    27.27 |       0 |   18.91 | 20-158                              
+ src/repository/dto          |     100 |      100 |     100 |     100 |                                     
+  create-repository.dto.ts   |     100 |      100 |     100 |     100 |                                     
+  create-vex-decision.dto.ts |     100 |      100 |     100 |     100 |                                     
+  update-repository.dto.ts   |     100 |      100 |     100 |     100 |                                     
+ src/repository/entities     |   83.33 |       75 |       0 |   89.65 |                                     
+  repository.entity.ts       |   71.42 |       75 |       0 |   81.25 | 21,24,27                            
+  scan.entity.ts             |   89.47 |     87.5 |       0 |   93.75 | 36                                  
+  ssh-key.entity.ts          |   84.61 |       75 |       0 |      90 | 21                                  
+  vex-decision.entity.ts     |   89.47 |    66.66 |       0 |   93.75 | 30                                  
+ src/repository/ssh-key      |   13.84 |       25 |       0 |   11.86 |                                     
+  ssh-key.controller.ts      |       0 |        0 |       0 |       0 | 1-28                                
+  ssh-key.module.ts          |       0 |      100 |     100 |       0 | 1-14                                
+  ssh-key.service.ts         |   21.95 |     37.5 |       0 |   17.94 | 13-90                               
+ src/repository/ssh-key/dto  |       0 |      100 |     100 |       0 |                                     
+  create-ssh-key.dto.ts      |       0 |      100 |     100 |       0 | 1-14                                
+-----------------------------|---------|----------|---------|---------|-------------------------------------
+Test Suites: 1 failed, 4 passed, 5 total
+Tests:       3 failed, 20 passed, 23 total
+Snapshots:   0 total
+Time:        1.81 s, estimated 2 s
+Ran all test suites.

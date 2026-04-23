@@ -1,0 +1,65 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.3 [39m[90m/Users/asmolabs/Dev/Asmolabs/Zanshin/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [31m❯[39m src/app/api.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/app/app.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/app/add-repo/add-repo.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/app/repo-list/repo-list.spec.ts [2m([22m[2m0 test[22m[2m)[22m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 4 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/app/api.spec.ts[2m [ src/app/api.spec.ts ][22m
+[31m[1mReferenceError[22m: describe is not defined[39m
+[36m [2m❯[22m src/app/api.spec.ts:[2m5:1[22m[39m
+    [90m  3|[39m [35mimport[39m { [33mApi[39m } [35mfrom[39m [32m'./api'[39m[33m;[39m
+    [90m  4|[39m
+    [90m  5|[39m [34mdescribe[39m([32m'Api'[39m[33m,[39m () [33m=>[39m {
+    [90m   |[39m [31m^[39m
+    [90m  6|[39m   [35mlet[39m service[33m:[39m [33mApi[39m[33m;[39m
+    [90m  7|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/app.spec.ts[2m [ src/app/app.spec.ts ][22m
+[31m[1mReferenceError[22m: describe is not defined[39m
+[36m [2m❯[22m src/app/app.spec.ts:[2m4:1[22m[39m
+    [90m  2|[39m [35mimport[39m { [33mApp[39m } [35mfrom[39m [32m'./app'[39m[33m;[39m
+    [90m  3|[39m
+    [90m  4|[39m [34mdescribe[39m([32m'App'[39m[33m,[39m () [33m=>[39m {
+    [90m   |[39m [31m^[39m
+    [90m  5|[39m   [34mbeforeEach[39m([35masync[39m () [33m=>[39m {
+    [90m  6|[39m     [35mawait[39m [33mTestBed[39m[33m.[39m[34mconfigureTestingModule[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/repo-list/repo-list.spec.ts[2m [ src/app/repo-list/repo-list.spec.ts ][22m
+[31m[1mReferenceError[22m: describe is not defined[39m
+[36m [2m❯[22m src/app/repo-list/repo-list.spec.ts:[2m5:1[22m[39m
+    [90m  3|[39m [35mimport[39m { [33mRepoList[39m } [35mfrom[39m [32m'./repo-list'[39m[33m;[39m
+    [90m  4|[39m
+    [90m  5|[39m [34mdescribe[39m([32m'RepoList'[39m[33m,[39m () [33m=>[39m {
+    [90m   |[39m [31m^[39m
+    [90m  6|[39m   [35mlet[39m component[33m:[39m [33mRepoList[39m[33m;[39m
+    [90m  7|[39m   [35mlet[39m fixture[33m:[39m [33mComponentFixture[39m[33m<[39m[33mRepoList[39m[33m>[39m[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/app/add-repo/add-repo.spec.ts[2m [ src/app/add-repo/add-repo.spec.ts ][22m
+[31m[1mReferenceError[22m: describe is not defined[39m
+[36m [2m❯[22m src/app/add-repo/add-repo.spec.ts:[2m5:1[22m[39m
+    [90m  3|[39m [35mimport[39m { [33mAddRepo[39m } [35mfrom[39m [32m'./add-repo'[39m[33m;[39m
+    [90m  4|[39m
+    [90m  5|[39m [34mdescribe[39m([32m'AddRepo'[39m[33m,[39m () [33m=>[39m {
+    [90m   |[39m [31m^[39m
+    [90m  6|[39m   [35mlet[39m component[33m:[39m [33mAddRepo[39m[33m;[39m
+    [90m  7|[39m   [35mlet[39m fixture[33m:[39m [33mComponentFixture[39m[33m<[39m[33mAddRepo[39m[33m>[39m[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m4 failed[39m[22m[90m (4)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 19:23:03
+[2m   Duration [22m 938ms[2m (transform 566ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)[22m
+
