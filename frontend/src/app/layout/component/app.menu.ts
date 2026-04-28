@@ -58,10 +58,11 @@ export class AppMenu implements OnInit {
       this.model.push({
         label: 'Administration',
         items: [
-          { label: 'Utilisateurs', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
-          { label: 'Clés SSH', icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] },
-          { label: 'API', icon: 'pi pi-fw pi-key', routerLink: ['/api-keys'] },
-          { label: 'Paramètres', icon: 'pi pi-fw pi-shield', routerLink: ['/admin/settings'] },
+           { label: 'Utilisateurs', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
+           { label: 'Clés SSH', icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] },
+           { label: 'API', icon: 'pi pi-fw pi-key', routerLink: ['/api-keys'] },
+           { label: 'Audits', icon: 'pi pi-fw pi-history', routerLink: ['/audits'] },
+           { label: 'Paramètres', icon: 'pi pi-fw pi-shield', routerLink: ['/admin/settings'] },
         ]
       });
     }

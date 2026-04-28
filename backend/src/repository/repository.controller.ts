@@ -54,9 +54,9 @@ export class RepositoryController {
   @Delete(':repoId/scan/:scanId')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  removeScan(@Param('repoId') _repoId: string, @Param('scanId') scanId: string) {
-    return this.repositoryService.removeScan(+scanId);
-  }
+   removeScan(@Param('repoId') repoId: string, @Param('scanId') scanId: string) {
+     return this.repositoryService.removeScan(repoId, +scanId);
+   }
 
   @Post(':id/vex')
   upsertVex(@Param('id') id: string, @Body() dto: CreateVexDecisionDto) {

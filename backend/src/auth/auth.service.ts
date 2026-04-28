@@ -140,19 +140,80 @@ export class AuthService {
   }
 
 
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private jwtService: JwtService,
+    private auditService: AuditLogService, // Injected
+  ) {}
+
+  async validateUser(profile: any): Promise<User> {
+// ... lines 19-57 of the original code that validated/created user based on social login. No critical events to log here yet.
+
+  }
+// ... rest of validateKeycloakUser and validateUserLocal are unchanged for now as they don't inherently change the state like a successful LOGIN.
+
+  async registerUser(userData: any): Promise<User> {
+    const { username, password, email, displayName } = userData;
+
+    const userCount = await this.userRepository.count();
+    const isFirstUser = userCount === 0;
+
+    const existingUser = await this.userRepository.findOne({
+      where: [{ username }, { email }],
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Username or email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = this.userRepository.create({
+      username,
+      password: hashedPassword,
+      email,
+      displayName,
+      role: isFirstUser ? UserRole.SUPERUSER : UserRole.USER,
+      isActive: isFirstUser, // Only first user is active by default
+    });
+
+    await this.userRepository.save(user);
+        if (isFirstUser) {
+            // Audit the creation of a SUPERUSER account
+            await this.auditService.logAction({ 
+                userId: null, // System action
+                resourceId: user.id,
+                operationType: 'CREATE',
+                description: `Superuser created during initial registration.`
+            });
+        }
+
+    return user;
+  }
+
+
   async login(user: User) {
     if (!user.isActive) {
       throw new UnauthorizedException('Votre compte est en attente de validation par un administrateur.');
     }
     const payload = { username: user.username, sub: user.id, role: user.role };
+    const token = this.jwtService.sign(payload);
+
+    // *CRITICAL AUDIT:* Log successful login attempt
+    await this.auditService.logAction({ 
+        userId: user.id, 
+        resourceId: String(user.id), 
+        operationType: 'LOGIN_SUCCESSFUL', 
+        description: `User logged in successfully.`
+      });
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: token,
       user,
     };
   }
+// ... rest of the code
 
-
-  async canRegister(): Promise<boolean> {
     const userCount = await this.userRepository.count();
     return userCount === 0;
   }

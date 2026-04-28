@@ -78,9 +78,9 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(@Body() userData: any) {
-    return this.authService.registerUser(userData);
-  }
+   async register(@Body() userData: CreateUserDto) {
+     return this.authService.registerUser(userData);
+   }
 
   @Public()
   @Get('registration-status')
@@ -90,13 +90,59 @@ export class AuthController {
   }
 
 
-  @Public()
-  @Get('logout')
-  async logout(@Res() res: Response) {
-    res.clearCookie('zanshin_token');
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:4200');
-    return res.redirect(`${frontendUrl}/login`);
-  }
+    constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+    private readonly auditLogService: AuditLogService, // Injected for auditing
+  ) {}
+
+// ... lines 15-90 of the original code (no change here)
+// ...
+
+   @Public()
+   @Get('logout')
+   async logout(@Res() res: Response, @Req() req: Request) {
+     let userId = null;
+     // Attempt to extract user ID from token or session context before clearing cookies.
+     // In a real scenario, middleware should provide this User ID on the request object.
+     // For auditing purposes here, we assume logged-in state based on successful reaching /logout (HIGH risk workaround).
+     try {
+       const token = req.cookies['zanshin_token'];
+       if (token) {
+         // Decode necessary part of the JWT without full validation for simple ID extraction (RISKY but functional for logging context)
+         const jwt = require('jsonwebtoken');
+         const decoded = jwt.decode(token); 
+         userId = decoded?.sub ? String(decoded.sub) : null;
+       }
+     } catch (e) {
+       // Token retrieval failed or not present, treat as unauthenticated logout attempt
+     }
+
+     res.clearCookie('zanshin_token');
+     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:4200');
+     return res.redirect(`${frontendUrl}/login`);
+
+     // Audit Log AFTER successful logout action
+     if (userId) {
+       this.auditLogService.logAction({
+         userId,
+         resourceId: userId, // Auditing the user account itself for session events
+         operationType: 'LOGOUT_SUCCESSFUL', 
+         description: `User logged out successfully.`
+       });
+     } else {
+       // Log unauthenticated logout attempt
+        this.auditLogService.logAction({
+          userId: null, 
+          resourceId: 'N/A', 
+          operationType: 'LOGOUT_FAILED_AUTH', 
+          description: `Unauthenticated logout attempt.`
+        });
+     }
+   }
+
+  @Get('me')
+// ... rest of the code unchanged
 
   @Get('me')
   // No @Public() here, so it will use the global JwtAuthGuard

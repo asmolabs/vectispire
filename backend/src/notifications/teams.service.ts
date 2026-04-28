@@ -12,7 +12,8 @@ export class TeamsService {
 
   async sendVulnerabilityAlert(scanId: string, projectName: string, summary: any) {
     const settings = await this.settingsService.getTeamsSettings();
-    if (!settings.enabled || !settings.webhookUrl) {
+    if (!settings.enabled || !settings.webhookUrl || !this.isValidWebhookUrl(settings.webhookUrl)) {
+      this.logger.warn(`Teams notification disabled or webhook URL (${settings.webhookUrl}) is invalid/unsafe.`);
       return;
     }
 
@@ -81,8 +82,13 @@ export class TeamsService {
   }
 
   async sendTestMessage(webhookUrl: string) {
+    if (!this.isValidWebhookUrl(webhookUrl)) {
+      throw new Error('Invalid or unsafe webhook URL provided.');
+    }
+
     const payload = {
       type: "message",
+// ... rest of the code unchanged
       attachments: [
         {
           contentType: "application/vnd.microsoft.card.adaptive",
