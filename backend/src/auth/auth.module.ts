@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
+import { RepositoryModule } from '../repository/repository.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersController } from './users.controller';
@@ -21,6 +22,7 @@ import { ApiKeyAuthGuard } from './guards/api-key-auth.guard';
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, ApiKey]),
+    forwardRef(() => RepositoryModule),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

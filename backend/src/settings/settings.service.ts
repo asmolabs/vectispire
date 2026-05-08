@@ -5,12 +5,14 @@ import { Setting } from './entities/setting.entity';
 import { UpdateAuthSettingsDto } from './dto/update-auth-settings.dto';
 import { UpdateEmailSettingsDto } from './dto/update-email-settings.dto';
 import { UpdateAlertSettingsDto } from './dto/update-alert-settings.dto';
+import { AuditLogService } from '../repository/audit-log.service';
 
 @Injectable()
 export class SettingsService implements OnModuleInit {
   constructor(
     @InjectRepository(Setting)
     private settingsRepository: Repository<Setting>,
+    private readonly auditService: AuditLogService,
   ) {}
 
   async onModuleInit() {
@@ -52,17 +54,15 @@ export class SettingsService implements OnModuleInit {
   }
 
   async updateAuthSettings(dto: UpdateAuthSettingsDto, userId?: string) {
-    const updates = {};
     if (dto.githubEnabled !== undefined) {
-      updates['AUTH_GITHUB_ENABLED'] = dto.githubEnabled.toString();
+      await this.settingsRepository.save({ key: 'AUTH_GITHUB_ENABLED', value: dto.githubEnabled.toString() });
     }
     if (dto.keycloakEnabled !== undefined) {
-      updates['AUTH_KEYCLOAK_ENABLED'] = dto.keycloakEnabled.toString();
+      await this.settingsRepository.save({ key: 'AUTH_KEYCLOAK_ENABLED', value: dto.keycloakEnabled.toString() });
     }
 
-    const savedSettings = await this.settingsRepository.save(updates);
     await this.auditService.logAction({
-        userId, 
+        userId: userId ? Number(userId) : null, 
         resourceId: 'SETTINGS', 
         operationType: 'UPDATE', 
         description: `Auth settings updated.` 
@@ -88,16 +88,14 @@ export class SettingsService implements OnModuleInit {
   }
 
   async updateEmailSettings(dto: UpdateEmailSettingsDto, userId?: string) {
-    const updates = {};
-    if (dto.smtpHost !== undefined) updates['SMTP_HOST'] = dto.smtpHost;
-    if (dto.smtpPort !== undefined) updates['SMTP_PORT'] = dto.smtpPort;
-    if (dto.smtpUser !== undefined) updates['SMTP_USER'] = dto.smtpUser;
-    if (dto.smtpPass !== undefined) updates['SMTP_PASS'] = dto.smtpPass; // Sensitive change, must be audited!
-    if (dto.smtpFrom !== undefined) updates['SMTP_FROM'] = dto.smtpFrom;
+    if (dto.smtpHost !== undefined) await this.settingsRepository.save({ key: 'SMTP_HOST', value: dto.smtpHost });
+    if (dto.smtpPort !== undefined) await this.settingsRepository.save({ key: 'SMTP_PORT', value: dto.smtpPort });
+    if (dto.smtpUser !== undefined) await this.settingsRepository.save({ key: 'SMTP_USER', value: dto.smtpUser });
+    if (dto.smtpPass !== undefined) await this.settingsRepository.save({ key: 'SMTP_PASS', value: dto.smtpPass });
+    if (dto.smtpFrom !== undefined) await this.settingsRepository.save({ key: 'SMTP_FROM', value: dto.smtpFrom });
 
-    const savedSettings = await this.settingsRepository.save(updates);
     await this.auditService.logAction({
-        userId, 
+        userId: userId ? Number(userId) : null, 
         resourceId: 'SETTINGS', 
         operationType: 'UPDATE', 
         description: `Email settings updated.` 

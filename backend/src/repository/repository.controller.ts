@@ -55,7 +55,7 @@ export class RepositoryController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
    removeScan(@Param('repoId') repoId: string, @Param('scanId') scanId: string) {
-     return this.repositoryService.removeScan(repoId, +scanId);
+     return this.repositoryService.removeScan(+scanId);
    }
 
   @Post(':id/vex')

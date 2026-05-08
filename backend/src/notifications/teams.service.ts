@@ -127,4 +127,20 @@ export class TeamsService {
 
     return { message: 'Message de test envoyé' };
   }
+
+  private isValidWebhookUrl(url: string): boolean {
+    if (!url) return false;
+    try {
+      const parsedUrl = new URL(url);
+      // Microsoft Teams webhooks typically start with these domains
+      const allowedDomains = [
+        'outlook.office.com',
+        'outlook.office365.com',
+        'webhook.office.com'
+      ];
+      return allowedDomains.some(domain => parsedUrl.hostname.endsWith(domain)) && parsedUrl.protocol === 'https:';
+    } catch (e) {
+      return false;
+    }
+  }
 }

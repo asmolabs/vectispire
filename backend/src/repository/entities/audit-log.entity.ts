@@ -12,7 +12,7 @@ export class AuditLog {
   resourceId: string;
 
   // Type of operation performed (CREATE, UPDATE, DELETE, SCAN_TRIGGER)
-  operationType: 'CREATE' | 'UPDATE' | 'DELETE' | 'SCAN_TRIGGER';
+  operationType: 'CREATE' | 'UPDATE' | 'DELETE' | 'SCAN_TRIGGER' | 'LOGIN_SUCCESSFUL' | 'LOGOUT_SUCCESSFUL' | 'LOGOUT_FAILED_AUTH';
 
   // Brief description of the change or event
   description: string;

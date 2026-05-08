@@ -13,27 +13,31 @@ import { SSHKeyModule } from './ssh-key/ssh-key.module';
 import { EncryptionService } from '../common/encryption.service';
 import { AuthModule } from '../auth/auth.module';
 import { SchedulerService } from './scheduler.service';
+import { AuditLogService } from './audit-log.service';
+import { AuditLog } from './entities/audit-log.entity';
 
 import { ContainerModule } from '../container/container.module';
 import { Container } from '../container/entities/container.entity';
 import { SettingsModule } from '../settings/settings.module';
 import { MailModule } from '../mail/mail.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Repository, Scan, VexDecision, Container]),
+    TypeOrmModule.forFeature([Repository, Scan, VexDecision, Container, AuditLog]),
     BullModule.registerQueue({
       name: 'scan-queue',
     }),
     SSHKeyModule,
     forwardRef(() => AuthModule),
     ContainerModule,
-    SettingsModule,
-    MailModule,
+    forwardRef(() => SettingsModule),
+    forwardRef(() => MailModule),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [RepositoryController, ExternalScanController],
-  providers: [RepositoryService, ScanProcessor, NotificationGateway, EncryptionService, SchedulerService],
-  exports: [NotificationGateway],
+  providers: [RepositoryService, ScanProcessor, NotificationGateway, EncryptionService, SchedulerService, AuditLogService],
+  exports: [NotificationGateway, AuditLogService],
 })
 export class RepositoryModule {}
 
