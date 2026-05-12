@@ -27,7 +27,7 @@ public class AuthService implements UserDetailsService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuditLogService auditService;
-    private final AuthenticationManager authenticationManager;
+    private final @org.springframework.context.annotation.Lazy AuthenticationManager authenticationManager;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
