@@ -9,6 +9,7 @@
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/JwtUtils.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/SecurityConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/services/AuthService.java
+/Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/WebConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/WebSocketConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/services/EncryptionService.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/container/controllers/ContainerController.java

@@ -35,12 +35,14 @@ public class AuthController {
         Map<String, Object> result = authService.login(username, password);
         String token = (String) result.get("access_token");
 
-        Cookie cookie = new Cookie("zanshin_token", token);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(24 * 60 * 60); // 1 day
-        // cookie.setSecure(true); // Should be true in production
-        response.addCookie(cookie);
+        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("zanshin_token", token)
+                .httpOnly(true)
+                .secure(!"http://localhost:4200".equals(frontendUrl)) // Secure if not localhost
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .sameSite("Strict")
+                .build();
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString());
 
         return ResponseEntity.ok(Map.of("success", true, "user", result.get("user")));
     }
@@ -57,12 +59,14 @@ public class AuthController {
 
     @GetMapping("/logout")
     public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // Clear cookie
-        Cookie cookie = new Cookie("zanshin_token", null);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("zanshin_token", "")
+                .httpOnly(true)
+                .secure(!"http://localhost:4200".equals(frontendUrl))
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString());
 
         // Audit log (simplified)
         auditLogService.logAction(null, "N/A", "LOGOUT_SUCCESSFUL", "User logged out successfully.");

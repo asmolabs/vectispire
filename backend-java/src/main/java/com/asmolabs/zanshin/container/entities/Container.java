@@ -29,6 +29,7 @@ public class Container {
     @Column(name = "image_name", nullable = false)
     private String imageName;
 
+    @Builder.Default
     @Column(nullable = false)
     private String tag = "latest";
 

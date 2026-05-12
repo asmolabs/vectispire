@@ -26,9 +26,11 @@ public class ZanshinRepository {
     @Column(nullable = false)
     private String url;
 
+    @Builder.Default
     @Column(nullable = false)
     private String branch = "main";
 
+    @Builder.Default
     @Column(name = "sub_path")
     private String subPath = "";
 

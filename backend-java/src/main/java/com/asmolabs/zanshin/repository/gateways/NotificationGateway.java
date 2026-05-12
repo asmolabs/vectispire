@@ -16,7 +16,7 @@ public class NotificationGateway {
 
     public void sendScanUpdate(Long scanId, String status) {
         log.info("Sending scan update: Scan ID {}, Status {}", scanId, status);
-        messagingTemplate.convertAndSend("/topic/scanUpdated", Map.of(
+        messagingTemplate.convertAndSend("/topic/scanUpdated", (Object) Map.of(
                 "scanId", scanId,
                 "status", status
         ));

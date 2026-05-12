@@ -82,6 +82,22 @@ public class SettingsController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERUSER')")
     public ResponseEntity<Map<String, Object>> sendTeamsTest(@RequestBody Map<String, String> body) {
         String webhookUrl = body.get("webhookUrl");
+        validateUrl(webhookUrl);
         return ResponseEntity.ok(teamsService.sendTestMessage(webhookUrl));
+    }
+
+    private void validateUrl(String urlString) {
+        if (urlString == null || !urlString.startsWith("https://")) {
+            throw new RuntimeException("URL invalide. Seul le protocole HTTPS est autorisé.");
+        }
+        try {
+            java.net.URI uri = new java.net.URI(urlString);
+            String host = uri.getHost();
+            if (host == null || host.equals("localhost") || host.equals("127.0.0.1") || host.startsWith("192.168.") || host.startsWith("10.") || host.startsWith("172.")) {
+                throw new RuntimeException("URL non autorisée : les adresses locales ou privées sont interdites.");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("URL malformée : " + e.getMessage());
+        }
     }
 }

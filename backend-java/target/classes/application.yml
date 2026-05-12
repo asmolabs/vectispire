@@ -26,5 +26,9 @@ logging:
 
 zanshin:
   jwt:
-    secret: ${JWT_SECRET:your_very_long_and_very_secret_key_for_zanshin_backend}
+    secret: ${JWT_SECRET}
     expiration: 3600000 # 1 hour
+  encryption:
+    key: ${ENCRYPTION_KEY}
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:4200}

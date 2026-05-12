@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,6 +54,9 @@ public class ScanProcessor {
         try {
             tempDir = Files.createTempDirectory("zanshin_scan_" + scanId);
             File workDir = tempDir.toFile();
+
+            // 0. Validate Path
+            validatePath(subPath);
 
             // 1. Clone with JGit
             cloneRepositoryWithJGit(repoUrl, branch, workDir, sshKeyId);
@@ -114,20 +118,29 @@ public class ScanProcessor {
         if (sshKeyId != null) {
             String privateKey = sshKeyService.getDecryptedKey(sshKeyId);
             
-            // Create a temporary key file for JGit
-            Path keyFile = Files.createTempFile("jgit_key_", "");
+            // Create a temporary key file for JGit with strict permissions
+            java.nio.file.attribute.FileAttribute<java.util.Set<java.nio.file.attribute.PosixFilePermission>> attr = 
+                java.nio.file.attribute.PosixFilePermissions.asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+            Path keyFile = Files.createTempFile("jgit_key_", "", attr);
             Files.writeString(keyFile, privateKey);
-            keyFile.toFile().setReadable(true, true);
             
             SshdSessionFactory sessionFactory = new SshdSessionFactoryBuilder()
                     .setPreferredAuthentications("publickey")
                     .setHomeDirectory(FS.DETECTED.userHome())
                     .setSshDirectory(new File(FS.DETECTED.userHome(), ".ssh"))
+                    .setDefaultKeysProvider(file -> {
+                        try {
+                            return org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIdentities(null, null, Files.newInputStream(keyFile), null);
+                        } catch (Exception e) {
+                            return java.util.Collections.emptyList();
+                        }
+                    })
                     .build(null);
 
             cloneCommand.setTransportConfigCallback(transport -> {
-                SshTransport sshTransport = (SshTransport) transport;
-                sshTransport.setSshSessionFactory(sessionFactory);
+                if (transport instanceof SshTransport sshTransport) {
+                    sshTransport.setSshSessionFactory(sessionFactory);
+                }
             });
             
             try {
@@ -137,6 +150,12 @@ public class ScanProcessor {
             }
         } else {
             cloneCommand.call();
+        }
+    }
+
+    private void validatePath(String path) {
+        if (path != null && (path.contains("..") || path.startsWith("/") || path.contains("\\"))) {
+            throw new RuntimeException("Chemin invalide : la traversée de répertoire n'est pas autorisée.");
         }
     }
 

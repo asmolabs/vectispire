@@ -28,9 +28,11 @@ public class Scan {
     @Column(nullable = false)
     private String branch;
 
+    @Builder.Default
     @Column(name = "sub_path")
     private String subPath = "";
 
+    @Builder.Default
     @Column(nullable = false)
     private String status = "pending";
 
@@ -45,6 +47,7 @@ public class Scan {
 
     private Long durationMs;
 
+    @Builder.Default
     @Column(nullable = false)
     private int findingsCount = 0;
 

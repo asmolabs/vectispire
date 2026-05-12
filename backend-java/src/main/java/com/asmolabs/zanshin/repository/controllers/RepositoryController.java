@@ -17,6 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/repository")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPERUSER')")
 public class RepositoryController {
 
     private final RepositoryService repositoryService;

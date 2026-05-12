@@ -52,9 +52,9 @@ public class SchedulerService {
                 try {
                     CronExpression cron = CronExpression.parse(repo.getScanCron());
                     LocalDateTime lastScan = repo.getLastScheduledScanAt() != null ? repo.getLastScheduledScanAt() : LocalDateTime.MIN;
-                    LocalDateTime lastExecution = cron.prev(now);
+                    LocalDateTime nextExecution = cron.next(lastScan);
                     
-                    if (lastExecution != null && lastExecution.isAfter(lastScan)) {
+                    if (nextExecution != null && !nextExecution.isAfter(now)) {
                         shouldTrigger = true;
                         log.info("Cron trigger for repo {} ({})", repo.getUrl(), repo.getScanCron());
                     }
@@ -94,9 +94,9 @@ public class SchedulerService {
                 try {
                     CronExpression cron = CronExpression.parse(container.getScanCron());
                     LocalDateTime lastScan = container.getLastScheduledScanAt() != null ? container.getLastScheduledScanAt() : LocalDateTime.MIN;
-                    LocalDateTime lastExecution = cron.prev(now);
+                    LocalDateTime nextExecution = cron.next(lastScan);
                     
-                    if (lastExecution != null && lastExecution.isAfter(lastScan)) {
+                    if (nextExecution != null && !nextExecution.isAfter(now)) {
                         shouldTrigger = true;
                         log.info("Cron trigger for container {} ({})", container.getImageName(), container.getScanCron());
                     }

@@ -82,7 +82,7 @@ public class AuthService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         if (!user.isActive()) {
-            throw new RuntimeException("Votre compte est en attente de validation par un administrateur.");
+            throw new RuntimeException("Identifiants invalides ou compte non activé.");
         }
 
         UserDetails userDetails = loadUserByUsername(username);
