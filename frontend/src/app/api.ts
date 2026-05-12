@@ -82,11 +82,11 @@ export interface ApiKey {
 })
 export class ApiService {
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:3000/repository';
-  private sshUrl = 'http://localhost:3000/ssh-keys';
-  private usersUrl = 'http://localhost:3000/users';
-  private apiKeysUrl = 'http://localhost:3000/auth/api-keys';
-  private containersUrl = 'http://localhost:3000/containers';
+  private baseUrl = 'http://localhost:8080/api/repository';
+  private sshUrl = 'http://localhost:8080/api/ssh-keys';
+  private usersUrl = 'http://localhost:8080/api/users';
+  private apiKeysUrl = 'http://localhost:8080/api/auth/api-keys';
+  private containersUrl = 'http://localhost:8080/api/containers';
 
   getRepositories() {
     return this.http.get<Repository[]>(this.baseUrl);

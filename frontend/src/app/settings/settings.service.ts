@@ -29,7 +29,7 @@ export interface TeamsSettings {
 })
 export class SettingsService {
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:3000/settings';
+  private baseUrl = 'http://localhost:8080/api/settings';
 
   getAuthSettings() {
     return this.http.get<AuthSettings>(`${this.baseUrl}/auth`);

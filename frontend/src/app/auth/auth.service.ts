@@ -20,7 +20,7 @@ export interface User {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
-  private baseUrl = 'http://localhost:3000/auth';
+  private baseUrl = 'http://localhost:8080/api/auth';
 
   user = signal<User | null>(null);
   isAuthenticated = signal<boolean>(false);

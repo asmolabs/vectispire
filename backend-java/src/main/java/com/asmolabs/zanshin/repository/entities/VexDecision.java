@@ -41,7 +41,7 @@ public class VexDecision {
     private String comment;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "repository_id", nullable = false)
+    @JoinColumn(name = "repository_id")
     private ZanshinRepository repository;
 
     @CreationTimestamp

@@ -3,12 +3,15 @@
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/entities/User.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/enums/UserRole.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/repositories/UserRepository.java
+/Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/AuthConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/CustomOAuth2User.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/CustomOAuth2UserService.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/JwtAuthenticationFilter.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/JwtUtils.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/security/SecurityConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/auth/services/AuthService.java
+/Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/AppConfig.java
+/Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/DataInitializer.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/WebConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/config/WebSocketConfig.java
 /Users/lrb/Dev/Asmolabs/Zanshin/backend-java/src/main/java/com/asmolabs/zanshin/common/services/EncryptionService.java
