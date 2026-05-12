@@ -1,5 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { MailService } from './mail.service';
+import { MailService } from './services/mail.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({

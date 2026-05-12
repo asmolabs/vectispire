@@ -68,7 +68,7 @@ import { TooltipModule } from 'primeng/tooltip';
                                   <p-tag [value]="scan.summary.medium.toString()" severity="info" *ngIf="scan.summary.medium > 0"></p-tag>
                                 </div>
                               </ng-container>
-                              <span *ngIf="scan.status === 'failed'" class="text-xs text-red-500" pTooltip="Voir l'erreur">
+                              <span *ngIf="scan.status === 'failed'" class="text-xs text-red-500" [pTooltip]="scan.error || 'Erreur inconnue'" tooltipPosition="left">
                                 <i class="pi pi-info-circle"></i>
                               </span>
                               <i class="pi pi-chevron-right text-secondary"></i>

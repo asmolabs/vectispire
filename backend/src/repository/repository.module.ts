@@ -1,19 +1,19 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
-import { RepositoryService } from './repository.service';
-import { RepositoryController } from './repository.controller';
-import { ExternalScanController } from './external-scan.controller';
+import { RepositoryService } from './services/repository.service';
+import { RepositoryController } from './controllers/repository.controller';
+import { ExternalScanController } from './controllers/external-scan.controller';
 import { Repository } from './entities/repository.entity';
 import { Scan } from './entities/scan.entity';
 import { VexDecision } from './entities/vex-decision.entity';
-import { ScanProcessor } from './scan.processor';
-import { NotificationGateway } from './notification.gateway';
+import { ScanProcessor } from './services/scan.processor';
+import { NotificationGateway } from './gateways/notification.gateway';
 import { SSHKeyModule } from './ssh-key/ssh-key.module';
-import { EncryptionService } from '../common/encryption.service';
+import { EncryptionService } from '../common/services/encryption.service';
 import { AuthModule } from '../auth/auth.module';
-import { SchedulerService } from './scheduler.service';
-import { AuditLogService } from './audit-log.service';
+import { SchedulerService } from './services/scheduler.service';
+import { AuditLogService } from './services/audit-log.service';
 import { AuditLog } from './entities/audit-log.entity';
 
 import { ContainerModule } from '../container/container.module';

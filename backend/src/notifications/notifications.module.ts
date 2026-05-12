@@ -1,5 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { TeamsService } from './teams.service';
+import { TeamsService } from './services/teams.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({

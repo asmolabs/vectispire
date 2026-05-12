@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ApiKeyAuthGuard } from './api-key-auth.guard';
-import { ApiKeyService } from '../api-key.service';
+import { ApiKeyService } from '../services/api-key.service';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 describe('ApiKeyAuthGuard', () => {

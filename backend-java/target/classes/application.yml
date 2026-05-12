@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: zanshin
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:sqlite:../backend/database.sqlite
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.asmolabs.zanshin: DEBUG
+
+zanshin:
+  jwt:
+    secret: ${JWT_SECRET:your_very_long_and_very_secret_key_for_zanshin_backend}
+    expiration: 3600000 # 1 hour

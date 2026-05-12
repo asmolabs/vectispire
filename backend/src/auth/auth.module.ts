@@ -5,9 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { RepositoryModule } from '../repository/repository.module';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UsersController } from './users.controller';
+import { AuthService } from './services/auth.service';
+import { AuthController } from './controllers/auth.controller';
+import { UsersController } from './controllers/users.controller';
 import { User } from './entities/user.entity';
 import { ApiKey } from './entities/api-key.entity';
 import { GithubStrategy } from './strategies/github.strategy';
@@ -15,8 +15,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { KeycloakStrategy } from './strategies/keycloak.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { ApiKeyService } from './api-key.service';
-import { ApiKeyController } from './api-key.controller';
+import { ApiKeyService } from './services/api-key.service';
+import { ApiKeyController } from './controllers/api-key.controller';
 import { ApiKeyAuthGuard } from './guards/api-key-auth.guard';
 
 @Module({

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
-import { ContainerService } from './container.service';
-import { ContainerController } from './container.controller';
+import { ContainerService } from './services/container.service';
+import { ContainerController } from './controllers/container.controller';
 import { Container } from './entities/container.entity';
 import { Scan } from '../repository/entities/scan.entity';
 

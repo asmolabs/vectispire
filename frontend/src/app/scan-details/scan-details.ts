@@ -37,6 +37,16 @@ import autoTable from 'jspdf-autotable';
       (onHide)="closeModal()">
       
       <div *ngIf="scan" class="p-fluid mt-2">
+        <div *ngIf="scan.status === 'failed'" class="p-3 border-round-xl bg-red-50 border-red-100 border-1 mb-4 shadow-sm">
+          <div class="flex align-items-center gap-2 text-red-700 font-bold mb-2">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>L'analyse a échoué</span>
+          </div>
+          <div class="p-2 bg-white-alpha-50 border-round text-red-600 text-sm font-monospace overflow-auto" style="max-height: 150px;">
+            {{ scan.error || 'Aucune information d\\'erreur détaillée n\\'est disponible.' }}
+          </div>
+        </div>
+
         <div class="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-2">
           <div>
             <div class="flex align-items-center gap-3 mb-1">
