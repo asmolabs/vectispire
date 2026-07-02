@@ -1,0 +1,17 @@
+[project]
+name = "backend-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "cryptography>=49.0.0",
+    "docker>=7.1.0",
+    "gitpython>=3.1.50",
+    "passlib>=1.7.4",
+    "pydantic>=2.13.4",
+    "python-jose>=3.5.0",
+    "reflex>=0.9.6.post1",
+    "sqlalchemy>=2.0.51",
+]
