@@ -45,9 +45,8 @@ def sidebar(current_page: str, user_role: str) -> rx.Component:
         # Navigation Items
         rx.vstack(
             nav_item("Tableau de bord", "home", "/dashboard", current_page),
-            nav_item("Centre de scan", "shield", "/scan-center", current_page),
             nav_item("Conteneurs", "box", "/containers", current_page),
-            nav_item("Dépôts / Plannings", "git-branch", "/depots", current_page),
+            nav_item("Dépôts & Scans", "git-branch", "/depots", current_page),
             nav_item("Clés SSH", "key", "/ssh-keys", current_page),
             nav_item("Clés API", "lock", "/api-keys", current_page),
             

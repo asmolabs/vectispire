@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
+    "bcrypt>=4.2.0",
     "cryptography>=49.0.0",
     "docker>=7.1.0",
     "gitpython>=3.1.50",

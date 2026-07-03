@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Database path (matches the SQLite DB used by NestJS/Java backends)
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../backend/database.sqlite"))
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "./database.sqlite"))
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(

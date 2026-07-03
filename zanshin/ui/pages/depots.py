@@ -11,10 +11,14 @@ from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
 
 class DepotsState(BaseState):
-    """Manages the Git repositories configuration, planning (interval/cron), and detailed scan history."""
+    """Manages the Git repositories configuration, planning, and unified global scan history."""
     
     repositories: list[dict[str, str]] = []
     ssh_keys_list: list[dict[str, str]] = []
+    
+    # Global Scan History
+    scan_history: list[dict[str, str]] = []
+    search_history_query: str = ""
     
     # Add Repo modal variables
     dialog_open: bool = False
@@ -62,8 +66,16 @@ class DepotsState(BaseState):
     def set_selected_repo_cron(self, val: str):
         self.selected_repo_cron = val
 
+    def set_search_history_query(self, val: str):
+        self.search_history_query = val
+        return DepotsState.load_history_list(self)
+
     def load_repositories_data(self):
-        self.set_current_page("Dépôts / Plannings")
+        self.set_current_page("Dépôts & Scans")
+        yield DepotsState.load_repos_list(self)
+        yield DepotsState.load_history_list(self)
+
+    def load_repos_list(self):
         container = get_container()
         try:
             db_repos = container.repository_repository.find_all()
@@ -107,6 +119,55 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    def load_history_list(self):
+        container = get_container()
+        try:
+            db = container.db
+            db_scans = db.query(Scan).all()
+            self.scan_history = []
+            filter_query = self.search_history_query.lower()
+            
+            # Sort scans by creation date descending
+            db_scans = sorted(db_scans, key=lambda s: s.created_at or datetime.min, reverse=True)
+            
+            for s in db_scans:
+                target_name = "N/A"
+                branch = "—"
+                if s.repo_id:
+                    target_name = s.repository.name or s.repository.url if s.repository else "Dépôt inconnu"
+                    branch = s.branch or "main"
+                elif s.container_id:
+                    target_name = s.container.image_string if s.container else "Image inconnue"
+                
+                status = s.status or "pending"
+                if filter_query:
+                    if (filter_query not in target_name.lower() and 
+                        filter_query not in branch.lower() and 
+                        filter_query not in status.lower()):
+                        continue
+                
+                duration = f"{s.duration_ms // 1000}s" if s.duration_ms else "—"
+                summary = s.summary or {}
+                
+                self.scan_history.append({
+                    "id": str(s.id),
+                    "repo_id": str(s.repo_id) if s.repo_id else "",
+                    "target_name": target_name,
+                    "branch": branch,
+                    "status": status,
+                    "findings": str(s.findings_count),
+                    "critical": str(summary.get("critical", 0)),
+                    "high": str(summary.get("high", 0)),
+                    "medium": str(summary.get("medium", 0)),
+                    "low": str(summary.get("low", 0)),
+                    "duration": duration,
+                    "created_at": s.created_at.strftime("%d/%m/%y %H:%M") if s.created_at else ""
+                })
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur de chargement de l'historique : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
     def set_new_interval(self, val: str):
         try:
             self.new_interval = int(val) if val else 1440
@@ -138,7 +199,6 @@ class DepotsState(BaseState):
             )
             container.repository_repository.save(new_r)
             
-            # Reset
             self.new_name = ""
             self.new_url = ""
             self.new_branch = "main"
@@ -167,6 +227,24 @@ class DepotsState(BaseState):
             yield self.trigger_toast(f"Erreur de scan : {str(e)}", is_error=True)
         finally:
             container_ioc.db.close()
+
+    async def relaunch_scan(self, repo_id_str: str):
+        if not repo_id_str:
+            yield self.trigger_toast("Dépôt non associé à ce scan", is_error=True)
+            return
+        yield DepotsState.trigger_scan(self, int(repo_id_str))
+
+    def delete_scan(self, scan_id_str: str):
+        container = get_container()
+        try:
+            scan_id = int(scan_id_str)
+            container.scan_repository.delete_by_id(scan_id)
+            yield self.trigger_toast("Enregistrement de scan supprimé")
+            yield DepotsState.load_history_list(self)
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur de suppression : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
 
     def delete_repository(self, repo_id: int):
         container = get_container()
@@ -248,9 +326,14 @@ class DepotsState(BaseState):
             if not s:
                 return
             
-            self.selected_scan_name = f"Scan #{s.id} (Branche: {s.branch})"
+            target_info = ""
+            if s.repo_id:
+                target_info = s.repository.name or s.repository.url
+            elif s.container_id:
+                target_info = s.container.image_string
+                
+            self.selected_scan_name = f"Scan #{s.id} ({target_info})"
             
-            # Parse findings
             cves_data = s.cves or {}
             matches = cves_data.get("matches", [])
             
@@ -406,11 +489,11 @@ def list_layout_view() -> rx.Component:
                                 rx.hstack(
                                     rx.tooltip(
                                         rx.button(
-                                            rx.icon(tag="shield"),
+                                            rx.icon(tag="play"),
                                             size="2",
-                                            color_scheme="indigo",
+                                            color_scheme="green",
                                             variant="soft",
-                                            on_click=lambda: DepotsState.trigger_scan(r["id"])
+                                            on_click=lambda: DepotsState.trigger_scan(r["id"].to(int))
                                         ),
                                         content="Lancer Scan"
                                     ),
@@ -420,7 +503,7 @@ def list_layout_view() -> rx.Component:
                                             size="2",
                                             color_scheme="teal",
                                             variant="soft",
-                                            on_click=lambda: DepotsState.view_details(r["id"])
+                                            on_click=lambda: DepotsState.view_details(r["id"].to(int))
                                         ),
                                         content="Planification / Détails"
                                     ),
@@ -430,7 +513,119 @@ def list_layout_view() -> rx.Component:
                                             size="2",
                                             color_scheme="red",
                                             variant="soft",
-                                            on_click=lambda: DepotsState.delete_repository(r["id"])
+                                            on_click=lambda: DepotsState.delete_repository(r["id"].to(int))
+                                        ),
+                                        content="Supprimer"
+                                    ),
+                                    spacing="2"
+                                )
+                            )
+                        )
+                    )
+                ),
+                width="100%"
+            ),
+            width="100%",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+        ),
+        width="100%"
+    )
+
+def history_layout_view() -> rx.Component:
+    """Renders the global scans history list."""
+    return rx.vstack(
+        rx.hstack(
+            rx.text("Historique de l'ensemble des analyses effectuées", size="2", color="var(--slate-10)"),
+            rx.spacer(),
+            rx.input(
+                placeholder="Filtrer l'historique...",
+                value=DepotsState.search_history_query,
+                on_change=DepotsState.set_search_history_query,
+                class_name="max-w-xs"
+            ),
+            width="100%",
+            align="center"
+        ),
+        
+        # Scans History Table
+        rx.box(
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.table.column_header_cell("# ID"),
+                        rx.table.column_header_cell("Cible de scan"),
+                        rx.table.column_header_cell("Branche"),
+                        rx.table.column_header_cell("Statut"),
+                        rx.table.column_header_cell("Durée"),
+                        rx.table.column_header_cell("Vulnérabilités"),
+                        rx.table.column_header_cell("Date de scan"),
+                        rx.table.column_header_cell("Actions")
+                    )
+                ),
+                rx.table.body(
+                    rx.foreach(
+                        DepotsState.scan_history,
+                        lambda s: rx.table.row(
+                            rx.table.cell(rx.Var.create(f"#{s['id']}")),
+                            rx.table.row_header_cell(s["target_name"]),
+                            rx.table.cell(s["branch"]),
+                            rx.table.cell(
+                                rx.badge(
+                                    s["status"],
+                                    color_scheme=rx.cond(
+                                        s["status"] == "completed",
+                                        "green",
+                                        rx.cond(s["status"] == "scanning", "blue", "gray")
+                                    )
+                                )
+                            ),
+                            rx.table.cell(s["duration"]),
+                            rx.table.cell(
+                                rx.cond(
+                                    (s["findings"] == "0") | (s["status"] == "Non scanné"),
+                                    rx.badge("0", color_scheme="green"),
+                                    rx.hstack(
+                                        rx.cond(s["critical"] != "0", rx.badge(f"Crit: {s['critical']}", color_scheme="red", variant="solid")),
+                                        rx.cond(s["high"] != "0", rx.badge(f"Élevé: {s['high']}", color_scheme="orange", variant="solid")),
+                                        rx.cond(s["medium"] != "0", rx.badge(f"Moy: {s['medium']}", color_scheme="yellow")),
+                                        rx.cond(s["low"] != "0", rx.badge(f"Faible: {s['low']}", color_scheme="blue")),
+                                        spacing="1"
+                                    )
+                                )
+                            ),
+                            rx.table.cell(s["created_at"]),
+                            rx.table.cell(
+                                rx.hstack(
+                                    rx.tooltip(
+                                        rx.button(
+                                            rx.icon(tag="eye"),
+                                            size="2",
+                                            color_scheme="teal",
+                                            variant="soft",
+                                            on_click=lambda: DepotsState.show_cves(s["id"].to(int))
+                                        ),
+                                        content="Détails (CVEs)"
+                                    ),
+                                    rx.cond(
+                                        s["repo_id"] != "",
+                                        rx.tooltip(
+                                            rx.button(
+                                                rx.icon(tag="refresh-cw"),
+                                                size="2",
+                                                color_scheme="green",
+                                                variant="soft",
+                                                on_click=lambda: DepotsState.relaunch_scan(s["repo_id"])
+                                            ),
+                                            content="Re-scanner"
+                                        )
+                                    ),
+                                    rx.tooltip(
+                                        rx.button(
+                                            rx.icon(tag="trash"),
+                                            size="2",
+                                            color_scheme="red",
+                                            variant="soft",
+                                            on_click=lambda: DepotsState.delete_scan(s["id"])
                                         ),
                                         content="Supprimer"
                                     ),
@@ -547,7 +742,7 @@ def details_layout_view() -> rx.Component:
                                             size="2",
                                             color_scheme="teal",
                                             variant="soft",
-                                            on_click=lambda: DepotsState.show_cves(scan["id"])
+                                            on_click=lambda: DepotsState.show_cves(scan["id"].to(int))
                                         ),
                                         content="Voir CVEs"
                                     )
@@ -566,11 +761,35 @@ def details_layout_view() -> rx.Component:
 
 def depots_page() -> rx.Component:
     """Depots planning and configuration view component."""
+    
+    tabbed_view = rx.tabs.root(
+        rx.tabs.list(
+            rx.tabs.trigger(
+                rx.hstack(rx.icon(tag="git-branch", size=16), rx.text("Gestion des Dépôts")),
+                value="depots"
+            ),
+            rx.tabs.trigger(
+                rx.hstack(rx.icon(tag="history", size=16), rx.text("Historique Global des Scans")),
+                value="history"
+            ),
+            class_name="mb-6 border-b border-slate-4"
+        ),
+        rx.tabs.content(
+            list_layout_view(),
+            value="depots"
+        ),
+        rx.tabs.content(
+            history_layout_view(),
+            value="history"
+        ),
+        default_value="depots"
+    )
+
     content = rx.vstack(
         rx.cond(
             DepotsState.is_viewing_details,
             details_layout_view(),
-            list_layout_view()
+            tabbed_view
         ),
         
         # CVE details modal dialog (shared)
@@ -680,4 +899,4 @@ def depots_page() -> rx.Component:
         on_mount=DepotsState.load_repositories_data
     )
     
-    return main_layout(content, "Dépôts / Plannings")
+    return main_layout(content, "Dépôts & Scans")
