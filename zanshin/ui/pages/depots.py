@@ -435,6 +435,19 @@ class DepotsState(BaseState):
                 "error": ai_review.error or "",
             } if ai_review else {}
 
+            # Normalized findings extracted from the AI review response (see
+            # AiReviewService.parse_findings / ScanProcessor._run_ai_review)
+            # — severity/title/file only, the fuller narrative stays above.
+            ai_findings = container.finding_repository.find_all_by_scan_id_and_type(scan_id, "ai_review")
+            self.selected_scan_ai_findings = [
+                {
+                    "severity": (f.severity or "unknown").upper(),
+                    "title": f.identifier or "N/A",
+                    "file_path": f.file_path or "—",
+                }
+                for f in ai_findings
+            ]
+
             self.selected_scan_cves = parsed_cves
             self.selected_scan_summary = s.summary or {}
             self.cve_dialog_open = True
@@ -1145,6 +1158,52 @@ def depots_page() -> rx.Component:
                                     size="2", white_space="pre-wrap"
                                 ),
                                 class_name="p-4 rounded-lg bg-slate-2 border border-slate-4 max-h-64 overflow-y-auto"
+                            )
+                        ),
+                        # Normalized findings extracted from the response
+                        # (see AiReviewService.parse_findings) — only shown
+                        # when the model's response actually parsed.
+                        rx.cond(
+                            DepotsState.selected_scan_ai_findings.length() > 0,
+                            rx.box(
+                                rx.table.root(
+                                    rx.table.header(
+                                        rx.table.row(
+                                            rx.table.column_header_cell("Sévérité"),
+                                            rx.table.column_header_cell("Titre"),
+                                            rx.table.column_header_cell("Fichier")
+                                        )
+                                    ),
+                                    rx.table.body(
+                                        rx.foreach(
+                                            DepotsState.selected_scan_ai_findings,
+                                            lambda finding: rx.table.row(
+                                                rx.table.cell(
+                                                    rx.badge(
+                                                        finding["severity"],
+                                                        color_scheme=rx.cond(
+                                                            finding["severity"] == "CRITICAL",
+                                                            "red",
+                                                            rx.cond(
+                                                                finding["severity"] == "HIGH",
+                                                                "orange",
+                                                                rx.cond(
+                                                                    finding["severity"] == "MEDIUM",
+                                                                    "yellow",
+                                                                    rx.cond(finding["severity"] == "LOW", "blue", "gray")
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                ),
+                                                rx.table.cell(finding["title"]),
+                                                rx.table.cell(finding["file_path"])
+                                            )
+                                        )
+                                    ),
+                                    width="100%"
+                                ),
+                                class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg mt-3"
                             )
                         ),
                         width="100%",
