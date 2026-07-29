@@ -172,10 +172,22 @@ erDiagram
         string user_id "loose reference, not FK-enforced (legacy table)"
     }
 
+    AI_REVIEW_RESULT {
+        int id PK
+        bigint scan_id FK "unique — at most one per scan"
+        string model
+        text prompt
+        text response
+        string status "completed/failed"
+        string error
+        datetime created_at
+    }
+
     SSH_KEY ||--o{ REPOSITORY : "used to clone (optional)"
     REPOSITORY ||--o{ SCAN : "cascade delete-orphan"
     CONTAINER ||--o{ SCAN : "cascade delete-orphan"
     SCAN ||--o{ FINDING : "cascade delete-orphan"
+    SCAN ||--o| AI_REVIEW_RESULT : "cascade delete-orphan"
     REPOSITORY ||--o{ VEX_DECISION : "cascade delete-orphan"
     FINDING }o--o| VEX_DECISION : "linked to (optional, one-way FK)"
 ```
@@ -186,6 +198,7 @@ Notes:
 - `Finding` is the normalized, queryable projection of a scan's results (used by the UI, VEX triage, and enrichment). The raw `Scan.sbom`/`Scan.cves` JSON blobs are kept alongside it, unmodified, for audit purposes.
 - `Finding.vex_decision_id` is a one-way FK onto the pre-existing `vex_decision` table — safe to add because it's a column on the new `finding` table, not a change to `vex_decision` itself.
 - `AuditLog` maps onto `audit_logs`, a table inherited from an earlier implementation of this application. Its schema was matched exactly (via `PRAGMA table_info` against the live database) rather than redesigned, since there's no migration tool to alter it. `user_id` is a plain string column, not an enforced foreign key.
+- `AiReviewResult` holds the optional AI code review's raw narrative output (see §4bis) — a separate table rather than a `Finding` column, since it's free-form text, not a normalized/queryable finding, and adding a `Text` column to the existing `Finding` table would need a manual migration.
 - `GUID` (`zanshin/models/guid.py`) is a custom SQLAlchemy type storing UUIDs as 16-byte binary values in SQLite (`SSHKey`, `ApiKey`, `AuditLog` all use it as their primary key type).
 
 ### 3. Scan pipeline (sequence)
@@ -257,6 +270,14 @@ Key points not obvious from the diagram alone:
 
 All three implement the same `ScannerEngine` abstract base (`zanshin/services/scanners/base.py`): `generate_sbom_for_image`, `generate_sbom_for_directory`, `scan_sbom`, `scan_secrets`, `scan_iac`, plus the concrete `get_workspace_root()`.
 
+### 4bis. Optional: AI code review (Ollama)
+
+`AiReviewService` (`zanshin/services/ai_review_service.py`) is a separate, disabled-by-default addition — not a `ScannerEngine` implementation. It sends source code to a locally-run [Ollama](https://ollama.com) model with a "security architect" system prompt (`review_code()`), as a lightweight complement to the structured scanners above rather than a SAST replacement.
+
+The model choice is deliberately not hardcoded: `list_available_models()` reads live from Ollama's own `GET /api/tags`, so whatever the operator has actually pulled is what becomes selectable from the Settings page — a short fallback list (`gemma4:12b-it-qat`, `gemma4:e4b-it-qat`) is only shown as a suggestion when Ollama can't be reached, never presented as installed. `gemma4:12b-it-qat` (official Ollama library, Q4_0/4-bit, ~7.2GB, ~9-10GB RAM/VRAM) is the documented default; `gemma4:e4b-it-qat` (~6.1GB) trades review quality for a lighter footprint on constrained hosts. Settings: `ai_review_enabled`, `ai_review_model`, `ai_review_ollama_url` (default `http://localhost:11434`).
+
+**Pipeline integration:** when `ai_review_enabled` is set, `ScanProcessor` calls `AiReviewService` for **repository scans only** (same reasoning as secrets/IaC — no source code for a container image scan). `ScanProcessor._collect_ai_review_sample()` builds the code sample sent to the model: a sorted, extension-filtered concatenation of source files (skipping `.git`/`node_modules`/`.venv`/`__pycache__`/`dist`/`build`), capped at `AI_REVIEW_MAX_CHARS` (40,000 characters, no chunking/RAG — large repositories are silently truncated). The result is persisted as one `AiReviewResult` row per scan (§2), and is best-effort like enrichment: a failure (Ollama unreachable, model error) is recorded on that row (`status="failed"`, `error=...`) but never turns the scan itself into a failure. Displayed in the scan detail dialog (`depots.py`) only when a result exists for that scan.
+
 ### 5. Service / repository reference
 
 | Service | Responsibility |
@@ -265,6 +286,7 @@ All three implement the same `ScannerEngine` abstract base (`zanshin/services/sc
 | `RepositoryService` / `ContainerService` | CRUD for tracked repos/images; `trigger_scan()` creates the `Scan` row and dispatches `ScanProcessor.process_scan` to the background executor. |
 | `EnrichmentService` | Populates `epss_score`/`is_kev` on vulnerability findings after a scan. Caches the KEV catalog at the **class** level (survives `IoCContainer` being rebuilt per request); never turns a completed scan into a failure. |
 | `LicenseComplianceService` | Evaluates a configurable license blocklist against SBOM data already collected by Syft (no separate scanner tool). |
+| `AiReviewService` | Optional, disabled-by-default LLM code review via Ollama (see §4bis). Called from `ScanProcessor` for repository scans; never turns a completed scan into a failure. |
 | `UserService` | User CRUD with guardrails: can't delete your own account, can't demote/deactivate/delete the last active `SUPERUSER`. |
 | `ApiKeyService` | Issues API keys: bcrypt hash stored, raw secret returned once at creation and never persisted. |
 | `AuditLogService` | Records sensitive admin actions (`AuditOperation` constants: logins, user/API-key/setting changes); `record()` never raises — a logging failure must not break the action being audited. |
@@ -448,10 +470,22 @@ erDiagram
         string user_id "référence non contrainte (table héritée)"
     }
 
+    AI_REVIEW_RESULT {
+        int id PK
+        bigint scan_id FK "unique — au plus un par scan"
+        string model
+        text prompt
+        text response
+        string status "completed/failed"
+        string error
+        datetime created_at
+    }
+
     SSH_KEY ||--o{ REPOSITORY : "utilisée pour cloner (optionnel)"
     REPOSITORY ||--o{ SCAN : "cascade delete-orphan"
     CONTAINER ||--o{ SCAN : "cascade delete-orphan"
     SCAN ||--o{ FINDING : "cascade delete-orphan"
+    SCAN ||--o| AI_REVIEW_RESULT : "cascade delete-orphan"
     REPOSITORY ||--o{ VEX_DECISION : "cascade delete-orphan"
     FINDING }o--o| VEX_DECISION : "lié à (optionnel, FK à sens unique)"
 ```
@@ -462,6 +496,7 @@ Remarques :
 - `Finding` est la projection normalisée et requêtable des résultats d'un scan (utilisée par l'UI, le triage VEX et l'enrichissement). Les blobs JSON bruts `Scan.sbom`/`Scan.cves` sont conservés à côté, inchangés, à des fins d'audit.
 - `Finding.vex_decision_id` est une FK à sens unique vers la table préexistante `vex_decision` — sans risque à ajouter car c'est une colonne sur la nouvelle table `finding`, pas une modification de `vex_decision` elle-même.
 - `AuditLog` correspond à `audit_logs`, une table héritée d'une implémentation précédente de cette application. Son schéma a été repris à l'identique (via `PRAGMA table_info` sur la base réelle) plutôt que redessiné, faute d'outil de migration pour la modifier. `user_id` est une simple colonne texte, pas une clé étrangère contrainte.
+- `AiReviewResult` contient la sortie narrative brute de la revue de code par IA optionnelle (voir §4bis) — une table séparée plutôt qu'une colonne sur `Finding`, puisqu'il s'agit de texte libre, pas d'un finding normalisé/requêtable, et qu'ajouter une colonne `Text` à la table `finding` existante nécessiterait une migration manuelle.
 - `GUID` (`zanshin/models/guid.py`) est un type SQLAlchemy personnalisé qui stocke les UUID sous forme de valeurs binaires 16 octets dans SQLite (`SSHKey`, `ApiKey`, `AuditLog` l'utilisent tous comme type de clé primaire).
 
 ### 3. Pipeline de scan (séquence)
@@ -533,6 +568,14 @@ Points importants non visibles sur le seul diagramme :
 
 Les trois implémentations respectent la même interface abstraite `ScannerEngine` (`zanshin/services/scanners/base.py`) : `generate_sbom_for_image`, `generate_sbom_for_directory`, `scan_sbom`, `scan_secrets`, `scan_iac`, plus la méthode concrète `get_workspace_root()`.
 
+### 4bis. Optionnel : revue de code par IA (Ollama)
+
+`AiReviewService` (`zanshin/services/ai_review_service.py`) est un ajout séparé, désactivé par défaut — pas une implémentation de `ScannerEngine`. Il envoie le code source à un modèle [Ollama](https://ollama.com) exécuté localement avec un prompt système "security architect" (`review_code()`), en complément léger des scanners structurés ci-dessus plutôt qu'en remplacement d'un moteur SAST.
+
+Le choix du modèle n'est volontairement pas figé en dur : `list_available_models()` lit en direct sur l'API `GET /api/tags` d'Ollama, de sorte que tout ce que l'opérateur a réellement téléchargé devient sélectionnable depuis la page Paramètres — une courte liste de repli (`gemma4:12b-it-qat`, `gemma4:e4b-it-qat`) n'est proposée qu'en suggestion quand Ollama est injoignable, jamais présentée comme installée. `gemma4:12b-it-qat` (librairie officielle Ollama, Q4_0/4-bit, ~7,2 Go, ~9-10 Go RAM/VRAM) est le défaut documenté ; `gemma4:e4b-it-qat` (~6,1 Go) échange de la qualité de revue contre une empreinte plus légère sur du matériel contraint. Réglages : `ai_review_enabled`, `ai_review_model`, `ai_review_ollama_url` (défaut `http://localhost:11434`).
+
+**Intégration au pipeline :** quand `ai_review_enabled` est actif, `ScanProcessor` appelle `AiReviewService` pour les **scans de dépôt uniquement** (même raisonnement que secrets/IaC — pas de code source pour un scan d'image conteneur). `ScanProcessor._collect_ai_review_sample()` construit l'échantillon de code envoyé au modèle : concaténation triée et filtrée par extension des fichiers source (en excluant `.git`/`node_modules`/`.venv`/`__pycache__`/`dist`/`build`), plafonnée à `AI_REVIEW_MAX_CHARS` (40 000 caractères, sans chunking/RAG — les gros dépôts sont silencieusement tronqués). Le résultat est persisté sous forme d'une ligne `AiReviewResult` par scan (§2), en mode best-effort comme l'enrichissement : un échec (Ollama injoignable, erreur du modèle) est enregistré sur cette ligne (`status="failed"`, `error=...`) mais ne fait jamais échouer le scan lui-même. Affiché dans la fenêtre de détail d'un scan (`depots.py`) uniquement quand un résultat existe pour ce scan.
+
 ### 5. Référence services / repositories
 
 | Service | Responsabilité |
@@ -541,6 +584,7 @@ Les trois implémentations respectent la même interface abstraite `ScannerEngin
 | `RepositoryService` / `ContainerService` | CRUD des dépôts/images suivis ; `trigger_scan()` crée la ligne `Scan` et envoie `ScanProcessor.process_scan` à l'executor d'arrière-plan. |
 | `EnrichmentService` | Renseigne `epss_score`/`is_kev` sur les findings de vulnérabilité après un scan. Cache le catalogue KEV au niveau **classe** (survit à la reconstruction d'`IoCContainer` à chaque requête) ; ne fait jamais basculer un scan réussi en échec. |
 | `LicenseComplianceService` | Évalue une liste noire de licences configurable sur les données SBOM déjà collectées par Syft (pas d'outil de scan séparé). |
+| `AiReviewService` | Revue de code par LLM via Ollama, optionnelle et désactivée par défaut (voir §4bis). Appelé depuis `ScanProcessor` pour les scans de dépôt ; ne fait jamais basculer un scan réussi en échec. |
 | `UserService` | CRUD utilisateurs avec garde-fous : impossible de supprimer son propre compte, de rétrograder/désactiver/supprimer le dernier `SUPERUSER` actif. |
 | `ApiKeyService` | Émet des clés API : hash bcrypt stocké, secret brut retourné une seule fois à la création, jamais persisté. |
 | `AuditLogService` | Enregistre les actions admin sensibles (constantes `AuditOperation` : connexions, modifications utilisateur/clé API/réglage) ; `record()` ne lève jamais d'exception — un échec de journalisation ne doit pas casser l'action journalisée. |

@@ -111,7 +111,27 @@ Then, from Zanshin's **Settings** page, set:
 
 Full deployment details (Docker image, shared-volume requirement, security warning about the lack of authentication on this service) are in [`scan-api/README.md`](../scan-api/README.md).
 
-### 7. Running the tests
+### 7. Optional: AI code review (Ollama)
+
+An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans and its narrative result shows up in the scan detail dialog; see `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
+
+Run Ollama in Docker:
+
+```bash
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+# add --gpus=all if you have an NVIDIA GPU + the NVIDIA Container Toolkit installed
+```
+
+Pull a model (the recommended default; a lighter alternative exists for constrained hardware):
+
+```bash
+docker exec -it ollama ollama pull gemma4:12b-it-qat   # ~7.2GB, ~9-10GB RAM/VRAM — recommended default
+docker exec -it ollama ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
+```
+
+Then, from Zanshin's **Settings** page, under "Revue de code par IA": toggle it on, set the Ollama URL (default `http://localhost:11434`), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
+
+### 8. Running the tests
 
 ```bash
 uv run pytest
@@ -119,12 +139,13 @@ uv run pytest
 
 Runs entirely against an in-memory database; never touches `zanshin/database.sqlite`. See [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §6 for the testing approach.
 
-### 8. Troubleshooting
+### 9. Troubleshooting
 
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, and `bridgecrew/checkov` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
 - **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: expected — AES-GCM decryption requires the exact same key used to encrypt. There's no key-rotation mechanism; re-add affected SSH keys after changing the key.
+- **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`docker ps`) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
 
 ---
 
@@ -235,7 +256,27 @@ Puis, depuis la page **Paramètres** de Zanshin, définissez :
 
 Le détail complet du déploiement (image Docker, exigence de volume partagé, avertissement de sécurité sur l'absence d'authentification de ce service) se trouve dans [`scan-api/README.md`](../scan-api/README.md).
 
-### 7. Lancer les tests
+### 7. Optionnel : revue de code par IA (Ollama)
+
+Une option supplémentaire, désactivée par défaut : un LLM local, exécuté via [Ollama](https://ollama.com), qui relit le code source avec un prompt "security architect", en complément léger de Grype/gitleaks/checkov — pas un remplacement. Une fois activée, elle s'exécute automatiquement sur les scans de dépôt et son résultat narratif apparaît dans la fenêtre de détail du scan ; voir la docstring d'`AiReviewService` et [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis pour le détail de l'intégration.
+
+Lancer Ollama via Docker :
+
+```bash
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+# ajoutez --gpus=all si vous avez un GPU NVIDIA + le NVIDIA Container Toolkit installé
+```
+
+Télécharger un modèle (le défaut recommandé ; une alternative plus légère existe pour du matériel contraint) :
+
+```bash
+docker exec -it ollama ollama pull gemma4:12b-it-qat   # ~7,2 Go, ~9-10 Go RAM/VRAM — défaut recommandé
+docker exec -it ollama ollama pull gemma4:e4b-it-qat   # ~6,1 Go, plus léger/rapide, qualité de revue moindre
+```
+
+Puis, depuis la page **Paramètres** de Zanshin, section "Revue de code par IA" : activez-la, définissez l'URL d'Ollama (par défaut `http://localhost:11434`), et choisissez un modèle dans la liste déroulante — la liste est lue en direct sur l'API `/api/tags` d'Ollama (ce que vous avez réellement téléchargé y apparaît), pas une liste figée. Si Ollama n'est pas encore joignable, la liste propose les deux modèles ci-dessus à titre de suggestion plutôt que d'être vide.
+
+### 8. Lancer les tests
 
 ```bash
 uv run pytest
@@ -243,9 +284,10 @@ uv run pytest
 
 S'exécute entièrement sur une base en mémoire ; ne touche jamais `zanshin/database.sqlite`. Voir [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §6 pour l'approche de test.
 
-### 8. Dépannage
+### 9. Dépannage
 
 - **`docker.errors.DockerException` / permission refusée sur le socket Docker** : l'utilisateur qui lance Zanshin doit avoir accès au socket Docker (`/var/run/docker.sock` sous Linux/macOS avec Docker Desktop). Sous Linux, ajoutez l'utilisateur au groupe `docker` ou lancez avec les privilèges suffisants.
 - **Le premier scan est lent** : le backend `docker` télécharge les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks` et `bridgecrew/checkov` à la demande lors de leur première utilisation — les scans suivants réutilisent les images en cache.
 - **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont erronés, soit le champ `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un admin existant) ou interrogez directement la table `user`.
 - **`ENCRYPTION_KEY` changée et le déchiffrement des clés SSH échoue désormais** : comportement attendu — le déchiffrement AES-GCM nécessite exactement la même clé que celle utilisée au chiffrement. Il n'y a pas de mécanisme de rotation de clé ; réajoutez les clés SSH concernées après avoir changé la clé.
+- **La liste des modèles IA n'affiche que les deux suggestions** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`docker ps`) et que l'URL/le port correspondent, puis cliquez sur "Rafraîchir la liste" dans la page Paramètres.

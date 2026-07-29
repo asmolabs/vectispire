@@ -30,3 +30,10 @@ class Scan(Base):
     # Normalized, queryable results (see ADR-001). `cves`/`sbom` above stay
     # as the raw tool output for audit purposes.
     findings = relationship("Finding", back_populates="scan", cascade="all, delete-orphan")
+
+    # Optional AI code review result (Ollama-backed, see AiReviewService).
+    # At most one per scan; absent unless the feature was enabled when this
+    # scan ran.
+    ai_review = relationship(
+        "AiReviewResult", back_populates="scan", uselist=False, cascade="all, delete-orphan"
+    )

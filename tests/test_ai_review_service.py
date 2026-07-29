@@ -148,3 +148,93 @@ def test_review_code_raises_on_failure_unlike_the_config_methods(settings_servic
 
     with pytest.raises(ConnectionError):
         svc.review_code("print('hello')")
+
+
+# --- parse_findings ---
+
+def test_parse_findings_parses_a_well_formed_json_array(settings_service):
+    svc = AiReviewService(settings_service)
+    response = (
+        '[{"severity": "high", "title": "Hardcoded secret", '
+        '"file_path": "app.py", "description": "API key in source", '
+        '"recommendation": "Use an env var"}]'
+    )
+
+    findings = svc.parse_findings(response)
+
+    assert findings == [{
+        "severity": "high",
+        "title": "Hardcoded secret",
+        "file_path": "app.py",
+        "description": "API key in source",
+        "recommendation": "Use an env var",
+    }]
+
+
+def test_parse_findings_strips_markdown_code_fence(settings_service):
+    svc = AiReviewService(settings_service)
+    response = '```json\n[{"severity": "low", "title": "Minor issue"}]\n```'
+
+    findings = svc.parse_findings(response)
+
+    assert findings == [{
+        "severity": "low",
+        "title": "Minor issue",
+        "file_path": None,
+        "description": "",
+        "recommendation": "",
+    }]
+
+
+def test_parse_findings_normalizes_unrecognized_severity_to_unknown(settings_service):
+    svc = AiReviewService(settings_service)
+    response = '[{"severity": "super-duper-bad", "title": "Something"}]'
+
+    findings = svc.parse_findings(response)
+
+    assert findings[0]["severity"] == "unknown"
+
+
+def test_parse_findings_skips_items_without_a_title(settings_service):
+    svc = AiReviewService(settings_service)
+    response = '[{"severity": "high"}, {"severity": "low", "title": "Real issue"}]'
+
+    findings = svc.parse_findings(response)
+
+    assert len(findings) == 1
+    assert findings[0]["title"] == "Real issue"
+
+
+def test_parse_findings_returns_empty_list_for_invalid_json(settings_service):
+    svc = AiReviewService(settings_service)
+
+    assert svc.parse_findings("this is not json at all") == []
+
+
+def test_parse_findings_returns_empty_list_when_response_is_empty(settings_service):
+    svc = AiReviewService(settings_service)
+
+    assert svc.parse_findings("") == []
+    assert svc.parse_findings(None) == []
+
+
+def test_parse_findings_returns_empty_list_when_json_is_not_an_array(settings_service):
+    svc = AiReviewService(settings_service)
+
+    assert svc.parse_findings('{"severity": "high", "title": "Not a list"}') == []
+
+
+def test_parse_findings_handles_empty_array(settings_service):
+    svc = AiReviewService(settings_service)
+
+    assert svc.parse_findings("[]") == []
+
+
+def test_parse_findings_skips_non_dict_array_elements(settings_service):
+    svc = AiReviewService(settings_service)
+    response = '["just a string", {"severity": "high", "title": "Real issue"}]'
+
+    findings = svc.parse_findings(response)
+
+    assert len(findings) == 1
+    assert findings[0]["title"] == "Real issue"

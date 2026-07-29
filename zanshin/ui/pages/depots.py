@@ -47,6 +47,8 @@ class DepotsState(BaseState):
     selected_scan_secrets: list[dict[str, str]] = []
     selected_scan_licenses: list[dict[str, str]] = []
     selected_scan_iac: list[dict[str, str]] = []
+    selected_scan_ai_review: dict[str, str] = {}
+    selected_scan_ai_findings: list[dict[str, str]] = []
 
     def set_new_name(self, val: str):
         self.new_name = val
@@ -421,6 +423,17 @@ class DepotsState(BaseState):
                 }
                 for f in iac_findings
             ]
+
+            # Optional AI code review (Ollama, see ADR-001 Phase 8) — at
+            # most one row per scan, absent unless the feature was enabled
+            # when this scan ran.
+            ai_review = container.ai_review_result_repository.find_by_scan_id(scan_id)
+            self.selected_scan_ai_review = {
+                "model": ai_review.model,
+                "status": ai_review.status,
+                "response": ai_review.response or "",
+                "error": ai_review.error or "",
+            } if ai_review else {}
 
             self.selected_scan_cves = parsed_cves
             self.selected_scan_summary = s.summary or {}
@@ -1094,6 +1107,45 @@ def depots_page() -> rx.Component:
                                 width="100%"
                             ),
                             class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        width="100%",
+                        spacing="2",
+                        class_name="mt-6"
+                    )
+                ),
+
+                # Optional AI code review (Ollama, see ADR-001 Phase 8) —
+                # only rendered when a review actually ran for this scan
+                # (feature is disabled by default).
+                rx.cond(
+                    DepotsState.selected_scan_ai_review.get("model", "") != "",
+                    rx.vstack(
+                        rx.hstack(
+                            rx.heading("Revue de code par IA", size="3", weight="bold"),
+                            rx.badge(
+                                DepotsState.selected_scan_ai_review.get("model", ""),
+                                color_scheme="purple", variant="soft"
+                            ),
+                            rx.cond(
+                                DepotsState.selected_scan_ai_review.get("status", "") == "failed",
+                                rx.badge("Échec", color_scheme="red", variant="solid")
+                            ),
+                            align="center",
+                            spacing="2"
+                        ),
+                        rx.cond(
+                            DepotsState.selected_scan_ai_review.get("status", "") == "failed",
+                            rx.callout(
+                                DepotsState.selected_scan_ai_review.get("error", "Erreur inconnue"),
+                                icon="triangle-alert", color_scheme="red", size="1"
+                            ),
+                            rx.box(
+                                rx.text(
+                                    DepotsState.selected_scan_ai_review.get("response", ""),
+                                    size="2", white_space="pre-wrap"
+                                ),
+                                class_name="p-4 rounded-lg bg-slate-2 border border-slate-4 max-h-64 overflow-y-auto"
+                            )
                         ),
                         width="100%",
                         spacing="2",

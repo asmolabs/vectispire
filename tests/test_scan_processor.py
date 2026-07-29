@@ -15,8 +15,9 @@ import zanshin.models  # noqa: F401
 from zanshin.models.scan import Scan
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.container import Container
+from zanshin.models.ai_review_result import AiReviewResult
 import zanshin.services.scan_processor as scan_processor_module
-from zanshin.services.scan_processor import ScanProcessor
+from zanshin.services.scan_processor import ScanProcessor, AI_REVIEW_MAX_CHARS
 
 
 class FakeScannerEngine:
@@ -91,13 +92,48 @@ def isolated_session(isolated_session_local):
 @pytest.fixture(autouse=True)
 def patch_git_clone(monkeypatch):
     """No real git remote is available in tests — replace `clone_from` with
-    a no-op that just creates the destination directory, matching what a
-    real (shallow) clone would leave behind for the rest of the pipeline."""
+    a no-op that creates the destination directory and drops in one sample
+    source file, matching what a real (shallow) clone would leave behind
+    for the rest of the pipeline (including the AI review's file walk)."""
 
     def fake_clone_from(url, to_path, branch, depth, env):
         os.makedirs(to_path, exist_ok=True)
+        with open(os.path.join(to_path, "app.py"), "w") as f:
+            f.write("import os\nAPI_KEY = 'hardcoded-secret'\n")
 
     monkeypatch.setattr(scan_processor_module.git.Repo, "clone_from", fake_clone_from)
+
+
+class FakeAiReviewService:
+    """Mirrors the real `AiReviewService.parse_findings` behavior closely
+    enough for these tests: `parsed_findings` (if provided) is what
+    `parse_findings()` returns, independent of `review_code()`'s raw
+    `response` — matching how the real service parses whatever text the
+    model actually returned, rather than the caller deciding it upfront."""
+
+    def __init__(self, enabled=True, model="gemma4:12b-it-qat", response="Looks fine.",
+                 parsed_findings=None, raise_error=None):
+        self.enabled = enabled
+        self.model = model
+        self.response = response
+        self.parsed_findings = parsed_findings if parsed_findings is not None else []
+        self.raise_error = raise_error
+        self.review_calls = []
+
+    def is_enabled(self):
+        return self.enabled
+
+    def get_selected_model(self):
+        return self.model
+
+    def review_code(self, code):
+        self.review_calls.append(code)
+        if self.raise_error:
+            raise self.raise_error
+        return self.response
+
+    def parse_findings(self, response):
+        return self.parsed_findings
 
 
 # --- Pure helper methods (no DB, no filesystem) ---
@@ -277,3 +313,231 @@ def test_process_scan_missing_scan_id_is_a_no_op(isolated_session):
     sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
     # Must not raise even though scan 9999 doesn't exist.
     sp.process_scan(9999, repo_url="git@example.com:org/repo.git", branch="main", sub_path="", ssh_key_id=None)
+
+
+# --- Optional AI code review (Ollama, ADR-001 Phase 8) ---
+
+def test_process_scan_runs_ai_review_when_enabled_for_repo_scan(isolated_session):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    ai_review = FakeAiReviewService(enabled=True, model="gemma4:12b-it-qat", response="No issues found.")
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert len(ai_review.review_calls) == 1
+    assert "app.py" in ai_review.review_calls[0]
+    assert "hardcoded-secret" in ai_review.review_calls[0]
+
+    result = isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first()
+    assert result is not None
+    assert result.model == "gemma4:12b-it-qat"
+    assert result.status == "completed"
+    assert result.response == "No issues found."
+
+
+def test_process_scan_creates_normalized_findings_from_parsed_ai_review(isolated_session):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    parsed = [
+        {
+            "severity": "high",
+            "title": "Hardcoded secret",
+            "file_path": "app.py",
+            "description": "API key committed to source",
+            "recommendation": "Move to an environment variable",
+        },
+        {
+            "severity": "bogus-severity",
+            "title": "Weird severity from the model",
+            "file_path": None,
+            "description": "",
+            "recommendation": "",
+        },
+    ]
+    ai_review = FakeAiReviewService(
+        enabled=True, model="gemma4:12b-it-qat", response="[raw json]", parsed_findings=parsed
+    )
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    ai_findings = [f for f in scan.findings if f.type == "ai_review"]
+    assert len(ai_findings) == 2
+
+    hardcoded = next(f for f in ai_findings if f.identifier == "Hardcoded secret")
+    assert hardcoded.severity == "high"
+    assert hardcoded.file_path == "app.py"
+    assert hardcoded.source == "ollama:gemma4:12b-it-qat"
+    assert hardcoded.status == "open"
+
+    weird = next(f for f in ai_findings if f.identifier == "Weird severity from the model")
+    assert weird.severity == "bogus-severity"  # normalization is parse_findings's job, not ScanProcessor's
+
+    # The narrative stored on AiReviewResult is reformatted from the parsed
+    # items (not the raw response) when parsing succeeded.
+    result = isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first()
+    assert "Hardcoded secret" in result.response
+    assert "Move to an environment variable" in result.response
+    assert "[raw json]" not in result.response
+
+
+def test_process_scan_creates_no_findings_when_ai_response_does_not_parse(isolated_session):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    # parsed_findings=[] simulates parse_findings() failing to make sense
+    # of the model's response — same as the real service's behavior for
+    # malformed JSON.
+    ai_review = FakeAiReviewService(
+        enabled=True, response="not valid json, just prose from the model", parsed_findings=[]
+    )
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert [f for f in scan.findings if f.type == "ai_review"] == []
+
+    # The raw text is still preserved for the narrative UI even though it
+    # couldn't be turned into structured findings.
+    result = isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first()
+    assert result.status == "completed"
+    assert result.response == "not valid json, just prose from the model"
+
+
+def test_process_scan_skips_ai_review_when_service_disabled(isolated_session):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    ai_review = FakeAiReviewService(enabled=False)
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert ai_review.review_calls == []
+    assert isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first() is None
+
+
+def test_process_scan_skips_ai_review_for_container_scan_even_if_enabled(isolated_session):
+    container = Container(image_name="nginx", tag="latest")
+    isolated_session.add(container)
+    isolated_session.commit()
+    scan = Scan(container_id=container.id, branch="latest", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    ai_review = FakeAiReviewService(enabled=True)
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=None, branch="latest", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    # Container scans have no source code on disk — same reasoning as
+    # secrets/IaC not running for images (ADR-001 section 5).
+    assert ai_review.review_calls == []
+    assert isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first() is None
+
+
+def test_process_scan_records_failed_ai_review_without_failing_the_scan(isolated_session):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    ai_review = FakeAiReviewService(enabled=True, raise_error=ConnectionError("ollama unreachable"))
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    # The scan itself must still be reported as completed: a broken AI
+    # review is best-effort, same resilience contract as enrichment.
+    assert scan.status == "completed"
+
+    result = isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first()
+    assert result is not None
+    assert result.status == "failed"
+    assert "ollama unreachable" in result.error
+    assert result.response is None
+
+
+def test_process_scan_skips_ai_review_when_no_reviewable_files_found(isolated_session, monkeypatch):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+
+    # Override the autouse fixture's clone so it produces no reviewable
+    # source files at all (only a README, filtered out by extension).
+    def fake_clone_from(url, to_path, branch, depth, env):
+        os.makedirs(to_path, exist_ok=True)
+        with open(os.path.join(to_path, "README.md"), "w") as f:
+            f.write("not source code")
+
+    monkeypatch.setattr(scan_processor_module.git.Repo, "clone_from", fake_clone_from)
+
+    ai_review = FakeAiReviewService(enabled=True)
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine(), ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert ai_review.review_calls == []
+    assert isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first() is None
+
+
+def test_collect_ai_review_sample_filters_by_extension_and_excludes_dirs(tmp_path):
+    (tmp_path / "app.py").write_text("print('hello')")
+    (tmp_path / "README.md").write_text("# not source code, excluded by extension")
+    excluded_dir = tmp_path / "node_modules"
+    excluded_dir.mkdir()
+    (excluded_dir / "lib.js").write_text("should not be read")
+
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
+    sample = sp._collect_ai_review_sample(str(tmp_path), "")
+
+    assert "app.py" in sample
+    assert "print('hello')" in sample
+    assert "README.md" not in sample
+    assert "node_modules" not in sample
+    assert "should not be read" not in sample
+
+
+def test_collect_ai_review_sample_truncates_at_max_chars(tmp_path):
+    (tmp_path / "big.py").write_text("x" * (AI_REVIEW_MAX_CHARS * 2))
+
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
+    sample = sp._collect_ai_review_sample(str(tmp_path), "")
+
+    assert len(sample) <= AI_REVIEW_MAX_CHARS + len("# big.py\n")

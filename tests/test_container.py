@@ -23,6 +23,7 @@ def test_container_wires_every_repository_and_service_without_error(db_session):
     assert container.user_repository.db is db_session
     assert container.finding_repository.db is db_session
     assert container.audit_log_repository.db is db_session
+    assert container.ai_review_result_repository.db is db_session
 
     # Services default to their expected concrete implementations.
     assert isinstance(container.scanner_engine, DockerScannerEngine)
@@ -39,6 +40,7 @@ def test_container_wires_every_repository_and_service_without_error(db_session):
     assert container.scan_processor.scanner_engine is container.scanner_engine
     assert container.scan_processor.enrichment_service is container.enrichment_service
     assert container.scan_processor.license_compliance_service is container.license_compliance_service
+    assert container.scan_processor.ai_review_service is container.ai_review_service
     assert container.repository_service.scan_processor is container.scan_processor
     assert container.container_service.scan_processor is container.scan_processor
 

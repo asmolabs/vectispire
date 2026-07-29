@@ -11,12 +11,30 @@ from zanshin.database import SessionLocal
 from zanshin.models.scan import Scan
 from zanshin.models.container import Container
 from zanshin.models.finding import Finding
+from zanshin.models.ai_review_result import AiReviewResult
 from zanshin.services.ssh_key_service import SSHKeyService
 from zanshin.services.scanners.base import ScannerEngine
 from zanshin.services.enrichment_service import EnrichmentService
 from zanshin.services.license_compliance_service import LicenseComplianceService
+from zanshin.services.ai_review_service import AiReviewService, SECURITY_ARCHITECT_PROMPT
 
 logger = logging.getLogger(__name__)
+
+# Extensions considered "source code" for the optional AI review sample
+# (§4bis, docs/TECHNICAL_DOCUMENTATION.md) — deliberately broad rather than
+# exhaustive; this is a lightweight complement to the dedicated scanners,
+# not a language-aware pipeline.
+AI_REVIEW_TEXT_EXTENSIONS = {
+    ".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rb", ".php",
+    ".c", ".h", ".cpp", ".hpp", ".cs", ".rs", ".kt", ".swift",
+    ".yml", ".yaml", ".json", ".tf", ".sql", ".sh",
+}
+AI_REVIEW_EXCLUDED_DIRS = {".git", "node_modules", ".venv", "__pycache__", "dist", "build"}
+# Size cap for the source sample sent to the model: no chunking/RAG, just a
+# straightforward "read files in order until the budget is used up" — good
+# enough for the "minimal review" this feature is scoped to, but it means
+# large repositories are silently truncated rather than reviewed in full.
+AI_REVIEW_MAX_CHARS = 40000
 
 class NotificationGateway:
     def send_scan_update(self, scan_id: int, status: str):
@@ -29,6 +47,7 @@ class ScanProcessor:
         scanner_engine: ScannerEngine,
         enrichment_service: Optional[EnrichmentService] = None,
         license_compliance_service: Optional[LicenseComplianceService] = None,
+        ai_review_service: Optional[AiReviewService] = None,
     ):
         self.ssh_key_service = ssh_key_service
         # `scanner_engine` decides *where* SBOM generation/vulnerability
@@ -43,6 +62,11 @@ class ScanProcessor:
         # produced — applies to both repo and container scans, unlike
         # secrets scanning (see ADR-001, section 5).
         self.license_compliance_service = license_compliance_service
+        # Optional: local LLM code review via Ollama (see ADR-001, Phase 8).
+        # Only runs for repository scans (needs source code on disk), same
+        # reasoning as secrets/IaC. Never allowed to turn a successful scan
+        # into a failed one, same as enrichment.
+        self.ai_review_service = ai_review_service
         self.notification_gateway = NotificationGateway()
         
     def process_scan(self, scan_id: int, repo_url: Optional[str], branch: str, sub_path: str, ssh_key_id: Optional[uuid.UUID]):
@@ -141,6 +165,15 @@ class ScanProcessor:
                         # Best-effort only: enrichment failing must never
                         # turn an already-completed scan into a failure.
                         logger.exception(f"Enrichment failed for Scan ID {scan_id} (non-fatal)")
+
+                # Optional AI code review (Ollama) — repo scans only, and
+                # only if enabled. Must run before `temp_dir` is removed in
+                # the `finally` below, since it reads source files from it.
+                # Best-effort like enrichment: a review failure is recorded
+                # (status="failed") but never turns the scan itself into a
+                # failure.
+                if not is_container and self.ai_review_service and self.ai_review_service.is_enabled():
+                    self._run_ai_review(db, scan, temp_dir, sub_path)
 
             except Exception as e:
                 logger.exception(f"Scan failed for ID {scan_id}")
@@ -287,3 +320,126 @@ class ScanProcessor:
             total += 1
         summary["total"] = total
         return summary
+
+    def _run_ai_review(self, db, scan: Scan, work_dir: str, sub_path: str) -> None:
+        """Runs the optional AI code review, persists an `AiReviewResult`
+        row, and — when the model's response parses as the requested JSON
+        array (see `AiReviewService.parse_findings`) — normalized
+        `Finding(type="ai_review")` rows alongside it, one per parsed item.
+
+        Never raises: a failure here (unreachable Ollama, model error, ...)
+        is recorded on the result row itself (`status="failed"`,
+        `error=...`) rather than propagated, so it can never turn an
+        already-completed scan into a failure — same resilience contract
+        as `EnrichmentService`. A response that doesn't parse into JSON
+        still produces a completed `AiReviewResult` with the raw text (no
+        `Finding` rows in that case) — the model not returning the exact
+        requested shape is not treated as a review failure.
+        """
+        model = self.ai_review_service.get_selected_model()
+        try:
+            code_sample = self._collect_ai_review_sample(work_dir, sub_path)
+            if not code_sample:
+                logger.info(f"AI review skipped for Scan ID {scan.id}: no reviewable source files found")
+                return
+            response = self.ai_review_service.review_code(code_sample)
+            parsed = self.ai_review_service.parse_findings(response)
+
+            db.add(AiReviewResult(
+                scan_id=scan.id,
+                model=model,
+                prompt=SECURITY_ARCHITECT_PROMPT,
+                response=self._format_ai_review_narrative(parsed, response),
+                status="completed",
+            ))
+            db.add_all(self._build_ai_review_findings(scan.id, model, parsed))
+            db.commit()
+        except Exception as e:
+            # Best-effort only, same contract as enrichment: never turn an
+            # already-completed scan into a failure.
+            logger.exception(f"AI code review failed for Scan ID {scan.id} (non-fatal)")
+            db.add(AiReviewResult(
+                scan_id=scan.id,
+                model=model,
+                prompt=SECURITY_ARCHITECT_PROMPT,
+                response=None,
+                status="failed",
+                error=str(e)[:500],
+            ))
+            db.commit()
+
+    def _build_ai_review_findings(self, scan_id: int, model: str, parsed: list) -> list:
+        """Turns `AiReviewService.parse_findings()`'s output into normalized
+        `Finding` rows — an index/summary entry per issue (severity, short
+        title, file path), consistent with how secrets/IaC findings are
+        kept lightweight. The fuller description/recommendation text stays
+        in `AiReviewResult.response` (see `_format_ai_review_narrative`)
+        rather than on `Finding`, which has no free-text description column.
+        """
+        return [
+            Finding(
+                scan_id=scan_id,
+                type="ai_review",
+                severity=item["severity"],
+                identifier=item["title"],
+                file_path=item.get("file_path"),
+                source=f"ollama:{model}",
+                status="open",
+            )
+            for item in parsed
+        ]
+
+    def _format_ai_review_narrative(self, parsed: list, raw_response: str) -> str:
+        """Builds the human-readable text stored on `AiReviewResult.response`
+        and shown in the scan-detail UI. Reformats the parsed findings when
+        parsing succeeded (consistent severity/title/file layout); falls
+        back to the model's raw text untouched when it didn't (still worth
+        showing even though it couldn't be turned into `Finding` rows).
+        """
+        if not parsed:
+            return raw_response
+        lines = []
+        for item in parsed:
+            lines.append(f"[{item['severity'].upper()}] {item['title']}")
+            if item.get("file_path"):
+                lines.append(f"  Fichier : {item['file_path']}")
+            if item.get("description"):
+                lines.append(f"  {item['description']}")
+            if item.get("recommendation"):
+                lines.append(f"  Recommandation : {item['recommendation']}")
+            lines.append("")
+        return "\n".join(lines).strip()
+
+    def _collect_ai_review_sample(self, work_dir: str, sub_path: str) -> str:
+        """Best-effort, size-capped concatenation of source files for the
+        optional AI review (see `AI_REVIEW_MAX_CHARS`) — deliberately simple
+        (no chunking, no embeddings/RAG): walks the tree in sorted order and
+        stops once the character budget is used up, so large repositories
+        are silently truncated rather than exhaustively reviewed. Adequate
+        for the "minimal review" this feature is scoped to (see ADR-001,
+        Phase 8), not a substitute for a real SAST pipeline.
+        """
+        root = os.path.join(work_dir, sub_path) if sub_path else work_dir
+        chunks = []
+        total = 0
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = sorted(d for d in dirnames if d not in AI_REVIEW_EXCLUDED_DIRS)
+            for filename in sorted(filenames):
+                if not any(filename.endswith(ext) for ext in AI_REVIEW_TEXT_EXTENSIONS):
+                    continue
+                file_path = os.path.join(dirpath, filename)
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                except OSError:
+                    continue
+                rel_path = os.path.relpath(file_path, work_dir)
+                chunk = f"# {rel_path}\n{content}\n"
+                if total + len(chunk) > AI_REVIEW_MAX_CHARS:
+                    remaining = AI_REVIEW_MAX_CHARS - total
+                    if remaining > 0:
+                        chunks.append(chunk[:remaining])
+                    return "\n".join(chunks)
+                chunks.append(chunk)
+                total += len(chunk)
+        return "\n".join(chunks)

@@ -12,6 +12,7 @@ from zanshin.repositories.setting_repository import SettingRepository
 from zanshin.repositories.vex_decision_repository import VexDecisionRepository
 from zanshin.repositories.finding_repository import FindingRepository
 from zanshin.repositories.audit_log_repository import AuditLogRepository
+from zanshin.repositories.ai_review_result_repository import AiReviewResultRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -44,6 +45,7 @@ class IoCContainer:
         self.vex_decision_repository = VexDecisionRepository(db)
         self.finding_repository = FindingRepository(db)
         self.audit_log_repository = AuditLogRepository(db)
+        self.ai_review_result_repository = AiReviewResultRepository(db)
 
         # Services
         self.encryption_service = EncryptionService()
@@ -65,14 +67,16 @@ class IoCContainer:
         # see LicenseComplianceService's docstring / ADR-001 section 5).
         self.license_compliance_service = LicenseComplianceService(self.settings_service)
         # Optional local LLM-based code review via Ollama (disabled by
-        # default). Config-only for now: not called from ScanProcessor yet
-        # — see AiReviewService's docstring.
+        # default). Only runs for repository scans when
+        # `ai_review_enabled` is set — see AiReviewService's docstring and
+        # ADR-001, Phase 8.
         self.ai_review_service = AiReviewService(self.settings_service)
         self.scan_processor = ScanProcessor(
             self.ssh_key_service,
             self.scanner_engine,
             self.enrichment_service,
-            self.license_compliance_service
+            self.license_compliance_service,
+            self.ai_review_service
         )
         self.repository_service = RepositoryService(
             self.repository_repository,

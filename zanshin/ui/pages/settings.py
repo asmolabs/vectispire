@@ -37,6 +37,12 @@ class SettingsState(BaseState):
     local_api_url_input: str = DEFAULT_LOCAL_API_URL
     local_api_shared_dir_input: str = ""
 
+    ai_review_enabled: bool = False
+    ai_review_model: str = DEFAULT_AI_REVIEW_MODEL
+    ai_review_ollama_url_input: str = DEFAULT_OLLAMA_URL
+    ai_review_available_models: list[str] = [DEFAULT_AI_REVIEW_MODEL]
+    ai_review_models_loading: bool = False
+
     def load_settings(self):
         self.set_current_page("Paramètres")
         container = get_container()
@@ -54,6 +60,10 @@ class SettingsState(BaseState):
             self.local_api_shared_dir_input = container.settings_service.get_setting(
                 SETTING_KEY_LOCAL_API_SHARED_DIR, ""
             )
+            self.ai_review_enabled = container.ai_review_service.is_enabled()
+            self.ai_review_model = container.ai_review_service.get_selected_model()
+            self.ai_review_ollama_url_input = container.ai_review_service.get_ollama_url()
+            self.ai_review_available_models = container.ai_review_service.list_available_models()
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
         finally:
@@ -138,6 +148,75 @@ class SettingsState(BaseState):
             )
             self.enrichment_enabled = value
             yield self.trigger_toast("Enrichissement EPSS/KEV mis à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def set_ai_review_enabled(self, value: bool):
+        container = get_container()
+        try:
+            container.ai_review_service.set_enabled(value)
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_AI_REVIEW_ENABLED,
+                description=f"Revue de code par IA {'activée' if value else 'désactivée'}",
+                user_id=self.username,
+            )
+            self.ai_review_enabled = value
+            yield self.trigger_toast("Revue de code par IA mise à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def set_ai_review_ollama_url_input(self, value: str):
+        self.ai_review_ollama_url_input = value
+
+    def save_ai_review_ollama_url(self):
+        container = get_container()
+        try:
+            container.ai_review_service.set_ollama_url(self.ai_review_ollama_url_input)
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_AI_REVIEW_OLLAMA_URL,
+                description=f"URL du service Ollama mise à jour ({self.ai_review_ollama_url_input.strip()})",
+                user_id=self.username,
+            )
+            yield self.trigger_toast("URL du service Ollama mise à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def refresh_ai_review_models(self):
+        """Re-queries Ollama's `/api/tags` live — lets the dropdown pick up
+        models pulled after the page was first loaded, without a full
+        reload."""
+        self.ai_review_models_loading = True
+        yield
+        container = get_container()
+        try:
+            self.ai_review_available_models = container.ai_review_service.list_available_models()
+            yield self.trigger_toast("Liste des modèles Ollama actualisée")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur de rafraîchissement : {str(e)}", is_error=True)
+        finally:
+            self.ai_review_models_loading = False
+            container.db.close()
+
+    def set_ai_review_model(self, value: str):
+        container = get_container()
+        try:
+            container.ai_review_service.set_selected_model(value)
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_AI_REVIEW_MODEL,
+                description=f"Modèle de revue de code IA changé pour '{value}'",
+                user_id=self.username,
+            )
+            self.ai_review_model = value
+            yield self.trigger_toast("Modèle de revue de code IA mis à jour")
         except Exception as e:
             yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
         finally:
@@ -282,6 +361,89 @@ def settings_page() -> rx.Component:
                 rx.button("Enregistrer", on_click=SettingsState.save_license_blocklist, color_scheme="indigo"),
                 spacing="3",
                 width="100%"
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # AI code review (Ollama)
+        rx.vstack(
+            rx.heading("Revue de code par IA (optionnelle)", size="3", weight="bold"),
+            rx.text(
+                "Complément léger à Grype/gitleaks/checkov : un modèle local via Ollama, avec un prompt "
+                "\"security architect\", pour un avis rapide en plus des scanners dédiés — pas un moteur SAST "
+                "structuré. Désactivé par défaut. Nécessite un serveur Ollama accessible (voir "
+                "docs/GETTING_STARTED.md pour le lancer via Docker).",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.switch(
+                    checked=SettingsState.ai_review_enabled,
+                    on_change=SettingsState.set_ai_review_enabled,
+                ),
+                rx.text(
+                    rx.cond(SettingsState.ai_review_enabled, "Activée", "Désactivée"),
+                    size="2", weight="medium"
+                ),
+                spacing="3",
+                align="center",
+                class_name="mb-3"
+            ),
+            rx.vstack(
+                rx.text("URL du serveur Ollama", size="1", weight="medium"),
+                rx.hstack(
+                    rx.input(
+                        placeholder=DEFAULT_OLLAMA_URL,
+                        value=SettingsState.ai_review_ollama_url_input,
+                        on_change=SettingsState.set_ai_review_ollama_url_input,
+                        class_name="w-full"
+                    ),
+                    rx.button(
+                        "Enregistrer",
+                        on_click=SettingsState.save_ai_review_ollama_url,
+                        color_scheme="indigo"
+                    ),
+                    spacing="3",
+                    width="100%"
+                ),
+                width="100%", spacing="1", class_name="mb-3"
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Modèle", size="1", weight="medium"),
+                    rx.button(
+                        "Rafraîchir la liste",
+                        on_click=SettingsState.refresh_ai_review_models,
+                        loading=SettingsState.ai_review_models_loading,
+                        variant="soft",
+                        size="1"
+                    ),
+                    justify="between",
+                    width="100%",
+                    align="center"
+                ),
+                rx.select.root(
+                    rx.select.trigger(placeholder="Choisir un modèle...", width="100%"),
+                    rx.select.content(
+                        rx.select.group(
+                            rx.foreach(
+                                SettingsState.ai_review_available_models,
+                                lambda model: rx.select.item(model, value=model)
+                            )
+                        )
+                    ),
+                    value=SettingsState.ai_review_model,
+                    on_change=SettingsState.set_ai_review_model,
+                    width="100%"
+                ),
+                rx.text(
+                    "Liste lue en direct sur l'API d'Ollama (/api/tags) — reflète les modèles réellement "
+                    "installés (`ollama pull ...`), pas une liste figée. Si Ollama est injoignable, des "
+                    "suggestions (Gemma 4 12B/E4B QAT) sont proposées à la place.",
+                    size="1", color="var(--slate-10)", class_name="mt-1"
+                ),
+                width="100%", spacing="1"
             ),
             width="100%",
             spacing="2",

@@ -10,6 +10,7 @@ from zanshin.models.scan import Scan
 from zanshin.models.vex_decision import VexDecision
 from zanshin.models.finding import Finding
 from zanshin.models.audit_log import AuditLog
+from zanshin.models.ai_review_result import AiReviewResult
 
 __all__ = [
     "GUID",
@@ -23,5 +24,6 @@ __all__ = [
     "Scan",
     "VexDecision",
     "Finding",
-    "AuditLog"
+    "AuditLog",
+    "AiReviewResult",
 ]
