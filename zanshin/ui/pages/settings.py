@@ -16,14 +16,21 @@ from zanshin.services.ai_review_service import (
     SETTING_KEY_AI_REVIEW_ENABLED,
     SETTING_KEY_AI_REVIEW_MODEL,
     SETTING_KEY_AI_REVIEW_OLLAMA_URL,
+    SETTING_KEY_AI_REVIEW_DEPLOYMENT_MODE,
     DEFAULT_OLLAMA_URL,
     DEFAULT_AI_REVIEW_MODEL,
+    DEFAULT_AI_REVIEW_DEPLOYMENT_MODE,
 )
 
 SCAN_BACKEND_OPTIONS = [
     {"label": "Docker local (Syft + Grype + gitleaks + checkov)", "value": "docker"},
     {"label": "API locale (service sidecar, sans Docker côté Zanshin)", "value": "local_api"},
     {"label": "Cloud OSV.dev (vulnérabilités uniquement, secrets/SBOM restent locaux)", "value": "osv"},
+]
+
+AI_REVIEW_DEPLOYMENT_MODE_OPTIONS = [
+    {"label": "Local (recommandé — installation native d'Ollama)", "value": "local"},
+    {"label": "Docker (docker-compose.ollama.yml)", "value": "docker"},
 ]
 
 class SettingsState(BaseState):
@@ -42,6 +49,7 @@ class SettingsState(BaseState):
     ai_review_ollama_url_input: str = DEFAULT_OLLAMA_URL
     ai_review_available_models: list[str] = [DEFAULT_AI_REVIEW_MODEL]
     ai_review_models_loading: bool = False
+    ai_review_deployment_mode: str = DEFAULT_AI_REVIEW_DEPLOYMENT_MODE
 
     def load_settings(self):
         self.set_current_page("Paramètres")
@@ -64,6 +72,7 @@ class SettingsState(BaseState):
             self.ai_review_model = container.ai_review_service.get_selected_model()
             self.ai_review_ollama_url_input = container.ai_review_service.get_ollama_url()
             self.ai_review_available_models = container.ai_review_service.list_available_models()
+            self.ai_review_deployment_mode = container.ai_review_service.get_deployment_mode()
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
         finally:
@@ -165,6 +174,23 @@ class SettingsState(BaseState):
             )
             self.ai_review_enabled = value
             yield self.trigger_toast("Revue de code par IA mise à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def set_ai_review_deployment_mode(self, value: str):
+        container = get_container()
+        try:
+            container.ai_review_service.set_deployment_mode(value)
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_AI_REVIEW_DEPLOYMENT_MODE,
+                description=f"Mode de déploiement Ollama changé pour '{value}'",
+                user_id=self.username,
+            )
+            self.ai_review_deployment_mode = value
+            yield self.trigger_toast("Mode de déploiement Ollama mis à jour")
         except Exception as e:
             yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
         finally:
@@ -373,8 +399,8 @@ def settings_page() -> rx.Component:
             rx.text(
                 "Complément léger à Grype/gitleaks/checkov : un modèle local via Ollama, avec un prompt "
                 "\"security architect\", pour un avis rapide en plus des scanners dédiés — pas un moteur SAST "
-                "structuré. Désactivé par défaut. Nécessite un serveur Ollama accessible (voir "
-                "docs/GETTING_STARTED.md pour le lancer via Docker).",
+                "structuré. Désactivé par défaut. Nécessite un serveur Ollama accessible, installé nativement "
+                "ou lancé via Docker (voir docs/GETTING_STARTED.md §7).",
                 size="2", color="var(--slate-10)", class_name="mb-2"
             ),
             rx.hstack(
@@ -389,6 +415,39 @@ def settings_page() -> rx.Component:
                 spacing="3",
                 align="center",
                 class_name="mb-3"
+            ),
+            rx.vstack(
+                rx.text("Mode de déploiement d'Ollama", size="1", weight="medium"),
+                rx.select.root(
+                    rx.select.trigger(placeholder="Choisir un mode...", width="100%"),
+                    rx.select.content(
+                        rx.select.group(
+                            rx.foreach(
+                                AI_REVIEW_DEPLOYMENT_MODE_OPTIONS,
+                                lambda opt: rx.select.item(opt["label"], value=opt["value"])
+                            )
+                        )
+                    ),
+                    value=SettingsState.ai_review_deployment_mode,
+                    on_change=SettingsState.set_ai_review_deployment_mode,
+                    width="100%"
+                ),
+                rx.cond(
+                    SettingsState.ai_review_deployment_mode == "docker",
+                    rx.callout(
+                        "Sur Mac (Apple Silicon), Docker Desktop n'a pas d'accès GPU/Metal : Ollama tourne "
+                        "alors en CPU uniquement dans le conteneur, plus lent qu'une installation native. "
+                        "Sur Linux avec GPU NVIDIA (+ nvidia-container-toolkit), l'accélération GPU reste "
+                        "possible en conteneur. Voir docker-compose.ollama.yml à la racine du projet.",
+                        icon="triangle-alert", color_scheme="amber", size="1", class_name="mt-2"
+                    ),
+                    rx.callout(
+                        "Installation native recommandée : profite de l'accélération GPU (Metal sur Mac Apple "
+                        "Silicon, CUDA/ROCm sur Linux) — voir docs/GETTING_STARTED.md §7.",
+                        icon="info", color_scheme="green", size="1", class_name="mt-2"
+                    )
+                ),
+                width="100%", spacing="1", class_name="mb-3"
             ),
             rx.vstack(
                 rx.text("URL du serveur Ollama", size="1", weight="medium"),

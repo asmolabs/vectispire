@@ -1,0 +1,40 @@
+# Optional: run Ollama in a container instead of installing it natively,
+# for the AI code review feature (see docs/GETTING_STARTED.md §7 and
+# docs/architecture/ADR-001-scanner-backends.md, Phase 8).
+#
+# Performance note: on Apple Silicon Macs, Docker Desktop has no GPU/Metal
+# passthrough, so Ollama in this container runs CPU-only — noticeably
+# slower than the native macOS Ollama app, which uses Metal directly. On
+# Linux with an NVIDIA GPU, GPU acceleration is possible in the container
+# (see the commented-out `deploy` section below); on Windows/WSL2, GPU
+# passthrough is supported natively by Docker Desktop.
+#
+# Usage:
+#   docker compose -f docker-compose.ollama.yml up -d
+#   docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
+#
+# Zanshin talks to Ollama over plain HTTP either way (`ai_review_ollama_url`,
+# default http://localhost:11434) — this file doesn't change how the app
+# calls it, only how Ollama itself is run.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: zanshin-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment on Linux with an NVIDIA GPU and the nvidia-container-toolkit
+    # installed, for GPU-accelerated inference inside the container:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_data:

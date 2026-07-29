@@ -9,6 +9,18 @@ logger = logging.getLogger(__name__)
 SETTING_KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
 SETTING_KEY_AI_REVIEW_MODEL = "ai_review_model"
 SETTING_KEY_AI_REVIEW_OLLAMA_URL = "ai_review_ollama_url"
+SETTING_KEY_AI_REVIEW_DEPLOYMENT_MODE = "ai_review_deployment_mode"
+
+# "local": Ollama installed natively on the host (macOS app / Linux
+# binary / Windows app) — gets GPU acceleration (Metal on Apple Silicon,
+# CUDA/ROCm on Linux with the right drivers). "docker": Ollama run via
+# `docker-compose.ollama.yml` instead — simpler to reproduce across
+# machines, but on Apple Silicon Docker Desktop has no GPU/Metal
+# passthrough, so the container falls back to CPU-only inference (slower).
+# Purely informational/UI-facing: both modes talk to the same HTTP API at
+# `ai_review_ollama_url`, this setting doesn't change how Zanshin calls it.
+DEFAULT_AI_REVIEW_DEPLOYMENT_MODE = "local"
+VALID_DEPLOYMENT_MODES = {"local", "docker"}
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # Gemma 4 12B QAT (official Ollama library, 4-bit, ~7.2GB) is the documented
@@ -87,6 +99,21 @@ class AiReviewService:
         if not url or not url.strip():
             raise ValueError("L'URL du service Ollama ne peut pas être vide.")
         self.settings_service.update_setting(SETTING_KEY_AI_REVIEW_OLLAMA_URL, url.strip())
+
+    def get_deployment_mode(self) -> str:
+        """Purely informational — see `VALID_DEPLOYMENT_MODES` docstring
+        above. Does not affect how `review_code`/`list_available_models`
+        reach Ollama; that's entirely driven by `ai_review_ollama_url`."""
+        return self.settings_service.get_setting(
+            SETTING_KEY_AI_REVIEW_DEPLOYMENT_MODE, DEFAULT_AI_REVIEW_DEPLOYMENT_MODE
+        )
+
+    def set_deployment_mode(self, mode: str) -> None:
+        if mode not in VALID_DEPLOYMENT_MODES:
+            raise ValueError(
+                f"Mode de déploiement invalide : '{mode}' (attendu : {', '.join(sorted(VALID_DEPLOYMENT_MODES))})"
+            )
+        self.settings_service.update_setting(SETTING_KEY_AI_REVIEW_DEPLOYMENT_MODE, mode)
 
     def get_selected_model(self) -> str:
         return self.settings_service.get_setting(SETTING_KEY_AI_REVIEW_MODEL, DEFAULT_AI_REVIEW_MODEL)

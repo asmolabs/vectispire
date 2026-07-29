@@ -7,6 +7,7 @@ from zanshin.services.ai_review_service import (
     SETTING_KEY_AI_REVIEW_OLLAMA_URL,
     DEFAULT_OLLAMA_URL,
     DEFAULT_AI_REVIEW_MODEL,
+    DEFAULT_AI_REVIEW_DEPLOYMENT_MODE,
     FALLBACK_MODEL_SUGGESTIONS,
     SECURITY_ARCHITECT_PROMPT,
 )
@@ -74,6 +75,26 @@ def test_set_selected_model_does_not_require_it_to_be_in_available_list(settings
     svc = AiReviewService(settings_service, http_get=lambda *a, **k: FakeResponse({"models": []}))
     svc.set_selected_model("not-yet-pulled:latest")
     assert svc.get_selected_model() == "not-yet-pulled:latest"
+
+
+def test_deployment_mode_defaults_to_local(settings_service):
+    svc = AiReviewService(settings_service)
+    assert svc.get_deployment_mode() == "local"
+    assert DEFAULT_AI_REVIEW_DEPLOYMENT_MODE == "local"
+
+
+def test_deployment_mode_can_be_set_to_docker(settings_service):
+    svc = AiReviewService(settings_service)
+    svc.set_deployment_mode("docker")
+    assert svc.get_deployment_mode() == "docker"
+
+
+def test_set_deployment_mode_rejects_unknown_values(settings_service):
+    svc = AiReviewService(settings_service)
+    with pytest.raises(ValueError):
+        svc.set_deployment_mode("kubernetes")
+    # rejecting an invalid value must not have silently persisted it
+    assert svc.get_deployment_mode() == "local"
 
 
 def test_list_available_models_reads_from_ollama_tags_endpoint(settings_service):

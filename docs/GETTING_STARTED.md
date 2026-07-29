@@ -113,23 +113,28 @@ Full deployment details (Docker image, shared-volume requirement, security warni
 
 ### 7. Optional: AI code review (Ollama)
 
-An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans and its narrative result shows up in the scan detail dialog; see `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
+An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans; its narrative result and normalized findings (severity/title/file) show up in the scan detail dialog. See `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
 
-Run Ollama in Docker:
+Ollama can be run either natively or in Docker — Zanshin talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. This is selectable in Settings ("Mode de déploiement d'Ollama"), for documentation/UI purposes only.
 
-```bash
-docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
-# add --gpus=all if you have an NVIDIA GPU + the NVIDIA Container Toolkit installed
-```
-
-Pull a model (the recommended default; a lighter alternative exists for constrained hardware):
+**Native install (recommended, especially on Apple Silicon Macs)** — see [ollama.com/download](https://ollama.com/download). Gets full GPU acceleration: Metal on Apple Silicon, CUDA/ROCm on Linux with the right drivers.
 
 ```bash
-docker exec -it ollama ollama pull gemma4:12b-it-qat   # ~7.2GB, ~9-10GB RAM/VRAM — recommended default
-docker exec -it ollama ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
+ollama pull gemma4:12b-it-qat   # ~7.2GB, ~9-10GB RAM/VRAM — recommended default
+ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
 ```
 
-Then, from Zanshin's **Settings** page, under "Revue de code par IA": toggle it on, set the Ollama URL (default `http://localhost:11434`), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
+**Docker** — simpler to reproduce across machines, but on **Apple Silicon Macs, Docker Desktop has no GPU/Metal passthrough**, so the container runs CPU-only and inference is noticeably slower than the native app. On Linux with an NVIDIA GPU (+ nvidia-container-toolkit), GPU acceleration is still possible in the container. A ready-made compose file is provided at the repository root:
+
+```bash
+docker compose -f docker-compose.ollama.yml up -d
+docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
+docker exec -it zanshin-ollama ollama pull gemma4:e4b-it-qat   # optional, lighter alternative
+```
+
+(Uncomment the `deploy` section in `docker-compose.ollama.yml` for NVIDIA GPU passthrough on Linux.)
+
+Then, from Zanshin's **Settings** page, under "Revue de code par IA": pick a deployment mode (informational — see above), toggle the feature on, set the Ollama URL (default `http://localhost:11434`, unchanged whether Ollama runs natively or via the provided compose file since the container publishes the same port to the host), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
 
 ### 8. Running the tests
 
@@ -145,7 +150,8 @@ Runs entirely against an in-memory database; never touches `zanshin/database.sql
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, and `bridgecrew/checkov` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
 - **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: expected — AES-GCM decryption requires the exact same key used to encrypt. There's no key-rotation mechanism; re-add affected SSH keys after changing the key.
-- **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`docker ps`) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
+- **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` / `docker compose -f docker-compose.ollama.yml ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
+- **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.
 
 ---
 
@@ -258,23 +264,28 @@ Le détail complet du déploiement (image Docker, exigence de volume partagé, a
 
 ### 7. Optionnel : revue de code par IA (Ollama)
 
-Une option supplémentaire, désactivée par défaut : un LLM local, exécuté via [Ollama](https://ollama.com), qui relit le code source avec un prompt "security architect", en complément léger de Grype/gitleaks/checkov — pas un remplacement. Une fois activée, elle s'exécute automatiquement sur les scans de dépôt et son résultat narratif apparaît dans la fenêtre de détail du scan ; voir la docstring d'`AiReviewService` et [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis pour le détail de l'intégration.
+Une option supplémentaire, désactivée par défaut : un LLM local, exécuté via [Ollama](https://ollama.com), qui relit le code source avec un prompt "security architect", en complément léger de Grype/gitleaks/checkov — pas un remplacement. Une fois activée, elle s'exécute automatiquement sur les scans de dépôt ; son résultat narratif et ses findings normalisés (sévérité/titre/fichier) apparaissent dans la fenêtre de détail du scan. Voir la docstring d'`AiReviewService` et [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis pour le détail de l'intégration.
 
-Lancer Ollama via Docker :
+Ollama peut tourner soit nativement, soit en Docker — Zanshin lui parle en HTTP dans les deux cas (`ai_review_ollama_url`, défaut `http://localhost:11434`), le choix ne concerne que la façon dont Ollama lui-même est lancé. Ce choix est disponible dans les Réglages ("Mode de déploiement d'Ollama"), à titre informatif/documentaire.
 
-```bash
-docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
-# ajoutez --gpus=all si vous avez un GPU NVIDIA + le NVIDIA Container Toolkit installé
-```
-
-Télécharger un modèle (le défaut recommandé ; une alternative plus légère existe pour du matériel contraint) :
+**Installation native (recommandée, surtout sur Mac Apple Silicon)** — voir [ollama.com/download](https://ollama.com/download). Bénéficie de l'accélération GPU complète : Metal sur Apple Silicon, CUDA/ROCm sous Linux avec les bons pilotes.
 
 ```bash
-docker exec -it ollama ollama pull gemma4:12b-it-qat   # ~7,2 Go, ~9-10 Go RAM/VRAM — défaut recommandé
-docker exec -it ollama ollama pull gemma4:e4b-it-qat   # ~6,1 Go, plus léger/rapide, qualité de revue moindre
+ollama pull gemma4:12b-it-qat   # ~7,2 Go, ~9-10 Go RAM/VRAM — défaut recommandé
+ollama pull gemma4:e4b-it-qat   # ~6,1 Go, plus léger/rapide, qualité de revue moindre
 ```
 
-Puis, depuis la page **Paramètres** de Zanshin, section "Revue de code par IA" : activez-la, définissez l'URL d'Ollama (par défaut `http://localhost:11434`), et choisissez un modèle dans la liste déroulante — la liste est lue en direct sur l'API `/api/tags` d'Ollama (ce que vous avez réellement téléchargé y apparaît), pas une liste figée. Si Ollama n'est pas encore joignable, la liste propose les deux modèles ci-dessus à titre de suggestion plutôt que d'être vide.
+**Docker** — plus simple à reproduire d'une machine à l'autre, mais **sur Mac Apple Silicon, Docker Desktop n'a pas d'accès GPU/Metal** : le conteneur tourne alors en CPU uniquement, nettement plus lent que l'application native. Sous Linux avec un GPU NVIDIA (+ nvidia-container-toolkit), l'accélération GPU reste possible en conteneur. Un fichier compose prêt à l'emploi est fourni à la racine du dépôt :
+
+```bash
+docker compose -f docker-compose.ollama.yml up -d
+docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
+docker exec -it zanshin-ollama ollama pull gemma4:e4b-it-qat   # optionnel, alternative plus légère
+```
+
+(Décommentez la section `deploy` de `docker-compose.ollama.yml` pour le passthrough GPU NVIDIA sous Linux.)
+
+Puis, depuis la page **Paramètres** de Zanshin, section "Revue de code par IA" : choisissez un mode de déploiement (informatif — voir ci-dessus), activez la fonctionnalité, définissez l'URL d'Ollama (par défaut `http://localhost:11434`, inchangée qu'Ollama tourne nativement ou via le fichier compose fourni puisque le conteneur publie le même port sur l'hôte), et choisissez un modèle dans la liste déroulante — la liste est lue en direct sur l'API `/api/tags` d'Ollama (ce que vous avez réellement téléchargé y apparaît), pas une liste figée. Si Ollama n'est pas encore joignable, la liste propose les deux modèles ci-dessus à titre de suggestion plutôt que d'être vide.
 
 ### 8. Lancer les tests
 
@@ -290,4 +301,5 @@ S'exécute entièrement sur une base en mémoire ; ne touche jamais `zanshin/dat
 - **Le premier scan est lent** : le backend `docker` télécharge les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks` et `bridgecrew/checkov` à la demande lors de leur première utilisation — les scans suivants réutilisent les images en cache.
 - **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont erronés, soit le champ `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un admin existant) ou interrogez directement la table `user`.
 - **`ENCRYPTION_KEY` changée et le déchiffrement des clés SSH échoue désormais** : comportement attendu — le déchiffrement AES-GCM nécessite exactement la même clé que celle utilisée au chiffrement. Il n'y a pas de mécanisme de rotation de clé ; réajoutez les clés SSH concernées après avoir changé la clé.
-- **La liste des modèles IA n'affiche que les deux suggestions** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`docker ps`) et que l'URL/le port correspondent, puis cliquez sur "Rafraîchir la liste" dans la page Paramètres.
+- **La liste des modèles IA n'affiche que les deux suggestions** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`ollama list` en natif, `docker ps` / `docker compose -f docker-compose.ollama.yml ps` en conteneur) et que l'URL/le port correspondent, puis cliquez sur "Rafraîchir la liste" dans la page Paramètres.
+- **La revue IA fonctionne mais semble lente** : normal si Ollama tourne en Docker sur un Mac Apple Silicon (pas de passthrough GPU/Metal — inférence CPU uniquement). Passez à une installation native pour l'accélération GPU, ou utilisez le modèle plus léger `gemma4:e4b-it-qat`.
