@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import shutil
@@ -6,13 +5,16 @@ import tempfile
 import time
 import uuid
 from typing import Dict, Any, Optional
-import docker
 import git
 
 from zanshin.database import SessionLocal
 from zanshin.models.scan import Scan
 from zanshin.models.container import Container
+from zanshin.models.finding import Finding
 from zanshin.services.ssh_key_service import SSHKeyService
+from zanshin.services.scanners.base import ScannerEngine
+from zanshin.services.enrichment_service import EnrichmentService
+from zanshin.services.license_compliance_service import LicenseComplianceService
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +23,26 @@ class NotificationGateway:
         logger.info(f"Sending scan update: Scan ID {scan_id}, Status {status}")
 
 class ScanProcessor:
-    def __init__(self, ssh_key_service: SSHKeyService):
+    def __init__(
+        self,
+        ssh_key_service: SSHKeyService,
+        scanner_engine: ScannerEngine,
+        enrichment_service: Optional[EnrichmentService] = None,
+        license_compliance_service: Optional[LicenseComplianceService] = None,
+    ):
         self.ssh_key_service = ssh_key_service
+        # `scanner_engine` decides *where* SBOM generation/vulnerability
+        # scanning actually runs (local Docker today; local API / cloud API
+        # backends are pluggable extensions — see ADR-001). ScanProcessor
+        # only orchestrates the steps and never talks to Docker directly.
+        self.scanner_engine = scanner_engine
+        # Optional: EPSS/CISA-KEV scoring, run after a scan completes. Never
+        # allowed to turn a successful scan into a failed one.
+        self.enrichment_service = enrichment_service
+        # Optional: license blocklist evaluation over the SBOM Syft already
+        # produced — applies to both repo and container scans, unlike
+        # secrets scanning (see ADR-001, section 5).
+        self.license_compliance_service = license_compliance_service
         self.notification_gateway = NotificationGateway()
         
     def process_scan(self, scan_id: int, repo_url: Optional[str], branch: str, sub_path: str, ssh_key_id: Optional[uuid.UUID]):
@@ -42,7 +62,14 @@ class ScanProcessor:
             
             is_container = scan.container_id is not None
             start_time = time.time()
-            temp_dir = tempfile.mkdtemp(prefix=f"zanshin_scan_{scan_id}_")
+            # `get_workspace_root()` returns None for every backend except
+            # LocalApiScannerEngine, which needs the workspace created
+            # inside the volume it shares with its sidecar service instead
+            # of the OS default temp location (see ADR-001 Phase 4).
+            workspace_root = self.scanner_engine.get_workspace_root()
+            if workspace_root:
+                os.makedirs(workspace_root, exist_ok=True)
+            temp_dir = tempfile.mkdtemp(prefix=f"zanshin_scan_{scan_id}_", dir=workspace_root)
             
             try:
                 if is_container:
@@ -51,11 +78,11 @@ class ScanProcessor:
                     
                     # 1. Generate Container SBOM
                     logger.info(f"Generating SBOM for Docker image {image_string}")
-                    sbom = self._generate_container_sbom(image_string)
-                    
+                    sbom = self.scanner_engine.generate_sbom_for_image(image_string)
+
                     # 2. Scan SBOM with Grype
                     logger.info("Scanning SBOM for CVEs")
-                    cves = self._scan_sbom(temp_dir, sbom)
+                    cves = self.scanner_engine.scan_sbom(temp_dir, sbom)
                 else:
                     # 0. Validate Path
                     self._validate_path(sub_path)
@@ -66,15 +93,34 @@ class ScanProcessor:
                     
                     # 2. Generate Directory SBOM
                     logger.info(f"Generating SBOM for directory (Target: {sub_path})")
-                    sbom = self._generate_dir_sbom(temp_dir, sub_path)
-                    
+                    sbom = self.scanner_engine.generate_sbom_for_directory(temp_dir, sub_path)
+
                     # 3. Scan SBOM with Grype
                     logger.info("Scanning SBOM for CVEs")
-                    cves = self._scan_sbom(temp_dir, sbom)
-                    
+                    cves = self.scanner_engine.scan_sbom(temp_dir, sbom)
+
+                    # 4. Scan for hardcoded secrets (source code only — not
+                    # run for container images, see ADR-001 section 5).
+                    logger.info("Scanning for hardcoded secrets")
+                    leaks = self.scanner_engine.scan_secrets(temp_dir, sub_path)
+
+                    # 5. Scan Infrastructure-as-Code manifests (Terraform,
+                    # Kubernetes, ...) — same "source code only" reasoning
+                    # as secrets (ADR-001 section 5, Phase 6).
+                    logger.info("Scanning Infrastructure-as-Code manifests")
+                    iac_checks = self.scanner_engine.scan_iac(temp_dir, sub_path)
+
                 duration_ms = int((time.time() - start_time) * 1000)
                 summary = self._summarize_findings(cves)
-                
+                findings = self._build_findings(scan.id, cves)
+                if not is_container:
+                    findings.extend(self._build_secret_findings(scan.id, leaks))
+                    findings.extend(self._build_iac_findings(scan.id, iac_checks))
+                if self.license_compliance_service:
+                    # Applies to both branches: Syft produces license data
+                    # for container images just as much as for directories.
+                    findings.extend(self.license_compliance_service.build_findings(scan.id, sbom))
+
                 # Update Scan results
                 scan.status = "completed"
                 scan.sbom = sbom
@@ -82,11 +128,20 @@ class ScanProcessor:
                 scan.summary = summary
                 scan.findings_count = summary.get("total", 0)
                 scan.duration_ms = duration_ms
+                db.add_all(findings)
                 db.commit()
-                
+
                 self.notification_gateway.send_scan_update(scan_id, "completed")
                 logger.info(f"Scan completed for ID {scan_id}")
-                
+
+                if self.enrichment_service:
+                    try:
+                        self.enrichment_service.enrich_findings(db, findings)
+                    except Exception:
+                        # Best-effort only: enrichment failing must never
+                        # turn an already-completed scan into a failure.
+                        logger.exception(f"Enrichment failed for Scan ID {scan_id} (non-fatal)")
+
             except Exception as e:
                 logger.exception(f"Scan failed for ID {scan_id}")
                 scan.status = "failed"
@@ -132,58 +187,86 @@ class ScanProcessor:
             if key_file_path and os.path.exists(key_file_path):
                 os.remove(key_file_path)
 
-    def _generate_container_sbom(self, image_string: str) -> Dict[str, Any]:
-        client = docker.from_env()
-        volumes = {}
-        
-        # Check standard docker sockets
-        sockets = [
-            "/var/run/docker.sock",
-            os.path.expanduser("~/.docker/run/docker.sock")
-        ]
-        for s in sockets:
-            if os.path.exists(s):
-                volumes[os.path.abspath(s)] = {"bind": "/var/run/docker.sock", "mode": "rw"}
-                break
-                
-        output_bytes = client.containers.run(
-            image="anchore/syft:latest",
-            command=["registry:" + image_string, "--platform", "linux/amd64", "-o", "json"],
-            volumes=volumes,
-            remove=True,
-            stdout=True,
-            stderr=False
-        )
-        return json.loads(output_bytes.decode("utf-8"))
+    def _build_findings(self, scan_id: int, cves: Dict[str, Any]) -> list:
+        """Turn a scanner engine's vulnerability-matching output into
+        normalized `Finding` rows.
 
-    def _generate_dir_sbom(self, work_dir: str, sub_path: str) -> Dict[str, Any]:
-        client = docker.from_env()
-        target = f"/src/{sub_path}" if sub_path else "/src"
-        output_bytes = client.containers.run(
-            image="anchore/syft:latest",
-            command=["dir:" + target, "-o", "json"],
-            volumes={os.path.abspath(work_dir): {"bind": "/src", "mode": "ro"}},
-            remove=True,
-            stdout=True,
-            stderr=False
-        )
-        return json.loads(output_bytes.decode("utf-8"))
+        `cves` is Grype-shaped (`{"matches": [...]}` ) regardless of which
+        backend produced it — `DockerScannerEngine` returns Grype's own
+        output, and `OsvScannerEngine` translates OSV.dev's response into
+        the same shape (see its docstring) precisely so this code doesn't
+        need to know which backend ran. The optional top-level
+        "engine_source" key records which one actually did, for provenance
+        on each Finding (not called "source": Grype's own JSON output
+        already uses that key for something else entirely).
 
-    def _scan_sbom(self, work_dir: str, sbom: Dict[str, Any]) -> Dict[str, Any]:
-        client = docker.from_env()
-        sbom_file_path = os.path.join(work_dir, "sbom.json")
-        with open(sbom_file_path, "w") as f:
-            json.dump(sbom, f)
-            
-        output_bytes = client.containers.run(
-            image="anchore/grype:latest",
-            command=["sbom:/work/sbom.json", "-o", "json"],
-            volumes={os.path.abspath(work_dir): {"bind": "/work", "mode": "ro"}},
-            remove=True,
-            stdout=True,
-            stderr=False
-        )
-        return json.loads(output_bytes.decode("utf-8"))
+        Kept alongside the raw `cves`/`sbom` blobs (not instead of), so the
+        UI/VEX workflow and future enrichment (EPSS/KEV) can query
+        structured data instead of re-parsing tool-specific JSON — see
+        ADR-001, section 4.
+        """
+        source = cves.get("engine_source", "grype")
+        findings = []
+        for match in cves.get("matches", []):
+            vuln = match.get("vulnerability", {})
+            artifact = match.get("artifact", {})
+            locations = artifact.get("locations", []) or []
+            findings.append(Finding(
+                scan_id=scan_id,
+                type="vulnerability",
+                severity=vuln.get("severity", "unknown").lower(),
+                identifier=vuln.get("id"),
+                package_name=artifact.get("name"),
+                package_version=artifact.get("version"),
+                purl=artifact.get("purl"),
+                file_path=locations[0].get("path") if locations else None,
+                source=source,
+                status="open",
+            ))
+        return findings
+
+    def _build_secret_findings(self, scan_id: int, leaks: list) -> list:
+        """Turn gitleaks' raw JSON report into normalized `Finding` rows.
+
+        gitleaks doesn't grade severity — every hardcoded secret is treated
+        as "high" by default, since a leaked credential is rarely a low-risk
+        finding regardless of the rule that caught it.
+        """
+        findings = []
+        for leak in leaks:
+            findings.append(Finding(
+                scan_id=scan_id,
+                type="secret",
+                severity="high",
+                identifier=leak.get("RuleID"),
+                file_path=leak.get("File"),
+                source="gitleaks",
+                status="open",
+            ))
+        return findings
+
+    def _build_iac_findings(self, scan_id: int, failed_checks: list) -> list:
+        """Turn checkov's raw `failed_checks` entries into normalized
+        `Finding` rows.
+
+        checkov's own severity field is often absent depending on the
+        policy/framework, so it defaults to "medium" rather than "unknown"
+        — a misconfigured IaC resource (e.g. a public S3 bucket) is rarely
+        genuinely low-priority even when unclassified.
+        """
+        findings = []
+        for check in failed_checks:
+            findings.append(Finding(
+                scan_id=scan_id,
+                type="iac",
+                severity=(check.get("severity") or "medium").lower(),
+                identifier=check.get("check_id"),
+                package_name=check.get("resource"),
+                file_path=check.get("file_path"),
+                source="checkov",
+                status="open",
+            ))
+        return findings
 
     def _summarize_findings(self, cves: Dict[str, Any]) -> Dict[str, Any]:
         summary = {

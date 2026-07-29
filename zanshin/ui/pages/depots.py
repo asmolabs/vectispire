@@ -44,6 +44,9 @@ class DepotsState(BaseState):
     selected_scan_name: str = ""
     selected_scan_cves: list[dict[str, str]] = []
     selected_scan_summary: dict[str, int] = {}
+    selected_scan_secrets: list[dict[str, str]] = []
+    selected_scan_licenses: list[dict[str, str]] = []
+    selected_scan_iac: list[dict[str, str]] = []
 
     def set_new_name(self, val: str):
         self.new_name = val
@@ -79,6 +82,19 @@ class DepotsState(BaseState):
         container = get_container()
         try:
             db_repos = container.repository_repository.find_all()
+
+            # Figure out each repo's latest scan first, so secret counts can
+            # be fetched in a single grouped query instead of one per repo.
+            latest_scans = {}
+            for r in db_repos:
+                scans = sorted(r.scans or [], key=lambda s: s.created_at, reverse=True)
+                if scans:
+                    latest_scans[r.id] = scans[0]
+
+            secret_counts = container.finding_repository.count_by_scan_ids_and_type(
+                [s.id for s in latest_scans.values()], "secret"
+            )
+
             self.repositories = []
             for r in db_repos:
                 status = "Non scanné"
@@ -87,9 +103,9 @@ class DepotsState(BaseState):
                 high = 0
                 med = 0
                 low = 0
-                scans = sorted(r.scans or [], key=lambda s: s.created_at, reverse=True)
-                if scans:
-                    latest = scans[0]
+                secrets = 0
+                latest = latest_scans.get(r.id)
+                if latest:
                     status = latest.status
                     findings = latest.findings_count
                     summary = latest.summary or {}
@@ -97,7 +113,8 @@ class DepotsState(BaseState):
                     high = summary.get("high", 0)
                     med = summary.get("medium", 0)
                     low = summary.get("low", 0)
-                
+                    secrets = secret_counts.get(latest.id, 0)
+
                 self.repositories.append({
                     "id": str(r.id),
                     "name": r.name or r.url,
@@ -108,9 +125,10 @@ class DepotsState(BaseState):
                     "critical": str(crit),
                     "high": str(high),
                     "medium": str(med),
-                    "low": str(low)
+                    "low": str(low),
+                    "secrets": str(secrets)
                 })
-            
+
             # Load SSH Keys for dropdown selection
             db_keys = container.ssh_key_repository.find_all()
             self.ssh_keys_list = [{"label": k.name, "value": str(k.id)} for k in db_keys]
@@ -129,7 +147,11 @@ class DepotsState(BaseState):
             
             # Sort scans by creation date descending
             db_scans = sorted(db_scans, key=lambda s: s.created_at or datetime.min, reverse=True)
-            
+
+            secret_counts = container.finding_repository.count_by_scan_ids_and_type(
+                [s.id for s in db_scans], "secret"
+            )
+
             for s in db_scans:
                 target_name = "N/A"
                 branch = "—"
@@ -160,6 +182,7 @@ class DepotsState(BaseState):
                     "high": str(summary.get("high", 0)),
                     "medium": str(summary.get("medium", 0)),
                     "low": str(summary.get("low", 0)),
+                    "secrets": str(secret_counts.get(s.id, 0)),
                     "duration": duration,
                     "created_at": s.created_at.strftime("%d/%m/%y %H:%M") if s.created_at else ""
                 })
@@ -275,6 +298,9 @@ class DepotsState(BaseState):
             # Load scans list
             self.selected_repo_scans = []
             scans = sorted(r.scans or [], key=lambda s: s.created_at, reverse=True)
+            secret_counts = container.finding_repository.count_by_scan_ids_and_type(
+                [s.id for s in scans], "secret"
+            )
             for s in scans:
                 summary = s.summary or {}
                 self.selected_repo_scans.append({
@@ -286,6 +312,7 @@ class DepotsState(BaseState):
                     "high": str(summary.get("high", 0)),
                     "medium": str(summary.get("medium", 0)),
                     "low": str(summary.get("low", 0)),
+                    "secrets": str(secret_counts.get(s.id, 0)),
                     "created_at": s.created_at.strftime("%d/%m/%Y %H:%M") if s.created_at else ""
                 })
             
@@ -336,23 +363,65 @@ class DepotsState(BaseState):
             
             cves_data = s.cves or {}
             matches = cves_data.get("matches", [])
-            
+
+            # EPSS/CISA-KEV enrichment lives on the normalized `Finding` rows,
+            # not in the raw Grype blob — look it up by CVE id (see
+            # EnrichmentService / ADR-001 section 6).
+            vuln_findings_by_cve = {
+                f.identifier: f
+                for f in container.finding_repository.find_all_by_scan_id_and_type(scan_id, "vulnerability")
+                if f.identifier
+            }
+
             parsed_cves = []
             for m in matches:
                 vuln = m.get("vulnerability", {})
                 art = m.get("artifact", {})
                 fix = vuln.get("fix", {})
-                
+                cve_id = vuln.get("id", "N/A")
+                finding = vuln_findings_by_cve.get(cve_id)
+
                 parsed_cves.append({
-                    "id": vuln.get("id", "N/A"),
+                    "id": cve_id,
                     "severity": vuln.get("severity", "N/A").upper(),
                     "component": art.get("name", "N/A"),
                     "version": art.get("version", "N/A"),
                     "description": vuln.get("description", "Pas de description"),
                     "fix_state": fix.get("state", "unknown"),
-                    "link": vuln.get("links", [""])[0] if vuln.get("links") else ""
+                    "link": vuln.get("links", [""])[0] if vuln.get("links") else "",
+                    "epss": f"{finding.epss_score:.1%}" if finding and finding.epss_score is not None else "—",
+                    "is_kev": "true" if (finding and finding.is_kev) else "false"
                 })
                 
+            secret_findings = container.finding_repository.find_all_by_scan_id_and_type(scan_id, "secret")
+            self.selected_scan_secrets = [
+                {
+                    "rule": f.identifier or "N/A",
+                    "file_path": f.file_path or "N/A",
+                }
+                for f in secret_findings
+            ]
+
+            license_findings = container.finding_repository.find_all_by_scan_id_and_type(scan_id, "license")
+            self.selected_scan_licenses = [
+                {
+                    "license": f.identifier or "N/A",
+                    "component": f"{f.package_name or 'N/A'} {f.package_version or ''}".strip(),
+                }
+                for f in license_findings
+            ]
+
+            iac_findings = container.finding_repository.find_all_by_scan_id_and_type(scan_id, "iac")
+            self.selected_scan_iac = [
+                {
+                    "severity": (f.severity or "medium").upper(),
+                    "check_id": f.identifier or "N/A",
+                    "resource": f.package_name or "N/A",
+                    "file_path": f.file_path or "N/A",
+                }
+                for f in iac_findings
+            ]
+
             self.selected_scan_cves = parsed_cves
             self.selected_scan_summary = s.summary or {}
             self.cve_dialog_open = True
@@ -452,6 +521,7 @@ def list_layout_view() -> rx.Component:
                         rx.table.column_header_cell("Branche"),
                         rx.table.column_header_cell("Statut"),
                         rx.table.column_header_cell("Vulnérabilités"),
+                        rx.table.column_header_cell("Secrets"),
                         rx.table.column_header_cell("Actions")
                     )
                 ),
@@ -483,6 +553,13 @@ def list_layout_view() -> rx.Component:
                                         rx.cond(r["low"] != "0", rx.badge(f"Faible: {r['low']}", color_scheme="blue")),
                                         spacing="1"
                                     )
+                                )
+                            ),
+                            rx.table.cell(
+                                rx.cond(
+                                    r["secrets"] == "0",
+                                    rx.badge("0", color_scheme="green"),
+                                    rx.badge(f"{r['secrets']} secret(s)", color_scheme="red", variant="solid")
                                 )
                             ),
                             rx.table.cell(
@@ -558,6 +635,7 @@ def history_layout_view() -> rx.Component:
                         rx.table.column_header_cell("Statut"),
                         rx.table.column_header_cell("Durée"),
                         rx.table.column_header_cell("Vulnérabilités"),
+                        rx.table.column_header_cell("Secrets"),
                         rx.table.column_header_cell("Date de scan"),
                         rx.table.column_header_cell("Actions")
                     )
@@ -593,6 +671,13 @@ def history_layout_view() -> rx.Component:
                                     )
                                 )
                             ),
+                            rx.table.cell(
+                                rx.cond(
+                                    s["secrets"] == "0",
+                                    rx.badge("0", color_scheme="green"),
+                                    rx.badge(f"{s['secrets']} secret(s)", color_scheme="red", variant="solid")
+                                )
+                            ),
                             rx.table.cell(s["created_at"]),
                             rx.table.cell(
                                 rx.hstack(
@@ -604,7 +689,7 @@ def history_layout_view() -> rx.Component:
                                             variant="soft",
                                             on_click=lambda: DepotsState.show_cves(s["id"].to(int))
                                         ),
-                                        content="Détails (CVEs)"
+                                        content="Détails (CVEs & secrets)"
                                     ),
                                     rx.cond(
                                         s["repo_id"] != "",
@@ -701,6 +786,7 @@ def details_layout_view() -> rx.Component:
                             rx.table.column_header_cell("Branche"),
                             rx.table.column_header_cell("Statut"),
                             rx.table.column_header_cell("Vulnérabilités"),
+                            rx.table.column_header_cell("Secrets"),
                             rx.table.column_header_cell("Date de début"),
                             rx.table.column_header_cell("Actions")
                         )
@@ -732,6 +818,13 @@ def details_layout_view() -> rx.Component:
                                             rx.cond(scan["low"] != "0", rx.badge(f"Faible: {scan['low']}", color_scheme="blue")),
                                             spacing="1"
                                         )
+                                    )
+                                ),
+                                rx.table.cell(
+                                    rx.cond(
+                                        scan["secrets"] == "0",
+                                        rx.badge("0", color_scheme="green"),
+                                        rx.badge(f"{scan['secrets']} secret(s)", color_scheme="red", variant="solid")
                                     )
                                 ),
                                 rx.table.cell(scan["created_at"]),
@@ -796,7 +889,7 @@ def depots_page() -> rx.Component:
         rx.dialog.root(
             rx.dialog.content(
                 rx.dialog.title(f"Vulnérabilités de {DepotsState.selected_scan_name}"),
-                rx.dialog.description("Détails des failles de sécurité identifiées par Grype"),
+                rx.dialog.description("Détails des failles, secrets, licences non conformes, et manifestes IaC mal configurés identifiés"),
                 
                 # Severity Summary
                 rx.hstack(
@@ -834,7 +927,9 @@ def depots_page() -> rx.Component:
                                 rx.table.column_header_cell("Composant"),
                                 rx.table.column_header_cell("Version"),
                                 rx.table.column_header_cell("Description"),
-                                rx.table.column_header_cell("Fix Status")
+                                rx.table.column_header_cell("Fix Status"),
+                                rx.table.column_header_cell("EPSS"),
+                                rx.table.column_header_cell("KEV")
                             )
                         ),
                         rx.table.body(
@@ -874,6 +969,14 @@ def depots_page() -> rx.Component:
                                             cve["fix_state"],
                                             color_scheme=rx.cond(cve["fix_state"] == "fixed", "green", "gray")
                                         )
+                                    ),
+                                    rx.table.cell(cve["epss"]),
+                                    rx.table.cell(
+                                        rx.cond(
+                                            cve["is_kev"] == "true",
+                                            rx.badge("Exploitée activement", color_scheme="red", variant="solid"),
+                                            rx.text("—", color="var(--slate-9)")
+                                        )
                                     )
                                 )
                             )
@@ -882,7 +985,122 @@ def depots_page() -> rx.Component:
                     ),
                     class_name="mt-6 max-h-96 overflow-y-auto border border-slate-4 rounded-lg"
                 ),
-                
+
+                # Secrets section (gitleaks) — only rendered when relevant
+                rx.cond(
+                    DepotsState.selected_scan_secrets.length() > 0,
+                    rx.vstack(
+                        rx.heading(f"Secrets détectés ({DepotsState.selected_scan_secrets.length()})", size="3", weight="bold"),
+                        rx.box(
+                            rx.table.root(
+                                rx.table.header(
+                                    rx.table.row(
+                                        rx.table.column_header_cell("Règle"),
+                                        rx.table.column_header_cell("Fichier")
+                                    )
+                                ),
+                                rx.table.body(
+                                    rx.foreach(
+                                        DepotsState.selected_scan_secrets,
+                                        lambda leak: rx.table.row(
+                                            rx.table.cell(rx.badge(leak["rule"], color_scheme="red", variant="solid")),
+                                            rx.table.cell(leak["file_path"])
+                                        )
+                                    )
+                                ),
+                                width="100%"
+                            ),
+                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        width="100%",
+                        spacing="2",
+                        class_name="mt-6"
+                    )
+                ),
+
+                # License compliance section — only rendered when relevant
+                # (empty unless a blocklist is configured in Paramètres)
+                rx.cond(
+                    DepotsState.selected_scan_licenses.length() > 0,
+                    rx.vstack(
+                        rx.heading(f"Licences non conformes ({DepotsState.selected_scan_licenses.length()})", size="3", weight="bold"),
+                        rx.box(
+                            rx.table.root(
+                                rx.table.header(
+                                    rx.table.row(
+                                        rx.table.column_header_cell("Licence"),
+                                        rx.table.column_header_cell("Composant")
+                                    )
+                                ),
+                                rx.table.body(
+                                    rx.foreach(
+                                        DepotsState.selected_scan_licenses,
+                                        lambda lic: rx.table.row(
+                                            rx.table.cell(rx.badge(lic["license"], color_scheme="orange", variant="solid")),
+                                            rx.table.cell(lic["component"])
+                                        )
+                                    )
+                                ),
+                                width="100%"
+                            ),
+                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        width="100%",
+                        spacing="2",
+                        class_name="mt-6"
+                    )
+                ),
+
+                # Infrastructure-as-Code section (checkov) — only rendered
+                # when relevant, repo scans only
+                rx.cond(
+                    DepotsState.selected_scan_iac.length() > 0,
+                    rx.vstack(
+                        rx.heading(f"Infrastructure as Code ({DepotsState.selected_scan_iac.length()})", size="3", weight="bold"),
+                        rx.box(
+                            rx.table.root(
+                                rx.table.header(
+                                    rx.table.row(
+                                        rx.table.column_header_cell("Sévérité"),
+                                        rx.table.column_header_cell("Check"),
+                                        rx.table.column_header_cell("Ressource"),
+                                        rx.table.column_header_cell("Fichier")
+                                    )
+                                ),
+                                rx.table.body(
+                                    rx.foreach(
+                                        DepotsState.selected_scan_iac,
+                                        lambda check: rx.table.row(
+                                            rx.table.cell(
+                                                rx.badge(
+                                                    check["severity"],
+                                                    color_scheme=rx.cond(
+                                                        check["severity"] == "CRITICAL",
+                                                        "red",
+                                                        rx.cond(
+                                                            check["severity"] == "HIGH",
+                                                            "orange",
+                                                            rx.cond(check["severity"] == "LOW", "blue", "yellow")
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            rx.table.cell(check["check_id"]),
+                                            rx.table.cell(check["resource"]),
+                                            rx.table.cell(check["file_path"])
+                                        )
+                                    )
+                                ),
+                                width="100%"
+                            ),
+                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        width="100%",
+                        spacing="2",
+                        class_name="mt-6"
+                    )
+                ),
+
                 rx.hstack(
                     rx.dialog.close(
                         rx.button("Fermer", on_click=DepotsState.close_cves, color_scheme="gray", variant="soft")

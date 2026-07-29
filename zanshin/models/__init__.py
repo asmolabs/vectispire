@@ -8,6 +8,8 @@ from zanshin.models.repository import ZanshinRepository
 from zanshin.models.container import Container
 from zanshin.models.scan import Scan
 from zanshin.models.vex_decision import VexDecision
+from zanshin.models.finding import Finding
+from zanshin.models.audit_log import AuditLog
 
 __all__ = [
     "GUID",
@@ -19,5 +21,7 @@ __all__ = [
     "ZanshinRepository",
     "Container",
     "Scan",
-    "VexDecision"
+    "VexDecision",
+    "Finding",
+    "AuditLog"
 ]

@@ -10,5 +10,13 @@ class ApiKey(Base):
 
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
+
+    # Only the bcrypt hash of the secret is stored; the raw secret is shown
+    # to the user once, at creation time, and never persisted or displayed
+    # again. `prefix` is a short, non-secret fragment kept for identification
+    # in the UI (e.g. "zsk_ab12...") without revealing the full key.
+    key_hash = Column(String(255), nullable=False)
+    prefix = Column(String(16), nullable=True)
+
     created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
     last_used_at = Column(SafeDateTime, nullable=True)

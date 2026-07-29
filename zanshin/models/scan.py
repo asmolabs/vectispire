@@ -26,3 +26,7 @@ class Scan(Base):
 
     container_id = Column(BigInteger, ForeignKey("container.id"), nullable=True)
     container = relationship("Container", back_populates="scans")
+
+    # Normalized, queryable results (see ADR-001). `cves`/`sbom` above stay
+    # as the raw tool output for audit purposes.
+    findings = relationship("Finding", back_populates="scan", cascade="all, delete-orphan")

@@ -4,7 +4,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 class EncryptionService:
     def __init__(self):
-        # Default fallback key to match Java config
+        # Default fallback key, kept for backward compatibility with data
+        # encrypted by an earlier implementation of this application
         self.key = os.getenv("ENCRYPTION_KEY", "my-secret-encryption-key-32bytes").encode("utf-8")
         if len(self.key) < 32:
             self.key = self.key.ljust(32, b"\0")[:32]

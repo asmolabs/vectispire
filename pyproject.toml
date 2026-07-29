@@ -10,9 +10,31 @@ dependencies = [
     "cryptography>=49.0.0",
     "docker>=7.1.0",
     "gitpython>=3.1.50",
+    "httpx>=0.28.1",
     "passlib>=1.7.4",
     "pydantic>=2.13.4",
     "python-jose>=3.5.0",
     "reflex>=0.9.6.post1",
     "sqlalchemy>=2.0.51",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["zanshin"]
+omit = [
+    # UI/Reflex layer: State classes are exercised through Reflex's own
+    # event-handler machinery (yield-based generators, on_mount, component
+    # rendering) rather than plain function calls, so they need Reflex's
+    # test harness, not plain pytest — see tests/README.md. Everything they
+    # delegate to (services, repositories, scanners) is covered directly.
+    "zanshin/ui/*",
+    "zanshin/zanshin.py",
 ]

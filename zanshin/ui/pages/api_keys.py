@@ -5,7 +5,7 @@ import uuid
 from zanshin.ui.state import BaseState
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
-from zanshin.models.api_key import ApiKey
+from zanshin.services.audit_log_service import AuditOperation
 
 class ApiKeysState(BaseState):
     """Handles loading, creating, showing, and deleting API Keys."""
@@ -32,6 +32,7 @@ class ApiKeysState(BaseState):
                 self.keys.append({
                     "id": str(k.id),
                     "name": k.name,
+                    "prefix": f"{k.prefix}..." if k.prefix else "—",
                     "last_used_at": k.last_used_at.strftime("%d/%m/%Y %H:%M") if k.last_used_at else "Jamais",
                     "created_at": k.created_at.strftime("%d/%m/%Y %H:%M") if k.created_at else ""
                 })
@@ -54,14 +55,19 @@ class ApiKeysState(BaseState):
 
         container = get_container()
         try:
-            new_key = ApiKey(name=self.new_name)
-            saved_key = container.api_key_repository.save(new_key)
-            
-            # Prepare raw key display
-            self.created_key_raw = str(saved_key.id)
+            saved_key, raw_secret = container.api_key_service.create_key(self.new_name)
+            container.audit_log_service.record(
+                AuditOperation.API_KEY_CREATED,
+                resource_id=str(saved_key.id),
+                description=f"Clé API '{saved_key.name}' créée",
+                user_id=self.username,
+            )
+
+            # Shown once: the raw secret is never stored or displayed again.
+            self.created_key_raw = raw_secret
             self.create_dialog_open = False
             self.display_dialog_open = True
-            
+
             yield self.trigger_toast("Clé API créée avec succès")
             yield ApiKeysState.load_keys_data(self)
         except Exception as e:
@@ -77,7 +83,15 @@ class ApiKeysState(BaseState):
         container = get_container()
         try:
             key_uuid = uuid.UUID(key_id_str)
+            existing = container.api_key_repository.find_by_id(key_uuid)
+            key_name = existing.name if existing else key_id_str
             container.api_key_repository.delete_by_id(key_uuid)
+            container.audit_log_service.record(
+                AuditOperation.API_KEY_DELETED,
+                resource_id=key_id_str,
+                description=f"Clé API '{key_name}' supprimée",
+                user_id=self.username,
+            )
             yield self.trigger_toast("Clé API supprimée")
             yield ApiKeysState.load_keys_data(self)
         except Exception as e:
@@ -103,7 +117,7 @@ def api_keys_page() -> rx.Component:
                 rx.table.header(
                     rx.table.row(
                         rx.table.column_header_cell("Nom"),
-                        rx.table.column_header_cell("ID Clé"),
+                        rx.table.column_header_cell("Clé"),
                         rx.table.column_header_cell("Dernière utilisation"),
                         rx.table.column_header_cell("Créée le"),
                         rx.table.column_header_cell("Actions")
@@ -114,7 +128,7 @@ def api_keys_page() -> rx.Component:
                         ApiKeysState.keys,
                         lambda k: rx.table.row(
                             rx.table.row_header_cell(k["name"]),
-                            rx.table.cell(k["id"]),
+                            rx.table.cell(k["prefix"]),
                             rx.table.cell(k["last_used_at"]),
                             rx.table.cell(k["created_at"]),
                             rx.table.cell(
