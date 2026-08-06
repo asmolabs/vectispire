@@ -35,6 +35,7 @@ from zanshin.services.issue_service import IssueService
 from zanshin.services.license_compliance_service import LicenseComplianceService
 from zanshin.services.notification_service import NotificationService
 from zanshin.services.scan_ingestor import ScanIngestor
+from zanshin.services.scan_queue import renew_lease, still_owned
 from zanshin.services.scan_runner import (
     AI_REVIEW_EXCLUDED_DIRS,
     AI_REVIEW_MAX_CHARS,
@@ -141,7 +142,17 @@ class ScanProcessor:
         branch: str,
         sub_path: str,
         ssh_key_id: Optional[uuid.UUID],
+        worker: Optional[str] = None,
     ):
+        """Run a scan here and ingest it.
+
+        `worker` is the `Agent.worker_id` this run belongs to — the built-in agent,
+        in practice, since a remote one never calls this. It is optional so the
+        signature stays compatible with every existing caller and test, and when
+        it is present two things happen that make lease-based recovery safe:
+        progress renews the lease, and the result is discarded if the lease was
+        lost in the meantime.
+        """
         logger.info(f"Processing scan job for Scan ID {scan_id} (Branch: {branch}, Path: {sub_path})")
 
         # Use a dedicated DB session for background processing
@@ -157,13 +168,41 @@ class ScanProcessor:
 
             try:
                 task = self.build_task(scan, repo_url, branch, sub_path, ssh_key_id)
-                artifacts = self.runner.run(task)
+                artifacts = self.runner.run(task, on_step=self._lease_renewer(db, scan_id, worker))
+
+                if not still_owned(db, scan_id, worker):
+                    # The lease lapsed while this scan ran (a long stall, a paused
+                    # process) and the queue handed the work to someone else.
+                    # Writing results now would overwrite theirs — see
+                    # `scan_queue.still_owned`.
+                    logger.warning(
+                        "Discarding results for Scan ID %s: lease no longer held by %s",
+                        scan_id, worker,
+                    )
+                    return
                 self.ingestor.ingest(db, scan, artifacts)
             except Exception as e:
                 logger.exception(f"Scan failed for ID {scan_id}")
                 self.ingestor.record_failure(db, scan, str(e))
         finally:
             db.close()
+
+    def _lease_renewer(self, db, scan_id: int, worker: Optional[str]):
+        """A step callback that pushes the lease out as the scan progresses.
+
+        Between steps rather than on a timer: the built-in agent runs in a thread
+        of this process, and a second thread purely to renew a lease would be more
+        moving parts than the guarantee is worth. A remote agent does use a timer
+        (its steps are the same length, but its silence has to be detected faster
+        than `LEASE_SECONDS` for the queue to react at all).
+        """
+        if not worker:
+            return None
+
+        def renew(_message: str) -> None:
+            renew_lease(db, scan_id, worker)
+
+        return renew
 
     def build_task(
         self,

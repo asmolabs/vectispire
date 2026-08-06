@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from zanshin.clock import utcnow
 
 from zanshin.models.scan import Scan
+from zanshin.services.scan_queue import MAX_ATTEMPTS
 from zanshin.services.scan_recovery import (
     INTERRUPTED_MESSAGE,
     fail_stalled_scans,
@@ -30,19 +31,76 @@ def _scan(db, status, created_at=None):
     return scan
 
 
-def test_interrupted_scans_are_failed_with_an_explanation(db_session):
-    pending = _scan(db_session, "pending")
+def test_an_interrupted_scan_goes_back_into_the_queue(db_session):
+    """It used to be failed. That was right when `pending` meant "about to run in
+    this process", and wrong once the queue moved into the database: the work was
+    never done, and the row *is* the queue entry."""
     scanning = _scan(db_session, "scanning")
 
     count = reconcile_interrupted_scans(db_session)
 
-    assert count == 2
-    db_session.refresh(pending)
+    assert count == 1
     db_session.refresh(scanning)
-    assert pending.status == "failed"
-    assert scanning.status == "failed"
+    assert scanning.status == "pending"
+    assert scanning.claimed_by is None
+    assert scanning.lease_expires_at is None
+
+
+def test_a_queued_scan_is_left_alone(db_session):
+    """The defect this closes: startup failed every `pending` row, destroying the
+    one property the database-backed queue exists for — that a request survives the
+    process that accepted it."""
+    queued = _scan(db_session, "pending")
+
+    assert reconcile_interrupted_scans(db_session) == 0
+
+    db_session.refresh(queued)
+    assert queued.status == "pending"
+
+
+def test_a_scan_held_by_another_worker_under_a_valid_lease_is_not_touched(db_session):
+    """ADR-002 §2.3: with one process, assuming every in-flight scan was orphaned
+    was correct. With a remote agent it is destructive — starting the web instance
+    would fail the scans that agent is busy running."""
+    scan = _scan(db_session, "scanning")
+    scan.claimed_by = "a" * 32  # some other agent
+    scan.lease_expires_at = utcnow() + timedelta(minutes=10)
+    db_session.commit()
+
+    assert reconcile_interrupted_scans(db_session, local_worker="b" * 32) == 0
+
+    db_session.refresh(scan)
+    assert scan.status == "scanning"
+
+
+def test_this_hosts_own_scan_is_reclaimed_even_under_a_valid_lease(db_session):
+    """Its lease may not have lapsed yet, but the thread holding it died with the
+    process that just restarted — waiting for the lease to expire would leave the
+    scan stuck for twenty minutes for no reason."""
+    scan = _scan(db_session, "scanning")
+    scan.claimed_by = "local-worker"
+    scan.lease_expires_at = utcnow() + timedelta(minutes=10)
+    db_session.commit()
+
+    assert reconcile_interrupted_scans(db_session, local_worker="local-worker") == 1
+
+    db_session.refresh(scan)
+    assert scan.status == "pending"
+
+
+def test_a_scan_that_used_up_its_attempts_is_failed_rather_than_re_queued(db_session):
+    """Otherwise a target that wedges whatever picks it up cycles forever, and the
+    operator only ever sees a scan that is about to start."""
+    scan = _scan(db_session, "scanning")
+    scan.attempts = MAX_ATTEMPTS
+    db_session.commit()
+
+    assert reconcile_interrupted_scans(db_session) == 1
+
+    db_session.refresh(scan)
+    assert scan.status == "failed"
     # The operator should be able to tell this apart from a scanner failure.
-    assert scanning.error == INTERRUPTED_MESSAGE
+    assert scan.error == INTERRUPTED_MESSAGE
 
 
 def test_finished_scans_are_left_alone(db_session):

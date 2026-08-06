@@ -33,6 +33,7 @@ from zanshin.repositories.ai_review_result_repository import AiReviewResultRepos
 from zanshin.repositories.issue_repository import IssueRepository
 from zanshin.repositories.gate_policy_repository import GatePolicyRepository
 from zanshin.repositories.outbox_repository import OutboxRepository
+from zanshin.repositories.agent_repository import AgentRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -55,6 +56,7 @@ from zanshin.services.audit_log_service import AuditLogService
 from zanshin.services.ai_review_service import AiReviewService
 from zanshin.services.issue_service import IssueService
 from zanshin.services.notification_service import NotificationService
+from zanshin.services.agent_service import AgentService
 
 
 class IoCContainer:
@@ -114,6 +116,10 @@ class IoCContainer:
     @cached_property
     def outbox_repository(self) -> OutboxRepository:
         return OutboxRepository(self.db)
+
+    @cached_property
+    def agent_repository(self) -> AgentRepository:
+        return AgentRepository(self.db)
 
     # --- Services ---
 
@@ -218,6 +224,16 @@ class IoCContainer:
             self.issue_service,
             self.notification_service,
             eol_service=self.eol_service,
+        )
+
+    @cached_property
+    def agent_service(self) -> AgentService:
+        """The registry of workers allowed to run scans — including this process
+        itself, which is a row like any other (see AgentService)."""
+        return AgentService(
+            self.agent_repository,
+            api_key_service=self.api_key_service,
+            settings_service=self.settings_service,
         )
 
     @cached_property

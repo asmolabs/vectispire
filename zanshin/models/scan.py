@@ -38,6 +38,30 @@ class Scan(Base):
     version = Column(String(255), nullable=True)
     project_type = Column(String(255), nullable=True)
 
+    # --- Ownership of the work (ADR-002) ---
+    #
+    # `status` says a scan is running; these four say *who* is running it and
+    # until when. Without them, "running" meant "some thread, somewhere, maybe":
+    # startup recovery had to assume every in-flight scan was orphaned and fail
+    # it, which is correct for one process and destroys another agent's work as
+    # soon as there are two (ADR-002 §2.3).
+    #
+    # `claimed_by` holds an `Agent.worker_id` (the agent's uuid as hex), not a
+    # foreign key: `Agent.id` is a 16-byte binary GUID, so a join would need a
+    # cast that behaves differently on every backend this project supports. The
+    # UI resolves the name through `AgentRepository.find_by_worker_id` instead,
+    # and a scan keeps its provenance even if the agent row is later deleted —
+    # which is the more useful property for an audit trail anyway.
+    claimed_by = Column(String(64), nullable=True)
+    claimed_at = Column(SafeDateTime, nullable=True)
+    # Renewed by the worker as it makes progress. A scan whose lease has lapsed is
+    # not killed — nothing here can kill a thread on another machine — it becomes
+    # *reclaimable*, and the worker that eventually reports on it is refused.
+    lease_expires_at = Column(SafeDateTime, nullable=True)
+    # Incremented on every claim, so a scan that is repeatedly picked up and
+    # abandoned fails visibly instead of cycling forever.
+    attempts = Column(Integer, default=0, nullable=False)
+
     repo_id = Column(Integer, ForeignKey("repository.id"), nullable=True)
     repository = relationship("ZanshinRepository", back_populates="scans")
 

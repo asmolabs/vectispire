@@ -9,7 +9,9 @@ waiting in it while leaving the rows behind as `pending` forever.
 import pytest
 
 from zanshin.models.scan import Scan
+from zanshin.repositories.agent_repository import AgentRepository
 from zanshin.services import scan_queue
+from zanshin.services.agent_service import AgentService
 from zanshin.services.scan_queue import (
     STATUS_QUEUED,
     STATUS_RUNNING,
@@ -23,7 +25,15 @@ from zanshin.services.scan_queue import (
 
 
 @pytest.fixture()
-def queue(db_session, settings_service, monkeypatch):
+def agent_service(db_session, settings_service):
+    """A real registry: `dispatch` claims scans *as* the built-in agent and takes
+    its capacity from that agent, so a stub would test a dispatcher that no longer
+    exists."""
+    return AgentService(AgentRepository(db_session), settings_service=settings_service)
+
+
+@pytest.fixture()
+def queue(db_session, settings_service, agent_service, monkeypatch):
     """A dispatcher pointed at this session, recording what it submits.
 
     `executor.submit` is replaced by a plain call: the point of these tests is the
@@ -40,6 +50,7 @@ def queue(db_session, settings_service, monkeypatch):
         def __init__(self, db):
             self.settings_service = settings_service
             self.scan_processor = None
+            self.agent_service = agent_service
 
     monkeypatch.setattr(scan_queue, "executor", ImmediateExecutor)
 
@@ -263,7 +274,9 @@ def test_a_scan_queued_before_a_restart_is_still_dispatched(
     assert [args[1] for args in submitted] == [s.id for s in scans]
 
 
-def test_what_is_submitted_carries_the_repository_details(db_session, make_repository, queue):
+def test_what_is_submitted_carries_the_repository_details(
+    db_session, make_repository, queue, agent_service
+):
     """The dispatcher reads them from the row, because whoever queued the scan may be
     long gone."""
     run, submitted = queue
@@ -277,10 +290,15 @@ def test_what_is_submitted_carries_the_repository_details(db_session, make_repos
 
     run()
 
-    _processor, scan_id, repo_url, branch, sub_path, _key = submitted[0]
+    _processor, scan_id, repo_url, branch, sub_path, _key, worker = submitted[0]
     assert (scan_id, repo_url, branch, sub_path) == (
         scan.id, "git@example.com:org/app.git", "release", "services/api"
     )
+    # And who is running it: the built-in agent, since this instance claimed it.
+    assert worker == agent_service.ensure_builtin_agent().worker_id
+    db_session.refresh(scan)
+    assert scan.claimed_by == worker
+    assert scan.lease_expires_at is not None
 
 
 def test_a_container_scan_has_no_repository_url(db_session, make_container, queue):
@@ -293,7 +311,7 @@ def test_a_container_scan_has_no_repository_url(db_session, make_container, queu
 
     run()
 
-    _processor, _scan_id, repo_url, _branch, _sub_path, ssh_key_id = submitted[0]
+    _processor, _scan_id, repo_url, _branch, _sub_path, ssh_key_id, _worker = submitted[0]
     assert repo_url is None
     assert ssh_key_id is None
 

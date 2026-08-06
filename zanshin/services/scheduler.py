@@ -35,6 +35,7 @@ from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
 from zanshin.services.outbox_service import prune_sent as prune_sent_messages, relay as outbox_relay
 from zanshin.services.scan_queue import dispatch as dispatch_queued_scans
+from zanshin.services.scan_queue import reclaim_expired_leases
 from zanshin.services.scan_recovery import fail_stalled_scans
 from zanshin.services.ticket_service import sweep as ticket_sweep
 
@@ -114,9 +115,11 @@ def run_once(now: Optional[datetime] = None) -> int:
     try:
         container = IoCContainer(db)
 
+        _reclaim_abandoned_scans(db)
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
         _prune_raw_payloads(container, db, now)
         _expire_stale_triages(container, db)
+        _refresh_builtin_agent(container)
         _relay_notifications(container, db)
         _open_tracker_tickets(container, db)
         # The queue's safety net: this is what starts scans left waiting by a restart,
@@ -157,6 +160,39 @@ def run_once(now: Optional[datetime] = None) -> int:
         return dispatched
     finally:
         db.close()
+
+
+def _reclaim_abandoned_scans(db) -> None:
+    """Return to the queue the scans whose worker stopped reporting.
+
+    On the tick because that is the only thing already running on a timer, and
+    because the observer of a lapsed lease is either an operator looking at the
+    queue or the next dispatch — neither of which can be relied on to happen.
+
+    Distinct from `fail_stalled_scans` just below, and both are needed: this one
+    catches a worker that *vanished* (its lease lapsed) and gives the scan another
+    chance, while that one catches a worker still faithfully renewing its lease on
+    a scan that will plainly never finish, and gives up on it.
+
+    Never raises: the tick has five other jobs.
+    """
+    try:
+        reclaim_expired_leases(db)
+    except Exception:
+        logger.exception("Lease reclaim pass failed — will retry on the next tick")
+
+
+def _refresh_builtin_agent(container) -> None:
+    """Keep this instance's built-in agent showing as online.
+
+    Dispatching already refreshes it, but an idle instance dispatches nothing —
+    and an operator looking at the agents screen of a quiet system should not be
+    told that the very process serving them the page is offline.
+    """
+    try:
+        container.agent_service.ensure_builtin_agent()
+    except Exception:
+        logger.exception("Could not refresh the built-in agent — continuing the tick")
 
 
 def _expire_stale_triages(container, db) -> None:

@@ -5,6 +5,7 @@ Every test in this suite runs against an **in-memory** SQLite database
 Nothing here ever opens `zanshin/database.sqlite` — the real file used by
 the running app is never touched by the test suite.
 """
+import time
 import uuid
 from datetime import datetime
 
@@ -31,6 +32,8 @@ from zanshin.repositories.ssh_key_repository import SSHKeyRepository
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.scan_repository import ScanRepository
+from zanshin.repositories.agent_repository import AgentRepository
+from zanshin.services.agent_service import AgentService
 from zanshin.services.auth_service import AuthService
 from zanshin.services.encryption_service import EncryptionService
 from zanshin.services.settings_service import SettingsService
@@ -305,10 +308,14 @@ class RecordingScanProcessor:
         import threading
 
         self.calls = []
+        self.workers = []
         self.done = threading.Event()
 
-    def process_scan(self, scan_id, repo_url, branch, sub_path, ssh_key_id):
+    def process_scan(self, scan_id, repo_url, branch, sub_path, ssh_key_id, worker=None):
         self.calls.append((scan_id, repo_url, branch, sub_path, ssh_key_id))
+        # Recorded separately so the existing call assertions stay readable: the
+        # worker is who runs the scan, not part of what is being scanned.
+        self.workers.append(worker)
         self.done.set()
 
 
@@ -331,6 +338,12 @@ def scan_dispatch(monkeypatch, db_session, settings_service):
         def __init__(self, db):
             self.settings_service = settings_service
             self.scan_processor = processor
+            # A real `AgentService`, not a fake: `dispatch` claims scans *as* the
+            # built-in agent and sizes itself from that agent's capacity, so
+            # stubbing it out would test a dispatcher that no longer exists.
+            self.agent_service = AgentService(
+                AgentRepository(db_session), settings_service=settings_service
+            )
 
     real_dispatch = scan_queue.dispatch
 
@@ -357,7 +370,37 @@ def scan_dispatch(monkeypatch, db_session, settings_service):
             container_factory=FakeContainer,
         )
 
+    # Every submission is tracked so the fixture can wait for the pool to drain
+    # before the test's engine is disposed. Without this the follow-up dispatch
+    # that `_run` performs (to start the next queued scan) can still be querying
+    # the shared session on a worker thread while `db_session`'s teardown closes
+    # the underlying SQLite connection — which does not raise, it segfaults.
+    real_executor = scan_queue.executor
+    pending = []
+
+    class TrackingExecutor:
+        @staticmethod
+        def submit(fn, *args, **kwargs):
+            future = real_executor.submit(fn, *args, **kwargs)
+            pending.append(future)
+            return future
+
+    monkeypatch.setattr(scan_queue, "executor", TrackingExecutor)
     monkeypatch.setattr(scan_queue, "dispatch", patched)
     monkeypatch.setattr(repository_service, "dispatch", patched)
     monkeypatch.setattr(container_service, "dispatch", patched)
-    return processor
+
+    yield processor
+
+    # A drained future may have submitted another one (that is what the queue
+    # does), so this loops rather than waiting on a snapshot.
+    deadline = time.monotonic() + 10
+    while pending and time.monotonic() < deadline:
+        future = pending.pop()
+        try:
+            future.result(timeout=5)
+        except Exception:
+            # A scan that raised is the test's business, not the teardown's; all
+            # that matters here is that the thread has stopped touching the
+            # session.
+            pass

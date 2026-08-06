@@ -13,10 +13,18 @@ from zanshin.models.safedatetime import SafeDateTime
 SCOPE_READ = "read"      # list targets, read issues and scans
 SCOPE_SCAN = "scan"      # queue a scan
 SCOPE_EXPORT = "export"  # VEX, CSV, SBOM
-ALL_SCOPES = (SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT)
-# What an existing key gets when the column is added: everything, because that is
-# what it already had. Narrowing silently would break working pipelines.
-DEFAULT_SCOPES = ALL_SCOPES
+# Claim queued scans and report their results — what a remote agent does, and
+# nothing else (see zanshin/api/agents.py). Deliberately *not* a superset of the
+# others: an agent is given work, it does not get to read the issue history or
+# export a customer's VEX document. It is also absent from `DEFAULT_SCOPES`,
+# unlike the three above, because "everything" for a key issued before agents
+# existed must not silently start including the right to submit scan results.
+SCOPE_AGENT = "agent"
+ALL_SCOPES = (SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT, SCOPE_AGENT)
+# What an existing key gets when the column is added: everything it already had,
+# which is the first three. Narrowing silently would break working pipelines;
+# widening silently would hand out a capability nobody granted.
+DEFAULT_SCOPES = (SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT)
 
 
 class ApiKey(Base):
