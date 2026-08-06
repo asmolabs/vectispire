@@ -1,0 +1,185 @@
+"""Periodic rescanning.
+
+`scan_interval_minutes`, `scan_cron` and `last_scheduled_scan_at` have existed on
+`repository` and `container` since the beginning; the UI collects an interval for
+every target added. Nothing ever read them, so every scan was manual — in a tool
+whose whole premise is that *new vulnerabilities appear in unchanged code*. A
+weekly manual scan is not posture management; this is the loop that makes the
+rest of the product mean something.
+
+Design notes:
+
+- One daemon thread, waking on a fixed tick. Not APScheduler/Celery: a single
+  process with a SQLite database doesn't need a distributed scheduler, and adding
+  one would introduce a broker to operate.
+- Due targets are dispatched through the same `RepositoryService`/
+  `ContainerService.trigger_scan` the UI calls, so a scheduled scan and a manual
+  one are indistinguishable downstream — same pool, same processor, same issue
+  sync. No second code path to keep in step.
+- `last_scheduled_scan_at` is stamped *before* dispatch. Stamping afterwards
+  would re-dispatch the same target on the next tick whenever a scan takes
+  longer than one interval.
+- The tick also reaps stalled scans, since it is the only thing already running
+  on a timer (see scan_recovery).
+"""
+import logging
+import os
+import threading
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
+
+from zanshin.container import IoCContainer
+from zanshin.database import SessionLocal
+from zanshin.models.container import Container
+from zanshin.models.repository import ZanshinRepository
+from zanshin.clock import utcnow
+from zanshin.services.scan_recovery import fail_stalled_scans
+
+logger = logging.getLogger(__name__)
+
+# How often to look for due targets. A minute is fine: the query is two indexed
+# reads, and it bounds how late a scan can be relative to its interval.
+TICK_SECONDS = int(os.getenv("ZANSHIN_SCHEDULER_TICK_SECONDS", "60"))
+
+# A scan still in flight after this long is considered wedged. Deliberately much
+# larger than one scanner's timeout (`ZANSHIN_SCAN_TIMEOUT_SECONDS`, 900s by
+# default): a single scan runs SBOM, vulnerabilities, secrets and IaC in
+# sequence, so exceeding one tool's timeout is not the same as being stuck.
+STALLED_SCAN_MAX_AGE_SECONDS = int(os.getenv("ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS", "5400"))
+
+# Enabled by default: an operator who configures an interval expects it to be
+# honoured. Set to "false" for a deployment that only ever scans on demand.
+SCHEDULER_ENABLED = os.getenv("ZANSHIN_SCHEDULER_ENABLED", "true").lower() != "false"
+
+_thread: Optional[threading.Thread] = None
+_stop_event = threading.Event()
+
+
+def is_due(
+    interval_minutes: Optional[int],
+    last_scheduled_at: Optional[datetime],
+    now: datetime,
+) -> bool:
+    """Whether a target's interval has elapsed.
+
+    A target with no interval is never scheduled (manual only). A target that has
+    never been scanned automatically is due immediately — otherwise enabling the
+    scheduler would leave it waiting one full interval before its first run,
+    which for the default of 1440 minutes means a day of silence.
+    """
+    if not interval_minutes or interval_minutes <= 0:
+        return False
+    if last_scheduled_at is None:
+        return True
+    return now - last_scheduled_at >= timedelta(minutes=interval_minutes)
+
+
+def find_due_targets(
+    repositories: List[ZanshinRepository],
+    containers: List[Container],
+    now: datetime,
+) -> Tuple[List[ZanshinRepository], List[Container]]:
+    """Split targets into due and not due. Pure, so the policy is testable
+    without a database or a running thread."""
+    due_repos = [
+        r for r in repositories if is_due(r.scan_interval_minutes, r.last_scheduled_scan_at, now)
+    ]
+    due_containers = [
+        c for c in containers if is_due(c.scan_interval_minutes, c.last_scheduled_scan_at, now)
+    ]
+    return due_repos, due_containers
+
+
+def run_once(now: Optional[datetime] = None) -> int:
+    """One scheduler pass. Returns how many scans were dispatched.
+
+    Never raises: an exception here would kill the scheduler thread and silently
+    end all automatic scanning.
+    """
+    now = now or utcnow()
+    dispatched = 0
+    db = SessionLocal()
+    try:
+        container = IoCContainer(db)
+
+        fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
+
+        due_repos, due_containers = find_due_targets(
+            container.repository_repository.find_all(),
+            container.container_repository.find_all(),
+            now,
+        )
+
+        for repo in due_repos:
+            try:
+                # Stamped before dispatch: see the module docstring.
+                repo.last_scheduled_scan_at = now
+                db.commit()
+                container.repository_service.trigger_scan(repo.id)
+                dispatched += 1
+                logger.info("Scheduled scan dispatched for repository %s", repo.id)
+            except Exception:
+                logger.exception("Could not dispatch scheduled scan for repository %s", repo.id)
+
+        for image in due_containers:
+            try:
+                image.last_scheduled_scan_at = now
+                db.commit()
+                container.container_service.trigger_scan(image.id)
+                dispatched += 1
+                logger.info("Scheduled scan dispatched for container %s", image.id)
+            except Exception:
+                logger.exception("Could not dispatch scheduled scan for container %s", image.id)
+
+        _warn_about_unsupported_cron(due_repos, due_containers)
+        return dispatched
+    except Exception:
+        logger.exception("Scheduler tick failed — will retry on the next tick")
+        return dispatched
+    finally:
+        db.close()
+
+
+def _warn_about_unsupported_cron(repositories, containers) -> None:
+    """`scan_cron` is editable in the UI but not honoured here.
+
+    Scheduling on a cron expression needs a cron parser (croniter or
+    equivalent), i.e. a new dependency; the interval covers what the UI collects
+    by default. Saying so out loud beats silently ignoring a value an operator
+    deliberately typed.
+    """
+    with_cron = [t for t in list(repositories) + list(containers) if getattr(t, "scan_cron", None)]
+    if with_cron:
+        logger.warning(
+            "%d target(s) define a cron expression, which the scheduler does not "
+            "support yet — their interval is used instead",
+            len(with_cron),
+        )
+
+
+def _loop() -> None:
+    logger.info("Scan scheduler started (tick: %ss)", TICK_SECONDS)
+    while not _stop_event.is_set():
+        run_once()
+        # `wait` rather than `sleep`: makes shutdown immediate instead of taking
+        # up to a full tick.
+        _stop_event.wait(TICK_SECONDS)
+    logger.info("Scan scheduler stopped")
+
+
+def start() -> None:
+    """Start the scheduler thread, unless disabled or already running."""
+    global _thread
+    if not SCHEDULER_ENABLED:
+        logger.info("Scan scheduler disabled by ZANSHIN_SCHEDULER_ENABLED")
+        return
+    if _thread is not None and _thread.is_alive():
+        return
+    _stop_event.clear()
+    # Daemon: the scheduler must never keep a shutting-down process alive.
+    _thread = threading.Thread(target=_loop, name="zanshin-scheduler", daemon=True)
+    _thread.start()
+
+
+def stop() -> None:
+    _stop_event.set()

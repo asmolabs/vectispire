@@ -47,6 +47,7 @@ def sidebar(current_page: str, user_role: str) -> rx.Component:
             nav_item("Tableau de bord", "home", "/dashboard", current_page),
             nav_item("Conteneurs", "box", "/containers", current_page),
             nav_item("Dépôts & Scans", "git-branch", "/depots", current_page),
+            nav_item("Problèmes", "shield-alert", "/issues", current_page),
             nav_item("Clés SSH", "key", "/ssh-keys", current_page),
             nav_item("Clés API", "lock", "/api-keys", current_page),
             

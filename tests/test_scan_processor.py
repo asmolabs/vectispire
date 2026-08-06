@@ -16,8 +16,10 @@ from zanshin.models.scan import Scan
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.container import Container
 from zanshin.models.ai_review_result import AiReviewResult
+from zanshin.models.issue import Issue
+from zanshin.services.issue_service import IssueService
 import zanshin.services.scan_processor as scan_processor_module
-from zanshin.services.scan_processor import ScanProcessor, AI_REVIEW_MAX_CHARS
+from zanshin.services.scan_processor import ScanProcessor, AI_REVIEW_MAX_CHARS, SOURCE_SUBDIR
 
 
 class FakeScannerEngine:
@@ -382,7 +384,6 @@ def test_process_scan_creates_normalized_findings_from_parsed_ai_review(isolated
     assert hardcoded.severity == "high"
     assert hardcoded.file_path == "app.py"
     assert hardcoded.source == "ollama:gemma4:12b-it-qat"
-    assert hardcoded.status == "open"
 
     weird = next(f for f in ai_findings if f.identifier == "Weird severity from the model")
     assert weird.severity == "bogus-severity"  # normalization is parse_findings's job, not ScanProcessor's
@@ -541,3 +542,257 @@ def test_collect_ai_review_sample_truncates_at_max_chars(tmp_path):
     sample = sp._collect_ai_review_sample(str(tmp_path), "")
 
     assert len(sample) <= AI_REVIEW_MAX_CHARS + len("# big.py\n")
+
+
+# --- Workspace layout: the checkout is isolated from the pipeline's own
+# artifacts (see SOURCE_SUBDIR in zanshin/services/scan_processor.py) ---
+
+class ArtifactWritingScannerEngine(FakeScannerEngine):
+    """Writes the same files into the workspace that the real engines do.
+
+    `DockerScannerEngine.scan_sbom` drops `sbom.json` there for Grype to read,
+    and `scan_secrets` has gitleaks write its report there — the report
+    containing every detected secret in cleartext. Both are reproduced here so
+    the tests can assert they stay out of the scanned tree.
+    """
+
+    GITLEAKS_REPORT = "zanshin-gitleaks-report.json"
+    LEAKED_SECRET = "AKIAIOSFODNN7EXAMPLE"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.sub_paths = {}
+
+    def generate_sbom_for_directory(self, work_dir, sub_path):
+        self.sub_paths["generate_sbom_for_directory"] = sub_path
+        return super().generate_sbom_for_directory(work_dir, sub_path)
+
+    def scan_sbom(self, work_dir, sbom):
+        with open(os.path.join(work_dir, "sbom.json"), "w") as f:
+            # Big enough to exhaust the AI review budget on its own, which is
+            # exactly what used to happen.
+            f.write('{"artifacts": [' + '"padding",' * AI_REVIEW_MAX_CHARS + '"end"]}')
+        return super().scan_sbom(work_dir, sbom)
+
+    def scan_secrets(self, work_dir, sub_path=""):
+        self.sub_paths["scan_secrets"] = sub_path
+        with open(os.path.join(work_dir, self.GITLEAKS_REPORT), "w") as f:
+            f.write('[{"RuleID": "aws-key", "Secret": "%s", "File": "app.py"}]' % self.LEAKED_SECRET)
+        return super().scan_secrets(work_dir, sub_path)
+
+    def scan_iac(self, work_dir, sub_path=""):
+        self.sub_paths["scan_iac"] = sub_path
+        return super().scan_iac(work_dir, sub_path)
+
+
+def _repo_scan(isolated_session, sub_path=""):
+    repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main", sub_path=sub_path)
+    isolated_session.add(repo)
+    isolated_session.commit()
+    scan = Scan(repo_id=repo.id, branch="main", sub_path=sub_path, status="pending", findings_count=0)
+    isolated_session.add(scan)
+    isolated_session.commit()
+    return repo, scan
+
+
+def test_process_scan_addresses_every_engine_step_inside_the_source_subdirectory(isolated_session):
+    repo, scan = _repo_scan(isolated_session)
+    engine = ArtifactWritingScannerEngine()
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=engine)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert engine.sub_paths == {
+        "generate_sbom_for_directory": SOURCE_SUBDIR,
+        "scan_secrets": SOURCE_SUBDIR,
+        "scan_iac": SOURCE_SUBDIR,
+    }
+
+
+def test_process_scan_keeps_the_configured_sub_path_under_the_source_subdirectory(isolated_session):
+    repo, scan = _repo_scan(isolated_session, sub_path="services/api")
+    engine = ArtifactWritingScannerEngine()
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=engine)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="services/api", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert engine.sub_paths["generate_sbom_for_directory"] == os.path.join(SOURCE_SUBDIR, "services/api")
+
+
+def test_ai_review_sample_excludes_the_pipelines_own_artifacts(isolated_session):
+    """The regression this layout exists for: the gitleaks report (cleartext
+    secrets) and the Syft SBOM used to sit in the same directory the AI review
+    walked — so secrets were shipped to the model, and the SBOM ate the whole
+    character budget before any source file was read."""
+    repo, scan = _repo_scan(isolated_session)
+    engine = ArtifactWritingScannerEngine()
+    ai_review = FakeAiReviewService(enabled=True)
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=engine, ai_review_service=ai_review)
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+    assert len(ai_review.review_calls) == 1
+    sample = ai_review.review_calls[0]
+
+    assert engine.LEAKED_SECRET not in sample
+    assert engine.GITLEAKS_REPORT not in sample
+    assert "sbom.json" not in sample
+    # ...and the actual source still is reviewed, with a repository-relative path.
+    assert "# app.py" in sample
+
+
+# --- Notifications (wave 3) ---
+
+class FakeNotificationService:
+    def __init__(self, enabled=True):
+        self.enabled = enabled
+        self.calls = []
+
+    def is_enabled(self):
+        return self.enabled
+
+    def notify_scan_delta(self, **kwargs):
+        self.calls.append(kwargs)
+        return True
+
+
+def test_a_scan_that_changes_something_notifies(isolated_session):
+    repo, scan = _repo_scan(isolated_session)
+    engine = FakeScannerEngine(
+        cves={"matches": [{"vulnerability": {"id": "CVE-1", "severity": "critical"}, "artifact": {"name": "foo"}}]}
+    )
+    notifications = FakeNotificationService()
+    sp = ScanProcessor(
+        ssh_key_service=None,
+        scanner_engine=engine,
+        issue_service=IssueService(),
+        notification_service=notifications,
+    )
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    assert len(notifications.calls) == 1
+    call = notifications.calls[0]
+    assert call["scan_id"] == scan.id
+    assert len(call["new_issues"]) == 1
+    assert call["target_name"] == repo.url
+
+
+def test_a_scan_that_changes_nothing_notifies_nothing(isolated_session):
+    """The second scan of an unchanged target must stay silent — otherwise the
+    channel gets a message every interval and stops being read."""
+    repo, first = _repo_scan(isolated_session)
+    cves = {"matches": [{"vulnerability": {"id": "CVE-1", "severity": "critical"}, "artifact": {"name": "foo"}}]}
+    notifications = FakeNotificationService()
+    sp = ScanProcessor(
+        ssh_key_service=None,
+        scanner_engine=FakeScannerEngine(cves=cves),
+        issue_service=IssueService(),
+        notification_service=notifications,
+    )
+    sp.process_scan(first.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+    assert len(notifications.calls) == 1
+
+    second = Scan(repo_id=repo.id, branch="main", sub_path="", status="pending", findings_count=0)
+    isolated_session.add(second)
+    isolated_session.commit()
+    sp.process_scan(second.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    assert len(notifications.calls) == 1  # still one
+
+
+def test_a_failing_notification_cannot_fail_the_scan(isolated_session):
+    repo, scan = _repo_scan(isolated_session)
+
+    class ExplodingNotifications(FakeNotificationService):
+        def notify_scan_delta(self, **kwargs):
+            raise RuntimeError("webhook exploded")
+
+    sp = ScanProcessor(
+        ssh_key_service=None,
+        scanner_engine=FakeScannerEngine(
+            cves={"matches": [{"vulnerability": {"id": "CVE-1", "severity": "critical"}, "artifact": {}}]}
+        ),
+        issue_service=IssueService(),
+        notification_service=ExplodingNotifications(),
+    )
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(scan)
+    assert scan.status == "completed"
+
+
+def test_the_issue_delta_is_recorded_on_the_scan(isolated_session):
+    """What the history table shows as "Évolution", and what the API returns."""
+    repo, first = _repo_scan(isolated_session)
+    two_cves = {
+        "matches": [
+            {"vulnerability": {"id": "CVE-1", "severity": "high"}, "artifact": {"name": "foo"}},
+            {"vulnerability": {"id": "CVE-2", "severity": "low"}, "artifact": {"name": "bar"}},
+        ]
+    }
+    sp = ScanProcessor(
+        ssh_key_service=None,
+        scanner_engine=FakeScannerEngine(cves=two_cves),
+        issue_service=IssueService(),
+    )
+    sp.process_scan(first.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+    isolated_session.refresh(first)
+    assert (first.new_issues_count, first.resolved_issues_count) == (2, 0)
+
+    one_cve = {"matches": [{"vulnerability": {"id": "CVE-1", "severity": "high"}, "artifact": {"name": "foo"}}]}
+    second = Scan(repo_id=repo.id, branch="main", sub_path="", status="pending", findings_count=0)
+    isolated_session.add(second)
+    isolated_session.commit()
+    sp.scanner_engine = FakeScannerEngine(cves=one_cve)
+    sp.process_scan(second.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    isolated_session.refresh(second)
+    assert (second.new_issues_count, second.resolved_issues_count) == (0, 1)
+
+
+def test_findings_carry_the_remediation_data_into_the_database(isolated_session):
+    """End-to-end for wave 3's `remediation` extraction: a distro advisory whose
+    CVSS lives on the related NVD record."""
+    repo, scan = _repo_scan(isolated_session)
+    cves = {
+        "matches": [
+            {
+                "vulnerability": {
+                    "id": "RHSA-2024:1234",
+                    "severity": "High",
+                    "fix": {"versions": ["7.76.1-29"], "state": "fixed"},
+                    "cvss": [],
+                },
+                "artifact": {"name": "curl", "version": "7.76.1"},
+                "relatedVulnerabilities": [
+                    {
+                        "id": "CVE-2024-7264",
+                        "description": "out of bounds read",
+                        "cvss": [{"version": "3.1", "vector": "CVSS:3.1/AV:N", "metrics": {"baseScore": 6.5}}],
+                    }
+                ],
+            }
+        ]
+    }
+    sp = ScanProcessor(
+        ssh_key_service=None,
+        scanner_engine=FakeScannerEngine(cves=cves),
+        issue_service=IssueService(),
+    )
+
+    sp.process_scan(scan.id, repo_url=repo.url, branch="main", sub_path="", ssh_key_id=None)
+
+    finding = next(f for f in scan.findings if f.type == "vulnerability")
+    assert finding.fix_versions == "7.76.1-29"
+    assert finding.cvss_score == 6.5
+    issue = isolated_session.query(Issue).filter(Issue.identifier == "RHSA-2024:1234").one()
+    assert issue.fix_versions == "7.76.1-29"
+    assert issue.description == "out of bounds read"

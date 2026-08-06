@@ -1,4 +1,4 @@
-from datetime import datetime
+from zanshin.clock import utcnow
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from zanshin.database import Base
@@ -31,6 +31,6 @@ class AiReviewResult(Base):
     status = Column(String(50), default="completed", nullable=False)  # completed, failed
     error = Column(String(500), nullable=True)
 
-    created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(SafeDateTime, default=utcnow, nullable=False)
 
     scan = relationship("Scan", back_populates="ai_review", uselist=False)

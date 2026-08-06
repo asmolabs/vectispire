@@ -44,8 +44,7 @@ class LicenseComplianceService:
                         package_version=artifact.get("version"),
                         purl=artifact.get("purl"),
                         source="syft",
-                        status="open",
-                    ))
+                            ))
         return findings
 
     def _extract_licenses(self, artifact: Dict[str, Any]) -> List[str]:

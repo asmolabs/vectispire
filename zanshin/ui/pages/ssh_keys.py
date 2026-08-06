@@ -4,6 +4,7 @@ from datetime import datetime
 import uuid
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.models.ssh_key import SSHKey
@@ -30,6 +31,7 @@ class SSHKeysState(BaseState):
     def set_new_public_key(self, val: str):
         self.new_public_key = val
 
+    @requires_login
     def load_keys_data(self):
         self.set_current_page("Clés SSH")
         container = get_container()
@@ -53,6 +55,7 @@ class SSHKeysState(BaseState):
     def toggle_dialog(self):
         self.dialog_open = not self.dialog_open
 
+    @requires_login
     def generate_keypair(self):
         try:
             private_key = rsa.generate_private_key(
@@ -77,6 +80,7 @@ class SSHKeysState(BaseState):
         except Exception as e:
             yield self.trigger_toast(f"Erreur de génération : {str(e)}", is_error=True)
 
+    @requires_login
     def add_ssh_key(self):
         if not self.new_name or not self.new_private_key:
             yield self.trigger_toast("Nom et clé privée requis", is_error=True)
@@ -107,6 +111,7 @@ class SSHKeysState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     def delete_key(self, key_id_str: str):
         container = get_container()
         try:
@@ -129,7 +134,7 @@ def ssh_keys_page() -> rx.Component:
             # Add key dialog
             rx.dialog.root(
                 rx.dialog.trigger(
-                    rx.button("Ajouter une clé", rx.icon(tag="plus"), color_scheme="indigo")
+                    rx.button("Ajouter une clé", rx.icon(tag="plus"), color_scheme="cyan")
                 ),
                 rx.dialog.content(
                     rx.dialog.title("Ajouter une clé SSH"),

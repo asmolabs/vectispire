@@ -1,6 +1,7 @@
 import reflex as rx
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_admin
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.services.audit_log_service import AuditOperation
@@ -41,12 +42,12 @@ class UsersState(BaseState):
     reset_username: str = ""
     reset_new_password: str = ""
 
+    @requires_admin
     def load_users(self):
+        # The role check is `@requires_admin`, not an inline test: it has to
+        # hold for a direct websocket call to this handler too, not only for
+        # a page load (see zanshin/ui/auth.py).
         self.set_current_page("Utilisateurs")
-        if self.user_role not in ("SUPERUSER", "ADMIN"):
-            yield rx.redirect("/dashboard")
-            yield self.trigger_toast("Accès réservé aux administrateurs", is_error=True)
-            return
 
         container = get_container()
         try:
@@ -95,6 +96,7 @@ class UsersState(BaseState):
     def close_create_dialog(self):
         self.create_dialog_open = False
 
+    @requires_admin
     def create_user(self):
         container = get_container()
         try:
@@ -134,6 +136,7 @@ class UsersState(BaseState):
     def set_edit_is_active(self, v: bool):
         self.edit_is_active = v
 
+    @requires_admin
     def open_edit_dialog(self, user_id_str: str):
         container = get_container()
         try:
@@ -154,6 +157,7 @@ class UsersState(BaseState):
     def close_edit_dialog(self):
         self.edit_dialog_open = False
 
+    @requires_admin
     def save_edit(self):
         container = get_container()
         try:
@@ -196,6 +200,7 @@ class UsersState(BaseState):
     def close_reset_dialog(self):
         self.reset_dialog_open = False
 
+    @requires_admin
     def confirm_reset_password(self):
         container = get_container()
         try:
@@ -216,6 +221,7 @@ class UsersState(BaseState):
             container.db.close()
 
     # --- Delete ---
+    @requires_admin
     def delete_user(self, user_id_str: str):
         container = get_container()
         try:
@@ -257,7 +263,7 @@ def users_page() -> rx.Component:
         rx.hstack(
             rx.text("Gérez les comptes utilisateurs et leurs rôles", size="2", color="var(--slate-10)"),
             rx.spacer(),
-            rx.button("Créer un utilisateur", rx.icon(tag="user-plus"), color_scheme="indigo", on_click=UsersState.open_create_dialog),
+            rx.button("Créer un utilisateur", rx.icon(tag="user-plus"), color_scheme="cyan", on_click=UsersState.open_create_dialog),
             width="100%",
             align="center"
         ),
@@ -409,7 +415,7 @@ def users_page() -> rx.Component:
                 ),
                 rx.hstack(
                     rx.button("Annuler", variant="soft", color_scheme="gray", on_click=UsersState.close_edit_dialog),
-                    rx.button("Enregistrer", on_click=UsersState.save_edit, color_scheme="indigo"),
+                    rx.button("Enregistrer", on_click=UsersState.save_edit, color_scheme="cyan"),
                     spacing="3",
                     class_name="mt-6 justify-end"
                 ),

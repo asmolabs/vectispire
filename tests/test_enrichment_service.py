@@ -63,13 +63,13 @@ def test_enrich_findings_populates_epss_and_kev(settings_service):
     )
     svc = EnrichmentService(settings_service, http_get=fake_get)
 
-    critical = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228", status="open", is_kev=False)
-    low = Finding(scan_id=1, type="vulnerability", identifier="CVE-2024-9999", status="open", is_kev=False)
+    critical = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228", is_kev=False)
+    low = Finding(scan_id=1, type="vulnerability", identifier="CVE-2024-9999", is_kev=False)
     # `is_kev` is set explicitly here (rather than relying on the column's
     # `default=False`): SQLAlchemy only applies column defaults on flush to
     # a real session, and these Finding objects are plain in-memory objects
     # in this test, never persisted through `FakeDb`.
-    secret = Finding(scan_id=1, type="secret", identifier="aws-key", status="open", is_kev=False)
+    secret = Finding(scan_id=1, type="secret", identifier="aws-key", is_kev=False)
 
     class FakeDb:
         def commit(self):
@@ -91,7 +91,7 @@ def test_enrich_findings_short_circuits_when_disabled(settings_service):
     fake_get, calls = make_fake_http_get()
     svc = EnrichmentService(settings_service, http_get=fake_get)
 
-    finding = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228", status="open")
+    finding = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228")
 
     class FakeDb:
         def commit(self):
@@ -108,7 +108,7 @@ def test_enrich_findings_survives_network_failure(settings_service):
         raise ConnectionError("network is down (simulated)")
 
     svc = EnrichmentService(settings_service, http_get=broken_http_get)
-    finding = Finding(scan_id=1, type="vulnerability", identifier="CVE-XXXX-0001", status="open", is_kev=False)
+    finding = Finding(scan_id=1, type="vulnerability", identifier="CVE-XXXX-0001", is_kev=False)
 
     class FakeDb:
         def commit(self):
@@ -129,11 +129,11 @@ def test_kev_catalog_is_cached_across_instances(settings_service):
         def commit(self):
             pass
 
-    finding_a = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228", status="open")
+    finding_a = Finding(scan_id=1, type="vulnerability", identifier="CVE-2021-44228")
     EnrichmentService(settings_service, http_get=fake_get).enrich_findings(FakeDb(), [finding_a])
 
     calls.clear()
-    finding_b = Finding(scan_id=2, type="vulnerability", identifier="CVE-2021-44228", status="open")
+    finding_b = Finding(scan_id=2, type="vulnerability", identifier="CVE-2021-44228")
     EnrichmentService(settings_service, http_get=fake_get).enrich_findings(FakeDb(), [finding_b])
 
     kev_calls = [c for c in calls if c[0] == KEV_CATALOG_URL]
@@ -149,7 +149,7 @@ def test_enrich_findings_with_no_vulnerability_findings_makes_no_calls(settings_
         def commit(self):
             pass
 
-    secret_only = Finding(scan_id=1, type="secret", identifier="aws-key", status="open")
+    secret_only = Finding(scan_id=1, type="secret", identifier="aws-key")
     svc.enrich_findings(FakeDb(), [secret_only])
 
     assert calls == []

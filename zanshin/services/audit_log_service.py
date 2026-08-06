@@ -19,6 +19,9 @@ class AuditOperation:
     API_KEY_CREATED = "API_KEY_CREATED"
     API_KEY_DELETED = "API_KEY_DELETED"
     SETTING_UPDATED = "SETTING_UPDATED"
+    # Triage is a security decision (it can suppress a finding), so it belongs
+    # in the audit trail alongside user and settings changes.
+    ISSUE_TRIAGED = "ISSUE_TRIAGED"
 
 class AuditLogService:
     """Records administration/security-relevant actions to `audit_logs` —

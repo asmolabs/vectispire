@@ -4,15 +4,26 @@ from typing import List, Dict, Any
 from datetime import datetime
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
+from zanshin.ui.components import stat_card, severity_donut_chart, empty_state
 from zanshin.container import get_container
 from zanshin.models.container import Container
 
 class ContainersState(BaseState):
     """Manages the Docker containers overview page and CRUD actions."""
-    
+
     containers: list[dict[str, str]] = []
-    
+
+    # Aggregated metrics (latest scan of each container), for the KPI row
+    # and severity donut chart above the table.
+    total_vulns: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    severity_chart_data: list[dict[str, Any]] = []
+
     dialog_open: bool = False
     new_image_name: str = ""
     new_tag: str = "latest"
@@ -40,15 +51,33 @@ class ContainersState(BaseState):
         except ValueError:
             self.new_scan_interval = 1440
 
+    @requires_login
     def load_container_data(self):
         self.set_current_page("Conteneurs")
-        
+
         container = get_container()
         try:
             db = container.db
             db_containers = db.query(Container).all()
-            
+
+            # Column-only summaries: this table shows status and counts, so
+            # loading each scan's raw SBOM/CVE blob would be pure waste (see
+            # ScanSummary).
+            latest_scans = container.scan_repository.find_latest_summary_by_container_ids(
+                [c.id for c in db_containers]
+            )
+            # Outstanding (open, untriaged or affected) issues per image — see
+            # IssueService for why this differs from the CVE count.
+            actionable_counts = container.issue_repository.count_actionable_by_container_ids(
+                [c.id for c in db_containers]
+            )
+
             self.containers = []
+            total_vulns = 0
+            total_critical = 0
+            total_high = 0
+            total_medium = 0
+            total_low = 0
             for c in db_containers:
                 status = "Non scanné"
                 vulns = 0
@@ -56,9 +85,8 @@ class ContainersState(BaseState):
                 high = 0
                 med = 0
                 low = 0
-                scans = sorted(c.scans or [], key=lambda s: s.created_at, reverse=True)
-                if scans:
-                    latest = scans[0]
+                latest = latest_scans.get(c.id)
+                if latest:
                     status = latest.status
                     vulns = latest.findings_count
                     summary = latest.summary or {}
@@ -66,7 +94,12 @@ class ContainersState(BaseState):
                     high = summary.get("high", 0)
                     med = summary.get("medium", 0)
                     low = summary.get("low", 0)
-                    
+                    total_vulns += vulns
+                    total_critical += crit
+                    total_high += high
+                    total_medium += med
+                    total_low += low
+
                 self.containers.append({
                     "id": str(c.id),
                     "image_name": c.image_name,
@@ -78,8 +111,21 @@ class ContainersState(BaseState):
                     "high": str(high),
                     "medium": str(med),
                     "low": str(low),
-                    "interval": str(c.scan_interval_minutes or 1440)
+                    "interval": str(c.scan_interval_minutes or 1440),
+                    "open_issues": str(actionable_counts.get(c.id, 0)),
                 })
+
+            self.total_vulns = total_vulns
+            self.critical_count = total_critical
+            self.high_count = total_high
+            self.medium_count = total_medium
+            self.low_count = total_low
+            self.severity_chart_data = [
+                {"name": "Critique", "value": total_critical, "color": "var(--red-9)"},
+                {"name": "Élevé", "value": total_high, "color": "var(--orange-9)"},
+                {"name": "Moyen", "value": total_medium, "color": "var(--yellow-9)"},
+                {"name": "Faible", "value": total_low, "color": "var(--blue-9)"},
+            ]
         except Exception as e:
             yield self.trigger_toast( f"Erreur lors du chargement : {str(e)}", is_error=True)
         finally:
@@ -88,6 +134,7 @@ class ContainersState(BaseState):
     def toggle_dialog(self):
         self.dialog_open = not self.dialog_open
 
+    @requires_login
     def add_container(self):
         if not self.new_image_name:
             yield self.trigger_toast( "Nom de l'image requis", is_error=True)
@@ -117,6 +164,7 @@ class ContainersState(BaseState):
         finally:
             container_ioc.db.close()
 
+    @requires_login
     async def trigger_scan(self, container_id: int):
         container_ioc = get_container()
         try:
@@ -130,6 +178,7 @@ class ContainersState(BaseState):
         finally:
             container_ioc.db.close()
 
+    @requires_login
     def delete_container(self, container_id: int):
         container_ioc = get_container()
         try:
@@ -141,6 +190,7 @@ class ContainersState(BaseState):
         finally:
             container_ioc.db.close()
 
+    @requires_login
     def show_scan_details(self, container_id: int):
         container_ioc = get_container()
         try:
@@ -148,21 +198,28 @@ class ContainersState(BaseState):
             c = db.query(Container).filter(Container.id == container_id).first()
             if not c:
                 return
-            self.selected_container_name = f"{c.registry + '/' if c.registry else ''}{c.image_name}:{c.tag}"
-            scans = sorted(c.scans or [], key=lambda s: s.created_at, reverse=True)
-            if not scans:
+            self.selected_container_name = c.image_string
+
+            # Identify the latest scan from a summary first, then load that
+            # one scan in full — this dialog is the only place that genuinely
+            # needs the raw `cves` blob, and only for a single scan.
+            latest_summary = container_ioc.scan_repository.find_latest_summary_by_container_ids(
+                [c.id]
+            ).get(c.id)
+            if not latest_summary:
                 self.selected_scan_cves = []
                 self.selected_scan_summary = {}
                 yield self.trigger_toast("Aucun scan disponible pour cette image.", is_error=True)
                 return
-            
-            latest = scans[0]
-            if latest.status != "completed":
+
+            if latest_summary.status != "completed":
                 self.selected_scan_cves = []
                 self.selected_scan_summary = {}
-                yield self.trigger_toast(f"Dernier scan en statut: {latest.status}", is_error=True)
+                yield self.trigger_toast(f"Dernier scan en statut: {latest_summary.status}", is_error=True)
                 return
-                
+
+            latest = container_ioc.scan_repository.find_by_id(latest_summary.id)
+
             # Parse findings
             cves_data = latest.cves or {}
             matches = cves_data.get("matches", [])
@@ -204,7 +261,7 @@ def containers_page() -> rx.Component:
             # Add container modal dialog trigger
             rx.dialog.root(
                 rx.dialog.trigger(
-                    rx.button("Ajouter une image", rx.icon(tag="plus"), color_scheme="indigo")
+                    rx.button("Ajouter une image", rx.icon(tag="plus"), color_scheme="cyan")
                 ),
                 rx.dialog.content(
                     rx.dialog.title("Ajouter un conteneur à surveiller"),
@@ -248,9 +305,35 @@ def containers_page() -> rx.Component:
             width="100%",
             align="center"
         ),
-        
+
+        # KPI cards
+        rx.flex(
+            stat_card("Images surveillées", ContainersState.containers.length().to(str), "box", "cyan"),
+            stat_card("Vulnérabilités", rx.Var.create(f"{ContainersState.total_vulns}"), "shield-alert", "orange"),
+            stat_card("Critiques", rx.Var.create(f"{ContainersState.critical_count}"), "triangle-alert", "red"),
+            stat_card("Élevées", rx.Var.create(f"{ContainersState.high_count}"), "circle-alert", "amber"),
+            width="100%",
+            spacing="4",
+            flex_wrap="wrap",
+            class_name="mb-2"
+        ),
+
+        # Severity breakdown
+        severity_donut_chart(
+            ContainersState.severity_chart_data,
+            ContainersState.total_vulns > 0,
+            subtitle="Par sévérité, sur le dernier scan de chaque image",
+        ),
+
         # Containers table
-        rx.box(
+        rx.cond(
+            ContainersState.containers.length() == 0,
+            empty_state(
+                "box",
+                "Aucun conteneur surveillé pour le moment",
+                "Ajoutez une image ci-dessus pour démarrer son audit de sécurité.",
+            ),
+            rx.box(
             rx.table.root(
                 rx.table.header(
                     rx.table.row(
@@ -260,6 +343,7 @@ def containers_page() -> rx.Component:
                         rx.table.column_header_cell("Intervalle (Min)"),
                         rx.table.column_header_cell("Statut"),
                         rx.table.column_header_cell("CVEs"),
+                        rx.table.column_header_cell("À traiter"),
                         rx.table.column_header_cell("Actions")
                     )
                 ),
@@ -294,13 +378,26 @@ def containers_page() -> rx.Component:
                                     )
                                 )
                             ),
+                            # Outstanding issues (open, not settled by triage) —
+                            # the count that shrinks as the team works, unlike
+                            # the CVE count on its left.
+                            rx.table.cell(
+                                rx.cond(
+                                    c["open_issues"] == "0",
+                                    rx.badge("0", color_scheme="green"),
+                                    rx.link(
+                                        rx.badge(c["open_issues"], color_scheme="amber", variant="solid"),
+                                        href="/issues",
+                                    ),
+                                )
+                            ),
                             rx.table.cell(
                                 rx.hstack(
                                     rx.tooltip(
                                         rx.button(
                                             rx.icon(tag="shield"),
                                             size="2",
-                                            color_scheme="indigo",
+                                            color_scheme="cyan",
                                             variant="soft",
                                             on_click=lambda: ContainersState.trigger_scan(c["id"])
                                         ),
@@ -328,7 +425,8 @@ def containers_page() -> rx.Component:
                                     ),
                                     spacing="2"
                                 )
-                            )
+                            ),
+                            class_name="hover:bg-slate-3/60 transition-colors"
                         )
                     )
                 ),
@@ -336,6 +434,7 @@ def containers_page() -> rx.Component:
             ),
             width="100%",
             class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            )
         ),
         # Scan Details Dialog Modal
         rx.dialog.root(
@@ -346,22 +445,38 @@ def containers_page() -> rx.Component:
                 # Severity Cards
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Critique", size="1", color="var(--red-11)"),
+                        rx.hstack(
+                            rx.icon(tag="flame", size=14, color="var(--red-11)"),
+                            rx.text("Critique", size="1", color="var(--red-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(ContainersState.selected_scan_summary.get("critical", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-red-2 border border-red-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Élevé", size="1", color="var(--orange-11)"),
+                        rx.hstack(
+                            rx.icon(tag="triangle-alert", size=14, color="var(--orange-11)"),
+                            rx.text("Élevé", size="1", color="var(--orange-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(ContainersState.selected_scan_summary.get("high", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-orange-2 border border-orange-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Moyen", size="1", color="var(--yellow-11)"),
+                        rx.hstack(
+                            rx.icon(tag="circle-alert", size=14, color="var(--yellow-11)"),
+                            rx.text("Moyen", size="1", color="var(--yellow-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(ContainersState.selected_scan_summary.get("medium", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-yellow-2 border border-yellow-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Faible", size="1", color="var(--blue-11)"),
+                        rx.hstack(
+                            rx.icon(tag="info", size=14, color="var(--blue-11)"),
+                            rx.text("Faible", size="1", color="var(--blue-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(ContainersState.selected_scan_summary.get("low", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-blue-2 border border-blue-4 text-center flex-1"
                     ),
@@ -407,7 +522,7 @@ def containers_page() -> rx.Component:
                                     rx.table.cell(
                                         rx.cond(
                                             cve["link"] != "",
-                                            rx.link(cve["id"], href=cve["link"], is_external=True, class_name="text-indigo-9 hover:underline"),
+                                            rx.link(cve["id"], href=cve["link"], is_external=True, class_name="text-cyan-9 hover:underline"),
                                             rx.text(cve["id"])
                                         )
                                     ),
@@ -419,7 +534,8 @@ def containers_page() -> rx.Component:
                                             cve["fix_state"],
                                             color_scheme=rx.cond(cve["fix_state"] == "fixed", "green", "gray")
                                         )
-                                    )
+                                    ),
+                                    class_name="hover:bg-slate-3/60 transition-colors"
                                 )
                             )
                         ),
@@ -434,7 +550,7 @@ def containers_page() -> rx.Component:
                     ),
                     class_name="mt-6 justify-end"
                 ),
-                class_name="max-w-4xl w-full"
+                class_name="w-[90vw] max-w-[1400px]"
             ),
             open=ContainersState.details_dialog_open
         ),

@@ -47,7 +47,7 @@ export ENCRYPTION_KEY="a-real-32-byte-secret-value-here"
 
 The SQLite database file is `zanshin/database.sqlite` and is **checked into this repository** — it predates the current codebase and is carried forward with its existing data (repositories, containers, users, scan history, VEX decisions, ...). You do not need to create it or seed it from scratch for a normal clone of this repo.
 
-On every startup, `Base.metadata.create_all()` runs automatically (`zanshin/zanshin.py`) and creates any table that doesn't exist yet (this is how newer tables like `finding`, `audit_logs`'s model, and `api_key`'s new columns were introduced without a migration tool). It never alters or drops an existing table — see [`ADR-001`](architecture/ADR-001-scanner-backends.md) for why there's no migration tool yet, and treat any future column change as something requiring a manual, hand-written migration.
+On every startup, Zanshin brings the database to the latest Alembic revision (`zanshin/schema.py`): a fresh database is built from the migrations, and a database that predates Alembic is *adopted* — stamped at the baseline revision rather than rebuilt — so no manual step is needed when upgrading. Column changes are ordinary migrations; generate one with `uv run alembic revision --autogenerate -m "..."` and check for drift with `uv run alembic check`.
 
 **If you're starting from a genuinely empty database** (e.g. a fresh environment without the tracked `database.sqlite`, or one you deleted on purpose): there is no self-registration page, so you'll need to create the first user directly, once, via a Python shell:
 
@@ -198,7 +198,7 @@ export ENCRYPTION_KEY="une-vraie-valeur-secrete-de-32-octets"
 
 Le fichier de base de données SQLite est `zanshin/database.sqlite` et est **versionné dans ce dépôt** — il précède le code actuel et est repris avec ses données existantes (dépôts, conteneurs, utilisateurs, historique de scans, décisions VEX, ...). Vous n'avez pas besoin de le créer ou de l'initialiser depuis zéro pour un clone normal de ce dépôt.
 
-À chaque démarrage, `Base.metadata.create_all()` s'exécute automatiquement (`zanshin/zanshin.py`) et crée toute table qui n'existe pas encore (c'est ainsi que des tables plus récentes comme `finding`, le modèle d'`audit_logs`, et les nouvelles colonnes d'`api_key` ont été introduites sans outil de migration). Il ne modifie et ne supprime jamais une table existante — voir [`ADR-001`](architecture/ADR-001-scanner-backends.md) pour comprendre pourquoi il n'y a pas encore d'outil de migration, et considérez tout futur changement de colonne comme nécessitant une migration manuelle écrite à la main.
+À chaque démarrage, Zanshin met la base à la dernière révision Alembic (`zanshin/schema.py`) : une base vierge est construite depuis les migrations, une base antérieure à Alembic est *adoptée* — estampillée à la révision de référence plutôt que reconstruite — donc aucune manipulation n'est nécessaire lors d'une mise à jour. Les changements de colonne sont des migrations ordinaires : `uv run alembic revision --autogenerate -m "..."` pour en générer une, `uv run alembic check` pour détecter une dérive.
 
 **Si vous partez d'une base réellement vide** (par exemple un environnement neuf sans le `database.sqlite` versionné, ou supprimé volontairement) : il n'y a pas de page d'auto-inscription, il faut donc créer le premier utilisateur directement, une seule fois, via un shell Python :
 

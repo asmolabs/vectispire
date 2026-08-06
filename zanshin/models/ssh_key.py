@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from zanshin.clock import utcnow
 from sqlalchemy import Column, String, Text
 from zanshin.database import Base
 from zanshin.models.guid import GUID
@@ -12,4 +12,4 @@ class SSHKey(Base):
     name = Column(String(255), nullable=False)
     private_key = Column(Text, nullable=False)
     public_key = Column(Text, nullable=True)
-    created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(SafeDateTime, default=utcnow, nullable=False)

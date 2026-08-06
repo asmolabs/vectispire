@@ -19,6 +19,13 @@ class ZanshinRepository(Base):
     ssh_key_id = Column(GUID, ForeignKey("ssh_key.id"), nullable=True)
     ssh_key = relationship("SSHKey")
     
-    # Cascade deletes to scans and vex decisions
-    scans = relationship("Scan", back_populates="repository", cascade="all, delete-orphan", lazy="joined")
-    vex_decisions = relationship("VexDecision", back_populates="repository", cascade="all, delete-orphan")
+    # Cascade deletes to scans and vex decisions.
+    #
+    # Deliberately *not* `lazy="joined"`: that made every `find_all()` on
+    # repositories eagerly load each repository's entire scan history,
+    # `Scan.sbom`/`Scan.cves` blobs included, just to render a list of names.
+    # Screens that need scan data now ask `ScanRepository` for column-only
+    # summaries (see `ScanSummary`); this relationship exists for the cascade
+    # and for the rare case where whole `Scan` entities are genuinely wanted.
+    scans = relationship("Scan", back_populates="repository", cascade="all, delete-orphan")
+    issues = relationship("Issue", back_populates="repository", cascade="all, delete-orphan")

@@ -7,8 +7,8 @@ from zanshin.models.setting import Setting
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.container import Container
 from zanshin.models.scan import Scan
-from zanshin.models.vex_decision import VexDecision
 from zanshin.models.finding import Finding
+from zanshin.models.issue import Issue
 from zanshin.models.audit_log import AuditLog
 from zanshin.models.ai_review_result import AiReviewResult
 
@@ -22,8 +22,8 @@ __all__ = [
     "ZanshinRepository",
     "Container",
     "Scan",
-    "VexDecision",
     "Finding",
+    "Issue",
     "AuditLog",
     "AiReviewResult",
 ]

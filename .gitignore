@@ -1,6 +1,14 @@
 *.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 .states
 .web
 *.py[cod]
 assets/external/
 __pycache__/
+*.log
+.coverage
+.pytest_cache/

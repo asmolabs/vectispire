@@ -31,11 +31,13 @@ app = FastAPI(
     ),
 )
 
-GITLEAKS_REPORT_FILENAME = "zanshin-gitleaks-report.json"
-
 
 class ImageSbomRequest(BaseModel):
     image: str
+    # Which architecture to audit the image as. Defaults to the value this
+    # service used to hardcode, so an older Zanshin that doesn't send the field
+    # keeps its previous behaviour.
+    platform: str = "linux/amd64"
 
 
 class DirectorySbomRequest(BaseModel):
@@ -77,7 +79,12 @@ def health() -> Dict[str, str]:
 
 @app.post("/sbom/image")
 def sbom_image(req: ImageSbomRequest) -> Dict[str, Any]:
-    result = run_cli(["syft", f"registry:{req.image}", "--platform", "linux/amd64", "-o", "json"])
+    # `registry:` and not `docker:` — unlike the Docker backend, this service has
+    # no Docker daemon to pull through (that is the reason it exists), so syft
+    # must talk to the registry itself. A justified divergence, unlike the
+    # platform, which used to be hardcoded here and ignored the operator's
+    # setting.
+    result = run_cli(["syft", f"registry:{req.image}", "--platform", req.platform, "-o", "json"])
     if result.returncode != 0:
         raise HTTPException(status_code=502, detail=f"syft failed: {result.stderr[-2000:]}")
     return json.loads(result.stdout)
@@ -114,24 +121,35 @@ def scan_vulnerabilities(req: SbomScanRequest) -> Dict[str, Any]:
 @app.post("/scan/secrets")
 def scan_secrets(req: SourceScanRequest) -> List[Dict[str, Any]]:
     require_shared_path(req.path)
-    report_path = os.path.join(req.path, GITLEAKS_REPORT_FILENAME)
 
-    result = run_cli([
-        "gitleaks", "detect",
-        f"--source={req.path}",
-        "--no-git",
-        "--report-format=json",
-        f"--report-path={report_path}",
-        "--exit-code=0",
-    ])
-    if result.returncode != 0:
-        raise HTTPException(status_code=502, detail=f"gitleaks failed: {result.stderr[-2000:]}")
+    # The report goes to this service's own scratch space, never inside
+    # `req.path`: it is read back here and returned as JSON, so it never
+    # needs to exist on the shared volume — and writing it into the scanned
+    # directory would drop a file containing every detected secret in
+    # cleartext into the tree the rest of the pipeline then walks (see
+    # SOURCE_SUBDIR in zanshin/services/scan_processor.py).
+    fd, report_path = tempfile.mkstemp(suffix=".json", prefix="zanshin-gitleaks-")
+    os.close(fd)
+    try:
+        result = run_cli([
+            "gitleaks", "detect",
+            f"--source={req.path}",
+            "--no-git",
+            "--report-format=json",
+            f"--report-path={report_path}",
+            "--exit-code=0",
+        ])
+        if result.returncode != 0:
+            raise HTTPException(status_code=502, detail=f"gitleaks failed: {result.stderr[-2000:]}")
 
-    if not os.path.exists(report_path):
-        return []
-    with open(report_path) as f:
-        content = f.read().strip()
-    return json.loads(content) if content else []
+        if not os.path.exists(report_path):
+            return []
+        with open(report_path) as f:
+            content = f.read().strip()
+        return json.loads(content) if content else []
+    finally:
+        if os.path.exists(report_path):
+            os.remove(report_path)
 
 
 @app.post("/scan/iac")

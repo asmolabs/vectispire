@@ -9,6 +9,18 @@ class ApiKeyRepository:
     def find_all(self):
         return self.db.query(ApiKey).all()
 
+    def find_all_by_prefix(self, prefix: str):
+        """Candidates sharing a cleartext prefix — normally exactly one.
+
+        This is what makes verification O(1) bcrypt comparisons instead of one
+        per stored key (see `ApiKeyService.verify_key`). A prefix collision is
+        possible in principle, so it returns a list and the caller still verifies
+        the hash.
+        """
+        if not prefix:
+            return []
+        return self.db.query(ApiKey).filter(ApiKey.prefix == prefix).all()
+
     def find_by_id(self, key_id: uuid.UUID):
         if isinstance(key_id, str):
             key_id = uuid.UUID(key_id)

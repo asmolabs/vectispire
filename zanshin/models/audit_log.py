@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from zanshin.clock import utcnow
 from sqlalchemy import Column, String
 from zanshin.database import Base
 from zanshin.models.guid import GUID
@@ -19,5 +19,5 @@ class AuditLog(Base):
     description = Column(String(255), nullable=False)
     operation_type = Column(String(255), nullable=False)
     resource_id = Column(String(255), nullable=False)
-    timestamp = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(SafeDateTime, default=utcnow, nullable=False)
     user_id = Column(String(255), nullable=True)

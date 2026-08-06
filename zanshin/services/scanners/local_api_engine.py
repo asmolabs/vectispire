@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 import httpx
 
 from zanshin.services.scanners.base import ScannerEngine
+from zanshin.services.scanners.docker_engine import DEFAULT_IMAGE_SCAN_PLATFORM
 
 # Scans can take a while (image pulls, large repos) — the sidecar service
 # has no reason to be faster than the Docker backend's own container
@@ -30,9 +31,15 @@ class LocalApiScannerEngine(ScannerEngine):
         self,
         base_url: str,
         shared_workspace_root: Optional[str] = None,
+        image_scan_platform: str = DEFAULT_IMAGE_SCAN_PLATFORM,
         http_post=httpx.post,
     ):
         self.base_url = base_url.rstrip("/")
+        # Which architecture images are audited as. This backend used to ignore
+        # the setting entirely while the sidecar hardcoded linux/amd64, so
+        # switching to it silently changed what was being audited — the kind of
+        # divergence the shared contract tests now catch.
+        self.image_scan_platform = (image_scan_platform or "").strip() or DEFAULT_IMAGE_SCAN_PLATFORM
         self._shared_workspace_root = shared_workspace_root or None
         # One-off calls (not a persistent httpx.Client), same reasoning as
         # EnrichmentService/OsvScannerEngine: this engine is rebuilt on
@@ -54,7 +61,9 @@ class LocalApiScannerEngine(ScannerEngine):
         return response.json()
 
     def generate_sbom_for_image(self, image_string: str) -> Dict[str, Any]:
-        return self._post("/sbom/image", {"image": image_string})
+        return self._post(
+            "/sbom/image", {"image": image_string, "platform": self.image_scan_platform}
+        )
 
     def generate_sbom_for_directory(self, work_dir: str, sub_path: str) -> Dict[str, Any]:
         return self._post("/sbom/directory", {"path": self._target_path(work_dir, sub_path)})

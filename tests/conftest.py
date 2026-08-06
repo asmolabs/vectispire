@@ -8,9 +8,12 @@ the running app is never touched by the test suite.
 import uuid
 from datetime import datetime
 
+from zanshin.clock import utcnow
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from zanshin.database import Base
 import zanshin.models  # noqa: F401 — registers every model on Base.metadata
@@ -28,9 +31,14 @@ from zanshin.repositories.ssh_key_repository import SSHKeyRepository
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.scan_repository import ScanRepository
-from zanshin.repositories.vex_decision_repository import VexDecisionRepository
 from zanshin.services.auth_service import AuthService
+from zanshin.services.encryption_service import EncryptionService
 from zanshin.services.settings_service import SettingsService
+
+# Explicit test key. `EncryptionService` no longer falls back to the legacy
+# default when `ENCRYPTION_KEY` is unset — it refuses to encrypt — so the suite
+# supplies its own instead of depending on the developer's environment.
+TEST_ENCRYPTION_KEY = "unit-test-encryption-key-32byte!"
 
 
 @pytest.fixture()
@@ -38,6 +46,13 @@ def db_session():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        # StaticPool keeps a *single* connection for the whole engine. Without
+        # it, SQLAlchemy's default pool for an in-memory SQLite database opens
+        # one connection per thread — and each new connection gets its own empty
+        # database, so anything running off the test thread (FastAPI's
+        # TestClient dispatches sync endpoints to a worker thread) finds no
+        # tables at all.
+        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
     TestSessionLocal = sessionmaker(bind=engine)
@@ -60,6 +75,7 @@ def isolated_session_local():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,  # see `db_session` for why
     )
     Base.metadata.create_all(bind=engine)
     factory = sessionmaker(bind=engine)
@@ -113,13 +129,13 @@ def scan_repository(db_session):
 
 
 @pytest.fixture()
-def vex_decision_repository(db_session):
-    return VexDecisionRepository(db_session)
+def auth_service(user_repository):
+    return AuthService(user_repository)
 
 
 @pytest.fixture()
-def auth_service(user_repository):
-    return AuthService(user_repository)
+def encryption_service():
+    return EncryptionService(key=TEST_ENCRYPTION_KEY)
 
 
 @pytest.fixture()
@@ -138,7 +154,7 @@ def make_user(db_session):
             display_name=username.capitalize(),
             role=role,
             is_active=is_active,
-            created_at=datetime.utcnow(),
+            created_at=utcnow(),
         )
         db_session.add(user)
         db_session.commit()
@@ -181,7 +197,7 @@ def make_scan(db_session):
             branch=branch,
             status=status,
             findings_count=0,
-            created_at=datetime.utcnow(),
+            created_at=utcnow(),
         )
         db_session.add(scan)
         db_session.commit()

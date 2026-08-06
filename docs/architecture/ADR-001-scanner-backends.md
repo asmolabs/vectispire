@@ -175,9 +175,135 @@ Phase 8 (revue de code par IA, optionnelle) implémentée, en complément du cha
 - Toujours pas de badge sur les listes (dépôts/historique) pour la revue IA — gardé au niveau du détail de scan, comme pour les licences.
 - **Mode de déploiement Ollama configurable** : réglage `ai_review_deployment_mode` (`local`/`docker`, défaut `local`), sélectionnable en Réglages — purement informatif (n'affecte pas la connexion HTTP réelle, pilotée uniquement par `ai_review_ollama_url`), mais affiche un avertissement adapté : sur Mac Apple Silicon, Docker Desktop n'a pas de passthrough GPU/Metal, donc un Ollama en conteneur tourne en CPU uniquement et sera plus lent qu'une installation native. Un fichier `docker-compose.ollama.yml` est fourni à la racine du dépôt pour le mode Docker (section GPU NVIDIA commentée, pour Linux).
 
+## 9ter. Correctifs issus de la revue d'architecture (vague 1, 2026-08-06)
+
+Six correctifs, issus d'une revue transversale du projet. Ils ne changent aucune décision d'architecture ci-dessus ; ils corrigent des défauts d'implémentation, dont deux fuites de secrets.
+
+1. **Isolation des artefacts de scan (fuite de secrets + revue IA inopérante).** `sbom.json` (écrit pour Grype) et le rapport gitleaks (qui contient chaque secret détecté **en clair**) étaient écrits dans le même répertoire que le checkout git — donc dans l'arbre parcouru par `_collect_ai_review_sample`. Conséquences : les secrets détectés partaient vers le modèle Ollama, et un SBOM Syft (qui dépasse presque toujours les 40 000 caractères du plafond) consommait tout le budget avant le premier fichier source, de sorte que la « revue de code » portait en réalité sur le SBOM. Corrigé structurellement, pas par une liste de noms de fichiers à exclure : le checkout va dans un sous-répertoire `source/` du workspace (constante `SOURCE_SUBDIR`), les artefacts restent à la racine, et tout ce qui parcourt le code source est donc incapable de les atteindre, quels que soient les artefacts ajoutés plus tard. Côté sidecar `scan-api/`, le rapport gitleaks est désormais écrit dans le scratch du service (il est relu et renvoyé en JSON, il n'a jamais eu besoin d'être sur le volume partagé).
+2. **`lazy="joined"` sur `ZanshinRepository.scans` / `Container.scans`.** Chaque `find_all()` chargeait en eager tout l'historique de scans, blobs `sbom`/`cves` compris, pour afficher une liste de noms. Remplacé par des requêtes de colonnes (`ScanSummary`, `ScanHistoryRow` dans `ScanRepository`) : le coût d'affichage d'une liste ne dépend plus du volume de sortie brute stockée. Les relations subsistent pour la cascade de suppression (couverte par un test). Au passage : `ScanRepository.delete_by_id`, que l'UI d'historique appelait depuis toujours sans qu'il existe (échec silencieux derrière un toast « Erreur de suppression »).
+3. **`EncryptionService` : fail-closed.** Sans `ENCRYPTION_KEY`, le service chiffrait avec `"my-secret-encryption-key-32bytes"` — valeur publiée dans ce dépôt, donc protection nulle pour les clés SSH privées stockées. Le chiffrement lève désormais `MissingEncryptionKeyError` ; le déchiffrement conserve l'ancienne clé en repli pour ne pas rendre illisibles les données existantes (rotation transparente : une valeur ré-enregistrée passe sous la nouvelle clé). La dérivation (troncature/padding NUL) est laissée inchangée à dessein — la modifier rendrait indéchiffrable tout l'existant.
+4. **Bases SQLite retirées du suivi git.** `zanshin/database.sqlite` et `backend/database.sqlite` étaient versionnés (`.gitignore` ne couvrait que `*.db`) : hashes bcrypt et clés SSH chiffrées (avec la clé du point 3) se trouvent donc dans l'historique. Retirés de l'index, `.gitignore` étendu. **L'historique git n'a pas été réécrit** : les commits antérieurs contiennent toujours ces fichiers — cf. Prochaines étapes. Conséquence directe traitée : un clone neuf n'ayant plus de compte, `zanshin/bootstrap.py` crée le SUPERUSER initial depuis `ZANSHIN_BOOTSTRAP_USERNAME`/`_PASSWORD` quand la table `user` est vide.
+5. **Autorisation par event handler.** Dans Reflex, chaque handler est adressable individuellement par le client : vérifier `logged_in` dans un `on_mount` protège l'affichage d'une page, pas les handlers derrière. `trigger_scan`, `delete_repository`, les réglages et la création de clés API étaient appelables sans authentification. `zanshin/ui/auth.py` fournit `@requires_login` / `@requires_admin`, appliqués à tout handler qui lit ou écrit en base (les setters de vue pure sont laissés tels quels). Les décorateurs préservent le *type* de la fonction (plain/generator/coroutine/async generator) et sa signature (`__signature__` explicite, car `getfullargspec` ne suit pas `__wrapped__`) : c'est ce dont Reflex se sert pour dispatcher et pour mapper les arguments d'événement.
+6. **Validation des URL de dépôt.** `git clone` résout la syntaxe `<transport>::<adresse>` via un remote helper, et le helper `ext::` exécute son adresse comme commande shell : ajouter un dépôt valait exécution de code arbitraire. `zanshin/services/git_url.py` établit une liste blanche des transports qui ne font que *récupérer* (https, ssh, forme scp `git@hôte:chemin`), appliquée à l'enregistrement (`RepositoryService.save`, retour immédiat à l'opérateur) **et** juste avant le clone (point de passage obligé, qui couvre aussi les lignes créées avant cette validation).
+
+Risque résiduel assumé, non corrigé ici : le clone reste en `StrictHostKeyChecking=no` (pas de `known_hosts` persistant à confronter, les dépôts étant clonés à neuf à chaque scan).
+
+## 9quater. Vague 2 — du scanner à la gestion de posture (2026-08-06)
+
+Cinq chantiers, dans l'ordre où ils se débloquent l'un l'autre. Le constat de départ : le produit savait détecter et afficher, mais l'opérateur n'avait aucun moyen d'**agir**. `VexDecision` existait, était testée, et n'était écrite par personne (0 ligne dans tous les déploiements) ; `Finding.status` était écrit une fois à `"open"` et jamais relu. Le README annonçait le triage VEX comme livré.
+
+### 1. Alembic (débloque tout le reste)
+
+`Base.metadata.create_all` ne savait que créer des tables entières, ce qui a forcé chaque fonctionnalité précédente à inventer une table plutôt qu'ajouter une colonne (`ai_review_result` en est l'exemple explicite). Remplacé par Alembic, avec `render_as_batch=True` (SQLite ne sait pas `ALTER` en place).
+
+Le point délicat était l'adoption : les tables existantes ont été créées par l'implémentation précédente, donc rejouer la migration de référence sur une base peuplée échouerait sur « table already exists ». `zanshin/schema.py` distingue trois cas au démarrage — base vierge (on rejoue tout), base antérieure à Alembic (on **estampille** `0001` puis on applique la suite), base déjà gérée (on applique le delta). Vérifié sur une copie de la base réelle avant toute exécution : les 416 findings et 12 scans sont intacts.
+
+`alembic check` (échec si un modèle n'a pas sa migration) est devenu exploitable après deux corrections : les index composites de `issue` sont déclarés sur le modèle et non seulement dans la migration, et la comparaison de type est désactivée **pour les deux types custom uniquement** (`GUID`, `SafeDateTime`), que SQLite renvoie en NUMERIC/TIMESTAMP à la réflexion — sans ça le check échouait en permanence et ne voulait plus rien dire.
+
+### 2. Cycle de vie et triage (le cœur)
+
+Nouvelle table `issue` : un problème sur une cible, suivi d'un scan à l'autre. Identité par empreinte SHA-256 de (cible, type, identifiant, purl ou nom de paquet, fichier) — **la version du paquet en est volontairement exclue** : une dépendance restée vulnérable pendant trois versions correctives est un problème avec un historique, pas trois problèmes, et une décision de triage ne doit pas s'évaporer au prochain patch.
+
+Deux axes strictement séparés, et c'est la décision de conception importante :
+
+- `state` (`open`/`resolved`) : ce que les scanners **observent**. Écrit uniquement par le pipeline.
+- `triage_status` (vocabulaire VEX : `under_review`/`affected`/`not_affected`/`fixed`) : ce qu'un humain a **décidé**. Écrit uniquement par `IssueService.triage`.
+
+Les confondre est l'erreur classique : un finding masqué et un finding réellement corrigé se ressembleraient, et « résolu » ne voudrait plus rien dire.
+
+Règles de résolution, celles qui font qu'on peut faire confiance au chiffre :
+
+- Un type non scanné n'est **jamais** résolu. `scanned_types` est fourni par l'appelant, pas déduit des findings présents : « le scanner de secrets a tourné et n'a rien trouvé » doit résoudre les secrets, « aucun secret parce qu'on n'en a pas cherché » ne doit rien toucher. Aucune déduction depuis les findings ne peut distinguer les deux cas.
+- Seul un scan **terminé** résout quoi que ce soit. Un scan échoué ou interrompu n'observe rien. Ce n'est pas théorique : la première version du backfill a marqué les 416 problèmes « résolus » parce que les trois derniers scans de la base réelle étaient bloqués en `scanning` (voir chantier 4).
+- Un problème résolu qui réapparaît est **réouvert**, pas recréé : c'est une régression, pas une découverte. Un verdict `fixed` est alors effacé (factuellement contredit) ; un `not_affected` survit, car il porte sur l'exposition du code, pas sur la présence du paquet.
+
+La migration `0002` **rejoue l'historique** depuis les findings existants (plus ancien scan d'abord) plutôt que de partir d'une table vide : sinon le premier scan après mise à jour annoncerait comme « nouveau » tout ce que le déploiement traîne depuis des mois — exactement le signal que la fonctionnalité existe pour rendre fiable. Le backfill réutilise `build_fingerprint` de l'application plutôt que de réimplémenter le hash en SQL : deux définitions de l'identité divergeraient.
+
+`Scan` porte `new_issues_count`/`resolved_issues_count`, affichés en colonne « Évolution » de l'historique. Nouvelle page `/issues` (backlog, filtres, tri, dialogue de triage) : c'est la moitié du produit qui manquait. `VexDecision` est laissée en place, vide et inutilisée, supersédée — la supprimer demanderait une migration destructive pour zéro donnée.
+
+### 3. Findings actionnables
+
+`vulnerability.fix.versions`, `vulnerability.cvss` et le lien de référence étaient présents dans la sortie des scanners et jetés. Extraits par `zanshin/services/remediation.py` vers `Finding`/`Issue`.
+
+Le point non évident : pour un paquet système, l'enregistrement principal de Grype est l'avis de la **distribution** (RHSA, DSA), qui porte la sévérité éditeur et la version corrigée du paquet mais ni CVSS ni description — celles-ci vivent sur l'enregistrement NVD lié, dans `relatedVulnerabilities`. Ne lire que l'enregistrement principal donne donc un CVSS nul sur précisément les findings que produisent le plus les scans d'images. Le repli lit les enregistrements liés pour tout **sauf** le correctif, qui doit rester celui de la distribution : c'est la version empaquetée que l'opérateur peut réellement installer.
+
+Le backend OSV traduit vers les mêmes clés (`fix.versions` depuis les événements de plage, vecteur CVSS depuis `severity`), donc `extract_remediation` lit les deux backends par un seul chemin. Pas de score numérique côté OSV : il publie le vecteur, en dériver le score demanderait un calculateur CVSS — dépendance réelle pour une valeur que l'UI sait déjà afficher en vecteur.
+
+### 4. Fiabilité d'exécution
+
+- `asyncio.get_event_loop()` + `run_in_executor` → `executor.submit`. L'appel était déprécié (il émettait déjà « There is no current event loop ») et ne servait qu'à atteindre ce même pool : rien n'attendait le résultat, donc aucune boucle d'événements n'était nécessaire.
+- Timeout par conteneur de scan (`ZANSHIN_SCAN_TIMEOUT_SECONDS`, 900 s). Sans lui, un scanner bloqué occupait un worker du pool pour la vie du processus ; cinq et l'application ne scanne plus rien, silencieusement. docker-py implémentant `wait` par une requête HTTP, le timeout remonte en exception `requests` : distinguer un vrai timeout d'un démon injoignable importe, sinon `Scan.error` désigne la mauvaise cause.
+- Réconciliation au démarrage : tout scan encore `pending`/`scanning` appartient à un processus qui n'existe plus. La base réelle en avait trois, et ce n'était pas qu'un badge faux — « le dernier scan de cette cible » est ce que lit la résolution des problèmes. Plus un ramasse-miettes périodique pour un worker bloqué sans redémarrage.
+
+### 5. Ordonnanceur
+
+`scan_interval_minutes`, `scan_cron` et `last_scheduled_scan_at` existaient depuis le début, l'UI collectait un intervalle pour chaque cible, et personne ne les lisait — dans un outil dont la prémisse est que *de nouvelles vulnérabilités apparaissent dans du code inchangé*. Un thread démon, tick d'une minute, qui dispatche via les mêmes `trigger_scan` que l'UI (un scan planifié et un scan manuel sont indistinguables en aval : même pool, même processeur, même synchro des problèmes). `last_scheduled_scan_at` est estampillé **avant** dispatch, sinon un scan plus long qu'un intervalle serait relancé à chaque tick.
+
+Pas d'APScheduler ni de Celery : un processus unique avec SQLite n'a pas besoin d'un ordonnanceur distribué, et cela ajouterait un broker à exploiter. **`scan_cron` reste ignoré** (il faudrait un parseur cron, donc une dépendance) : l'ordonnanceur le journalise explicitement au lieu de faire silencieusement autre chose que ce que l'opérateur a saisi.
+
+### Transverse : tests de contrat et CI
+
+`tests/scanners/test_engine_contract.py` exécute une suite unique contre les trois implémentations de `ScannerEngine`. L'abstraction promettait la substituabilité sans que rien ne la vérifie, et deux divergences réelles existaient : le sidecar codait `linux/amd64` en dur alors que le backend Docker avait été rendu configurable (donc changer de backend changeait silencieusement l'architecture auditée, et donc les CVE trouvées), et il écrivait le rapport gitleaks dans l'arbre scanné après que le backend Docker avait arrêté de le faire. Les deux corrigées. À l'inverse, `registry:` contre `docker:` est une divergence **justifiée** — le sidecar n'a pas de démon Docker à traverser, c'est sa raison d'être — et reste dans les tests propres à chaque backend.
+
+CI (`.github/workflows/ci.yml`) : tests, construction du schéma depuis les migrations sur base vierge, `alembic check` (dérive modèles/migrations), et aller-retour `downgrade base`/`upgrade head`. `reflex compile --dry` en est volontairement absent (il exige un `.web` provisionné, donc node/bun : lent et instable en CI pour un contrôle rapide et fiable en local).
+
+## 9quinquies. Vague 3 — du produit utilisable au produit intégrable (2026-08-06)
+
+Cinq chantiers, dans l'ordre où ils se débloquent : d'abord supprimer du code, ensuite en ajouter.
+
+### D. Nettoyages rendus possibles par Alembic
+
+Trois dettes n'existaient que par absence d'outil de migration.
+
+- **`scan.error` : `String(255)` → `Text`.** Cette largeur arbitraire imposait à `docker_engine` un répartiteur de budget (`MAX_ERROR_MESSAGE`, `MIN_ERROR_DETAIL`, `_ellipsize`, `_build_message`) dont le seul rôle était de faire tenir les mots du scanner dans la colonne, en arbitrant entre tronquer le libellé ou tronquer l'explication. ~35 lignes supprimées, et deux tests qui vérifiaient la troncature remplacés par un test qui vérifie que **rien** n'est tronqué : la sortie d'un scanner est précisément ce qu'on ne veut jamais couper.
+- **Colonnes fantômes supprimées** : `finding.status` (écrite une fois à `"open"`, jamais relue depuis que `Issue` porte l'état), `finding.vex_decision_id` et la table `vex_decision` (vide dans tous les déploiements). Deux modèles concurrents pour le même concept, c'est un piège pour le prochain lecteur.
+- **`datetime.utcnow()`** centralisé dans `zanshin/clock.py` (18 appels). Le retour reste **naïf UTC** et pas timezone-aware, à dessein : tous les horodatages déjà stockés sont naïfs, et l'ordonnanceur comme le cycle de vie des problèmes comparent du stocké à « maintenant » — mélanger les deux lève `TypeError` au premier comparatif. Passer en aware demande une migration de données de chaque colonne d'horodatage ; l'entonnoir est là pour que ce soit un jour un changement d'une fonction. Zéro avertissement de dépréciation restant.
+- **Index manquant** sur `finding.scan_id`, filtré à chaque affichage de liste (`count_by_scan_ids_and_type`).
+- **Unicité réelle sur `user.username`** : le modèle la déclarait, la table héritée ne l'avait pas, donc elle reposait sur un lire-puis-écrire dans `UserService` — deux créations simultanées du même login passaient toutes les deux.
+
+**Dérive héritée corrigée (migration 0004).** `alembic check` exécuté contre la base de développement — et non contre une base construite depuis les migrations — a révélé que `user`, `repository`, `container` et `scan` manquaient d'index, de clés étrangères et de contraintes d'unicité que les modèles déclarent, et que `scan.sbom`/`cves`/`summary` étaient typées `TEXT` au lieu de `JSON`. Rien de visible (SQLite n'applique pas les types déclarés), mais deux schémas pour une seule base de code, dont un que la CI ne peut pas voir. La migration est **conditionnelle** : elle n'agit que là où l'élément est réellement absent, donc elle ne fait rien du tout sur une base construite depuis `0001`. Vérifiée sur une copie de la base réelle (comptages identiques, `scan.sbom` identique à l'octet), et `alembic check` passe désormais sur la base réelle migrée.
+
+### Correctif urgent découvert en chemin
+
+`scheduler.start()` était appelé à l'**import** de `zanshin/zanshin.py`. Or `reflex compile --dry` importe ce module : **compiler l'application déclenchait un vrai scan de conteneur**. Le scan 13 de la base de développement a été créé exactement comme ça. Déplacé dans une tâche de cycle de vie Reflex (`app.register_lifespan_task`), qui ne s'exécute que quand l'application sert réellement.
+
+Effet secondaire utile : ce scan accidentel a validé la vague 2 sur de vraies données Grype — 421 findings, **13 nouveaux problèmes et 8 résolus** par rapport à la référence du 29 juillet.
+
+### A. API HTTP et policy gate
+
+`zanshin/api/`, montée sur l'app Reflex via `api_transformer`, donc même processus et même port que l'UI. Chaque route est un adaptateur mince appelant le **même service que l'UI** : un scan déclenché par la CI et un scan déclenché par un bouton empruntent le même chemin, seule garantie que les deux restent cohérents.
+
+- Authentification par jeton porteur. `ApiKeyService.verify_key` comparait en bcrypt contre **chaque** clé stockée — un hash volontairement lent par clé, à chaque appel — alors que la colonne `prefix` existait précisément pour l'éviter. Recherche par préfixe désormais, et `last_used_at` enfin écrit (rien ne pouvait l'écrire : aucun endpoint n'existait à qui présenter une clé).
+- Les échecs d'authentification sont volontairement indiscernables entre eux (absent / malformé / faux → même 401) : distinguer confirmerait quels préfixes existent.
+- **Gate** (`zanshin/services/policy_gate.py`, logique pure) : seuil de sévérité, KEV, « seulement ce qui a un correctif », et respect du triage. Trois décisions valent d'être dites : un problème trié `not_affected` ne fait **pas** échouer un build par défaut (un gate qui ignore le triage se fait désactiver) ; `fixable_only` existe mais n'est **pas** le défaut (il tolérerait silencieusement une vulnérabilité activement exploitée sans correctif, soit exactement le cas qui exige un humain) ; le gate répond **200** avec `passed: false`, parce qu'une politique violée est une réponse, pas une erreur de transport.
+
+### B. Notifications
+
+`NotificationGateway` ne faisait que journaliser, ce qui se défendait tant que la seule chose à dire était « un scan a fini » — un message dont personne n'a besoin. Ce qui a rendu les notifications utiles, c'est le delta de la vague 2 : « 3 nouveaux problèmes, 1 activement exploité, correctif disponible » est actionnable.
+
+Webhook HTTP générique plutôt qu'intégration Slack : un POST JSON documenté atteint Slack, Teams, Discord, Mattermost, un bus interne ou un script de trois lignes ; un format propriétaire achèterait un joli rendu à un endroit au prix de tous les autres. Un champ `text` est inclus pour que les sinks de chat affichent quelque chose de lisible. Rien n'est envoyé quand un scan ne change rien — c'est la seule façon qu'un canal reste lu. L'URL est traitée comme un secret (jamais journalisée : Slack, Teams et Discord y encodent un jeton).
+
+### C. Exports
+
+- **OpenVEX** : une sérialisation, pas une traduction — c'était l'intérêt de stocker le triage dans le vocabulaire du standard. Trois règles de véracité : pas de statement sans identifiant de vulnérabilité, pas de `not_affected` sans sa justification obligatoire, et un problème résolu jamais trié est déclaré `fixed` et non « en cours d'investigation » (le scanner ne le voit plus ; affirmer l'inverse tromperait exactement le lecteur visé). Un verdict humain, lui, survit à la résolution.
+- **CSV** : une colonne par champ stocké, pas une sélection — les gens qui demandent du CSV veulent pivoter eux-mêmes.
+- **SBOM** : servi tel que Syft l'a produit. Pas de conversion CycloneDX/SPDX : ce serait une redérivation lossy de ce que l'outil sait émettre nativement, donc c'est une option **au moment du scan**, pas au moment de l'export.
+
+### E. Pagination
+
+L'écran des problèmes lisait 500 lignes en dur sans afficher de total : au-delà, la liste était tronquée en silence — exactement le travers que je reprochais ailleurs, introduit par moi en vague 2. Pagination avec total affiché (« 1–50 sur 429 »), offset remis à zéro à chaque changement de filtre, et ordre **total** dans la requête (`Issue.id` en dernier critère) sans lequel une ligne peut apparaître sur deux pages ou sur aucune.
+
+### Non fait, et pourquoi
+
+Le refactor des view-models de l'UI (`dict[str, str]` + conversions `str()` dans 5 pages, `depots.py` à ~1400 lignes) reste à faire. Ce n'est pas un oubli : c'est ~1000 lignes de remaniement sur la seule couche sans harnais de test, donc un risque de régression réel pour un gain interne. À faire avec la mise en place d'un harnais de test Reflex, pas avant.
+
 ## 9. Prochaines étapes immédiates
 
-1. Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.
-2. Choisir un vrai outil de migration (Alembic recommandé) avant toute nouvelle évolution de colonne sur une table existante.
+1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).
+2. ~~Choisir un vrai outil de migration (Alembic recommandé).~~ Fait en vague 2.
 3. Vérifier de bout en bout le service `scan-api/` (Dockerfile, versions d'outils) sur une infrastructure disposant de Docker/réseau externe.
 4. Valider en conditions réelles la revue de code par IA (temps de réponse Ollama sur un vrai dépôt, qualité perçue des retours, fiabilité du modèle à respecter le format JSON demandé).
+5. ~~Dérive de schéma héritée~~ — traitée en vague 3 (migration 0004) pour `user`, `repository`, `container` et `scan`. Restent `api_key` et `audit_logs`, dont seuls les types d'horodatage divergent (sans effet sur SQLite) : les tables créées par l'implémentation précédente n'ont pas les index et contraintes d'unicité que déclarent les modèles, et leurs colonnes d'horodatage sont typées `TIMESTAMP` au lieu de `SafeDateTime` (sans effet sur SQLite). Détecté en écrivant la migration `0002`, délibérément non corrigé là : réécrire des tables peuplées pour ajouter des contraintes est une opération à décider en tant que telle, pas un effet de bord. Une migration dédiée à prévoir — notamment l'unicité de `user.username`, qui n'est aujourd'hui garantie que par le code applicatif.
+6. ~~Exporter les décisions de triage en document VEX.~~ Fait en vague 3.
+7. ~~API HTTP et *policy gate*.~~ Fait en vague 3.
+8. Traiter les secrets présents dans l'historique git (cf. 9ter, point 4) : les bases retirées de l'index y figurent toujours. Considérer les mots de passe et clés SSH concernés comme compromis (rotation), puis décider si l'historique doit être réécrit (`git filter-repo`) ou si le dépôt reste privé et l'on s'en tient à la rotation.

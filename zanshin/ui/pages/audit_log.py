@@ -1,6 +1,7 @@
 import reflex as rx
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_admin
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 
@@ -11,12 +12,12 @@ class AuditLogState(BaseState):
 
     entries: list[dict[str, str]] = []
 
+    @requires_admin
     def load_entries(self):
+        # The role check is `@requires_admin`, not an inline test: it has to
+        # hold for a direct websocket call to this handler too, not only for
+        # a page load (see zanshin/ui/auth.py).
         self.set_current_page("Journal d'audit")
-        if self.user_role not in ("SUPERUSER", "ADMIN"):
-            yield rx.redirect("/dashboard")
-            yield self.trigger_toast("Accès réservé aux administrateurs", is_error=True)
-            return
 
         container = get_container()
         try:

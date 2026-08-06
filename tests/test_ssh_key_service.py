@@ -3,14 +3,8 @@ import uuid
 import pytest
 
 from zanshin.models.ssh_key import SSHKey
-from zanshin.services.encryption_service import EncryptionService
 from zanshin.services.ssh_key_service import SSHKeyService
 from zanshin.repositories.ssh_key_repository import SSHKeyRepository
-
-
-@pytest.fixture()
-def encryption_service():
-    return EncryptionService()
 
 
 @pytest.fixture()

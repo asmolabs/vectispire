@@ -1,4 +1,4 @@
-from datetime import datetime
+from zanshin.clock import utcnow
 from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from zanshin.database import Base
@@ -8,13 +8,18 @@ class Finding(Base):
     """A single, normalized (queryable) result attached to a Scan.
 
     `Scan.cves`/`Scan.sbom` keep the raw tool output for audit purposes;
-    `Finding` rows are the structured projection of that output used by the
-    UI, VEX triage, and future enrichment (EPSS/KEV) — see ADR-001, section 4.
+    `Finding` rows are the structured projection of that output used by the UI
+    and the enrichment step (EPSS/KEV) — see ADR-001, section 4.
+
+    A finding is an *observation*, valid for the scan that produced it. State and
+    triage belong to `Issue`, which tracks the same problem across scans.
     """
     __tablename__ = "finding"
 
     id = Column(Integer, primary_key=True, index=True)
-    scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=False)
+    # Indexed: `count_by_scan_ids_and_type` runs on every list and history
+    # render, filtering on `scan_id IN (...)`.
+    scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=False, index=True)
 
     # "vulnerability" (SCA/Grype) today; "secret" / "iac" / "license" are the
     # extension points for the additional scanners described in ADR-001.
@@ -30,22 +35,26 @@ class Finding(Base):
     # Which scanner/provider produced this finding (grype, gitleaks, osv, ...).
     source = Column(String(50), default="grype", nullable=False)
 
-    # Populated later by the enrichment step (ADR-001, section 6); left null
-    # until that phase is implemented.
+    # Populated by the enrichment step (ADR-001, section 6).
     epss_score = Column(Float, nullable=True)
     is_kev = Column(Boolean, default=False, nullable=False)
 
-    status = Column(String(50), default="open", nullable=False)  # open, ignored, fixed
+    # What to *do* about it — the part that was missing for the finding to be
+    # actionable rather than merely alarming. All of it is present in the
+    # scanners' own output (Grype's `vulnerability.fix` / `vulnerability.cvss`,
+    # translated identically by the OSV backend) and was simply dropped.
+    cvss_score = Column(Float, nullable=True)
+    cvss_vector = Column(String(255), nullable=True)
+    fix_state = Column(String(50), nullable=True)  # fixed, not-fixed, wont-fix, unknown
+    fix_versions = Column(String(255), nullable=True)  # comma-separated, as reported
+    link = Column(String(500), nullable=True)
 
-    # One-way link to an existing VEX decision (repo, vulnerability, package).
-    # `vex_decision` is an existing table with no `finding_id` column of its
-    # own — adding one there would require a real migration (no such tool is
-    # wired up yet, see ADR-001). Adding the FK here, on this brand-new
-    # table, is schema-safe: it only reads `vex_decision.id`, it changes
-    # nothing on the vex_decision side.
-    vex_decision_id = Column(Integer, ForeignKey("vex_decision.id"), nullable=True)
+    # The cross-scan issue this observation belongs to. State and triage live
+    # there, not here: a scan rewrites its findings wholesale, so a status on
+    # this row could never outlive one scan (see zanshin/models/issue.py).
+    issue_id = Column(Integer, ForeignKey("issue.id"), nullable=True, index=True)
 
-    created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(SafeDateTime, default=utcnow, nullable=False)
 
     scan = relationship("Scan", back_populates="findings")
-    vex_decision = relationship("VexDecision")
+    issue = relationship("Issue", back_populates="findings")

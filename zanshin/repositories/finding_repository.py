@@ -16,12 +16,13 @@ class FindingRepository:
             Finding.type == finding_type
         ).all()
 
-    def find_all_open(self) -> List[Finding]:
-        return self.db.query(Finding).filter(Finding.status == "open").all()
-
     def count_by_scan_ids_and_type(self, scan_ids: List[int], finding_type: str) -> Dict[int, int]:
-        """Open-finding count per scan id, for a given type — used to show a
-        "Secrets" badge in scan lists without loading every Finding row."""
+        """Finding count per scan id, for a given type — used to show a
+        "Secrets" badge in scan lists without loading every Finding row.
+
+        Counts what the scan observed, with no state filter: a finding *is* an
+        observation, and whether the problem is still open or has been triaged
+        is a property of its `Issue`, not of one scan's snapshot."""
         if not scan_ids:
             return {}
         rows = (
@@ -29,7 +30,6 @@ class FindingRepository:
             .filter(
                 Finding.scan_id.in_(scan_ids),
                 Finding.type == finding_type,
-                Finding.status == "open"
             )
             .group_by(Finding.scan_id)
             .all()

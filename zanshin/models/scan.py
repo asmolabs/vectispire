@@ -1,5 +1,5 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, JSON
+from zanshin.clock import utcnow
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, JSON, Text
 from sqlalchemy.orm import relationship
 from zanshin.database import Base
 from zanshin.models.safedatetime import SafeDateTime
@@ -16,8 +16,17 @@ class Scan(Base):
     summary = Column(JSON, nullable=True)
     duration_ms = Column(BigInteger, nullable=True)
     findings_count = Column(Integer, default=0, nullable=False)
-    error = Column(String(255), nullable=True)
-    created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+
+    # Delta against the previous scan of the same target, computed by
+    # `IssueService.sync_from_scan`. Stored rather than derived so a scan list
+    # can show "what changed" without opening every issue history.
+    new_issues_count = Column(Integer, default=0, nullable=False)
+    resolved_issues_count = Column(Integer, default=0, nullable=False)
+    # Text, not String(255): the narrow column forced a whole budget-splitting
+    # trimmer in the Docker engine just to make a scanner's own words fit. A
+    # failure message is exactly the field you don't want truncated.
+    error = Column(Text, nullable=True)
+    created_at = Column(SafeDateTime, default=utcnow, nullable=False)
     version = Column(String(255), nullable=True)
     project_type = Column(String(255), nullable=True)
 

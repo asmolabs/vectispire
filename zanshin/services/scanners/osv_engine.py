@@ -105,12 +105,20 @@ class OsvScannerEngine(ScannerEngine):
         references = vuln.get("references", [])
         link = references[0].get("url", "") if references else ""
 
+        fixed_versions = self._fixed_versions(vuln)
         return {
             "vulnerability": {
                 "id": cve_id,
                 "severity": self._resolve_severity(vuln),
                 "description": vuln.get("summary") or (vuln.get("details") or "")[:300],
-                "fix": {"state": "unknown"},
+                # Same keys Grype uses, so `extract_remediation` reads both
+                # backends with one code path (ADR-001's whole point: the rest
+                # of the pipeline must not know which engine ran).
+                "fix": {
+                    "state": "fixed" if fixed_versions else "unknown",
+                    "versions": fixed_versions,
+                },
+                "cvss": self._cvss_entries(vuln),
                 "links": [link] if link else [],
             },
             "artifact": {
@@ -120,6 +128,42 @@ class OsvScannerEngine(ScannerEngine):
                 "locations": artifact.get("locations", []) or [],
             },
         }
+
+    def _fixed_versions(self, vuln: Dict[str, Any]) -> List[str]:
+        """Versions that fix the vulnerability, from OSV's range events.
+
+        OSV expresses fixes as a timeline per affected range (`introduced`, then
+        possibly `fixed`); an entry with no `fixed` event means no fix is
+        published yet, which is exactly the distinction an operator needs.
+        """
+        versions = []
+        for affected in vuln.get("affected") or []:
+            for affected_range in affected.get("ranges") or []:
+                for event in affected_range.get("events") or []:
+                    fixed = event.get("fixed")
+                    if fixed and fixed not in versions:
+                        versions.append(str(fixed))
+        return versions
+
+    def _cvss_entries(self, vuln: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Translate OSV's `severity` list into Grype's `cvss` shape.
+
+        Only the vector is carried over, never a numeric score: OSV publishes
+        the vector string, and deriving a base score from it means implementing
+        (or depending on) a CVSS calculator — a real dependency for a value the
+        UI can already show as a vector. `Issue.cvss_score` therefore stays null
+        on this backend, and the EPSS/KEV enrichment remains the numeric signal
+        for prioritization.
+        """
+        entries = []
+        for severity in vuln.get("severity") or []:
+            vector = severity.get("score")
+            if not isinstance(vector, str) or not vector.startswith("CVSS:"):
+                continue
+            # "CVSS:3.1/AV:N/..." → version 3.1
+            version = vector.split("/", 1)[0].removeprefix("CVSS:")
+            entries.append({"version": version, "vector": vector, "metrics": {}})
+        return entries
 
     def _resolve_severity(self, vuln: Dict[str, Any]) -> str:
         db_specific = vuln.get("database_specific") or {}

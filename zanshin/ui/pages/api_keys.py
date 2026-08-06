@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 import uuid
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.services.audit_log_service import AuditOperation
@@ -22,6 +23,7 @@ class ApiKeysState(BaseState):
     def set_new_name(self, val: str):
         self.new_name = val
 
+    @requires_login
     def load_keys_data(self):
         self.set_current_page("Clés API")
         container = get_container()
@@ -48,6 +50,7 @@ class ApiKeysState(BaseState):
     def close_create_dialog(self):
         self.create_dialog_open = False
 
+    @requires_login
     def create_api_key(self):
         if not self.new_name:
             yield self.trigger_toast("Un nom est requis pour la clé", is_error=True)
@@ -79,6 +82,7 @@ class ApiKeysState(BaseState):
         self.display_dialog_open = False
         self.created_key_raw = ""
 
+    @requires_login
     def delete_key(self, key_id_str: str):
         container = get_container()
         try:
@@ -106,7 +110,7 @@ def api_keys_page() -> rx.Component:
         rx.hstack(
             rx.text("Gérez vos clés d'accès personnel pour utiliser l'API Zanshin", size="2", color="var(--slate-10)"),
             rx.spacer(),
-            rx.button("Créer une clé API", rx.icon(tag="plus"), color_scheme="indigo", on_click=ApiKeysState.open_create_dialog),
+            rx.button("Créer une clé API", rx.icon(tag="plus"), color_scheme="cyan", on_click=ApiKeysState.open_create_dialog),
             width="100%",
             align="center"
         ),
@@ -187,7 +191,7 @@ def api_keys_page() -> rx.Component:
                     class_name="mt-4 w-full"
                 ),
                 rx.hstack(
-                    rx.button("J'ai copié la clé", on_click=ApiKeysState.close_display_dialog, color_scheme="indigo"),
+                    rx.button("J'ai copié la clé", on_click=ApiKeysState.close_display_dialog, color_scheme="cyan"),
                     class_name="mt-6 justify-end w-full"
                 ),
                 class_name="max-w-md w-full"

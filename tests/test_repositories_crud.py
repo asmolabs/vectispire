@@ -7,7 +7,6 @@ import uuid
 from zanshin.models.setting import Setting
 from zanshin.models.ssh_key import SSHKey
 from zanshin.models.api_key import ApiKey
-from zanshin.models.vex_decision import VexDecision
 
 
 # --- UserRepository ---
@@ -110,25 +109,3 @@ def test_setting_repository_crud(db_session, setting_repository):
     assert setting_repository.find_by_key("scan_backend") is None
 
 
-# --- VexDecisionRepository ---
-
-def test_vex_decision_repository_crud(db_session, vex_decision_repository, make_repository):
-    repo = make_repository()
-    decision = VexDecision(
-        repository_id=repo.id,
-        vulnerability_id="CVE-2021-44228",
-        package_name="log4j-core",
-        status="not_affected",
-    )
-    vex_decision_repository.save(decision)
-
-    found = vex_decision_repository.find_by_repo_and_vulnerability_and_package(
-        repo.id, "CVE-2021-44228", "log4j-core"
-    )
-    assert found is not None
-    assert found.status == "not_affected"
-
-    assert len(vex_decision_repository.find_all_by_repository_id(repo.id)) == 1
-
-    vex_decision_repository.delete(decision)
-    assert vex_decision_repository.find_by_id(decision.id) is None

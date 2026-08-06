@@ -9,10 +9,10 @@ from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.repositories.ssh_key_repository import SSHKeyRepository
 from zanshin.repositories.api_key_repository import ApiKeyRepository
 from zanshin.repositories.setting_repository import SettingRepository
-from zanshin.repositories.vex_decision_repository import VexDecisionRepository
 from zanshin.repositories.finding_repository import FindingRepository
 from zanshin.repositories.audit_log_repository import AuditLogRepository
 from zanshin.repositories.ai_review_result_repository import AiReviewResultRepository
+from zanshin.repositories.issue_repository import IssueRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -29,6 +29,8 @@ from zanshin.services.license_compliance_service import LicenseComplianceService
 from zanshin.services.user_service import UserService
 from zanshin.services.audit_log_service import AuditLogService
 from zanshin.services.ai_review_service import AiReviewService
+from zanshin.services.issue_service import IssueService
+from zanshin.services.notification_service import NotificationService
 
 class IoCContainer:
     def __init__(self, db: Session):
@@ -42,10 +44,10 @@ class IoCContainer:
         self.ssh_key_repository = SSHKeyRepository(db)
         self.api_key_repository = ApiKeyRepository(db)
         self.setting_repository = SettingRepository(db)
-        self.vex_decision_repository = VexDecisionRepository(db)
         self.finding_repository = FindingRepository(db)
         self.audit_log_repository = AuditLogRepository(db)
         self.ai_review_result_repository = AiReviewResultRepository(db)
+        self.issue_repository = IssueRepository(db)
 
         # Services
         self.encryption_service = EncryptionService()
@@ -71,12 +73,21 @@ class IoCContainer:
         # `ai_review_enabled` is set — see AiReviewService's docstring and
         # ADR-001, Phase 8.
         self.ai_review_service = AiReviewService(self.settings_service)
+        # Cross-scan issue lifecycle and triage (new / still open / resolved,
+        # VEX decisions). Session-agnostic by design — `sync_from_scan` runs on
+        # the background scan session, `triage` on this request's session.
+        self.issue_service = IssueService()
+        # Outbound webhook about what a scan changed; inert until a URL is set
+        # in Settings (see NotificationService).
+        self.notification_service = NotificationService(self.settings_service)
         self.scan_processor = ScanProcessor(
             self.ssh_key_service,
             self.scanner_engine,
             self.enrichment_service,
             self.license_compliance_service,
-            self.ai_review_service
+            self.ai_review_service,
+            self.issue_service,
+            self.notification_service,
         )
         self.repository_service = RepositoryService(
             self.repository_repository,

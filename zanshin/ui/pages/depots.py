@@ -1,21 +1,32 @@
 import reflex as rx
 from typing import List, Dict, Any
-from datetime import datetime
 import uuid
 import asyncio
 
 from zanshin.ui.state import BaseState
+from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
+from zanshin.ui.components import stat_card, severity_donut_chart, empty_state
 from zanshin.container import get_container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
 
 class DepotsState(BaseState):
     """Manages the Git repositories configuration, planning, and unified global scan history."""
-    
+
     repositories: list[dict[str, str]] = []
     ssh_keys_list: list[dict[str, str]] = []
-    
+
+    # Aggregated metrics (latest scan of each repo), for the KPI row and
+    # severity donut chart shown above the tabs.
+    total_vulns: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    secret_count: int = 0
+    severity_chart_data: list[dict[str, Any]] = []
+
     # Global Scan History
     scan_history: list[dict[str, str]] = []
     search_history_query: str = ""
@@ -75,29 +86,41 @@ class DepotsState(BaseState):
         self.search_history_query = val
         return DepotsState.load_history_list(self)
 
+    @requires_login
     def load_repositories_data(self):
         self.set_current_page("Dépôts & Scans")
         yield DepotsState.load_repos_list(self)
         yield DepotsState.load_history_list(self)
 
+    @requires_login
     def load_repos_list(self):
         container = get_container()
         try:
             db_repos = container.repository_repository.find_all()
 
-            # Figure out each repo's latest scan first, so secret counts can
-            # be fetched in a single grouped query instead of one per repo.
-            latest_scans = {}
-            for r in db_repos:
-                scans = sorted(r.scans or [], key=lambda s: s.created_at, reverse=True)
-                if scans:
-                    latest_scans[r.id] = scans[0]
+            # Latest scan per repo as column-only summaries: this list needs
+            # status/counts, never the raw SBOM or CVE blobs (see ScanSummary).
+            latest_scans = container.scan_repository.find_latest_summary_by_repository_ids(
+                [r.id for r in db_repos]
+            )
 
             secret_counts = container.finding_repository.count_by_scan_ids_and_type(
                 [s.id for s in latest_scans.values()], "secret"
             )
+            # Outstanding (open, not yet settled by triage) issues per repo —
+            # the number that actually means "work to do", unlike a raw finding
+            # count which re-reports everything already reviewed.
+            actionable_counts = container.issue_repository.count_actionable_by_repo_ids(
+                [r.id for r in db_repos]
+            )
 
             self.repositories = []
+            total_vulns = 0
+            total_critical = 0
+            total_high = 0
+            total_medium = 0
+            total_low = 0
+            total_secrets = 0
             for r in db_repos:
                 status = "Non scanné"
                 findings = 0
@@ -116,6 +139,12 @@ class DepotsState(BaseState):
                     med = summary.get("medium", 0)
                     low = summary.get("low", 0)
                     secrets = secret_counts.get(latest.id, 0)
+                    total_vulns += findings
+                    total_critical += crit
+                    total_high += high
+                    total_medium += med
+                    total_low += low
+                    total_secrets += secrets
 
                 self.repositories.append({
                     "id": str(r.id),
@@ -128,8 +157,22 @@ class DepotsState(BaseState):
                     "high": str(high),
                     "medium": str(med),
                     "low": str(low),
-                    "secrets": str(secrets)
+                    "secrets": str(secrets),
+                    "open_issues": str(actionable_counts.get(r.id, 0)),
                 })
+
+            self.total_vulns = total_vulns
+            self.critical_count = total_critical
+            self.high_count = total_high
+            self.medium_count = total_medium
+            self.low_count = total_low
+            self.secret_count = total_secrets
+            self.severity_chart_data = [
+                {"name": "Critique", "value": total_critical, "color": "var(--red-9)"},
+                {"name": "Élevé", "value": total_high, "color": "var(--orange-9)"},
+                {"name": "Moyen", "value": total_medium, "color": "var(--yellow-9)"},
+                {"name": "Faible", "value": total_low, "color": "var(--blue-9)"},
+            ]
 
             # Load SSH Keys for dropdown selection
             db_keys = container.ssh_key_repository.find_all()
@@ -139,30 +182,32 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     def load_history_list(self):
         container = get_container()
         try:
-            db = container.db
-            db_scans = db.query(Scan).all()
+            # One join-based query, newest first, with no raw scanner output
+            # loaded and no per-row lazy load of the scanned target — which
+            # previously pulled each repository's *entire* scan collection
+            # back through `s.repository` (see ScanHistoryRow).
+            history_rows = container.scan_repository.find_history_rows()
             self.scan_history = []
             filter_query = self.search_history_query.lower()
-            
-            # Sort scans by creation date descending
-            db_scans = sorted(db_scans, key=lambda s: s.created_at or datetime.min, reverse=True)
 
             secret_counts = container.finding_repository.count_by_scan_ids_and_type(
-                [s.id for s in db_scans], "secret"
+                [row.scan.id for row in history_rows], "secret"
             )
 
-            for s in db_scans:
+            for row in history_rows:
+                s = row.scan
                 target_name = "N/A"
                 branch = "—"
-                if s.repo_id:
-                    target_name = s.repository.name or s.repository.url if s.repository else "Dépôt inconnu"
+                if row.repo_id:
+                    target_name = row.repo_name or row.repo_url or "Dépôt inconnu"
                     branch = s.branch or "main"
-                elif s.container_id:
-                    target_name = s.container.image_string if s.container else "Image inconnue"
-                
+                elif row.container_id:
+                    target_name = row.image_string or "Image inconnue"
+
                 status = s.status or "pending"
                 if filter_query:
                     if (filter_query not in target_name.lower() and 
@@ -175,7 +220,7 @@ class DepotsState(BaseState):
                 
                 self.scan_history.append({
                     "id": str(s.id),
-                    "repo_id": str(s.repo_id) if s.repo_id else "",
+                    "repo_id": str(row.repo_id) if row.repo_id else "",
                     "target_name": target_name,
                     "branch": branch,
                     "status": status,
@@ -185,6 +230,8 @@ class DepotsState(BaseState):
                     "medium": str(summary.get("medium", 0)),
                     "low": str(summary.get("low", 0)),
                     "secrets": str(secret_counts.get(s.id, 0)),
+                    "new_issues": str(s.new_issues_count),
+                    "resolved_issues": str(s.resolved_issues_count),
                     "duration": duration,
                     "created_at": s.created_at.strftime("%d/%m/%y %H:%M") if s.created_at else ""
                 })
@@ -205,6 +252,7 @@ class DepotsState(BaseState):
         except ValueError:
             self.selected_repo_interval = 1440
 
+    @requires_login
     def add_repository(self):
         if not self.new_url:
             yield self.trigger_toast("L'URL du dépôt est requise", is_error=True)
@@ -213,7 +261,7 @@ class DepotsState(BaseState):
         container = get_container()
         try:
             ssh_uuid = uuid.UUID(self.new_ssh_key_id) if self.new_ssh_key_id else None
-            
+
             new_r = ZanshinRepository(
                 name=self.new_name if self.new_name else None,
                 url=self.new_url,
@@ -222,8 +270,13 @@ class DepotsState(BaseState):
                 ssh_key_id=ssh_uuid,
                 scan_interval_minutes=self.new_interval
             )
-            container.repository_repository.save(new_r)
-            
+            # Via the service, not the repository: that's where the URL is
+            # checked against the transports git may only fetch from (see
+            # zanshin/services/git_url.py). A rejected URL raises ValueError
+            # and is reported by the `except` below.
+            container.repository_service.save(new_r)
+
+
             self.new_name = ""
             self.new_url = ""
             self.new_branch = "main"
@@ -239,6 +292,7 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     async def trigger_scan(self, repo_id: int):
         container_ioc = get_container()
         try:
@@ -253,12 +307,14 @@ class DepotsState(BaseState):
         finally:
             container_ioc.db.close()
 
+    @requires_login
     async def relaunch_scan(self, repo_id_str: str):
         if not repo_id_str:
             yield self.trigger_toast("Dépôt non associé à ce scan", is_error=True)
             return
         yield DepotsState.trigger_scan(self, int(repo_id_str))
 
+    @requires_login
     def delete_scan(self, scan_id_str: str):
         container = get_container()
         try:
@@ -271,6 +327,7 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     def delete_repository(self, repo_id: int):
         container = get_container()
         try:
@@ -282,11 +339,11 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     def view_details(self, repo_id: int):
         container = get_container()
         try:
-            db = container.db
-            r = db.query(ZanshinRepository).filter(ZanshinRepository.id == repo_id).first()
+            r = container.repository_repository.find_by_id(repo_id)
             if not r:
                 return
             
@@ -297,9 +354,9 @@ class DepotsState(BaseState):
             self.selected_repo_cron = r.scan_cron or ""
             self.selected_repo_interval = r.scan_interval_minutes or 1440
             
-            # Load scans list
+            # Load scans list (summaries only — no SBOM/CVE blobs)
             self.selected_repo_scans = []
-            scans = sorted(r.scans or [], key=lambda s: s.created_at, reverse=True)
+            scans = container.scan_repository.find_summaries_by_repository_id(r.id)
             secret_counts = container.finding_repository.count_by_scan_ids_and_type(
                 [s.id for s in scans], "secret"
             )
@@ -324,6 +381,7 @@ class DepotsState(BaseState):
         finally:
             container.db.close()
 
+    @requires_login
     def save_config(self):
         container = get_container()
         try:
@@ -347,6 +405,7 @@ class DepotsState(BaseState):
     def exit_details(self):
         self.is_viewing_details = False
 
+    @requires_login
     def show_cves(self, scan_id: int):
         container = get_container()
         try:
@@ -359,7 +418,7 @@ class DepotsState(BaseState):
             if s.repo_id:
                 target_info = s.repository.name or s.repository.url
             elif s.container_id:
-                target_info = s.container.image_string
+                target_info = s.container.image_string if s.container else "Image inconnue"
                 
             self.selected_scan_name = f"Scan #{s.id} ({target_info})"
             
@@ -468,7 +527,7 @@ def list_layout_view() -> rx.Component:
             # Add Repo modal dialog
             rx.dialog.root(
                 rx.dialog.trigger(
-                    rx.button("Ajouter un dépôt", rx.icon(tag="plus"), color_scheme="indigo")
+                    rx.button("Ajouter un dépôt", rx.icon(tag="plus"), color_scheme="cyan")
                 ),
                 rx.dialog.content(
                     rx.dialog.title("Ajouter un dépôt Git"),
@@ -538,7 +597,14 @@ def list_layout_view() -> rx.Component:
         ),
         
         # Grid/Table
-        rx.box(
+        rx.cond(
+            DepotsState.repositories.length() == 0,
+            empty_state(
+                "git-branch",
+                "Aucun dépôt configuré pour le moment",
+                "Ajoutez un dépôt Git ci-dessus pour démarrer ses analyses de sécurité.",
+            ),
+            rx.box(
             rx.table.root(
                 rx.table.header(
                     rx.table.row(
@@ -548,6 +614,7 @@ def list_layout_view() -> rx.Component:
                         rx.table.column_header_cell("Statut"),
                         rx.table.column_header_cell("Vulnérabilités"),
                         rx.table.column_header_cell("Secrets"),
+                        rx.table.column_header_cell("À traiter"),
                         rx.table.column_header_cell("Actions")
                     )
                 ),
@@ -588,6 +655,19 @@ def list_layout_view() -> rx.Component:
                                     rx.badge(f"{r['secrets']} secret(s)", color_scheme="red", variant="solid")
                                 )
                             ),
+                            # Outstanding issues: open and not yet settled by a
+                            # triage decision. Unlike the finding count on its
+                            # left, this shrinks when the team works.
+                            rx.table.cell(
+                                rx.cond(
+                                    r["open_issues"] == "0",
+                                    rx.badge("0", color_scheme="green"),
+                                    rx.link(
+                                        rx.badge(r["open_issues"], color_scheme="amber", variant="solid"),
+                                        href="/issues",
+                                    ),
+                                )
+                            ),
                             rx.table.cell(
                                 rx.hstack(
                                     rx.tooltip(
@@ -622,7 +702,8 @@ def list_layout_view() -> rx.Component:
                                     ),
                                     spacing="2"
                                 )
-                            )
+                            ),
+                            class_name="hover:bg-slate-3/60 transition-colors"
                         )
                     )
                 ),
@@ -630,6 +711,7 @@ def list_layout_view() -> rx.Component:
             ),
             width="100%",
             class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            )
         ),
         width="100%"
     )
@@ -651,7 +733,14 @@ def history_layout_view() -> rx.Component:
         ),
         
         # Scans History Table
-        rx.box(
+        rx.cond(
+            DepotsState.scan_history.length() == 0,
+            empty_state(
+                "history",
+                "Aucun scan pour le moment",
+                "L'historique apparaîtra ici dès qu'un scan aura été lancé.",
+            ),
+            rx.box(
             rx.table.root(
                 rx.table.header(
                     rx.table.row(
@@ -662,6 +751,7 @@ def history_layout_view() -> rx.Component:
                         rx.table.column_header_cell("Durée"),
                         rx.table.column_header_cell("Vulnérabilités"),
                         rx.table.column_header_cell("Secrets"),
+                        rx.table.column_header_cell("Évolution"),
                         rx.table.column_header_cell("Date de scan"),
                         rx.table.column_header_cell("Actions")
                     )
@@ -704,6 +794,27 @@ def history_layout_view() -> rx.Component:
                                     rx.badge(f"{s['secrets']} secret(s)", color_scheme="red", variant="solid")
                                 )
                             ),
+                            # What this scan changed relative to the previous one
+                            # of the same target (see IssueService). The signal
+                            # a raw finding count can't give: 400 findings that
+                            # are all already known is not news.
+                            rx.table.cell(
+                                rx.hstack(
+                                    rx.cond(
+                                        s["new_issues"] != "0",
+                                        rx.badge(f"+{s['new_issues']}", color_scheme="red", variant="solid"),
+                                    ),
+                                    rx.cond(
+                                        s["resolved_issues"] != "0",
+                                        rx.badge(f"−{s['resolved_issues']}", color_scheme="green", variant="solid"),
+                                    ),
+                                    rx.cond(
+                                        (s["new_issues"] == "0") & (s["resolved_issues"] == "0"),
+                                        rx.text("—", size="2", color="var(--slate-9)"),
+                                    ),
+                                    spacing="1",
+                                )
+                            ),
                             rx.table.cell(s["created_at"]),
                             rx.table.cell(
                                 rx.hstack(
@@ -742,7 +853,8 @@ def history_layout_view() -> rx.Component:
                                     ),
                                     spacing="2"
                                 )
-                            )
+                            ),
+                            class_name="hover:bg-slate-3/60 transition-colors"
                         )
                     )
                 ),
@@ -750,6 +862,7 @@ def history_layout_view() -> rx.Component:
             ),
             width="100%",
             class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            )
         ),
         width="100%"
     )
@@ -792,7 +905,7 @@ def details_layout_view() -> rx.Component:
                     rx.input(value=DepotsState.selected_repo_cron, on_change=DepotsState.set_selected_repo_cron, class_name="w-full"),
                     width="30%"
                 ),
-                rx.button("Enregistrer", on_click=DepotsState.save_config, color_scheme="indigo", class_name="self-end mb-1"),
+                rx.button("Enregistrer", on_click=DepotsState.save_config, color_scheme="cyan", class_name="self-end mb-1"),
                 align="center",
                 spacing="4",
                 width="100%"
@@ -865,7 +978,8 @@ def details_layout_view() -> rx.Component:
                                         ),
                                         content="Voir CVEs"
                                     )
-                                )
+                                ),
+                                class_name="hover:bg-slate-3/60 transition-colors"
                             )
                         )
                     ),
@@ -878,9 +992,34 @@ def details_layout_view() -> rx.Component:
         width="100%"
     )
 
+def overview_summary() -> rx.Component:
+    """KPI row + severity donut chart summarizing the latest scan of every
+    configured repository — shown above the tabs, hidden while viewing a
+    single repo's details."""
+    return rx.vstack(
+        rx.flex(
+            stat_card("Dépôts", DepotsState.repositories.length().to(str), "git-branch", "blue"),
+            stat_card("Vulnérabilités", rx.Var.create(f"{DepotsState.total_vulns}"), "shield-alert", "orange"),
+            stat_card("Critiques", rx.Var.create(f"{DepotsState.critical_count}"), "triangle-alert", "red"),
+            stat_card("Secrets", rx.Var.create(f"{DepotsState.secret_count}"), "key-round", "amber"),
+            width="100%",
+            spacing="4",
+            flex_wrap="wrap",
+            class_name="mb-2"
+        ),
+        severity_donut_chart(
+            DepotsState.severity_chart_data,
+            DepotsState.total_vulns > 0,
+            subtitle="Par sévérité, sur le dernier scan de chaque dépôt",
+        ),
+        width="100%",
+        spacing="4",
+        class_name="mb-6"
+    )
+
 def depots_page() -> rx.Component:
     """Depots planning and configuration view component."""
-    
+
     tabbed_view = rx.tabs.root(
         rx.tabs.list(
             rx.tabs.trigger(
@@ -908,9 +1047,14 @@ def depots_page() -> rx.Component:
         rx.cond(
             DepotsState.is_viewing_details,
             details_layout_view(),
-            tabbed_view
+            rx.vstack(
+                overview_summary(),
+                tabbed_view,
+                width="100%",
+                spacing="0"
+            )
         ),
-        
+
         # CVE details modal dialog (shared)
         rx.dialog.root(
             rx.dialog.content(
@@ -920,22 +1064,38 @@ def depots_page() -> rx.Component:
                 # Severity Summary
                 rx.hstack(
                     rx.vstack(
-                        rx.text("Critique", size="1", color="var(--red-11)"),
+                        rx.hstack(
+                            rx.icon(tag="flame", size=14, color="var(--red-11)"),
+                            rx.text("Critique", size="1", color="var(--red-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(DepotsState.selected_scan_summary.get("critical", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-red-2 border border-red-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Élevé", size="1", color="var(--orange-11)"),
+                        rx.hstack(
+                            rx.icon(tag="triangle-alert", size=14, color="var(--orange-11)"),
+                            rx.text("Élevé", size="1", color="var(--orange-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(DepotsState.selected_scan_summary.get("high", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-orange-2 border border-orange-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Moyen", size="1", color="var(--yellow-11)"),
+                        rx.hstack(
+                            rx.icon(tag="circle-alert", size=14, color="var(--yellow-11)"),
+                            rx.text("Moyen", size="1", color="var(--yellow-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(DepotsState.selected_scan_summary.get("medium", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-yellow-2 border border-yellow-4 text-center flex-1"
                     ),
                     rx.vstack(
-                        rx.text("Faible", size="1", color="var(--blue-11)"),
+                        rx.hstack(
+                            rx.icon(tag="info", size=14, color="var(--blue-11)"),
+                            rx.text("Faible", size="1", color="var(--blue-11)"),
+                            spacing="1", align="center", justify="center", width="100%"
+                        ),
                         rx.heading(DepotsState.selected_scan_summary.get("low", 0).to(str), size="5"),
                         class_name="p-4 rounded-lg bg-blue-2 border border-blue-4 text-center flex-1"
                     ),
@@ -983,7 +1143,7 @@ def depots_page() -> rx.Component:
                                     rx.table.cell(
                                         rx.cond(
                                             cve["link"] != "",
-                                            rx.link(cve["id"], href=cve["link"], is_external=True, class_name="text-indigo-9 hover:underline"),
+                                            rx.link(cve["id"], href=cve["link"], is_external=True, class_name="text-cyan-9 hover:underline"),
                                             rx.text(cve["id"])
                                         )
                                     ),
@@ -1003,7 +1163,8 @@ def depots_page() -> rx.Component:
                                             rx.badge("Exploitée activement", color_scheme="red", variant="solid"),
                                             rx.text("—", color="var(--slate-9)")
                                         )
-                                    )
+                                    ),
+                                    class_name="hover:bg-slate-3/60 transition-colors"
                                 )
                             )
                         ),
@@ -1030,7 +1191,8 @@ def depots_page() -> rx.Component:
                                         DepotsState.selected_scan_secrets,
                                         lambda leak: rx.table.row(
                                             rx.table.cell(rx.badge(leak["rule"], color_scheme="red", variant="solid")),
-                                            rx.table.cell(leak["file_path"])
+                                            rx.table.cell(leak["file_path"]),
+                                            class_name="hover:bg-slate-3/60 transition-colors"
                                         )
                                     )
                                 ),
@@ -1063,7 +1225,8 @@ def depots_page() -> rx.Component:
                                         DepotsState.selected_scan_licenses,
                                         lambda lic: rx.table.row(
                                             rx.table.cell(rx.badge(lic["license"], color_scheme="orange", variant="solid")),
-                                            rx.table.cell(lic["component"])
+                                            rx.table.cell(lic["component"]),
+                                            class_name="hover:bg-slate-3/60 transition-colors"
                                         )
                                     )
                                 ),
@@ -1113,7 +1276,8 @@ def depots_page() -> rx.Component:
                                             ),
                                             rx.table.cell(check["check_id"]),
                                             rx.table.cell(check["resource"]),
-                                            rx.table.cell(check["file_path"])
+                                            rx.table.cell(check["file_path"]),
+                                            class_name="hover:bg-slate-3/60 transition-colors"
                                         )
                                     )
                                 ),
@@ -1197,7 +1361,8 @@ def depots_page() -> rx.Component:
                                                     )
                                                 ),
                                                 rx.table.cell(finding["title"]),
-                                                rx.table.cell(finding["file_path"])
+                                                rx.table.cell(finding["file_path"]),
+                                                class_name="hover:bg-slate-3/60 transition-colors"
                                             )
                                         )
                                     ),
@@ -1218,7 +1383,7 @@ def depots_page() -> rx.Component:
                     ),
                     class_name="mt-6 justify-end"
                 ),
-                class_name="max-w-4xl w-full"
+                class_name="w-[90vw] max-w-[1400px]"
             ),
             open=DepotsState.cve_dialog_open
         ),

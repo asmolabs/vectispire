@@ -51,7 +51,7 @@ def login_page() -> rx.Component:
                         type="submit",  # Trigger submit on click or Enter
                         class_name="w-full mt-4",
                         size="3",
-                        color_scheme="indigo",
+                        color_scheme="cyan",
                         variant="solid"
                     ),
                     

@@ -48,6 +48,28 @@ def test_find_all_find_by_id_save_delete_delegate_to_repository(repository_repos
     assert repository_repository.find_by_id(repo.id) is None
 
 
+def test_save_rejects_a_url_git_would_execute(repository_repository, service):
+    """`save` is the entry point the UI uses, so this is where an operator
+    finds out — before the URL ever reaches `git clone` (see
+    zanshin/services/git_url.py)."""
+    svc, _ = service
+    repo = ZanshinRepository(url="ext::sh -c 'id > /tmp/pwned'", branch="main")
+
+    with pytest.raises(ValueError):
+        svc.save(repo)
+
+    assert repository_repository.find_all() == []
+
+
+def test_save_normalizes_a_valid_url(repository_repository, service):
+    svc, _ = service
+    repo = ZanshinRepository(url="  https://github.com/org/repo.git  ", branch="main")
+
+    saved = svc.save(repo)
+
+    assert saved.url == "https://github.com/org/repo.git"
+
+
 def test_trigger_scan_raises_when_repository_not_found(service):
     svc, _ = service
     with pytest.raises(RuntimeError):

@@ -15,7 +15,11 @@ Zanshin follows a classic layered architecture with manual dependency injection 
 ```mermaid
 flowchart TB
     subgraph UI["UI layer (Reflex)"]
-        Pages["Pages (rx.State classes)<br/>dashboard, depots, containers,<br/>ssh_keys, api_keys, settings, users, audit_log"]
+        Pages["Pages (rx.State classes)<br/>dashboard, depots, issues, containers,<br/>ssh_keys, api_keys, settings, users, audit_log"]
+    end
+
+    subgraph API["HTTP API (FastAPI, mounted via api_transformer)"]
+        Routes["/api/v1: scans, issues, gate, exports<br/>(bearer auth with an API key)"]
     end
 
     subgraph Services["Service layer (business logic)"]
@@ -23,6 +27,9 @@ flowchart TB
         ScanProc["ScanProcessor<br/>(scan orchestration)"]
         Enrich["EnrichmentService<br/>(EPSS / CISA KEV)"]
         License["LicenseComplianceService"]
+        IssueSvc["IssueService<br/>(cross-scan lifecycle + triage)"]
+        GateSvc["policy_gate / exports<br/>(pure logic)"]
+        NotifySvc["NotificationService<br/>(webhook on a scan's delta)"]
         UserSvc["UserService"]
         AuditSvc["AuditLogService"]
         AuthSvc["AuthService"]
@@ -43,10 +50,13 @@ flowchart TB
     end
 
     Pages --> Services
+    Routes --> Services
     RepoSvc --> ScanProc
     ScanProc --> Scanners
     ScanProc --> Enrich
     ScanProc --> License
+    ScanProc --> IssueSvc
+    ScanProc --> NotifySvc
     Services --> Repos
     Repos --> DB
 ```
@@ -55,7 +65,7 @@ Each `IoCContainer` instance builds its `scanner_engine` via `get_scanner_engine
 
 ### 2. Database schema
 
-SQLite, no migration tool (Alembic or similar isn't wired up yet — see ADR-001). `Base.metadata.create_all()` runs at startup and only creates missing tables; altering an existing column requires a manual, hand-written migration.
+SQLite, with the schema managed by **Alembic** (`migrations/`). `zanshin/schema.py` brings the database to the latest revision at startup, adopting a database that predates Alembic by stamping the baseline revision instead of replaying it. Column changes are ordinary migrations now (`render_as_batch=True`, since SQLite cannot `ALTER` in place) — the constraint that pushed several earlier features into new tables rather than new columns is gone.
 
 ```mermaid
 erDiagram
@@ -125,6 +135,8 @@ erDiagram
         json summary "counts by severity"
         bigint duration_ms
         int findings_count
+        int new_issues_count "delta vs the previous scan of this target"
+        int resolved_issues_count
         string error
         datetime created_at
         int repo_id FK
@@ -144,23 +156,47 @@ erDiagram
         string source "grype/osv/gitleaks/checkov/syft"
         float epss_score
         bool is_kev
-        string status "open/ignored/fixed"
-        int vex_decision_id FK
+        float cvss_score
+        string cvss_vector
+        string fix_state "fixed/not-fixed/wont-fix/unknown"
+        string fix_versions "comma-separated, as reported"
+        string link
+        int issue_id FK
         datetime created_at
     }
 
-    VEX_DECISION {
+    ISSUE {
         int id PK
-        string vulnerability_id
+        bigint repo_id FK "exactly one of repo_id / container_id"
+        bigint container_id FK
+        string fingerprint UK "sha256(target|type|identifier|purl|file) — version excluded on purpose"
+        string type "vulnerability/secret/iac/license/ai_review"
+        string identifier
         string package_name
+        string package_version
         string purl
-        string status "affected/not_affected/fixed/under_review"
-        string justification
-        string response
-        text comment
-        datetime created_at
-        datetime updated_at
-        bigint repository_id FK
+        string file_path
+        string severity
+        float epss_score
+        bool is_kev
+        float cvss_score
+        string cvss_vector
+        string fix_state
+        string fix_versions
+        string link
+        text description
+        string state "open/resolved — pipeline-owned"
+        datetime first_seen_at
+        datetime last_seen_at
+        datetime resolved_at
+        bigint first_seen_scan_id FK
+        bigint last_seen_scan_id FK
+        int times_seen
+        string triage_status "VEX: under_review/affected/not_affected/fixed — human-owned"
+        string triage_justification "one of the VEX justifications"
+        text triage_comment
+        string triaged_by
+        datetime triaged_at
     }
 
     AUDIT_LOGS {
@@ -188,16 +224,19 @@ erDiagram
     CONTAINER ||--o{ SCAN : "cascade delete-orphan"
     SCAN ||--o{ FINDING : "cascade delete-orphan"
     SCAN ||--o| AI_REVIEW_RESULT : "cascade delete-orphan"
-    REPOSITORY ||--o{ VEX_DECISION : "cascade delete-orphan"
-    FINDING }o--o| VEX_DECISION : "linked to (optional, one-way FK)"
+    REPOSITORY ||--o{ ISSUE : "cascade delete-orphan"
+    CONTAINER ||--o{ ISSUE : "cascade delete-orphan"
+    ISSUE ||--o{ FINDING : "observations of this issue, one per scan"
+
 ```
 
 Notes:
 
 - A `Scan` belongs to **either** a `Repository` **or** a `Container` (`repo_id`/`container_id` are both nullable; exactly one is set). `is_container = scan.container_id is not None` is how the code branches scan behavior.
 - `Finding` is the normalized, queryable projection of a scan's results (used by the UI, VEX triage, and enrichment). The raw `Scan.sbom`/`Scan.cves` JSON blobs are kept alongside it, unmodified, for audit purposes.
-- `Finding.vex_decision_id` is a one-way FK onto the pre-existing `vex_decision` table — safe to add because it's a column on the new `finding` table, not a change to `vex_decision` itself.
-- `AuditLog` maps onto `audit_logs`, a table inherited from an earlier implementation of this application. Its schema was matched exactly (via `PRAGMA table_info` against the live database) rather than redesigned, since there's no migration tool to alter it. `user_id` is a plain string column, not an enforced foreign key.
+- `Issue` is the cross-scan layer above `Finding`: a finding is an observation valid for one scan, an issue is the problem itself, followed over time. It is what makes triage possible — a decision recorded against a finding would be orphaned by the next scan. Two axes are kept strictly separate: `state` is written only by the pipeline (what the scanners observe), `triage_status` only by a human (what was decided). See [`zanshin/services/issue_service.py`](../zanshin/services/issue_service.py).
+- `VexDecision`, `Finding.status` and `Finding.vex_decision_id` were dropped in migration 0003 once `Issue` superseded them: the table was never written to in any deployment, and the column was written once as "open" and never read again. Two models for one concept is a trap for the next reader.
+- `AuditLog` maps onto `audit_logs`, a table inherited from an earlier implementation of this application. Its schema was matched exactly (via `PRAGMA table_info` against the live database) rather than redesigned, since it predates Alembic and carries live data. `user_id` is a plain string column, not an enforced foreign key.
 - `AiReviewResult` holds the optional AI code review's raw narrative output (see §4bis) — a separate table rather than a `Finding` column, since it's free-form text, not a normalized/queryable finding, and adding a `Text` column to the existing `Finding` table would need a manual migration.
 - `GUID` (`zanshin/models/guid.py`) is a custom SQLAlchemy type storing UUIDs as 16-byte binary values in SQLite (`SSHKey`, `ApiKey`, `AuditLog` all use it as their primary key type).
 
@@ -316,6 +355,10 @@ Zanshin suit une architecture en couches classique avec injection de dépendance
 
 ```mermaid
 flowchart TB
+    subgraph API["API HTTP (FastAPI, montée via api_transformer)"]
+        Routes["/api/v1 : scans, problèmes, gate, exports<br/>(auth par clé API en bearer)"]
+    end
+
     subgraph UI["Couche UI (Reflex)"]
         Pages["Pages (classes rx.State)<br/>dashboard, depots, containers,<br/>ssh_keys, api_keys, settings, users, audit_log"]
     end
@@ -325,6 +368,9 @@ flowchart TB
         ScanProc["ScanProcessor<br/>(orchestration du scan)"]
         Enrich["EnrichmentService<br/>(EPSS / CISA KEV)"]
         License["LicenseComplianceService"]
+        IssueSvc["IssueService<br/>(cross-scan lifecycle + triage)"]
+        GateSvc["policy_gate / exports<br/>(pure logic)"]
+        NotifySvc["NotificationService<br/>(webhook on a scan's delta)"]
         UserSvc["UserService"]
         AuditSvc["AuditLogService"]
         AuthSvc["AuthService"]
@@ -345,10 +391,13 @@ flowchart TB
     end
 
     Pages --> Services
+    Routes --> Services
     RepoSvc --> ScanProc
     ScanProc --> Scanners
     ScanProc --> Enrich
     ScanProc --> License
+    ScanProc --> IssueSvc
+    ScanProc --> NotifySvc
     Services --> Repos
     Repos --> DB
 ```
@@ -357,7 +406,7 @@ Chaque instance d'`IoCContainer` construit son `scanner_engine` via `get_scanner
 
 ### 2. Schéma de base de données
 
-SQLite, sans outil de migration (Alembic ou équivalent n'est pas encore câblé — voir l'ADR-001). `Base.metadata.create_all()` s'exécute au démarrage et ne crée que les tables manquantes ; modifier une colonne existante nécessite une migration manuelle écrite à la main.
+SQLite, schéma géré par **Alembic** (`migrations/`). `zanshin/schema.py` met la base à la dernière révision au démarrage, en adoptant une base antérieure à Alembic (estampille de la révision de référence plutôt que rejeu). Les changements de colonne sont désormais des migrations ordinaires (`render_as_batch=True`, SQLite ne sachant pas `ALTER` en place) — la contrainte qui a poussé plusieurs fonctionnalités antérieures vers de nouvelles tables plutôt que de nouvelles colonnes a disparu.
 
 ```mermaid
 erDiagram
@@ -427,6 +476,8 @@ erDiagram
         json summary "comptes par sévérité"
         bigint duration_ms
         int findings_count
+        int new_issues_count "delta vs the previous scan of this target"
+        int resolved_issues_count
         string error
         datetime created_at
         int repo_id FK
@@ -446,23 +497,47 @@ erDiagram
         string source "grype/osv/gitleaks/checkov/syft"
         float epss_score
         bool is_kev
-        string status "open/ignored/fixed"
-        int vex_decision_id FK
+        float cvss_score
+        string cvss_vector
+        string fix_state "fixed/not-fixed/wont-fix/unknown"
+        string fix_versions "comma-separated, as reported"
+        string link
+        int issue_id FK
         datetime created_at
     }
 
-    VEX_DECISION {
+    ISSUE {
         int id PK
-        string vulnerability_id
+        bigint repo_id FK "exactly one of repo_id / container_id"
+        bigint container_id FK
+        string fingerprint UK "sha256(target|type|identifier|purl|file) — version excluded on purpose"
+        string type "vulnerability/secret/iac/license/ai_review"
+        string identifier
         string package_name
+        string package_version
         string purl
-        string status "affected/not_affected/fixed/under_review"
-        string justification
-        string response
-        text comment
-        datetime created_at
-        datetime updated_at
-        bigint repository_id FK
+        string file_path
+        string severity
+        float epss_score
+        bool is_kev
+        float cvss_score
+        string cvss_vector
+        string fix_state
+        string fix_versions
+        string link
+        text description
+        string state "open/resolved — pipeline-owned"
+        datetime first_seen_at
+        datetime last_seen_at
+        datetime resolved_at
+        bigint first_seen_scan_id FK
+        bigint last_seen_scan_id FK
+        int times_seen
+        string triage_status "VEX: under_review/affected/not_affected/fixed — human-owned"
+        string triage_justification "one of the VEX justifications"
+        text triage_comment
+        string triaged_by
+        datetime triaged_at
     }
 
     AUDIT_LOGS {
@@ -490,16 +565,19 @@ erDiagram
     CONTAINER ||--o{ SCAN : "cascade delete-orphan"
     SCAN ||--o{ FINDING : "cascade delete-orphan"
     SCAN ||--o| AI_REVIEW_RESULT : "cascade delete-orphan"
-    REPOSITORY ||--o{ VEX_DECISION : "cascade delete-orphan"
-    FINDING }o--o| VEX_DECISION : "lié à (optionnel, FK à sens unique)"
+    REPOSITORY ||--o{ ISSUE : "cascade delete-orphan"
+    CONTAINER ||--o{ ISSUE : "cascade delete-orphan"
+    ISSUE ||--o{ FINDING : "observations of this issue, one per scan"
+
 ```
 
 Remarques :
 
 - Un `Scan` appartient soit à un `Repository`, soit à un `Container` (`repo_id`/`container_id` sont tous deux nullable ; un seul des deux est renseigné). `is_container = scan.container_id is not None` détermine le branchement du comportement de scan.
 - `Finding` est la projection normalisée et requêtable des résultats d'un scan (utilisée par l'UI, le triage VEX et l'enrichissement). Les blobs JSON bruts `Scan.sbom`/`Scan.cves` sont conservés à côté, inchangés, à des fins d'audit.
-- `Finding.vex_decision_id` est une FK à sens unique vers la table préexistante `vex_decision` — sans risque à ajouter car c'est une colonne sur la nouvelle table `finding`, pas une modification de `vex_decision` elle-même.
-- `AuditLog` correspond à `audit_logs`, une table héritée d'une implémentation précédente de cette application. Son schéma a été repris à l'identique (via `PRAGMA table_info` sur la base réelle) plutôt que redessiné, faute d'outil de migration pour la modifier. `user_id` est une simple colonne texte, pas une clé étrangère contrainte.
+- `Issue` est la couche inter-scans au-dessus de `Finding` : un finding est une observation valable pour un scan, un issue est le problème lui-même, suivi dans le temps. C'est ce qui rend le triage possible — une décision enregistrée sur un finding serait orpheline au scan suivant. Deux axes strictement séparés : `state` n'est écrit que par le pipeline (ce que les scanners observent), `triage_status` que par un humain (ce qui a été décidé). Voir [`zanshin/services/issue_service.py`](../zanshin/services/issue_service.py).
+- `VexDecision`, `Finding.status` et `Finding.vex_decision_id` ont été supprimées par la migration 0003 dès lors que `Issue` les supersédait : la table n'a jamais été écrite dans aucun déploiement, et la colonne était écrite une fois à « open » puis jamais relue. Deux modèles pour un seul concept, c'est un piège pour le prochain lecteur.
+- `AuditLog` correspond à `audit_logs`, une table héritée d'une implémentation précédente de cette application. Son schéma a été repris à l'identique (via `PRAGMA table_info` sur la base réelle) plutôt que redessiné, la table étant antérieure à Alembic et porteuse de données réelles. `user_id` est une simple colonne texte, pas une clé étrangère contrainte.
 - `AiReviewResult` contient la sortie narrative brute de la revue de code par IA optionnelle (voir §4bis) — une table séparée plutôt qu'une colonne sur `Finding`, puisqu'il s'agit de texte libre, pas d'un finding normalisé/requêtable, et qu'ajouter une colonne `Text` à la table `finding` existante nécessiterait une migration manuelle.
 - `GUID` (`zanshin/models/guid.py`) est un type SQLAlchemy personnalisé qui stocke les UUID sous forme de valeurs binaires 16 octets dans SQLite (`SSHKey`, `ApiKey`, `AuditLog` l'utilisent tous comme type de clé primaire).
 

@@ -1,0 +1,63 @@
+name: CI
+
+# What this guards, in order of how often it has actually broken:
+#   1. the test suite;
+#   2. schema drift — a model changed without a migration, which used to be
+#      undetectable and is now a hard failure (`alembic check`);
+#   3. migrations that don't actually run, including the backfill in 0002.
+#
+# `reflex compile --dry` is deliberately not here: it needs a provisioned .web
+# directory (node/bun), which would make CI slow and flaky for a check that is
+# fast and reliable to run locally. See CONTRIBUTING notes in README.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        # The suite runs entirely against in-memory SQLite and never touches a
+        # real database, Docker daemon or network (see tests/conftest.py).
+        run: uv run pytest -q
+
+      - name: Build the schema from migrations
+        # Proves the migrations run from empty on a clean database — the path a
+        # fresh deployment takes, which is otherwise only exercised by hand.
+        env:
+          ZANSHIN_DATABASE_URL: sqlite:///${{ runner.temp }}/ci.sqlite
+        run: uv run alembic upgrade head
+
+      - name: Check for schema drift
+        # Fails if the models declare anything the migrations don't create: the
+        # class of mistake that silently produced a database the code couldn't
+        # read.
+        env:
+          ZANSHIN_DATABASE_URL: sqlite:///${{ runner.temp }}/ci.sqlite
+        run: uv run alembic check
+
+      - name: Check migrations are reversible
+        # Not to use downgrades in production, but because a downgrade that
+        # doesn't parse usually means the upgrade was written without thinking
+        # about what it changed.
+        env:
+          ZANSHIN_DATABASE_URL: sqlite:///${{ runner.temp }}/ci.sqlite
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head

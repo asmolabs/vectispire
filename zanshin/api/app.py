@@ -1,0 +1,355 @@
+"""The HTTP API surface.
+
+Every route is a thin adapter: it validates input, calls the same service the UI
+calls, and shapes the result. No business logic lives here — that is what keeps a
+scan triggered from CI identical to one triggered from a button.
+
+Mounted onto the Reflex app through `api_transformer` (zanshin/zanshin.py), which
+means it is served from the same process and port as the UI. Reflex reserves
+`/ping`, `/_event` and `/_upload`; everything here lives under `/api/v1`.
+"""
+import logging
+from typing import List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+
+from zanshin.api.deps import get_container, require_api_key
+from zanshin.api.schemas import (
+    GateRequest,
+    GateResponse,
+    IssueOut,
+    IssuePage,
+    ScanCreated,
+    ScanStatus,
+    TargetOut,
+    TargetRef,
+    ViolationOut,
+)
+from zanshin.clock import utcnow
+from zanshin.container import IoCContainer
+from zanshin.models.api_key import ApiKey
+from zanshin.models.issue import STATE_OPEN, Issue
+from zanshin.services.exports import build_issues_csv, build_openvex_document
+from zanshin.services.policy_gate import GatePolicy, evaluate
+
+logger = logging.getLogger(__name__)
+
+MAX_PAGE_SIZE = 500
+
+api_app = FastAPI(
+    title="Zanshin API",
+    version="1.0",
+    description=(
+        "Programmatic access for CI/CD and scripting: trigger scans, read issues, "
+        "evaluate a policy gate, export VEX. Authenticate with an API key created "
+        "on the /api-keys page: `Authorization: Bearer zsk_...`."
+    ),
+    docs_url="/api/v1/docs",
+    openapi_url="/api/v1/openapi.json",
+)
+
+
+@api_app.get("/api/v1/health", tags=["meta"])
+def health():
+    """Unauthenticated liveness probe. Says nothing about the data."""
+    return {"status": "ok"}
+
+
+# --- Targets ---
+
+@api_app.get("/api/v1/targets", response_model=List[TargetOut], tags=["targets"])
+def list_targets(
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    """Everything scannable, with its outstanding issue count.
+
+    Lets a pipeline resolve "the repository I'm building" to an id without
+    hardcoding one.
+    """
+    repositories = container.repository_repository.find_all()
+    containers = container.container_repository.find_all()
+
+    repo_issues = container.issue_repository.count_actionable_by_repo_ids(
+        [r.id for r in repositories]
+    )
+    container_issues = container.issue_repository.count_actionable_by_container_ids(
+        [c.id for c in containers]
+    )
+    repo_scans = container.scan_repository.find_latest_summary_by_repository_ids(
+        [r.id for r in repositories]
+    )
+    container_scans = container.scan_repository.find_latest_summary_by_container_ids(
+        [c.id for c in containers]
+    )
+
+    out: List[TargetOut] = []
+    for repo in repositories:
+        out.append(
+            _target_out("repository", repo.id, repo.name or repo.url,
+                        repo_issues.get(repo.id, 0), repo_scans.get(repo.id))
+        )
+    for image in containers:
+        out.append(
+            _target_out("container", image.id, image.image_string,
+                        container_issues.get(image.id, 0), container_scans.get(image.id))
+        )
+    return out
+
+
+def _target_out(kind, target_id, name, open_issues, scan) -> TargetOut:
+    return TargetOut(
+        kind=kind,
+        id=target_id,
+        name=name,
+        open_issues=open_issues,
+        last_scan_id=scan.id if scan else None,
+        last_scan_status=scan.status if scan else None,
+        last_scan_at=scan.created_at.isoformat() if scan and scan.created_at else None,
+    )
+
+
+# --- Scans ---
+
+@api_app.post(
+    "/api/v1/scans",
+    response_model=ScanCreated,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["scans"],
+)
+def trigger_scan(
+    body: TargetRef,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    """Queue a scan. 202, not 201: the scan runs on the background pool, so the
+    row returned is `pending` and the caller polls `GET /api/v1/scans/{id}`."""
+    try:
+        if body.repository_id is not None:
+            scan = container.repository_service.trigger_scan(body.repository_id)
+        else:
+            scan = container.container_service.trigger_scan(body.container_id)
+    except RuntimeError as e:
+        # Both services raise RuntimeError("… not found") for an unknown target.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    logger.info("Scan %s triggered via API by key '%s'", scan.id, api_key.name)
+    return ScanCreated(
+        scan_id=scan.id,
+        status=scan.status,
+        repository_id=scan.repo_id,
+        container_id=scan.container_id,
+    )
+
+
+@api_app.get("/api/v1/scans/{scan_id}", response_model=ScanStatus, tags=["scans"])
+def get_scan(
+    scan_id: int,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    scan = container.scan_repository.find_by_id(scan_id)
+    if not scan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan introuvable.")
+    return ScanStatus(
+        scan_id=scan.id,
+        status=scan.status,
+        created_at=scan.created_at.isoformat() if scan.created_at else None,
+        duration_ms=scan.duration_ms,
+        findings_count=scan.findings_count or 0,
+        new_issues=scan.new_issues_count or 0,
+        resolved_issues=scan.resolved_issues_count or 0,
+        summary=scan.summary or {},
+        error=scan.error,
+    )
+
+
+@api_app.get("/api/v1/scans/{scan_id}/sbom", tags=["scans"])
+def get_scan_sbom(
+    scan_id: int,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    """The SBOM exactly as Syft produced it.
+
+    Served verbatim rather than converted: CycloneDX or SPDX output would mean
+    asking Syft for a second format at scan time, and a conversion written here
+    would be a lossy re-derivation of data the tool can emit natively. Noted as a
+    scan-time option rather than faked at export time.
+    """
+    scan = container.scan_repository.find_by_id(scan_id)
+    if not scan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan introuvable.")
+    if not scan.sbom:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ce scan n'a pas de SBOM (échec, ou scan antérieur à cette fonctionnalité).",
+        )
+    return scan.sbom
+
+
+# --- Issues ---
+
+@api_app.get("/api/v1/issues", response_model=IssuePage, tags=["issues"])
+def list_issues(
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+    repository_id: Optional[int] = None,
+    container_id: Optional[int] = None,
+    state: Optional[str] = STATE_OPEN,
+    triage_status: Optional[str] = None,
+    severity: Optional[str] = None,
+    type: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(default=50, ge=1, le=MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
+):
+    """A page of issues, plus the total so the caller knows what it is missing."""
+    filters = dict(
+        state=state or None,
+        triage_status=triage_status,
+        severity=severity,
+        issue_type=type,
+        repo_id=repository_id,
+        container_id=container_id,
+        search=search,
+    )
+    issues = container.issue_repository.find_filtered(limit=limit, offset=offset, **filters)
+    return IssuePage(
+        items=[_issue_out(issue) for issue in issues],
+        total=container.issue_repository.count_filtered(**filters),
+        limit=limit,
+        offset=offset,
+    )
+
+
+def _issue_out(issue: Issue) -> IssueOut:
+    return IssueOut(
+        id=issue.id,
+        type=issue.type,
+        identifier=issue.identifier,
+        severity=issue.severity,
+        cvss_score=issue.cvss_score,
+        epss_score=issue.epss_score,
+        is_kev=bool(issue.is_kev),
+        package_name=issue.package_name,
+        package_version=issue.package_version,
+        purl=issue.purl,
+        file_path=issue.file_path,
+        fix_state=issue.fix_state,
+        fix_versions=issue.fix_versions,
+        link=issue.link,
+        state=issue.state,
+        triage_status=issue.triage_status,
+        triage_justification=issue.triage_justification,
+        first_seen_at=issue.first_seen_at.isoformat() if issue.first_seen_at else None,
+        last_seen_at=issue.last_seen_at.isoformat() if issue.last_seen_at else None,
+        times_seen=issue.times_seen or 1,
+        repository_id=issue.repo_id,
+        container_id=issue.container_id,
+    )
+
+
+# --- Policy gate ---
+
+@api_app.post("/api/v1/gate", response_model=GateResponse, tags=["gate"])
+def policy_gate(
+    body: GateRequest,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    """Should this build fail?
+
+    The endpoint a CI job calls after a scan. Returns 200 with `passed: false`
+    rather than an error status: the request succeeded, the answer is "no". Making
+    the verdict an HTTP error would conflate "your policy is violated" with "the
+    call went wrong", and pipelines routinely treat those differently.
+    """
+    issues = container.issue_repository.find_open_by_target(
+        repo_id=body.repository_id, container_id=body.container_id
+    )
+    verdict = evaluate(
+        issues,
+        GatePolicy(
+            fail_on_severity=body.policy.fail_on_severity,
+            fail_on_kev=body.policy.fail_on_kev,
+            fixable_only=body.policy.fixable_only,
+            include_triaged=body.policy.include_triaged,
+        ),
+    )
+    return GateResponse(
+        passed=verdict.passed,
+        evaluated=verdict.evaluated,
+        counts_by_severity=verdict.counts_by_severity,
+        violations=[ViolationOut(**v._asdict()) for v in verdict.violations],
+    )
+
+
+# --- Exports ---
+
+@api_app.get("/api/v1/targets/{kind}/{target_id}/vex", tags=["exports"])
+def export_vex(
+    kind: str,
+    target_id: int,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    """An OpenVEX document for one target, built from its triage decisions.
+
+    This is the payoff of storing triage in the standard's vocabulary: a
+    serialization, not a translation.
+    """
+    repo_id, container_id, product_id = _resolve_target(container, kind, target_id)
+    issues = container.issue_repository.find_filtered(
+        repo_id=repo_id, container_id=container_id, state=None, limit=MAX_PAGE_SIZE
+    )
+    document = build_openvex_document(
+        issues,
+        author="Zanshin",
+        product_id=product_id,
+        document_id=f"https://zanshin.local/vex/{kind}/{target_id}",
+        timestamp=utcnow().isoformat(),
+    )
+    return document
+
+
+@api_app.get("/api/v1/targets/{kind}/{target_id}/issues.csv", tags=["exports"])
+def export_issues_csv(
+    kind: str,
+    target_id: int,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_api_key),
+    state: Optional[str] = None,
+):
+    repo_id, container_id, _ = _resolve_target(container, kind, target_id)
+    issues = container.issue_repository.find_filtered(
+        repo_id=repo_id, container_id=container_id, state=state or None, limit=MAX_PAGE_SIZE
+    )
+    return Response(
+        content=build_issues_csv(issues),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="zanshin-{kind}-{target_id}-issues.csv"'
+        },
+    )
+
+
+def _resolve_target(container: IoCContainer, kind: str, target_id: int):
+    """Map `(kind, id)` to filter arguments and a product identifier.
+
+    The product id is what a VEX consumer matches against, so it is the target's
+    real identity — a git URL or an image reference — not an internal row id.
+    """
+    if kind == "repository":
+        repo = container.repository_repository.find_by_id(target_id)
+        if not repo:
+            raise HTTPException(status_code=404, detail="Dépôt introuvable.")
+        return repo.id, None, repo.url
+    if kind == "container":
+        image = container.container_repository.find_by_id(target_id)
+        if not image:
+            raise HTTPException(status_code=404, detail="Conteneur introuvable.")
+        return None, image.id, f"pkg:oci/{image.image_name}"
+    raise HTTPException(
+        status_code=400, detail="'kind' doit être 'repository' ou 'container'."
+    )

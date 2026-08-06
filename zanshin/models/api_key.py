@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from zanshin.clock import utcnow
 from sqlalchemy import Column, String
 from zanshin.database import Base
 from zanshin.models.guid import GUID
@@ -18,5 +18,5 @@ class ApiKey(Base):
     key_hash = Column(String(255), nullable=False)
     prefix = Column(String(16), nullable=True)
 
-    created_at = Column(SafeDateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(SafeDateTime, default=utcnow, nullable=False)
     last_used_at = Column(SafeDateTime, nullable=True)

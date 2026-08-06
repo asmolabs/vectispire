@@ -17,6 +17,10 @@ from zanshin.services.scanners.base import ScannerEngine
 from zanshin.services.enrichment_service import EnrichmentService
 from zanshin.services.license_compliance_service import LicenseComplianceService
 from zanshin.services.ai_review_service import AiReviewService, SECURITY_ARCHITECT_PROMPT
+from zanshin.services.git_url import validate_repo_url
+from zanshin.services.issue_service import IssueService, scanned_types_for
+from zanshin.services.notification_service import NotificationService
+from zanshin.services.remediation import extract_remediation
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +34,25 @@ AI_REVIEW_TEXT_EXTENSIONS = {
     ".yml", ".yaml", ".json", ".tf", ".sql", ".sh",
 }
 AI_REVIEW_EXCLUDED_DIRS = {".git", "node_modules", ".venv", "__pycache__", "dist", "build"}
+# Sub-directory of the per-scan workspace that holds *only* the scan target
+# (the git checkout). Every artifact Zanshin's own pipeline writes —
+# `sbom.json` for Grype, gitleaks' JSON report — lands in the workspace root,
+# i.e. deliberately *outside* this directory.
+#
+# The separation is structural rather than a filename blocklist because two
+# of those artifacts are actively harmful to feed back into the pipeline:
+# gitleaks' report contains every detected secret in cleartext (it would have
+# been sent to the AI review model), and a Syft SBOM routinely exceeds
+# AI_REVIEW_MAX_CHARS on its own (it would have consumed the entire review
+# budget before the first source file, so the model reviewed the SBOM instead
+# of the code). Keeping the target in its own directory means anything
+# walking the source tree can never reach them, whatever gets added later.
+SOURCE_SUBDIR = "source"
 # Size cap for the source sample sent to the model: no chunking/RAG, just a
 # straightforward "read files in order until the budget is used up" — good
 # enough for the "minimal review" this feature is scoped to, but it means
 # large repositories are silently truncated rather than reviewed in full.
 AI_REVIEW_MAX_CHARS = 40000
-
-class NotificationGateway:
-    def send_scan_update(self, scan_id: int, status: str):
-        logger.info(f"Sending scan update: Scan ID {scan_id}, Status {status}")
 
 class ScanProcessor:
     def __init__(
@@ -48,6 +62,8 @@ class ScanProcessor:
         enrichment_service: Optional[EnrichmentService] = None,
         license_compliance_service: Optional[LicenseComplianceService] = None,
         ai_review_service: Optional[AiReviewService] = None,
+        issue_service: Optional[IssueService] = None,
+        notification_service: Optional[NotificationService] = None,
     ):
         self.ssh_key_service = ssh_key_service
         # `scanner_engine` decides *where* SBOM generation/vulnerability
@@ -67,7 +83,15 @@ class ScanProcessor:
         # reasoning as secrets/IaC. Never allowed to turn a successful scan
         # into a failed one, same as enrichment.
         self.ai_review_service = ai_review_service
-        self.notification_gateway = NotificationGateway()
+        # Folds this scan's findings into the cross-scan issue history (new /
+        # still open / resolved), which is what makes triage possible at all —
+        # see IssueService. Optional so the pipeline stays constructible
+        # without it; wired by default in IoCContainer.
+        self.issue_service = issue_service
+        # Optional: outbound webhook about what this scan *changed*. Replaces a
+        # gateway that only logged "scan finished" — see NotificationService for
+        # why the delta is the thing worth sending.
+        self.notification_service = notification_service
         
     def process_scan(self, scan_id: int, repo_url: Optional[str], branch: str, sub_path: str, ssh_key_id: Optional[uuid.UUID]):
         logger.info(f"Processing scan job for Scan ID {scan_id} (Branch: {branch}, Path: {sub_path})")
@@ -82,7 +106,6 @@ class ScanProcessor:
                 
             scan.status = "scanning"
             db.commit()
-            self.notification_gateway.send_scan_update(scan_id, "scanning")
             
             is_container = scan.container_id is not None
             start_time = time.time()
@@ -98,8 +121,8 @@ class ScanProcessor:
             try:
                 if is_container:
                     container_entity = scan.container
-                    image_string = f"{container_entity.registry + '/' if container_entity.registry else ''}{container_entity.image_name}:{container_entity.tag}"
-                    
+                    image_string = container_entity.image_string
+
                     # 1. Generate Container SBOM
                     logger.info(f"Generating SBOM for Docker image {image_string}")
                     sbom = self.scanner_engine.generate_sbom_for_image(image_string)
@@ -110,14 +133,23 @@ class ScanProcessor:
                 else:
                     # 0. Validate Path
                     self._validate_path(sub_path)
-                    
+
+                    # The checkout goes in its own sub-directory so that the
+                    # artifacts the steps below write into the workspace root
+                    # (sbom.json, gitleaks' report) stay out of the scanned
+                    # tree — see SOURCE_SUBDIR. Everything handed to the
+                    # engine is therefore addressed relative to the workspace
+                    # root, prefixed with that sub-directory.
+                    source_dir = os.path.join(temp_dir, SOURCE_SUBDIR)
+                    scan_target = os.path.join(SOURCE_SUBDIR, sub_path) if sub_path else SOURCE_SUBDIR
+
                     # 1. Clone Git Repo
-                    logger.info(f"Cloning {repo_url} branch {branch} into {temp_dir}")
-                    self._clone_repo(repo_url, branch, temp_dir, ssh_key_id)
-                    
+                    logger.info(f"Cloning {repo_url} branch {branch} into {source_dir}")
+                    self._clone_repo(repo_url, branch, source_dir, ssh_key_id)
+
                     # 2. Generate Directory SBOM
                     logger.info(f"Generating SBOM for directory (Target: {sub_path})")
-                    sbom = self.scanner_engine.generate_sbom_for_directory(temp_dir, sub_path)
+                    sbom = self.scanner_engine.generate_sbom_for_directory(temp_dir, scan_target)
 
                     # 3. Scan SBOM with Grype
                     logger.info("Scanning SBOM for CVEs")
@@ -126,13 +158,13 @@ class ScanProcessor:
                     # 4. Scan for hardcoded secrets (source code only — not
                     # run for container images, see ADR-001 section 5).
                     logger.info("Scanning for hardcoded secrets")
-                    leaks = self.scanner_engine.scan_secrets(temp_dir, sub_path)
+                    leaks = self.scanner_engine.scan_secrets(temp_dir, scan_target)
 
                     # 5. Scan Infrastructure-as-Code manifests (Terraform,
                     # Kubernetes, ...) — same "source code only" reasoning
                     # as secrets (ADR-001 section 5, Phase 6).
                     logger.info("Scanning Infrastructure-as-Code manifests")
-                    iac_checks = self.scanner_engine.scan_iac(temp_dir, sub_path)
+                    iac_checks = self.scanner_engine.scan_iac(temp_dir, scan_target)
 
                 duration_ms = int((time.time() - start_time) * 1000)
                 summary = self._summarize_findings(cves)
@@ -155,7 +187,6 @@ class ScanProcessor:
                 db.add_all(findings)
                 db.commit()
 
-                self.notification_gateway.send_scan_update(scan_id, "completed")
                 logger.info(f"Scan completed for ID {scan_id}")
 
                 if self.enrichment_service:
@@ -172,15 +203,42 @@ class ScanProcessor:
                 # Best-effort like enrichment: a review failure is recorded
                 # (status="failed") but never turns the scan itself into a
                 # failure.
+                ai_findings = None
                 if not is_container and self.ai_review_service and self.ai_review_service.is_enabled():
-                    self._run_ai_review(db, scan, temp_dir, sub_path)
+                    # `source_dir`, not `temp_dir`: the review must only ever
+                    # see the checkout, never the pipeline's own artifacts
+                    # (see SOURCE_SUBDIR).
+                    ai_findings = self._run_ai_review(db, scan, source_dir, sub_path)
+
+                # Fold everything into the cross-scan issue history — last,
+                # so issues inherit the enrichment above and include the AI
+                # review's findings. Best-effort, same contract as enrichment:
+                # the scan's own results are already committed and valid.
+                if self.issue_service:
+                    try:
+                        sync = self.issue_service.sync_from_scan(
+                            db,
+                            scan,
+                            findings + (ai_findings or []),
+                            scanned_types_for(
+                                is_container=is_container,
+                                # A review that failed observed nothing, so its
+                                # type must not be treated as scanned (which
+                                # would resolve every past AI finding).
+                                ai_review_ran=ai_findings is not None,
+                                license_policy_ran=self.license_compliance_service is not None,
+                            ),
+                            descriptions=self._collect_vulnerability_descriptions(cves),
+                        )
+                        self._notify(scan, sync)
+                    except Exception:
+                        logger.exception(f"Issue sync failed for Scan ID {scan_id} (non-fatal)")
 
             except Exception as e:
                 logger.exception(f"Scan failed for ID {scan_id}")
                 scan.status = "failed"
                 scan.error = str(e)
                 db.commit()
-                self.notification_gateway.send_scan_update(scan_id, "failed")
             finally:
                 # Clean up temp directory
                 if os.path.exists(temp_dir):
@@ -194,6 +252,11 @@ class ScanProcessor:
             raise ValueError("Chemin invalide : la traversée de répertoire n'est pas autorisée.")
 
     def _clone_repo(self, repo_url: str, branch: str, work_dir: str, ssh_key_id: Optional[uuid.UUID]):
+        # Re-validated here and not only at save time: this is the single
+        # choke point every scan goes through, including for repository rows
+        # that predate the validation (see zanshin/services/git_url.py for
+        # why an unchecked URL is an RCE, not just a bad input).
+        repo_url = validate_repo_url(repo_url)
         env = {}
         key_file_path = None
         try:
@@ -244,6 +307,7 @@ class ScanProcessor:
             vuln = match.get("vulnerability", {})
             artifact = match.get("artifact", {})
             locations = artifact.get("locations", []) or []
+            remediation = extract_remediation(match)
             findings.append(Finding(
                 scan_id=scan_id,
                 type="vulnerability",
@@ -254,7 +318,11 @@ class ScanProcessor:
                 purl=artifact.get("purl"),
                 file_path=locations[0].get("path") if locations else None,
                 source=source,
-                status="open",
+                cvss_score=remediation.cvss_score,
+                cvss_vector=remediation.cvss_vector,
+                fix_state=remediation.fix_state,
+                fix_versions=remediation.fix_versions,
+                link=remediation.link,
             ))
         return findings
 
@@ -274,7 +342,6 @@ class ScanProcessor:
                 identifier=leak.get("RuleID"),
                 file_path=leak.get("File"),
                 source="gitleaks",
-                status="open",
             ))
         return findings
 
@@ -297,7 +364,6 @@ class ScanProcessor:
                 package_name=check.get("resource"),
                 file_path=check.get("file_path"),
                 source="checkov",
-                status="open",
             ))
         return findings
 
@@ -321,11 +387,61 @@ class ScanProcessor:
         summary["total"] = total
         return summary
 
-    def _run_ai_review(self, db, scan: Scan, work_dir: str, sub_path: str) -> None:
+    def _notify(self, scan: Scan, sync) -> None:
+        """Announce what this scan changed, if a webhook is configured.
+
+        Best-effort by construction (`NotificationService` swallows its own
+        failures), and called from inside the issue-sync `try` so that even an
+        unexpected error here cannot affect a scan whose results are already
+        committed.
+        """
+        if not self.notification_service or not self.notification_service.is_enabled():
+            return
+        if not sync.new_issues and not sync.reopened_issues:
+            return
+        self.notification_service.notify_scan_delta(
+            target_name=self._target_name(scan),
+            scan_id=scan.id,
+            new_issues=list(sync.new_issues),
+            reopened_issues=list(sync.reopened_issues),
+            resolved_count=sync.resolved,
+        )
+
+    def _target_name(self, scan: Scan) -> str:
+        """What the notification calls the thing that was scanned."""
+        if scan.container_id and scan.container:
+            return scan.container.image_string
+        if scan.repository:
+            return scan.repository.name or scan.repository.url
+        return f"scan #{scan.id}"
+
+    def _collect_vulnerability_descriptions(self, cves: Dict[str, Any]) -> Dict[str, str]:
+        """CVE id → human description, harvested from the raw match.
+
+        Lets an `Issue` carry the explanation without the issues screen having
+        to re-parse (or even load) the scan's raw `cves` blob — the read pattern
+        wave 1 removed everywhere else.
+        """
+        descriptions = {}
+        for match in cves.get("matches", []):
+            identifier = (match.get("vulnerability") or {}).get("id")
+            if not identifier or identifier in descriptions:
+                continue
+            description = extract_remediation(match).description
+            if description:
+                descriptions[identifier] = description
+        return descriptions
+
+    def _run_ai_review(self, db, scan: Scan, source_dir: str, sub_path: str) -> Optional[list]:
         """Runs the optional AI code review, persists an `AiReviewResult`
         row, and — when the model's response parses as the requested JSON
         array (see `AiReviewService.parse_findings`) — normalized
         `Finding(type="ai_review")` rows alongside it, one per parsed item.
+
+        Returns the `Finding` rows it created (possibly empty) so the caller can
+        fold them into the issue history, or `None` if the review failed — the
+        difference matters: "reviewed, found nothing" resolves past AI issues,
+        "review broke" must leave them untouched.
 
         Never raises: a failure here (unreachable Ollama, model error, ...)
         is recorded on the result row itself (`status="failed"`,
@@ -338,10 +454,11 @@ class ScanProcessor:
         """
         model = self.ai_review_service.get_selected_model()
         try:
-            code_sample = self._collect_ai_review_sample(work_dir, sub_path)
+            code_sample = self._collect_ai_review_sample(source_dir, sub_path)
             if not code_sample:
                 logger.info(f"AI review skipped for Scan ID {scan.id}: no reviewable source files found")
-                return
+                # Nothing was reviewed, so this is the "didn't run" case.
+                return None
             response = self.ai_review_service.review_code(code_sample)
             parsed = self.ai_review_service.parse_findings(response)
 
@@ -352,8 +469,10 @@ class ScanProcessor:
                 response=self._format_ai_review_narrative(parsed, response),
                 status="completed",
             ))
-            db.add_all(self._build_ai_review_findings(scan.id, model, parsed))
+            ai_findings = self._build_ai_review_findings(scan.id, model, parsed)
+            db.add_all(ai_findings)
             db.commit()
+            return ai_findings
         except Exception as e:
             # Best-effort only, same contract as enrichment: never turn an
             # already-completed scan into a failure.
@@ -367,6 +486,7 @@ class ScanProcessor:
                 error=str(e)[:500],
             ))
             db.commit()
+            return None
 
     def _build_ai_review_findings(self, scan_id: int, model: str, parsed: list) -> list:
         """Turns `AiReviewService.parse_findings()`'s output into normalized
@@ -384,7 +504,6 @@ class ScanProcessor:
                 identifier=item["title"],
                 file_path=item.get("file_path"),
                 source=f"ollama:{model}",
-                status="open",
             )
             for item in parsed
         ]
@@ -410,7 +529,7 @@ class ScanProcessor:
             lines.append("")
         return "\n".join(lines).strip()
 
-    def _collect_ai_review_sample(self, work_dir: str, sub_path: str) -> str:
+    def _collect_ai_review_sample(self, source_dir: str, sub_path: str) -> str:
         """Best-effort, size-capped concatenation of source files for the
         optional AI review (see `AI_REVIEW_MAX_CHARS`) — deliberately simple
         (no chunking, no embeddings/RAG): walks the tree in sorted order and
@@ -418,8 +537,14 @@ class ScanProcessor:
         are silently truncated rather than exhaustively reviewed. Adequate
         for the "minimal review" this feature is scoped to (see ADR-001,
         Phase 8), not a substitute for a real SAST pipeline.
+
+        `source_dir` is the checkout itself (`SOURCE_SUBDIR`), never the
+        workspace root — that's what keeps the pipeline's own artifacts out
+        of the sample, and it also makes the `# <path>` headers below
+        repository-relative, which is the only form the model can usefully
+        echo back in `file_path`.
         """
-        root = os.path.join(work_dir, sub_path) if sub_path else work_dir
+        root = os.path.join(source_dir, sub_path) if sub_path else source_dir
         chunks = []
         total = 0
         for dirpath, dirnames, filenames in os.walk(root):
@@ -433,7 +558,7 @@ class ScanProcessor:
                         content = f.read()
                 except OSError:
                     continue
-                rel_path = os.path.relpath(file_path, work_dir)
+                rel_path = os.path.relpath(file_path, source_dir)
                 chunk = f"# {rel_path}\n{content}\n"
                 if total + len(chunk) > AI_REVIEW_MAX_CHARS:
                     remaining = AI_REVIEW_MAX_CHARS - total

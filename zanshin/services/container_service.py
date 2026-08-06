@@ -1,11 +1,10 @@
-import asyncio
-from datetime import datetime
 from typing import List
 from zanshin.models.container import Container
 from zanshin.models.scan import Scan
 from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.services.scan_processor import ScanProcessor
+from zanshin.clock import utcnow
 from zanshin.services.repository_service import executor
 
 class ContainerService:
@@ -37,19 +36,18 @@ class ContainerService:
             sub_path="",
             status="pending",
             findings_count=0,
-            created_at=datetime.utcnow()
+            created_at=utcnow()
         )
         scan = self.scan_repository.save(scan)
 
-        # Run process_scan in background thread pool to prevent blocking the UI
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(
-            executor,
+        # Straight to the shared pool — see the note in RepositoryService about
+        # why the deprecated `get_event_loop()` detour is gone.
+        executor.submit(
             self.scan_processor.process_scan,
             scan.id,
             None,
             scan.branch,
             "",
-            None
+            None,
         )
         return scan
