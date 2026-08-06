@@ -57,6 +57,17 @@ class AuditOperation:
     # An authorization refusal was only an application log line, so a probe against
     # every handler left no trace an operator would ever look at.
     ACCESS_DENIED = "ACCESS_DENIED"
+    # A deploy key left the control plane for a remote agent (delegated mode only,
+    # see ADR-002 §5). If that agent is later found compromised, this is the only
+    # record of which keys it was given.
+    AGENT_CREDENTIAL_SENT = "AGENT_CREDENTIAL_SENT"
+    # An agent submitted scan results. Audited like a triage, because both change
+    # the finding set a gate is evaluated against.
+    AGENT_RESULT_SUBMITTED = "AGENT_RESULT_SUBMITTED"
+    # Registering, disabling or deleting an agent changes who may run scans.
+    AGENT_CREATED = "AGENT_CREATED"
+    AGENT_UPDATED = "AGENT_UPDATED"
+    AGENT_DELETED = "AGENT_DELETED"
 
 
 class AuditLogService:

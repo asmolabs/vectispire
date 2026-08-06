@@ -34,6 +34,7 @@ from zanshin.repositories.issue_repository import IssueRepository
 from zanshin.repositories.gate_policy_repository import GatePolicyRepository
 from zanshin.repositories.outbox_repository import OutboxRepository
 from zanshin.repositories.agent_repository import AgentRepository
+from zanshin.repositories.processed_message_repository import ProcessedMessageRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -57,6 +58,8 @@ from zanshin.services.ai_review_service import AiReviewService
 from zanshin.services.issue_service import IssueService
 from zanshin.services.notification_service import NotificationService
 from zanshin.services.agent_service import AgentService
+from zanshin.services.agent_job_service import AgentJobService
+from zanshin.services.scan_ingestor import ScanIngestor
 
 
 class IoCContainer:
@@ -120,6 +123,10 @@ class IoCContainer:
     @cached_property
     def agent_repository(self) -> AgentRepository:
         return AgentRepository(self.db)
+
+    @cached_property
+    def processed_message_repository(self) -> ProcessedMessageRepository:
+        return ProcessedMessageRepository(self.db)
 
     # --- Services ---
 
@@ -234,6 +241,37 @@ class IoCContainer:
             self.agent_repository,
             api_key_service=self.api_key_service,
             settings_service=self.settings_service,
+        )
+
+    @cached_property
+    def scan_ingestor(self) -> ScanIngestor:
+        """The ingestion half of the pipeline, on its own.
+
+        `scan_processor` composes the same object with a `ScanRunner`; this property
+        exists because a result arriving from a remote agent needs ingestion and
+        nothing else — building the processor would also build the scanner engine,
+        so a malformed `scan_backend` setting would block results from machines
+        that scanned perfectly well.
+        """
+        return ScanIngestor(
+            enrichment_service=self.enrichment_service,
+            license_compliance_service=self.license_compliance_service,
+            ai_review_service=self.ai_review_service,
+            issue_service=self.issue_service,
+            notification_service=self.notification_service,
+            eol_service=self.eol_service,
+        )
+
+    @cached_property
+    def agent_job_service(self) -> AgentJobService:
+        """Hands work to remote agents and takes their results back."""
+        return AgentJobService(
+            agent_service=self.agent_service,
+            scan_repository=self.scan_repository,
+            ssh_key_service=self.ssh_key_service,
+            scan_ingestor=self.scan_ingestor,
+            processed_message_repository=self.processed_message_repository,
+            audit_log_service=self.audit_log_service,
         )
 
     @cached_property

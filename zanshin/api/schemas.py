@@ -183,3 +183,102 @@ class TargetOut(BaseModel):
     last_scan_id: Optional[int] = None
     last_scan_status: Optional[str] = None
     last_scan_at: Optional[str] = None
+
+
+# --- Agents (ADR-002) ---
+#
+# The task and result shapes themselves live in `zanshin/scan_contract.py`, not
+# here: they are exchanged between a runner and an ingestor whether or not HTTP is
+# involved, and that module deliberately imports nothing from Zanshin so an agent
+# can hold it without a database. What follows is the HTTP envelope around them.
+
+class AgentHello(BaseModel):
+    """What an agent says about itself when it calls in.
+
+    Everything here is self-reported and used for display only. The agent's
+    *identity* comes from its API key, never from this body — otherwise an agent
+    could claim to be another one.
+    """
+
+    hostname: Optional[str] = None
+    platform: Optional[str] = None
+    version: Optional[str] = None
+    # Which ScannerEngine the agent will actually use (docker, local_api, osv).
+    scanner_engine: Optional[str] = None
+    capabilities: Optional[Dict[str, Any]] = None
+    contract_version: Optional[str] = None
+
+
+class AgentIdentity(BaseModel):
+    """The answer to `hello`: who the control plane thinks this agent is, and how
+    it wants to be talked to.
+
+    The agent does not decide its own name, labels or credentials mode — they are
+    operator settings, and an agent that could choose them could grant itself the
+    right to receive deploy keys.
+    """
+
+    agent_id: str
+    name: str
+    labels: List[str] = Field(default_factory=list)
+    credentials_mode: str
+    max_concurrent: int
+    enabled: bool
+    contract_version: str
+    # How the agent should pace itself. Sent rather than configured on the agent so
+    # that tuning the fleet does not mean editing every machine.
+    poll_wait_seconds: int
+    heartbeat_seconds: int
+
+
+class AgentProgress(BaseModel):
+    """A heartbeat, optionally carrying the step the agent has reached."""
+
+    message: Optional[str] = None
+
+
+class AgentResultChunk(BaseModel):
+    """One slice of a result too large to post in a single request.
+
+    A Syft SBOM for a substantial image runs to megabytes, and the agent has to
+    send it whole because normalization happens on this side (ADR-002 §8.3). The
+    slices are of the serialized JSON, reassembled here — chunking the *text*
+    rather than the structure keeps the agent from having to understand what it is
+    splitting.
+    """
+
+    upload_id: str
+    index: int
+    count: int
+    data: str
+
+
+class AgentResult(BaseModel):
+    """An agent reporting on a job it was given.
+
+    `message_id` is what makes a retry safe (see `ProcessedMessage`): the agent
+    generates it once per report and reuses it for every retry of that same report.
+
+    Exactly one of `artifacts` (a scan that ran) or `error` (a scan that could not)
+    is meaningful; `status` says which.
+    """
+
+    message_id: str
+    status: str  # "succeeded" | "failed"
+    artifacts: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    # Set when the payload arrived in slices; the assembled JSON replaces
+    # `artifacts`.
+    chunk: Optional[AgentResultChunk] = None
+
+
+class AgentResultAck(BaseModel):
+    """Told apart deliberately: `applied` means this call did the work,
+    `duplicate` means an earlier identical call already did. An agent that retried
+    after a lost response needs to distinguish "you are done" from "try again",
+    and a 200 with no body cannot say that.
+    """
+
+    scan_id: int
+    outcome: str  # "applied" | "duplicate" | "chunk_received"
+    chunks_received: Optional[int] = None

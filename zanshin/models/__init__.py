@@ -14,6 +14,7 @@ from zanshin.models.ai_review_result import AiReviewResult
 from zanshin.models.gate_policy import StoredGatePolicy
 from zanshin.models.outbox_message import OutboxMessage
 from zanshin.models.agent import Agent
+from zanshin.models.processed_message import ProcessedMessage
 
 __all__ = [
     "GUID",
@@ -32,4 +33,5 @@ __all__ = [
     "StoredGatePolicy",
     "OutboxMessage",
     "Agent",
+    "ProcessedMessage",
 ]

@@ -70,6 +70,15 @@ api_app = FastAPI(
 )
 
 
+# The agent protocol lives in its own module (see zanshin/api/agents.py): it is a
+# different audience — machines that execute scans, not pipelines that read
+# results — and it is the only part of the API whose credential carries the `agent`
+# scope.
+from zanshin.api.agents import router as agents_router
+
+api_app.include_router(agents_router)
+
+
 @api_app.get("/api/v1/openapi.json", include_in_schema=False)
 def openapi_schema(api_key: ApiKey = Depends(require_api_key)):
     return api_app.openapi()

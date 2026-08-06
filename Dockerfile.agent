@@ -1,0 +1,45 @@
+# Zanshin scan agent — a worker that runs scans on a machine other than the one
+# serving the UI (ADR-002). Started with `python -m zanshin.agent`; it talks to the
+# controller over HTTP with an API key carrying the `agent` scope, and never needs a
+# database connection or ENCRYPTION_KEY.
+#
+# Not built or run in the environment that authored it (no Docker there), same
+# caveat as scan-api/Dockerfile — verify it once on your infrastructure before
+# relying on it.
+
+FROM python:3.12-slim
+
+# git: the agent clones the repositories it scans. openssh-client: so it can use a
+# deploy key, either its own (the default, credentials_mode=local) or one the
+# controller sends (delegated mode). ca-certificates: to verify the controller's TLS.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git openssh-client ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Only what the agent actually needs. Notably *not* reflex, sqlalchemy or alembic:
+# an agent has no database and no UI, and keeping them out of the image is how that
+# stays true (see zanshin/agent/__init__.py, and the import test that enforces it).
+RUN pip install --no-cache-dir \
+        "httpx>=0.28" \
+        "pydantic>=2.13" \
+        "docker>=7.1" \
+        "gitpython>=3.1"
+
+# The modules the agent imports, and nothing else. Copying the whole package would
+# work — the import graph is what matters, not the file list — but a smaller image
+# makes the dependency claim above verifiable by inspection.
+COPY zanshin/__init__.py zanshin/scan_contract.py ./zanshin/
+COPY zanshin/agent/ ./zanshin/agent/
+COPY zanshin/services/__init__.py zanshin/services/scan_runner.py \
+     zanshin/services/git_url.py ./zanshin/services/
+COPY zanshin/services/scanners/ ./zanshin/services/scanners/
+
+# The agent runs Docker containers (syft/grype/gitleaks/checkov) through the host's
+# socket, so it needs it mounted — see docker-compose.agent.yml. That is a strong
+# privilege on the *agent's* host, which is precisely the point of moving scanning
+# off the machine that serves the UI.
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["python", "-m", "zanshin.agent"]
