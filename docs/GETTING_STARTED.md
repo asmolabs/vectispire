@@ -279,8 +279,9 @@ ollama pull gemma4:e4b-it-qat   # ~6,1 Go, plus léger/rapide, qualité de revue
 
 ```bash
 docker compose -f docker-compose.ollama.yml up -d
-docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
 docker exec -it zanshin-ollama ollama pull gemma4:e4b-it-qat   # optionnel, alternative plus légère
+docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
+
 ```
 
 (Décommentez la section `deploy` de `docker-compose.ollama.yml` pour le passthrough GPU NVIDIA sous Linux.)

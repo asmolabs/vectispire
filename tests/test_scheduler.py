@@ -9,7 +9,17 @@ from datetime import datetime, timedelta
 import pytest
 
 import zanshin.services.scheduler as scheduler_module
+from zanshin.repositories.audit_log_repository import AuditLogRepository
+from zanshin.repositories.gate_policy_repository import GatePolicyRepository
+from zanshin.repositories.issue_repository import IssueRepository
+from zanshin.repositories.outbox_repository import OutboxRepository
+from zanshin.repositories.setting_repository import SettingRepository
+from zanshin.services.audit_log_service import AuditLogService
+from zanshin.services.gate_policy_service import GatePolicyService
 from zanshin.services.issue_service import IssueService
+from zanshin.services.notification_service import NotificationService
+from zanshin.services.settings_service import SettingsService
+from zanshin.services.ticket_service import TicketService
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
@@ -73,7 +83,19 @@ def scheduler_env(monkeypatch, isolated_session_local):  # noqa: D401
     dispatches through, so nothing reaches Docker or the thread pool."""
     monkeypatch.setattr(scheduler_module, "SessionLocal", isolated_session_local)
 
-    services = {"repository": FakeScanService(), "container": FakeScanService()}
+    services = {"repository": FakeScanService(), "container": FakeScanService(), "posts": []}
+
+    def recording_post(url, **kwargs):
+        """Injected rather than monkeypatched onto `httpx`: these services take
+        `http_post` as a default argument, which is bound at import time, so patching
+        the module afterwards has no effect on them."""
+        services["posts"].append(url)
+
+        class _Response:
+            def raise_for_status(self):
+                return None
+
+        return _Response()
 
     class FakeContainer:
         def __init__(self, db):
@@ -87,6 +109,14 @@ def scheduler_env(monkeypatch, isolated_session_local):  # noqa: D401
             # Real, not a stub: the tick is where triage review dates actually
             # fire, and that they fire without anyone opening the UI is the point.
             self.issue_service = IssueService()
+            self.issue_repository = IssueRepository(db)
+            self.outbox_repository = OutboxRepository(db)
+            self.notification_service = NotificationService(
+                SettingsService(SettingRepository(db)), http_post=recording_post
+            )
+            self.audit_log_service = AuditLogService(AuditLogRepository(db))
+            self.gate_policy_service = GatePolicyService(GatePolicyRepository(db))
+            self.ticket_service = TicketService(SettingsService(SettingRepository(db)))
 
     monkeypatch.setattr(scheduler_module, "IoCContainer", FakeContainer)
     session = isolated_session_local()
@@ -230,3 +260,29 @@ def test_the_tick_returns_expired_triage_decisions_to_review(scheduler_env):
 
     session.expire_all()
     assert session.query(Issue).one().triage_status == TRIAGE_UNDER_REVIEW
+
+
+def test_the_tick_delivers_a_pending_notification(scheduler_env):
+    """The other half of the outbox: the scan enqueues, the tick sends.
+
+    Also a guard against a whole tick step going missing — an earlier version of this
+    file lost `_open_tracker_tickets` to a bad edit, and because every step catches its
+    own exceptions the only visible symptom was that no scan was ever dispatched.
+    """
+    from zanshin.models.outbox_message import STATUS_SENT, OutboxMessage
+    from zanshin.models.setting import Setting
+    from zanshin.repositories.outbox_repository import OutboxRepository
+    from zanshin.services.outbox_service import enqueue
+
+    session, services = scheduler_env
+    session.add(Setting(key="notification_webhook_url", value="https://hooks.example.com/abc"))
+    session.commit()
+
+    enqueue(OutboxRepository(session), {"text": "3 nouveaux problèmes", "scan_id": 1})
+    session.commit()
+
+    run_once()
+
+    session.expire_all()
+    assert services["posts"] == ["https://hooks.example.com/abc"]
+    assert session.query(OutboxMessage).one().status == STATUS_SENT

@@ -140,6 +140,10 @@ class SettingsState(BaseState):
     ticket_token_input: str = ""
     ticket_token_present: bool = False
 
+    # Notification outbox, so a stuck queue is visible without reading the table
+    outbox_pending: int = 0
+    outbox_failed: int = 0
+
     @requires_admin
     def load_settings(self):
         self.set_current_page("Paramètres")
@@ -148,6 +152,7 @@ class SettingsState(BaseState):
             self._load_eol(container)
             self._load_gate_policy(container)
             self._load_ticket_config(container)
+            self._load_outbox_counts(container)
             self.scan_backend = container.settings_service.get_setting(SETTING_KEY_SCAN_BACKEND, "docker")
             self.image_scan_platform = container.settings_service.get_setting(
                 SETTING_KEY_IMAGE_SCAN_PLATFORM, DEFAULT_IMAGE_SCAN_PLATFORM
@@ -178,6 +183,13 @@ class SettingsState(BaseState):
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
         finally:
             container.db.close()
+
+    def _load_outbox_counts(self, container) -> None:
+        from zanshin.models.outbox_message import STATUS_FAILED, STATUS_PENDING
+
+        tally = container.outbox_repository.count_by_status()
+        self.outbox_pending = tally.get(STATUS_PENDING, 0)
+        self.outbox_failed = tally.get(STATUS_FAILED, 0)
 
     def _load_eol(self, container) -> None:
         self.eol_enabled = container.eol_service.is_enabled()
@@ -414,6 +426,7 @@ class SettingsState(BaseState):
                 user_id=self.username,
             )
             self._load_ticket_config(container)
+            self._load_outbox_counts(container)
             yield self.trigger_toast("Configuration des tickets enregistrée")
         except UnsafeUrlError as e:
             yield self.trigger_toast(str(e), is_error=True)
@@ -1313,6 +1326,39 @@ def settings_page() -> rx.Component:
                 "champ « text » lisible tel quel, en plus des données structurées. Rien n'est envoyé quand un "
                 "scan ne change rien — c'est le seul moyen qu'un canal reste lu.",
                 size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.text(
+                "Le message est écrit en base dans la même transaction que les résultats du "
+                "scan, puis livré par l'ordonnanceur avec réessais espacés. Un webhook "
+                "momentanément injoignable ne perd donc plus sa notification.",
+                size="1", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.cond(
+                (SettingsState.outbox_pending > 0) | (SettingsState.outbox_failed > 0),
+                rx.hstack(
+                    rx.cond(
+                        SettingsState.outbox_pending > 0,
+                        rx.badge(
+                            SettingsState.outbox_pending, " en attente",
+                            color_scheme="amber", variant="soft",
+                        ),
+                    ),
+                    rx.cond(
+                        SettingsState.outbox_failed > 0,
+                        rx.badge(
+                            SettingsState.outbox_failed, " abandonnée(s)",
+                            color_scheme="red", variant="soft",
+                        ),
+                    ),
+                    rx.text(
+                        "Une notification abandonnée l'a été après plusieurs heures de "
+                        "tentatives ; le journal d'audit en donne la raison.",
+                        size="1", color="var(--slate-10)",
+                    ),
+                    spacing="2",
+                    align="center",
+                    class_name="mb-2",
+                ),
             ),
             rx.hstack(
                 rx.input(

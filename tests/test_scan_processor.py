@@ -650,6 +650,9 @@ def test_ai_review_sample_excludes_the_pipelines_own_artifacts(isolated_session)
 # --- Notifications (wave 3) ---
 
 class FakeNotificationService:
+    """Builds a payload and records the call. It never delivers anything — the pipeline
+    now *enqueues*, and the outbox relay is what sends."""
+
     def __init__(self, enabled=True):
         self.enabled = enabled
         self.calls = []
@@ -657,9 +660,9 @@ class FakeNotificationService:
     def is_enabled(self):
         return self.enabled
 
-    def notify_scan_delta(self, **kwargs):
+    def build_scan_delta_message(self, **kwargs):
         self.calls.append(kwargs)
-        return True
+        return {"scan_id": kwargs["scan_id"], "target": kwargs["target_name"]}
 
 
 def test_a_scan_that_changes_something_notifies(isolated_session):
@@ -682,6 +685,17 @@ def test_a_scan_that_changes_something_notifies(isolated_session):
     assert call["scan_id"] == scan.id
     assert len(call["new_issues"]) == 1
     assert call["target_name"] == repo.url
+
+    # And it is in the outbox, in the same transaction as the issues: nothing was
+    # posted from inside the scan.
+    from zanshin.models.outbox_message import STATUS_PENDING, OutboxMessage
+
+    messages = isolated_session.query(OutboxMessage).all()
+    assert len(messages) == 1
+    assert messages[0].status == STATUS_PENDING
+    assert messages[0].payload["scan_id"] == scan.id
+    # Stamped so a receiver can deduplicate an at-least-once delivery.
+    assert messages[0].payload["message_id"] == str(messages[0].id)
 
 
 def test_a_scan_that_changes_nothing_notifies_nothing(isolated_session):

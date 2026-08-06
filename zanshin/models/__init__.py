@@ -12,6 +12,7 @@ from zanshin.models.issue import Issue
 from zanshin.models.audit_log import AuditLog
 from zanshin.models.ai_review_result import AiReviewResult
 from zanshin.models.gate_policy import StoredGatePolicy
+from zanshin.models.outbox_message import OutboxMessage
 
 __all__ = [
     "GUID",
@@ -28,4 +29,5 @@ __all__ = [
     "AuditLog",
     "AiReviewResult",
     "StoredGatePolicy",
+    "OutboxMessage",
 ]

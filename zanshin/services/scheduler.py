@@ -33,6 +33,7 @@ from zanshin.database import SessionLocal
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
+from zanshin.services.outbox_service import prune_sent as prune_sent_messages, relay as outbox_relay
 from zanshin.services.scan_recovery import fail_stalled_scans
 from zanshin.services.ticket_service import sweep as ticket_sweep
 
@@ -115,6 +116,7 @@ def run_once(now: Optional[datetime] = None) -> int:
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
         _prune_raw_payloads(container, db, now)
         _expire_stale_triages(container, db)
+        _relay_notifications(container, db)
         _open_tracker_tickets(container, db)
 
         due_repos, due_containers = find_due_targets(
@@ -171,6 +173,24 @@ def _expire_stale_triages(container, db) -> None:
         logger.exception("Triage expiry pass failed — will retry on the next tick")
 
 
+def _relay_notifications(container, db) -> None:
+    """Drain the notification outbox: deliver what is due, retry what failed.
+
+    Before the outbox, a webhook that was briefly unreachable lost its message with a
+    single log line, and a crash between the scan's commit and the POST lost it with
+    none at all. The relay is the half of that fix that lives outside the scan.
+    """
+    try:
+        outbox_relay(
+            db,
+            outbox_repository=container.outbox_repository,
+            notification_service=container.notification_service,
+            audit_log_service=container.audit_log_service,
+        )
+    except Exception:
+        logger.exception("Notification relay failed — will retry on the next tick")
+
+
 def _open_tracker_tickets(container, db) -> None:
     """Open tracker tickets for issues that would fail their target's gate.
 
@@ -204,6 +224,11 @@ def _prune_raw_payloads(container, db, now: datetime) -> None:
             return
     _last_retention_run = now
     try:
+        # Delivered notifications are pruned on the same schedule as the raw scanner
+        # payloads: both grow with every scan and neither is worth keeping for long.
+        removed = prune_sent_messages(container.outbox_repository)
+        if removed:
+            logger.info("Pruned %d delivered notification(s)", removed)
         container.retention_service.prune(db)
     except Exception:
         logger.exception("Retention pass failed — will retry on a later tick")

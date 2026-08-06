@@ -172,7 +172,7 @@ problème en production.
 
 ## 4. Étapes
 
-### Étape 0 — Outbox des notifications *(indépendante, livrable seule)*
+### Étape 0 — Outbox des notifications *(faite — 2026-08-06)*
 
 Corrige un bug existant et valide le pattern sur un cas réel avant de l'appliquer là où
 il compte.
@@ -182,9 +182,19 @@ il compte.
 - Relais sur le tick de l'ordonnanceur, à côté de la rétention et de l'expiration des triages.
 - Réessai avec recul exponentiel, plafonné ; échec définitif journalisé et visible.
 
-**Vérification :** une notification survit à un arrêt brutal entre la validation et
-l'envoi ; un envoi rejoué ne duplique pas ; un point d'arrivée en panne n'empêche pas le
-scan de se terminer.
+**Vérification :** faite. Le message est écrit dans la transaction du scan via un
+paramètre `before_commit` sur `sync_from_scan` — la seule façon d'obtenir une réelle
+atomicité, puisque cette méthode valide elle-même. Réessais espacés (60 s, 120 s, 240 s,
+plafonnés à une heure), abandon après 8 tentatives avec entrée d'audit, messages livrés
+purgés sur le même tick que les charges brutes. Vérifié en réel contre un puits qui
+refuse les deux premiers appels : deux échecs enregistrés avec leur date de réessai, puis
+livraison, `message_id` présent dans la charge pour qu'un récepteur puisse dédupliquer
+une livraison au-moins-une-fois.
+
+Un défaut trouvé en écrivant les tests : `NotificationService.__init__` prend
+`http_post=httpx.post` en argument par défaut, donc lié à l'import — patcher `httpx`
+ensuite n'a aucun effet, et le test doit injecter. Vrai aussi pour `EnrichmentService`,
+`EolService` et `TicketService`.
 
 ### Étape 1 — Plan de contrôle multi-instance *(sans aucun agent)*
 

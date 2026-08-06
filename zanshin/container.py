@@ -32,6 +32,7 @@ from zanshin.repositories.audit_log_repository import AuditLogRepository
 from zanshin.repositories.ai_review_result_repository import AiReviewResultRepository
 from zanshin.repositories.issue_repository import IssueRepository
 from zanshin.repositories.gate_policy_repository import GatePolicyRepository
+from zanshin.repositories.outbox_repository import OutboxRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -109,6 +110,10 @@ class IoCContainer:
     @cached_property
     def gate_policy_repository(self) -> GatePolicyRepository:
         return GatePolicyRepository(self.db)
+
+    @cached_property
+    def outbox_repository(self) -> OutboxRepository:
+        return OutboxRepository(self.db)
 
     # --- Services ---
 

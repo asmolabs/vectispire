@@ -90,6 +90,7 @@ class IssueService:
         findings: List[Finding],
         scanned_types: Iterable[str],
         descriptions: Optional[Dict[str, str]] = None,
+        before_commit=None,
     ) -> SyncResult:
         """Fold a completed scan's findings into the issue history.
 
@@ -103,6 +104,12 @@ class IssueService:
         Only ever called for a scan that completed — a failed or interrupted
         scan observed nothing, and treating that as evidence of absence would
         mark a target's entire backlog resolved.
+
+        `before_commit` receives the finished `SyncResult` while this method's
+        transaction is still open. It exists for exactly one caller and one reason: the
+        notification outbox needs its message row to become durable at the same instant
+        as the issue rows it describes. Enqueuing after this returns would leave the
+        window where a crash loses the notification — the defect the outbox removes.
         """
         repository = IssueRepository(db)
         scanned_types = set(scanned_types)
@@ -155,7 +162,6 @@ class IssueService:
 
         scan.new_issues_count = len(new_issues)
         scan.resolved_issues_count = resolved_count
-        db.commit()
 
         result = SyncResult(
             new=len(new_issues),
@@ -165,6 +171,15 @@ class IssueService:
             new_issues=new_issues,
             reopened_issues=reopened_issues,
         )
+        if before_commit is not None:
+            try:
+                before_commit(result)
+            except Exception:
+                # A hook that fails must not lose the scan's results, which are the
+                # thing of value in this transaction. The commit below therefore still
+                # happens, without whatever the hook wanted to add.
+                logger.exception("before_commit hook failed — committing the sync anyway")
+        db.commit()
         logger.info(
             "Issue sync for scan %s: %d new, %d reopened, %d unchanged, %d resolved",
             scan.id, result.new, result.reopened, result.still_open, result.resolved,

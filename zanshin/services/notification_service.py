@@ -92,6 +92,66 @@ class NotificationService:
                 notable.append(issue)
         return notable
 
+    def build_scan_delta_message(
+        self,
+        *,
+        target_name: str,
+        scan_id: int,
+        new_issues: List[Issue],
+        reopened_issues: Optional[List[Issue]] = None,
+        resolved_count: int = 0,
+    ) -> Optional[Dict[str, Any]]:
+        """The payload for a scan's delta, or `None` when there is nothing to say.
+
+        Separate from sending because the two now happen at different times: the
+        message is built and enqueued inside the transaction that commits the scan's
+        results, and delivered later by the outbox relay. Building it early is also
+        what makes the message a *snapshot* — it says what the scan found, not what the
+        issue rows look like once somebody has triaged half of them.
+        """
+        if not self.is_enabled():
+            return None
+
+        reopened_issues = reopened_issues or []
+        notable_new = self.select_notable(new_issues)
+        notable_reopened = self.select_notable(reopened_issues)
+        if not notable_new and not notable_reopened:
+            logger.debug("Scan %s: nothing notable to notify", scan_id)
+            return None
+
+        return self.build_payload(
+            target_name=target_name,
+            scan_id=scan_id,
+            new_issues=notable_new,
+            reopened_issues=notable_reopened,
+            resolved_count=resolved_count,
+        )
+
+    def deliver(self, payload: Dict[str, Any]) -> None:
+        """POST one payload. **Raises** on failure, so the relay can retry it.
+
+        The opposite contract from everything else in this class, and deliberately so:
+        a failure that is swallowed is a failure that is never retried, which is the
+        whole reason the outbox exists. The relay is what turns the exception back into
+        "not fatal".
+
+        The URL is read and validated here rather than captured at enqueue time: an
+        operator who fixes a typo should not have to re-run a scan to get the pending
+        notifications out, and a setting written straight into the database must not
+        become an unchecked destination.
+        """
+        url = validate_outbound_url(
+            self.webhook_url(),
+            allow_private=self.allow_private_url(),
+            label="URL de webhook",
+        )
+        response = self._http_post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        logger.info(
+            "Notified webhook about scan %s (%s new, %s reopened)",
+            payload.get("scan_id"), payload.get("new_count"), payload.get("reopened_count"),
+        )
+
     def notify_scan_delta(
         self,
         *,
@@ -101,47 +161,28 @@ class NotificationService:
         reopened_issues: Optional[List[Issue]] = None,
         resolved_count: int = 0,
     ) -> bool:
-        """Send the notification. Returns whether anything was sent.
+        """Build and send in one step, swallowing failures. Returns whether it went.
 
-        Never raises: a webhook failure is logged and swallowed.
+        Kept for the caller that has no transaction to enqueue into — a manual test of
+        the webhook from the settings screen. The scan pipeline does **not** use this:
+        it enqueues, because a notification lost between the commit and the POST was
+        the defect the outbox was introduced to fix.
         """
-        if not self.is_enabled():
+        payload = self.build_scan_delta_message(
+            target_name=target_name,
+            scan_id=scan_id,
+            new_issues=new_issues,
+            reopened_issues=reopened_issues,
+            resolved_count=resolved_count,
+        )
+        if payload is None:
             return False
-
-        reopened_issues = reopened_issues or []
-        notable_new = self.select_notable(new_issues)
-        notable_reopened = self.select_notable(reopened_issues)
-        if not notable_new and not notable_reopened:
-            logger.debug("Scan %s: nothing notable to notify", scan_id)
-            return False
-
-        # Re-validated here, not only at save time: the setting may predate the
-        # guard, or have been written straight into the database.
         try:
-            url = validate_outbound_url(
-                self.webhook_url(),
-                allow_private=self.allow_private_url(),
-                label="URL de webhook",
-            )
+            self.deliver(payload)
+            return True
         except UnsafeUrlError as e:
             logger.error("Notification not sent: %s", e)
             return False
-
-        payload = self.build_payload(
-            target_name=target_name,
-            scan_id=scan_id,
-            new_issues=notable_new,
-            reopened_issues=notable_reopened,
-            resolved_count=resolved_count,
-        )
-        try:
-            response = self._http_post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
-            response.raise_for_status()
-            logger.info(
-                "Notified webhook about scan %s (%d new, %d reopened)",
-                scan_id, len(notable_new), len(notable_reopened),
-            )
-            return True
         except Exception:
             logger.exception("Notification webhook failed for scan %s (non-fatal)", scan_id)
             return False

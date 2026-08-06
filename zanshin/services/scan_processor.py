@@ -20,7 +20,9 @@ from zanshin.services.ai_review_service import AiReviewService, SECURITY_ARCHITE
 from zanshin.services.git_url import validate_repo_url
 from zanshin.services.issue_service import IssueService, scanned_types_for
 from zanshin.services.notification_service import NotificationService
+from zanshin.repositories.outbox_repository import OutboxRepository
 from zanshin.services.dependency_graph import DependencyDirectness
+from zanshin.services.outbox_service import enqueue
 from zanshin.services.eol_service import EolService
 from zanshin.services.remediation import extract_remediation
 
@@ -261,8 +263,14 @@ class ScanProcessor:
                                 **self._collect_vulnerability_descriptions(cves),
                                 **self._collect_eol_descriptions(eol_findings),
                             },
+                            # Enqueued inside the sync transaction: the notification
+                            # becomes durable at the same instant as the issues it
+                            # describes, so a crash before the webhook goes out no
+                            # longer loses it silently.
+                            before_commit=lambda result: self._enqueue_notification(
+                                db, scan, result
+                            ),
                         )
-                        self._notify(scan, sync)
                     except Exception:
                         logger.exception(f"Issue sync failed for Scan ID {scan_id} (non-fatal)")
 
@@ -431,25 +439,28 @@ class ScanProcessor:
         summary["total"] = total
         return summary
 
-    def _notify(self, scan: Scan, sync) -> None:
-        """Announce what this scan changed, if a webhook is configured.
+    def _enqueue_notification(self, db, scan: Scan, sync) -> None:
+        """Write the scan's notification into the outbox, in the open transaction.
 
-        Best-effort by construction (`NotificationService` swallows its own
-        failures), and called from inside the issue-sync `try` so that even an
-        unexpected error here cannot affect a scan whose results are already
-        committed.
+        Nothing is sent here. The relay on the scheduler tick delivers it, retries it
+        on failure and abandons it after a while — which is what a webhook that was
+        briefly unreachable needed and never had.
         """
         if not self.notification_service or not self.notification_service.is_enabled():
             return
         if not sync.new_issues and not sync.reopened_issues:
             return
-        self.notification_service.notify_scan_delta(
+
+        payload = self.notification_service.build_scan_delta_message(
             target_name=self._target_name(scan),
             scan_id=scan.id,
             new_issues=list(sync.new_issues),
             reopened_issues=list(sync.reopened_issues),
             resolved_count=sync.resolved,
         )
+        if payload is None:
+            return
+        enqueue(OutboxRepository(db), payload)
 
     def _target_name(self, scan: Scan) -> str:
         """What the notification calls the thing that was scanned."""
