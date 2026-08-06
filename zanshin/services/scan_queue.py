@@ -21,15 +21,25 @@ Order is creation order, no priority. A priority column would be easy to add lat
 is deliberately not here: "in the order they were asked for" is a rule an operator can
 predict, and the first thing a priority scheme costs is that predictability.
 
-**Single instance.** The claim is a conditional `UPDATE ... WHERE status = 'pending'`
-whose row count decides the winner, which is correct for the several threads of one
-process and *not* for two processes on a server database — that needs
-`SELECT … FOR UPDATE SKIP LOCKED`, and it is the one function to change when it does
-(see ADR-002, étape 1).
+**Claiming is transactional where the database allows it.** On PostgreSQL and MySQL the
+claim is `SELECT … FOR UPDATE SKIP LOCKED` followed by the status change in the *same*
+transaction: either a claimant holds the row and the row says so, or neither (ADR-002
+D1). On SQLite, which has neither `SKIP LOCKED` nor more than one writer, it falls back
+to a conditional `UPDATE ... WHERE status = 'pending'` whose row count decides the
+winner — correct for the several threads of one process, which is all SQLite supports
+anyway (D6).
+
+The two paths exist because the guarantee differs, not because the code was easier that
+way: `SKIP LOCKED` makes two *processes* safe, and the fallback does not. The fallback's
+failure mode is subtle enough to be worth naming — two processes reading the same
+`pending` row would both see one row updated, because each `UPDATE` runs in its own
+transaction and the second one sees the first's commit only if it happens to serialise
+after it.
 """
 import concurrent.futures
 import logging
 import os
+import time
 from datetime import timedelta
 from typing import List, Optional
 
@@ -59,6 +69,19 @@ LEASE_SECONDS = int(os.getenv("ZANSHIN_SCAN_LEASE_SECONDS", "1200"))
 # a scan permanently "about to start".
 MAX_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_MAX_ATTEMPTS", "3"))
 
+# How many times a transactional claim re-reads the queue when it came back short while
+# work was still waiting. Needed because of a measured difference between the two server
+# backends — see `_claim_locked`. Small: each retry is one indexed read, and the locks it
+# is waiting on are released by a commit that happens microseconds later.
+# Twelve, measured rather than guessed: with ten claimants contending on one queue, four
+# attempts left three of them empty-handed on MySQL and twelve left none (see
+# `tests/test_queue_concurrency_backends.py`). Each attempt is one indexed read plus the
+# sleep below, so the worst case is a fraction of a second against a scan that takes
+# minutes.
+CLAIM_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_CLAIM_ATTEMPTS", "12"))
+# Long enough for a competing claimant to commit, short enough to be invisible next to a
+# scan that takes minutes.
+CLAIM_RETRY_SECONDS = float(os.getenv("ZANSHIN_SCAN_CLAIM_RETRY_SECONDS", "0.01"))
 LEASE_EXHAUSTED_MESSAGE = (
     "Scan abandonné : l'exécutant a cessé de répondre à chacune des {attempts} tentatives."
 )
@@ -147,11 +170,10 @@ def claim_next(
 ) -> List[Scan]:
     """Take up to `limit` queued scans, oldest first, and mark them running.
 
-    The conditional update is what makes this safe against two dispatchers racing: the
-    row count tells the caller whether *it* won, and a loser simply moves on. Without
-    it, two threads reading the same `pending` row would both submit it and the target
-    would be scanned twice concurrently — the exact thing the in-flight guard exists to
-    prevent.
+    Two claimants must never receive the same scan: the target would be scanned twice
+    at once, which is the very thing the in-flight guard exists to prevent. How that is
+    guaranteed depends on the database — see `supports_skip_locked` and the module
+    docstring.
 
     `worker` is the `Agent.worker_id` taking ownership, and with it comes a lease
     (see `LEASE_SECONDS`). Optional so that a caller with no notion of agents — the
@@ -166,7 +188,105 @@ def claim_next(
     """
     if limit <= 0:
         return []
+    if supports_skip_locked(db):
+        return _claim_locked(db, limit, worker)
+    return _claim_conditional(db, limit, worker)
 
+
+def supports_skip_locked(db: Session) -> bool:
+    """Whether this database can lock rows and skip the ones already locked.
+
+    PostgreSQL and MySQL 8 can; SQLite cannot, and SQLAlchemy's SQLite dialect
+    *silently drops* `FOR UPDATE` rather than refusing it — so asking without checking
+    would produce a claim that looks transactional, passes every test on a developer's
+    machine, and hands the same scan to two processes in production. Hence the explicit
+    check, and the honest fallback below.
+    """
+    return db.bind.dialect.name in ("postgresql", "mysql", "mariadb")
+
+
+def _claim_locked(db: Session, limit: int, worker: Optional[str]) -> List[Scan]:
+    """The transactional claim (ADR-002 D1).
+
+    `FOR UPDATE SKIP LOCKED` gives this transaction exclusive hold on the rows it
+    selected, and lets a concurrent claimant *skip past them* instead of blocking —
+    which is what makes several instances share one queue without serialising on the
+    oldest row. The status change and the lock release happen in the same commit, so
+    there is no window in which a row is claimed but not marked.
+
+    **Why it retries when it comes back short.** The two server backends disagree about
+    how `LIMIT` and `SKIP LOCKED` interact: PostgreSQL keeps scanning until it has
+    `LIMIT` unlocked rows, while MySQL counts skipped rows against the limit and returns
+    short. Measured rather than assumed — with `LIMIT 1`, ten concurrent claimants on a
+    queue of twenty scans left six of them empty-handed on MySQL 8.4
+    (`tests/test_queue_concurrency_backends.py`). Nothing was claimed twice, so this was
+    never a safety problem; it was a throughput one, and the shape it takes in production
+    is an agent long-polling for thirty seconds while work sits in the queue.
+
+    The fix is a **bounded retry**: every claimant commits within microseconds, so a row
+    that is locked now is either gone or free on the next read, and on MySQL each read
+    advances roughly one row past the contention. `CLAIM_ATTEMPTS` is sized from the
+    measurement, not from taste.
+
+    Two things were tried first and are worth recording, because both are the obvious
+    idea. Selecting a *wider window* than needed and trimming it made PostgreSQL fail the
+    very tests MySQL was failing — a claimant that locks rows it will not claim starves
+    the others for as long as it holds them. A window on MySQL only then worked, but
+    turned out to be unnecessary once the retry budget was right, so it is gone: asking
+    for exactly what you need, and retrying, is both simpler and the correct behaviour on
+    every backend.
+    """
+    claimed: List[Scan] = []
+    for attempt in range(CLAIM_ATTEMPTS):
+        wanted = limit - len(claimed)
+        batch = (
+            db.query(Scan)
+            .filter(Scan.status == STATUS_QUEUED)
+            .order_by(Scan.created_at, Scan.id)
+            .limit(wanted)
+            .with_for_update(skip_locked=True)
+            .all()
+        )[:wanted]
+        if batch:
+            now = utcnow()
+            for scan in batch:
+                scan.status = STATUS_RUNNING
+                scan.claimed_by = worker
+                scan.claimed_at = now
+                scan.lease_expires_at = now + timedelta(seconds=LEASE_SECONDS)
+                # Counted from the row rather than from the claimant: what matters is how
+                # many times *this scan* has been picked up, including by workers that
+                # have since vanished.
+                scan.attempts = (scan.attempts or 0) + 1
+            # Committed per batch, which is what releases the locks: holding them while
+            # asking for more would turn this claimant into the one starving everybody
+            # else.
+            db.commit()
+            claimed.extend(batch)
+            if len(claimed) >= limit:
+                break
+            continue
+
+        # Nothing came back. Either the queue is empty — in which case there is nothing
+        # to wait for — or every row this read could see is held by a claimant that is
+        # about to commit.
+        db.rollback()
+        if count_queued(db) == 0:
+            break
+        if attempt < CLAIM_ATTEMPTS - 1:
+            time.sleep(CLAIM_RETRY_SECONDS)
+    return claimed
+
+
+def _claim_conditional(db: Session, limit: int, worker: Optional[str]) -> List[Scan]:
+    """The SQLite claim: a conditional update per row, its row count deciding the winner.
+
+    Safe for the several threads of one process — which is the only concurrency SQLite
+    offers, since it has a single writer. Not safe for two processes, and that is not a
+    gap to fill here: SQLite is documented as single-instance (D6), and the check in
+    `zanshin/startup_guard.py` refuses the deployment that would need more.
+    """
+    now = utcnow()
     candidates = (
         db.query(Scan)
         .filter(Scan.status == STATUS_QUEUED)
@@ -175,7 +295,6 @@ def claim_next(
         .all()
     )
 
-    now = utcnow()
     claimed: List[Scan] = []
     for scan in candidates:
         won = (
@@ -187,9 +306,6 @@ def claim_next(
                     Scan.claimed_by: worker,
                     Scan.claimed_at: now,
                     Scan.lease_expires_at: now + timedelta(seconds=LEASE_SECONDS),
-                    # Counted from the row rather than from the claimant: what
-                    # matters is how many times *this scan* has been picked up,
-                    # including by workers that have since vanished.
                     Scan.attempts: (scan.attempts or 0) + 1,
                 },
                 synchronize_session=False,
