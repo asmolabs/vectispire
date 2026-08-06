@@ -15,7 +15,31 @@ from zanshin.services.scanners import (
 from zanshin.services.enrichment_service import SETTING_KEY_ENRICHMENT_ENABLED
 from zanshin.services.license_compliance_service import SETTING_KEY_LICENSE_BLOCKLIST
 from zanshin.services.audit_log_service import AuditOperation
-from zanshin.services.url_guard import validate_outbound_url
+from zanshin.services.url_guard import UnsafeUrlError, validate_outbound_url
+from zanshin.services.eol_service import (
+    DEFAULT_WARN_DAYS as DEFAULT_EOL_WARN_DAYS,
+    SETTING_KEY_EOL_ENABLED,
+    SETTING_KEY_EOL_WARN_DAYS,
+)
+from zanshin.services.policy_gate import DEFAULT_FAIL_ON_SEVERITY, SEVERITY_ORDER
+from zanshin.services.ticket_service import (
+    DEFAULT_JIRA_ISSUE_TYPE,
+    DEFAULT_LABELS as DEFAULT_TICKET_LABELS,
+    PROVIDER_GITLAB,
+    PROVIDER_JIRA,
+    PROVIDER_NONE as TICKET_PROVIDER_NONE,
+    SETTING_KEY_BASE_URL as SETTING_KEY_TICKET_BASE_URL,
+    SETTING_KEY_ISSUE_TYPE as SETTING_KEY_TICKET_ISSUE_TYPE,
+    SETTING_KEY_LABELS as SETTING_KEY_TICKET_LABELS,
+    SETTING_KEY_PROJECT as SETTING_KEY_TICKET_PROJECT,
+    SETTING_KEY_PROVIDER as SETTING_KEY_TICKET_PROVIDER,
+    SETTING_KEY_USER as SETTING_KEY_TICKET_USER,
+)
+from zanshin.ui.view_models import GatePolicyRow, to_gate_policy_row
+
+# The select needs a concrete value for "no severity rule at all", which is a
+# legitimate policy for a gate that only fails on known-exploited vulnerabilities.
+NO_SEVERITY_RULE = "aucune"
 from zanshin.services.retention_service import (
     SETTING_KEY_RETENTION_KEEP_PER_TARGET,
     SETTING_KEY_RETENTION_MAX_AGE_DAYS,
@@ -92,11 +116,38 @@ class SettingsState(BaseState):
     ai_review_models_loading: bool = False
     ai_review_deployment_mode: str = DEFAULT_AI_REVIEW_DEPLOYMENT_MODE
 
+    # End-of-life detection
+    eol_enabled: bool = True
+    eol_warn_days_input: str = str(DEFAULT_EOL_WARN_DAYS)
+
+    # Gate policy (global scope; per-target overrides are listed below it)
+    gate_fail_on_severity: str = DEFAULT_FAIL_ON_SEVERITY
+    gate_fail_on_kev: bool = True
+    gate_fixable_only: bool = False
+    gate_include_triaged: bool = False
+    gate_include_ai_review: bool = False
+    gate_note_input: str = ""
+    gate_policy_rows: list[GatePolicyRow] = []
+    gate_policy_version: int = 0
+
+    # Tracker tickets
+    ticket_provider: str = TICKET_PROVIDER_NONE
+    ticket_base_url_input: str = ""
+    ticket_project_input: str = ""
+    ticket_user_input: str = ""
+    ticket_labels_input: str = DEFAULT_TICKET_LABELS
+    ticket_issue_type_input: str = DEFAULT_JIRA_ISSUE_TYPE
+    ticket_token_input: str = ""
+    ticket_token_present: bool = False
+
     @requires_admin
     def load_settings(self):
         self.set_current_page("Paramètres")
         container = get_container()
         try:
+            self._load_eol(container)
+            self._load_gate_policy(container)
+            self._load_ticket_config(container)
             self.scan_backend = container.settings_service.get_setting(SETTING_KEY_SCAN_BACKEND, "docker")
             self.image_scan_platform = container.settings_service.get_setting(
                 SETTING_KEY_IMAGE_SCAN_PLATFORM, DEFAULT_IMAGE_SCAN_PLATFORM
@@ -125,6 +176,249 @@ class SettingsState(BaseState):
             self.notification_always_on_kev = container.notification_service.always_on_kev()
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def _load_eol(self, container) -> None:
+        self.eol_enabled = container.eol_service.is_enabled()
+        self.eol_warn_days_input = str(container.eol_service.warn_days())
+
+    def _load_gate_policy(self, container) -> None:
+        """The global policy into the form, and every configured scope into the list."""
+        resolved = container.gate_policy_service.resolve()
+        self.gate_fail_on_severity = resolved.policy.fail_on_severity or NO_SEVERITY_RULE
+        self.gate_fail_on_kev = resolved.policy.fail_on_kev
+        self.gate_fixable_only = resolved.policy.fixable_only
+        self.gate_include_triaged = resolved.policy.include_triaged
+        self.gate_include_ai_review = resolved.policy.include_ai_review
+        self.gate_policy_version = resolved.version or 0
+        self.gate_note_input = ""
+        self.gate_policy_rows = [
+            to_gate_policy_row(policy, self._scope_name(container, policy))
+            for policy in container.gate_policy_service.active_policies()
+        ]
+
+    @staticmethod
+    def _scope_name(container, policy) -> str:
+        """A target's real name rather than `repository:7`, since that is what an
+        operator recognises when checking which rules apply where."""
+        if policy.is_global:
+            return "Toutes les cibles"
+        if policy.target_kind == "repository":
+            repo = container.repository_repository.find_by_id(policy.target_id)
+            return (repo.name or repo.url) if repo else f"dépôt {policy.target_id} (supprimé)"
+        image = container.container_repository.find_by_id(policy.target_id)
+        return image.image_string if image else f"conteneur {policy.target_id} (supprimé)"
+
+    def _load_ticket_config(self, container) -> None:
+        service = container.ticket_service
+        self.ticket_provider = service.provider()
+        self.ticket_base_url_input = service.base_url()
+        self.ticket_project_input = service.project()
+        self.ticket_user_input = service.user()
+        self.ticket_labels_input = ",".join(service.labels())
+        self.ticket_issue_type_input = service.issue_type()
+        # Never echoed back into the form — only whether one is stored.
+        self.ticket_token_present = bool(service.token())
+        self.ticket_token_input = ""
+
+    # --- End-of-life detection ---
+
+    @requires_admin
+    def set_eol_enabled(self, value: bool):
+        container = get_container()
+        try:
+            self.eol_enabled = value
+            container.settings_service.update_setting(
+                SETTING_KEY_EOL_ENABLED, "true" if value else "false"
+            )
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_EOL_ENABLED,
+                description=f"Détection de fin de vie {'activée' if value else 'désactivée'}",
+                user_id=self.username,
+            )
+            yield self.trigger_toast(
+                f"Détection de fin de vie {'activée' if value else 'désactivée'}"
+            )
+        finally:
+            container.db.close()
+
+    def set_eol_warn_days_input(self, value: str):
+        self.eol_warn_days_input = value
+
+    @requires_admin
+    def save_eol_config(self):
+        container = get_container()
+        try:
+            days = int(self.eol_warn_days_input.strip() or DEFAULT_EOL_WARN_DAYS)
+            if days < 0:
+                raise ValueError("Le délai d'alerte ne peut pas être négatif.")
+            container.settings_service.update_setting(SETTING_KEY_EOL_WARN_DAYS, str(days))
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_EOL_WARN_DAYS,
+                description=f"Fenêtre d'alerte de fin de vie : {days} jour(s)",
+                user_id=self.username,
+            )
+            yield self.trigger_toast(f"Alerte {days} jours avant la fin de vie")
+        except ValueError as e:
+            yield self.trigger_toast(str(e), is_error=True)
+        finally:
+            container.db.close()
+
+    # --- Gate policy ---
+
+    def set_gate_fail_on_severity(self, value: str):
+        self.gate_fail_on_severity = value
+
+    def set_gate_fail_on_kev(self, value: bool):
+        self.gate_fail_on_kev = value
+
+    def set_gate_fixable_only(self, value: bool):
+        self.gate_fixable_only = value
+
+    def set_gate_include_triaged(self, value: bool):
+        self.gate_include_triaged = value
+
+    def set_gate_include_ai_review(self, value: bool):
+        self.gate_include_ai_review = value
+
+    def set_gate_note_input(self, value: str):
+        self.gate_note_input = value
+
+    @requires_admin
+    def save_gate_policy(self):
+        """Store a new version of the global policy.
+
+        Not an update: every change is a version, so "which policy failed that build
+        in March" has an answer and the author of the decision is recorded.
+        """
+        container = get_container()
+        try:
+            severity = (
+                None if self.gate_fail_on_severity == NO_SEVERITY_RULE
+                else self.gate_fail_on_severity
+            )
+            policy = container.gate_policy_service.save_policy(
+                fail_on_severity=severity,
+                fail_on_kev=self.gate_fail_on_kev,
+                fixable_only=self.gate_fixable_only,
+                include_triaged=self.gate_include_triaged,
+                include_ai_review=self.gate_include_ai_review,
+                note=self.gate_note_input,
+                actor=self.username,
+            )
+            container.audit_log_service.record(
+                AuditOperation.GATE_POLICY_UPDATED,
+                resource_id=policy.scope_label,
+                description=(
+                    f"Politique de gate globale v{policy.version} : seuil "
+                    f"{severity or 'aucun'}, KEV {'oui' if policy.fail_on_kev else 'non'}"
+                    + (f" — {policy.note}" if policy.note else "")
+                ),
+                user_id=self.username,
+            )
+            self._load_gate_policy(container)
+            yield self.trigger_toast(f"Politique de gate enregistrée (v{policy.version})")
+        except ValueError as e:
+            yield self.trigger_toast(str(e), is_error=True)
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    @requires_admin
+    def delete_gate_policy(self, target_kind: str, target_id: int):
+        """Drop a per-target override so it inherits the global policy again."""
+        container = get_container()
+        try:
+            container.gate_policy_service.delete_target_policy(target_kind, target_id)
+            container.audit_log_service.record(
+                AuditOperation.GATE_POLICY_UPDATED,
+                resource_id=f"{target_kind}:{target_id}",
+                description="Politique de cible supprimée (retour à la politique globale)",
+                user_id=self.username,
+            )
+            self._load_gate_policy(container)
+            yield self.trigger_toast("Politique de cible supprimée")
+        except ValueError as e:
+            yield self.trigger_toast(str(e), is_error=True)
+        finally:
+            container.db.close()
+
+    # --- Tracker tickets ---
+
+    def set_ticket_provider_input(self, value: str):
+        self.ticket_provider = value
+
+    def set_ticket_base_url_input(self, value: str):
+        self.ticket_base_url_input = value
+
+    def set_ticket_project_input(self, value: str):
+        self.ticket_project_input = value
+
+    def set_ticket_user_input(self, value: str):
+        self.ticket_user_input = value
+
+    def set_ticket_labels_input(self, value: str):
+        self.ticket_labels_input = value
+
+    def set_ticket_issue_type_input(self, value: str):
+        self.ticket_issue_type_input = value
+
+    def set_ticket_token_input(self, value: str):
+        self.ticket_token_input = value
+
+    @requires_admin
+    def save_ticket_config(self):
+        container = get_container()
+        try:
+            service = container.ticket_service
+            container.settings_service.update_setting(
+                SETTING_KEY_TICKET_PROVIDER, self.ticket_provider
+            )
+            if self.ticket_base_url_input.strip():
+                # Validated here and again before every request, for the same reason
+                # as the notification webhook: a setting can predate the guard.
+                service.set_base_url(self.ticket_base_url_input)
+            else:
+                container.settings_service.update_setting(SETTING_KEY_TICKET_BASE_URL, "")
+            container.settings_service.update_setting(
+                SETTING_KEY_TICKET_PROJECT, self.ticket_project_input.strip()
+            )
+            container.settings_service.update_setting(
+                SETTING_KEY_TICKET_USER, self.ticket_user_input.strip()
+            )
+            container.settings_service.update_setting(
+                SETTING_KEY_TICKET_LABELS, self.ticket_labels_input.strip()
+            )
+            container.settings_service.update_setting(
+                SETTING_KEY_TICKET_ISSUE_TYPE, self.ticket_issue_type_input.strip()
+            )
+            # An empty field leaves the stored token alone: the form never shows it,
+            # so blanking it out on every save would silently disable ticketing the
+            # first time somebody changed the project name.
+            if self.ticket_token_input.strip():
+                service.set_token(self.ticket_token_input)
+
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_TICKET_PROVIDER,
+                # The token is never described, and neither is the URL: both are
+                # credentials in this context.
+                description=(
+                    f"Gestionnaire de tickets : {self.ticket_provider}"
+                    + (" (jeton mis à jour)" if self.ticket_token_input.strip() else "")
+                ),
+                user_id=self.username,
+            )
+            self._load_ticket_config(container)
+            yield self.trigger_toast("Configuration des tickets enregistrée")
+        except UnsafeUrlError as e:
+            yield self.trigger_toast(str(e), is_error=True)
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
         finally:
             container.db.close()
 
@@ -434,6 +728,71 @@ class SettingsState(BaseState):
         finally:
             container.db.close()
 
+def switch_row(label: str, checked, on_change, hint: str = "") -> rx.Component:
+    """One rule of the gate policy: a switch, its wording, and — where the choice has a
+    consequence worth stating — why it is not the obvious default."""
+    return rx.vstack(
+        rx.hstack(
+            rx.switch(checked=checked, on_change=on_change, size="1"),
+            rx.text(label, size="2"),
+            spacing="3",
+            align="center",
+        ),
+        rx.cond(
+            hint != "",
+            rx.text(hint, size="1", color="var(--slate-10)", class_name="ml-9"),
+        ),
+        spacing="0",
+        width="100%",
+        align="start",
+    )
+
+
+def gate_policy_row(row: rx.Var) -> rx.Component:
+    return rx.table.row(
+        rx.table.cell(
+            rx.vstack(
+                rx.text(row.scope, size="2", weight="medium"),
+                rx.cond(
+                    row.is_global,
+                    rx.text("politique par défaut", size="1", color="var(--slate-10)"),
+                ),
+                spacing="0",
+            )
+        ),
+        rx.table.cell(
+            rx.vstack(
+                rx.text(row.rules, size="2"),
+                rx.cond(row.note != "", rx.text(row.note, size="1", color="var(--slate-10)")),
+                spacing="0",
+            )
+        ),
+        rx.table.cell(rx.badge("v", row.version, variant="soft")),
+        rx.table.cell(
+            rx.vstack(
+                rx.text(row.author, size="2"),
+                rx.text(row.changed_at, size="1", color="var(--slate-10)"),
+                spacing="0",
+            )
+        ),
+        rx.table.cell(
+            rx.cond(
+                row.is_global,
+                rx.text("—", size="2", color="var(--slate-10)"),
+                rx.button(
+                    rx.icon(tag="trash-2", size=14),
+                    size="1",
+                    variant="soft",
+                    color_scheme="red",
+                    on_click=lambda: SettingsState.delete_gate_policy(
+                        row.target_kind, row.target_id
+                    ),
+                ),
+            )
+        ),
+    )
+
+
 def settings_page() -> rx.Component:
     """Scan-execution settings view: choose the ScannerEngine backend and
     toggle EPSS/CISA-KEV enrichment (see ADR-001)."""
@@ -563,6 +922,280 @@ def settings_page() -> rx.Component:
                     "relancez-les pour comparer sur la même base.",
                     icon="info", color_scheme="blue", size="1", class_name="mt-2"
                 ),
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # Gate policy
+        rx.vstack(
+            rx.hstack(
+                rx.heading("Politique de gate CI", size="3", weight="bold"),
+                rx.cond(
+                    SettingsState.gate_policy_version > 0,
+                    rx.badge("v", SettingsState.gate_policy_version, color_scheme="cyan", variant="soft"),
+                ),
+                spacing="3",
+                align="center",
+            ),
+            rx.text(
+                "Ce qui fait échouer un build. Ces règles arrivaient auparavant dans le corps de "
+                "la requête, donc chaque projet décidait lui-même du seuil qu'on lui appliquait. "
+                "Une requête peut encore les durcir — jamais les assouplir — et le verdict indique "
+                "quelle politique a été appliquée.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Échouer à partir de", size="2", weight="medium"),
+                    rx.select(
+                        [NO_SEVERITY_RULE, *SEVERITY_ORDER],
+                        value=SettingsState.gate_fail_on_severity,
+                        on_change=SettingsState.set_gate_fail_on_severity,
+                        width="180px",
+                    ),
+                    spacing="1",
+                ),
+                rx.vstack(
+                    rx.text("Motif de ce changement", size="2", weight="medium"),
+                    rx.input(
+                        placeholder="Facultatif — pourquoi cette version",
+                        value=SettingsState.gate_note_input,
+                        on_change=SettingsState.set_gate_note_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                spacing="4",
+                width="100%",
+                align="end",
+            ),
+            rx.vstack(
+                switch_row(
+                    "Échouer sur toute vulnérabilité activement exploitée (CISA KEV)",
+                    SettingsState.gate_fail_on_kev,
+                    SettingsState.set_gate_fail_on_kev,
+                ),
+                switch_row(
+                    "N'échouer que sur les problèmes ayant un correctif publié",
+                    SettingsState.gate_fixable_only,
+                    SettingsState.set_gate_fixable_only,
+                    hint="Pragmatique, mais tolère silencieusement une faille exploitée sans correctif.",
+                ),
+                switch_row(
+                    "Compter aussi les problèmes déjà triés",
+                    SettingsState.gate_include_triaged,
+                    SettingsState.set_gate_include_triaged,
+                ),
+                switch_row(
+                    "Laisser la revue IA influencer le verdict",
+                    SettingsState.gate_include_ai_review,
+                    SettingsState.set_gate_include_ai_review,
+                    hint="Le modèle lit le code du dépôt : un dépôt hostile pourrait orienter le verdict.",
+                ),
+                spacing="2",
+                width="100%",
+                class_name="mt-3",
+            ),
+            rx.button(
+                "Enregistrer une nouvelle version",
+                on_click=SettingsState.save_gate_policy,
+                color_scheme="cyan",
+                class_name="mt-3",
+            ),
+            rx.cond(
+                SettingsState.gate_policy_rows.length() > 0,
+                rx.box(
+                    rx.table.root(
+                        rx.table.header(
+                            rx.table.row(
+                                rx.table.column_header_cell("Portée"),
+                                rx.table.column_header_cell("Règles"),
+                                rx.table.column_header_cell("Version"),
+                                rx.table.column_header_cell("Modifiée par"),
+                                rx.table.column_header_cell(""),
+                            )
+                        ),
+                        rx.table.body(
+                            rx.foreach(SettingsState.gate_policy_rows, gate_policy_row)
+                        ),
+                        variant="surface",
+                        width="100%",
+                    ),
+                    class_name="w-full overflow-x-auto rounded-lg border border-slate-4 mt-4",
+                ),
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # End-of-life detection
+        rx.vstack(
+            rx.heading("Détection de fin de vie", size="3", weight="bold"),
+            rx.text(
+                "Interroge endoflife.date pour signaler les plateformes et exécutions dont le "
+                "support de sécurité est terminé — la distribution d'une image de conteneur en "
+                "premier lieu. C'est une classe de risque sans CVE : aucun correctif ne sera publié "
+                "pour la prochaine faille, quelle qu'elle soit. Seuls des noms de produits et des "
+                "versions sont envoyés.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.switch(
+                    checked=SettingsState.eol_enabled,
+                    on_change=SettingsState.set_eol_enabled,
+                ),
+                rx.text(
+                    rx.cond(SettingsState.eol_enabled, "Activé", "Désactivé"),
+                    size="2", weight="medium",
+                ),
+                spacing="3",
+                align="center",
+            ),
+            rx.hstack(
+                rx.text("Alerter", size="2"),
+                rx.input(
+                    value=SettingsState.eol_warn_days_input,
+                    on_change=SettingsState.set_eol_warn_days_input,
+                    type="number",
+                    width="110px",
+                ),
+                rx.text("jours avant l'échéance", size="2"),
+                rx.button(
+                    "Enregistrer", on_click=SettingsState.save_eol_config,
+                    color_scheme="cyan", size="2",
+                ),
+                spacing="3",
+                align="center",
+                class_name="mt-2",
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # Tracker tickets
+        rx.vstack(
+            rx.heading("Tickets (GitLab / Jira)", size="3", weight="bold"),
+            rx.text(
+                "Ouvre un ticket pour chaque problème qui ferait échouer un build selon la "
+                "politique ci-dessus — un seul seuil, défini une seule fois. Un ticket par problème, "
+                "posé une fois pour toute sa vie : sa référence est conservée sur le problème, ce qui "
+                "rend l'opération réessayable sans risque de doublon.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Fournisseur", size="2", weight="medium"),
+                    rx.select(
+                        [TICKET_PROVIDER_NONE, PROVIDER_GITLAB, PROVIDER_JIRA],
+                        value=SettingsState.ticket_provider,
+                        on_change=SettingsState.set_ticket_provider_input,
+                        width="160px",
+                    ),
+                    spacing="1",
+                ),
+                rx.vstack(
+                    rx.text("URL de l'instance", size="2", weight="medium"),
+                    rx.input(
+                        placeholder="https://gitlab.example.com",
+                        value=SettingsState.ticket_base_url_input,
+                        on_change=SettingsState.set_ticket_base_url_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                spacing="4",
+                width="100%",
+                align="end",
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Projet", size="2", weight="medium"),
+                    rx.input(
+                        placeholder="groupe/projet (GitLab) ou SEC (Jira)",
+                        value=SettingsState.ticket_project_input,
+                        on_change=SettingsState.set_ticket_project_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                rx.vstack(
+                    rx.text("Compte (Jira uniquement)", size="2", weight="medium"),
+                    rx.input(
+                        placeholder="bot@example.com",
+                        value=SettingsState.ticket_user_input,
+                        on_change=SettingsState.set_ticket_user_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                spacing="4",
+                width="100%",
+                align="end",
+                class_name="mt-2",
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Étiquettes", size="2", weight="medium"),
+                    rx.input(
+                        value=SettingsState.ticket_labels_input,
+                        on_change=SettingsState.set_ticket_labels_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                rx.vstack(
+                    rx.text("Type de ticket (Jira)", size="2", weight="medium"),
+                    rx.input(
+                        value=SettingsState.ticket_issue_type_input,
+                        on_change=SettingsState.set_ticket_issue_type_input,
+                        width="100%",
+                    ),
+                    spacing="1",
+                    class_name="flex-1",
+                ),
+                spacing="4",
+                width="100%",
+                align="end",
+                class_name="mt-2",
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Jeton d'accès", size="2", weight="medium"),
+                    rx.cond(
+                        SettingsState.ticket_token_present,
+                        rx.badge("enregistré", color_scheme="green", variant="soft", size="1"),
+                    ),
+                    spacing="2",
+                    align="center",
+                ),
+                rx.input(
+                    placeholder="Laisser vide pour conserver le jeton actuel",
+                    value=SettingsState.ticket_token_input,
+                    on_change=SettingsState.set_ticket_token_input,
+                    type="password",
+                    width="100%",
+                ),
+                rx.text(
+                    "Chiffré en base (AES-GCM) comme une clé SSH : il donne un droit d'écriture "
+                    "sur le gestionnaire de tickets. Il n'est jamais réaffiché.",
+                    size="1", color="var(--slate-10)",
+                ),
+                spacing="1",
+                width="100%",
+                class_name="mt-2",
+            ),
+            rx.button(
+                "Enregistrer", on_click=SettingsState.save_ticket_config,
+                color_scheme="cyan", class_name="mt-3",
             ),
             width="100%",
             spacing="2",

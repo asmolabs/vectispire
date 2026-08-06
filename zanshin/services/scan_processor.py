@@ -21,6 +21,7 @@ from zanshin.services.git_url import validate_repo_url
 from zanshin.services.issue_service import IssueService, scanned_types_for
 from zanshin.services.notification_service import NotificationService
 from zanshin.services.dependency_graph import DependencyDirectness
+from zanshin.services.eol_service import EolService
 from zanshin.services.remediation import extract_remediation
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class ScanProcessor:
         ai_review_service: Optional[AiReviewService] = None,
         issue_service: Optional[IssueService] = None,
         notification_service: Optional[NotificationService] = None,
+        eol_service: Optional["EolService"] = None,
     ):
         self.ssh_key_service = ssh_key_service
         # `scanner_engine` decides *where* SBOM generation/vulnerability
@@ -93,6 +95,10 @@ class ScanProcessor:
         # gateway that only logged "scan finished" — see NotificationService for
         # why the delta is the thing worth sending.
         self.notification_service = notification_service
+        # Optional: end-of-life detection over the same SBOM. Applies to both
+        # branches, like the licence policy — the distribution of a container image
+        # is exactly what this answers best.
+        self.eol_service = eol_service
         
     def process_scan(self, scan_id: int, repo_url: Optional[str], branch: str, sub_path: str, ssh_key_id: Optional[uuid.UUID]):
         logger.info(f"Processing scan job for Scan ID {scan_id} (Branch: {branch}, Path: {sub_path})")
@@ -187,6 +193,18 @@ class ScanProcessor:
                         )
                     findings.extend(license_findings)
 
+                eol_findings = None
+                if self.eol_service:
+                    # `None` versus `[]` is the distinction that keeps resolution
+                    # honest: the catalogue being unreachable must not resolve every
+                    # past end-of-life issue (see `scanned_types_for`).
+                    eol_findings = self.eol_service.build_findings(scan.id, sbom)
+                    for finding in eol_findings:
+                        finding.is_direct_dependency = directness.of(
+                            finding.purl, finding.package_name, finding.package_version
+                        )
+                    findings.extend(eol_findings)
+
                 # Update Scan results
                 scan.status = "completed"
                 scan.sbom = sbom
@@ -237,8 +255,12 @@ class ScanProcessor:
                                 # would resolve every past AI finding).
                                 ai_review_ran=ai_findings is not None,
                                 license_policy_ran=self.license_compliance_service is not None,
+                                eol_ran=eol_findings is not None,
                             ),
-                            descriptions=self._collect_vulnerability_descriptions(cves),
+                            descriptions={
+                                **self._collect_vulnerability_descriptions(cves),
+                                **self._collect_eol_descriptions(eol_findings),
+                            },
                         )
                         self._notify(scan, sync)
                     except Exception:
@@ -453,6 +475,21 @@ class ScanProcessor:
             if description:
                 descriptions[identifier] = description
         return descriptions
+
+    def _collect_eol_descriptions(self, eol_findings) -> Dict[str, str]:
+        """Free text for end-of-life issues, keyed by identifier.
+
+        Routed through the same `descriptions` map as CVE descriptions because
+        `Finding` has no free-text column and `Issue` does — so the explanation
+        reaches the issue without a schema change.
+        """
+        if not eol_findings or not self.eol_service:
+            return {}
+        return {
+            finding.identifier: self.eol_service.describe(finding)
+            for finding in eol_findings
+            if finding.identifier
+        }
 
     def _run_ai_review(self, db, scan: Scan, source_dir: str, sub_path: str) -> Optional[list]:
         """Runs the optional AI code review, persists an `AiReviewResult`

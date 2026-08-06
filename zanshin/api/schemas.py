@@ -108,7 +108,11 @@ class GatePolicyIn(BaseModel):
 
 
 class GateRequest(TargetRef):
-    policy: GatePolicyIn = Field(default_factory=GatePolicyIn)
+    # Optional now that policies are stored per target. A body that still carries one
+    # can only *tighten* the stored policy — see GatePolicyService.harden — so an
+    # existing pipeline keeps working and a pipeline that tries to lower the bar is
+    # told which rules were actually used.
+    policy: Optional[GatePolicyIn] = None
 
 
 class ViolationOut(BaseModel):
@@ -121,11 +125,50 @@ class ViolationOut(BaseModel):
     reason: str
 
 
+class GatePolicyOut(BaseModel):
+    """The rules that were actually applied, and where they came from.
+
+    Echoed back because a pipeline that fails needs to know whether it was its own
+    request, its target's policy or the organisation's default — otherwise the first
+    reaction is to widen its own settings, which now changes nothing.
+    """
+
+    source: str  # "target" | "global" | "built-in"
+    version: Optional[int] = None
+    fail_on_severity: Optional[str] = None
+    fail_on_kev: bool = True
+    fixable_only: bool = False
+    include_triaged: bool = False
+    include_ai_review: bool = False
+    # Fields the request asked to loosen and did not get.
+    ignored_relaxations: List[str] = Field(default_factory=list)
+
+
 class GateResponse(BaseModel):
     passed: bool
     evaluated: int
     counts_by_severity: Dict[str, int]
     violations: List[ViolationOut]
+    policy: Optional[GatePolicyOut] = None
+
+
+class StoredGatePolicyOut(BaseModel):
+    """A stored policy version, as the API exposes it."""
+
+    id: int
+    scope: str
+    target_kind: Optional[str] = None
+    target_id: Optional[int] = None
+    version: int
+    is_active: bool
+    fail_on_severity: Optional[str] = None
+    fail_on_kev: bool = True
+    fixable_only: bool = False
+    include_triaged: bool = False
+    include_ai_review: bool = False
+    note: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class TargetOut(BaseModel):

@@ -27,7 +27,9 @@ from zanshin.repositories.issue_repository import IssueRepository
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.services.api_key_service import ApiKeyService
+from zanshin.repositories.gate_policy_repository import GatePolicyRepository
 from zanshin.services.audit_log_service import AuditLogService
+from zanshin.services.gate_policy_service import GatePolicyService
 
 _next_fingerprint = iter(range(1, 10_000))
 
@@ -80,6 +82,9 @@ def api(db_session):
             # Real, not a stub: triggering a scan is audited, and that the trail is
             # written is part of the contract being tested.
             self.audit_log_service = AuditLogService(AuditLogRepository(db_session))
+            # Also real: which policy the gate applies is now resolved from the
+            # database, and that resolution is precisely what these tests exercise.
+            self.gate_policy_service = GatePolicyService(GatePolicyRepository(db_session))
 
     stub = StubContainer()
     # The limiter is a per-process singleton keyed on the key's id, and every test
@@ -328,24 +333,52 @@ def test_gate_passes_when_the_backlog_is_triaged(api, db_session):
     assert body["passed"] is True
 
 
-def test_gate_policy_is_configurable_per_request(api, db_session):
+def test_a_request_can_tighten_the_policy(api, db_session):
+    """The legitimate use of a policy in the request body: a team holding itself to a
+    higher standard than the default."""
     client, _, _ = api
     repo = ZanshinRepository(url="git@example.com:org/a.git", branch="main")
     db_session.add(repo)
     db_session.commit()
     _issue(db_session, repo_id=repo.id, severity="medium")
 
-    strict = client.post(
+    verdict = client.post(
         "/api/v1/gate",
         json={"repository_id": repo.id, "policy": {"fail_on_severity": "medium"}},
     ).json()
-    lenient = client.post(
+
+    assert verdict["passed"] is False
+    assert verdict["policy"]["fail_on_severity"] == "medium"
+    assert verdict["policy"]["ignored_relaxations"] == []
+
+
+def test_a_request_cannot_loosen_the_policy(api, db_session):
+    """The loophole this feature closes: the policy used to arrive in the request
+    body, so whoever found it too strict loosened it in their own CI file.
+
+    This test previously asserted the opposite — that a lenient request was honoured —
+    and it kept passing after the change because the built-in default happened to
+    produce the same verdict. It is rewritten rather than deleted: the behaviour it
+    describes is the whole point of the feature.
+    """
+    client, _, _ = api
+    repo = ZanshinRepository(url="git@example.com:org/a.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+    GatePolicyService(GatePolicyRepository(db_session)).save_policy(
+        fail_on_severity="medium", actor="alice"
+    )
+    _issue(db_session, repo_id=repo.id, severity="medium")
+
+    verdict = client.post(
         "/api/v1/gate",
         json={"repository_id": repo.id, "policy": {"fail_on_severity": "critical"}},
     ).json()
 
-    assert strict["passed"] is False
-    assert lenient["passed"] is True
+    assert verdict["passed"] is False
+    assert verdict["policy"]["fail_on_severity"] == "medium"
+    assert verdict["policy"]["ignored_relaxations"] == ["fail_on_severity"]
+    assert verdict["policy"]["source"] == "global"
 
 
 def test_gate_rejects_an_unknown_severity_threshold(api):

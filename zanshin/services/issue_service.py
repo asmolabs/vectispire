@@ -344,7 +344,11 @@ class IssueService:
 
 
 def scanned_types_for(
-    *, is_container: bool, ai_review_ran: bool, license_policy_ran: bool
+    *,
+    is_container: bool,
+    ai_review_ran: bool,
+    license_policy_ran: bool,
+    eol_ran: bool = False,
 ) -> Set[str]:
     """Which finding types a scan actually looked for.
 
@@ -360,6 +364,11 @@ def scanned_types_for(
             types.add("ai_review")
     if license_policy_ran:
         types.add("license")
+    if eol_ran:
+        # Only when the lookup actually answered: "the catalogue was unreachable" must
+        # not resolve an end-of-life issue, which is the same distinction the whole
+        # `scanned_types` mechanism exists for.
+        types.add("eol")
     return types
 
 

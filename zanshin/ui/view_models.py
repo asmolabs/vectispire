@@ -239,6 +239,8 @@ class IssueRow:
     triage_comment: str = ""
     triaged_by: str = ""
     triage_expires: str = ""
+    ticket_ref: str = ""
+    ticket_url: str = ""
     epss: str = "—"
     is_kev: bool = False
     cvss: str = "—"
@@ -248,6 +250,48 @@ class IssueRow:
     times_seen: int = 1
     first_seen: str = ""
     last_seen: str = ""
+
+
+@dataclasses.dataclass
+class GatePolicyRow:
+    """One configured gate policy, as the settings screen shows it."""
+
+    id: int = 0
+    scope: str = ""
+    target_kind: str = ""
+    target_id: int = 0
+    is_global: bool = True
+    version: int = 1
+    rules: str = ""
+    note: str = ""
+    author: str = ""
+    changed_at: str = ""
+
+
+def to_gate_policy_row(policy, scope_name: str) -> GatePolicyRow:
+    """Rules rendered as one readable sentence rather than five columns of booleans:
+    what an operator checks here is "what does this fail on", not a field list."""
+    rules = [f"seuil {policy.fail_on_severity or 'aucun'}"]
+    if policy.fail_on_kev:
+        rules.append("KEV")
+    if policy.fixable_only:
+        rules.append("corrigeables uniquement")
+    if policy.include_triaged:
+        rules.append("triés inclus")
+    if policy.include_ai_review:
+        rules.append("revue IA incluse")
+    return GatePolicyRow(
+        id=policy.id,
+        scope=scope_name,
+        target_kind=policy.target_kind or "",
+        target_id=policy.target_id or 0,
+        is_global=policy.is_global,
+        version=policy.version,
+        rules=" · ".join(rules),
+        note=policy.note or "",
+        author=policy.created_by or "",
+        changed_at=format_datetime(policy.created_at, "%d/%m/%Y"),
+    )
 
 
 @dataclasses.dataclass

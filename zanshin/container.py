@@ -31,6 +31,7 @@ from zanshin.repositories.finding_repository import FindingRepository
 from zanshin.repositories.audit_log_repository import AuditLogRepository
 from zanshin.repositories.ai_review_result_repository import AiReviewResultRepository
 from zanshin.repositories.issue_repository import IssueRepository
+from zanshin.repositories.gate_policy_repository import GatePolicyRepository
 
 # Services
 from zanshin.services.auth_service import AuthService
@@ -43,6 +44,9 @@ from zanshin.services.settings_service import SettingsService
 from zanshin.services.api_key_service import ApiKeyService
 from zanshin.services.scanners import get_scanner_engine
 from zanshin.services.enrichment_service import EnrichmentService
+from zanshin.services.eol_service import EolService
+from zanshin.services.gate_policy_service import GatePolicyService
+from zanshin.services.ticket_service import TicketService
 from zanshin.services.license_compliance_service import LicenseComplianceService
 from zanshin.services.retention_service import RetentionService
 from zanshin.services.user_service import UserService
@@ -102,6 +106,10 @@ class IoCContainer:
     def issue_repository(self) -> IssueRepository:
         return IssueRepository(self.db)
 
+    @cached_property
+    def gate_policy_repository(self) -> GatePolicyRepository:
+        return GatePolicyRepository(self.db)
+
     # --- Services ---
 
     @cached_property
@@ -152,6 +160,12 @@ class IoCContainer:
         return LicenseComplianceService(self.settings_service)
 
     @cached_property
+    def eol_service(self) -> EolService:
+        """End-of-life detection for the platforms a target ships, from
+        endoflife.date; disable via the `eol_detection_enabled` setting."""
+        return EolService(self.settings_service)
+
+    @cached_property
     def ai_review_service(self) -> AiReviewService:
         """Optional local LLM code review via Ollama, disabled by default (see
         ADR-001, Phase 8)."""
@@ -171,6 +185,18 @@ class IoCContainer:
         return NotificationService(self.settings_service)
 
     @cached_property
+    def gate_policy_service(self) -> GatePolicyService:
+        """Resolves which gate policy applies to a target, and versions changes to
+        it. The policy used to arrive in the request body — see its docstring."""
+        return GatePolicyService(self.gate_policy_repository)
+
+    @cached_property
+    def ticket_service(self) -> TicketService:
+        """Opens tracker tickets for what would fail a build; inert until a
+        provider, project and token are configured."""
+        return TicketService(self.settings_service, self.encryption_service)
+
+    @cached_property
     def retention_service(self) -> RetentionService:
         """Prunes the raw scanner payloads that make the database grow without
         bound (see its docstring)."""
@@ -186,6 +212,7 @@ class IoCContainer:
             self.ai_review_service,
             self.issue_service,
             self.notification_service,
+            eol_service=self.eol_service,
         )
 
     @cached_property

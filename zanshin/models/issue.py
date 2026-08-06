@@ -134,6 +134,13 @@ class Issue(Base):
     # otherwise", which is what every decision used to mean.
     triage_expires_at = Column(SafeDateTime, nullable=True)
 
+    # Tracker ticket, set once and never cleared — including when the issue is
+    # resolved and reappears. A ticket that comes back from the dead on every rescan
+    # is how people learn to mute a project. Its presence is also what makes ticket
+    # creation idempotent without an outbox (see TicketService).
+    ticket_ref = Column(String(64), nullable=True)
+    ticket_url = Column(String(500), nullable=True)
+
     repository = relationship("ZanshinRepository", back_populates="issues")
     container = relationship("Container", back_populates="issues")
     findings = relationship("Finding", back_populates="issue")

@@ -22,6 +22,8 @@ from zanshin.api.deps import (
     require_target_access,
 )
 from zanshin.api.schemas import (
+    GatePolicyOut,
+    StoredGatePolicyOut,
     GateRequest,
     GateResponse,
     IssueOut,
@@ -363,24 +365,109 @@ def policy_gate(
     else:
         require_target_access(api_key, "container", body.container_id)
 
+    kind = "repository" if body.repository_id is not None else "container"
+    # `exclude_unset` is what separates "no opinion" from "explicitly asked for": a
+    # caller who omits a field must not be told their request was refused, and a
+    # caller who explicitly sends `fail_on_severity: null` is asking to remove the
+    # rule, which is a loosening.
+    requested = body.policy.model_dump(exclude_unset=True) if body.policy else None
+    resolved = container.gate_policy_service.resolve(
+        kind, body.repository_id or body.container_id, requested=requested
+    )
+    if resolved.ignored_relaxations:
+        logger.info(
+            "Gate for %s:%s ignored an attempt to relax %s (applied %s)",
+            kind, body.repository_id or body.container_id,
+            ",".join(resolved.ignored_relaxations), resolved.description,
+        )
+
     issues = container.issue_repository.find_open_by_target(
         repo_id=body.repository_id, container_id=body.container_id
     )
-    verdict = evaluate(
-        issues,
-        GatePolicy(
-            fail_on_severity=body.policy.fail_on_severity,
-            fail_on_kev=body.policy.fail_on_kev,
-            fixable_only=body.policy.fixable_only,
-            include_triaged=body.policy.include_triaged,
-            include_ai_review=body.policy.include_ai_review,
-        ),
-    )
+    verdict = evaluate(issues, resolved.policy)
     return GateResponse(
         passed=verdict.passed,
         evaluated=verdict.evaluated,
         counts_by_severity=verdict.counts_by_severity,
         violations=[ViolationOut(**v._asdict()) for v in verdict.violations],
+        policy=GatePolicyOut(
+            source=resolved.source,
+            version=resolved.version,
+            ignored_relaxations=list(resolved.ignored_relaxations),
+            **resolved.policy._asdict(),
+        ),
+    )
+
+
+@api_app.get(
+    "/api/v1/gate/policies",
+    response_model=List[StoredGatePolicyOut],
+    tags=["gate"],
+)
+def list_gate_policies(
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
+):
+    """Every policy currently in force, global first.
+
+    Readable with `read` and writable only from the UI by an administrator: a policy
+    is what decides whether a build fails, so an API key that can queue scans must not
+    be able to lower the bar those scans are judged against.
+    """
+    policies = container.gate_policy_service.active_policies()
+    if api_key.target_kind:
+        # A target-restricted key sees its own target's policy and the global default
+        # it inherits from — not other teams' rules.
+        policies = [
+            policy for policy in policies
+            if policy.is_global
+            or (policy.target_kind == api_key.target_kind and policy.target_id == api_key.target_id)
+        ]
+    return [_stored_policy_out(policy) for policy in policies]
+
+
+@api_app.get(
+    "/api/v1/gate/policies/history",
+    response_model=List[StoredGatePolicyOut],
+    tags=["gate"],
+)
+def gate_policy_history(
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
+    kind: Optional[str] = None,
+    target_id: Optional[int] = None,
+):
+    """Every version of one scope, newest first — "which policy failed that build in
+    March" needs an answer."""
+    if kind is not None:
+        require_target_access(api_key, kind, target_id)
+    elif api_key.target_kind:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette clé est restreinte à une cible : précisez 'kind' et 'target_id'.",
+        )
+    return [
+        _stored_policy_out(policy)
+        for policy in container.gate_policy_service.history(kind, target_id)
+    ]
+
+
+def _stored_policy_out(policy) -> StoredGatePolicyOut:
+    return StoredGatePolicyOut(
+        id=policy.id,
+        scope=policy.scope_label,
+        target_kind=None if policy.is_global else policy.target_kind,
+        target_id=None if policy.is_global else policy.target_id,
+        version=policy.version,
+        is_active=bool(policy.is_active),
+        fail_on_severity=policy.fail_on_severity,
+        fail_on_kev=bool(policy.fail_on_kev),
+        fixable_only=bool(policy.fixable_only),
+        include_triaged=bool(policy.include_triaged),
+        include_ai_review=bool(policy.include_ai_review),
+        note=policy.note,
+        created_by=policy.created_by,
+        created_at=policy.created_at.isoformat() if policy.created_at else None,
     )
 
 

@@ -64,6 +64,7 @@ TYPE_LABELS = {
     "secret": "Secret",
     "iac": "IaC",
     "license": "Licence",
+    "eol": "Fin de vie",
     "ai_review": "Revue IA",
 }
 
@@ -223,6 +224,8 @@ class IssuesState(BaseState):
             triage_comment=issue.triage_comment or "",
             triaged_by=issue.triaged_by or "",
             triage_expires=format_datetime(issue.triage_expires_at, "%d/%m/%Y"),
+            ticket_ref=issue.ticket_ref or "",
+            ticket_url=safe_external_url(issue.ticket_url),
             epss=format_percent(issue.epss_score),
             is_kev=bool(issue.is_kev),
             cvss=format_score(issue.cvss_score),
@@ -367,7 +370,7 @@ def filter_bar() -> rx.Component:
             width="150px",
         ),
         rx.select(
-            ["all", "vulnerability", "secret", "iac", "license", "ai_review"],
+            ["all", "vulnerability", "secret", "iac", "license", "eol", "ai_review"],
             value=rx.cond(IssuesState.filter_type == "", "all", IssuesState.filter_type),
             on_change=IssuesState.set_filter_type,
             placeholder="Type",
@@ -457,6 +460,19 @@ def issue_row(issue: rx.Var) -> rx.Component:
                 rx.cond(
                     issue.link != "",
                     rx.link("Détails", href=issue.link, is_external=True, size="1"),
+                ),
+                rx.cond(
+                    issue.ticket_ref != "",
+                    rx.link(
+                        rx.hstack(
+                            rx.icon(tag="ticket", size=12),
+                            rx.text(issue.ticket_ref, size="1"),
+                            spacing="1",
+                            align="center",
+                        ),
+                        href=issue.ticket_url,
+                        is_external=True,
+                    ),
                 ),
                 spacing="0",
             )

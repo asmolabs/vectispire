@@ -34,6 +34,7 @@ from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
 from zanshin.services.scan_recovery import fail_stalled_scans
+from zanshin.services.ticket_service import sweep as ticket_sweep
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,7 @@ def run_once(now: Optional[datetime] = None) -> int:
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
         _prune_raw_payloads(container, db, now)
         _expire_stale_triages(container, db)
+        _open_tracker_tickets(container, db)
 
         due_repos, due_containers = find_due_targets(
             container.repository_repository.find_all(),
@@ -167,6 +169,26 @@ def _expire_stale_triages(container, db) -> None:
             logger.info("%d triage decision(s) returned to review", len(expired))
     except Exception:
         logger.exception("Triage expiry pass failed — will retry on the next tick")
+
+
+def _open_tracker_tickets(container, db) -> None:
+    """Open tracker tickets for issues that would fail their target's gate.
+
+    On the tick rather than inline after a scan, because the sweep is idempotent by
+    construction — the ticket reference lives on the issue — so a tracker that was
+    unreachable is simply retried here instead of losing the ticket. That is also why
+    this needs no outbox: the state to reconcile is already a column.
+    """
+    try:
+        ticket_sweep(
+            db,
+            issue_repository=container.issue_repository,
+            gate_policy_service=container.gate_policy_service,
+            ticket_service=container.ticket_service,
+            audit_log_service=container.audit_log_service,
+        )
+    except Exception:
+        logger.exception("Ticket sweep failed — will retry on the next tick")
 
 
 def _prune_raw_payloads(container, db, now: datetime) -> None:

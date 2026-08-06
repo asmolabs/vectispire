@@ -40,7 +40,7 @@ DEFAULT_FAIL_ON_SEVERITY = "high"
 
 # Finding types produced by a deterministic scanner. `ai_review` is deliberately
 # absent — see the module docstring.
-DETERMINISTIC_TYPES = ("vulnerability", "secret", "iac", "license")
+DETERMINISTIC_TYPES = ("vulnerability", "secret", "iac", "license", "eol")
 AI_REVIEW_TYPE = "ai_review"
 
 

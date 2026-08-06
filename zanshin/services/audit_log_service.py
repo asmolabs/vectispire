@@ -48,6 +48,12 @@ class AuditOperation:
     # A scan reads a repository with its deploy key and can reach the network:
     # who asked for one, and when, belongs in the trail.
     SCAN_TRIGGERED = "SCAN_TRIGGERED"
+    # A ticket is created on the operator's behalf by the scheduler, with no human in
+    # the loop, so the trail is the only record that Zanshin wrote into the tracker.
+    TICKET_CREATED = "TICKET_CREATED"
+    # Changing what fails a build is a security decision, and the previous design let
+    # each pipeline make it in its own CI file, unrecorded.
+    GATE_POLICY_UPDATED = "GATE_POLICY_UPDATED"
     # An authorization refusal was only an application log line, so a probe against
     # every handler left no trace an operator would ever look at.
     ACCESS_DENIED = "ACCESS_DENIED"

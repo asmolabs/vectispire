@@ -794,6 +794,111 @@ exactement le mode de défaillance que cette section corrige : un réglage qui a
 d'avoir pris effet. Les vérifications ont été refaites, avec la variable qui existe
 désormais.
 
+## 9undecies. Vague 5 — fermer la boucle côté organisation (2026-08-06)
+
+Trois points de la liste de la vague 4, choisis pour leur rapport valeur/effort.
+
+**G1 — politique de gate stockée et versionnée.** Les règles arrivaient dans le corps
+de la requête : elles vivaient donc dans le fichier CI de chaque projet, où celui qui
+les trouve trop strictes les assouplit lui-même, et l'équipe sécurité l'apprend jamais.
+Le verdict était par ailleurs inauditable — deux appels identiques à un mois d'écart
+pouvaient différer, sans trace de pourquoi.
+
+Trois options se présentaient pour la politique encore envoyée par les pipelines
+existants : l'ignorer (honnête, casse tout le monde au prochain appel), la laisser
+gagner (le trou actuel), ou **la laisser durcir sans jamais assouplir**. La troisième
+est implémentée : une équipe peut se tenir à un standard plus élevé que le défaut de
+l'organisation, pas à un plus bas. Le champ refusé revient dans
+`policy.ignored_relaxations` avec la `source` et la `version` réellement appliquées —
+une politique différente de ce qui a été demandé doit se déclarer, pas se substituer en
+silence.
+
+Le sens de « plus strict » est défini champ par champ, et c'est là qu'un test a attrapé
+une inversion complète : `SEVERITY_ORDER` étant classé du pire au moins grave, un rang
+*plus élevé* est un seuil *plus bas*, donc plus strict. Ma première comparaison faisait
+l'inverse — elle aurait livré exactement le contraire de la fonctionnalité, un pipeline
+libre de relever son seuil à `critical`. `fixable_only` est l'autre piège : à `true` il
+échoue sur *moins* de choses, donc `false` est le strict, et c'est le champ le plus
+tentant à assouplir puisqu'il tolère silencieusement une faille exploitée sans
+correctif.
+
+*Deuxième défaut trouvé par un test :* la contrainte d'unicité sur
+`(target_kind, target_id, is_active)` ne protégeait pas la portée globale, stockée en
+NULL — SQL considère les NULL comme distincts, donc deux politiques globales actives
+passaient, et le verdict aurait dépendu de l'ordre des lignes. La portée globale est
+maintenant un sentinelle (`"*"`/`0`), traduit à la frontière du dépôt : moins joli dans
+un SELECT, et la seule écriture sous laquelle l'invariant tient réellement, sur les
+trois backends.
+
+Pas de notion de *dérogation* au niveau de la politique (« ignorer CVE-X jusqu'en
+juin ») : ça existe déjà, dans le bon vocabulaire et avec une date de révision — le
+triage `not_affected` de la vague 4. Un second mécanisme de suppression signifierait
+deux endroits à consulter quand un finding n'arrive pas à faire échouer un build.
+
+**G2 — création de tickets (GitLab, Jira).** SARIF a fermé la boucle vers le
+développeur ; ceci la ferme vers l'organisation. Deux décisions ont façonné le code :
+
+- **Piloté par la politique de gate, pas par un second seuil.** « Ouvrir un ticket pour
+  ce qui ferait échouer un build » se raisonne, et il n'existe alors qu'un seul endroit
+  où « assez grave pour agir » est défini. Un `ticket_min_severity` aurait créé deux
+  vocabulaires qui divergent, et le premier rapport de bug serait « pourquoi ça a fait
+  un ticket mais pas échouer le build ».
+- **Un balayage, pas un événement.** Les notifications partent en ligne après un scan ;
+  les tickets non. Un balayage sur « problèmes actionnables sans ticket » est idempotent
+  par construction — la référence posée sur le problème *est* la clé de déduplication —
+  donc un gestionnaire en maintenance est simplement réessayé au tick suivant. C'est
+  aussi pourquoi aucun outbox n'est nécessaire ici : l'état à réconcilier est déjà une
+  colonne. Un ticket par problème, posé une fois pour toute sa vie : un ticket qui
+  ressuscite à chaque rescan est la façon la plus sûre de faire couper les notifications
+  d'un projet.
+
+Le jeton passe par `EncryptionService` comme une clé SSH : il donne un droit d'écriture
+sur le gestionnaire, ce qui n'est pas la même classe de secret qu'une URL de webhook.
+Un champ vide au formulaire conserve le jeton stocké, sinon changer le nom du projet
+désactiverait silencieusement les tickets.
+
+**G3 — détection de fin de vie (endoflife.date).** Une classe de risque entière sans
+CVE : une exécution hors support ne recevra pas de correctif pour la *prochaine*
+vulnérabilité, quelle qu'elle soit. Deux chemins d'appariement, parce que la réponse est
+à deux endroits dans un SBOM Syft :
+
+1. **La distribution**, depuis le bloc `distro` (`id`, `versionID`). C'est la réponse la
+   plus utile pour une image et celle qu'aucune recherche par paquet ne trouverait :
+   c'est le système de l'image de base, pas un paquet dedans.
+2. **Les paquets**, appariés par purl contre l'index d'identifiants d'endoflife.date —
+   une requête rend environ 940 correspondances purl → produit, donc aucune table de
+   correspondance à maintenir et aucune à pourrir.
+
+La couverture est volontairement partielle, et le dire compte : le catalogue suit des
+*produits* (langages, exécutions, frameworks, bases, distributions), pas chaque
+bibliothèque. Une image de 131 paquets en appariera une poignée. C'est le bon périmètre,
+parce que « fin de vie » est une propriété de plateforme ; le risque d'une bibliothèque
+donnée est ce que les scanners de vulnérabilités répondent déjà.
+
+*Deux détails qui auraient été des bugs silencieux :* l'appariement de cycle se fait
+composante par composante et non par préfixe de chaîne — « 3.14 » commence par « 3.1 »,
+donc un préfixe aurait classé Python 3.14 dans le cycle 3.1, fin de vie 2012, et déclaré
+morte une exécution supportée. Et la déduplication porte sur le *cycle*, pas sur la
+version : une image liste la même exécution comme distribution et comme paquet, en
+« 3.9 » et « 3.9.1 », et la fin de vie était rapportée deux fois.
+
+### Vérifications
+
+704 tests sur SQLite (85 % de couverture), 36 sur PostgreSQL 16 et MySQL 8.4. Migration
+0008 vérifiée sur base neuve, base héritée et aller-retour. En conditions réelles sur
+l'application lancée : le gate répond avec la politique intégrée sur une table vide,
+puis la politique de la cible prime sur la globale, puis une requête tentant
+`fail_on_severity: critical` et `fail_on_kev: false` se voit appliquer `low` avec les
+deux champs listés en refus. Un faux GitLab local a reçu six tickets avec le bon jeton
+et le bon titre, et un balayage de 50 derrière a laissé les 6 références intactes — 56
+problèmes ticketés, 56 références distinctes. La détection de fin de vie a été passée
+contre l'API réelle : `rhel 7.9`, `python 3.9.18` et `django 3.2.1` sont signalés avec
+la version recommandée, `rhel 9.7` ne l'est pas.
+
+Les données de ce test de bout en bout (56 références, 2 politiques, 5 réglages) ont été
+retirées de la base de développement : elles pointaient vers un GitLab local et le jeton
+avait été chiffré avec une clé jetable.
+
 ## 9. Prochaines étapes immédiates
 
 1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).

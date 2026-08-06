@@ -769,3 +769,187 @@ def test_a_typo_in_the_optional_delay_does_not_lose_the_decision(ui, ui_session)
     saved = ui_session.query(Issue).one()
     assert saved.triage_status == TRIAGE_AFFECTED
     assert saved.triage_expires_at is None
+
+
+# --- Settings: gate policy, tickets, end-of-life ---
+
+def test_the_settings_screen_shows_the_effective_gate_policy(ui, ui_session):
+    from zanshin.repositories.gate_policy_repository import GatePolicyRepository
+    from zanshin.services.gate_policy_service import GatePolicyService
+
+    GatePolicyService(GatePolicyRepository(ui_session)).save_policy(
+        fail_on_severity="medium", fail_on_kev=False, actor="alice", note="durci"
+    )
+
+    state = ui.state(SettingsState)
+    ui.run(state, "load_settings")
+
+    assert state.gate_fail_on_severity == "medium"
+    assert state.gate_fail_on_kev is False
+    assert state.gate_policy_version == 1
+    assert [row.rules for row in state.gate_policy_rows] == ["seuil medium"]
+
+
+def test_saving_the_policy_creates_a_version_and_audits_it(ui, ui_session):
+    from zanshin.models.audit_log import AuditLog
+    from zanshin.models.gate_policy import StoredGatePolicy
+
+    state = ui.state(SettingsState, gate_fail_on_severity="low", gate_note_input="on durcit")
+    ui.run(state, "save_gate_policy")
+    ui.run(state, "save_gate_policy")
+
+    versions = [p.version for p in ui_session.query(StoredGatePolicy).all()]
+    assert sorted(versions) == [1, 2]
+    operations = [a.operation_type for a in ui_session.query(AuditLog).all()]
+    assert operations.count("GATE_POLICY_UPDATED") == 2
+
+
+def test_the_no_severity_choice_stores_no_rule(ui, ui_session):
+    """A legitimate policy for a gate that only fails on known-exploited
+    vulnerabilities — and the select needs a concrete value to represent it."""
+    from zanshin.models.gate_policy import StoredGatePolicy
+
+    state = ui.state(SettingsState, gate_fail_on_severity="aucune", gate_fail_on_kev=True)
+    ui.run(state, "save_gate_policy")
+
+    assert ui_session.query(StoredGatePolicy).one().fail_on_severity is None
+
+
+def test_a_per_target_policy_is_listed_with_its_target_name(ui, ui_session):
+    """`repository:7` is not what an operator recognises when checking which rules
+    apply where."""
+    from zanshin.models.repository import ZanshinRepository
+    from zanshin.repositories.gate_policy_repository import GatePolicyRepository
+    from zanshin.services.gate_policy_service import GatePolicyService
+
+    repo = ZanshinRepository(name="mon-appli", url="git@example.com:org/a.git", branch="main")
+    ui_session.add(repo)
+    ui_session.commit()
+    GatePolicyService(GatePolicyRepository(ui_session)).save_policy(
+        target_kind="repository", target_id=repo.id, fail_on_severity="critical", actor="a"
+    )
+
+    state = ui.state(SettingsState)
+    ui.run(state, "load_settings")
+
+    scopes = [row.scope for row in state.gate_policy_rows]
+    assert "mon-appli" in scopes
+
+
+@pytest.fixture()
+def encryption_key(monkeypatch):
+    """The settings screen saves through the container's own `EncryptionService`,
+    which refuses to encrypt without a key — by design."""
+    from tests.conftest import TEST_ENCRYPTION_KEY
+
+    monkeypatch.setenv("ENCRYPTION_KEY", TEST_ENCRYPTION_KEY)
+
+
+def test_the_ticket_token_is_never_echoed_back_to_the_form(ui, ui_session, encryption_key):
+    state = ui.state(
+        SettingsState,
+        ticket_provider="gitlab",
+        ticket_base_url_input="https://gitlab.example.com",
+        ticket_project_input="group/app",
+        ticket_token_input="glpat-secret",
+    )
+    ui.run(state, "save_ticket_config")
+
+    assert state.ticket_token_input == ""
+    assert state.ticket_token_present is True
+
+
+def test_an_empty_token_field_keeps_the_stored_one(ui, ui_session, encryption_key):
+    """The form never shows the token, so blanking it on every save would silently
+    disable ticketing the first time somebody edited the project name."""
+    state = ui.state(
+        SettingsState,
+        ticket_provider="gitlab",
+        ticket_base_url_input="https://gitlab.example.com",
+        ticket_project_input="group/app",
+        ticket_token_input="glpat-secret",
+    )
+    ui.run(state, "save_ticket_config")
+
+    state.ticket_project_input = "group/other"
+    state.ticket_token_input = ""
+    ui.run(state, "save_ticket_config")
+
+    assert state.ticket_token_present is True
+
+
+def test_a_dangerous_tracker_url_is_refused(ui, ui_session, encryption_key):
+    """The cloud metadata endpoint, which is what an SSRF attempt reaches for. Allowed
+    private addresses are the default here because self-hosted GitLab and Jira are
+    routinely internal — so the deployment that forbids it must be obeyed."""
+    from zanshin.models.setting import Setting
+
+    ui_session.add(Setting(key="ticket_allow_private_url", value="false"))
+    ui_session.commit()
+
+    state = ui.state(
+        SettingsState,
+        ticket_provider="gitlab",
+        ticket_base_url_input="http://169.254.169.254/latest/meta-data",
+        ticket_project_input="group/app",
+    )
+    ui.run(state, "save_ticket_config")
+
+    stored = ui_session.query(Setting).filter(Setting.key == "ticket_base_url").one_or_none()
+    assert stored is None or stored.value == ""
+
+
+def test_the_end_of_life_window_is_validated(ui, ui_session):
+    state = ui.state(SettingsState, eol_warn_days_input="-5")
+    ui.run(state, "save_eol_config")
+
+    from zanshin.models.setting import Setting
+
+    stored = ui_session.query(Setting).filter(Setting.key == "eol_warn_days").one_or_none()
+    assert stored is None
+
+
+def test_the_end_of_life_window_is_stored(ui, ui_session):
+    from zanshin.models.setting import Setting
+
+    state = ui.state(SettingsState, eol_warn_days_input="90")
+    ui.run(state, "save_eol_config")
+
+    assert ui_session.query(Setting).filter(Setting.key == "eol_warn_days").one().value == "90"
+
+
+# --- Issues screen: end-of-life and tickets ---
+
+def test_an_end_of_life_issue_is_labelled(ui, ui_session):
+    from zanshin.models.issue import Issue
+
+    ui_session.add(Issue(
+        fingerprint="fp-eol", type="eol", identifier="EOL-rhel-7", severity="high",
+        state="open", is_kev=False, package_name="Red Hat Enterprise Linux",
+        package_version="7.9", fix_versions="9.7",
+    ))
+    ui_session.commit()
+
+    state = ui.state(IssuesState)
+    ui.run(state, "load_issues")
+
+    row = state.issues[0]
+    assert row.type == "Fin de vie"
+    assert row.fix == "9.7"
+
+
+def test_the_ticket_reference_reaches_the_row(ui, ui_session):
+    from zanshin.models.issue import Issue
+
+    ui_session.add(Issue(
+        fingerprint="fp-ticket", type="vulnerability", identifier="CVE-2024-1",
+        severity="high", state="open", is_kev=False,
+        ticket_ref="#42", ticket_url="https://gitlab.example.com/g/app/-/issues/42",
+    ))
+    ui_session.commit()
+
+    state = ui.state(IssuesState)
+    ui.run(state, "load_issues")
+
+    assert state.issues[0].ticket_ref == "#42"
+    assert state.issues[0].ticket_url.endswith("/issues/42")

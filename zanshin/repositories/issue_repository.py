@@ -39,6 +39,25 @@ class IssueRepository:
         rows = self.db.query(Issue).filter(Issue.fingerprint.in_(fingerprints)).all()
         return {issue.fingerprint: issue for issue in rows}
 
+    def find_actionable_without_ticket(self, limit: int = 20) -> List[Issue]:
+        """Open, untriaged-or-affected issues that have no ticket yet, worst first.
+
+        The `ticket_ref IS NULL` filter is what makes the sweep idempotent: an issue
+        that already has a ticket is never a candidate again, so a retry after a
+        tracker outage cannot duplicate anything.
+        """
+        return (
+            self.db.query(Issue)
+            .filter(
+                Issue.state == STATE_OPEN,
+                Issue.triage_status.in_((TRIAGE_UNDER_REVIEW, TRIAGE_AFFECTED)),
+                Issue.ticket_ref.is_(None),
+            )
+            .order_by(Issue.is_kev.desc(), _SEVERITY_RANK, Issue.id)
+            .limit(limit)
+            .all()
+        )
+
     def find_with_expired_triage(self, now) -> List[Issue]:
         """Decisions whose review date has passed and that still hold a status.
 
