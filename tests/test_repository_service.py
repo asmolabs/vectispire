@@ -16,21 +16,10 @@ from zanshin.models.repository import ZanshinRepository
 from zanshin.services.repository_service import RepositoryService
 
 
-class FakeScanProcessor:
-    def __init__(self):
-        self.calls = []
-        self.done = threading.Event()
-
-    def process_scan(self, scan_id, repo_url, branch, sub_path, ssh_key_id):
-        self.calls.append((scan_id, repo_url, branch, sub_path, ssh_key_id))
-        self.done.set()
-
-
 @pytest.fixture()
-def service(repository_repository, scan_repository):
-    fake_processor = FakeScanProcessor()
-    svc = RepositoryService(repository_repository, scan_repository, fake_processor)
-    return svc, fake_processor
+def service(repository_repository, scan_repository, scan_dispatch):
+    svc = RepositoryService(repository_repository, scan_repository)
+    return svc, scan_dispatch
 
 
 def test_find_all_find_by_id_save_delete_delegate_to_repository(repository_repository, make_repository, service):
@@ -86,7 +75,10 @@ def test_trigger_scan_creates_pending_scan_and_dispatches_to_scan_processor(make
     assert scan.repo_id == repo.id
     assert scan.branch == "develop"
     assert scan.sub_path == "services/api"
-    assert scan.status == "pending"
+    # `pending` or `scanning` depending on whether a slot was free: the queue starts a
+    # scan immediately when it can, which is why the API replies 202 and the caller
+    # polls rather than trusting this value.
+    assert scan.status in ("pending", "scanning")
     assert scan_repository.find_by_id(scan.id) is not None
 
     assert fake_processor.done.wait(timeout=2), "process_scan was never dispatched to the background executor"

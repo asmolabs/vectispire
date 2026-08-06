@@ -430,17 +430,13 @@ def test_a_second_scan_of_the_same_target_is_refused(db_session, make_repository
     db_session.add(Scan(repo_id=repo.id, branch="main", status="scanning", findings_count=0))
     db_session.commit()
 
-    service = RepositoryService(
-        RepositoryRepository(db_session), ScanRepository(db_session), scan_processor=None
-    )
+    service = RepositoryService(RepositoryRepository(db_session), ScanRepository(db_session))
 
     with pytest.raises(ScanAlreadyRunningError):
         service.trigger_scan(repo.id)
 
 
-def test_a_finished_scan_does_not_block_the_next_one(db_session, make_repository):
-    import threading
-
+def test_a_finished_scan_does_not_block_the_next_one(db_session, make_repository, scan_dispatch):
     from zanshin.models.scan import Scan
     from zanshin.repositories.repository_repository import RepositoryRepository
     from zanshin.repositories.scan_repository import ScanRepository
@@ -453,25 +449,15 @@ def test_a_finished_scan_does_not_block_the_next_one(db_session, make_repository
     ])
     db_session.commit()
 
-    class FakeProcessor:
-        def __init__(self):
-            self.done = threading.Event()
-
-        def process_scan(self, *args):
-            self.done.set()
-
-    processor = FakeProcessor()
-    service = RepositoryService(
-        RepositoryRepository(db_session), ScanRepository(db_session), processor
-    )
+    service = RepositoryService(RepositoryRepository(db_session), ScanRepository(db_session))
 
     scan = service.trigger_scan(repo.id)
 
-    assert scan.status == "pending"
-    assert processor.done.wait(timeout=2)
+    assert scan.status in ("pending", "scanning")
+    assert scan_dispatch.done.wait(timeout=2)
 
 
-def test_another_targets_scan_does_not_block_this_one(db_session, make_repository, make_container):
+def test_another_targets_scan_does_not_block_this_one(db_session, make_repository, make_container, scan_dispatch):
     from zanshin.models.scan import Scan
     from zanshin.repositories.container_repository import ContainerRepository
     from zanshin.repositories.scan_repository import ScanRepository
@@ -482,15 +468,9 @@ def test_another_targets_scan_does_not_block_this_one(db_session, make_repositor
     db_session.add(Scan(repo_id=repo.id, branch="main", status="scanning", findings_count=0))
     db_session.commit()
 
-    class FakeProcessor:
-        def process_scan(self, *args):
-            pass
+    service = ContainerService(ContainerRepository(db_session), ScanRepository(db_session))
 
-    service = ContainerService(
-        ContainerRepository(db_session), ScanRepository(db_session), FakeProcessor()
-    )
-
-    assert service.trigger_scan(container.id).status == "pending"
+    assert service.trigger_scan(container.id).status in ("pending", "scanning")
 
 
 # --- M11: the database file holds hashes and encrypted keys ---

@@ -46,6 +46,7 @@ from zanshin.services.exports import (
 )
 from zanshin.services.policy_gate import GatePolicy, evaluate
 from zanshin.services.repository_service import ScanAlreadyRunningError
+from zanshin.services.scan_queue import position_of
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,7 @@ def get_scan(
     return ScanStatus(
         scan_id=scan.id,
         status=scan.status,
+        queue_position=position_of(container.db, scan),
         created_at=scan.created_at.isoformat() if scan.created_at else None,
         duration_ms=scan.duration_ms,
         findings_count=scan.findings_count or 0,

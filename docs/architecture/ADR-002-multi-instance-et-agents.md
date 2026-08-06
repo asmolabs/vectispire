@@ -26,7 +26,13 @@ parce que faire les agents d'abord ne résoudrait rien.
 
 Chacun de ces points est vérifié dans le code actuel, pas supposé.
 
-### 2.1 La file d'attente est dans le processus qui a reçu la requête
+### 2.1 La file d'attente est dans le processus qui a reçu la requête *(corrigé — 2026-08-06)*
+
+> Traité en partie : la file est passée en base (`zanshin/services/scan_queue.py`), avec
+> une réclamation en ordre de création et une limite de simultanéité configurable sans
+> redémarrage. Il reste à rendre la réclamation sûre entre *processus*
+> (`FOR UPDATE SKIP LOCKED`) — c'est la seule fonction à changer, `claim_next`.
+
 
 [`repository_service.py`](../../zanshin/services/repository_service.py) crée un
 `ThreadPoolExecutor` de module (`ZANSHIN_SCAN_WORKERS`, 5 par défaut) et

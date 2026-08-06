@@ -128,6 +128,22 @@ class ScanRepository:
             latest.setdefault(row[0], _to_summary(row[1:]))
         return latest
 
+    def count_by_queue_state(self) -> dict:
+        """`{"queued": n, "running": n}` — what the settings screen and the dashboard
+        show so a backlog of scans is visible without reading the table."""
+        from zanshin.services.scan_queue import STATUS_QUEUED, STATUS_RUNNING
+
+        rows = (
+            self.db.query(Scan.status, func.count(Scan.id))
+            .filter(Scan.status.in_((STATUS_QUEUED, STATUS_RUNNING)))
+            .group_by(Scan.status)
+            .all()
+        )
+        counts = {"queued": 0, "running": 0}
+        for status, count in rows:
+            counts["queued" if status == STATUS_QUEUED else "running"] = count
+        return counts
+
     def find_in_flight_for_repository(self, repo_id: int) -> Optional[Scan]:
         """A pending or running scan of this repository, if there is one."""
         return self._find_in_flight(Scan.repo_id, repo_id)

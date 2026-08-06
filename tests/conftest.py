@@ -296,3 +296,68 @@ def ui_session(isolated_session_local):
     session = isolated_session_local()
     yield session
     session.close()
+
+
+class RecordingScanProcessor:
+    """Records `process_scan` calls and signals when one arrives."""
+
+    def __init__(self):
+        import threading
+
+        self.calls = []
+        self.done = threading.Event()
+
+    def process_scan(self, scan_id, repo_url, branch, sub_path, ssh_key_id):
+        self.calls.append((scan_id, repo_url, branch, sub_path, ssh_key_id))
+        self.done.set()
+
+
+@pytest.fixture()
+def scan_dispatch(monkeypatch, db_session, settings_service):
+    """Point `scan_queue.dispatch` at this test's session and a recording processor.
+
+    `RepositoryService`/`ContainerService` no longer hold a processor — they queue, and
+    the dispatcher resolves one when it claims a row, because a queued scan has to be
+    runnable by whatever process picks it up. So the fake goes in here, where the
+    dispatcher looks, instead of into a service constructor.
+    """
+    import zanshin.services.container_service as container_service
+    import zanshin.services.repository_service as repository_service
+    import zanshin.services.scan_queue as scan_queue
+
+    processor = RecordingScanProcessor()
+
+    class FakeContainer:
+        def __init__(self, db):
+            self.settings_service = settings_service
+            self.scan_processor = processor
+
+    real_dispatch = scan_queue.dispatch
+
+    class NonClosingSession:
+        """Hands the test's session to `dispatch` without letting it be closed.
+
+        `dispatch` opens and closes its own session, which is right in production and
+        fatal here: closing the shared session detaches every object the test is still
+        holding.
+        """
+
+        def __init__(self, session):
+            self._session = session
+
+        def __getattr__(self, name):
+            return getattr(self._session, name)
+
+        def close(self):
+            return None
+
+    def patched(*_args, **_kwargs):
+        return real_dispatch(
+            session_factory=lambda: NonClosingSession(db_session),
+            container_factory=FakeContainer,
+        )
+
+    monkeypatch.setattr(scan_queue, "dispatch", patched)
+    monkeypatch.setattr(repository_service, "dispatch", patched)
+    monkeypatch.setattr(container_service, "dispatch", patched)
+    return processor

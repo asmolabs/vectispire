@@ -152,7 +152,8 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite only: how long a write waits for a concurrent writer before failing. Scan workers, the scheduler and requests all write, so contention is normal. |
 | `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Server databases only: connection pool. Ignored for SQLite, which has no pool worth tuning. |
 | `ZANSHIN_AUTO_MIGRATE` | `true` | Set to `false` for a deployment that runs `alembic upgrade head` as its own step — which is what a server database on several application hosts should do. The schema is still *checked* at startup: a database behind the code stops the application there rather than at the first query. |
-| `ZANSHIN_SCAN_WORKERS` | `5` | Concurrent scans. Each one can hold a scanner container open. |
+| `ZANSHIN_SCAN_WORKERS` | `5` | *Default* for the "maximum concurrent scans" setting, which is now edited from the **Settings** page and applied without a restart. Scans are queued in the order they were requested; the queue lives in the database, so a request survives a restart and its place in line is answerable (`queue_position` on `GET /api/v1/scans/{id}`). |
+| `ZANSHIN_SCAN_POOL_THREADS` | `32` | Hard ceiling on scan threads, and therefore on the setting above. The pool is a supply of threads, not the queue — a pool smaller than the configured limit would silently cap it. |
 | `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it, the container is killed and the scan fails with a timeout instead of hanging. |
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | Set to `false` for a deployment that only scans on demand. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
@@ -442,7 +443,8 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite uniquement : combien de temps une écriture attend un autre écrivain avant d'échouer. Les workers de scan, l'ordonnanceur et les requêtes écrivent tous, donc la contention est normale. |
 | `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Bases serveur uniquement : pool de connexions. Ignoré pour SQLite, qui n'a pas de pool à régler. |
 | `ZANSHIN_AUTO_MIGRATE` | `true` | `false` pour un déploiement qui exécute `alembic upgrade head` comme étape propre — ce que devrait faire une base serveur répartie sur plusieurs hôtes applicatifs. Le schéma reste *vérifié* au démarrage : une base en retard sur le code arrête l'application là, et non à la première requête. |
-| `ZANSHIN_SCAN_WORKERS` | `5` | Scans simultanés. Chacun peut occuper un conteneur de scan. |
+| `ZANSHIN_SCAN_WORKERS` | `5` | Valeur *par défaut* du réglage « scans simultanés maximum », qui s'édite désormais depuis la page **Paramètres** et s'applique sans redémarrage. Les scans sont mis en file dans l'ordre où ils ont été demandés ; la file vit en base, donc une demande survit à un redémarrage et sa place est connue (`queue_position` sur `GET /api/v1/scans/{id}`). |
+| `ZANSHIN_SCAN_POOL_THREADS` | `32` | Plafond dur du nombre de threads de scan, donc du réglage ci-dessus. Le pool est une réserve de threads, pas la file — un pool plus petit que la limite configurée la bornerait silencieusement. |
 | `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Plafond pour un conteneur de scan ; au-delà, il est tué et le scan échoue en timeout au lieu de rester bloqué. |
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` pour un déploiement qui ne scanne qu'à la demande. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | Fréquence de recherche des cibles dues. |

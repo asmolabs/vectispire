@@ -34,6 +34,7 @@ from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
 from zanshin.services.outbox_service import prune_sent as prune_sent_messages, relay as outbox_relay
+from zanshin.services.scan_queue import dispatch as dispatch_queued_scans
 from zanshin.services.scan_recovery import fail_stalled_scans
 from zanshin.services.ticket_service import sweep as ticket_sweep
 
@@ -118,6 +119,9 @@ def run_once(now: Optional[datetime] = None) -> int:
         _expire_stale_triages(container, db)
         _relay_notifications(container, db)
         _open_tracker_tickets(container, db)
+        # The queue's safety net: this is what starts scans left waiting by a restart,
+        # and the only dispatch that runs when nothing else is happening.
+        dispatch_queued_scans()
 
         due_repos, due_containers = find_due_targets(
             container.repository_repository.find_all(),

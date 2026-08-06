@@ -8,21 +8,10 @@ import pytest
 from zanshin.services.container_service import ContainerService
 
 
-class FakeScanProcessor:
-    def __init__(self):
-        self.calls = []
-        self.done = threading.Event()
-
-    def process_scan(self, scan_id, repo_url, branch, sub_path, ssh_key_id):
-        self.calls.append((scan_id, repo_url, branch, sub_path, ssh_key_id))
-        self.done.set()
-
-
 @pytest.fixture()
-def service(container_repository, scan_repository):
-    fake_processor = FakeScanProcessor()
-    svc = ContainerService(container_repository, scan_repository, fake_processor)
-    return svc, fake_processor
+def service(container_repository, scan_repository, scan_dispatch):
+    svc = ContainerService(container_repository, scan_repository)
+    return svc, scan_dispatch
 
 
 def test_find_all_find_by_id_save_delete_delegate_to_repository(container_repository, make_container, service):
@@ -55,7 +44,7 @@ def test_trigger_scan_creates_pending_scan_with_no_repo_url_or_ssh_key(make_cont
     assert scan.container_id == container.id
     assert scan.branch == "1.27"
     assert scan.sub_path == ""
-    assert scan.status == "pending"
+    assert scan.status in ("pending", "scanning")
     assert scan_repository.find_by_id(scan.id) is not None
 
     assert fake_processor.done.wait(timeout=2), "process_scan was never dispatched to the background executor"

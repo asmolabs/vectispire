@@ -35,6 +35,12 @@ from zanshin.services.ticket_service import (
     SETTING_KEY_PROVIDER as SETTING_KEY_TICKET_PROVIDER,
     SETTING_KEY_USER as SETTING_KEY_TICKET_USER,
 )
+from zanshin.services.scan_queue import (
+    DEFAULT_MAX_CONCURRENT,
+    POOL_THREADS,
+    SETTING_KEY_MAX_CONCURRENT,
+    max_concurrent as scan_max_concurrent,
+)
 from zanshin.ui.view_models import GatePolicyRow, to_gate_policy_row
 
 # The select needs a concrete value for "no severity rule at all", which is a
@@ -144,6 +150,11 @@ class SettingsState(BaseState):
     outbox_pending: int = 0
     outbox_failed: int = 0
 
+    # Scan queue
+    scan_max_concurrent_input: str = str(DEFAULT_MAX_CONCURRENT)
+    scan_queued: int = 0
+    scan_running: int = 0
+
     @requires_admin
     def load_settings(self):
         self.set_current_page("Paramètres")
@@ -153,6 +164,7 @@ class SettingsState(BaseState):
             self._load_gate_policy(container)
             self._load_ticket_config(container)
             self._load_outbox_counts(container)
+            self._load_scan_queue(container)
             self.scan_backend = container.settings_service.get_setting(SETTING_KEY_SCAN_BACKEND, "docker")
             self.image_scan_platform = container.settings_service.get_setting(
                 SETTING_KEY_IMAGE_SCAN_PLATFORM, DEFAULT_IMAGE_SCAN_PLATFORM
@@ -190,6 +202,50 @@ class SettingsState(BaseState):
         tally = container.outbox_repository.count_by_status()
         self.outbox_pending = tally.get(STATUS_PENDING, 0)
         self.outbox_failed = tally.get(STATUS_FAILED, 0)
+
+    def _load_scan_queue(self, container) -> None:
+        self.scan_max_concurrent_input = str(scan_max_concurrent(container.settings_service))
+        counts = container.scan_repository.count_by_queue_state()
+        self.scan_queued = counts.get("queued", 0)
+        self.scan_running = counts.get("running", 0)
+
+    def set_scan_max_concurrent_input(self, value: str):
+        self.scan_max_concurrent_input = value
+
+    @requires_admin
+    def save_scan_max_concurrent(self):
+        """Change how many scans run at once, without a restart.
+
+        This used to be `ZANSHIN_SCAN_WORKERS`, read at import: the only way to change
+        it was to restart the application, and the number sized a thread pool that also
+        *was* the queue. The queue is now in the database and this is the limit applied
+        when it claims work.
+        """
+        container = get_container()
+        try:
+            value = int(self.scan_max_concurrent_input.strip())
+            if value < 1:
+                raise ValueError("Au moins un scan doit pouvoir tourner.")
+            if value > POOL_THREADS:
+                raise ValueError(
+                    f"Maximum {POOL_THREADS} (taille du pool de threads, "
+                    "ZANSHIN_SCAN_POOL_THREADS)."
+                )
+            container.settings_service.update_setting(
+                SETTING_KEY_MAX_CONCURRENT, str(value)
+            )
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_MAX_CONCURRENT,
+                description=f"Scans simultanés maximum : {value}",
+                user_id=self.username,
+            )
+            self._load_scan_queue(container)
+            yield self.trigger_toast(f"{value} scan(s) simultané(s) au maximum")
+        except ValueError as e:
+            yield self.trigger_toast(str(e), is_error=True)
+        finally:
+            container.db.close()
 
     def _load_eol(self, container) -> None:
         self.eol_enabled = container.eol_service.is_enabled()
@@ -427,6 +483,7 @@ class SettingsState(BaseState):
             )
             self._load_ticket_config(container)
             self._load_outbox_counts(container)
+            self._load_scan_queue(container)
             yield self.trigger_toast("Configuration des tickets enregistrée")
         except UnsafeUrlError as e:
             yield self.trigger_toast(str(e), is_error=True)
@@ -935,6 +992,48 @@ def settings_page() -> rx.Component:
                     "relancez-les pour comparer sur la même base.",
                     icon="info", color_scheme="blue", size="1", class_name="mt-2"
                 ),
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # Scan queue
+        rx.vstack(
+            rx.hstack(
+                rx.heading("File d'attente des scans", size="3", weight="bold"),
+                rx.cond(
+                    SettingsState.scan_running > 0,
+                    rx.badge(SettingsState.scan_running, " en cours", color_scheme="cyan", variant="soft"),
+                ),
+                rx.cond(
+                    SettingsState.scan_queued > 0,
+                    rx.badge(SettingsState.scan_queued, " en attente", color_scheme="amber", variant="soft"),
+                ),
+                spacing="3",
+                align="center",
+            ),
+            rx.text(
+                "Les scans sont exécutés dans l'ordre où ils ont été demandés, autant "
+                "que la limite ci-dessous l'autorise. La file vit en base : une demande "
+                "survit à un redémarrage, et sa place est connue. Chaque scan peut tenir "
+                "un conteneur d'analyse ouvert, donc la bonne valeur dépend de la machine.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.text("Scans simultanés maximum", size="2", weight="medium"),
+                rx.input(
+                    value=SettingsState.scan_max_concurrent_input,
+                    on_change=SettingsState.set_scan_max_concurrent_input,
+                    type="number",
+                    width="110px",
+                ),
+                rx.button(
+                    "Enregistrer", on_click=SettingsState.save_scan_max_concurrent,
+                    color_scheme="cyan", size="2",
+                ),
+                spacing="3",
+                align="center",
             ),
             width="100%",
             spacing="2",

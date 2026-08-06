@@ -1,13 +1,11 @@
-import concurrent.futures
-import os
 from typing import List
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.scan_repository import ScanRepository
-from zanshin.services.scan_processor import ScanProcessor
 from zanshin.clock import utcnow
 from zanshin.services.git_url import validate_repo_url
+from zanshin.services.scan_queue import dispatch
 
 
 class ScanAlreadyRunningError(RuntimeError):
@@ -17,24 +15,24 @@ class ScanAlreadyRunningError(RuntimeError):
     unchanged, and distinguishable for the API, which answers 409 rather than 404.
     """
 
-# Scans are blocking (git clone, then containers or subprocesses), so they run
-# on this shared pool rather than on the event loop thread — a scan must never
-# freeze the UI for everyone. Shared with `ContainerService` on purpose: the
-# limit is about how many scanners the host can run at once, not about which
-# kind of target they belong to.
-#
-# Sized from the environment because the right number depends on the machine:
-# every worker can hold a Docker container (or a sidecar request) open at once.
-SCAN_WORKERS = int(os.getenv("ZANSHIN_SCAN_WORKERS", "5"))
-executor = concurrent.futures.ThreadPoolExecutor(
-    max_workers=SCAN_WORKERS, thread_name_prefix="zanshin-scan"
-)
+# The thread pool and the concurrency limit both live in `scan_queue` now: the pool
+# used to *be* the queue, which meant a restart lost everything waiting in it and the
+# limit could only be changed by restarting the application. Re-exported here because
+# tests and older call sites still reach for `repository_service.executor`.
+from zanshin.services.scan_queue import executor  # noqa: F401
 
 class RepositoryService:
-    def __init__(self, repository_repository: RepositoryRepository, scan_repository: ScanRepository, scan_processor: ScanProcessor):
+    def __init__(self, repository_repository: RepositoryRepository, scan_repository: ScanRepository):
+        """No `scan_processor` any more, and that absence is the point.
+
+        This service *queues* a scan; it does not run one. The dispatcher resolves the
+        processor when it claims a row, because it has to be able to run a scan that
+        was queued by something else — a scheduler tick, another request, or the
+        process that died before the restart. A processor injected here could only ever
+        run the scans this instance happened to create.
+        """
         self.repository_repository = repository_repository
         self.scan_repository = scan_repository
-        self.scan_processor = scan_processor
 
     def find_all(self) -> List[ZanshinRepository]:
         return self.repository_repository.find_all()
@@ -79,17 +77,13 @@ class RepositoryService:
         )
         scan = self.scan_repository.save(scan)
 
-        # Submitted straight to the pool, not via `asyncio.get_event_loop()` +
-        # `run_in_executor`: that call is deprecated (and already emits "There is
-        # no current event loop"), and it only ever existed to reach this same
-        # executor. Nothing awaits the result, so an event loop was never needed
-        # — `process_scan` reports progress through the database.
-        executor.submit(
-            self.scan_processor.process_scan,
-            scan.id,
-            repo.url,
-            scan.branch,
-            scan.sub_path,
-            repo.ssh_key_id,
-        )
+        # Queued, not submitted. The row *is* the queue entry, so it survives a restart
+        # and its place in line is answerable; `dispatch` starts it immediately when
+        # there is capacity, and leaves it waiting in order when there is not.
+        #
+        # The returned status is therefore `pending` *or* `scanning` depending on
+        # whether a slot was free — which is the honest answer, and why the API replies
+        # 202 and expects the caller to poll.
+        dispatch()
+        self.scan_repository.db.refresh(scan)
         return scan

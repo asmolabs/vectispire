@@ -222,15 +222,11 @@ class IoCContainer:
 
     @cached_property
     def repository_service(self) -> RepositoryService:
-        return RepositoryService(
-            self.repository_repository, self.scan_repository, self.scan_processor
-        )
+        return RepositoryService(self.repository_repository, self.scan_repository)
 
     @cached_property
     def container_service(self) -> ContainerService:
-        return ContainerService(
-            self.container_repository, self.scan_repository, self.scan_processor
-        )
+        return ContainerService(self.container_repository, self.scan_repository)
 
 
 def get_container() -> IoCContainer:

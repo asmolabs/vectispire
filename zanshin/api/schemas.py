@@ -34,6 +34,10 @@ class ScanCreated(BaseModel):
 class ScanStatus(BaseModel):
     scan_id: int
     status: str
+    # 1-based place in the queue while `pending`, absent once running. "Queued, 3 ahead
+    # of you" is the difference between waiting and wondering whether anything is going
+    # to happen at all.
+    queue_position: Optional[int] = None
     created_at: Optional[str] = None
     duration_ms: Optional[int] = None
     findings_count: int = 0

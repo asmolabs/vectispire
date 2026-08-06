@@ -82,9 +82,12 @@ def test_the_whole_graph_is_still_constructible(db_session):
     container = IoCContainer(db_session)
 
     assert container.scan_processor is not None
-    assert container.repository_service.scan_processor is container.scan_processor
-    assert container.container_service.scan_processor is container.scan_processor
     assert container.scan_processor.issue_service is container.issue_service
+    # The scan services deliberately do *not* hold a processor: they queue a scan, and
+    # the dispatcher resolves a processor from a container when it claims the row —
+    # which is what lets a scan queued before a restart still be run.
+    assert not hasattr(container.repository_service, "scan_processor")
+    assert not hasattr(container.container_service, "scan_processor")
     assert container.scan_processor.notification_service is container.notification_service
     assert container.retention_service is not None
 
