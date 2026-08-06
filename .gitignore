@@ -12,3 +12,6 @@ __pycache__/
 *.log
 .coverage
 .pytest_cache/
+
+# Startup migration lock (see zanshin/schema.py)
+.migration.lock

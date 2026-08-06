@@ -14,6 +14,7 @@ from zanshin.container import IoCContainer
 from zanshin.database import SessionLocal
 from zanshin.models.api_key import ApiKey
 
+
 logger = logging.getLogger(__name__)
 
 UNAUTHORIZED_HEADERS = {"WWW-Authenticate": "Bearer"}
@@ -61,3 +62,46 @@ def require_api_key(
             headers=UNAUTHORIZED_HEADERS,
         )
     return api_key
+
+
+def require_scope(scope: str):
+    """Dependency factory: the calling key must hold `scope`.
+
+    Enforced per route rather than checked once, because "what a key may do" is a
+    property of the route, not of the request: a key with only `read` must be able to
+    poll a scan and be refused when it tries to queue one.
+    """
+
+    from zanshin.api.rate_limit import rate_limited
+
+    def dependency(api_key: ApiKey = Depends(rate_limited)) -> ApiKey:
+        if not api_key.has_scope(scope):
+            logger.warning(
+                "API key '%s' lacks scope '%s' (has: %s)",
+                api_key.name, scope, ",".join(api_key.scope_list) or "none",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cette clé n'a pas la portée '{scope}'.",
+            )
+        return api_key
+
+    return dependency
+
+
+def require_target_access(api_key: ApiKey, kind: str, target_id) -> None:
+    """Refuse a key that is restricted to another target.
+
+    403 and not 404: hiding the target's existence would be a nicer story, but the
+    caller already knows the id it asked for, and a distinct status is what lets a
+    pipeline tell "my key is scoped elsewhere" from "this target is gone".
+    """
+    if not api_key.covers(kind, target_id):
+        logger.warning(
+            "API key '%s' is restricted to %s:%s and asked for %s:%s",
+            api_key.name, api_key.target_kind, api_key.target_id, kind, target_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette clé est restreinte à une autre cible.",
+        )

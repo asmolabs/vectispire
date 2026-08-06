@@ -12,8 +12,14 @@ import logging
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi.openapi.docs import get_swagger_ui_html
 
-from zanshin.api.deps import get_container, require_api_key
+from zanshin.api.deps import (
+    get_container,
+    require_api_key,
+    require_scope,
+    require_target_access,
+)
 from zanshin.api.schemas import (
     GateRequest,
     GateResponse,
@@ -27,7 +33,7 @@ from zanshin.api.schemas import (
 )
 from zanshin.clock import utcnow
 from zanshin.container import IoCContainer
-from zanshin.models.api_key import ApiKey
+from zanshin.models.api_key import SCOPE_EXPORT, SCOPE_READ, SCOPE_SCAN, ApiKey
 from zanshin.models.issue import STATE_OPEN, Issue
 from zanshin.services.audit_log_service import AuditOperation
 from zanshin.services.exports import build_issues_csv, build_openvex_document
@@ -46,9 +52,34 @@ api_app = FastAPI(
         "evaluate a policy gate, export VEX. Authenticate with an API key created "
         "on the /api-keys page: `Authorization: Bearer zsk_...`."
     ),
-    docs_url="/api/v1/docs",
-    openapi_url="/api/v1/openapi.json",
+    # Served behind the same key as everything else, from the routes below. FastAPI
+    # would otherwise publish both anonymously, handing an unauthenticated attacker
+    # the complete map of the attack surface. Not a secret, but no reason to give it
+    # away on an internal tool.
+    docs_url=None,
+    openapi_url=None,
+    redoc_url=None,
 )
+
+
+@api_app.get("/api/v1/openapi.json", include_in_schema=False)
+def openapi_schema(api_key: ApiKey = Depends(require_api_key)):
+    return api_app.openapi()
+
+
+@api_app.get("/api/v1/docs", include_in_schema=False)
+def swagger_ui(api_key: ApiKey = Depends(require_api_key)):
+    """Interactive reference.
+
+    Note the practical consequence of putting it behind a bearer token: the page
+    itself loads, but the browser will not attach the key to the schema request, so
+    use `Authorize` in the UI or fetch `/api/v1/openapi.json` with curl. A cookie
+    session would be friendlier and would also mean the API accepts cookies, which
+    is how an API becomes CSRF-able.
+    """
+    return get_swagger_ui_html(
+        openapi_url="/api/v1/openapi.json", title="Zanshin API"
+    )
 
 
 @api_app.get("/api/v1/health", tags=["meta"])
@@ -62,7 +93,7 @@ def health():
 @api_app.get("/api/v1/targets", response_model=List[TargetOut], tags=["targets"])
 def list_targets(
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
 ):
     """Everything scannable, with its outstanding issue count.
 
@@ -71,6 +102,12 @@ def list_targets(
     """
     repositories = container.repository_repository.find_all()
     containers = container.container_repository.find_all()
+    if api_key.target_kind == "repository":
+        repositories = [r for r in repositories if api_key.covers("repository", r.id)]
+        containers = []
+    elif api_key.target_kind == "container":
+        containers = [c for c in containers if api_key.covers("container", c.id)]
+        repositories = []
 
     repo_issues = container.issue_repository.count_actionable_by_repo_ids(
         [r.id for r in repositories]
@@ -122,10 +159,15 @@ def _target_out(kind, target_id, name, open_issues, scan) -> TargetOut:
 def trigger_scan(
     body: TargetRef,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_SCAN)),
 ):
     """Queue a scan. 202, not 201: the scan runs on the background pool, so the
     row returned is `pending` and the caller polls `GET /api/v1/scans/{id}`."""
+    if body.repository_id is not None:
+        require_target_access(api_key, "repository", body.repository_id)
+    else:
+        require_target_access(api_key, "container", body.container_id)
+
     try:
         if body.repository_id is not None:
             scan = container.repository_service.trigger_scan(body.repository_id)
@@ -164,11 +206,12 @@ def trigger_scan(
 def get_scan(
     scan_id: int,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
 ):
     scan = container.scan_repository.find_by_id(scan_id)
     if not scan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan introuvable.")
+    _require_scan_access(api_key, scan)
     return ScanStatus(
         scan_id=scan.id,
         status=scan.status,
@@ -186,7 +229,7 @@ def get_scan(
 def get_scan_sbom(
     scan_id: int,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_EXPORT)),
 ):
     """The SBOM exactly as Syft produced it.
 
@@ -198,6 +241,7 @@ def get_scan_sbom(
     scan = container.scan_repository.find_by_id(scan_id)
     if not scan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan introuvable.")
+    _require_scan_access(api_key, scan)
     if not scan.sbom:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -211,7 +255,7 @@ def get_scan_sbom(
 @api_app.get("/api/v1/issues", response_model=IssuePage, tags=["issues"])
 def list_issues(
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
     repository_id: Optional[int] = None,
     container_id: Optional[int] = None,
     state: Optional[str] = STATE_OPEN,
@@ -223,6 +267,14 @@ def list_issues(
     offset: int = Query(default=0, ge=0),
 ):
     """A page of issues, plus the total so the caller knows what it is missing."""
+    # A target-restricted key is *narrowed* here rather than refused: asking for
+    # "all issues" with such a key is a reasonable request, and the honest answer is
+    # its own target's issues — not everyone's, and not an error.
+    if api_key.target_kind == "repository":
+        repository_id, container_id = api_key.target_id, None
+    elif api_key.target_kind == "container":
+        repository_id, container_id = None, api_key.target_id
+
     filters = dict(
         state=state or None,
         triage_status=triage_status,
@@ -239,6 +291,12 @@ def list_issues(
         limit=limit,
         offset=offset,
     )
+
+
+def _require_scan_access(api_key: ApiKey, scan) -> None:
+    """A scan belongs to a target, so a target-restricted key inherits the limit."""
+    kind = "repository" if scan.repo_id else "container"
+    require_target_access(api_key, kind, scan.repo_id or scan.container_id)
 
 
 def _issue_out(issue: Issue) -> IssueOut:
@@ -274,7 +332,7 @@ def _issue_out(issue: Issue) -> IssueOut:
 def policy_gate(
     body: GateRequest,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_READ)),
 ):
     """Should this build fail?
 
@@ -283,6 +341,11 @@ def policy_gate(
     the verdict an HTTP error would conflate "your policy is violated" with "the
     call went wrong", and pipelines routinely treat those differently.
     """
+    if body.repository_id is not None:
+        require_target_access(api_key, "repository", body.repository_id)
+    else:
+        require_target_access(api_key, "container", body.container_id)
+
     issues = container.issue_repository.find_open_by_target(
         repo_id=body.repository_id, container_id=body.container_id
     )
@@ -311,13 +374,14 @@ def export_vex(
     kind: str,
     target_id: int,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_EXPORT)),
 ):
     """An OpenVEX document for one target, built from its triage decisions.
 
     This is the payoff of storing triage in the standard's vocabulary: a
     serialization, not a translation.
     """
+    require_target_access(api_key, kind, target_id)
     repo_id, container_id, product_id = _resolve_target(container, kind, target_id)
     issues = container.issue_repository.find_filtered(
         repo_id=repo_id, container_id=container_id, state=None, limit=MAX_PAGE_SIZE
@@ -337,9 +401,10 @@ def export_issues_csv(
     kind: str,
     target_id: int,
     container: IoCContainer = Depends(get_container),
-    api_key: ApiKey = Depends(require_api_key),
+    api_key: ApiKey = Depends(require_scope(SCOPE_EXPORT)),
     state: Optional[str] = None,
 ):
+    require_target_access(api_key, kind, target_id)
     repo_id, container_id, _ = _resolve_target(container, kind, target_id)
     issues = container.issue_repository.find_filtered(
         repo_id=repo_id, container_id=container_id, state=state or None, limit=MAX_PAGE_SIZE

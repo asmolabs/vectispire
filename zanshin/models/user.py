@@ -17,6 +17,11 @@ class User(Base):
     avatar_url = Column(String(255), nullable=True)
     role = Column(String(255), default="USER", nullable=False)  # SUPERUSER, ADMIN, USER
     is_active = Column(Boolean, default=True, nullable=False)
+    # Set on the bootstrap account: `ZANSHIN_BOOTSTRAP_PASSWORD` will have lived in
+    # an environment file, a compose file, maybe a repository — so it is a
+    # provisioning secret, not a password, and the first login must replace it.
+    must_change_password = Column(Boolean, default=False, nullable=False)
+
     github_id = Column(String(255), unique=True, nullable=True)
     keycloak_id = Column(String(255), unique=True, nullable=True)
     created_at = Column(SafeDateTime, default=utcnow, nullable=False)

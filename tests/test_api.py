@@ -8,6 +8,7 @@ depends on: authentication, status codes, and the shape of the payloads.
 import pytest
 from fastapi.testclient import TestClient
 
+from zanshin.api import rate_limit
 from zanshin.api.app import api_app
 from zanshin.api.deps import get_container
 from zanshin.models.container import Container
@@ -81,6 +82,10 @@ def api(db_session):
             self.audit_log_service = AuditLogService(AuditLogRepository(db_session))
 
     stub = StubContainer()
+    # The limiter is a per-process singleton keyed on the key's id, and every test
+    # here issues id 1 into a fresh database — without this, quotas would carry over
+    # between unrelated tests.
+    rate_limit.limiter.reset()
     api_app.dependency_overrides[get_container] = lambda: stub
     client = TestClient(api_app)
     client.headers.update({"Authorization": f"Bearer {raw_key}"})
@@ -442,3 +447,186 @@ def test_the_api_answers_409_for_a_scan_already_running(api, db_session):
 
     assert response.status_code == 409
     assert "déjà en cours" in response.json()["detail"]
+
+
+# --- R3: what a key may do, and to what ---
+
+def _issue_key(db_session, **kwargs):
+    """A second key alongside the fixture's wide-open one."""
+    service = ApiKeyService(ApiKeyRepository(db_session))
+    _, raw = service.create_key(**kwargs)
+    return {"Authorization": f"Bearer {raw}"}
+
+
+def test_a_read_only_key_cannot_queue_a_scan(api, db_session):
+    """The realistic key is a CI token that only publishes results. Before this,
+    every key could trigger scans, delete nothing but read everything, and export the
+    full inventory — one credential, the whole API."""
+    client, stub, _ = api
+    repo = ZanshinRepository(name="app", url="git@example.com:app.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+    headers = _issue_key(db_session, name="lecture", scopes=["read"])
+
+    response = client.post("/api/v1/scans", json={"repository_id": repo.id}, headers=headers)
+
+    assert response.status_code == 403
+    assert "portée" in response.json()["detail"]
+    assert stub.repository_service.calls == []
+
+
+def test_a_read_only_key_can_still_read(api, db_session):
+    client, _, _ = api
+    headers = _issue_key(db_session, name="lecture", scopes=["read"])
+
+    assert client.get("/api/v1/issues", headers=headers).status_code == 200
+
+
+def test_a_scan_key_without_export_cannot_export(api, db_session):
+    client, _, _ = api
+    repo = ZanshinRepository(name="app", url="git@example.com:app.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+    headers = _issue_key(db_session, name="ci", scopes=["read", "scan"])
+
+    response = client.get(f"/api/v1/targets/repository/{repo.id}/vex", headers=headers)
+
+    assert response.status_code == 403
+
+
+def test_a_key_bound_to_one_repository_cannot_scan_another(api, db_session):
+    """A pipeline's key belongs to that pipeline's project. Without a target
+    restriction, the key issued for project A queues scans on B, reads B's findings
+    and exports B's VEX document."""
+    client, stub, _ = api
+    mine = ZanshinRepository(name="mine", url="git@example.com:mine.git", branch="main")
+    theirs = ZanshinRepository(name="theirs", url="git@example.com:theirs.git", branch="main")
+    db_session.add_all([mine, theirs])
+    db_session.commit()
+    headers = _issue_key(db_session, name="projet-a", target_kind="repository", target_id=mine.id)
+
+    mine_scan = client.post("/api/v1/scans", json={"repository_id": mine.id}, headers=headers)
+    refused = client.post("/api/v1/scans", json={"repository_id": theirs.id}, headers=headers)
+
+    assert mine_scan.status_code == 202
+
+    assert refused.status_code == 403
+    assert stub.repository_service.calls == [mine.id]
+
+
+def test_a_repository_key_cannot_reach_a_container_with_the_same_id(api, db_session):
+    """Ids are per-table, so "restricted to id 1" is meaningless without the kind."""
+    client, _, _ = api
+    container = Container(image_name="nginx", tag="latest")
+    db_session.add(container)
+    db_session.commit()
+    headers = _issue_key(
+        db_session, name="dépôt", target_kind="repository", target_id=container.id
+    )
+
+    refused = client.post(
+        "/api/v1/gate", json={"container_id": container.id}, headers=headers
+    )
+
+    assert refused.status_code == 403
+
+
+def test_a_restricted_key_only_sees_its_own_issues(api, db_session):
+    """The listing had to be narrowed too: refusing the per-target routes while
+    `/issues` still returned everything would have restricted nothing."""
+    client, _, _ = api
+    mine = ZanshinRepository(name="mine", url="git@example.com:mine.git", branch="main")
+    theirs = ZanshinRepository(name="theirs", url="git@example.com:theirs.git", branch="main")
+    db_session.add_all([mine, theirs])
+    db_session.commit()
+    _issue(db_session, repo_id=mine.id, identifier="CVE-2024-1111")
+    _issue(db_session, repo_id=theirs.id, identifier="CVE-2024-2222")
+    headers = _issue_key(db_session, name="projet-a", target_kind="repository", target_id=mine.id)
+
+    page = client.get("/api/v1/issues", headers=headers).json()
+    identifiers = [i["identifier"] for i in page["items"]]
+
+    assert identifiers == ["CVE-2024-1111"]
+    assert page["total"] == 1
+
+
+def test_an_expired_key_is_refused(api, db_session):
+    from datetime import timedelta
+
+    from zanshin.clock import utcnow
+
+    client, _, _ = api
+    service = ApiKeyService(ApiKeyRepository(db_session))
+    key, raw = service.create_key("temporaire", expires_in_days=1)
+    key.expires_at = utcnow() - timedelta(seconds=1)
+    db_session.commit()
+
+    response = client.get("/api/v1/issues", headers={"Authorization": f"Bearer {raw}"})
+
+    assert response.status_code == 401
+
+
+def test_an_unknown_scope_is_refused_at_creation(db_session):
+    service = ApiKeyService(ApiKeyRepository(db_session))
+
+    with pytest.raises(ValueError, match="inconnue"):
+        service.create_key("ci", scopes=["read", "admin"])
+
+
+def test_a_target_restriction_needs_both_a_kind_and_an_id(db_session):
+    service = ApiKeyService(ApiKeyRepository(db_session))
+
+    with pytest.raises(ValueError, match="Restriction de cible"):
+        service.create_key("ci", target_kind="repository")
+
+
+# --- R5: quota ---
+
+def test_a_loop_is_cut_off_with_a_retry_after(api):
+    """`/gate` loads a target's whole open backlog on every call, so an unbounded
+    loop against it is a denial of service using a legitimate credential."""
+    client, _, _ = api
+    rate_limit.limiter.max_requests = 3
+    try:
+        responses = [client.get("/api/v1/issues") for _ in range(5)]
+    finally:
+        rate_limit.limiter.max_requests = rate_limit.MAX_REQUESTS_PER_WINDOW
+
+    assert [r.status_code for r in responses] == [200, 200, 200, 429, 429]
+    assert int(responses[-1].headers["Retry-After"]) > 0
+
+
+def test_the_quota_is_per_key(api, db_session):
+    """Keyed on the credential, not the address: the credential is the accountable
+    identity, and it is what an operator can actually revoke."""
+    client, _, _ = api
+    other = _issue_key(db_session, name="autre")
+    rate_limit.limiter.max_requests = 1
+    try:
+        assert client.get("/api/v1/issues").status_code == 200
+        assert client.get("/api/v1/issues").status_code == 429
+        assert client.get("/api/v1/issues", headers=other).status_code == 200
+    finally:
+        rate_limit.limiter.max_requests = rate_limit.MAX_REQUESTS_PER_WINDOW
+
+
+# --- R6: the API's own documentation was public ---
+
+def test_the_schema_is_not_served_anonymously():
+    """FastAPI's defaults published a complete map of the routes, parameters and
+    response shapes to anyone who could reach the port — a free reconnaissance step."""
+    client = TestClient(api_app)
+
+    assert client.get("/openapi.json").status_code == 404
+    assert client.get("/docs").status_code == 404
+    assert client.get("/api/v1/openapi.json").status_code == 401
+
+
+def test_the_schema_is_served_to_a_valid_key(api):
+    client, _, _ = api
+
+    schema = client.get("/api/v1/openapi.json")
+
+    assert schema.status_code == 200
+    assert "/api/v1/issues" in schema.json()["paths"]
+    assert client.get("/api/v1/docs").status_code == 200

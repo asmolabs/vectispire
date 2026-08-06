@@ -36,6 +36,11 @@ class MissingEncryptionKeyError(RuntimeError):
         )
 
 
+def _aad(context: Optional[str]) -> Optional[bytes]:
+    """Associated data for AES-GCM: authenticated, not encrypted."""
+    return context.encode("utf-8") if context else None
+
+
 def _derive(secret: str) -> bytes:
     """Coerce a configured secret to AES-256's 32 bytes.
 
@@ -61,6 +66,17 @@ class EncryptionService:
     Decryption accepts the legacy key as a fallback, so enabling a real key on
     an existing deployment doesn't strand data: values re-encrypt to the new
     key the next time they're saved.
+
+    **Associated data.** `encrypt(value, context=...)` binds a ciphertext to where
+    it lives, through AES-GCM's associated-data channel. Without it a ciphertext is
+    valid *anywhere*: someone able to write to the database could copy the encrypted
+    private key of one `ssh_key` row into another, and it would decrypt cleanly — so
+    repository A would be cloned with repository B's deploy key, silently. The
+    binding costs one string and makes that swap fail loudly.
+
+    Values written before this existed carry no associated data, so decryption falls
+    back to trying without it — the same "don't strand existing rows" reasoning as
+    the legacy key.
     """
 
     def __init__(self, key: Optional[str] = None):
@@ -93,21 +109,34 @@ class EncryptionService:
             raise MissingEncryptionKeyError()
         return self._encryption_key
 
-    def encrypt(self, plain_text: str) -> str:
+    def encrypt(self, plain_text: str, context: Optional[str] = None) -> str:
+        """Encrypt, optionally bound to `context`.
+
+        `context` should identify *where* the value belongs — e.g.
+        `"ssh_key:<uuid>:private_key"`. Anything decrypting it must pass the same
+        string, so moving the ciphertext elsewhere makes it undecryptable.
+        """
         if not plain_text:
             return plain_text
         key = self._require_encryption_key()
         try:
             aesgcm = AESGCM(key)
             iv = os.urandom(12)
-            ciphertext = aesgcm.encrypt(iv, plain_text.encode("utf-8"), None)
+            ciphertext = aesgcm.encrypt(iv, plain_text.encode("utf-8"), _aad(context))
             # Prepend IV to ciphertext
             combined = iv + ciphertext
             return base64.b64encode(combined).decode("utf-8")
         except Exception as e:
             raise RuntimeError("Error encrypting value") from e
 
-    def decrypt(self, encrypted_text: str) -> str:
+    def decrypt(self, encrypted_text: str, context: Optional[str] = None) -> str:
+        """Decrypt a value, trying the expected associated data first.
+
+        Falls back to no associated data for rows written before contexts existed —
+        logged, so an operator can see there is legacy data to re-save. The fallback
+        deliberately does *not* try a different context: that would defeat the
+        binding entirely.
+        """
         if not encrypted_text:
             return encrypted_text
         try:
@@ -117,18 +146,29 @@ class EncryptionService:
         except Exception as e:
             raise RuntimeError("Error decrypting value") from e
 
+        # (associated data, is_legacy_shape) in the order they are tried.
+        aad_candidates = [(_aad(context), False)]
+        if context is not None:
+            aad_candidates.append((None, True))
+
         for index, key in enumerate(self._decryption_keys):
-            try:
-                decrypted = AESGCM(key).decrypt(iv, ciphertext, None)
-            except Exception:
-                continue
-            if index > 0:
-                logger.warning(
-                    "A stored secret is still encrypted with the legacy default key — "
-                    "re-save it to move it under %s",
-                    ENCRYPTION_KEY_ENV_VAR,
-                )
-            return decrypted.decode("utf-8")
+            for aad, legacy_aad in aad_candidates:
+                try:
+                    decrypted = AESGCM(key).decrypt(iv, ciphertext, aad)
+                except Exception:
+                    continue
+                if index > 0:
+                    logger.warning(
+                        "A stored secret is still encrypted with the legacy default key — "
+                        "re-save it to move it under %s",
+                        ENCRYPTION_KEY_ENV_VAR,
+                    )
+                if legacy_aad:
+                    logger.info(
+                        "A stored secret predates context binding — re-save it to bind it "
+                        "to its row"
+                    )
+                return decrypted.decode("utf-8")
 
         # Authentication failure under every candidate key: wrong key, or
         # tampered/corrupt ciphertext. Indistinguishable by design, and

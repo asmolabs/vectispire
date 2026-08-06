@@ -53,12 +53,16 @@ def ensure_bootstrap_superuser() -> None:
         # exactly like one created from the /users page.
         user_service = UserService(user_repository, AuthService(user_repository))
         try:
-            user_service.create_user(
+            created = user_service.create_user(
                 username=username,
                 password=password,
                 display_name=username,
                 role="SUPERUSER",
             )
+            # This password came from the environment: it has been in a compose file,
+            # a CI variable, possibly a repository. Provisioning secret, not password.
+            created.must_change_password = True
+            user_repository.save(created)
         except ValueError as e:
             # Rejected credentials (password too short, ...) — the operator's
             # own input, so report the reason plainly rather than as a crash.

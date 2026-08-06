@@ -1,6 +1,7 @@
 import pytest
 
 from zanshin.services.ai_review_service import (
+    CODE_DELIMITER,
     AiReviewService,
     SETTING_KEY_AI_REVIEW_ENABLED,
     SETTING_KEY_AI_REVIEW_MODEL,
@@ -43,8 +44,11 @@ def test_ollama_url_defaults_and_can_be_set(settings_service):
     svc = AiReviewService(settings_service)
     assert svc.get_ollama_url() == DEFAULT_OLLAMA_URL
 
-    svc.set_ollama_url("http://ollama.internal:11434/")
-    assert svc.get_ollama_url() == "http://ollama.internal:11434/"
+    # A hostname this machine cannot resolve is now refused rather than stored:
+    # this endpoint receives source code, so "internal" has to be verifiable, and
+    # a URL the server cannot resolve is one it could never reach anyway.
+    svc.set_ollama_url("http://localhost:11434/")
+    assert svc.get_ollama_url() == "http://localhost:11434/"
 
 
 def test_set_ollama_url_rejects_empty(settings_service):
@@ -119,11 +123,11 @@ def test_list_available_models_respects_configured_url(settings_service):
         return FakeResponse({"models": []})
 
     svc = AiReviewService(settings_service, http_get=fake_get)
-    svc.set_ollama_url("http://ollama.internal:11434")
+    svc.set_ollama_url("http://localhost:11434")
 
     svc.list_available_models()
 
-    assert calls == ["http://ollama.internal:11434/api/tags"]
+    assert calls == ["http://localhost:11434/api/tags"]
 
 
 def test_list_available_models_falls_back_on_network_failure(settings_service):
@@ -158,7 +162,12 @@ def test_review_code_sends_security_architect_prompt_and_returns_content(setting
     assert captured["url"] == f"{DEFAULT_OLLAMA_URL}/api/chat"
     assert captured["json"]["model"] == "gemma4:12b-it-qat"
     assert captured["json"]["messages"][0] == {"role": "system", "content": SECURITY_ARCHITECT_PROMPT}
-    assert captured["json"]["messages"][1] == {"role": "user", "content": "print('hello')"}
+    # The sample is delimited and labelled as data: it is the *scanned repository's*
+    # source, i.e. attacker-controlled input to a model whose output reaches the UI.
+    user_message = captured["json"]["messages"][1]
+    assert user_message["role"] == "user"
+    assert "print('hello')" in user_message["content"]
+    assert user_message["content"].count(CODE_DELIMITER) == 2
 
 
 def test_review_code_raises_on_failure_unlike_the_config_methods(settings_service):

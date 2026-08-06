@@ -456,10 +456,126 @@ un booléen.
 
 ### Reste ouvert
 
-Session sans expiration ni invalidation (le jeton client Reflex reste valable
-indéfiniment ; `logout` ne l'invalide pas), absence de cloisonnement entre équipes,
-injection de prompt dans la revue IA (atténuée par S5, pas supprimée), et l'audit qui
-ne porte ni IP ni intégrité de chaîne.
+Absence de cloisonnement entre équipes (une clé peut désormais être restreinte à une
+cible, mais un *compte* voit toujours tout). Les autres points de cette liste — session
+sans expiration, injection de prompt, audit sans IP ni intégrité — sont traités en
+9octies.
+
+## 9octies. Deuxième revue de sécurité (2026-08-06)
+
+Revue de l'application *après* les correctifs S1–S7, donc sur ce qui restait quand les
+trous d'authentification étaient bouchés. Dix points, corrigés en une passe.
+
+**R1 — le websocket acceptait toutes les origines.** `cors_allowed_origins` valait `*`
+par défaut. Une page tierce visitée par un utilisateur pouvait ouvrir une connexion et
+faire créer de l'état serveur à volonté. Elle ne pouvait pas *voler* la session (le
+jeton client est un UUID4 en `localStorage`, hors de portée d'une autre origine), donc
+ce n'est pas un CSRF : c'est une création d'état non bornée, un déni de service.
+Origines désormais explicites (`ZANSHIN_ALLOWED_ORIGINS`).
+
+**R2 — l'URL Ollama pouvait pointer n'importe où (exfiltration).** La revue IA envoie
+jusqu'à 40 000 caractères du code source scanné à l'URL du réglage. Le garde d'URL
+existant vérifiait l'inverse de ce qu'il fallait ici : il empêchait d'atteindre
+l'*interne* (SSRF), alors que le risque est d'atteindre l'*externe*. `require_private`
+ajouté à `url_guard`, et l'URL est **revalidée au moment de l'envoi**, pas seulement à
+l'enregistrement — un réglage écrit directement en base ne doit pas devenir un canal
+d'exfiltration. Un opérateur qui veut vraiment un Ollama distant l'active explicitement
+(`ai_review_allow_remote_url`).
+
+*Sous-décision, trouvée par un test :* un nom qui ne résout pas est **refusé** quand
+`require_private` est demandé. Échouer ouvert est défendable pour « est-ce privé ? »
+(la requête échouerait de toute façon) ; ça ne l'est pas pour « ceci *doit* être privé »,
+où le contrôle est la seule chose entre le code source et un hôte externe. Coût assumé :
+une URL doit être résolvable par le serveur pour être enregistrée.
+
+**R3 — une clé API restait tout-ou-rien.** S2 avait réservé la *création* aux
+administrateurs, sans rien changer à ce qu'une clé pouvait faire : la clé d'un pipeline
+lisait les problèmes de tous les projets, déclenchait des scans partout et exportait
+l'inventaire complet. Trois axes ajoutés : portées (`read`/`scan`/`export`), restriction
+à une cible (`repository:id` ou `container:id`, le *type* comptant autant que
+l'identifiant puisque les identifiants sont par table), et expiration. La restriction
+narrow aussi les *listes* — refuser les routes par cible en laissant `/issues` tout
+renvoyer n'aurait rien restreint. 403 et non 404 : c'est ce qui permet à un pipeline de
+distinguer « ma clé est ailleurs » de « cette cible a disparu ».
+
+**R4 — un chiffré était valide dans n'importe quelle ligne.** AES-GCM sans données
+associées : quiconque pouvait écrire en base copiait la clé de déploiement chiffrée du
+dépôt B dans la ligne du dépôt A, et A était ensuite cloné avec la clé de B, sans
+erreur. Le contexte (`ssh_key:{id}:private_key`) est désormais lié au chiffré. Le
+déchiffrement retente sans AAD pour les valeurs antérieures — les refuser aurait rendu
+inutilisables des clés réelles — et journalise ces cas. Conséquence de conception :
+`create_key` enregistre deux fois, l'identifiant de ligne faisant partie de l'AAD.
+
+**R5 — aucun quota sur l'API.** `/gate` charge tout le backlog ouvert d'une cible à
+chaque appel : une boucle avec une clé légitime suffit. Fenêtre fixe en mémoire, par
+clé — la clé est l'identité responsable, et c'est ce qu'un opérateur peut révoquer.
+Fenêtre fixe plutôt que token bucket pour pouvoir répondre `Retry-After`.
+
+**R6 — la documentation OpenAPI était publique.** `/openapi.json` et `/docs` livraient
+la carte complète des routes et des charges utiles à qui atteignait le port. Servies
+maintenant sous `/api/v1/`, derrière la même clé que le reste.
+
+**R7 — le mot de passe de provisionnement ne mourait jamais.**
+`ZANSHIN_BOOTSTRAP_PASSWORD` a vécu dans un fichier d'environnement, un compose, une
+variable de CI, peut-être un dépôt : c'est un secret de provisionnement, pas un mot de
+passe. Le compte le plus intéressant à attaquer portait donc le secret le plus
+susceptible d'avoir fuité. `must_change_password` ajouté, posé par le bootstrap **et
+par toute réinitialisation administrateur** (celui qui a tapé le nouveau mot de passe le
+connaît). Le compte n'est pas bloqué à la connexion : il entre et atterrit sur
+`/change-password` — une connexion qui réussit puis refuse d'avancer est indiscernable
+d'une application cassée. Le mot de passe actuel est exigé même en étant connecté : une
+session ouverte sur un poste déverrouillé ne doit pas suffire à prendre le compte.
+
+**R8 — session sans expiration.** `authenticated_at` en état, TTL de 12 heures par
+défaut, vérifié au chargement de page. Une estampille absente ou illisible compte comme
+expirée : échouer ouvert rendrait le contrôle décoratif, et le coût d'échouer fermé est
+une reconnexion.
+
+*Défaut trouvé en écrivant le test :* `check_auth` faisait `return BaseState.logout(self)`.
+Sur une classe d'état Reflex, c'est un accès d'attribut sur un `EventHandler` — ça
+construit une spécification d'événement au lieu de rien nettoyer. La session finissait
+par être vidée, mais au tour suivant, après que la page ait monté et que ses autres
+`on_mount` aient chargé les données que la session expirée n'était pas censée voir.
+`_clear_session()` est maintenant une méthode ordinaire, appelable directement.
+
+**R9 — l'audit ne portait ni provenance ni intégrité.** « Alice a échoué à se
+connecter » sans plus : pour un événement d'authentification, c'est la différence entre
+« elle s'est trompée deux fois » et « quelqu'un parcourt la liste des comptes depuis un
+hôte ». IP et user-agent ajoutés, et chaque entrée porte l'empreinte de la précédente.
+Ce chaînage ne rend pas le journal append-only — qui peut écrire la table peut réécrire
+toute la chaîne — mais il rend l'édition *sélective* détectable, et c'est la menace
+réaliste quand la ligne intéressante est une parmi des milliers. `verify_chain()`
+signale la première rupture. Les entrées antérieures au chaînage sont déclarées
+non vérifiables plutôt que rétro-hachées : backfiller des empreintes serait fabriquer
+une preuve.
+
+*Défaut trouvé en écrivant le test :* l'empreinte couvre l'horodatage, mais celui-ci
+venait du défaut de colonne, appliqué au flush — donc *après* le calcul. Chaque entrée
+échouait à sa propre vérification. L'horodatage est posé explicitement.
+
+**R10 — injection de prompt (atténuation).** Le code scanné est des données, pas des
+instructions : l'échantillon est encadré par un délimiteur explicite et le prompt dit au
+modèle de *signaler* une tentative d'injection plutôt que de lui obéir. Atténuation, pas
+correctif : un LLM n'offre pas de frontière de confiance, ce qui est la raison de fond
+pour laquelle un verdict de revue IA ne fait pas échouer le gate par défaut.
+
+### Défaut d'exploitation corrigé au passage
+
+La vraie base s'est retrouvée **à moitié migrée** (colonnes `api_key`/`audit_logs`
+créées, `alembic_version` encore à 0004, et la reprise échouant sur « duplicate column »).
+Cause : `upgrade_to_head()` s'exécute à l'import, Reflex importe l'application dans
+plusieurs processus, et le DDL de SQLite n'est pas transactionnel — deux montées
+simultanées se marchent dessus, et l'échec laisse le schéma entre deux états. Deux
+mesures : un verrou fichier (`fcntl`) sérialise la migration, et 0005 est idempotente
+*par colonne* (inspection avant ajout) pour pouvoir reprendre une migration partielle.
+La base réelle a été réparée à 0005.
+
+### Reste ouvert après cette vague
+
+Pas de cloisonnement par équipe au niveau des *comptes* (seules les clés API sont
+restreignables à une cible). Quota et anti-bourrage en mémoire, donc par processus :
+correct pour ce déploiement mono-processus, à repenser si l'application est répliquée.
+Le journal d'audit reste dans la même base que les données qu'il surveille.
 
 ## 9. Prochaines étapes immédiates
 

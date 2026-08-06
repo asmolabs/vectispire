@@ -263,6 +263,10 @@ class ApiKeyRow:
     prefix: str = "—"
     last_used_at: str = "Jamais"
     created_at: str = ""
+    scopes: str = ""
+    target: str = "Toutes"
+    expires_at: str = "Jamais"
+    is_expired: bool = False
 
 
 @dataclasses.dataclass

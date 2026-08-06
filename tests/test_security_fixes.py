@@ -520,3 +520,237 @@ def test_tightening_permissions_never_breaks_startup(monkeypatch):
     monkeypatch.setattr(schema, "DATABASE_URL", "sqlite:////nonexistent/dir/x.sqlite")
 
     schema.restrict_database_permissions()  # must not raise
+
+
+# --- R1: the websocket must not accept any origin ---
+
+def test_the_websocket_origin_is_restricted():
+    """Reflex defaults to "*", which lets any page a user visits open a socket and
+    create server-side state at will. It cannot steal a session (the client token is
+    a UUID4 in localStorage) but unbounded state creation is a denial of service."""
+    from rxconfig import config
+
+    assert config.cors_allowed_origins != ("*",)
+    assert config.cors_allowed_origins != ["*"]
+    assert config.cors_allowed_origins
+
+
+# --- R2: the Ollama endpoint receives source code, so it must stay internal ---
+
+def test_a_public_ollama_url_is_refused_by_default(settings_service):
+    """The risk here is the mirror image of SSRF: not that the URL points somewhere
+    internal, but that it points somewhere *external* — this endpoint receives up to
+    40 000 characters of the scanned repository's source."""
+    from zanshin.services.ai_review_service import AiReviewService
+
+    service = AiReviewService(settings_service)
+
+    with pytest.raises(UnsafeUrlError, match="code source"):
+        service.set_ollama_url("https://ollama.attacker.tld")
+
+
+def test_a_local_ollama_url_is_accepted(settings_service):
+    from zanshin.services.ai_review_service import AiReviewService
+
+    service = AiReviewService(settings_service)
+    service.set_ollama_url("http://127.0.0.1:11434")
+
+    assert service.get_ollama_url() == "http://127.0.0.1:11434"
+
+
+def test_a_remote_ollama_can_be_opted_into(settings_service, setting_repository):
+    from zanshin.models.setting import Setting
+    from zanshin.services.ai_review_service import (
+        SETTING_KEY_AI_REVIEW_ALLOW_REMOTE,
+        AiReviewService,
+    )
+
+    setting_repository.save(Setting(key=SETTING_KEY_AI_REVIEW_ALLOW_REMOTE, value="true"))
+    service = AiReviewService(settings_service)
+
+    service.set_ollama_url("https://ollama.example.com")
+
+    assert service.get_ollama_url() == "https://ollama.example.com"
+
+
+def test_the_url_is_revalidated_before_the_code_is_sent(settings_service, setting_repository):
+    """A setting written straight into the database, or predating the guard, must not
+    become an exfiltration channel at scan time."""
+    from zanshin.models.setting import Setting
+    from zanshin.services.ai_review_service import (
+        SETTING_KEY_AI_REVIEW_OLLAMA_URL,
+        AiReviewService,
+    )
+
+    setting_repository.save(
+        Setting(key=SETTING_KEY_AI_REVIEW_OLLAMA_URL, value="https://exfil.attacker.tld")
+    )
+    calls = []
+    service = AiReviewService(settings_service, http_post=lambda *a, **k: calls.append(1))
+
+    with pytest.raises(UnsafeUrlError):
+        service.review_code("print('secret')")
+
+    assert calls == []
+
+
+# --- R4: a ciphertext must not be valid in another row ---
+
+def test_a_ciphertext_cannot_be_moved_to_another_row(encryption_service):
+    """Without associated data, an attacker able to write to the database could copy
+    repository B's encrypted deploy key into repository A's row, and A would then be
+    cloned with B's key — silently and successfully."""
+    from zanshin.services.ssh_key_service import private_key_context
+
+    encrypted = encryption_service.encrypt("-----BEGIN KEY-----", context=private_key_context("row-a"))
+
+    assert encryption_service.decrypt(encrypted, context=private_key_context("row-a"))
+    with pytest.raises(RuntimeError):
+        encryption_service.decrypt(encrypted, context=private_key_context("row-b"))
+
+
+def test_values_written_before_context_binding_still_decrypt(encryption_service):
+    """Existing rows carry no associated data; refusing them would strand real
+    deploy keys."""
+    legacy = encryption_service.encrypt("secret")  # no context
+
+    assert encryption_service.decrypt(legacy, context="ssh_key:1:private_key") == "secret"
+
+
+def test_the_ssh_service_binds_the_key_to_its_own_row(db_session, encryption_service):
+    from zanshin.repositories.ssh_key_repository import SSHKeyRepository
+    from zanshin.services.ssh_key_service import SSHKeyService, private_key_context
+
+    service = SSHKeyService(SSHKeyRepository(db_session), encryption_service)
+    key = service.create_key(name="deploy", private_key="-----BEGIN KEY-----")
+
+    assert service.get_decrypted_key(key.id) == "-----BEGIN KEY-----"
+    # The stored ciphertext is bound: reading it with the wrong context fails.
+    with pytest.raises(RuntimeError):
+        encryption_service.decrypt(key.private_key, context=private_key_context("other"))
+
+
+# --- R7: a provisioning password is not a password ---
+
+def test_the_bootstrap_account_must_change_its_password(monkeypatch, isolated_session_local):
+    import zanshin.bootstrap as bootstrap_module
+    from zanshin.models.user import User
+
+    monkeypatch.setattr(bootstrap_module, "SessionLocal", isolated_session_local)
+    monkeypatch.setenv("ZANSHIN_BOOTSTRAP_USERNAME", "admin")
+    monkeypatch.setenv("ZANSHIN_BOOTSTRAP_PASSWORD", "provisioning-secret")
+
+    bootstrap_module.ensure_bootstrap_superuser()
+
+    session = isolated_session_local()
+    try:
+        user = session.query(User).one()
+        assert user.must_change_password is True
+    finally:
+        session.close()
+
+
+def test_an_admin_reset_also_requires_a_change(db_session, make_user, auth_service):
+    """Whoever typed the new password knows it, so it is provisional by
+    construction — the same reasoning as the bootstrap password."""
+    from zanshin.repositories.user_repository import UserRepository
+    from zanshin.services.user_service import UserService
+
+    user = make_user(username="bob")
+    service = UserService(UserRepository(db_session), auth_service)
+
+    service.reset_password(user.id, "nouveau-mot-de-passe")
+
+    assert user.must_change_password is True
+
+
+def test_changing_ones_own_password_clears_the_flag(db_session, make_user, auth_service):
+    from zanshin.repositories.user_repository import UserRepository
+    from zanshin.services.user_service import UserService
+
+    user = make_user(username="bob")
+    user.must_change_password = True
+    db_session.commit()
+    service = UserService(UserRepository(db_session), auth_service)
+
+    service.change_own_password(user.id, "choisi-par-moi")
+
+    assert user.must_change_password is False
+    assert auth_service.verify_password("choisi-par-moi", user.password)
+
+
+# --- R9: the audit trail's integrity chain ---
+
+def test_entries_are_chained(db_session, audit_log_repository):
+    from zanshin.services.audit_log_service import AuditLogService
+
+    service = AuditLogService(audit_log_repository)
+    service.record("LOGIN_SUCCESS", "1", "première")
+    service.record("SETTING_UPDATED", "scan_backend", "deuxième")
+
+    entries = audit_log_repository.find_all_oldest_first()
+    assert entries[0].previous_hash is None
+    assert entries[1].previous_hash == entries[0].entry_hash
+    assert service.verify_chain() is None
+
+
+def test_editing_a_past_entry_is_detected(db_session, audit_log_repository):
+    """The realistic threat is not wiping the table — it is editing the one line that
+    matters, among thousands."""
+    from zanshin.services.audit_log_service import AuditLogService
+
+    service = AuditLogService(audit_log_repository)
+    service.record("LOGIN_FAILURE", "alice", "échec suspect")
+    service.record("SETTING_UPDATED", "x", "sans rapport")
+
+    first = audit_log_repository.find_all_oldest_first()[0]
+    first.description = "rien à signaler"
+    db_session.commit()
+
+    problem = service.verify_chain()
+    assert problem is not None
+    assert "empreinte" in problem
+
+
+def test_deleting_a_past_entry_is_detected(db_session, audit_log_repository):
+    from zanshin.services.audit_log_service import AuditLogService
+
+    service = AuditLogService(audit_log_repository)
+    service.record("LOGIN_FAILURE", "alice", "une")
+    service.record("LOGIN_FAILURE", "alice", "deux")
+    service.record("LOGIN_FAILURE", "alice", "trois")
+
+    middle = audit_log_repository.find_all_oldest_first()[1]
+    db_session.delete(middle)
+    db_session.commit()
+
+    assert service.verify_chain() is not None
+
+
+def test_entries_predating_the_chain_are_reported_not_rejected(db_session, audit_log_repository):
+    """Backfilling hashes over history would be fabricating evidence: those entries
+    cannot be shown to be untampered. An honest gap beats a false guarantee."""
+    from zanshin.models.audit_log import AuditLog
+    from zanshin.services.audit_log_service import AuditLogService
+
+    audit_log_repository.save(
+        AuditLog(operation_type="OLD", resource_id="x", description="avant le chaînage")
+    )
+    service = AuditLogService(audit_log_repository)
+    service.record("LOGIN_SUCCESS", "1", "après")
+
+    assert service.verify_chain() is None
+
+
+def test_the_request_context_is_recorded(db_session, audit_log_repository):
+    """For authentication events this is the difference between "she mistyped it
+    twice" and "someone is walking the account list from one host"."""
+    from zanshin.services.audit_log_service import AuditLogService
+
+    AuditLogService(audit_log_repository).record(
+        "LOGIN_FAILURE", "alice", "échec", ip_address="203.0.113.7", user_agent="curl/8"
+    )
+
+    entry = audit_log_repository.find_latest()
+    assert entry.ip_address == "203.0.113.7"
+    assert entry.user_agent == "curl/8"

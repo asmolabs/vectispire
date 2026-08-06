@@ -15,9 +15,14 @@ two of the three settings by design — Ollama and the scan sidecar are *suppose
 be on localhost or the internal network. So the rule is per-use:
 
 - `allow_private=False` (the webhook): public destinations only.
-- `allow_private=True` (Ollama, the sidecar): private and loopback are fine, but
-  link-local — the metadata range — never is. Nothing legitimate lives at
-  169.254.0.0/16, and that is the address the attack actually wants.
+- `allow_private=True` (the sidecar): private and loopback are fine, but link-local
+  — the metadata range — never is. Nothing legitimate lives at 169.254.0.0/16, and
+  that is the address the attack actually wants.
+- `require_private=True` (Ollama): the mirror image, and the one that is easy to
+  miss. Ollama receives the scanned repository's *source code*, so the risk is not
+  that the URL points somewhere internal — it is that it points somewhere
+  **external**. A public, well-formed URL is exactly what an exfiltration channel
+  looks like, and no amount of SSRF checking would flag it.
 
 DNS is resolved here so that a hostname pointing at a blocked address is refused
 too. That leaves a rebinding window between this check and the request itself,
@@ -44,7 +49,13 @@ class UnsafeUrlError(ValueError):
     `str(e)` handling surfaces the reason unchanged."""
 
 
-def validate_outbound_url(url: str, *, allow_private: bool, label: str = "URL") -> str:
+def validate_outbound_url(
+    url: str,
+    *,
+    allow_private: bool,
+    require_private: bool = False,
+    label: str = "URL",
+) -> str:
     """Return the cleaned URL, or raise `UnsafeUrlError`."""
     candidate = (url or "").strip()
     if not candidate:
@@ -59,7 +70,18 @@ def validate_outbound_url(url: str, *, allow_private: bool, label: str = "URL") 
     if not parsed.hostname:
         raise UnsafeUrlError(f"{label} : hôte manquant.")
 
-    for address in _resolve(parsed.hostname, label):
+    addresses = _resolve(parsed.hostname, label)
+    if require_private and not addresses:
+        # Failing open is defensible for "is this private?" — the request would fail
+        # anyway. It is not defensible for "this MUST be private": an unresolvable
+        # name proves nothing, and this check is what stands between the scanned
+        # source code and an external host. So an unverifiable name is refused.
+        raise UnsafeUrlError(
+            f"{label} : l'hôte n'a pas pu être résolu, donc son caractère interne ne "
+            "peut pas être vérifié — et ce point de terminaison reçoit du code source."
+        )
+
+    for address in addresses:
         if address in LINK_LOCAL_V4 or address in LINK_LOCAL_V6:
             raise UnsafeUrlError(
                 f"{label} : l'hôte résout vers une adresse link-local ({address}), "
@@ -69,6 +91,12 @@ def validate_outbound_url(url: str, *, allow_private: bool, label: str = "URL") 
             raise UnsafeUrlError(
                 f"{label} : l'hôte résout vers une adresse privée ou locale ({address}). "
                 "Une destination publique est attendue ici."
+            )
+        if require_private and address.is_global:
+            raise UnsafeUrlError(
+                f"{label} : l'hôte résout vers une adresse publique ({address}). "
+                "Une destination locale ou interne est attendue ici — ce point de "
+                "terminaison reçoit du code source."
             )
     return candidate
 

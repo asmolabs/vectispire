@@ -92,15 +92,14 @@ class SSHKeysState(BaseState):
 
         container = get_container()
         try:
-            # Encrypt private key using encryption service
-            encrypted_private_key = container.encryption_service.encrypt(self.new_private_key)
-            
-            new_key = SSHKey(
+            # Through the service, not the repository: the private half is
+            # encrypted *bound to its own row* there (see private_key_context), and
+            # doing it here would produce a ciphertext valid in any row.
+            container.ssh_key_service.create_key(
                 name=self.new_name,
-                private_key=encrypted_private_key,
-                public_key=self.new_public_key if self.new_public_key else None
+                private_key=self.new_private_key,
+                public_key=self.new_public_key,
             )
-            container.ssh_key_repository.save(new_key)
             
             # Reset inputs
             self.new_name = ""

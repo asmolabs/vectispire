@@ -19,9 +19,11 @@ Case 2 is what makes the introduction of Alembic invisible to the existing
 deployment. It keys off the `user` table: `alembic_version` absent *and* real
 tables present means "adopt", not "build".
 """
+import fcntl
 import logging
 import os
 import stat
+from contextlib import contextmanager
 
 from alembic import command
 from alembic.config import Config
@@ -32,6 +34,35 @@ from zanshin.database import DATABASE_URL, engine
 logger = logging.getLogger(__name__)
 
 BASELINE_REVISION = "0001"
+
+# Serialises `upgrade_to_head` across processes.
+#
+# This runs at import time, and Reflex imports the app module in more than one
+# process (and more than once per process). Two upgrades starting together on SQLite
+# is not a hypothetical: Alembic treats SQLite DDL as non-transactional, so one
+# process applied half of a migration while the other failed on "duplicate column",
+# and the version stamp stayed behind — leaving a database that was neither at the
+# old revision nor the new one, and that refused every subsequent attempt.
+MIGRATION_LOCK_PATH = os.getenv(
+    "ZANSHIN_MIGRATION_LOCK", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".migration.lock")
+)
+
+
+@contextmanager
+def _migration_lock():
+    """Hold an exclusive file lock for the duration of the upgrade.
+
+    A file lock rather than a database lock: the thing being serialised is the
+    migration *runner*, and at the moment it starts there may be no schema to lock
+    against. Blocking (not `LOCK_NB`): the second process should wait and then find
+    nothing to do, not fail to start.
+    """
+    with open(MIGRATION_LOCK_PATH, "w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALEMBIC_INI_PATH = os.path.join(_PROJECT_ROOT, "alembic.ini")
@@ -51,6 +82,11 @@ def upgrade_to_head() -> None:
     """Bring the database to the latest revision. Raises on failure: starting
     the application against a schema it can't read would fail later anyway, in
     a much more confusing way."""
+    with _migration_lock():
+        _upgrade_to_head_locked()
+
+
+def _upgrade_to_head_locked() -> None:
     config = _alembic_config()
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())

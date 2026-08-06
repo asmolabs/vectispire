@@ -18,6 +18,8 @@ from zanshin.models.finding import Finding
 from zanshin.models.issue import STATE_OPEN, STATE_RESOLVED, TRIAGE_NOT_AFFECTED, Issue
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
+from zanshin.ui.pages.change_password import ChangePasswordState
+from zanshin.ui.state import LoginState
 from zanshin.ui.pages.containers import ContainersState
 from zanshin.ui.pages.depots import DepotsState
 from zanshin.ui.pages.issues import IssuesState
@@ -546,3 +548,134 @@ def test_the_webhook_url_is_never_written_to_the_audit_log(ui, ui_session):
     entry = ui_session.query(AuditLog).one()
     assert "tres-secret" not in entry.description
     assert "hooks.slack.com" not in entry.description
+
+
+# --- R8: a session that never ends ---
+
+def test_a_session_older_than_the_ttl_is_logged_out(ui):
+    """`logged_in` lived in the state and was only ever cleared by an explicit
+    logout, so a browser left open kept a valid session indefinitely — including on
+    the account whose password had since been changed."""
+    from datetime import timedelta
+
+    from zanshin.clock import utcnow
+    from zanshin.ui.state import SESSION_TTL, BaseState
+
+    state = ui.state(
+        BaseState,
+        authenticated_at=(utcnow() - SESSION_TTL - timedelta(minutes=1)).isoformat(),
+    )
+
+    events = ui.run(state, "check_auth")
+
+    assert state.logged_in is False
+    assert state.username == ""
+    assert events
+
+
+def test_a_recent_session_is_left_alone(ui):
+    from zanshin.clock import utcnow
+    from zanshin.ui.state import BaseState
+
+    state = ui.state(BaseState, authenticated_at=utcnow().isoformat())
+
+    ui.run(state, "check_auth")
+
+    assert state.logged_in is True
+
+
+def test_a_session_that_cannot_prove_its_age_is_expired(ui):
+    """Sessions predating this field, and anything unparseable: failing open would
+    make the check decorative, and the cost of failing closed is one login."""
+    from zanshin.ui.state import BaseState
+
+    for stamp in ("", "not-a-date"):
+        state = ui.state(BaseState, authenticated_at=stamp)
+        ui.run(state, "check_auth")
+        assert state.logged_in is False, stamp
+
+
+# --- R7: the provisioning password blocks everything else ---
+
+def test_login_with_a_provisional_password_lands_on_the_change_form(ui, ui_session):
+    from zanshin.models.user import User
+    from zanshin.services.auth_service import AuthService
+
+    ui_session.add(
+        User(
+            username="admin",
+            display_name="Admin",
+            password=AuthService(None).hash_password("provisioning-secret"),
+            role="SUPERUSER",
+            must_change_password=True,
+        )
+    )
+    ui_session.commit()
+
+    state = ui.state(LoginState, logged_in=False, username="")
+    events = ui.run(
+        state, "handle_login", {"username": "admin", "password": "provisioning-secret"}
+    )
+
+    assert state.logged_in is True
+    assert state.must_change_password is True
+    redirects = [str(getattr(e, "args", e)) for e in events]
+    assert any("/change-password" in r for r in redirects)
+
+
+def test_changing_the_password_clears_the_flag_and_lets_the_user_through(ui, ui_session):
+    from zanshin.models.user import User
+    from zanshin.services.auth_service import AuthService
+
+    ui_session.add(
+        User(
+            username="admin",
+            display_name="Admin",
+            password=AuthService(None).hash_password("provisioning-secret"),
+            role="SUPERUSER",
+            must_change_password=True,
+        )
+    )
+    ui_session.commit()
+
+    state = ui.state(
+        ChangePasswordState,
+        username="admin",
+        must_change_password=True,
+        current_password="provisioning-secret",
+        new_password="choisi-par-moi",
+        confirm_password="choisi-par-moi",
+    )
+    events = ui.run(state, "submit")
+
+    assert state.must_change_password is False
+    assert any("/dashboard" in str(getattr(e, "args", e)) for e in events)
+
+
+def test_the_current_password_is_required_even_when_already_signed_in(ui, ui_session):
+    """A session left open on an unlocked laptop must not be enough to take the
+    account over."""
+    from zanshin.models.user import User
+    from zanshin.services.auth_service import AuthService
+
+    ui_session.add(
+        User(
+            username="admin",
+            display_name="Admin",
+            password=AuthService(None).hash_password("le-vrai"),
+            role="SUPERUSER",
+        )
+    )
+    ui_session.commit()
+
+    state = ui.state(
+        ChangePasswordState,
+        username="admin",
+        current_password="mauvais",
+        new_password="assez-long-ici",
+        confirm_password="assez-long-ici",
+    )
+    ui.run(state, "submit")
+
+    session_user = ui_session.query(User).one()
+    assert AuthService(None).verify_password("le-vrai", session_user.password)

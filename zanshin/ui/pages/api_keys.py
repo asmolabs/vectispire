@@ -4,6 +4,7 @@ import uuid
 
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_admin
+from zanshin.models.api_key import ALL_SCOPES
 from zanshin.ui.view_models import ApiKeyRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
@@ -26,9 +27,27 @@ class ApiKeysState(BaseState):
     
     new_name: str = ""
     created_key_raw: str = ""
+    # Narrowing offered, not imposed: defaults match what a key already granted, so
+    # a create form cannot silently break the pipeline someone is issuing it for.
+    new_scopes: list[str] = list(ALL_SCOPES)
+    new_target: str = ""          # "", "repository:3", "container:1"
+    new_expires_in_days: str = ""  # empty = no expiry
+    targets: list[dict[str, str]] = []
 
     def set_new_name(self, val: str):
         self.new_name = val
+
+    def toggle_scope(self, scope: str, enabled: bool):
+        if enabled and scope not in self.new_scopes:
+            self.new_scopes = [s for s in ALL_SCOPES if s in self.new_scopes + [scope]]
+        elif not enabled:
+            self.new_scopes = [s for s in self.new_scopes if s != scope]
+
+    def set_new_target(self, value: str):
+        self.new_target = value
+
+    def set_new_expires_in_days(self, value: str):
+        self.new_expires_in_days = value
 
     @requires_admin
     def load_keys_data(self):
@@ -43,8 +62,23 @@ class ApiKeysState(BaseState):
                     prefix=f"{k.prefix}..." if k.prefix else "—",
                     last_used_at=format_datetime(k.last_used_at) or "Jamais",
                     created_at=format_datetime(k.created_at),
+                    scopes=", ".join(k.scope_list),
+                    target=(
+                        f"{k.target_kind} #{k.target_id}" if k.target_kind else "Toutes"
+                    ),
+                    expires_at=format_datetime(k.expires_at) or "Jamais",
+                    is_expired=k.is_expired,
                 )
                 for k in db_keys
+            ]
+
+            # Offered as a restriction target, so nobody has to look up an id.
+            self.targets = [{"label": "Toutes les cibles", "value": ""}] + [
+                {"label": f"Dépôt : {r.name or r.url}", "value": f"repository:{r.id}"}
+                for r in container.repository_repository.find_all()
+            ] + [
+                {"label": f"Image : {c.image_string}", "value": f"container:{c.id}"}
+                for c in container.container_repository.find_all()
             ]
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
@@ -66,11 +100,25 @@ class ApiKeysState(BaseState):
 
         container = get_container()
         try:
-            saved_key, raw_secret = container.api_key_service.create_key(self.new_name)
+            target_kind, target_id = (None, None)
+            if self.new_target:
+                kind, _, raw_id = self.new_target.partition(":")
+                target_kind, target_id = kind, int(raw_id)
+
+            saved_key, raw_secret = container.api_key_service.create_key(
+                self.new_name,
+                scopes=self.new_scopes,
+                target_kind=target_kind,
+                target_id=target_id,
+                expires_in_days=int(self.new_expires_in_days) if self.new_expires_in_days.strip().isdigit() else None,
+            )
             container.audit_log_service.record(
                 AuditOperation.API_KEY_CREATED,
                 resource_id=str(saved_key.id),
-                description=f"Clé API '{saved_key.name}' créée",
+                description=(
+                    f"Clé API '{saved_key.name}' créée "
+                    f"(portées : {saved_key.scopes}, cible : {saved_key.target_kind or 'toutes'})"
+                ),
                 user_id=self.username,
             )
 
@@ -172,6 +220,54 @@ def api_keys_page() -> rx.Component:
                 rx.vstack(
                     rx.text("Nom de la clé", size="2", weight="bold"),
                     rx.input(placeholder="Ex: Token CI/CD Jenkins", value=ApiKeysState.new_name, on_change=ApiKeysState.set_new_name, required=True, class_name="w-full"),
+
+                    rx.text("Portées", size="2", weight="bold", class_name="mt-3"),
+                    rx.text(
+                        "Une clé donne accès à toute l'API par défaut. Ne cochez que ce dont "
+                        "l'appelant a besoin : « read » pour lire un verdict, « scan » pour en "
+                        "déclencher un, « export » pour les documents VEX/CSV/SBOM.",
+                        size="1", color="var(--slate-10)",
+                    ),
+                    *[
+                        rx.hstack(
+                            rx.checkbox(
+                                default_checked=True,
+                                on_change=lambda enabled, s=scope: ApiKeysState.toggle_scope(s, enabled),
+                            ),
+                            rx.text(scope, size="2"),
+                            spacing="2", align="center",
+                        )
+                        for scope in ALL_SCOPES
+                    ],
+
+                    rx.text("Restreindre à une cible", size="2", weight="bold", class_name="mt-3"),
+                    rx.text(
+                        "Sans restriction, une clé émise pour un projet lit aussi les problèmes, "
+                        "VEX et exports de tous les autres.",
+                        size="1", color="var(--slate-10)",
+                    ),
+                    rx.select.root(
+                        rx.select.trigger(placeholder="Toutes les cibles"),
+                        rx.select.content(
+                            rx.select.group(
+                                rx.foreach(
+                                    ApiKeysState.targets,
+                                    lambda opt: rx.select.item(opt["label"], value=opt["value"]),
+                                )
+                            )
+                        ),
+                        value=ApiKeysState.new_target,
+                        on_change=ApiKeysState.set_new_target,
+                        width="100%",
+                    ),
+
+                    rx.text("Expiration (jours)", size="2", weight="bold", class_name="mt-3"),
+                    rx.input(
+                        placeholder="vide = n'expire jamais",
+                        value=ApiKeysState.new_expires_in_days,
+                        on_change=ApiKeysState.set_new_expires_in_days,
+                        class_name="w-full",
+                    ),
                     spacing="2",
                     class_name="mt-4 w-full"
                 ),

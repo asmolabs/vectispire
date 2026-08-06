@@ -99,7 +99,17 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs`.
+Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
+
+A key can be narrowed when it is created, and a CI key normally should be:
+
+| Restriction | Effect |
+|---|---|
+| Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
+| Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
+| Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
+
+Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
 
 ### Configuration
 
@@ -127,6 +137,10 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Memory ceiling per scanner container. |
 | `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Process ceiling per scanner container. |
 | `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they are Zanshin's own supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated origins allowed to open the websocket. Reflex's default is `*`, which lets any page a user visits create server-side state. **Set this to your real hostname when deploying anywhere but localhost** — otherwise the app's own frontend is refused. |
+| `ZANSHIN_SESSION_TTL_HOURS` | `12` | A session older than this is signed out on the next page load. |
+| `ZANSHIN_API_RATE_LIMIT` / `ZANSHIN_API_RATE_WINDOW_SECONDS` | `300` / `60` | Requests per key per window, before 429 with `Retry-After`. Counted in memory, per process. |
+| `ZANSHIN_MIGRATION_LOCK` | next to the database | Lock file serialising `alembic upgrade` at startup. Reflex imports the app in several processes, and SQLite's DDL is not transactional: without this, two concurrent upgrades can leave the schema half-migrated. |
 
 The sidecar (`scan-api/`) additionally requires `ZANSHIN_SCAN_API_TOKEN` (matched by the `local_scan_api_token` setting) and `ZANSHIN_SHARED_ROOT`. It refuses every request without the token, and refuses any path outside that root — see [`scan-api/README.md`](scan-api/README.md).
 
@@ -256,7 +270,17 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs`.
+Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
+
+A key can be narrowed when it is created, and a CI key normally should be:
+
+| Restriction | Effect |
+|---|---|
+| Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
+| Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
+| Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
+
+Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
 
 ### API et intégration CI
 
@@ -282,7 +306,17 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 Le gate répond HTTP 200 avec `{"passed": false, "violations": [...]}` quand la politique est violée — une politique violée est une réponse, pas une erreur de transport, et les pipelines traitent les deux différemment. Les problèmes déjà triés en *non affecté* ou *corrigé* ne font pas échouer un build, sauf demande explicite via `include_triaged`.
 
-Exports : `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, et `GET /api/v1/scans/{id}/sbom` (le SBOM Syft tel que produit). Référence complète sur `/api/v1/docs`.
+Exports : `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, et `GET /api/v1/scans/{id}/sbom` (le SBOM Syft tel que produit). Référence complète sur `/api/v1/docs` — qui exige une clé, comme toutes les autres routes : une carte anonyme des routes et des charges utiles est une étape de reconnaissance offerte.
+
+Une clé peut être restreinte à sa création, et une clé de CI devrait normalement l'être :
+
+| Restriction | Effet |
+|---|---|
+| Portées `read` / `scan` / `export` | Ce que la clé peut faire. Une clé qui ne fait que publier des résultats a besoin de `read` ; une qui déclenche des scans, de `scan`. Portée absente → 403. |
+| Cible `repository:{id}` ou `container:{id}` | Ce que la clé peut atteindre — y compris la liste `/issues` et les exports, restreints à cette cible. Une autre cible → 403 (et non 404 : l'appelant connaît déjà l'identifiant qu'il a demandé). |
+| Expiration en jours | Passée cette date, la clé est refusée comme invalide. La ligne subsiste : la liste montre encore que la clé a existé. |
+
+Les valeurs par défaut restent larges (toutes les portées, toutes les cibles, sans expiration) : c'est ce qu'accordait une clé avant l'existence de ces restrictions, et un formulaire dont les défauts cassent le pipeline apprend surtout à cocher toutes les cases.
 
 ### Configuration
 
@@ -310,6 +344,10 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Plafond mémoire par conteneur de scan. |
 | `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Plafond de processus par conteneur de scan. |
 | `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | digests épinglés | Images des analyseurs. Épinglées par digest et non par tag : elles s'exécutent avec le socket Docker monté, donc elles constituent la chaîne d'approvisionnement de Zanshin. À mettre à jour délibérément via `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Origines autorisées à ouvrir le websocket, séparées par des virgules. Reflex accepte `*` par défaut, ce qui permet à n'importe quelle page visitée de créer de l'état serveur. **À renseigner avec le vrai nom d'hôte pour tout déploiement hors localhost**, sinon le frontend de l'application est lui-même refusé. |
+| `ZANSHIN_SESSION_TTL_HOURS` | `12` | Une session plus ancienne est déconnectée au chargement de page suivant. |
+| `ZANSHIN_API_RATE_LIMIT` / `ZANSHIN_API_RATE_WINDOW_SECONDS` | `300` / `60` | Requêtes par clé et par fenêtre, avant un 429 avec `Retry-After`. Comptées en mémoire, par processus. |
+| `ZANSHIN_MIGRATION_LOCK` | à côté de la base | Fichier de verrou sérialisant `alembic upgrade` au démarrage. Reflex importe l'application dans plusieurs processus et le DDL de SQLite n'est pas transactionnel : sans ce verrou, deux montées de version simultanées peuvent laisser le schéma à moitié migré. |
 
 Le sidecar (`scan-api/`) exige en plus `ZANSHIN_SCAN_API_TOKEN` (à reporter dans le réglage `local_scan_api_token`) et `ZANSHIN_SHARED_ROOT`. Il refuse toute requête sans jeton, et tout chemin hors de cette racine — voir [`scan-api/README.md`](scan-api/README.md).
 

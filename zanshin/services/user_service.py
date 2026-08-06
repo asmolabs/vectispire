@@ -78,14 +78,41 @@ class UserService:
         user.is_active = is_active
         return self.user_repository.save(user)
 
+    def change_own_password(self, user_id: int, new_password: str) -> User:
+        """A user replacing their own password, which clears `must_change_password`.
+
+        Separate from `reset_password` (an admin acting on someone else) because the
+        two differ in what they mean: an admin-set password is provisional by nature
+        and should require a change, a self-chosen one is not.
+        """
+        user = self._require_user(user_id)
+        self._validate_password(new_password)
+        user.password = self.auth_service.hash_password(new_password)
+        user.must_change_password = False
+        return self.user_repository.save(user)
+
     def reset_password(self, user_id: int, new_password: str) -> User:
+        """An admin setting someone else's password.
+
+        Flags it for replacement: whoever typed it knows it, so it is provisional by
+        construction — the same reasoning as the bootstrap password.
+        """
+        user = self._require_user(user_id)
+        self._validate_password(new_password)
+        user.password = self.auth_service.hash_password(new_password)
+        user.must_change_password = True
+        return self.user_repository.save(user)
+
+    def _require_user(self, user_id: int) -> User:
         user = self.user_repository.find_by_id(user_id)
         if not user:
             raise ValueError("Utilisateur introuvable.")
-        if not new_password or len(new_password) < 8:
+        return user
+
+    @staticmethod
+    def _validate_password(password: str) -> None:
+        if not password or len(password) < 8:
             raise ValueError("Le mot de passe doit contenir au moins 8 caractères.")
-        user.password = self.auth_service.hash_password(new_password)
-        return self.user_repository.save(user)
 
     def delete_user(self, user_id: int, requesting_username: str) -> None:
         user = self.user_repository.find_by_id(user_id)
