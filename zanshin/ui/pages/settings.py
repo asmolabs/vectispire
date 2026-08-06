@@ -15,6 +15,7 @@ from zanshin.services.scanners import (
 from zanshin.services.enrichment_service import SETTING_KEY_ENRICHMENT_ENABLED
 from zanshin.services.license_compliance_service import SETTING_KEY_LICENSE_BLOCKLIST
 from zanshin.services.audit_log_service import AuditOperation
+from zanshin.services.url_guard import validate_outbound_url
 from zanshin.services.retention_service import (
     SETTING_KEY_RETENTION_KEEP_PER_TARGET,
     SETTING_KEY_RETENTION_MAX_AGE_DAYS,
@@ -137,6 +138,11 @@ class SettingsState(BaseState):
     def save_local_api_config(self):
         container = get_container()
         try:
+            # Private and loopback are expected here (the sidecar shares the host),
+            # link-local is not — see zanshin/services/url_guard.py.
+            validate_outbound_url(
+                self.local_api_url_input, allow_private=True, label="URL du service local"
+            )
             container.settings_service.update_setting(
                 SETTING_KEY_LOCAL_API_URL, self.local_api_url_input.strip()
             )
@@ -207,6 +213,15 @@ class SettingsState(BaseState):
         container = get_container()
         try:
             url = self.notification_webhook_url_input.strip()
+            # A webhook is expected to be a public endpoint; a URL resolving to a
+            # private address is far more often an SSRF attempt than an intranet
+            # sink (see url_guard, and `notification_allow_private_url` to opt in).
+            if url:
+                validate_outbound_url(
+                    url,
+                    allow_private=container.notification_service.allow_private_url(),
+                    label="URL de webhook",
+                )
             container.settings_service.update_setting(SETTING_KEY_WEBHOOK_URL, url)
             container.settings_service.update_setting(
                 SETTING_KEY_MIN_SEVERITY, self.notification_min_severity

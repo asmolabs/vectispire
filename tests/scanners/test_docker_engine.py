@@ -364,3 +364,60 @@ def test_a_daemon_failure_is_not_mistaken_for_a_timeout(engine):
 
     with pytest.raises(requests.exceptions.ConnectionError):
         engine.generate_sbom_for_image("nginx:latest")
+
+
+# --- Supply chain and container hardening (security review S6/S7) ---
+
+def test_every_scanner_image_is_pinned_by_digest(engine):
+    """These four images run on the host with the Docker socket mounted: whoever
+    controls `anchore/syft:latest` controls this machine. A moving tag also makes
+    a scan unreproducible."""
+    for image in (engine.SYFT_IMAGE, engine.GRYPE_IMAGE, engine.GITLEAKS_IMAGE, engine.CHECKOV_IMAGE):
+        assert "@sha256:" in image, image
+        assert ":latest" not in image, image
+
+
+def test_containers_run_with_capabilities_dropped_and_ceilings(engine):
+    client = FakeClient(stdout=b'{"artifacts": []}')
+    engine._docker_client = lambda: client
+
+    engine.generate_sbom_for_directory("/tmp/x", "source")
+
+    kwargs = client.containers.calls[0]
+    assert kwargs["cap_drop"] == ["ALL"]
+    assert kwargs["security_opt"] == ["no-new-privileges"]
+    assert kwargs["mem_limit"]
+    assert kwargs["pids_limit"] > 0
+
+
+@pytest.mark.parametrize(
+    ("step", "args", "network_expected"),
+    [
+        # gitleaks, checkov and a directory SBOM have nothing to fetch.
+        ("generate_sbom_for_directory", ("/tmp/x", "source"), False),
+        # Grype downloads its vulnerability database; syft pulls the image.
+        ("scan_sbom", ("/tmp/x", {"artifacts": []}), True),
+        ("generate_sbom_for_image", ("nginx:latest",), True),
+    ],
+)
+def test_the_network_is_only_available_where_a_tool_needs_it(engine, tmp_path, step, args, network_expected):
+    client = FakeClient(stdout=b'{"artifacts": []}')
+    engine._docker_client = lambda: client
+    if step == "scan_sbom":
+        args = (str(tmp_path), {"artifacts": []})
+
+    getattr(engine, step)(*args)
+
+    kwargs = client.containers.calls[0]
+    assert kwargs["network_disabled"] is (not network_expected)
+
+
+def test_secret_and_iac_scanners_never_get_the_network(engine, tmp_path):
+    """A scanner that reads secrets and has no reason to reach the network should
+    not be able to."""
+    (tmp_path / "source").mkdir()
+    for step in ("scan_secrets", "scan_iac"):
+        client = FakeClient(stdout=b"[]")
+        engine._docker_client = lambda c=client: c
+        getattr(engine, step)(str(tmp_path), "source")
+        assert client.containers.calls[0]["network_disabled"] is True, step

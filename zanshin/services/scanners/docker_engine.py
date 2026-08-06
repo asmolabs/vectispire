@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 # it has to be right before anything can be configured through the UI.
 DEFAULT_CONTAINER_TIMEOUT_SECONDS = int(os.getenv("ZANSHIN_SCAN_TIMEOUT_SECONDS", "900"))
 
+# Ceilings for a scanner container. A scanner is not supposed to need much of
+# either; these exist so that a pathological input degrades into a failed scan
+# instead of an out-of-memory host or a fork bomb.
+SCAN_MEMORY_LIMIT = os.getenv("ZANSHIN_SCAN_MEMORY_LIMIT", "2g")
+SCAN_PIDS_LIMIT = int(os.getenv("ZANSHIN_SCAN_PIDS_LIMIT", "512"))
+
 # Which architecture container images are audited as, when the
 # `image_scan_platform` setting isn't set (see scanners/factory.py).
 # Deliberately *not* the host's architecture: the SBOM — and therefore the
@@ -127,11 +133,33 @@ class DockerScannerEngine(ScannerEngine):
         self.image_scan_platform = (image_scan_platform or "").strip() or DEFAULT_IMAGE_SCAN_PLATFORM
         self.timeout_seconds = timeout_seconds
 
-    SYFT_IMAGE = "anchore/syft:latest"
-    GRYPE_IMAGE = "anchore/grype:latest"
-    GITLEAKS_IMAGE = "zricethezav/gitleaks:latest"
+    # Pinned by digest, not by tag.
+    #
+    # These four images *are* Zanshin's supply chain: they run on the host with
+    # the Docker socket mounted, so whoever controls `anchore/syft:latest`
+    # controls this machine. A moving tag also means a scan is not reproducible —
+    # two runs a week apart can disagree and nobody can say why.
+    #
+    # The digests are the multi-arch index digests (resolved 2026-08-06), so they
+    # still select the right architecture per host. Updating them is a deliberate,
+    # reviewable act: `docker buildx imagetools inspect <image>:latest`.
+    SYFT_IMAGE = os.getenv(
+        "ZANSHIN_SYFT_IMAGE",
+        "anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026",
+    )
+    GRYPE_IMAGE = os.getenv(
+        "ZANSHIN_GRYPE_IMAGE",
+        "anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db",
+    )
+    GITLEAKS_IMAGE = os.getenv(
+        "ZANSHIN_GITLEAKS_IMAGE",
+        "zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f",
+    )
+    CHECKOV_IMAGE = os.getenv(
+        "ZANSHIN_CHECKOV_IMAGE",
+        "bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144",
+    )
     GITLEAKS_REPORT_FILENAME = "zanshin-gitleaks-report.json"
-    CHECKOV_IMAGE = "bridgecrew/checkov:latest"
 
     def _docker_client(self):
         return docker.from_env()
@@ -148,7 +176,37 @@ class DockerScannerEngine(ScannerEngine):
                 break
         return volumes
 
-    def _run_container(self, image: str, command: list, volumes: Dict[str, Dict[str, str]], label: str):
+    def _hardening(self, network: bool) -> Dict[str, Any]:
+        """Limits applied to every scanner container.
+
+        These containers parse hostile input by definition — an untrusted image's
+        metadata, a repository someone else wrote — and the image-SBOM step runs
+        with the Docker socket mounted, which is root-equivalent on the host. The
+        limits below don't fix that (only the `local_api` backend removes the
+        socket entirely), but they take away the cheap escalations: no new
+        privileges, no capabilities, a memory ceiling instead of an OOM on the
+        host, a pid ceiling instead of a fork bomb.
+
+        `network_disabled` is passed only where the tool genuinely has nothing to
+        fetch: Grype needs its vulnerability database and syft needs the registry
+        or daemon, but gitleaks, checkov and a directory SBOM never do.
+        """
+        return {
+            "network_disabled": not network,
+            "mem_limit": SCAN_MEMORY_LIMIT,
+            "pids_limit": SCAN_PIDS_LIMIT,
+            "cap_drop": ["ALL"],
+            "security_opt": ["no-new-privileges"],
+        }
+
+    def _run_container(
+        self,
+        image: str,
+        command: list,
+        volumes: Dict[str, Dict[str, str]],
+        label: str,
+        network: bool = False,
+    ):
         """Runs `image` to completion and returns `(stdout, stderr, exit_code)`
         with the two streams kept apart.
 
@@ -161,7 +219,9 @@ class DockerScannerEngine(ScannerEngine):
         `Scan.error` (see `ScannerExecutionError`).
         """
         client = self._docker_client()
-        container = client.containers.create(image=image, command=command, volumes=volumes)
+        container = client.containers.create(
+            image=image, command=command, volumes=volumes, **self._hardening(network)
+        )
         try:
             container.start()
             try:
@@ -196,10 +256,17 @@ class DockerScannerEngine(ScannerEngine):
             logger.info("%s stderr: %s", label, stderr.decode("utf-8", errors="replace").strip())
         return stdout, stderr, exit_code
 
-    def _run_container_json(self, image: str, command: list, volumes: Dict[str, Dict[str, str]], label: str) -> Any:
+    def _run_container_json(
+        self,
+        image: str,
+        command: list,
+        volumes: Dict[str, Dict[str, str]],
+        label: str,
+        network: bool = False,
+    ) -> Any:
         """`_run_container` plus JSON decoding, raising `ScannerExecutionError`
         (stderr attached) on either a non-zero exit or unparseable stdout."""
-        stdout, stderr, exit_code = self._run_container(image, command, volumes, label)
+        stdout, stderr, exit_code = self._run_container(image, command, volumes, label, network)
         if exit_code != 0:
             raise ScannerExecutionError(label, exit_code, stderr, stdout)
         try:
@@ -224,6 +291,8 @@ class DockerScannerEngine(ScannerEngine):
             ["docker:" + image_string, "--platform", self.image_scan_platform, "-o", "json"],
             self._docker_socket_volumes(),
             f"syft (SBOM de l'image {image_string})",
+            # Pulls through the daemon, and may reach the registry.
+            network=True,
         )
 
     def generate_sbom_for_directory(self, work_dir: str, sub_path: str) -> Dict[str, Any]:
@@ -245,6 +314,8 @@ class DockerScannerEngine(ScannerEngine):
             ["sbom:/work/sbom.json", "-o", "json"],
             {os.path.abspath(work_dir): {"bind": "/work", "mode": "ro"}},
             "grype (analyse du SBOM)",
+            # Downloads/refreshes its vulnerability database.
+            network=True,
         )
 
     def scan_secrets(self, work_dir: str, sub_path: str = "") -> list:

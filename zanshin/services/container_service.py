@@ -5,7 +5,7 @@ from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.services.scan_processor import ScanProcessor
 from zanshin.clock import utcnow
-from zanshin.services.repository_service import executor
+from zanshin.services.repository_service import ScanAlreadyRunningError, executor
 
 class ContainerService:
     def __init__(self, container_repository: ContainerRepository, scan_repository: ScanRepository, scan_processor: ScanProcessor):
@@ -29,6 +29,13 @@ class ContainerService:
         container = self.container_repository.find_by_id(container_id)
         if not container:
             raise RuntimeError("Container not found")
+
+        # See RepositoryService.trigger_scan: one scan in flight per target.
+        in_flight = self.scan_repository.find_in_flight_for_container(container_id)
+        if in_flight:
+            raise ScanAlreadyRunningError(
+                f"Un scan est déjà en cours pour cette image (scan {in_flight.id})."
+            )
 
         scan = Scan(
             container_id=container.id,

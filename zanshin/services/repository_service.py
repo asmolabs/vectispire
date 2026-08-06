@@ -9,6 +9,14 @@ from zanshin.services.scan_processor import ScanProcessor
 from zanshin.clock import utcnow
 from zanshin.services.git_url import validate_repo_url
 
+
+class ScanAlreadyRunningError(RuntimeError):
+    """A scan of this target is already pending or running.
+
+    A `RuntimeError` subclass so the existing UI and API error handling reports it
+    unchanged, and distinguishable for the API, which answers 409 rather than 404.
+    """
+
 # Scans are blocking (git clone, then containers or subprocesses), so they run
 # on this shared pool rather than on the event loop thread — a scan must never
 # freeze the UI for everyone. Shared with `ContainerService` on purpose: the
@@ -49,6 +57,17 @@ class RepositoryService:
         repo = self.repository_repository.find_by_id(repo_id)
         if not repo:
             raise RuntimeError("Repository not found")
+
+        # One scan in flight per target. Without this, a key holder (or a stuck
+        # scheduler) can queue scans without limit: the pool has five workers, so
+        # the rest pile up as rows, each eventually writing a multi-megabyte SBOM.
+        # A second scan of the same target while the first runs also can't tell you
+        # anything the first won't.
+        in_flight = self.scan_repository.find_in_flight_for_repository(repo_id)
+        if in_flight:
+            raise ScanAlreadyRunningError(
+                f"Un scan est déjà en cours pour ce dépôt (scan {in_flight.id})."
+            )
 
         scan = Scan(
             repo_id=repo.id,

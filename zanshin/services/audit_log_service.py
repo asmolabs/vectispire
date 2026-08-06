@@ -12,6 +12,8 @@ class AuditOperation:
     across the call sites below."""
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
     LOGIN_FAILURE = "LOGIN_FAILURE"
+    # Attempt refused before any password check, by the rate limiter.
+    LOGIN_BLOCKED = "LOGIN_BLOCKED"
     USER_CREATED = "USER_CREATED"
     USER_UPDATED = "USER_UPDATED"
     USER_PASSWORD_RESET = "USER_PASSWORD_RESET"
@@ -22,6 +24,12 @@ class AuditOperation:
     # Triage is a security decision (it can suppress a finding), so it belongs
     # in the audit trail alongside user and settings changes.
     ISSUE_TRIAGED = "ISSUE_TRIAGED"
+    # A scan reads a repository with its deploy key and can reach the network:
+    # who asked for one, and when, belongs in the trail.
+    SCAN_TRIGGERED = "SCAN_TRIGGERED"
+    # An authorization refusal was only an application log line, so a probe against
+    # every handler left no trace an operator would ever look at.
+    ACCESS_DENIED = "ACCESS_DENIED"
 
 class AuditLogService:
     """Records administration/security-relevant actions to `audit_logs` —

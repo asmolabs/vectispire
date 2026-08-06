@@ -379,6 +379,88 @@ un `javascript:` était à un clic de s'exécuter dans le navigateur d'un analys
 avec sa session. `safe_external_url` n'autorise que `http`/`https` (point 8 de la
 revue de sécurité).
 
+## 9septies. Revue de sécurité — correctifs (2026-08-06)
+
+Revue faite « en tant qu'architecte de sécurité », puis corrigée. Ordre : les trous
+d'authentification/autorisation d'abord, les défauts de conception ensuite.
+
+**S1 — `scan-api` : lecture arbitraire de fichiers, sans authentification (critique).**
+`require_shared_path` ne vérifiait que l'*existence* du chemin. `POST /scan/secrets
+{"path": "/"}` faisait donc parcourir tout le conteneur par gitleaks, qui **renvoie
+les secrets trouvés en clair dans la réponse**. Aucune authentification, et un bind
+`0.0.0.0`. Deux verrous désormais : chaque chemin doit se résoudre (`realpath` +
+`commonpath`, ce qui ferme aussi l'évasion par lien symbolique) dans
+`ZANSHIN_SHARED_ROOT`, et chaque requête doit porter `ZANSHIN_SCAN_API_TOKEN`. Sans
+jeton configuré, le service répond 503 à tout : un scanner non authentifié joignable
+sur un réseau est pire qu'un scanner en panne.
+
+**S2 — une clé API valait tous les droits, et tout USER pouvait en créer une
+(critique).** La page `/api-keys` était `@requires_login`. Une clé donne l'API
+entière sans portée propre, donc c'était une élévation de privilège par conception —
+et c'est moi qui avais posé ce garde-fou trop bas en vague 1. Page passée en
+`@requires_admin`, lien déplacé dans la section Administration.
+
+**S3 — aucune limitation des tentatives de connexion (critique).** bcrypt coût 12
+arrête un script naïf, pas un attaquant patient sur une politique à huit caractères.
+`LoginThrottle` compte les échecs récents par utilisateur **et** par client : sur le
+seul utilisateur, n'importe qui verrouille un compte connu en échouant exprès ; sur
+le seul client, un botnet répartit ses tentatives. Vérifié **avant** le hachage, pour
+qu'un compte verrouillé ne coûte pas un tour de bcrypt — sinon la lenteur volontaire
+du hachage devient un moyen de dépenser le CPU du serveur gratuitement. Compteurs en
+mémoire, et la limite est documentée : ils repartent à zéro au redémarrage.
+
+**S5 — le gate acceptait les findings inventés par le LLM (élevé).**
+`find_open_by_target` ne filtrait pas par type : un `Finding(type="ai_review")` de
+sévérité `critical`, produit par un modèle à qui l'on a donné le code du dépôt, faisait
+échouer un build. Un dépôt hostile pouvait donc influencer le verdict CI, et le bruit
+LLM aurait fini par faire désactiver le gate. Exclus par défaut, `include_ai_review`
+pour qui décide autrement. Défaut de ce que j'avais livré en vague 3.
+
+**S4 — SSRF par trois réglages (élevé).** `url_guard` valide le schéma, résout le nom
+et refuse le link-local (`169.254.0.0/16`, les métadonnées d'instance) **même** quand
+le privé est autorisé — parce que c'est précisément l'adresse que l'attaque veut. Deux
+règles pour deux usages : le webhook exige une destination publique
+(`notification_allow_private_url` pour un bus interne), Ollama et le sidecar acceptent
+le privé. Toutes les adresses résolues sont vérifiées, pas la première : un nom peut
+renvoyer une publique et une privée. Limite assumée et documentée : la fenêtre de DNS
+rebinding entre la vérification et la requête n'est pas fermée (il faudrait épingler
+l'adresse résolue dans le client HTTP).
+
+**S6 — durcissement des conteneurs de scan (élevé).** `cap_drop: ALL`,
+`no-new-privileges`, plafonds mémoire et PID, et `network_disabled` là où l'outil n'a
+rien à récupérer (gitleaks, checkov, SBOM de répertoire) — Grype a besoin de sa base
+de vulnérabilités et syft du registre ou du démon. Cela ne supprime pas le socket
+Docker (seul le backend `local_api` le fait), mais ôte les escalades faciles.
+
+**S7 — analyseurs épinglés par digest (élevé).** Les quatre images étaient en
+`:latest` alors qu'elles s'exécutent avec le socket Docker monté : qui contrôle
+`anchore/syft:latest` contrôle la machine. Et un scan n'était pas reproductible.
+Épinglées par digest d'index multi-arch, surchargeables par variable
+d'environnement pour la mise à jour.
+
+**Correctifs moyens.** URL de référence filtrées (`javascript:` cliquable, fait au
+passage du refactor précédent) ; permissions de la base ramenées à 600 au démarrage
+(hashes bcrypt et clés SSH chiffrées, créées en 644 par le umask) ; en-têtes de
+sécurité dont une CSP réelle — l'application affiche des chaînes issues des scanners
+et des flux d'avis, donc la CSP décide si une injection est inerte ou exécutée avec
+la session de l'analyste ; HSTS **volontairement absent** (Zanshin s'atteint souvent
+en HTTP sur une adresse interne, un HSTS rendrait cette origine définitivement
+injoignable) ; audit des déclenchements de scan et des **refus d'autorisation**, qui
+n'étaient qu'une ligne de log ; un seul scan en vol par cible, l'API répondant 409
+et non 404 ou 500.
+
+**Deux bugs trouvés par les tests, pas par la relecture** : `_Bucket.prune` lisait la
+constante de module au lieu de la fenêtre de l'instance (une fenêtre personnalisée
+était silencieusement ignorée), et `/health` déclarait `Dict[str, str]` en renvoyant
+un booléen.
+
+### Reste ouvert
+
+Session sans expiration ni invalidation (le jeton client Reflex reste valable
+indéfiniment ; `logout` ne l'invalide pas), absence de cloisonnement entre équipes,
+injection de prompt dans la revue IA (atténuée par S5, pas supprimée), et l'audit qui
+ne porte ni IP ni intégrité de chaîne.
+
 ## 9. Prochaines étapes immédiates
 
 1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).

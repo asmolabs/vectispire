@@ -28,12 +28,16 @@ import httpx
 from zanshin.models.issue import Issue
 from zanshin.services.policy_gate import is_at_least
 from zanshin.services.settings_service import SettingsService
+from zanshin.services.url_guard import UnsafeUrlError, validate_outbound_url
 
 logger = logging.getLogger(__name__)
 
 SETTING_KEY_WEBHOOK_URL = "notification_webhook_url"
 SETTING_KEY_MIN_SEVERITY = "notification_min_severity"
 SETTING_KEY_NOTIFY_ON_KEV = "notification_always_on_kev"
+# Escape hatch for an internal bus. Off by default: a webhook URL that resolves to
+# a private address is far more often an SSRF attempt than an intranet endpoint.
+SETTING_KEY_ALLOW_PRIVATE = "notification_allow_private_url"
 
 DEFAULT_MIN_SEVERITY = "high"
 HTTP_TIMEOUT_SECONDS = 10.0
@@ -65,6 +69,9 @@ class NotificationService:
             self.settings_service.get_setting(SETTING_KEY_MIN_SEVERITY, DEFAULT_MIN_SEVERITY)
             or DEFAULT_MIN_SEVERITY
         ).lower()
+
+    def allow_private_url(self) -> bool:
+        return self.settings_service.get_setting(SETTING_KEY_ALLOW_PRIVATE, "false") == "true"
 
     def always_on_kev(self) -> bool:
         return self.settings_service.get_setting(SETTING_KEY_NOTIFY_ON_KEV, "true") == "true"
@@ -108,6 +115,18 @@ class NotificationService:
             logger.debug("Scan %s: nothing notable to notify", scan_id)
             return False
 
+        # Re-validated here, not only at save time: the setting may predate the
+        # guard, or have been written straight into the database.
+        try:
+            url = validate_outbound_url(
+                self.webhook_url(),
+                allow_private=self.allow_private_url(),
+                label="URL de webhook",
+            )
+        except UnsafeUrlError as e:
+            logger.error("Notification not sent: %s", e)
+            return False
+
         payload = self.build_payload(
             target_name=target_name,
             scan_id=scan_id,
@@ -116,9 +135,7 @@ class NotificationService:
             resolved_count=resolved_count,
         )
         try:
-            response = self._http_post(
-                self.webhook_url(), json=payload, timeout=HTTP_TIMEOUT_SECONDS
-            )
+            response = self._http_post(url, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
             response.raise_for_status()
             logger.info(
                 "Notified webhook about scan %s (%d new, %d reopened)",

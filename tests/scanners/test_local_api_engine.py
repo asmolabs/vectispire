@@ -13,7 +13,7 @@ class FakeResponse:
 
 
 def make_engine(calls):
-    def fake_post(url, json=None, timeout=None):
+    def fake_post(url, json=None, timeout=None, headers=None):
         calls.append((url, json))
         if url.endswith("/sbom/directory") or url.endswith("/sbom/image"):
             return FakeResponse({"artifacts": [{"name": "foo"}]})

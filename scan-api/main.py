@@ -2,13 +2,25 @@
 
 Runs Syft, Grype, gitleaks, and checkov directly as subprocesses (no nested
 Docker) against paths on a filesystem *shared* with the Zanshin process —
-see README.md for the deployment model. Every CLI invocation here mirrors
-`zanshin/services/scanners/docker_engine.py` exactly, minus the `docker run`
-wrapper, so behavior should match the Docker backend for the same inputs.
+see README.md for the deployment model.
 
 This service holds no state of its own and talks to no database — it only
 executes scanning tools and returns their JSON output.
+
+**Security model.** Every endpoint takes a filesystem path and runs a scanner on
+it, and `/scan/secrets` returns the secrets it finds *in the response body*. That
+makes this service an arbitrary-file-read oracle unless two things hold, and both
+are enforced here rather than left to the deployment:
+
+1. **Every path must resolve inside the shared root** (`ZANSHIN_SHARED_ROOT`).
+   Checking only that a path exists — which is what this service used to do —
+   accepted `{"path": "/"}` and happily walked the whole filesystem.
+2. **Every request must carry the shared token** (`ZANSHIN_SCAN_API_TOKEN`).
+   Without a token configured the service refuses to serve anything: an
+   unauthenticated scanner reachable on a network is worse than a broken one, so
+   it fails closed instead of assuming nobody can reach it.
 """
+import hmac
 import json
 import logging
 import os
@@ -16,20 +28,50 @@ import subprocess
 import tempfile
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("zanshin-scan-api")
 
+# The only directory this service will read. Everything Zanshin asks about lives
+# under the per-scan workspace it creates inside this root (see
+# `ScannerEngine.get_workspace_root`).
+SHARED_ROOT = os.path.realpath(os.getenv("ZANSHIN_SHARED_ROOT", "/shared"))
+
+# Shared with the Zanshin side (`local_scan_api_token` setting). Absent = refuse.
+AUTH_TOKEN = os.getenv("ZANSHIN_SCAN_API_TOKEN", "")
+
 app = FastAPI(
     title="Zanshin Scan API",
     description=(
-        "Sidecar scanning service for Zanshin (ADR-001 Phase 4). "
-        "Not exposed to the internet: intended to be reachable only from "
-        "the Zanshin process it shares a volume with."
+        "Sidecar scanning service for Zanshin (ADR-001 Phase 4). Requires the "
+        "shared token in `X-Zanshin-Token`, and only reads paths inside "
+        "ZANSHIN_SHARED_ROOT."
     ),
 )
+
+
+def require_token(x_zanshin_token: str = Header(default="")) -> None:
+    """Reject anything without the shared token.
+
+    Fails closed when no token is configured: this service can read files and
+    return secrets, so "nobody set a token" must not mean "anybody may ask".
+    `compare_digest` keeps the comparison time independent of how many characters
+    matched.
+    """
+    if not AUTH_TOKEN:
+        logger.error("ZANSHIN_SCAN_API_TOKEN is not set — refusing every request")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Service non configuré : définissez ZANSHIN_SCAN_API_TOKEN (et la "
+                "même valeur dans le réglage `local_scan_api_token` de Zanshin)."
+            ),
+        )
+    if not x_zanshin_token or not hmac.compare_digest(x_zanshin_token, AUTH_TOKEN):
+        logger.warning("Rejected a request with a missing or invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Jeton invalide.")
 
 
 class ImageSbomRequest(BaseModel):
@@ -57,27 +99,45 @@ def run_cli(command: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True)
 
 
-def require_shared_path(path: str) -> None:
-    """Every request references a path that must already exist on the
-    volume shared with Zanshin — if it doesn't, the volume mount is
-    probably misconfigured (see README.md), not a scan-time error."""
-    if not os.path.exists(path):
+def resolve_shared_path(path: str) -> str:
+    """The real path, or a refusal — never a path outside the shared root.
+
+    `realpath` before comparing is what closes the symlink escape: a symlink
+    inside the shared volume pointing at `/etc` would otherwise pass a naive
+    prefix check. `commonpath` rather than `startswith` avoids the classic
+    `/shared-evil` matching `/shared` mistake.
+    """
+    candidate = os.path.realpath(path)
+    try:
+        inside = os.path.commonpath([candidate, SHARED_ROOT]) == SHARED_ROOT
+    except ValueError:
+        # Different drives / relative vs absolute: not inside, by definition.
+        inside = False
+    if not inside:
+        logger.warning("Refused a path outside the shared root: %r", path)
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Chemin hors du répertoire partagé ({SHARED_ROOT}).",
+        )
+    if not os.path.exists(candidate):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                f"Path not found: {path}. This service and Zanshin must "
-                "share the same volume, mounted at the same path on both "
-                "sides — see scan-api/README.md."
+                f"Chemin introuvable : {path}. Ce service et Zanshin doivent partager "
+                "le même volume, monté au même chemin des deux côtés — voir "
+                "scan-api/README.md."
             ),
         )
+    return candidate
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
+def health() -> Dict[str, Any]:
+    """Unauthenticated liveness probe. Reveals nothing about the filesystem."""
+    return {"status": "ok", "configured": bool(AUTH_TOKEN)}
 
 
-@app.post("/sbom/image")
+@app.post("/sbom/image", dependencies=[Depends(require_token)])
 def sbom_image(req: ImageSbomRequest) -> Dict[str, Any]:
     # `registry:` and not `docker:` — unlike the Docker backend, this service has
     # no Docker daemon to pull through (that is the reason it exists), so syft
@@ -90,16 +150,16 @@ def sbom_image(req: ImageSbomRequest) -> Dict[str, Any]:
     return json.loads(result.stdout)
 
 
-@app.post("/sbom/directory")
+@app.post("/sbom/directory", dependencies=[Depends(require_token)])
 def sbom_directory(req: DirectorySbomRequest) -> Dict[str, Any]:
-    require_shared_path(req.path)
-    result = run_cli(["syft", f"dir:{req.path}", "-o", "json"])
+    path = resolve_shared_path(req.path)
+    result = run_cli(["syft", f"dir:{path}", "-o", "json"])
     if result.returncode != 0:
         raise HTTPException(status_code=502, detail=f"syft failed: {result.stderr[-2000:]}")
     return json.loads(result.stdout)
 
 
-@app.post("/scan/vulnerabilities")
+@app.post("/scan/vulnerabilities", dependencies=[Depends(require_token)])
 def scan_vulnerabilities(req: SbomScanRequest) -> Dict[str, Any]:
     # The SBOM arrives in the request body, not as a shared path (see
     # LocalApiScannerEngine.scan_sbom) — write it to this service's own
@@ -118,9 +178,9 @@ def scan_vulnerabilities(req: SbomScanRequest) -> Dict[str, Any]:
             os.remove(sbom_path)
 
 
-@app.post("/scan/secrets")
+@app.post("/scan/secrets", dependencies=[Depends(require_token)])
 def scan_secrets(req: SourceScanRequest) -> List[Dict[str, Any]]:
-    require_shared_path(req.path)
+    path = resolve_shared_path(req.path)
 
     # The report goes to this service's own scratch space, never inside
     # `req.path`: it is read back here and returned as JSON, so it never
@@ -133,7 +193,7 @@ def scan_secrets(req: SourceScanRequest) -> List[Dict[str, Any]]:
     try:
         result = run_cli([
             "gitleaks", "detect",
-            f"--source={req.path}",
+            f"--source={path}",
             "--no-git",
             "--report-format=json",
             f"--report-path={report_path}",
@@ -152,11 +212,11 @@ def scan_secrets(req: SourceScanRequest) -> List[Dict[str, Any]]:
             os.remove(report_path)
 
 
-@app.post("/scan/iac")
+@app.post("/scan/iac", dependencies=[Depends(require_token)])
 def scan_iac(req: SourceScanRequest) -> List[Dict[str, Any]]:
-    require_shared_path(req.path)
+    path = resolve_shared_path(req.path)
 
-    result = run_cli(["checkov", "-d", req.path, "-o", "json", "--soft-fail", "--compact"])
+    result = run_cli(["checkov", "-d", path, "-o", "json", "--soft-fail", "--compact"])
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:

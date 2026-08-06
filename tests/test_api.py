@@ -20,11 +20,13 @@ from zanshin.models.issue import (
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
 from zanshin.repositories.api_key_repository import ApiKeyRepository
+from zanshin.repositories.audit_log_repository import AuditLogRepository
 from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.issue_repository import IssueRepository
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.services.api_key_service import ApiKeyService
+from zanshin.services.audit_log_service import AuditLogService
 
 _next_fingerprint = iter(range(1, 10_000))
 
@@ -74,6 +76,9 @@ def api(db_session):
             self.container_repository = ContainerRepository(db_session)
             self.repository_service = FakeScanService(db_session, repo_id=None)
             self.container_service = FakeScanService(db_session, container_id=None)
+            # Real, not a stub: triggering a scan is audited, and that the trail is
+            # written is part of the contract being tested.
+            self.audit_log_service = AuditLogService(AuditLogRepository(db_session))
 
     stub = StubContainer()
     api_app.dependency_overrides[get_container] = lambda: stub
@@ -158,6 +163,12 @@ def test_triggering_a_scan_returns_202_and_the_scan_id(api, db_session):
     assert body["status"] == "pending"
     assert body["scan_id"] is not None
     assert stub.repository_service.calls == [repo.id]
+    # A scan reads the repository with its deploy key, so who asked is auditable —
+    # attributed to the key, not to a user the API caller does not have.
+    from zanshin.models.audit_log import AuditLog
+
+    entry = db_session.query(AuditLog).filter(AuditLog.operation_type == "SCAN_TRIGGERED").one()
+    assert entry.user_id == "api-key:ci"
 
 
 def test_triggering_a_scan_for_an_unknown_target_is_404(api):
@@ -407,3 +418,27 @@ def test_targets_list_both_kinds_with_their_outstanding_counts(api, db_session):
     assert by_name["App"]["kind"] == "repository"
     assert by_name["App"]["open_issues"] == 2
     assert by_name["registry.internal/nginx:1.25"]["open_issues"] == 1
+
+
+# --- One scan in flight per target (security review M15) ---
+
+def test_the_api_answers_409_for_a_scan_already_running(api, db_session):
+    """Not 404 and not 500: the request is well-formed and the target exists, the
+    current state refuses it. A pipeline can retry a 409 knowingly."""
+    from zanshin.models.repository import ZanshinRepository
+    from zanshin.services.repository_service import ScanAlreadyRunningError
+
+    client, stub, _ = api
+    repo = ZanshinRepository(url="git@example.com:org/a.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+
+    def refuse(target_id):
+        raise ScanAlreadyRunningError("Un scan est déjà en cours pour ce dépôt (scan 7).")
+
+    stub.repository_service.trigger_scan = refuse
+
+    response = client.post("/api/v1/scans", json={"repository_id": repo.id})
+
+    assert response.status_code == 409
+    assert "déjà en cours" in response.json()["detail"]

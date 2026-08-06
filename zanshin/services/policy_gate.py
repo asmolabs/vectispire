@@ -22,6 +22,12 @@ Design decisions worth stating:
 - **KEV is evaluated independently of severity.** A "medium" that is being
   exploited in the wild outranks a "critical" that never has been; that is what
   the enrichment step is for, so the gate reads it directly.
+- **AI-review findings are excluded by default.** They come from a local model
+  prompted with the repository's own source code, so a hostile repository can
+  steer them — and one invented "critical" would fail somebody's build. Their
+  reverse is just as bad: LLM noise in a gate teaches people to disable the gate.
+  They stay visible in the backlog, where a human weighs them; they do not get a
+  vote on a build. `include_ai_review` exists for a team that decides otherwise.
 """
 from typing import Iterable, List, NamedTuple, Optional
 
@@ -30,6 +36,12 @@ from zanshin.models.issue import STATE_OPEN, TRIAGE_AFFECTED, TRIAGE_UNDER_REVIE
 # Ordered worst-first; the index is the comparison rank.
 SEVERITY_ORDER = ("critical", "high", "medium", "low", "negligible", "unknown")
 DEFAULT_FAIL_ON_SEVERITY = "high"
+
+
+# Finding types produced by a deterministic scanner. `ai_review` is deliberately
+# absent — see the module docstring.
+DETERMINISTIC_TYPES = ("vulnerability", "secret", "iac", "license")
+AI_REVIEW_TYPE = "ai_review"
 
 
 class GatePolicy(NamedTuple):
@@ -44,6 +56,8 @@ class GatePolicy(NamedTuple):
     fixable_only: bool = False
     # Count issues already settled by triage (`not_affected` / `fixed`).
     include_triaged: bool = False
+    # Let findings produced by the AI review influence the verdict.
+    include_ai_review: bool = False
 
 
 class Violation(NamedTuple):
@@ -122,6 +136,8 @@ def evaluate(issues: Iterable[Issue], policy: GatePolicy) -> GateVerdict:
 
 def _is_considered(issue: Issue, policy: GatePolicy) -> bool:
     if issue.state != STATE_OPEN:
+        return False
+    if issue.type == AI_REVIEW_TYPE and not policy.include_ai_review:
         return False
     if not policy.include_triaged and issue.triage_status not in (
         TRIAGE_UNDER_REVIEW,

@@ -124,6 +124,11 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
 | `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Age past which a scan still in flight is considered wedged and failed. |
 | `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | How often raw scanner payloads are pruned (see the **Settings** page for the thresholds themselves). |
+| `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Memory ceiling per scanner container. |
+| `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Process ceiling per scanner container. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they are Zanshin's own supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+
+The sidecar (`scan-api/`) additionally requires `ZANSHIN_SCAN_API_TOKEN` (matched by the `local_scan_api_token` setting) and `ZANSHIN_SHARED_ROOT`. It refuses every request without the token, and refuses any path outside that root — see [`scan-api/README.md`](scan-api/README.md).
 
 The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
 
@@ -302,6 +307,11 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | Fréquence de recherche des cibles dues. |
 | `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Âge au-delà duquel un scan encore en cours est considéré bloqué et mis en échec. |
 | `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | Fréquence de purge des sorties brutes des scanners (les seuils eux-mêmes sont dans la page **Paramètres**). |
+| `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Plafond mémoire par conteneur de scan. |
+| `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Plafond de processus par conteneur de scan. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | digests épinglés | Images des analyseurs. Épinglées par digest et non par tag : elles s'exécutent avec le socket Docker monté, donc elles constituent la chaîne d'approvisionnement de Zanshin. À mettre à jour délibérément via `docker buildx imagetools inspect <image>:latest`. |
+
+Le sidecar (`scan-api/`) exige en plus `ZANSHIN_SCAN_API_TOKEN` (à reporter dans le réglage `local_scan_api_token`) et `ZANSHIN_SHARED_ROOT`. Il refuse toute requête sans jeton, et tout chemin hors de cette racine — voir [`scan-api/README.md`](scan-api/README.md).
 
 Le fichier de base de données ne fait plus partie du dépôt (il contient des hashes de mots de passe et des clés SSH chiffrées) : un déploiement neuf démarre donc sans aucun compte, d'où ces variables de bootstrap. Dès qu'un compte existe, elles sont ignorées.
 

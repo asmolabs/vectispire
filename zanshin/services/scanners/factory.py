@@ -12,6 +12,7 @@ SETTING_KEY_SCAN_BACKEND = "scan_backend"
 SETTING_KEY_LOCAL_API_URL = "local_scan_api_url"
 SETTING_KEY_LOCAL_API_SHARED_DIR = "local_scan_api_shared_dir"
 SETTING_KEY_IMAGE_SCAN_PLATFORM = "image_scan_platform"
+SETTING_KEY_LOCAL_API_TOKEN = "local_scan_api_token"
 
 DEFAULT_LOCAL_API_URL = "http://localhost:8686"
 
@@ -49,6 +50,7 @@ def get_scanner_engine(settings_service: SettingsService) -> ScannerEngine:
             base_url=settings_service.get_setting(SETTING_KEY_LOCAL_API_URL, DEFAULT_LOCAL_API_URL),
             shared_workspace_root=settings_service.get_setting(SETTING_KEY_LOCAL_API_SHARED_DIR, ""),
             image_scan_platform=image_scan_platform,
+            auth_token=settings_service.get_setting(SETTING_KEY_LOCAL_API_TOKEN, ""),
         )
     raise ValueError(
         f"Backend de scan inconnu ou pas encore implémenté : '{backend}'. "

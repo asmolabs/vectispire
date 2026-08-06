@@ -3,14 +3,20 @@ from typing import List, Dict, Any
 import uuid
 
 from zanshin.ui.state import BaseState
-from zanshin.ui.auth import requires_login
+from zanshin.ui.auth import requires_admin
 from zanshin.ui.view_models import ApiKeyRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.services.audit_log_service import AuditOperation
 
 class ApiKeysState(BaseState):
-    """Handles loading, creating, showing, and deleting API Keys."""
+    """Handles loading, creating, showing, and deleting API Keys.
+
+    Admin-only, and that is a security boundary rather than tidiness: a key grants
+    the whole HTTP API — trigger scans, read every issue of every target, export
+    VEX — with no scope of its own. While this page was merely `@requires_login`,
+    any USER could mint themselves one and step around the role they were given.
+    """
     
     keys: list[ApiKeyRow] = []
     
@@ -24,7 +30,7 @@ class ApiKeysState(BaseState):
     def set_new_name(self, val: str):
         self.new_name = val
 
-    @requires_login
+    @requires_admin
     def load_keys_data(self):
         self.set_current_page("Clés API")
         container = get_container()
@@ -52,7 +58,7 @@ class ApiKeysState(BaseState):
     def close_create_dialog(self):
         self.create_dialog_open = False
 
-    @requires_login
+    @requires_admin
     def create_api_key(self):
         if not self.new_name:
             yield self.trigger_toast("Un nom est requis pour la clé", is_error=True)
@@ -84,7 +90,7 @@ class ApiKeysState(BaseState):
         self.display_dialog_open = False
         self.created_key_raw = ""
 
-    @requires_login
+    @requires_admin
     def delete_key(self, key_id_str: str):
         container = get_container()
         try:

@@ -1,5 +1,17 @@
 # Zanshin Scan API
 
+> **Sécurité — deux réglages obligatoires depuis la revue de sécurité :**
+>
+> - `ZANSHIN_SCAN_API_TOKEN` : jeton partagé, à reporter dans le réglage
+>   `local_scan_api_token` de Zanshin. **Sans lui, le service refuse toute
+>   requête** (503) : il lit des fichiers et renvoie les secrets qu'il trouve, donc
+>   « personne n'a configuré de jeton » ne doit pas vouloir dire « tout le monde
+>   peut demander ».
+> - `ZANSHIN_SHARED_ROOT` : le seul répertoire que le service acceptera de lire
+>   (défaut `/shared`). Tout chemin qui ne s'y résout pas est refusé (400), liens
+>   symboliques compris. Auparavant seule l'existence du chemin était vérifiée, et
+>   `{"path": "/"}` faisait parcourir tout le système de fichiers.
+
 Sidecar HTTP service implementing the `local_api` scan backend described in
 [ADR-001](../docs/architecture/ADR-001-scanner-backends.md), Phase 4.
 

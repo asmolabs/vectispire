@@ -29,8 +29,10 @@ from zanshin.clock import utcnow
 from zanshin.container import IoCContainer
 from zanshin.models.api_key import ApiKey
 from zanshin.models.issue import STATE_OPEN, Issue
+from zanshin.services.audit_log_service import AuditOperation
 from zanshin.services.exports import build_issues_csv, build_openvex_document
 from zanshin.services.policy_gate import GatePolicy, evaluate
+from zanshin.services.repository_service import ScanAlreadyRunningError
 
 logger = logging.getLogger(__name__)
 
@@ -129,11 +131,27 @@ def trigger_scan(
             scan = container.repository_service.trigger_scan(body.repository_id)
         else:
             scan = container.container_service.trigger_scan(body.container_id)
+    except ScanAlreadyRunningError as e:
+        # 409, not 404 or 500: the request is well-formed and the target exists —
+        # the current state refuses it. A pipeline retrying on 409 is doing the
+        # right thing, which it cannot know from a 500.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
     except RuntimeError as e:
         # Both services raise RuntimeError("… not found") for an unknown target.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     logger.info("Scan %s triggered via API by key '%s'", scan.id, api_key.name)
+    container.audit_log_service.record(
+        AuditOperation.SCAN_TRIGGERED,
+        resource_id=str(scan.id),
+        description=(
+            f"Scan {scan.id} déclenché via l'API "
+            f"({'dépôt ' + str(scan.repo_id) if scan.repo_id else 'conteneur ' + str(scan.container_id)})"
+        ),
+        # The key's name, not a username: an API caller has no user identity, and
+        # writing one in would be a lie in the trail.
+        user_id=f"api-key:{api_key.name}",
+    )
     return ScanCreated(
         scan_id=scan.id,
         status=scan.status,
@@ -275,6 +293,7 @@ def policy_gate(
             fail_on_kev=body.policy.fail_on_kev,
             fixable_only=body.policy.fixable_only,
             include_triaged=body.policy.include_triaged,
+            include_ai_review=body.policy.include_ai_review,
         ),
     )
     return GateResponse(

@@ -4,6 +4,8 @@ from typing import Dict, List
 
 import httpx
 
+from zanshin.services.url_guard import UnsafeUrlError, validate_outbound_url
+
 logger = logging.getLogger(__name__)
 
 SETTING_KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
@@ -98,6 +100,10 @@ class AiReviewService:
     def set_ollama_url(self, url: str) -> None:
         if not url or not url.strip():
             raise ValueError("L'URL du service Ollama ne peut pas être vide.")
+        # `allow_private=True`: Ollama is meant to be on localhost or the internal
+        # network. Link-local is still refused — nothing legitimate lives at
+        # 169.254.0.0/16, and that is what an SSRF wants (see url_guard).
+        validate_outbound_url(url, allow_private=True, label="URL Ollama")
         self.settings_service.update_setting(SETTING_KEY_AI_REVIEW_OLLAMA_URL, url.strip())
 
     def get_deployment_mode(self) -> str:

@@ -32,9 +32,14 @@ class LocalApiScannerEngine(ScannerEngine):
         base_url: str,
         shared_workspace_root: Optional[str] = None,
         image_scan_platform: str = DEFAULT_IMAGE_SCAN_PLATFORM,
+        auth_token: str = "",
         http_post=httpx.post,
     ):
         self.base_url = base_url.rstrip("/")
+        # Shared secret expected by the sidecar (`ZANSHIN_SCAN_API_TOKEN` there,
+        # `local_scan_api_token` here). The sidecar refuses every request without
+        # it — it can read files and return secrets, so it fails closed.
+        self.auth_token = (auth_token or "").strip()
         # Which architecture images are audited as. This backend used to ignore
         # the setting entirely while the sidecar hardcoded linux/amd64, so
         # switching to it silently changed what was being audited — the kind of
@@ -56,7 +61,12 @@ class LocalApiScannerEngine(ScannerEngine):
         return os.path.join(work_dir, sub_path) if sub_path else work_dir
 
     def _post(self, path: str, json_body: Dict[str, Any]) -> Any:
-        response = self._http_post(f"{self.base_url}{path}", json=json_body, timeout=DEFAULT_TIMEOUT_SECONDS)
+        response = self._http_post(
+            f"{self.base_url}{path}",
+            json=json_body,
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+            headers={"X-Zanshin-Token": self.auth_token},
+        )
         response.raise_for_status()
         return response.json()
 

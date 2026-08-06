@@ -128,6 +128,21 @@ class ScanRepository:
             latest.setdefault(row[0], _to_summary(row[1:]))
         return latest
 
+    def find_in_flight_for_repository(self, repo_id: int) -> Optional[Scan]:
+        """A pending or running scan of this repository, if there is one."""
+        return self._find_in_flight(Scan.repo_id, repo_id)
+
+    def find_in_flight_for_container(self, container_id: int) -> Optional[Scan]:
+        return self._find_in_flight(Scan.container_id, container_id)
+
+    def _find_in_flight(self, owner_column, owner_id: int) -> Optional[Scan]:
+        return (
+            self.db.query(Scan)
+            .filter(owner_column == owner_id, Scan.status.in_(("pending", "scanning")))
+            .order_by(Scan.id.desc())
+            .first()
+        )
+
     def find_all_created_at(self) -> List[datetime]:
         """Creation timestamps of every scan, for the dashboard's activity
         histogram. Filtering happens in Python rather than in SQL because

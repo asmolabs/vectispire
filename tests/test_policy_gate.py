@@ -195,3 +195,38 @@ def test_violation_carries_what_a_developer_needs():
     assert violation.package == "libcurl"
     assert violation.fix_versions == "8.5.0"
     assert violation.issue_id == issue.id
+
+
+# --- AI-review findings (security review S5) ---
+
+def test_ai_review_findings_do_not_fail_a_build_by_default():
+    """They come from a local model prompted with the repository's own source, so a
+    hostile repository could otherwise fail somebody's build with an invented
+    "critical" — and LLM noise in a gate teaches people to disable the gate."""
+    verdict = evaluate([_issue(type="ai_review", severity="critical")], GatePolicy())
+
+    assert verdict.passed is True
+    assert verdict.evaluated == 0
+
+
+def test_ai_review_findings_can_be_opted_into():
+    policy = GatePolicy(include_ai_review=True)
+
+    verdict = evaluate([_issue(type="ai_review", severity="critical")], policy)
+
+    assert verdict.passed is False
+
+
+def test_excluding_ai_review_does_not_hide_the_real_scanners():
+    issues = [
+        _issue(type="ai_review", severity="critical"),
+        _issue(type="secret", severity="high"),
+        _issue(type="iac", severity="high"),
+        _issue(type="license", severity="high"),
+        _issue(type="vulnerability", severity="high"),
+    ]
+
+    verdict = evaluate(issues, GatePolicy())
+
+    assert verdict.evaluated == 4
+    assert len(verdict.violations) == 4

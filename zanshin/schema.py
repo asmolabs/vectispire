@@ -21,6 +21,7 @@ tables present means "adopt", not "build".
 """
 import logging
 import os
+import stat
 
 from alembic import command
 from alembic.config import Config
@@ -63,3 +64,26 @@ def upgrade_to_head() -> None:
 
     command.upgrade(config, "head")
     logger.info("Database schema is up to date")
+    restrict_database_permissions()
+
+
+def restrict_database_permissions() -> None:
+    """Make the database file readable by its owner only.
+
+    It holds bcrypt password hashes and encrypted SSH private keys, and SQLite
+    creates it with the process umask — 0644 in practice, i.e. readable by every
+    local account. Applied at startup rather than documented as a deployment step,
+    because a permission that depends on someone remembering it is not a
+    permission. Never raises: a read-only or exotic filesystem must not stop the
+    application from starting.
+    """
+    if not DATABASE_URL.startswith("sqlite:///"):
+        return
+    path = DATABASE_URL[len("sqlite:///"):]
+    try:
+        current = stat.S_IMODE(os.stat(path).st_mode)
+        if current & (stat.S_IRWXG | stat.S_IRWXO):
+            os.chmod(path, 0o600)
+            logger.info("Tightened permissions on %s (%o -> 600)", path, current)
+    except OSError as e:
+        logger.warning("Could not tighten permissions on %s: %s", path, e)

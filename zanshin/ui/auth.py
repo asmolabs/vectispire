@@ -36,17 +36,51 @@ def _denial_events(state, roles: Sequence[str], handler_name: str) -> list:
     """Events to emit instead of running the handler, or `[]` to let it run."""
     if not state.logged_in:
         logger.warning("Denied unauthenticated call to '%s'", handler_name)
+        _audit_denial(handler_name, actor=None, reason="non authentifié")
         return [rx.redirect("/login")]
     if roles and state.user_role not in roles:
         logger.warning(
             "Denied call to '%s' by '%s' (role %s, requires %s)",
             handler_name, state.username, state.user_role or "none", "/".join(roles),
         )
+        _audit_denial(
+            handler_name,
+            actor=state.username,
+            reason=f"rôle {state.user_role or 'aucun'}, requis {'/'.join(roles)}",
+        )
         return [
             rx.redirect("/dashboard"),
             rx.toast.error("Accès refusé : cette action est réservée aux administrateurs."),
         ]
     return []
+
+
+def _audit_denial(handler_name: str, actor, reason: str) -> None:
+    """Record the refusal in the audit trail.
+
+    A denial used to be an application log line only, so someone probing every
+    handler over the websocket left no trace an operator would ever look at — while
+    the same person's *successful* actions were all recorded. Never raises and never
+    blocks the denial: the refusal itself is what matters.
+    """
+    try:
+        # Imported here, not at module scope: `zanshin.container` imports the whole
+        # service layer, and this module is imported by every page.
+        from zanshin.container import get_container
+        from zanshin.services.audit_log_service import AuditOperation
+
+        container = get_container()
+        try:
+            container.audit_log_service.record(
+                AuditOperation.ACCESS_DENIED,
+                resource_id=handler_name,
+                description=f"Accès refusé à '{handler_name}' ({reason})",
+                user_id=actor or None,
+            )
+        finally:
+            container.db.close()
+    except Exception:
+        logger.exception("Could not record an access denial for '%s'", handler_name)
 
 
 def _preserve(wrapper: Callable, fn: Callable) -> Callable:

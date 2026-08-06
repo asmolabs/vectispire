@@ -84,6 +84,10 @@ class GatePolicyIn(BaseModel):
     fail_on_kev: bool = True
     fixable_only: bool = False
     include_triaged: bool = False
+    # Off by default: an AI-review finding comes from a model prompted with the
+    # repository's own source, so a hostile repository could otherwise fail
+    # somebody's build (see policy_gate).
+    include_ai_review: bool = False
 
     @model_validator(mode="after")
     def known_severity(self):

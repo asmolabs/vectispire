@@ -39,6 +39,7 @@ class _FakeDockerHarness:
     def build(self):
         engine = DockerScannerEngine(image_scan_platform=AUDITED_PLATFORM)
         self.commands = []
+        self.create_kwargs = []
         harness = self
 
         class FakeContainer:
@@ -66,8 +67,9 @@ class _FakeDockerHarness:
                 pass
 
         class FakeContainers:
-            def create(self, image, command, volumes):
+            def create(self, image, command, volumes, **kwargs):
                 harness.commands.append((image, command))
+                harness.create_kwargs.append(kwargs)
                 return FakeContainer(command)
 
         class FakeClient:
@@ -106,7 +108,7 @@ class _FakeLocalApiHarness:
             def json(self):
                 return self._payload
 
-        def fake_post(url, json=None, timeout=None):
+        def fake_post(url, json=None, timeout=None, headers=None):
             harness.requests.append((url, json))
             if url.endswith("/sbom/image") or url.endswith("/sbom/directory"):
                 return FakeResponse(SBOM)
