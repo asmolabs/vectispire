@@ -32,11 +32,12 @@ testpaths = ["tests"]
 [tool.coverage.run]
 source = ["zanshin"]
 omit = [
-    # UI/Reflex layer: State classes are exercised through Reflex's own
-    # event-handler machinery (yield-based generators, on_mount, component
-    # rendering) rather than plain function calls, so they need Reflex's
-    # test harness, not plain pytest — see tests/README.md. Everything they
-    # delegate to (services, repositories, scanners) is covered directly.
-    "zanshin/ui/*",
+    # The *view* functions of the UI layer: `depots_page()`, `issue_row()` and
+    # friends build component trees, and what can go wrong in them — a mistyped
+    # attribute on a row model, a prop given the wrong type — is caught by
+    # `reflex compile --dry`, not by executing them under pytest. Their loaders
+    # and event handlers ARE tested, through the harness in tests/conftest.py
+    # (see tests/test_ui_pages.py), which is why these files are no longer
+    # omitted wholesale.
     "zanshin/zanshin.py",
 ]

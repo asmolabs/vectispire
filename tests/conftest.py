@@ -205,3 +205,94 @@ def make_scan(db_session):
         return scan
 
     return _make
+
+
+# --- Reflex UI harness ---------------------------------------------------------
+#
+# The UI layer was excluded from coverage with the note that `rx.State` classes
+# "need Reflex's test harness, not plain pytest". `reflex.testing.AppHarness`
+# spins up a real server and browser (it imports uvicorn), which is far too heavy
+# for asserting what a loader puts in a state var.
+#
+# There is a lighter way. A State can be instantiated outside the server, and its
+# handlers can be called as plain functions:
+#
+#   root = rx.State(_reflex_internal_init=True)     # the root state
+#   state = root._get_state_from_cache(MyState)     # the substate, wired up
+#   MyState.event_handlers["load"].fn(state)        # the function, not the EventHandler
+#
+# Three details make it work. The substate must come from the root (setting an
+# inherited var like `logged_in` on a detached substate raises, because Reflex
+# forwards it to `parent_state`); handlers must be reached through
+# `event_handlers[...].fn` (attribute access yields an `EventHandler`, which
+# builds an EventSpec instead of running anything); and the substate is taken
+# from the in-process cache rather than `await root.get_state(...)`, which routes
+# through the state manager and therefore requires a live `EventContext`.
+
+class UIHarness:
+    """Drives page states against an isolated database."""
+
+    def __init__(self, session_factory):
+        import reflex as rx
+
+        self.session_factory = session_factory
+        self._root = rx.State(_reflex_internal_init=True)
+
+    def state(self, state_cls, *, logged_in=True, username="alice", role="SUPERUSER", **vars):
+        """A page state, authenticated by default — the interesting assertions are
+        rarely "the guard fired" (that's tests/test_ui_auth.py's job)."""
+        state = self._root._get_state_from_cache(state_cls)
+        state.logged_in = logged_in
+        state.username = username
+        state.user_role = role
+        for name, value in vars.items():
+            setattr(state, name, value)
+        return state
+
+    def run(self, state, handler_name, *args):
+        """Call a handler and return the events it emitted."""
+        handler = type(state).event_handlers[handler_name].fn
+        result = handler(state, *args)
+        return self._drain(result)
+
+    def _drain(self, result):
+        import inspect
+
+        if result is None:
+            return []
+        if inspect.isasyncgen(result):
+            return self._run(self._collect_async(result))
+        if inspect.iscoroutine(result):
+            return self._drain(self._run(result))
+        if inspect.isgenerator(result):
+            # Nested handler calls yield EventSpecs; keep them as-is, the point of
+            # these tests is the state, not the event plumbing.
+            return list(result)
+        return [result] if not isinstance(result, list) else result
+
+    @staticmethod
+    async def _collect_async(async_gen):
+        return [event async for event in async_gen]
+
+    @staticmethod
+    def _run(coro):
+        import asyncio
+
+        return asyncio.run(coro)
+
+
+@pytest.fixture()
+def ui(monkeypatch, isolated_session_local):
+    """UI harness whose `get_container()` hits an isolated in-memory database."""
+    import zanshin.container
+
+    monkeypatch.setattr(zanshin.container, "SessionLocal", isolated_session_local)
+    return UIHarness(isolated_session_local)
+
+
+@pytest.fixture()
+def ui_session(isolated_session_local):
+    """A session on the same database the harness serves, to arrange fixtures."""
+    session = isolated_session_local()
+    yield session
+    session.close()

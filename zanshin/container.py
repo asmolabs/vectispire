@@ -1,4 +1,22 @@
+"""Manual dependency injection.
+
+Built lazily, one `cached_property` per dependency. The previous version
+constructed all twenty-six objects in `__init__`, and since a container is
+created per UI event and per API request, *every* interaction paid for the whole
+graph — including `get_scanner_engine()`, which reads the `scan_backend` setting
+from the database. Clicking a filter on the issues screen did a scan-backend
+lookup it had no use for, and a malformed `scan_backend` value made every screen
+fail rather than just scanning (the concrete failure that the bootstrap had to
+work around by wiring its three objects by hand).
+
+`cached_property` keeps the access syntax identical (`container.user_service`),
+builds each object at most once per container, and builds nothing that isn't
+asked for.
+"""
+from functools import cached_property
+
 from sqlalchemy.orm import Session
+
 from zanshin.database import SessionLocal
 
 # Repositories
@@ -26,61 +44,141 @@ from zanshin.services.api_key_service import ApiKeyService
 from zanshin.services.scanners import get_scanner_engine
 from zanshin.services.enrichment_service import EnrichmentService
 from zanshin.services.license_compliance_service import LicenseComplianceService
+from zanshin.services.retention_service import RetentionService
 from zanshin.services.user_service import UserService
 from zanshin.services.audit_log_service import AuditLogService
 from zanshin.services.ai_review_service import AiReviewService
 from zanshin.services.issue_service import IssueService
 from zanshin.services.notification_service import NotificationService
 
+
 class IoCContainer:
     def __init__(self, db: Session):
         self.db = db
 
-        # Repositories
-        self.user_repository = UserRepository(db)
-        self.repository_repository = RepositoryRepository(db)
-        self.container_repository = ContainerRepository(db)
-        self.scan_repository = ScanRepository(db)
-        self.ssh_key_repository = SSHKeyRepository(db)
-        self.api_key_repository = ApiKeyRepository(db)
-        self.setting_repository = SettingRepository(db)
-        self.finding_repository = FindingRepository(db)
-        self.audit_log_repository = AuditLogRepository(db)
-        self.ai_review_result_repository = AiReviewResultRepository(db)
-        self.issue_repository = IssueRepository(db)
+    # --- Repositories ---
 
-        # Services
-        self.encryption_service = EncryptionService()
-        self.auth_service = AuthService(self.user_repository)
-        self.user_service = UserService(self.user_repository, self.auth_service)
-        self.audit_log_service = AuditLogService(self.audit_log_repository)
-        self.ssh_key_service = SSHKeyService(self.ssh_key_repository, self.encryption_service)
-        self.settings_service = SettingsService(self.setting_repository)
-        self.api_key_service = ApiKeyService(self.api_key_repository)
+    @cached_property
+    def user_repository(self) -> UserRepository:
+        return UserRepository(self.db)
 
-        # `scan_backend` setting picks the ScannerEngine implementation
-        # (only "docker" exists today — see ADR-001 for the local-API/
-        # cloud-API backends planned as pluggable alternatives).
-        self.scanner_engine = get_scanner_engine(self.settings_service)
-        # EPSS/CISA-KEV scoring after a scan completes; disable via the
-        # `enrichment_enabled` setting for fully air-gapped deployments.
-        self.enrichment_service = EnrichmentService(self.settings_service)
-        # License blocklist evaluation over the SBOM (no scanner needed —
-        # see LicenseComplianceService's docstring / ADR-001 section 5).
-        self.license_compliance_service = LicenseComplianceService(self.settings_service)
-        # Optional local LLM-based code review via Ollama (disabled by
-        # default). Only runs for repository scans when
-        # `ai_review_enabled` is set — see AiReviewService's docstring and
-        # ADR-001, Phase 8.
-        self.ai_review_service = AiReviewService(self.settings_service)
-        # Cross-scan issue lifecycle and triage (new / still open / resolved,
-        # VEX decisions). Session-agnostic by design — `sync_from_scan` runs on
-        # the background scan session, `triage` on this request's session.
-        self.issue_service = IssueService()
-        # Outbound webhook about what a scan changed; inert until a URL is set
-        # in Settings (see NotificationService).
-        self.notification_service = NotificationService(self.settings_service)
-        self.scan_processor = ScanProcessor(
+    @cached_property
+    def repository_repository(self) -> RepositoryRepository:
+        return RepositoryRepository(self.db)
+
+    @cached_property
+    def container_repository(self) -> ContainerRepository:
+        return ContainerRepository(self.db)
+
+    @cached_property
+    def scan_repository(self) -> ScanRepository:
+        return ScanRepository(self.db)
+
+    @cached_property
+    def ssh_key_repository(self) -> SSHKeyRepository:
+        return SSHKeyRepository(self.db)
+
+    @cached_property
+    def api_key_repository(self) -> ApiKeyRepository:
+        return ApiKeyRepository(self.db)
+
+    @cached_property
+    def setting_repository(self) -> SettingRepository:
+        return SettingRepository(self.db)
+
+    @cached_property
+    def finding_repository(self) -> FindingRepository:
+        return FindingRepository(self.db)
+
+    @cached_property
+    def audit_log_repository(self) -> AuditLogRepository:
+        return AuditLogRepository(self.db)
+
+    @cached_property
+    def ai_review_result_repository(self) -> AiReviewResultRepository:
+        return AiReviewResultRepository(self.db)
+
+    @cached_property
+    def issue_repository(self) -> IssueRepository:
+        return IssueRepository(self.db)
+
+    # --- Services ---
+
+    @cached_property
+    def encryption_service(self) -> EncryptionService:
+        return EncryptionService()
+
+    @cached_property
+    def auth_service(self) -> AuthService:
+        return AuthService(self.user_repository)
+
+    @cached_property
+    def user_service(self) -> UserService:
+        return UserService(self.user_repository, self.auth_service)
+
+    @cached_property
+    def audit_log_service(self) -> AuditLogService:
+        return AuditLogService(self.audit_log_repository)
+
+    @cached_property
+    def ssh_key_service(self) -> SSHKeyService:
+        return SSHKeyService(self.ssh_key_repository, self.encryption_service)
+
+    @cached_property
+    def settings_service(self) -> SettingsService:
+        return SettingsService(self.setting_repository)
+
+    @cached_property
+    def api_key_service(self) -> ApiKeyService:
+        return ApiKeyService(self.api_key_repository)
+
+    @cached_property
+    def scanner_engine(self):
+        """The `scan_backend` setting picks the implementation (docker /
+        local_api / osv — see ADR-001). Reads the database, which is why it
+        matters that nothing builds it unless a scan is actually involved."""
+        return get_scanner_engine(self.settings_service)
+
+    @cached_property
+    def enrichment_service(self) -> EnrichmentService:
+        """EPSS/CISA-KEV scoring after a scan completes; disable via the
+        `enrichment_enabled` setting for fully air-gapped deployments."""
+        return EnrichmentService(self.settings_service)
+
+    @cached_property
+    def license_compliance_service(self) -> LicenseComplianceService:
+        """License blocklist evaluation over the SBOM (no scanner needed — see
+        its docstring / ADR-001 section 5)."""
+        return LicenseComplianceService(self.settings_service)
+
+    @cached_property
+    def ai_review_service(self) -> AiReviewService:
+        """Optional local LLM code review via Ollama, disabled by default (see
+        ADR-001, Phase 8)."""
+        return AiReviewService(self.settings_service)
+
+    @cached_property
+    def issue_service(self) -> IssueService:
+        """Cross-scan issue lifecycle and triage. Session-agnostic by design —
+        `sync_from_scan` runs on the background scan session, `triage` on this
+        request's session."""
+        return IssueService()
+
+    @cached_property
+    def notification_service(self) -> NotificationService:
+        """Outbound webhook about what a scan changed; inert until a URL is set
+        in Settings."""
+        return NotificationService(self.settings_service)
+
+    @cached_property
+    def retention_service(self) -> RetentionService:
+        """Prunes the raw scanner payloads that make the database grow without
+        bound (see its docstring)."""
+        return RetentionService(self.settings_service)
+
+    @cached_property
+    def scan_processor(self) -> ScanProcessor:
+        return ScanProcessor(
             self.ssh_key_service,
             self.scanner_engine,
             self.enrichment_service,
@@ -89,16 +187,19 @@ class IoCContainer:
             self.issue_service,
             self.notification_service,
         )
-        self.repository_service = RepositoryService(
-            self.repository_repository,
-            self.scan_repository,
-            self.scan_processor
+
+    @cached_property
+    def repository_service(self) -> RepositoryService:
+        return RepositoryService(
+            self.repository_repository, self.scan_repository, self.scan_processor
         )
-        self.container_service = ContainerService(
-            self.container_repository,
-            self.scan_repository,
-            self.scan_processor
+
+    @cached_property
+    def container_service(self) -> ContainerService:
+        return ContainerService(
+            self.container_repository, self.scan_repository, self.scan_processor
         )
+
 
 def get_container() -> IoCContainer:
     """Return a container instance wrapping a new database session."""

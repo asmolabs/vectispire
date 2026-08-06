@@ -297,6 +297,88 @@ L'écran des problèmes lisait 500 lignes en dur sans afficher de total : au-del
 
 Le refactor des view-models de l'UI (`dict[str, str]` + conversions `str()` dans 5 pages, `depots.py` à ~1400 lignes) reste à faire. Ce n'est pas un oubli : c'est ~1000 lignes de remaniement sur la seule couche sans harnais de test, donc un risque de régression réel pour un gain interne. À faire avec la mise en place d'un harnais de test Reflex, pas avant.
 
+## 9sexies. Dette structurelle résorbée (2026-08-06)
+
+Les trois points laissés ouverts par la revue de la vague 3.
+
+### Container paresseux
+
+`IoCContainer` construisait ses vingt-six dépendances dans `__init__`, et il est
+créé à chaque événement UI et à chaque requête API : cliquer sur un filtre payait
+tout le graphe, dont `get_scanner_engine()`, qui lit `scan_backend` en base. Passé
+en `cached_property` — l'accès reste `container.user_service`, mais rien n'est
+construit sans être demandé. Effet de bord notable : un `scan_backend` invalide ne
+casse plus que le scan, alors qu'il cassait tous les écrans (c'est la raison pour
+laquelle le bootstrap devait câbler ses trois objets à la main).
+
+### Rétention des données brutes
+
+`Scan.sbom`/`Scan.cves` n'étaient jamais supprimés : 18 Mo pour treize scans, et
+une croissance monotone tant que l'ordonnanceur tourne. `RetentionService` purge
+les blobs hors des N derniers scans **par cible** *et* du délai d'âge — les deux
+seuils, parce qu'un dépôt scanné deux fois par an garde ses données et qu'un dépôt
+scanné toutes les heures reste borné ; aucune des deux règles seule ne fait les
+deux. Ce qui survit toujours : `summary`, `findings_count`, tous les `Finding` et
+tous les `Issue`. La projection normalisée *est* l'historique durable — c'était
+l'objet de la vague 2 — donc purger un blob ne coûte aucune histoire, aucun
+triage, aucun delta.
+
+Deux corollaires :
+
+- **Les dialogues de détail sont désormais construits depuis les `Finding`**, plus
+  depuis `Scan.cves`. C'est ce qui rend la purge invisible pour l'UI, et c'était de
+  toute façon absurde : on reparsait du JSON spécifique à un outil pour retrouver
+  des données déjà normalisées à côté.
+- **Bug trouvé par les tests** : `scan.sbom = None` sur une colonne `JSON` écrit le
+  littéral JSON `null`, pas un `NULL` SQL (SQLAlchemy, `none_as_null=False` par
+  défaut). `find_prunable` retrouvait donc éternellement les scans déjà purgés — la
+  purge n'était pas idempotente. Corrigé sur le modèle (`JSON(none_as_null=True)`)
+  et dans le service, qui ignore aussi les lignes déjà porteuses d'un `null` JSON.
+
+### View-models typés, et un harnais de test UI
+
+Chaque écran portait ses lignes en `list[dict[str, str]]` : les constructeurs
+stringifiaient tout (`"critical": str(crit)`) et les templates comparaient des
+chaînes (`rx.cond(r["critical"] != "0", ...)`). Trois coûts : les nombres
+n'étaient plus des nombres, une clé mal orthographiée échouait *silencieusement* au
+rendu, et la forme d'une ligne n'existait nulle part. Remplacé par des dataclasses
+(la forme que Reflex recommande aujourd'hui) dans `zanshin/ui/view_models.py` — huit
+pages converties, badges partagés extraits dans `components.py` (trois tableaux de
+`depots.py` avaient divergé sur les couleurs).
+
+J'avais écarté ce chantier en vague 3 « faute de harnais de test ». Le harnais
+existe :
+
+```python
+root = rx.State(_reflex_internal_init=True)
+state = root._get_state_from_cache(MyState)      # pas get_state : pas d'EventContext requis
+MyState.event_handlers["load"].fn(state)         # la fonction, pas l'EventHandler
+```
+
+Trois détails non évidents : le substate doit venir du root (assigner une var
+héritée sur un substate détaché lève, Reflex la renvoyant au `parent_state`) ;
+`get_state()` passe par le state manager et exige un `EventContext` vivant, d'où
+`_get_state_from_cache` ; et toute page doit être importée **avant** la création du
+root, Reflex enregistrant les substates à la définition de classe. Voir
+`UIHarness` dans `tests/conftest.py`.
+
+Les deux moitiés de l'UI sont donc couvertes par des moyens différents : les
+loaders par ces tests, les templates par `reflex compile --dry`, qui échoue sur un
+attribut inexistant d'une ligne typée — ce qu'un `dict` ne permettait pas.
+
+**La couverture affichée passe de 94 % à 82 %.** Elle n'a pas baissé : elle mesure
+enfin la couche UI, qui était exclue en bloc de `pyproject.toml`. Seul
+`zanshin/zanshin.py` (le point d'entrée) reste omis.
+
+### Correctif de sécurité au passage
+
+Les URL de référence viennent de Grype (`dataSource`) et d'OSV
+(`references[].url`), donc de flux d'avis et de métadonnées que l'auteur d'un
+paquet contrôle. Elles étaient rendues telles quelles dans `rx.link(href=...)` :
+un `javascript:` était à un clic de s'exécuter dans le navigateur d'un analyste,
+avec sa session. `safe_external_url` n'autorise que `http`/`https` (point 8 de la
+revue de sécurité).
+
 ## 9. Prochaines étapes immédiates
 
 1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).

@@ -11,9 +11,13 @@ class Scan(Base):
     branch = Column(String(255), nullable=False)
     sub_path = Column(String(255), default="", nullable=True)
     status = Column(String(255), default="pending", nullable=False)
-    sbom = Column(JSON, nullable=True)
-    cves = Column(JSON, nullable=True)
-    summary = Column(JSON, nullable=True)
+    # `none_as_null=True` matters: with SQLAlchemy's default, assigning Python
+    # `None` to a JSON column stores the JSON literal `null`, which is *not* SQL
+    # NULL — so `sbom IS NOT NULL` stayed true for a scan whose payload had been
+    # pruned, and the retention pass re-pruned the same rows forever.
+    sbom = Column(JSON(none_as_null=True), nullable=True)
+    cves = Column(JSON(none_as_null=True), nullable=True)
+    summary = Column(JSON(none_as_null=True), nullable=True)
     duration_ms = Column(BigInteger, nullable=True)
     findings_count = Column(Integer, default=0, nullable=False)
 

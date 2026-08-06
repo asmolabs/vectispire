@@ -2,6 +2,7 @@ import reflex as rx
 
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_admin
+from zanshin.ui.view_models import AuditRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 
@@ -10,7 +11,7 @@ class AuditLogState(BaseState):
     recent admin/security-relevant actions: logins, user management, API
     key lifecycle, settings changes."""
 
-    entries: list[dict[str, str]] = []
+    entries: list[AuditRow] = []
 
     @requires_admin
     def load_entries(self):
@@ -23,13 +24,13 @@ class AuditLogState(BaseState):
         try:
             recent = container.audit_log_service.find_recent(200)
             self.entries = [
-                {
-                    "timestamp": e.timestamp.strftime("%d/%m/%Y %H:%M:%S") if e.timestamp else "",
-                    "operation_type": e.operation_type,
-                    "user_id": e.user_id or "Système",
-                    "resource_id": e.resource_id,
-                    "description": e.description,
-                }
+                AuditRow(
+                    timestamp=format_datetime(e.timestamp, "%d/%m/%Y %H:%M:%S"),
+                    operation_type=e.operation_type,
+                    user_id=e.user_id or "Système",
+                    resource_id=e.resource_id,
+                    description=e.description,
+                )
                 for e in recent
             ]
         except Exception as ex:
@@ -66,11 +67,11 @@ def audit_log_page() -> rx.Component:
                     rx.foreach(
                         AuditLogState.entries,
                         lambda e: rx.table.row(
-                            rx.table.cell(e["timestamp"]),
-                            rx.table.cell(rx.badge(e["operation_type"], variant="soft")),
-                            rx.table.cell(e["user_id"]),
-                            rx.table.cell(e["resource_id"]),
-                            rx.table.cell(e["description"])
+                            rx.table.cell(e.timestamp),
+                            rx.table.cell(rx.badge(e.operation_type, variant="soft")),
+                            rx.table.cell(e.user_id),
+                            rx.table.cell(e.resource_id),
+                            rx.table.cell(e.description)
                         )
                     )
                 ),

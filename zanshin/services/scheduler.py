@@ -19,8 +19,8 @@ Design notes:
 - `last_scheduled_scan_at` is stamped *before* dispatch. Stamping afterwards
   would re-dispatch the same target on the next tick whenever a scan takes
   longer than one interval.
-- The tick also reaps stalled scans, since it is the only thing already running
-  on a timer (see scan_recovery).
+- The tick also reaps stalled scans and prunes raw scanner payloads, since it is
+  the only thing already running on a timer (see scan_recovery, retention_service).
 """
 import logging
 import os
@@ -47,12 +47,21 @@ TICK_SECONDS = int(os.getenv("ZANSHIN_SCHEDULER_TICK_SECONDS", "60"))
 # sequence, so exceeding one tool's timeout is not the same as being stuck.
 STALLED_SCAN_MAX_AGE_SECONDS = int(os.getenv("ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS", "5400"))
 
+# Retention runs on its own, much slower cadence: it walks every scan carrying a
+# payload and may VACUUM, so doing it every minute would be waste for a job whose
+# input changes on the scale of days.
+RETENTION_INTERVAL_SECONDS = int(os.getenv("ZANSHIN_RETENTION_INTERVAL_SECONDS", str(6 * 3600)))
+
 # Enabled by default: an operator who configures an interval expects it to be
 # honoured. Set to "false" for a deployment that only ever scans on demand.
 SCHEDULER_ENABLED = os.getenv("ZANSHIN_SCHEDULER_ENABLED", "true").lower() != "false"
 
 _thread: Optional[threading.Thread] = None
 _stop_event = threading.Event()
+# When retention last ran, so the fast tick can host a slow job without a second
+# thread. In memory on purpose: after a restart, running it once early is
+# harmless, and persisting it would mean a settings row to keep in sync.
+_last_retention_run: Optional[datetime] = None
 
 
 def is_due(
@@ -103,6 +112,7 @@ def run_once(now: Optional[datetime] = None) -> int:
         container = IoCContainer(db)
 
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
+        _prune_raw_payloads(container, db, now)
 
         due_repos, due_containers = find_due_targets(
             container.repository_repository.find_all(),
@@ -138,6 +148,24 @@ def run_once(now: Optional[datetime] = None) -> int:
         return dispatched
     finally:
         db.close()
+
+
+def _prune_raw_payloads(container, db, now: datetime) -> None:
+    """Run retention at most every `RETENTION_INTERVAL_SECONDS`.
+
+    Never raises: dropping stale payloads is housekeeping, and a failure here
+    must not stop scans from being dispatched.
+    """
+    global _last_retention_run
+    if _last_retention_run is not None:
+        elapsed = (now - _last_retention_run).total_seconds()
+        if elapsed < RETENTION_INTERVAL_SECONDS:
+            return
+    _last_retention_run = now
+    try:
+        container.retention_service.prune(db)
+    except Exception:
+        logger.exception("Retention pass failed — will retry on a later tick")
 
 
 def _warn_about_unsupported_cron(repositories, containers) -> None:

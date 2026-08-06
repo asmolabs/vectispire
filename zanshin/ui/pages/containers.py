@@ -6,14 +6,31 @@ from datetime import datetime
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
-from zanshin.ui.components import stat_card, severity_donut_chart, empty_state
+from zanshin.ui.components import (
+    actionable_badge,
+    empty_state,
+    severity_badges,
+    severity_donut_chart,
+    stat_card,
+    status_badge,
+)
+from zanshin.ui.view_models import (
+    ContainerRow,
+    SeverityCounts,
+    VulnerabilityRow,
+    format_percent,
+    format_score,
+    safe_external_url,
+    severity_chart,
+    severity_color,
+)
 from zanshin.container import get_container
 from zanshin.models.container import Container
 
 class ContainersState(BaseState):
     """Manages the Docker containers overview page and CRUD actions."""
 
-    containers: list[dict[str, str]] = []
+    containers: list[ContainerRow] = []
 
     # Aggregated metrics (latest scan of each container), for the KPI row
     # and severity donut chart above the table.
@@ -22,6 +39,7 @@ class ContainersState(BaseState):
     high_count: int = 0
     medium_count: int = 0
     low_count: int = 0
+    # Dicts: Recharts' `data` prop demands them (see severity_chart).
     severity_chart_data: list[dict[str, Any]] = []
 
     dialog_open: bool = False
@@ -33,8 +51,8 @@ class ContainersState(BaseState):
     # CVE details modal state variables
     details_dialog_open: bool = False
     selected_container_name: str = ""
-    selected_scan_cves: list[dict[str, str]] = []
-    selected_scan_summary: dict[str, int] = {}
+    selected_scan_cves: list[VulnerabilityRow] = []
+    selected_scan_summary: SeverityCounts = SeverityCounts()
 
     def set_new_image_name(self, val: str):
         self.new_image_name = val
@@ -73,59 +91,36 @@ class ContainersState(BaseState):
             )
 
             self.containers = []
+            totals = SeverityCounts()
             total_vulns = 0
-            total_critical = 0
-            total_high = 0
-            total_medium = 0
-            total_low = 0
             for c in db_containers:
-                status = "Non scanné"
-                vulns = 0
-                crit = 0
-                high = 0
-                med = 0
-                low = 0
                 latest = latest_scans.get(c.id)
+                counts = SeverityCounts.from_summary(latest.summary if latest else None)
                 if latest:
-                    status = latest.status
-                    vulns = latest.findings_count
-                    summary = latest.summary or {}
-                    crit = summary.get("critical", 0)
-                    high = summary.get("high", 0)
-                    med = summary.get("medium", 0)
-                    low = summary.get("low", 0)
-                    total_vulns += vulns
-                    total_critical += crit
-                    total_high += high
-                    total_medium += med
-                    total_low += low
+                    total_vulns += latest.findings_count
+                    totals.critical += counts.critical
+                    totals.high += counts.high
+                    totals.medium += counts.medium
+                    totals.low += counts.low
 
-                self.containers.append({
-                    "id": str(c.id),
-                    "image_name": c.image_name,
-                    "tag": c.tag,
-                    "registry": c.registry or "docker.io",
-                    "status": status,
-                    "vulns": str(vulns),
-                    "critical": str(crit),
-                    "high": str(high),
-                    "medium": str(med),
-                    "low": str(low),
-                    "interval": str(c.scan_interval_minutes or 1440),
-                    "open_issues": str(actionable_counts.get(c.id, 0)),
-                })
+                self.containers.append(ContainerRow(
+                    id=c.id,
+                    image_name=c.image_name,
+                    tag=c.tag,
+                    registry=c.registry or "docker.io",
+                    status=latest.status if latest else "Non scanné",
+                    vulns=latest.findings_count if latest else 0,
+                    counts=counts,
+                    open_issues=actionable_counts.get(c.id, 0),
+                    interval=c.scan_interval_minutes or 1440,
+                ))
 
             self.total_vulns = total_vulns
-            self.critical_count = total_critical
-            self.high_count = total_high
-            self.medium_count = total_medium
-            self.low_count = total_low
-            self.severity_chart_data = [
-                {"name": "Critique", "value": total_critical, "color": "var(--red-9)"},
-                {"name": "Élevé", "value": total_high, "color": "var(--orange-9)"},
-                {"name": "Moyen", "value": total_medium, "color": "var(--yellow-9)"},
-                {"name": "Faible", "value": total_low, "color": "var(--blue-9)"},
-            ]
+            self.critical_count = totals.critical
+            self.high_count = totals.high
+            self.medium_count = totals.medium
+            self.low_count = totals.low
+            self.severity_chart_data = severity_chart(totals)
         except Exception as e:
             yield self.trigger_toast( f"Erreur lors du chargement : {str(e)}", is_error=True)
         finally:
@@ -200,48 +195,44 @@ class ContainersState(BaseState):
                 return
             self.selected_container_name = c.image_string
 
-            # Identify the latest scan from a summary first, then load that
-            # one scan in full — this dialog is the only place that genuinely
-            # needs the raw `cves` blob, and only for a single scan.
+            # A summary is all this needs now: the dialog is built from the
+            # normalized findings, so the raw blob is never read (and may have
+            # been pruned — see RetentionService).
             latest_summary = container_ioc.scan_repository.find_latest_summary_by_container_ids(
                 [c.id]
             ).get(c.id)
             if not latest_summary:
                 self.selected_scan_cves = []
-                self.selected_scan_summary = {}
+                self.selected_scan_summary = SeverityCounts()
                 yield self.trigger_toast("Aucun scan disponible pour cette image.", is_error=True)
                 return
 
             if latest_summary.status != "completed":
                 self.selected_scan_cves = []
-                self.selected_scan_summary = {}
+                self.selected_scan_summary = SeverityCounts()
                 yield self.trigger_toast(f"Dernier scan en statut: {latest_summary.status}", is_error=True)
                 return
 
-            latest = container_ioc.scan_repository.find_by_id(latest_summary.id)
-
-            # Parse findings
-            cves_data = latest.cves or {}
-            matches = cves_data.get("matches", [])
-            
-            parsed_cves = []
-            for m in matches:
-                vuln = m.get("vulnerability", {})
-                art = m.get("artifact", {})
-                fix = vuln.get("fix", {})
-                
-                parsed_cves.append({
-                    "id": vuln.get("id", "N/A"),
-                    "severity": vuln.get("severity", "N/A").upper(),
-                    "component": art.get("name", "N/A"),
-                    "version": art.get("version", "N/A"),
-                    "description": vuln.get("description", "Pas de description"),
-                    "fix_state": fix.get("state", "unknown"),
-                    "link": vuln.get("links", [""])[0] if vuln.get("links") else ""
-                })
-                
-            self.selected_scan_cves = parsed_cves
-            self.selected_scan_summary = latest.summary or {}
+            # From the normalized findings, not `Scan.cves` — see
+            # DepotsState.show_cves and RetentionService for why.
+            self.selected_scan_cves = [
+                VulnerabilityRow(
+                    identifier=f.identifier or "N/A",
+                    severity=(f.severity or "unknown").upper(),
+                    severity_color=severity_color(f.severity),
+                    component=f.package_name or "N/A",
+                    version=f.package_version or "",
+                    cvss=format_score(f.cvss_score),
+                    epss=format_percent(f.epss_score),
+                    is_kev=bool(f.is_kev),
+                    fix=f.fix_versions or ("Aucun correctif" if f.fix_state in ("not-fixed", "wont-fix") else "—"),
+                    link=safe_external_url(f.link),
+                )
+                for f in container_ioc.finding_repository.find_all_by_scan_id_and_type(
+                    latest_summary.id, "vulnerability"
+                )
+            ]
+            self.selected_scan_summary = SeverityCounts.from_summary(latest_summary.summary)
             self.details_dialog_open = True
         except Exception as e:
             yield self.trigger_toast(f"Erreur de lecture des CVEs : {str(e)}", is_error=True)
@@ -351,46 +342,16 @@ def containers_page() -> rx.Component:
                     rx.foreach(
                         ContainersState.containers,
                         lambda c: rx.table.row(
-                            rx.table.cell(c["registry"]),
-                            rx.table.row_header_cell(c["image_name"]),
-                            rx.table.cell(c["tag"]),
-                            rx.table.cell(rx.Var.create(f"{c['interval']}")),
-                            rx.table.cell(
-                                rx.badge(
-                                    c["status"],
-                                    color_scheme=rx.cond(
-                                        c["status"] == "completed",
-                                        "green",
-                                        rx.cond(c["status"] == "scanning", "blue", "gray")
-                                    )
-                                )
-                            ),
-                            rx.table.cell(
-                                rx.cond(
-                                    (c["vulns"] == "0") | (c["status"] == "Non scanné"),
-                                    rx.badge("0", color_scheme="green"),
-                                    rx.hstack(
-                                        rx.cond(c["critical"] != "0", rx.badge(f"Crit: {c['critical']}", color_scheme="red", variant="solid")),
-                                        rx.cond(c["high"] != "0", rx.badge(f"Élevé: {c['high']}", color_scheme="orange", variant="solid")),
-                                        rx.cond(c["medium"] != "0", rx.badge(f"Moy: {c['medium']}", color_scheme="yellow")),
-                                        rx.cond(c["low"] != "0", rx.badge(f"Faible: {c['low']}", color_scheme="blue")),
-                                        spacing="1"
-                                    )
-                                )
-                            ),
+                            rx.table.cell(c.registry),
+                            rx.table.row_header_cell(c.image_name),
+                            rx.table.cell(c.tag),
+                            rx.table.cell(c.interval.to_string()),
+                            rx.table.cell(status_badge(c.status)),
+                            rx.table.cell(severity_badges(c.counts, c.vulns)),
                             # Outstanding issues (open, not settled by triage) —
                             # the count that shrinks as the team works, unlike
                             # the CVE count on its left.
-                            rx.table.cell(
-                                rx.cond(
-                                    c["open_issues"] == "0",
-                                    rx.badge("0", color_scheme="green"),
-                                    rx.link(
-                                        rx.badge(c["open_issues"], color_scheme="amber", variant="solid"),
-                                        href="/issues",
-                                    ),
-                                )
-                            ),
+                            rx.table.cell(actionable_badge(c.open_issues)),
                             rx.table.cell(
                                 rx.hstack(
                                     rx.tooltip(
@@ -399,7 +360,7 @@ def containers_page() -> rx.Component:
                                             size="2",
                                             color_scheme="cyan",
                                             variant="soft",
-                                            on_click=lambda: ContainersState.trigger_scan(c["id"])
+                                            on_click=lambda: ContainersState.trigger_scan(c.id)
                                         ),
                                         content="Lancer Scan"
                                     ),
@@ -409,7 +370,7 @@ def containers_page() -> rx.Component:
                                             size="2",
                                             color_scheme="teal",
                                             variant="soft",
-                                            on_click=lambda: ContainersState.show_scan_details(c["id"])
+                                            on_click=lambda: ContainersState.show_scan_details(c.id)
                                         ),
                                         content="Voir CVEs"
                                     ),
@@ -419,7 +380,7 @@ def containers_page() -> rx.Component:
                                             size="2",
                                             color_scheme="red",
                                             variant="soft",
-                                            on_click=lambda: ContainersState.delete_container(c["id"])
+                                            on_click=lambda: ContainersState.delete_container(c.id)
                                         ),
                                         content="Supprimer"
                                     ),
@@ -493,8 +454,10 @@ def containers_page() -> rx.Component:
                                 rx.table.column_header_cell("CVE ID"),
                                 rx.table.column_header_cell("Composant"),
                                 rx.table.column_header_cell("Version"),
-                                rx.table.column_header_cell("Description"),
-                                rx.table.column_header_cell("Fix Status")
+                                rx.table.column_header_cell("CVSS"),
+                                rx.table.column_header_cell("EPSS"),
+                                rx.table.column_header_cell("KEV"),
+                                rx.table.column_header_cell("Correctif")
                             )
                         ),
                         rx.table.body(
@@ -502,37 +465,30 @@ def containers_page() -> rx.Component:
                                 ContainersState.selected_scan_cves,
                                 lambda cve: rx.table.row(
                                     rx.table.cell(
-                                        rx.badge(
-                                            cve["severity"],
-                                            color_scheme=rx.cond(
-                                                cve["severity"] == "CRITICAL",
-                                                "red",
-                                                rx.cond(
-                                                    cve["severity"] == "HIGH",
-                                                    "orange",
-                                                    rx.cond(
-                                                        cve["severity"] == "MEDIUM",
-                                                        "yellow",
-                                                        "blue"
-                                                    )
-                                                )
-                                            )
-                                        )
+                                        rx.badge(cve.severity, color_scheme=cve.severity_color)
                                     ),
                                     rx.table.cell(
                                         rx.cond(
-                                            cve["link"] != "",
-                                            rx.link(cve["id"], href=cve["link"], is_external=True, class_name="text-cyan-9 hover:underline"),
-                                            rx.text(cve["id"])
+                                            cve.link != "",
+                                            rx.link(cve.identifier, href=cve.link, is_external=True, class_name="text-cyan-9 hover:underline"),
+                                            rx.text(cve.identifier)
                                         )
                                     ),
-                                    rx.table.cell(cve["component"]),
-                                    rx.table.cell(cve["version"]),
-                                    rx.table.cell(cve["description"]),
+                                    rx.table.cell(cve.component),
+                                    rx.table.cell(cve.version),
+                                    rx.table.cell(cve.cvss),
+                                    rx.table.cell(cve.epss),
+                                    rx.table.cell(
+                                        rx.cond(
+                                            cve.is_kev,
+                                            rx.badge("Exploitée activement", color_scheme="red", variant="solid"),
+                                            rx.text("—", color="var(--slate-9)")
+                                        )
+                                    ),
                                     rx.table.cell(
                                         rx.badge(
-                                            cve["fix_state"],
-                                            color_scheme=rx.cond(cve["fix_state"] == "fixed", "green", "gray")
+                                            cve.fix,
+                                            color_scheme=rx.cond(cve.fix == "Aucun correctif", "gray", "green"),
                                         )
                                     ),
                                     class_name="hover:bg-slate-3/60 transition-colors"

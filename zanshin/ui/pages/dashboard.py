@@ -5,13 +5,42 @@ from datetime import datetime, timedelta
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_login
 from zanshin.ui.layout import main_layout
-from zanshin.ui.components import stat_card, severity_donut_chart, empty_state
+from zanshin.ui.components import (
+    count_badge,
+    empty_state,
+    severity_badges,
+    severity_donut_chart,
+    stat_card,
+    status_badge,
+)
+from zanshin.ui.view_models import (
+    RepositoryRow,
+    SeverityCounts,
+    format_datetime,
+    severity_chart,
+)
 from zanshin.container import get_container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.container import Container
 from zanshin.models.scan import Scan
 
 DAYS_OF_ACTIVITY = 14
+
+
+def _repository_row(repo, latest, secret_counts) -> RepositoryRow:
+    """The same row model the /depots list uses — one shape, one template."""
+    counts = SeverityCounts.from_summary(latest.summary if latest else None)
+    return RepositoryRow(
+        id=repo.id,
+        name=repo.name or repo.url.split("/")[-1].replace(".git", ""),
+        url=repo.url,
+        branch=repo.branch,
+        status=latest.status if latest else "Non scanné",
+        findings=latest.findings_count if latest else 0,
+        counts=counts,
+        secrets=secret_counts.get(latest.id, 0) if latest else 0,
+        last_scan_at=format_datetime(latest.created_at) if latest else "N/A",
+    )
 
 class DashboardState(BaseState):
     """Handles data loading and aggregation for the Zanshin dashboard."""
@@ -28,9 +57,10 @@ class DashboardState(BaseState):
     last_scan_display: str = "Aucun scan"
 
     # Data list
-    repositories: list[dict[str, str]] = []
+    repositories: list[RepositoryRow] = []
 
     # Chart data
+    # Dicts: Recharts' `data` prop demands them (see severity_chart).
     severity_chart_data: list[dict[str, Any]] = []
     daily_scan_data: list[dict[str, Any]] = []
 
@@ -62,43 +92,10 @@ class DashboardState(BaseState):
             )
 
             # Map repositories for display
-            self.repositories = []
-            for r in repos:
-                latest_scan_status = "Non scanné"
-                latest_scan_time = "N/A"
-                findings = 0
-                crit = 0
-                high = 0
-                med = 0
-                low = 0
-                secrets = 0
-
-                latest = latest_repo_scans.get(r.id)
-                if latest:
-                    latest_scan_status = latest.status
-                    latest_scan_time = latest.created_at.strftime("%d/%m/%Y %H:%M")
-                    findings = latest.findings_count
-                    summary = latest.summary or {}
-                    crit = summary.get("critical", 0)
-                    high = summary.get("high", 0)
-                    med = summary.get("medium", 0)
-                    low = summary.get("low", 0)
-                    secrets = secret_counts.get(latest.id, 0)
-
-                self.repositories.append({
-                    "id": str(r.id),
-                    "name": r.name or r.url.split("/")[-1].replace(".git", ""),
-                    "url": r.url,
-                    "branch": r.branch,
-                    "latest_scan_status": latest_scan_status,
-                    "latest_scan_time": latest_scan_time,
-                    "findings": str(findings),
-                    "critical": str(crit),
-                    "high": str(high),
-                    "medium": str(med),
-                    "low": str(low),
-                    "secrets": str(secrets)
-                })
+            self.repositories = [
+                _repository_row(r, latest_repo_scans.get(r.id), secret_counts)
+                for r in repos
+            ]
 
             self.secret_count = sum(secret_counts.values())
 
@@ -141,12 +138,9 @@ class DashboardState(BaseState):
 
             self.last_scan_display = max(latest_dates).strftime("%d/%m/%Y %H:%M") if latest_dates else "Aucun scan"
 
-            self.severity_chart_data = [
-                {"name": "Critique", "value": critical, "color": "var(--red-9)"},
-                {"name": "Élevé", "value": high, "color": "var(--orange-9)"},
-                {"name": "Moyen", "value": medium, "color": "var(--yellow-9)"},
-                {"name": "Faible", "value": low, "color": "var(--blue-9)"},
-            ]
+            self.severity_chart_data = severity_chart(
+                SeverityCounts(critical=critical, high=high, medium=medium, low=low)
+            )
 
             # Scan activity over the last DAYS_OF_ACTIVITY days, across
             # repos and containers alike — a simple day-bucketed count,
@@ -262,40 +256,13 @@ def dashboard_page() -> rx.Component:
                         rx.foreach(
                             DashboardState.repositories,
                             lambda r: rx.table.row(
-                                rx.table.row_header_cell(r["name"]),
-                                rx.table.cell(r["url"]),
-                                rx.table.cell(r["branch"]),
-                                rx.table.cell(r["latest_scan_time"]),
-                                rx.table.cell(
-                                    rx.badge(
-                                        r["latest_scan_status"],
-                                        color_scheme=rx.cond(
-                                            r["latest_scan_status"] == "completed",
-                                            "green",
-                                            rx.cond(r["latest_scan_status"] == "scanning", "blue", "gray")
-                                        )
-                                    )
-                                ),
-                                rx.table.cell(
-                                    rx.cond(
-                                        r["secrets"] == "0",
-                                        rx.badge("0", color_scheme="green"),
-                                        rx.badge(f"{r['secrets']} secret(s)", color_scheme="red", variant="solid")
-                                    )
-                                ),
-                                rx.table.cell(
-                                    rx.cond(
-                                        (r["findings"] == "0") | (r["latest_scan_status"] == "Non scanné"),
-                                        rx.badge("0", color_scheme="green"),
-                                        rx.hstack(
-                                            rx.cond(r["critical"] != "0", rx.badge(f"Crit: {r['critical']}", color_scheme="red", variant="solid")),
-                                            rx.cond(r["high"] != "0", rx.badge(f"Élevé: {r['high']}", color_scheme="orange", variant="solid")),
-                                            rx.cond(r["medium"] != "0", rx.badge(f"Moy: {r['medium']}", color_scheme="yellow")),
-                                            rx.cond(r["low"] != "0", rx.badge(f"Faible: {r['low']}", color_scheme="blue")),
-                                            spacing="1"
-                                        )
-                                    )
-                                ),
+                                rx.table.row_header_cell(r.name),
+                                rx.table.cell(r.url),
+                                rx.table.cell(r.branch),
+                                rx.table.cell(r.last_scan_at),
+                                rx.table.cell(status_badge(r.status)),
+                                rx.table.cell(count_badge(r.secrets, f"{r.secrets} secret(s)")),
+                                rx.table.cell(severity_badges(r.counts, r.findings)),
                                 class_name="hover:bg-slate-3/60 transition-colors"
                             )
                         )

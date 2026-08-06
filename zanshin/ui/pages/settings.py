@@ -15,6 +15,12 @@ from zanshin.services.scanners import (
 from zanshin.services.enrichment_service import SETTING_KEY_ENRICHMENT_ENABLED
 from zanshin.services.license_compliance_service import SETTING_KEY_LICENSE_BLOCKLIST
 from zanshin.services.audit_log_service import AuditOperation
+from zanshin.services.retention_service import (
+    SETTING_KEY_RETENTION_KEEP_PER_TARGET,
+    SETTING_KEY_RETENTION_MAX_AGE_DAYS,
+    DEFAULT_KEEP_PER_TARGET,
+    DEFAULT_MAX_AGE_DAYS,
+)
 from zanshin.services.notification_service import (
     SETTING_KEY_WEBHOOK_URL,
     SETTING_KEY_MIN_SEVERITY,
@@ -71,6 +77,8 @@ class SettingsState(BaseState):
     enrichment_enabled: bool = True
     license_blocklist_input: str = ""
     local_api_url_input: str = DEFAULT_LOCAL_API_URL
+    retention_keep_input: str = str(DEFAULT_KEEP_PER_TARGET)
+    retention_max_age_input: str = str(DEFAULT_MAX_AGE_DAYS)
     notification_webhook_url_input: str = ""
     notification_min_severity: str = DEFAULT_MIN_SEVERITY
     notification_always_on_kev: bool = True
@@ -109,6 +117,8 @@ class SettingsState(BaseState):
             self.ai_review_ollama_url_input = container.ai_review_service.get_ollama_url()
             self.ai_review_available_models = container.ai_review_service.list_available_models()
             self.ai_review_deployment_mode = container.ai_review_service.get_deployment_mode()
+            self.retention_keep_input = str(container.retention_service.keep_per_target())
+            self.retention_max_age_input = str(container.retention_service.max_age_days())
             self.notification_webhook_url_input = container.notification_service.webhook_url()
             self.notification_min_severity = container.notification_service.min_severity()
             self.notification_always_on_kev = container.notification_service.always_on_kev()
@@ -140,6 +150,50 @@ class SettingsState(BaseState):
                 user_id=self.username,
             )
             yield self.trigger_toast("Configuration de l'API locale mise à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
+
+    def set_retention_keep_input(self, value: str):
+        self.retention_keep_input = value
+
+    def set_retention_max_age_input(self, value: str):
+        self.retention_max_age_input = value
+
+    @requires_admin
+    def save_retention_config(self):
+        container = get_container()
+        try:
+            # Validated here so a typo becomes a message rather than a silently
+            # ignored setting (RetentionService falls back to its default on a
+            # non-integer, which would look like the save had worked).
+            for label, raw in (
+                ("Nombre de scans à conserver", self.retention_keep_input),
+                ("Âge maximum", self.retention_max_age_input),
+            ):
+                if not raw.strip().isdigit():
+                    yield self.trigger_toast(
+                        f"{label} : entier positif attendu (0 = sans limite).", is_error=True
+                    )
+                    return
+
+            container.settings_service.update_setting(
+                SETTING_KEY_RETENTION_KEEP_PER_TARGET, self.retention_keep_input.strip()
+            )
+            container.settings_service.update_setting(
+                SETTING_KEY_RETENTION_MAX_AGE_DAYS, self.retention_max_age_input.strip()
+            )
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_RETENTION_KEEP_PER_TARGET,
+                description=(
+                    f"Rétention des données brutes : {self.retention_keep_input.strip()} scans/cible, "
+                    f"{self.retention_max_age_input.strip()} jours"
+                ),
+                user_id=self.username,
+            )
+            yield self.trigger_toast("Politique de rétention enregistrée")
         except Exception as e:
             yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
         finally:
@@ -546,6 +600,56 @@ def settings_page() -> rx.Component:
                 rx.button("Enregistrer", on_click=SettingsState.save_license_blocklist, color_scheme="cyan"),
                 spacing="3",
                 width="100%"
+            ),
+            width="100%",
+            spacing="2",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # Raw payload retention
+        rx.vstack(
+            rx.heading("Rétention des données brutes", size="3", weight="bold"),
+            rx.text(
+                "Les sorties brutes des scanners (SBOM et rapport de vulnérabilités) pèsent quelques "
+                "mégaoctets par scan et ne servent qu'à l'audit. Elles sont purgées au-delà des seuils "
+                "ci-dessous. Les problèmes suivis, les décisions de triage et les compteurs par scan ne "
+                "sont jamais touchés : c'est la projection normalisée qui fait office d'historique.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Scans conservés par cible", size="2", weight="medium"),
+                    rx.input(
+                        value=SettingsState.retention_keep_input,
+                        on_change=SettingsState.set_retention_keep_input,
+                        placeholder=str(DEFAULT_KEEP_PER_TARGET),
+                        class_name="w-full",
+                    ),
+                    spacing="1", width="100%",
+                ),
+                rx.vstack(
+                    rx.text("Âge maximum (jours)", size="2", weight="medium"),
+                    rx.input(
+                        value=SettingsState.retention_max_age_input,
+                        on_change=SettingsState.set_retention_max_age_input,
+                        placeholder=str(DEFAULT_MAX_AGE_DAYS),
+                        class_name="w-full",
+                    ),
+                    spacing="1", width="100%",
+                ),
+                rx.button(
+                    "Enregistrer",
+                    on_click=SettingsState.save_retention_config,
+                    color_scheme="cyan",
+                    class_name="self-end",
+                ),
+                spacing="3", width="100%", align="end",
+            ),
+            rx.callout(
+                "Une sortie brute n'est purgée que si elle sort des DEUX seuils : un dépôt scanné deux "
+                "fois par an garde ses données, un dépôt scanné toutes les heures reste borné. 0 dans un "
+                "champ = pas de limite sur cet axe ; 0 dans les deux = purge désactivée.",
+                icon="info", color_scheme="blue", size="1", class_name="mt-3"
             ),
             width="100%",
             spacing="2",

@@ -23,6 +23,14 @@ from zanshin.ui.auth import requires_login
 from zanshin.ui.components import empty_state, stat_card
 from zanshin.ui.layout import main_layout
 from zanshin.ui.state import BaseState
+from zanshin.ui.view_models import (
+    IssueRow,
+    format_datetime,
+    format_percent,
+    format_score,
+    safe_external_url,
+    severity_color,
+)
 
 # Labels kept next to the vocabulary they describe, so adding a status can't
 # leave the UI showing a raw enum value.
@@ -68,13 +76,14 @@ class IssuesState(BaseState):
     `@requires_login`) and `username`, which is recorded as the author of every
     triage decision."""
 
-    issues: list[dict[str, str]] = []
+    issues: list[IssueRow] = []
 
     # KPI row
     actionable_count: int = 0
     open_count: int = 0
     resolved_count: int = 0
     under_review_count: int = 0
+    # Dicts: Recharts' `data` prop demands them (see severity_chart).
     severity_chart_data: list[dict] = []
 
     # Pagination. The first version of this screen read a hard-coded 500 rows
@@ -165,43 +174,41 @@ class IssuesState(BaseState):
         finally:
             container.db.close()
 
-    def _to_view(self, issue) -> dict:
+    def _to_view(self, issue) -> IssueRow:
         target = "—"
         if issue.repository is not None:
             target = issue.repository.name or issue.repository.url
         elif issue.container is not None:
             target = issue.container.image_string
 
-        fix = "—"
-        if issue.fix_versions:
-            fix = issue.fix_versions
-        elif issue.fix_state in ("not-fixed", "wont-fix"):
-            fix = "Aucun correctif"
-
-        return {
-            "id": str(issue.id),
-            "type": TYPE_LABELS.get(issue.type, issue.type),
-            "identifier": issue.identifier or "—",
-            "severity": (issue.severity or "unknown").upper(),
-            "severity_color": _severity_color(issue.severity),
-            "package": f"{issue.package_name or '—'} {issue.package_version or ''}".strip(),
-            "file_path": issue.file_path or "—",
-            "target": target,
-            "state": "Ouvert" if issue.state == STATE_OPEN else "Résolu",
-            "triage": TRIAGE_LABELS.get(issue.triage_status, issue.triage_status),
-            "triage_color": TRIAGE_COLORS.get(issue.triage_status, "gray"),
-            "triage_comment": issue.triage_comment or "",
-            "triaged_by": issue.triaged_by or "",
-            "epss": f"{issue.epss_score:.1%}" if issue.epss_score is not None else "—",
-            "is_kev": "true" if issue.is_kev else "false",
-            "cvss": f"{issue.cvss_score:.1f}" if issue.cvss_score is not None else "—",
-            "fix": fix,
-            "link": issue.link or "",
-            "description": issue.description or "",
-            "times_seen": str(issue.times_seen or 1),
-            "first_seen": issue.first_seen_at.strftime("%d/%m/%Y") if issue.first_seen_at else "",
-            "last_seen": issue.last_seen_at.strftime("%d/%m/%Y") if issue.last_seen_at else "",
-        }
+        return IssueRow(
+            id=issue.id,
+            type=TYPE_LABELS.get(issue.type, issue.type),
+            identifier=issue.identifier or "—",
+            severity=(issue.severity or "unknown").upper(),
+            severity_color=severity_color(issue.severity),
+            package=f"{issue.package_name or '—'} {issue.package_version or ''}".strip(),
+            file_path=issue.file_path or "—",
+            target=target,
+            state="Ouvert" if issue.state == STATE_OPEN else "Résolu",
+            is_open=issue.state == STATE_OPEN,
+            triage=TRIAGE_LABELS.get(issue.triage_status, issue.triage_status),
+            triage_color=TRIAGE_COLORS.get(issue.triage_status, "gray"),
+            triage_comment=issue.triage_comment or "",
+            triaged_by=issue.triaged_by or "",
+            epss=format_percent(issue.epss_score),
+            is_kev=bool(issue.is_kev),
+            cvss=format_score(issue.cvss_score),
+            fix=(
+                issue.fix_versions
+                or ("Aucun correctif" if issue.fix_state in ("not-fixed", "wont-fix") else "—")
+            ),
+            link=safe_external_url(issue.link),
+            description=issue.description or "",
+            times_seen=issue.times_seen or 1,
+            first_seen=format_datetime(issue.first_seen_at, "%d/%m/%Y"),
+            last_seen=format_datetime(issue.last_seen_at, "%d/%m/%Y"),
+        )
 
     # --- Filters ---
 
@@ -243,10 +250,10 @@ class IssuesState(BaseState):
     # --- Triage ---
 
     @requires_login
-    def open_triage_dialog(self, issue_id_str: str):
+    def open_triage_dialog(self, issue_id: int):
         container = get_container()
         try:
-            issue = container.issue_repository.find_by_id(int(issue_id_str))
+            issue = container.issue_repository.find_by_id(issue_id)
             if not issue:
                 yield self.trigger_toast("Problème introuvable", is_error=True)
                 return
@@ -305,15 +312,6 @@ class IssuesState(BaseState):
             container.db.close()
 
 
-def _severity_color(severity) -> str:
-    return {
-        "critical": "red",
-        "high": "orange",
-        "medium": "yellow",
-        "low": "blue",
-    }.get((severity or "").lower(), "gray")
-
-
 def filter_bar() -> rx.Component:
     return rx.hstack(
         rx.segmented_control.root(
@@ -364,52 +362,52 @@ def issue_row(issue: rx.Var) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 rx.hstack(
-                    rx.text(issue["identifier"], weight="medium"),
+                    rx.text(issue.identifier, weight="medium"),
                     rx.cond(
-                        issue["is_kev"] == "true",
+                        issue.is_kev,
                         rx.badge("KEV", color_scheme="red", variant="solid", size="1"),
                     ),
                     spacing="2",
                     align="center",
                 ),
-                rx.text(issue["type"], size="1", color="var(--slate-10)"),
+                rx.text(issue.type, size="1", color="var(--slate-10)"),
                 spacing="0",
             )
         ),
-        rx.table.cell(rx.badge(issue["severity"], color_scheme=issue["severity_color"])),
-        rx.table.cell(rx.text(issue["cvss"], size="2")),
-        rx.table.cell(rx.text(issue["epss"], size="2")),
+        rx.table.cell(rx.badge(issue.severity, color_scheme=issue.severity_color)),
+        rx.table.cell(rx.text(issue.cvss, size="2")),
+        rx.table.cell(rx.text(issue.epss, size="2")),
         rx.table.cell(
             rx.vstack(
-                rx.text(issue["package"], size="2"),
-                rx.text(issue["file_path"], size="1", color="var(--slate-10)"),
+                rx.text(issue.package, size="2"),
+                rx.text(issue.file_path, size="1", color="var(--slate-10)"),
                 spacing="0",
             )
         ),
-        rx.table.cell(rx.text(issue["target"], size="2")),
+        rx.table.cell(rx.text(issue.target, size="2")),
         rx.table.cell(
             rx.vstack(
-                rx.text(issue["fix"], size="2", weight="medium"),
+                rx.text(issue.fix, size="2", weight="medium"),
                 rx.cond(
-                    issue["link"] != "",
-                    rx.link("Détails", href=issue["link"], is_external=True, size="1"),
+                    issue.link != "",
+                    rx.link("Détails", href=issue.link, is_external=True, size="1"),
                 ),
                 spacing="0",
             )
         ),
         rx.table.cell(
             rx.vstack(
-                rx.text(f"vu {issue['times_seen']}×", size="2"),
-                rx.text(issue["first_seen"], size="1", color="var(--slate-10)"),
+                rx.text("vu ", issue.times_seen, "×", size="2"),
+                rx.text(issue.first_seen, size="1", color="var(--slate-10)"),
                 spacing="0",
             )
         ),
         rx.table.cell(
             rx.vstack(
-                rx.badge(issue["triage"], color_scheme=issue["triage_color"]),
+                rx.badge(issue.triage, color_scheme=issue.triage_color),
                 rx.cond(
-                    issue["triaged_by"] != "",
-                    rx.text(issue["triaged_by"], size="1", color="var(--slate-10)"),
+                    issue.triaged_by != "",
+                    rx.text(issue.triaged_by, size="1", color="var(--slate-10)"),
                 ),
                 spacing="1",
                 align="start",
@@ -421,7 +419,7 @@ def issue_row(issue: rx.Var) -> rx.Component:
                 "Trier",
                 size="1",
                 variant="soft",
-                on_click=lambda: IssuesState.open_triage_dialog(issue["id"]),
+                on_click=lambda: IssuesState.open_triage_dialog(issue.id),
             )
         ),
     )

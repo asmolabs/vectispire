@@ -123,6 +123,7 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | Set to `false` for a deployment that only scans on demand. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
 | `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Age past which a scan still in flight is considered wedged and failed. |
+| `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | How often raw scanner payloads are pruned (see the **Settings** page for the thresholds themselves). |
 
 The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
 
@@ -132,7 +133,7 @@ The database file is not part of the repository (it holds password hashes and en
 uv run pytest
 ```
 
-The suite covers the entire services/repositories/scanners layer (~93% coverage on `zanshin/`, excluding the Reflex UI layer — `rx.State` classes are exercised through Reflex's own test harness, not plain pytest; see `pyproject.toml`). Every test runs against an in-memory SQLite database, never against `zanshin/database.sqlite`.
+~82% coverage over `zanshin/`, UI layer included. The two halves of the UI are checked by different means: page loaders and event handlers by state-level tests (see the `UIHarness` in `tests/conftest.py`, which drives a Reflex state outside the server), and the component trees by `uv run reflex compile --dry`, which fails on a mistyped attribute of a typed row model. Every test runs against an in-memory SQLite database, never against `zanshin/database.sqlite`.
 
 ### Project structure
 
@@ -142,7 +143,7 @@ zanshin/
 ├── repositories/     # Data access
 ├── services/         # Business logic (scanning, enrichment, users, audit...)
 │   └── scanners/      # ScannerEngine implementations (docker, osv, local_api)
-├── ui/                # Reflex pages and state
+├── ui/                # Reflex pages, state, and typed view models
 ├── api/               # HTTP API (FastAPI, mounted on the Reflex app)
 ├── schema.py          # Alembic bootstrap at startup
 ├── clock.py           # The single source of "now"
@@ -300,6 +301,7 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` pour un déploiement qui ne scanne qu'à la demande. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | Fréquence de recherche des cibles dues. |
 | `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Âge au-delà duquel un scan encore en cours est considéré bloqué et mis en échec. |
+| `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | Fréquence de purge des sorties brutes des scanners (les seuils eux-mêmes sont dans la page **Paramètres**). |
 
 Le fichier de base de données ne fait plus partie du dépôt (il contient des hashes de mots de passe et des clés SSH chiffrées) : un déploiement neuf démarre donc sans aucun compte, d'où ces variables de bootstrap. Dès qu'un compte existe, elles sont ignorées.
 
@@ -309,7 +311,7 @@ Le fichier de base de données ne fait plus partie du dépôt (il contient des h
 uv run pytest
 ```
 
-La suite couvre l'intégralité de la couche services/repositories/scanners (~93 % de couverture sur `zanshin/`, hors couche UI Reflex — les classes `rx.State` s'exercent via le harnais de test propre à Reflex, pas via pytest classique, voir `pyproject.toml`). Chaque test s'exécute sur une base SQLite en mémoire, jamais sur `zanshin/database.sqlite`.
+~82 % de couverture sur `zanshin/`, couche UI incluse. Les deux moitiés de l'UI sont vérifiées par des moyens différents : les loaders et handlers par des tests d'état (voir `UIHarness` dans `tests/conftest.py`, qui pilote un état Reflex hors serveur), et les arbres de composants par `uv run reflex compile --dry`, qui échoue sur un attribut inexistant d'une ligne typée. Chaque test s'exécute sur une base SQLite en mémoire, jamais sur `zanshin/database.sqlite`.
 
 ### Structure du projet
 
@@ -319,7 +321,7 @@ zanshin/
 ├── repositories/     # Accès aux données
 ├── services/         # Logique métier (scan, enrichissement, utilisateurs, audit...)
 │   └── scanners/      # Implémentations ScannerEngine (docker, osv, local_api)
-├── ui/                # Pages et état Reflex
+├── ui/                # Pages, état et view-models typés Reflex
 ├── api/               # API HTTP (FastAPI, montée sur l'app Reflex)
 ├── schema.py          # Amorçage Alembic au démarrage
 ├── clock.py           # Source unique de « maintenant »

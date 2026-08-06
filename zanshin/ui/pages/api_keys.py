@@ -4,6 +4,7 @@ import uuid
 
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_login
+from zanshin.ui.view_models import ApiKeyRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.services.audit_log_service import AuditOperation
@@ -11,7 +12,7 @@ from zanshin.services.audit_log_service import AuditOperation
 class ApiKeysState(BaseState):
     """Handles loading, creating, showing, and deleting API Keys."""
     
-    keys: list[dict[str, str]] = []
+    keys: list[ApiKeyRow] = []
     
     # Dialog states
     create_dialog_open: bool = False
@@ -29,15 +30,16 @@ class ApiKeysState(BaseState):
         container = get_container()
         try:
             db_keys = container.api_key_repository.find_all()
-            self.keys = []
-            for k in db_keys:
-                self.keys.append({
-                    "id": str(k.id),
-                    "name": k.name,
-                    "prefix": f"{k.prefix}..." if k.prefix else "—",
-                    "last_used_at": k.last_used_at.strftime("%d/%m/%Y %H:%M") if k.last_used_at else "Jamais",
-                    "created_at": k.created_at.strftime("%d/%m/%Y %H:%M") if k.created_at else ""
-                })
+            self.keys = [
+                ApiKeyRow(
+                    id=str(k.id),
+                    name=k.name,
+                    prefix=f"{k.prefix}..." if k.prefix else "—",
+                    last_used_at=format_datetime(k.last_used_at) or "Jamais",
+                    created_at=format_datetime(k.created_at),
+                )
+                for k in db_keys
+            ]
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
         finally:
@@ -131,10 +133,10 @@ def api_keys_page() -> rx.Component:
                     rx.foreach(
                         ApiKeysState.keys,
                         lambda k: rx.table.row(
-                            rx.table.row_header_cell(k["name"]),
-                            rx.table.cell(k["prefix"]),
-                            rx.table.cell(k["last_used_at"]),
-                            rx.table.cell(k["created_at"]),
+                            rx.table.row_header_cell(k.name),
+                            rx.table.cell(k.prefix),
+                            rx.table.cell(k.last_used_at),
+                            rx.table.cell(k.created_at),
                             rx.table.cell(
                                 rx.tooltip(
                                     rx.button(
@@ -142,7 +144,7 @@ def api_keys_page() -> rx.Component:
                                         size="2",
                                         color_scheme="red",
                                         variant="soft",
-                                        on_click=lambda: ApiKeysState.delete_key(k["id"])
+                                        on_click=lambda: ApiKeysState.delete_key(k.id)
                                     ),
                                     content="Supprimer"
                                 )

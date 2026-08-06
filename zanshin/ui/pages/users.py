@@ -2,6 +2,7 @@ import reflex as rx
 
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_admin
+from zanshin.ui.view_models import UserRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.services.audit_log_service import AuditOperation
@@ -17,7 +18,7 @@ class UsersState(BaseState):
     whatever it raises as a toast.
     """
 
-    users: list[dict[str, str]] = []
+    users: list[UserRow] = []
 
     # Create dialog
     create_dialog_open: bool = False
@@ -53,15 +54,15 @@ class UsersState(BaseState):
         try:
             db_users = container.user_service.find_all()
             self.users = [
-                {
-                    "id": str(u.id),
-                    "username": u.username,
-                    "display_name": u.display_name or u.username,
-                    "email": u.email or "—",
-                    "role": u.role,
-                    "status": "Actif" if u.is_active else "Inactif",
-                    "created_at": u.created_at.strftime("%d/%m/%Y %H:%M") if u.created_at else "",
-                }
+                UserRow(
+                    id=u.id,
+                    username=u.username,
+                    display_name=u.display_name or u.username,
+                    email=u.email or "—",
+                    role=u.role,
+                    is_active=u.is_active,
+                    created_at=format_datetime(u.created_at),
+                )
                 for u in db_users
             ]
         except Exception as e:
@@ -137,10 +138,10 @@ class UsersState(BaseState):
         self.edit_is_active = v
 
     @requires_admin
-    def open_edit_dialog(self, user_id_str: str):
+    def open_edit_dialog(self, user_id: int):
         container = get_container()
         try:
-            user = container.user_service.find_by_id(int(user_id_str))
+            user = container.user_service.find_by_id(user_id)
             if not user:
                 yield self.trigger_toast("Utilisateur introuvable", is_error=True)
                 return
@@ -191,8 +192,8 @@ class UsersState(BaseState):
     def set_reset_new_password(self, v: str):
         self.reset_new_password = v
 
-    def open_reset_dialog(self, user_id_str: str, username: str):
-        self.reset_user_id = int(user_id_str)
+    def open_reset_dialog(self, user_id: int, username: str):
+        self.reset_user_id = user_id
         self.reset_username = username
         self.reset_new_password = ""
         self.reset_dialog_open = True
@@ -222,16 +223,15 @@ class UsersState(BaseState):
 
     # --- Delete ---
     @requires_admin
-    def delete_user(self, user_id_str: str):
+    def delete_user(self, user_id: int):
         container = get_container()
         try:
-            user_id = int(user_id_str)
             target = container.user_service.find_by_id(user_id)
-            target_username = target.username if target else user_id_str
+            target_username = target.username if target else str(user_id)
             container.user_service.delete_user(user_id, self.username)
             container.audit_log_service.record(
                 AuditOperation.USER_DELETED,
-                resource_id=user_id_str,
+                resource_id=str(user_id),
                 description=f"Utilisateur '{target_username}' supprimé",
                 user_id=self.username,
             )
@@ -285,30 +285,33 @@ def users_page() -> rx.Component:
                     rx.foreach(
                         UsersState.users,
                         lambda u: rx.table.row(
-                            rx.table.row_header_cell(u["username"]),
-                            rx.table.cell(u["display_name"]),
-                            rx.table.cell(u["email"]),
+                            rx.table.row_header_cell(u.username),
+                            rx.table.cell(u.display_name),
+                            rx.table.cell(u.email),
                             rx.table.cell(
                                 rx.badge(
-                                    u["role"],
+                                    u.role,
                                     color_scheme=rx.cond(
-                                        u["role"] == "SUPERUSER",
+                                        u.role == "SUPERUSER",
                                         "red",
-                                        rx.cond(u["role"] == "ADMIN", "orange", "gray")
+                                        rx.cond(u.role == "ADMIN", "orange", "gray")
                                     )
                                 )
                             ),
                             rx.table.cell(
-                                rx.badge(u["status"], color_scheme=rx.cond(u["status"] == "Actif", "green", "gray"))
+                                rx.badge(
+                                    rx.cond(u.is_active, "Actif", "Inactif"),
+                                    color_scheme=rx.cond(u.is_active, "green", "gray"),
+                                )
                             ),
-                            rx.table.cell(u["created_at"]),
+                            rx.table.cell(u.created_at),
                             rx.table.cell(
                                 rx.hstack(
                                     rx.tooltip(
                                         rx.button(
                                             rx.icon(tag="pencil"),
                                             size="2", color_scheme="teal", variant="soft",
-                                            on_click=lambda: UsersState.open_edit_dialog(u["id"])
+                                            on_click=lambda: UsersState.open_edit_dialog(u.id)
                                         ),
                                         content="Modifier"
                                     ),
@@ -316,7 +319,7 @@ def users_page() -> rx.Component:
                                         rx.button(
                                             rx.icon(tag="key-round"),
                                             size="2", color_scheme="amber", variant="soft",
-                                            on_click=lambda: UsersState.open_reset_dialog(u["id"], u["username"])
+                                            on_click=lambda: UsersState.open_reset_dialog(u.id, u.username)
                                         ),
                                         content="Réinitialiser le mot de passe"
                                     ),
@@ -324,7 +327,7 @@ def users_page() -> rx.Component:
                                         rx.button(
                                             rx.icon(tag="trash"),
                                             size="2", color_scheme="red", variant="soft",
-                                            on_click=lambda: UsersState.delete_user(u["id"])
+                                            on_click=lambda: UsersState.delete_user(u.id)
                                         ),
                                         content="Supprimer"
                                     ),

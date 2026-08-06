@@ -5,6 +5,7 @@ import uuid
 
 from zanshin.ui.state import BaseState
 from zanshin.ui.auth import requires_login
+from zanshin.ui.view_models import SshKeyRow, format_datetime
 from zanshin.ui.layout import main_layout
 from zanshin.container import get_container
 from zanshin.models.ssh_key import SSHKey
@@ -12,10 +13,14 @@ from zanshin.models.ssh_key import SSHKey
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
+def _truncate(value: str, limit: int = 35) -> str:
+    return value[:limit] + "..." if len(value) > limit else value
+
+
 class SSHKeysState(BaseState):
     """Handles loading, adding, generating and deleting SSH Keys."""
     
-    keys: list[dict[str, str]] = []
+    keys: list[SshKeyRow] = []
     
     dialog_open: bool = False
     new_name: str = ""
@@ -37,16 +42,15 @@ class SSHKeysState(BaseState):
         container = get_container()
         try:
             db_keys = container.ssh_key_repository.find_all()
-            self.keys = []
-            for k in db_keys:
-                pub = k.public_key if k.public_key else "N/A"
-                pub_short = pub[:35] + "..." if len(pub) > 35 else pub
-                self.keys.append({
-                    "id": str(k.id),
-                    "name": k.name,
-                    "public_key": pub_short,
-                    "created_at": k.created_at.strftime("%d/%m/%Y %H:%M") if k.created_at else ""
-                })
+            self.keys = [
+                SshKeyRow(
+                    id=str(k.id),
+                    name=k.name,
+                    public_key=_truncate(k.public_key or "N/A"),
+                    created_at=format_datetime(k.created_at),
+                )
+                for k in db_keys
+            ]
         except Exception as e:
             yield self.trigger_toast(f"Erreur de chargement : {str(e)}", is_error=True)
         finally:
@@ -194,10 +198,10 @@ def ssh_keys_page() -> rx.Component:
                     rx.foreach(
                         SSHKeysState.keys,
                         lambda k: rx.table.row(
-                            rx.table.row_header_cell(k["name"]),
-                            rx.table.cell(k["id"]),
-                            rx.table.cell(k["public_key"]),
-                            rx.table.cell(k["created_at"]),
+                            rx.table.row_header_cell(k.name),
+                            rx.table.cell(k.id),
+                            rx.table.cell(k.public_key),
+                            rx.table.cell(k.created_at),
                             rx.table.cell(
                                 rx.tooltip(
                                     rx.button(
@@ -205,7 +209,7 @@ def ssh_keys_page() -> rx.Component:
                                         size="2",
                                         color_scheme="red",
                                         variant="soft",
-                                        on_click=lambda: SSHKeysState.delete_key(k["id"])
+                                        on_click=lambda: SSHKeysState.delete_key(k.id)
                                     ),
                                     content="Supprimer"
                                 )

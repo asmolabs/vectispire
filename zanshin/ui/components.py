@@ -82,3 +82,77 @@ def empty_state(icon_name: str, title: str, subtitle: str) -> rx.Component:
         ),
         class_name="w-full py-16 rounded-xl bg-slate-2 border border-dashed border-slate-5"
     )
+
+
+# --- Shared row badges -------------------------------------------------------
+#
+# These were copy-pasted inline in every table, with the string comparisons that
+# the `dict[str, str]` rows forced (`rx.cond(r["critical"] != "0", ...)`). Now
+# that rows are typed (see zanshin/ui/view_models.py), the comparisons are
+# numeric and the markup lives in one place — three tables in depots.py alone had
+# drifted apart on colours and wording.
+
+def status_badge(status) -> rx.Component:
+    """Scan status, coloured the same way everywhere."""
+    return rx.badge(
+        status,
+        color_scheme=rx.cond(
+            status == "completed",
+            "green",
+            rx.cond(status == "scanning", "blue", rx.cond(status == "failed", "red", "gray")),
+        ),
+    )
+
+
+def severity_badges(counts, findings) -> rx.Component:
+    """The Crit/Élevé/Moy/Faible cluster, or a green zero.
+
+    `findings == 0` is a real numeric test now; it used to be `r["findings"] ==
+    "0"`, which silently did nothing the day a builder wrote an int.
+    """
+    return rx.cond(
+        findings == 0,
+        rx.badge("0", color_scheme="green"),
+        rx.hstack(
+            rx.cond(counts.critical > 0, rx.badge(f"Crit: {counts.critical}", color_scheme="red", variant="solid")),
+            rx.cond(counts.high > 0, rx.badge(f"Élevé: {counts.high}", color_scheme="orange", variant="solid")),
+            rx.cond(counts.medium > 0, rx.badge(f"Moy: {counts.medium}", color_scheme="yellow")),
+            rx.cond(counts.low > 0, rx.badge(f"Faible: {counts.low}", color_scheme="blue")),
+            spacing="1",
+        ),
+    )
+
+
+def count_badge(count, label, color_scheme: str = "red") -> rx.Component:
+    """A red count with a label, or a green zero."""
+    return rx.cond(
+        count == 0,
+        rx.badge("0", color_scheme="green"),
+        rx.badge(label, color_scheme=color_scheme, variant="solid"),
+    )
+
+
+def actionable_badge(count) -> rx.Component:
+    """Outstanding issues, linking to the backlog they refer to."""
+    return rx.cond(
+        count == 0,
+        rx.badge("0", color_scheme="green"),
+        rx.link(rx.badge(count, color_scheme="amber", variant="solid"), href="/issues"),
+    )
+
+
+def delta_badges(new_issues, resolved_issues) -> rx.Component:
+    """What a scan changed: +N new, −M resolved, or a dash.
+
+    The signal a raw finding count cannot give — 400 findings that are all
+    already known is not news (see IssueService).
+    """
+    return rx.hstack(
+        rx.cond(new_issues > 0, rx.badge(f"+{new_issues}", color_scheme="red", variant="solid")),
+        rx.cond(resolved_issues > 0, rx.badge(f"−{resolved_issues}", color_scheme="green", variant="solid")),
+        rx.cond(
+            (new_issues == 0) & (resolved_issues == 0),
+            rx.text("—", size="2", color="var(--slate-9)"),
+        ),
+        spacing="1",
+    )
