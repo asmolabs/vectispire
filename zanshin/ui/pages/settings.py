@@ -1020,6 +1020,27 @@ def settings_page() -> rx.Component:
                 "un conteneur d'analyse ouvert, donc la bonne valeur dépend de la machine.",
                 size="2", color="var(--slate-10)", class_name="mb-2"
             ),
+            # The number below is this instance's own capacity, i.e. the built-in
+            # agent's. Said here because it is the natural place to look for it, and
+            # because an operator who wants scans to stop running on this machine
+            # needs to know that the switch is on another screen.
+            rx.callout(
+                rx.hstack(
+                    rx.text(
+                        "Cette limite est celle de l'agent intégré, c'est-à-dire de "
+                        "cette instance. Les agents distants ont chacun la leur.",
+                        size="1",
+                    ),
+                    rx.link("Voir les agents", href="/agents", size="1", weight="medium"),
+                    spacing="2",
+                    align="center",
+                    wrap="wrap",
+                ),
+                icon="server",
+                color_scheme="cyan",
+                size="1",
+                class_name="mb-2",
+            ),
             rx.hstack(
                 rx.text("Scans simultanés maximum", size="2", weight="medium"),
                 rx.input(

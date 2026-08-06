@@ -1,8 +1,18 @@
 # ADR-002 — Exécution multi-instance et agents
 
-**Statut :** proposé, non implémenté
+**Statut :** **agents implémentés (étape 3), plan de contrôle réparti toujours à faire (étapes 1 et 2)**
 **Date :** 2026-08-06
 **Contexte :** suite d'ADR-001 §9decies (la base de données est devenue configurable, donc PostgreSQL et MySQL sont possibles)
+
+> **Où en est ce document.** L'étape 0 (outbox) et l'étape 3 (agents distants) sont
+> faites — voir §10 pour le détail de ce qui a été construit, ce qui a été tranché des
+> questions restées ouvertes, et les deux défauts trouvés en chemin. La recommandation
+> d'origine (§9) était de faire l'étape 1 d'abord ; l'ordre a été inversé sur demande,
+> parce que le besoin exprimé était de **déporter l'exécution**, pas de répartir l'étage
+> web. Les agents fonctionnent sur SQLite (c'est la conséquence heureuse de D3), donc
+> rien de l'étape 1 n'était un préalable. **Ce qui reste vrai : deux instances web
+> restent une configuration non supportée**, et §2.2, §2.4, §2.5 et §2.6 décrivent
+> toujours des défauts réels.
 
 ---
 
@@ -52,7 +62,19 @@ conteneurs de scan, de trafic registre et d'appels d'API d'enrichissement.
 Le tick héberge aussi la reprise des scans bloqués, la purge des charges brutes et
 l'expiration des triages : trois travaux qui doivent avoir **un seul** propriétaire.
 
-### 2.3 Le démarrage d'une instance tue les scans de l'autre
+### 2.3 Le démarrage d'une instance tue les scans de l'autre *(corrigé — 2026-08-06)*
+
+> Corrigé avec les agents, parce qu'un agent distant rendait le défaut immédiatement
+> destructeur : démarrer l'instance web faisait échouer les scans qu'un agent était en
+> train d'exécuter. `reconcile_interrupted_scans` ne reprend plus qu'un scan **dont
+> personne ne détient le bail**, ou dont le bail appartient à l'agent intégré de cet
+> hôte (c'est-à-dire au processus qui vient de redémarrer).
+>
+> Un second défaut a été trouvé au même endroit : la fonction échouait aussi les scans
+> `pending`, ce qui annulait la propriété pour laquelle la file est passée en base —
+> qu'une demande survive au processus qui l'a acceptée. Un scan en file est désormais
+> laissé tranquille, et un scan repris **retourne en file** au lieu d'échouer : le
+> travail n'a pas été fait, et la ligne *est* l'entrée de file.
 
 `recover_interrupted_scans()` s'exécute à l'import dans
 [`zanshin.py`](../../zanshin/zanshin.py) et marque en échec tout scan encore « en
@@ -439,3 +461,193 @@ Décision §5 (secrets de l'agent) ── à trancher AVANT les étapes 2/3
         │
 Étape 4 (routage par capacité)  ── quand il y aura deux agents à départager
 ```
+
+---
+
+## 10. Statut d'implémentation — agents (étape 3), 2026-08-06
+
+L'étape 3 a été faite avant l'étape 1, à la demande : le besoin exprimé était de
+**déporter l'exécution des scans**, pas de répartir l'étage web. C'était possible parce
+que D3 prive l'agent d'accès à la base — donc les agents fonctionnent sur SQLite, et
+aucune pièce de l'étape 1 n'était un préalable.
+
+### 10.1 La coupure de `ScanProcessor` (§8.3)
+
+Faite telle qu'écrite, aux noms près :
+
+| Prévu | Livré | Où |
+|---|---|---|
+| `ScanRunner` | `zanshin/services/scan_runner.py` | agent **et** contrôleur |
+| `ScanIngestor` | `zanshin/services/scan_ingestor.py` | contrôleur seul |
+
+Le contrat qu'ils échangent est dans `zanshin/scan_contract.py` (`ScanTask`,
+`ScanArtifacts`, `CONTRACT_VERSION`) — un module qui n'importe **rien** de Zanshin,
+c'est-à-dire le futur paquet `zanshin-common` de §8.4 sans le packaging.
+`ScanProcessor` compose les deux et garde sa signature, donc la file, l'ordonnanceur et
+la suite de tests existante n'ont pas bougé.
+
+Le découpage en trois paquets uv (§8.4) n'est **pas** fait : il déplacerait des fichiers
+sans changer d'artefact déployé. Ce qu'il achetait vraiment — un agent qui ne peut pas
+importer la base — est obtenu autrement, par un test qui vérifie le graphe d'imports
+dans un interpréteur neuf (`tests/test_agent_worker.py`,
+`tests/test_scan_runner.py`). `Dockerfile.agent` n'installe d'ailleurs ni Reflex ni
+SQLAlchemy, ce qui rend la promesse vérifiable à l'inspection.
+
+Défaut trouvé en écrivant ce test : `zanshin/services/scanners/__init__.py` importait la
+factory au chargement, donc importer la seule classe abstraite `ScannerEngine` tirait
+settings → repositories → models → SQLAlchemy. Passé en imports paresseux (PEP 562).
+L'absence de base côté agent est une propriété de sécurité, pas une optimisation, et ce
+fichier l'aurait annulée en silence.
+
+### 10.2 Propriété et bail (une partie de l'étape 1)
+
+Quatre colonnes sur `scan` (migration `0010`) : `claimed_by`, `claimed_at`,
+`lease_expires_at`, `attempts`. Ce n'est pas tout l'étape 1 — la réclamation reste un
+`UPDATE ... WHERE status='pending'` conditionnel, **pas** `FOR UPDATE SKIP LOCKED` — mais
+c'est ce qui donne un propriétaire à un scan, sans quoi les agents étaient impossibles.
+
+Un bail expiré ne tue rien (rien ici ne peut tuer un thread sur une autre machine) : il
+rend la ligne réclamable, et `still_owned` refuse ensuite les résultats de l'exécutant
+qui l'a perdue. Après `MAX_ATTEMPTS` (3) le scan échoue au lieu d'être remis en file,
+sinon une cible qui bloque tout exécutant qu'elle touche occuperait la flotte
+indéfiniment.
+
+Conséquence à noter : **la limite de simultanéité est devenue par exécutant.** Elle
+devait : compter tous les scans en cours aurait fait qu'ajouter un agent *réduisait* ce
+que l'hôte s'autorisait à faire.
+
+### 10.3 L'agent intégré — ce qui n'était pas prévu, et qui compte
+
+L'ajout demandé en cours de route, et le plus utile : le processus web est lui-même une
+ligne de la table `agent` (`kind=builtin`, créée au démarrage, une par hôte). C'est le
+*Built-In Node* de Jenkins, et ça change deux choses :
+
+- **le déploiement mono-processus reste identique** — un seul lancement, aucune
+  configuration, l'agent intégré réclame et exécute comme avant ;
+- **le désactiver est le geste qui déporte l'exécution.** Sans lui, « ne plus rien
+  exécuter ici » n'était pas exprimable ; il aurait fallu un réglage de plus, qui aurait
+  décrit la même chose que l'agent sans être visible sur le même écran.
+
+Ses exécuteurs réutilisent le réglage existant `scan_max_concurrent` plutôt qu'un
+second nombre : deux valeurs pour « combien de scans cet hôte lance à la fois »
+finiraient par se contredire, et l'opérateur n'aurait aucun moyen de savoir laquelle
+gagne.
+
+### 10.4 Authentification des agents — la question tranchée
+
+D3 disait « une clé à portée `agent` » ; c'est ce qui est livré : `SCOPE_AGENT` sur les
+clés API existantes, donc l'authentification, le quota et l'audit sont ceux qui
+existaient déjà. Deux points méritent d'être écrits :
+
+- la portée est **absente de `DEFAULT_SCOPES`**, contrairement aux trois autres. Élargir
+  en silence une clé émise avant les agents lui offrirait le droit de soumettre des
+  résultats de scan, que personne ne lui a accordé ;
+- elle n'est **pas** un surensemble des autres. Un agent reçoit du travail ; il ne lit
+  pas l'historique des problèmes et n'exporte pas le document VEX d'un client.
+
+Un jeton d'agent maison a été envisagé puis écarté : il aurait fallu réimplémenter le
+quota, l'audit et la rotation qui existent sur les clés API.
+
+### 10.5 La décision de §5 — comment un agent obtient la clé de déploiement
+
+**Tranchée par un troisième modèle, qui ne figurait pas dans §5 : le mode
+d'identifiants est une propriété de l'agent, et le défaut est qu'aucun secret ne quitte
+le contrôleur.** Colonne `credentials_mode` :
+
+| Mode | Ce que le contrôleur envoie | Conséquence |
+|---|---|---|
+| `local` (**défaut**) | rien | un agent compromis ne donne que ce que l'opérateur a accordé à *cette* machine, et la révocation est locale et immédiate |
+| `delegated` (opt-in, par agent) | la clé de déploiement, par tâche | pour une machine de confiance ; un agent compromis conserve la clé jusqu'à rotation |
+
+Garde-fous du mode `delegated`, obligatoires et non configurables :
+
+1. **refus si le transport n'est pas TLS** (`ZANSHIN_ALLOW_INSECURE_AGENT_CREDENTIALS`
+   existe pour un essai local et n'a pas d'autre usage). Le scan est alors remis en file
+   avec un message explicite — scanner sans la clé produirait un échec de clone
+   ressemblant à un problème réseau, et l'opérateur ne saurait jamais que le mode choisi
+   n'était pas en vigueur ;
+2. **la clé n'est jamais persistée sur l'agent** : mémoire → fichier temporaire `0600` →
+   supprimé après le clone ;
+3. **une entrée d'audit par remise** (`AGENT_CREDENTIAL_SENT`). Si un agent est trouvé
+   compromis, la seule question à laquelle on peut répondre est *quelles* clés il a
+   reçues et quand.
+
+Le champ `ssh_credential_expires_at` est présent dans le contrat, inutilisé : c'est le
+modèle 2 de §5 (identifiants de courte durée), le seul réellement sûr là où le
+fournisseur sait les émettre (GitHub App, GitLab). Y passer ne changera pas la forme du
+message. **La dette est nommée, pas masquée.**
+
+Le second risque de §5 — un agent compromis qui fabrique des résultats et influence
+donc le verdict du gate — est traité par trois choses : un agent ne peut remonter que
+sur une tâche qu'il a lui-même réclamée sous bail valide, la provenance est enregistrée
+(`scan.claimed_by`), et toute remontée produit une entrée d'audit
+(`AGENT_RESULT_SUBMITTED`), comme un triage.
+
+Défaut trouvé en écrivant les tests : `still_owned` accepte une ligne sans propriétaire,
+tolérance raisonnable pour l'agent intégré (c'est lui qui a réclamé les lignes d'avant
+la migration) mais trou béant pour un agent distant — n'importe lequel aurait pu remonter
+des résultats pour n'importe quel scan en file, sans jamais avoir reçu le travail. La
+vérification côté API exige désormais une réclamation explicite.
+
+### 10.6 Inbox de déduplication (D4)
+
+Table `processed_message` (migration `0011`), `message_id` unique, écrite **dans la
+transaction qui applique l'effet**. La contrainte d'unicité est le mécanisme, pas un
+filet : deux réessais simultanés passeraient tous deux une vérification applicative, et
+seule la base peut arbitrer.
+
+Le dégât qu'un rejeu aurait causé est exactement celui que D4 décrivait : pas des
+findings en double (`Issue.fingerprint` les empêche) mais un `times_seen` gonflé sur
+chaque problème du rapport — c'est-à-dire le chiffre sur lequel un analyste juge si un
+problème est chronique. Vérifié en réel : un rejeu identique répond `duplicate` et
+`times_seen` reste à 1.
+
+### 10.7 Envoi fractionné (étape 3.5)
+
+Fait, sur le JSON sérialisé plutôt que sur la structure : l'agent découpe une chaîne et
+n'a pas à comprendre ce qu'il découpe. Le réassemblage est **en mémoire, par processus**
+— même choix, pour la même raison, que le quota d'API et l'anti-bourrage : ce plan de
+contrôle est mono-processus. Un envoi interrompu est donc perdu au redémarrage, ce qui
+est correct : l'agent détient encore le bail et rejoue tout le rapport.
+
+### 10.8 Ce qui n'est pas fait
+
+- **Étape 1 complète** : pas de `FOR UPDATE SKIP LOCKED`, pas d'élection
+  d'ordonnanceur, pas de compteurs Redis. **Deux instances web restent non
+  supportées** — §2.2, §2.4, §2.5 et §2.6 décrivent toujours des défauts réels.
+- **`ZANSHIN_ROLE`** (D5, étape 2) : non implémenté. Un agent n'écoute déjà sur aucun
+  port applicatif et n'a pas besoin de la base, donc la séparation de privilèges
+  attendue de l'étape 2 est en partie acquise par construction ; mais le rôle `web`
+  (qui n'exécuterait rien) s'obtient aujourd'hui en désactivant l'agent intégré, pas par
+  une variable d'environnement.
+- **Étape 4 (routage par capacité)** : les labels existent sur les agents et le
+  filtrage existe dans la signature de `claim_next`, mais aucune cible ne porte encore
+  de label requis — donc le routage ne fait rien. Assumé : il n'y a pas encore deux
+  agents à départager.
+- **Annulation coopérative** : annuler côté contrôleur libère la file, l'agent qui
+  exécute continue et verra sa remontée refusée. Il faudrait que l'agent interroge un
+  drapeau, ce qui coûte un aller-retour par scan pour une action exceptionnelle.
+- **`scan-api/`** (§8.4 : « devient redondant ») : toujours là. Le backend `local_api`
+  reste utilisable, y compris *depuis* un agent
+  (`--scanner-engine local_api`), ce qui en fait le chemin de migration ; sa suppression
+  n'est pas dans ce lot.
+
+### 10.9 Vérification
+
+Faite en réel, contre un contrôleur servi par granian et un agent lancé dans un autre
+processus avec `python -m zanshin.agent` :
+
+- un dépôt public a été scanné **de bout en bout par l'agent distant** (clone, Syft,
+  Grype, gitleaks, checkov dans de vrais conteneurs Docker), 21 findings normalisés
+  côté contrôleur, 21 problèmes créés, SBOM et sortie Grype brutes stockées ;
+- l'agent intégré désactivé, le scan est resté `pending` jusqu'à ce que l'agent distant
+  le réclame — c'est-à-dire que le geste « ne rien exécuter ici » a l'effet annoncé ;
+- rejeu d'un rapport avec le même `message_id` : `duplicate`, `times_seen` inchangé ;
+- bail forcé à échéance : scan remis en file aux tentatives 1 et 2, échoué à la 3ᵉ ;
+- aucune clé de déploiement dans la charge d'un agent en mode `local` ; refus `412` et
+  scan remis en file pour un agent `delegated` en HTTP.
+
+Non vérifié en réel, et à savoir : le `Dockerfile.agent` n'a pas été construit (même
+limite que `scan-api/Dockerfile`), et rien n'a été essayé contre PostgreSQL ou MySQL —
+la suite multi-backends (`pytest -m backends`) couvre le schéma, pas le protocole
+d'agent.

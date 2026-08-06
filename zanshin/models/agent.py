@@ -90,7 +90,9 @@ class Agent(Base):
     # The credential a remote agent authenticates with, so revoking the key and
     # retiring the agent are visibly the same act. Null for `builtin`, which
     # authenticates nothing: it *is* the control plane.
-    api_key_id = Column(GUID, ForeignKey("api_key.id"), nullable=True)
+    # `ondelete` declared here as well as in the migration: `alembic check` compares
+    # the two, and a difference this small is exactly what it exists to catch.
+    api_key_id = Column(GUID, ForeignKey("api_key.id", ondelete="SET NULL"), nullable=True)
 
     # Self-reported on every call-in. Diagnostic only: the control plane never
     # trusts these for a decision, it only shows them.

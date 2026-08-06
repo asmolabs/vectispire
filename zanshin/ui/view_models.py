@@ -319,6 +319,59 @@ class ApiKeyRow:
 
 
 @dataclasses.dataclass
+class AgentRow:
+    """A worker that may run scans, as the Agents page shows it.
+
+    `status` is computed from `last_seen_at` at read time rather than stored (see
+    `AgentService`), so what this row says is what was true when the page loaded —
+    which is the only honest thing a liveness display can claim.
+    """
+
+    id: str = ""  # GUID
+    name: str = ""
+    description: str = ""
+    kind: str = "remote"          # builtin | remote
+    is_builtin: bool = False
+    status: str = "offline"       # online | offline | disabled
+    enabled: bool = True
+    labels: str = "—"
+    credentials_mode: str = "local"
+    sends_credentials: bool = False
+    max_concurrent: int = 1
+    running_jobs: int = 0
+    hostname: str = "—"
+    platform: str = "—"
+    version: str = "—"
+    scanner_engine: str = "—"
+    last_seen_at: str = "Jamais"
+    created_at: str = ""
+
+
+@dataclasses.dataclass
+class QueuedScanRow:
+    """A scan in the queue or in flight, with who holds it.
+
+    The queue was invisible before it moved into the database, and then visible only
+    as a count. This is the row that answers the two questions an operator actually
+    has when nothing seems to be happening: is anything waiting, and is anybody
+    working on it.
+    """
+
+    scan_id: int = 0
+    target: str = "—"
+    status: str = "pending"
+    # 1-based place in line while waiting, 0 once claimed.
+    position: int = 0
+    agent_name: str = "—"
+    attempts: int = 0
+    lease_expires_at: str = "—"
+    # True when the lease has lapsed: the row is reclaimable, and the next tick or
+    # dispatch will hand it to somebody else.
+    lease_expired: bool = False
+    created_at: str = ""
+
+
+@dataclasses.dataclass
 class SshKeyRow:
     id: str = ""  # GUID
     name: str = ""

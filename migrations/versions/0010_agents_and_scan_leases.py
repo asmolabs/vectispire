@@ -99,11 +99,15 @@ def upgrade() -> None:
     # tick, expecting to find nothing almost every time.
     existing_indexes = {index["name"] for index in inspector.get_indexes("scan")}
     if "ix_scan_lease_expires_at" not in existing_indexes:
-        op.create_index("ix_scan_lease_expires_at", "scan", ["lease_expires_at"], unique=False)
+        # Named as SQLAlchemy would name it from `index=True` on the model column, so
+        # `alembic check` sees the same schema on both sides.
+        op.create_index(
+            op.f("ix_scan_lease_expires_at"), "scan", ["lease_expires_at"], unique=False
+        )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_scan_lease_expires_at", table_name="scan")
+    op.drop_index(op.f("ix_scan_lease_expires_at"), table_name="scan")
     with op.batch_alter_table("scan", schema=None) as batch_op:
         for name in reversed(SCAN_LEASE_COLUMN_NAMES):
             batch_op.drop_column(name)

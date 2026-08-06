@@ -299,6 +299,69 @@ Key points not obvious from the diagram alone:
 - `cves["engine_source"]` (not `"source"` — Grype's own JSON already uses that key for something unrelated) records which backend actually produced the vulnerability matches, so `_build_findings` can set `Finding.source` correctly regardless of which `ScannerEngine` ran.
 - `ScannerEngine.get_workspace_root()` returns `None` for every backend except `LocalApiScannerEngine`, which needs its temp directory created inside the volume shared with the `scan-api` sidecar rather than the OS default temp location.
 
+### 3bis. Who executes a scan: the built-in agent and remote agents
+
+The sequence above is one process doing everything. Since ADR-002, *where* the scanners
+run is a separate question from *what happens to their output*, because `ScanProcessor`
+was split in two:
+
+| Object | Job | Needs a database? |
+|---|---|---|
+| `ScanRunner` (`scan_runner.py`) | workspace, clone, Syft/Grype/gitleaks/checkov, AI-review sample | **no** |
+| `ScanIngestor` (`scan_ingestor.py`) | `Finding` rows, licences, EOL, EPSS/KEV, AI review, issue reconciliation, outbox | yes, only |
+
+`ScanProcessor` is now the composition of the two, and it keeps its old signature — which
+is why the queue, the scheduler and the existing tests did not change. The two halves
+exchange `ScanTask` / `ScanArtifacts` (`zanshin/scan_contract.py`), a module that imports
+nothing from Zanshin: that is what lets those objects travel over HTTP to a machine with
+no database.
+
+Every scan is claimed by an **agent**, which is a row in the `agent` table. The web
+process is one of them (`kind=builtin`, registered at startup, one per host); a
+`python -m zanshin.agent` process is another (`kind=remote`).
+
+```mermaid
+sequenceDiagram
+    participant Q as scan_queue
+    participant BI as Built-in agent<br/>(this process)
+    participant API as /api/v1/agents
+    participant RA as Remote agent<br/>(python -m zanshin.agent)
+    participant ING as ScanIngestor
+    participant DB as Database
+
+    Note over Q,DB: A scan is a row. Whoever claims it writes its own id into claimed_by<br/>and takes a lease (LEASE_SECONDS).
+
+    Q->>DB: claim_next(worker=builtin) — if the built-in agent is enabled
+    BI->>BI: ScanRunner.run(task) — renews the lease on each step
+    BI->>ING: ingest(artifacts) — only if still_owned()
+
+    RA->>API: POST /hello (identity, contract version)
+    RA->>API: GET /jobs?wait=30 (long-poll)
+    API->>DB: claim_next(worker=remote-agent-id)
+    API-->>RA: ScanTask (no deploy key unless credentials_mode=delegated)
+    RA->>RA: ScanRunner.run(task) — the same code as the built-in agent
+    RA->>API: POST /jobs/{id}/heartbeat (renews the lease)
+    RA->>API: POST /jobs/{id}/result (message_id, artifacts — sliced if large)
+    API->>DB: INSERT processed_message + ingest, one transaction
+    API->>ING: ingest(artifacts)
+
+    Note over API,DB: A replayed report is answered "duplicate" and changes nothing.<br/>A lapsed lease makes the scan claimable again; the late worker's result is refused.
+```
+
+Consequences worth knowing:
+
+- **Disabling the built-in agent** (Agents page) is how an operator says "run nothing on
+  this host". Queued scans then wait — visibly, with their position — for a remote agent.
+  Its executor count is the existing `scan_max_concurrent` setting, not a second number.
+- **The concurrency limit is per agent.** Counting every running scan would have meant
+  that adding an agent *reduced* what the host was allowed to do.
+- **A remote agent never touches the database**, and gets a deploy key only if its
+  `credentials_mode` is `delegated` *and* the transport is TLS. An import test enforces
+  the first half (`tests/test_agent_worker.py`); the API enforces the second.
+- **The control plane is still single-process.** Agents are distributed; two web
+  instances are not supported (ADR-002 §2.2, §2.4–2.6).
+
+
 ### 4. Scanner backends
 
 | Backend | SBOM / secrets / IaC | Vulnerability matching | Notes |
@@ -639,6 +702,71 @@ Points importants non visibles sur le seul diagramme :
 - Le scan de secrets et d'IaC ne s'exécute que pour les scans de **dépôts**, jamais pour les images de conteneurs (voir ADR-001 §5) — les données de licence de Syft, elles, s'appliquent aux deux.
 - `cves["engine_source"]` (pas `"source"` — la sortie JSON native de Grype utilise déjà cette clé pour autre chose) enregistre quel backend a réellement produit le matching de vulnérabilités, afin que `_build_findings` renseigne correctement `Finding.source` quel que soit le `ScannerEngine` utilisé.
 - `ScannerEngine.get_workspace_root()` retourne `None` pour tous les backends sauf `LocalApiScannerEngine`, qui a besoin que son répertoire temporaire soit créé dans le volume partagé avec le sidecar `scan-api` plutôt que dans le répertoire temporaire par défaut du système.
+
+### 3bis. Qui exécute un scan : agent intégré et agents distants
+
+La séquence ci-dessus décrit un processus qui fait tout. Depuis l'ADR-002, *où* les
+scanners tournent est une question distincte de *ce qu'il advient de leur sortie*, parce
+que `ScanProcessor` a été coupé en deux :
+
+| Objet | Métier | Besoin de la base ? |
+|---|---|---|
+| `ScanRunner` (`scan_runner.py`) | espace de travail, clone, Syft/Grype/gitleaks/checkov, échantillon pour la revue IA | **non** |
+| `ScanIngestor` (`scan_ingestor.py`) | `Finding`, licences, EOL, EPSS/KEV, revue IA, rapprochement des problèmes, outbox | oui, uniquement |
+
+`ScanProcessor` est désormais la composition des deux et garde son ancienne signature —
+c'est pourquoi la file, l'ordonnanceur et les tests existants n'ont pas changé. Les deux
+moitiés échangent `ScanTask` / `ScanArtifacts` (`zanshin/scan_contract.py`), un module qui
+n'importe rien de Zanshin : c'est ce qui permet à ces objets de voyager en HTTP vers une
+machine sans base de données.
+
+Tout scan est réclamé par un **agent**, qui est une ligne de la table `agent`. Le
+processus web en est un (`kind=builtin`, enregistré au démarrage, un par hôte) ; un
+processus `python -m zanshin.agent` en est un autre (`kind=remote`).
+
+```mermaid
+sequenceDiagram
+    participant Q as scan_queue
+    participant BI as Agent intégré<br/>(ce processus)
+    participant API as /api/v1/agents
+    participant RA as Agent distant<br/>(python -m zanshin.agent)
+    participant ING as ScanIngestor
+    participant DB as Base de données
+
+    Note over Q,DB: Un scan est une ligne. Celui qui la réclame écrit son id dans claimed_by<br/>et prend un bail (LEASE_SECONDS).
+
+    Q->>DB: claim_next(worker=intégré) — si l'agent intégré est activé
+    BI->>BI: ScanRunner.run(task) — renouvelle le bail à chaque étape
+    BI->>ING: ingest(artifacts) — seulement si still_owned()
+
+    RA->>API: POST /hello (identité, version de contrat)
+    RA->>API: GET /jobs?wait=30 (long-poll)
+    API->>DB: claim_next(worker=id-agent-distant)
+    API-->>RA: ScanTask (aucune clé sauf credentials_mode=delegated)
+    RA->>RA: ScanRunner.run(task) — le même code que l'agent intégré
+    RA->>API: POST /jobs/{id}/heartbeat (renouvelle le bail)
+    RA->>API: POST /jobs/{id}/result (message_id, artefacts — fractionnés si volumineux)
+    API->>DB: INSERT processed_message + ingestion, une seule transaction
+    API->>ING: ingest(artifacts)
+
+    Note over API,DB: Un rapport rejoué reçoit « duplicate » et ne change rien.<br/>Un bail expiré rend le scan réclamable ; le résultat du retardataire est refusé.
+```
+
+Conséquences à connaître :
+
+- **Désactiver l'agent intégré** (page Agents) est la façon de dire « n'exécute rien sur
+  cet hôte ». Les scans en file attendent alors un agent distant, visiblement, avec leur
+  position. Son nombre d'exécuteurs est le réglage existant `scan_max_concurrent`, pas un
+  second nombre.
+- **La limite de simultanéité est par agent.** Compter tous les scans en cours aurait
+  fait qu'ajouter un agent *réduisait* ce que l'hôte s'autorisait.
+- **Un agent distant ne touche jamais la base**, et ne reçoit une clé de déploiement que
+  si son `credentials_mode` vaut `delegated` **et** que le transport est TLS. Un test
+  d'imports garantit la première moitié (`tests/test_agent_worker.py`) ; l'API applique la
+  seconde.
+- **Le plan de contrôle reste mono-processus.** Les agents sont répartis ; deux instances
+  web ne sont pas supportées (ADR-002 §2.2, §2.4–2.6).
+
 
 ### 4. Backends de scan
 

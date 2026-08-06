@@ -56,6 +56,7 @@ def sidebar(current_page: str, user_role: str) -> rx.Component:
                 rx.vstack(
                     rx.text("Administration", size="1", weight="bold", color="var(--slate-9)", class_name="px-4 mt-4 mb-2 uppercase tracking-wider"),
                     nav_item("Clés API", "lock", "/api-keys", current_page),
+                    nav_item("Agents", "server", "/agents", current_page),
                     nav_item("Utilisateurs", "users", "/users", current_page),
                     nav_item("Journal d'audit", "scroll-text", "/audit-log", current_page),
                     nav_item("Paramètres", "settings", "/settings", current_page),

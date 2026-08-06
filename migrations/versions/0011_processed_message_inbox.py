@@ -48,9 +48,13 @@ def upgrade() -> None:
         batch_op.create_index(
             batch_op.f("ix_processed_message_message_id"), ["message_id"], unique=True
         )
+        # The primary key is declared `index=True` on the model, like every other
+        # integer primary key in this schema; created here so the two agree.
+        batch_op.create_index(batch_op.f("ix_processed_message_id"), ["id"], unique=False)
 
 
 def downgrade() -> None:
     with op.batch_alter_table("processed_message", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_processed_message_id"))
         batch_op.drop_index(batch_op.f("ix_processed_message_message_id"))
     op.drop_table("processed_message")

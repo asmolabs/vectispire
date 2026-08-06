@@ -144,6 +144,22 @@ class ScanRepository:
             counts["queued" if status == STATUS_QUEUED else "running"] = count
         return counts
 
+    def find_in_flight(self) -> List[Scan]:
+        """Every queued or running scan, oldest first — the queue as an operator
+        sees it on the agents screen.
+
+        Whole rows rather than the blob-free `ScanSummary` used by the list screens:
+        this needs `claimed_by`, the lease and the target, and there are at most a
+        handful of in-flight scans at a time (the concurrency limit bounds the
+        running ones, and a backlog that large is itself the problem being looked at).
+        """
+        return (
+            self.db.query(Scan)
+            .filter(Scan.status.in_(("pending", "scanning")))
+            .order_by(Scan.created_at, Scan.id)
+            .all()
+        )
+
     def find_in_flight_for_repository(self, repo_id: int) -> Optional[Scan]:
         """A pending or running scan of this repository, if there is one."""
         return self._find_in_flight(Scan.repo_id, repo_id)

@@ -57,7 +57,9 @@ class Scan(Base):
     # Renewed by the worker as it makes progress. A scan whose lease has lapsed is
     # not killed — nothing here can kill a thread on another machine — it becomes
     # *reclaimable*, and the worker that eventually reports on it is refused.
-    lease_expires_at = Column(SafeDateTime, nullable=True)
+    # Indexed: the reclaim pass filters on exactly this column, on every scheduler
+    # tick, and expects to find nothing almost every time.
+    lease_expires_at = Column(SafeDateTime, nullable=True, index=True)
     # Incremented on every claim, so a scan that is repeatedly picked up and
     # abandoned fails visibly instead of cycling forever.
     attempts = Column(Integer, default=0, nullable=False)

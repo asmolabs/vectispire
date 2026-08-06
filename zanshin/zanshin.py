@@ -9,6 +9,7 @@ from zanshin.ui.pages.ssh_keys import ssh_keys_page
 from zanshin.ui.pages.depots import depots_page
 from zanshin.ui.pages.issues import issues_page
 from zanshin.ui.pages.api_keys import api_keys_page
+from zanshin.ui.pages.agents import agents_page
 from zanshin.ui.pages.settings import settings_page
 from zanshin.ui.pages.users import users_page
 from zanshin.ui.pages.audit_log import audit_log_page
@@ -65,6 +66,7 @@ app.add_page(ssh_keys_page, route="/ssh-keys", title="Zanshin - Clés SSH")
 app.add_page(depots_page, route="/depots", title="Zanshin - Dépôts & Scans")
 app.add_page(issues_page, route="/issues", title="Zanshin - Problèmes")
 app.add_page(api_keys_page, route="/api-keys", title="Zanshin - Clés API")
+app.add_page(agents_page, route="/agents", title="Zanshin - Agents")
 app.add_page(settings_page, route="/settings", title="Zanshin - Paramètres")
 app.add_page(users_page, route="/users", title="Zanshin - Utilisateurs")
 app.add_page(audit_log_page, route="/audit-log", title="Zanshin - Journal d'audit")

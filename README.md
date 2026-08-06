@@ -44,6 +44,48 @@ A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks
 
 The detailed decisions, discarded alternatives, and phase-by-phase implementation status are documented in [`docs/architecture/ADR-001-scanner-backends.md`](docs/architecture/ADR-001-scanner-backends.md) (written in French). The `scan-api/` sidecar has its own [README](scan-api/README.md) (deployment model, security, known limitations). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
+#### Distributed scanning: agents
+
+A scan is executed by an **agent**. There are two kinds, and both are rows in the same
+table, listed together on the `/agents` page:
+
+- the **built-in agent** — this very web process. Created automatically at startup, no
+  configuration, which is why a single-machine install works out of the box;
+- **remote agents** — separate `python -m zanshin.agent` processes on other machines.
+
+Both run the same code (`ScanRunner`), and both send back the scanners' raw output for
+the control plane to normalize (`ScanIngestor`). A result produced on another machine is
+therefore indistinguishable from a local one: same `Finding` rows, same EPSS/KEV
+enrichment, same licence policy, same issue reconciliation.
+
+Reasons to add a remote agent: keep the Docker socket off the host that serves the UI, reach
+a repository or registry that is only routable from another network segment, or add
+capacity. **Disabling the built-in agent** is how you say "run nothing here" — queued
+scans then wait for a remote agent instead of quietly using the web instance.
+
+A remote agent polls over HTTP with an API key carrying the `agent` scope, so it needs no
+inbound port and **no database access**. That last point is a security property, not a
+detail: an agent with a database connection would also need `ENCRYPTION_KEY`, i.e. the
+ability to decrypt every deploy key Zanshin holds.
+
+| Credentials mode | What the controller sends | When to use it |
+|---|---|---|
+| `local` (default) | nothing | the agent's own machine has git access. A compromised agent yields only what that machine was granted |
+| `delegated` | the deploy key, per job | a trusted machine. Requires HTTPS (refused otherwise), the key is never written to disk beyond a `0600` temp file, and every delivery is audited |
+
+```bash
+# On the agent's machine — the key comes from /agents, shown once
+ZANSHIN_URL=https://zanshin.internal \
+ZANSHIN_AGENT_TOKEN=zsk_... \
+python -m zanshin.agent
+```
+
+See [`docker-compose.agent.yml`](docker-compose.agent.yml) for the containerized form, and
+[`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
+for the decisions and the known limits — in particular: **the control plane itself is
+still single-process.** Agents are distributed; running two web instances is not
+supported.
+
 ### Quick start
 
 Prerequisites: Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Docker (for the default scan backend).
@@ -73,6 +115,7 @@ uv run alembic revision --autogenerate -m "what changed"
 | `/containers` | Tracked container images |
 | `/ssh-keys` | Encrypted SSH keys for cloning private repositories |
 | `/api-keys` | Programmatic API keys (bcrypt hash, secret shown once) |
+| `/agents` | Scan agents (built-in and remote), the queue, and leases (admin only) |
 | `/settings` | Scan backend selection, enrichment toggle, license blocklist |
 | `/users` | User management (admin only) |
 | `/audit-log` | Audit log of sensitive actions (admin only) |
@@ -228,9 +271,13 @@ zanshin/
 ├── models/          # SQLAlchemy models
 ├── repositories/     # Data access
 ├── services/         # Business logic (scanning, enrichment, users, audit...)
-│   └── scanners/      # ScannerEngine implementations (docker, osv, local_api)
+│   ├── scanners/      # ScannerEngine implementations (docker, osv, local_api)
+│   ├── scan_runner.py     # Runs the scanners — no database (agent side)
+│   └── scan_ingestor.py   # Normalizes results — database only (controller side)
+├── agent/             # The remote agent: `python -m zanshin.agent`
 ├── ui/                # Reflex pages, state, and typed view models
 ├── api/               # HTTP API (FastAPI, mounted on the Reflex app)
+├── scan_contract.py   # Task/result shapes shared by runner and ingestor
 ├── schema.py          # Alembic bootstrap at startup
 ├── clock.py           # The single source of "now"
 └── container.py       # Dependency injection (IoCContainer)
@@ -282,6 +329,53 @@ Un `Finding` est une *observation*, valable pour un seul scan. Au-dessus, un `Is
 
 Le détail des décisions, alternatives écartées et le statut d'implémentation phase par phase sont documentés dans [`docs/architecture/ADR-001-scanner-backends.md`](docs/architecture/ADR-001-scanner-backends.md). Le service sidecar `scan-api/` a son propre [README](scan-api/README.md) (modèle de déploiement, sécurité, limites connues). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
+#### Scan distribué : les agents
+
+Un scan est exécuté par un **agent**. Il y en a deux sortes, qui sont des lignes de la
+même table et apparaissent ensemble sur la page `/agents` :
+
+- l'**agent intégré** — ce processus web lui-même. Créé automatiquement au démarrage,
+  aucune configuration : c'est ce qui fait qu'une installation sur une seule machine
+  fonctionne d'emblée ;
+- les **agents distants** — des processus `python -m zanshin.agent` séparés, sur d'autres
+  machines.
+
+Les deux exécutent le même code (`ScanRunner`) et renvoient les sorties brutes des
+outils, que le plan de contrôle normalise (`ScanIngestor`). Un résultat produit sur une
+autre machine est donc indiscernable d'un résultat local : mêmes `Finding`, même
+enrichissement EPSS/KEV, même politique de licences, même rapprochement des problèmes.
+
+Raisons d'ajouter un agent distant : retirer le socket Docker de la machine qui sert
+l'UI, atteindre un dépôt ou un registre joignable seulement depuis un autre segment
+réseau, ou ajouter de la capacité. **Désactiver l'agent intégré** est la façon de dire
+« n'exécute rien ici » : les scans en file attendent alors un agent distant au lieu
+d'utiliser discrètement l'instance web.
+
+Un agent distant interroge le contrôleur en HTTP avec une clé API à portée `agent` : il
+n'a besoin d'aucun port entrant ni **d'aucun accès à la base**. Ce dernier point est une
+propriété de sécurité, pas un détail : un agent ayant accès à la base aurait aussi besoin
+d'`ENCRYPTION_KEY`, c'est-à-dire de quoi déchiffrer *toutes* les clés de déploiement que
+Zanshin détient.
+
+| Mode d'identifiants | Ce que le contrôleur envoie | Quand l'utiliser |
+|---|---|---|
+| `local` (défaut) | rien | la machine de l'agent a son propre accès git. Un agent compromis ne donne que ce qui a été accordé à cette machine |
+| `delegated` | la clé de déploiement, par tâche | machine de confiance. Exige HTTPS (refus sinon), la clé n'est jamais écrite ailleurs que dans un fichier temporaire `0600`, et chaque remise est auditée |
+
+```bash
+# Sur la machine de l'agent — la clé vient de /agents, affichée une seule fois
+ZANSHIN_URL=https://zanshin.interne \
+ZANSHIN_AGENT_TOKEN=zsk_... \
+python -m zanshin.agent
+```
+
+Voir [`docker-compose.agent.yml`](docker-compose.agent.yml) pour la variante
+conteneurisée, et
+[`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
+pour les décisions et les limites connues — en particulier : **le plan de contrôle
+lui-même reste mono-processus.** Les agents sont répartis ; lancer deux instances web
+n'est pas supporté.
+
 ### Démarrage rapide
 
 Prérequis : Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Docker (pour le backend de scan par défaut).
@@ -311,6 +405,7 @@ uv run alembic revision --autogenerate -m "ce qui a changé"
 | `/containers` | Images de conteneurs suivies |
 | `/ssh-keys` | Clés SSH (chiffrées) pour cloner des dépôts privés |
 | `/api-keys` | Clés API programmatiques (hash bcrypt, secret affiché une seule fois) |
+| `/agents` | Agents de scan (intégré et distants), file d'attente et baux (admin) |
 | `/settings` | Choix du backend de scan, activation de l'enrichissement, liste noire de licences |
 | `/users` | Gestion des utilisateurs (admin) |
 | `/audit-log` | Journal d'audit des actions sensibles (admin) |
@@ -520,9 +615,13 @@ zanshin/
 ├── models/          # Modèles SQLAlchemy
 ├── repositories/     # Accès aux données
 ├── services/         # Logique métier (scan, enrichissement, utilisateurs, audit...)
-│   └── scanners/      # Implémentations ScannerEngine (docker, osv, local_api)
+│   ├── scanners/      # Implémentations ScannerEngine (docker, osv, local_api)
+│   ├── scan_runner.py     # Exécute les scanners — sans base (côté agent)
+│   └── scan_ingestor.py   # Normalise les résultats — base seule (côté contrôleur)
+├── agent/             # L'agent distant : `python -m zanshin.agent`
 ├── ui/                # Pages, état et view-models typés Reflex
 ├── api/               # API HTTP (FastAPI, montée sur l'app Reflex)
+├── scan_contract.py   # Formes de tâche/résultat partagées entre runner et ingestor
 ├── schema.py          # Amorçage Alembic au démarrage
 ├── clock.py           # Source unique de « maintenant »
 └── container.py       # Injection de dépendances (IoCContainer)
