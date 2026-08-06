@@ -42,6 +42,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Note: the foreign key columns created here were originally `BigInteger` against
+    # `Integer` primary keys, which MySQL refuses. Amended so a fresh database can be
+    # built on any backend; databases created by the original are corrected by 0007.
     _guard_against_duplicate_usernames()
 
     with op.batch_alter_table("scan", schema=None) as batch_op:
@@ -52,20 +55,49 @@ def upgrade() -> None:
             existing_nullable=True,
         )
 
+    # MySQL refuses to drop a column that a foreign key still needs, so the
+    # constraint goes first. Its name is whatever the server chose when the baseline
+    # created it (`finding_ibfk_2` on MySQL, `finding_vex_decision_id_fkey` on
+    # PostgreSQL, nothing at all on SQLite), so it is looked up rather than guessed.
+    _drop_foreign_keys_on("finding", "vex_decision_id")
+
     with op.batch_alter_table("finding", schema=None) as batch_op:
-        # Named constraint from migration 0002; the FK onto `vex_decision` from
-        # the baseline has no name, which is why the table drop below has to
-        # come after this one on SQLite.
         batch_op.drop_column("vex_decision_id")
         batch_op.drop_column("status")
         batch_op.create_index(batch_op.f("ix_finding_scan_id"), ["scan_id"], unique=False)
 
     op.drop_table("vex_decision")
 
+    # Replaces the non-unique legacy index of the same name, if present. Checked by
+    # inspection rather than with `if_exists=True`: MySQL has no
+    # `DROP INDEX IF EXISTS` and fails on the syntax itself.
     with op.batch_alter_table("user", schema=None) as batch_op:
-        # Replaces the non-unique legacy index of the same name, if present.
-        batch_op.drop_index("ix_user_username", if_exists=True)
+        if _has_index("user", "ix_user_username"):
+            batch_op.drop_index("ix_user_username")
         batch_op.create_index("ix_user_username", ["username"], unique=True)
+
+
+def _has_index(table: str, index_name: str) -> bool:
+    return any(
+        index["name"] == index_name
+        for index in sa.inspect(op.get_bind()).get_indexes(table)
+    )
+
+
+def _drop_foreign_keys_on(table: str, column: str) -> None:
+    """Drop any foreign key constraint that covers `column`.
+
+    SQLite has no `ALTER TABLE ... DROP CONSTRAINT` and does not need one — batch mode
+    rewrites the table without the column, constraint included — so it is skipped
+    there. Unnamed constraints are skipped too: there is nothing to address them by,
+    and the backends that require this step always name them.
+    """
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        return
+    for constraint in sa.inspect(bind).get_foreign_keys(table):
+        if column in (constraint.get("constrained_columns") or []) and constraint.get("name"):
+            op.drop_constraint(constraint["name"], table, type_="foreignkey")
 
 
 def _guard_against_duplicate_usernames() -> None:
@@ -74,13 +106,18 @@ def _guard_against_duplicate_usernames() -> None:
     Creating the unique index would fail anyway; failing here means the error
     names the actual problem instead of surfacing as a bare IntegrityError.
     """
+    # Built from SQLAlchemy constructs rather than raw SQL so the identifier is
+    # quoted per dialect: `user` is a reserved word in PostgreSQL, where an
+    # unquoted `FROM user` resolves to the current_user function and the query
+    # fails with "column username does not exist".
+    user_table = sa.table("user", sa.column("username"))
+    count = sa.func.count().label("n")
     duplicates = (
         op.get_bind()
         .execute(
-            sa.text(
-                "SELECT username, COUNT(*) AS n FROM user "
-                "GROUP BY username HAVING COUNT(*) > 1"
-            )
+            sa.select(user_table.c.username, count)
+            .group_by(user_table.c.username)
+            .having(count > 1)
         )
         .mappings()
         .all()
@@ -110,7 +147,7 @@ def downgrade() -> None:
         sa.Column("comment", sa.Text(), nullable=True),
         sa.Column("created_at", zanshin.models.safedatetime.SafeDateTime(), nullable=False),
         sa.Column("updated_at", zanshin.models.safedatetime.SafeDateTime(), nullable=False),
-        sa.Column("repository_id", sa.BigInteger(), nullable=True),
+        sa.Column("repository_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["repository_id"], ["repository.id"]),
         sa.PrimaryKeyConstraint("id"),
     )

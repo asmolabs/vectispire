@@ -141,7 +141,11 @@ Operational tuning (all optional, shown with their defaults):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ZANSHIN_DATABASE_URL` | the bundled SQLite file | Points the app and the migrations at another database. |
+| `ZANSHIN_DB_PATH` | `zanshin/database.sqlite` | Path to the SQLite file. The simplest way to keep the data outside the source tree; made absolute, because a relative path resolves against the working directory and that differs between `reflex run`, `alembic` and a service unit. |
+| `ZANSHIN_DATABASE_URL` | derived from `ZANSHIN_DB_PATH` | Full SQLAlchemy URL, for anything that is not a local file — e.g. `postgresql+psycopg://user:password@host/zanshin`. Takes precedence over `ZANSHIN_DB_PATH`. Requires the driver: `uv sync --extra postgres`. |
+| `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite only: how long a write waits for a concurrent writer before failing. Scan workers, the scheduler and requests all write, so contention is normal. |
+| `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Server databases only: connection pool. Ignored for SQLite, which has no pool worth tuning. |
+| `ZANSHIN_AUTO_MIGRATE` | `true` | Set to `false` for a deployment that runs `alembic upgrade head` as its own step — which is what a server database on several application hosts should do. The schema is still *checked* at startup: a database behind the code stops the application there rather than at the first query. |
 | `ZANSHIN_SCAN_WORKERS` | `5` | Concurrent scans. Each one can hold a scanner container open. |
 | `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it, the container is killed and the scan fails with a timeout instead of hanging. |
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | Set to `false` for a deployment that only scans on demand. |
@@ -160,6 +164,42 @@ The sidecar (`scan-api/`) additionally requires `ZANSHIN_SCAN_API_TOKEN` (matche
 
 The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
 
+#### Choosing a database
+
+SQLite is the default and is what this deployment is exercised against: one file, no
+server, and the scan pipeline's write volume is nowhere near its limits. Point it
+somewhere durable and back that up — that file is the whole installation.
+
+```bash
+ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
+```
+
+PostgreSQL and MySQL both work and are verified by tests that start real servers —
+`pytest -m backends` runs the whole schema and every service that owns a column
+against PostgreSQL 16 and MySQL 8.4 via testcontainers. They are excluded from the
+default run because an image pull has no place in the loop you run on every edit.
+One thing to know before choosing either.
+
+```bash
+uv sync --extra postgres          # or --extra mysql
+ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
+ZANSHIN_AUTO_MIGRATE=false        # run `alembic upgrade head` as a deployment step
+```
+
+- **Foreign keys are enforced there and not on SQLite**, which ignores them unless
+  asked per connection. This schema's cascades are declared ORM-side and
+  `Issue.findings` has none, so a delete that quietly orphans rows today would raise
+  on a server database. Not yet fixed — it needs `ondelete` rules and a migration.
+- **Timestamps are stored as ISO-8601 strings**, not as `timestamptz`/`DATETIME`.
+  That is what `SafeDateTime` does, and it is deliberate (it exists to read the
+  several formats the pre-Alembic schema left behind), but it means date arithmetic
+  in SQL is not available on those columns. Ordering and comparison work, because
+  ISO-8601 sorts lexicographically.
+
+Migrations run on either. `alembic` reads the same two variables as the application,
+so the command line and the running app can never disagree about which database they
+are looking at.
+
 ### Tests
 
 ```bash
@@ -167,6 +207,12 @@ uv run pytest
 ```
 
 ~82% coverage over `zanshin/`, UI layer included. The two halves of the UI are checked by different means: page loaders and event handlers by state-level tests (see the `UIHarness` in `tests/conftest.py`, which drives a Reflex state outside the server), and the component trees by `uv run reflex compile --dry`, which fails on a mistyped attribute of a typed row model. Every test runs against an in-memory SQLite database, never against `zanshin/database.sqlite`.
+
+```bash
+uv run pytest -m backends     # needs Docker
+```
+
+Additionally, a cross-backend suite starts real PostgreSQL 16 and MySQL 8.4 servers with testcontainers, applies every migration and pushes a row through each custom column type and each service that owns one. It is excluded from the default run (`addopts = -m 'not backends'`) because an image pull does not belong in the loop you run on every edit, and it skips itself when Docker is unavailable. It exists because every portability defect this schema had was invisible both to SQLite and to reading the code — a `BINARY` type PostgreSQL has no name for, `FROM user` resolving to a function instead of a table, `VARCHAR` without a length, a `BIGINT` foreign key onto an `INT` key, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six of them, all found by running.
 
 ### Project structure
 
@@ -375,7 +421,11 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `ZANSHIN_DATABASE_URL` | le fichier SQLite fourni | Pointe l'application et les migrations vers une autre base. |
+| `ZANSHIN_DB_PATH` | `zanshin/database.sqlite` | Chemin du fichier SQLite. La façon la plus simple de garder les données hors de l'arborescence source ; rendu absolu, parce qu'un chemin relatif se résout par rapport au répertoire courant et que celui-ci diffère entre `reflex run`, `alembic` et une unité de service. |
+| `ZANSHIN_DATABASE_URL` | dérivée de `ZANSHIN_DB_PATH` | URL SQLAlchemy complète, pour tout ce qui n'est pas un fichier local — par exemple `postgresql+psycopg://utilisateur:motdepasse@hôte/zanshin`. Prend le pas sur `ZANSHIN_DB_PATH`. Nécessite le pilote : `uv sync --extra postgres`. |
+| `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite uniquement : combien de temps une écriture attend un autre écrivain avant d'échouer. Les workers de scan, l'ordonnanceur et les requêtes écrivent tous, donc la contention est normale. |
+| `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Bases serveur uniquement : pool de connexions. Ignoré pour SQLite, qui n'a pas de pool à régler. |
+| `ZANSHIN_AUTO_MIGRATE` | `true` | `false` pour un déploiement qui exécute `alembic upgrade head` comme étape propre — ce que devrait faire une base serveur répartie sur plusieurs hôtes applicatifs. Le schéma reste *vérifié* au démarrage : une base en retard sur le code arrête l'application là, et non à la première requête. |
 | `ZANSHIN_SCAN_WORKERS` | `5` | Scans simultanés. Chacun peut occuper un conteneur de scan. |
 | `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Plafond pour un conteneur de scan ; au-delà, il est tué et le scan échoue en timeout au lieu de rester bloqué. |
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` pour un déploiement qui ne scanne qu'à la demande. |
@@ -394,6 +444,43 @@ Le sidecar (`scan-api/`) exige en plus `ZANSHIN_SCAN_API_TOKEN` (à reporter dan
 
 Le fichier de base de données ne fait plus partie du dépôt (il contient des hashes de mots de passe et des clés SSH chiffrées) : un déploiement neuf démarre donc sans aucun compte, d'où ces variables de bootstrap. Dès qu'un compte existe, elles sont ignorées.
 
+#### Choisir une base de données
+
+SQLite est le défaut, et c'est ce contre quoi ce déploiement est éprouvé : un fichier,
+pas de serveur, et le volume d'écriture du pipeline de scan est loin de ses limites.
+Placez-le à un endroit durable et sauvegardez-le — ce fichier *est* l'installation.
+
+```bash
+ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
+```
+
+PostgreSQL et MySQL fonctionnent tous les deux, et c'est vérifié par des tests qui
+démarrent de vrais serveurs — `pytest -m backends` passe tout le schéma et chaque
+service propriétaire d'une colonne sur PostgreSQL 16 et MySQL 8.4 via testcontainers.
+Ils sont exclus de l'exécution par défaut : un téléchargement d'image n'a rien à faire
+dans la boucle qu'on lance à chaque modification. Une chose à savoir avant de choisir.
+
+```bash
+uv sync --extra postgres          # ou --extra mysql
+ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
+ZANSHIN_AUTO_MIGRATE=false        # exécuter « alembic upgrade head » comme étape de déploiement
+```
+
+- **Les clés étrangères y sont appliquées, contrairement à SQLite**, qui les ignore
+  sauf demande explicite par connexion. Les cascades de ce schéma sont déclarées côté
+  ORM et `Issue.findings` n'en a aucune : une suppression qui laisse aujourd'hui des
+  lignes orphelines en silence lèverait une erreur sur une base serveur. Pas encore
+  corrigé — cela demande des règles `ondelete` et une migration.
+- **Les horodatages sont stockés en chaînes ISO-8601**, pas en `timestamptz` ni
+  `DATETIME`. C'est ce que fait `SafeDateTime`, et c'est délibéré (il existe pour
+  relire les différents formats laissés par le schéma antérieur à Alembic), mais cela
+  signifie qu'on ne dispose pas d'arithmétique de dates en SQL sur ces colonnes. Le
+  tri et les comparaisons fonctionnent, l'ISO-8601 se triant lexicographiquement.
+
+Les migrations tournent sur l'une comme sur l'autre. `alembic` lit les deux mêmes
+variables que l'application, donc la ligne de commande et l'application en marche ne
+peuvent pas être en désaccord sur la base qu'elles regardent.
+
 ### Tests
 
 ```bash
@@ -401,6 +488,12 @@ uv run pytest
 ```
 
 ~82 % de couverture sur `zanshin/`, couche UI incluse. Les deux moitiés de l'UI sont vérifiées par des moyens différents : les loaders et handlers par des tests d'état (voir `UIHarness` dans `tests/conftest.py`, qui pilote un état Reflex hors serveur), et les arbres de composants par `uv run reflex compile --dry`, qui échoue sur un attribut inexistant d'une ligne typée. Chaque test s'exécute sur une base SQLite en mémoire, jamais sur `zanshin/database.sqlite`.
+
+```bash
+uv run pytest -m backends     # nécessite Docker
+```
+
+En complément, une suite multi-backends démarre de vrais serveurs PostgreSQL 16 et MySQL 8.4 avec testcontainers, applique toutes les migrations et fait passer une ligne par chaque type de colonne maison et chaque service qui en possède un. Elle est exclue de l'exécution par défaut (`addopts = -m 'not backends'`), parce qu'un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque modification, et elle se saute d'elle-même sans Docker. Elle existe parce que tous les défauts de portabilité de ce schéma étaient invisibles à la fois pour SQLite et à la lecture : un type `BINARY` que PostgreSQL ne connaît pas, `FROM user` qui désigne une fonction au lieu d'une table, `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six, tous trouvés en exécutant.
 
 ### Structure du projet
 

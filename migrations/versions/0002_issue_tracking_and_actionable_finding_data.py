@@ -38,11 +38,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Note: the foreign key columns created here were originally `BigInteger` against
+    # `Integer` primary keys, which MySQL refuses. Amended so a fresh database can be
+    # built on any backend; databases created by the original are corrected by 0007.
     op.create_table(
         "issue",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("repo_id", sa.BigInteger(), nullable=True),
-        sa.Column("container_id", sa.BigInteger(), nullable=True),
+        sa.Column("repo_id", sa.Integer(), nullable=True),
+        sa.Column("container_id", sa.Integer(), nullable=True),
         sa.Column("fingerprint", sa.String(length=64), nullable=False),
         sa.Column("type", sa.String(length=50), nullable=False),
         sa.Column("identifier", sa.String(length=255), nullable=True),
@@ -64,8 +67,8 @@ def upgrade() -> None:
         sa.Column("first_seen_at", zanshin.models.safedatetime.SafeDateTime(), nullable=False),
         sa.Column("last_seen_at", zanshin.models.safedatetime.SafeDateTime(), nullable=False),
         sa.Column("resolved_at", zanshin.models.safedatetime.SafeDateTime(), nullable=True),
-        sa.Column("first_seen_scan_id", sa.BigInteger(), nullable=True),
-        sa.Column("last_seen_scan_id", sa.BigInteger(), nullable=True),
+        sa.Column("first_seen_scan_id", sa.Integer(), nullable=True),
+        sa.Column("last_seen_scan_id", sa.Integer(), nullable=True),
         sa.Column("times_seen", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("triage_status", sa.String(length=30), nullable=False, server_default="under_review"),
         sa.Column("triage_justification", sa.String(length=64), nullable=True),

@@ -13,5 +13,7 @@ __pycache__/
 .coverage
 .pytest_cache/
 
-# Startup migration lock (see zanshin/schema.py)
+# Startup migration lock (see zanshin/schema.py). Placed next to the database, so
+# the pattern has to match wherever that is.
 .migration.lock
+*.migration.lock

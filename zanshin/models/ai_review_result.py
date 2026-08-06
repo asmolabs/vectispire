@@ -1,5 +1,5 @@
 from zanshin.clock import utcnow
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from zanshin.database import Base
 from zanshin.models.safedatetime import SafeDateTime
@@ -23,7 +23,7 @@ class AiReviewResult(Base):
     __tablename__ = "ai_review_result"
 
     id = Column(Integer, primary_key=True, index=True)
-    scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=False, unique=True)
+    scan_id = Column(Integer, ForeignKey("scan.id"), nullable=False, unique=True)
 
     model = Column(String(255), nullable=False)
     prompt = Column(Text, nullable=False)

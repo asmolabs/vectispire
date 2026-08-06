@@ -12,6 +12,12 @@ of replaying this migration onto a populated database.
 Revision ID: 0001
 Revises:
 Create Date: 2026-08-06
+
+Amended after the fact: the foreign key columns below were `BigInteger` while the
+primary keys they reference are `Integer`. MySQL refuses that outright, so a fresh
+database could not be created there at all. Editing a baseline is safe precisely
+because it only ever runs on a fresh database — deployments that already applied the
+original are stamped past it and are corrected by migration 0007 instead.
 """
 from typing import Sequence, Union
 
@@ -128,8 +134,8 @@ def upgrade() -> None:
     sa.Column('created_at', zanshin.models.safedatetime.SafeDateTime(), nullable=False),
     sa.Column('version', sa.String(length=255), nullable=True),
     sa.Column('project_type', sa.String(length=255), nullable=True),
-    sa.Column('repo_id', sa.BigInteger(), nullable=True),
-    sa.Column('container_id', sa.BigInteger(), nullable=True),
+    sa.Column('repo_id', sa.Integer(), nullable=True),
+    sa.Column('container_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['container_id'], ['container.id'], ),
     sa.ForeignKeyConstraint(['repo_id'], ['repository.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -148,7 +154,7 @@ def upgrade() -> None:
     sa.Column('comment', sa.Text(), nullable=True),
     sa.Column('created_at', zanshin.models.safedatetime.SafeDateTime(), nullable=False),
     sa.Column('updated_at', zanshin.models.safedatetime.SafeDateTime(), nullable=False),
-    sa.Column('repository_id', sa.BigInteger(), nullable=True),
+    sa.Column('repository_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['repository_id'], ['repository.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -157,7 +163,7 @@ def upgrade() -> None:
 
     op.create_table('ai_review_result',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('scan_id', sa.BigInteger(), nullable=False),
+    sa.Column('scan_id', sa.Integer(), nullable=False),
     sa.Column('model', sa.String(length=255), nullable=False),
     sa.Column('prompt', sa.Text(), nullable=False),
     sa.Column('response', sa.Text(), nullable=True),
@@ -173,7 +179,7 @@ def upgrade() -> None:
 
     op.create_table('finding',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('scan_id', sa.BigInteger(), nullable=False),
+    sa.Column('scan_id', sa.Integer(), nullable=False),
     sa.Column('type', sa.String(length=50), nullable=False),
     sa.Column('severity', sa.String(length=50), nullable=True),
     sa.Column('identifier', sa.String(length=255), nullable=True),

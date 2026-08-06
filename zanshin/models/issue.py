@@ -2,7 +2,6 @@ import hashlib
 from typing import Optional
 
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     Float,
@@ -81,8 +80,8 @@ class Issue(Base):
     # Exactly one of these is set, mirroring `Scan`. Not a polymorphic
     # "target_type/target_id" pair: real foreign keys mean the cascade below
     # deletes an entity's issues with it, the way scans already are.
-    repo_id = Column(BigInteger, ForeignKey("repository.id"), nullable=True)
-    container_id = Column(BigInteger, ForeignKey("container.id"), nullable=True)
+    repo_id = Column(Integer, ForeignKey("repository.id"), nullable=True)
+    container_id = Column(Integer, ForeignKey("container.id"), nullable=True)
 
     # Stable identity across scans; see `build_fingerprint`.
     fingerprint = Column(String(64), nullable=False, index=True)
@@ -120,8 +119,8 @@ class Issue(Base):
     first_seen_at = Column(SafeDateTime, default=utcnow, nullable=False)
     last_seen_at = Column(SafeDateTime, default=utcnow, nullable=False)
     resolved_at = Column(SafeDateTime, nullable=True)
-    first_seen_scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=True)
-    last_seen_scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=True)
+    first_seen_scan_id = Column(Integer, ForeignKey("scan.id"), nullable=True)
+    last_seen_scan_id = Column(Integer, ForeignKey("scan.id"), nullable=True)
     # How many scans have seen it — the cheap signal for "is this chronic".
     times_seen = Column(Integer, default=1, nullable=False)
 

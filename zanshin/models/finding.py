@@ -1,5 +1,5 @@
 from zanshin.clock import utcnow
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from zanshin.database import Base
 from zanshin.models.safedatetime import SafeDateTime
@@ -19,7 +19,7 @@ class Finding(Base):
     id = Column(Integer, primary_key=True, index=True)
     # Indexed: `count_by_scan_ids_and_type` runs on every list and history
     # render, filtering on `scan_id IN (...)`.
-    scan_id = Column(BigInteger, ForeignKey("scan.id"), nullable=False, index=True)
+    scan_id = Column(Integer, ForeignKey("scan.id"), nullable=False, index=True)
 
     # "vulnerability" (SCA/Grype) today; "secret" / "iac" / "license" are the
     # extension points for the additional scanners described in ADR-001.

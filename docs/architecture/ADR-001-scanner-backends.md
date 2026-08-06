@@ -677,6 +677,123 @@ pour une fraction du coût, mais pas plus. Attribution par couche pour les conte
 politique de gate stockée et versionnée au lieu d'arriver dans le corps de la requête,
 et correction automatique (branche + PR à partir de `extract_remediation`).
 
+## 9decies. La base de données devient réellement configurable (2026-08-06)
+
+`ZANSHIN_DATABASE_URL` existait et était documentée comme *le* moyen de pointer
+Zanshin vers une autre base. Le moteur était construit avec
+`connect_args={"check_same_thread": False}` sans condition — un argument propre à
+SQLite — donc tout autre dialecte échouait à l'import dans le pilote. Le réglage était
+réel pour un dialecte et un piège pour les autres : la pire des deux situations, parce
+qu'il se présentait comme pris en charge.
+
+**Deux boutons, par ordre de priorité.** `ZANSHIN_DATABASE_URL` pour une URL
+SQLAlchemy complète ; `ZANSHIN_DB_PATH` pour un simple chemin de fichier. Le cas
+courant mérite le bouton simple : garder les données hors de l'arborescence source ne
+devrait pas exiger de connaître la syntaxe des URL SQLAlchemy, et un chemin nu est ce
+qu'on écrit correctement du premier coup dans une unité systemd. Le chemin est rendu
+**absolu** : un chemin relatif se résout par rapport au répertoire courant, qui n'est
+pas le même pour `reflex run`, `alembic` et un service — un réglage, trois bases, et
+le symptôme est un tableau de bord vide plutôt qu'une erreur.
+
+**Options de moteur par dialecte**, parce que les deux cas veulent l'inverse l'un de
+l'autre : SQLite veut son contrôle inter-threads désactivé (le pool de scan et la
+boucle d'événements Reflex touchent le même pool) et un délai d'attente sur verrou ;
+une base serveur veut un pool de connexions et `pool_pre_ping`, notions vides pour un
+fichier. Le délai d'attente est un ajout : sans lui, deux écritures simultanées
+donnent « database is locked » immédiatement, alors que la contention est le régime
+normal ici.
+
+**Échouer utilement.** Dialecte inconnu, URL illisible, pilote absent : trois erreurs
+distinctes avec un message qui nomme le problème et, pour le pilote, la commande à
+lancer. À l'import, pas à la première requête — une faute de frappe dans une variable
+doit arrêter l'application, pas ressortir plus tard en requête échouée avec une pile
+d'appels interne à SQLAlchemy.
+
+**PostgreSQL et MySQL vérifiés, pas supposés.** Six obstacles réels ont été trouvés
+en les faisant tourner, pas en les lisant — et aucun n'était visible depuis SQLite :
+
+1. `GUID` déclarait `impl = BINARY`, rendu littéralement en DDL comme `BINARY` — que
+   PostgreSQL refuse (`type "binary" does not exist`), dès la première table de la
+   première migration. Le type était donc ce qui séparait « URL configurable » de
+   « base configurable ». Il choisit maintenant son implémentation par dialecte :
+   `uuid` natif sur PostgreSQL, 16 octets bruts ailleurs — représentation stockée
+   inchangée sur SQLite, aucune ligne existante touchée.
+2. Les migrations 0003 et 0004 interrogeaient `FROM user` en SQL brut. `user` est un
+   mot réservé PostgreSQL, où un `FROM user` non quoté désigne la fonction
+   `current_user` : la requête échouait sur « column username does not exist ».
+   Reconstruites avec les constructions SQLAlchemy, qui quotent selon le dialecte.
+3. `SafeDateTime` déclarait `impl = String` sans longueur. MySQL refuse un `VARCHAR`
+   sans longueur — `CompileError` sur la première table. Longueur déclarée à 40, la
+   valeur la plus large que la classe puisse produire faisant 32 caractères. SQLite
+   ignore la longueur, donc rien ne change pour un déploiement existant.
+4. **Toutes** les colonnes de clé étrangère étaient `BigInteger` alors que les clés
+   primaires visées sont `Integer`. SQLite ne s'en soucie pas, PostgreSQL le tolère,
+   MySQL le refuse net (« Referencing column … are incompatible »). Le défaut a
+   traversé six migrations depuis le schéma antérieur à Alembic. Corrigé en
+   *rétrécissant* les clés étrangères, pas en élargissant les clés primaires : sur
+   SQLite, seule une colonne déclarée exactement `INTEGER PRIMARY KEY` est un alias du
+   rowid, donc `BIGINT PRIMARY KEY` cesserait silencieusement de s'auto-incrémenter.
+   Migration 0007 pour les bases existantes ; les migrations 0001, 0002 et 0003 ont
+   été amendées pour qu'une base *neuve* soit correcte d'emblée — éditer une baseline
+   est sans risque justement parce qu'elle ne s'exécute que sur une base neuve.
+5. 0003 supprimait `finding.vex_decision_id` sans supprimer d'abord la contrainte de
+   clé étrangère. MySQL refuse. Le nom de la contrainte est celui que le serveur a
+   choisi (`finding_ibfk_2` ici, `finding_vex_decision_id_fkey` là, rien sur SQLite),
+   donc il est cherché par inspection plutôt que deviné.
+6. `DROP INDEX IF EXISTS` n'existe pas sur MySQL, et `NULLS LAST` non plus — cette
+   dernière dans le *tri applicatif* de la liste des problèmes, pas dans une
+   migration. Remplacés par une inspection préalable et par un tri sur
+   `colonne IS NULL` (faux avant vrai, donc les valeurs avant les absences).
+
+**Les tests qui l'établissent.** `pytest -m backends` démarre de vrais serveurs
+PostgreSQL 16 et MySQL 8.4 avec testcontainers, applique les sept migrations, vérifie
+`alembic check` sur chacun, puis fait passer une ligne par chaque type de colonne
+maison (GUID, SafeDateTime, JSON) et chaque service qui en possède un — clé SSH
+chiffrée liée à son identifiant, clé API avec portées et expiration, chaîne d'audit et
+sa détection de falsification, cycle de vie des problèmes, expiration de triage, filtre
+de directivité, tri par sévérité, les trois exports, les agrégats du tableau de bord.
+36 tests, deux backends. Exclus de l'exécution par défaut : un téléchargement d'image
+n'a rien à faire dans la boucle lancée à chaque modification.
+
+Ce que ces tests changent par rapport à une lecture attentive : les six défauts
+ci-dessus étaient tous invisibles pour SQLite, dont les types sont dynamiques et qui
+ignore les clés étrangères. Aucun n'aurait été trouvé par un mock, une vérification de
+chaîne de dialecte ou une relecture. Le seul moyen était d'exécuter.
+
+L'application a aussi été démarrée pour de vrai sur PostgreSQL : elle migre, crée son
+compte de bootstrap avec le changement de mot de passe forcé, et sert l'UI comme l'API.
+
+**Deux limites énoncées plutôt que masquées.** Les clés étrangères sont appliquées sur
+PostgreSQL et ignorées par SQLite sauf `PRAGMA` explicite ; les cascades de ce schéma
+sont côté ORM et `Issue.findings` n'en a aucune, donc une suppression qui laisse
+aujourd'hui des orphelins en silence lèverait une erreur là-bas. Activer le `PRAGMA`
+aurait été un aller simple vers ce même échec sur SQLite : cela demande des règles
+`ondelete`, une migration et ses tests, pas un effet de bord. Et `SafeDateTime` stocke
+des chaînes ISO-8601, donc pas d'arithmétique de dates en SQL sur ces colonnes
+(l'ordre et les comparaisons fonctionnent, l'ISO-8601 se triant lexicographiquement).
+
+**`ZANSHIN_AUTO_MIGRATE=false`** pour les déploiements qui migrent comme étape propre
+— ce que devrait faire une base serveur répartie sur plusieurs hôtes, puisque le
+verrou fichier ne sérialise que les processus d'un hôte. Sauter n'est pas ignorer : le
+schéma reste vérifié, et une base en retard sur le code arrête l'application là.
+
+Le verrou de migration a aussi déménagé à côté de la base et non dans l'arborescence
+source : ce qui est sérialisé est l'accès à *cette base*, donc deux déploiements
+partageant un checkout mais tenant deux bases ne doivent pas se bloquer, et un
+checkout en lecture seule ne doit pas empêcher le démarrage.
+
+### Défaut de vérification à signaler
+
+Les vérifications de migration annoncées en 9octies et 9nonies (« base neuve », « base
+héritée », « aller-retour ») utilisaient `ZANSHIN_DB_PATH`, qui **n'existait pas
+encore** : les commandes `alembic` retombaient donc silencieusement sur la base réelle.
+Aucune base neuve n'a été testée à ce moment-là, et l'aller-retour
+`downgrade`/`upgrade` a tourné sur la base de développement — il a réussi, et le scan
+suivant a repeuplé les colonnes, mais ce n'était pas ce qui était affirmé. C'est
+exactement le mode de défaillance que cette section corrige : un réglage qui a l'air
+d'avoir pris effet. Les vérifications ont été refaites, avec la variable qui existe
+désormais.
+
 ## 9. Prochaines étapes immédiates
 
 1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).

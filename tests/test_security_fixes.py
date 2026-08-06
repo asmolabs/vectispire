@@ -504,9 +504,8 @@ def test_the_database_file_is_not_world_readable(tmp_path, monkeypatch):
     db_path = tmp_path / "test.sqlite"
     db_path.write_bytes(b"")
     os.chmod(db_path, 0o644)
-    monkeypatch.setattr(schema, "DATABASE_URL", f"sqlite:///{db_path}")
 
-    schema.restrict_database_permissions()
+    schema.restrict_database_permissions(str(db_path))
 
     mode = stat.S_IMODE(os.stat(db_path).st_mode)
     assert mode == 0o600

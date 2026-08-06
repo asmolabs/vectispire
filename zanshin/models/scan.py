@@ -18,6 +18,10 @@ class Scan(Base):
     sbom = Column(JSON(none_as_null=True), nullable=True)
     cves = Column(JSON(none_as_null=True), nullable=True)
     summary = Column(JSON(none_as_null=True), nullable=True)
+    # BigInteger here is not a foreign key: it is a duration, and the only column in
+    # this schema that legitimately wants the wider type. Every *foreign key* matches
+    # the Integer primary key it references — MySQL refuses a BIGINT column
+    # referencing an INT one outright, and SQLite/PostgreSQL merely tolerated it.
     duration_ms = Column(BigInteger, nullable=True)
     findings_count = Column(Integer, default=0, nullable=False)
 
@@ -34,10 +38,10 @@ class Scan(Base):
     version = Column(String(255), nullable=True)
     project_type = Column(String(255), nullable=True)
 
-    repo_id = Column(BigInteger, ForeignKey("repository.id"), nullable=True)
+    repo_id = Column(Integer, ForeignKey("repository.id"), nullable=True)
     repository = relationship("ZanshinRepository", back_populates="scans")
 
-    container_id = Column(BigInteger, ForeignKey("container.id"), nullable=True)
+    container_id = Column(Integer, ForeignKey("container.id"), nullable=True)
     container = relationship("Container", back_populates="scans")
 
     # Normalized, queryable results (see ADR-001). `cves`/`sbom` above stay

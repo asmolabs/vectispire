@@ -143,13 +143,18 @@ def _guard_against_duplicates() -> None:
     """
     bind = op.get_bind()
     for column in ("email", "github_id", "keycloak_id"):
+        # SQLAlchemy constructs, not interpolated SQL: `user` is a reserved word in
+        # PostgreSQL, and an unquoted `FROM user` there resolves to the current_user
+        # function instead of the table.
+        user_table = sa.table("user", sa.column(column))
+        target = user_table.c[column]
+        count = sa.func.count().label("n")
         duplicates = (
             bind.execute(
-                sa.text(
-                    f"SELECT {column} AS value, COUNT(*) AS n FROM user "  # noqa: S608 — fixed identifiers
-                    f"WHERE {column} IS NOT NULL AND {column} != '' "
-                    f"GROUP BY {column} HAVING COUNT(*) > 1"
-                )
+                sa.select(target.label("value"), count)
+                .where(target.isnot(None), target != "")
+                .group_by(target)
+                .having(count > 1)
             )
             .mappings()
             .all()

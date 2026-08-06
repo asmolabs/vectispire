@@ -11,6 +11,17 @@ from zanshin.models.issue import (
 )
 
 
+def _desc_nulls_last(column):
+    """Descending order with nulls at the end, on every backend.
+
+    `nullslast()` renders `NULLS LAST`, which MySQL rejects as a syntax error — it has
+    no such clause. Sorting on `column IS NULL` first is the portable spelling: false
+    sorts before true, so rows with a value come first, and the intent (a missing EPSS
+    score must not outrank a real one) is unchanged.
+    """
+    return (column.is_(None), column.desc())
+
+
 class IssueRepository:
     def __init__(self, db: Session):
         self.db = db
@@ -99,8 +110,8 @@ class IssueRepository:
                 _SEVERITY_RANK,
                 # Between two otherwise identical problems, the one the project
                 # declared itself is the one that can be fixed today.
-                Issue.is_direct_dependency.desc().nullslast(),
-                Issue.epss_score.desc().nullslast(),
+                *_desc_nulls_last(Issue.is_direct_dependency),
+                *_desc_nulls_last(Issue.epss_score),
                 Issue.last_seen_at.desc(),
                 Issue.id.desc(),
             )

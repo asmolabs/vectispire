@@ -1,11 +1,28 @@
 from sqlalchemy.types import TypeDecorator, String
 from datetime import datetime
 
+# Long enough for the widest value this can produce: an ISO-8601 timestamp with
+# microseconds and a UTC offset is 32 characters ("2026-08-06T13:34:45.491348-09:30").
+# The margin covers a longer offset notation without being a free-for-all.
+_ISO_LENGTH = 40
+
+
 class SafeDateTime(TypeDecorator):
-    """A DateTime type decorator that safely parses dates stored as ISO strings, 
+    """A DateTime type decorator that safely parses dates stored as ISO strings,
     timestamps (seconds or milliseconds), or bytes from SQLite databases.
+
+    Stored as text on every backend, not as a native timestamp. That is the point of
+    the class — it exists to read the several formats the pre-Alembic schema left
+    behind, and `zanshin.clock.utcnow` returns naive UTC for the same reason. Moving
+    to native timestamps means rewriting every timestamp column in a data migration,
+    which is a decision of its own rather than a side effect of adding a backend.
+
+    The length is declared because MySQL refuses `VARCHAR` without one — a
+    `CompileError` on the very first table, and the third portability defect this
+    schema had that SQLite could not reveal (SQLite ignores the length entirely, so
+    nothing changes for an existing deployment).
     """
-    impl = String
+    impl = String(_ISO_LENGTH)
     cache_ok = True
 
     def process_bind_param(self, value, dialect):

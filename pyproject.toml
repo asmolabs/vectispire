@@ -20,14 +20,34 @@ dependencies = [
     "sqlalchemy>=2.0.51",
 ]
 
+# Optional, because the default deployment is a single SQLite file and making the
+# PostgreSQL driver a hard dependency would build a C extension every deployment
+# that will never open a socket. Install with `uv sync --extra postgres`.
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2"]
+mysql = ["pymysql>=1.1"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
+    # Real database servers for the cross-backend tests: the portability defects
+    # found so far (a DDL type PostgreSQL rejects, a reserved word in raw SQL) were
+    # all invisible to SQLite and to reading the code.
+    "testcontainers[postgres,mysql]>=4.8",
+    "psycopg[binary]>=3.2",
+    "pymysql>=1.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The cross-backend tests start real database servers, so they are opt-in: an image
+# pull has no place in the loop a developer runs on every edit. Run them with
+# `pytest -m backends` (and in CI, as their own job).
+addopts = "-m 'not backends'"
+markers = [
+    "backends: runs against real PostgreSQL/MySQL servers via testcontainers (needs Docker)",
+]
 
 [tool.coverage.run]
 source = ["zanshin"]
