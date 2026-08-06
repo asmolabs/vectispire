@@ -226,6 +226,10 @@ class IssueRow:
     severity: str = "UNKNOWN"
     severity_color: str = "gray"
     package: str = "—"
+    # "Directe" / "Transitive" / "" — empty when no dependency graph answered, so
+    # the column stays blank instead of showing a word about nothing.
+    dependency: str = ""
+    dependency_color: str = "gray"
     file_path: str = "—"
     target: str = "—"
     state: str = ""
@@ -234,6 +238,7 @@ class IssueRow:
     triage_color: str = "gray"
     triage_comment: str = ""
     triaged_by: str = ""
+    triage_expires: str = ""
     epss: str = "—"
     is_kev: bool = False
     cvss: str = "—"

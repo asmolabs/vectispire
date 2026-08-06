@@ -5,8 +5,11 @@ an issue keeps its identity (and its triage decision) across scans, disappears
 only when a scan actually looked for it, and comes back — losing a stale "fixed"
 verdict — when it reappears.
 """
+from datetime import timedelta
+
 import pytest
 
+from zanshin.clock import utcnow
 from zanshin.models.finding import Finding
 from zanshin.models.issue import (
     STATE_OPEN,
@@ -51,6 +54,19 @@ def _sync(service, db, scan, findings, types=ALL_REPO_TYPES, **kwargs):
 
 def _issues(db):
     return db.query(Issue).all()
+
+
+@pytest.fixture()
+def make_issue(db_session, service, make_repository, make_scan):
+    """One synced issue, ready to be triaged."""
+
+    def factory(**kwargs):
+        repo = make_repository()
+        scan = make_scan(repo_id=repo.id, status="completed")
+        _sync(service, db_session, scan, [_finding(scan, **kwargs)])
+        return db_session.query(Issue).order_by(Issue.id.desc()).first()
+
+    return factory
 
 
 # --- First sighting ---
@@ -452,3 +468,195 @@ def test_summarize_issues_counts_by_severity():
     assert summary["high"] == 1
     assert summary["unknown"] == 1
     assert summary["total"] == 3
+
+
+# --- Direct versus transitive dependencies ---
+
+def test_directness_is_carried_from_the_finding_to_the_issue(
+    db_session, service, make_repository, make_scan
+):
+    repo = make_repository()
+    scan = make_scan(repo_id=repo.id, status="completed")
+
+    _sync(service, db_session, scan, [
+        _finding(scan, identifier="CVE-2024-1", is_direct_dependency=True),
+        _finding(scan, identifier="CVE-2024-2", is_direct_dependency=False),
+        _finding(scan, identifier="CVE-2024-3"),
+    ])
+
+    by_id = {i.identifier: i for i in _issues(db_session)}
+    assert by_id["CVE-2024-1"].is_direct_dependency is True
+    assert by_id["CVE-2024-2"].is_direct_dependency is False
+    assert by_id["CVE-2024-3"].is_direct_dependency is None
+
+
+def test_a_scan_that_cannot_tell_does_not_erase_what_is_known(
+    db_session, service, make_repository, make_scan
+):
+    """A container image has no manifests, so its SBOM cannot answer this. Letting
+    a null overwrite a previous answer would make the flag flicker between scans."""
+    repo = make_repository()
+    first = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, first, [_finding(first, is_direct_dependency=True)])
+
+    second = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, second, [_finding(second, is_direct_dependency=None)])
+
+    assert _issues(db_session)[0].is_direct_dependency is True
+
+
+def test_a_package_that_becomes_transitive_is_updated(
+    db_session, service, make_repository, make_scan
+):
+    """Removing a declaration from the manifest while something else still requires
+    the package is a real change, and the flag has to follow it."""
+    repo = make_repository()
+    first = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, first, [_finding(first, is_direct_dependency=True)])
+
+    second = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, second, [_finding(second, is_direct_dependency=False)])
+
+    issue = _issues(db_session)[0]
+    assert issue.is_direct_dependency is False
+    # Same issue, not a new one: directness is deliberately outside the fingerprint.
+    assert issue.times_seen == 2
+
+
+def test_the_line_number_follows_the_finding(db_session, service, make_repository, make_scan):
+    repo = make_repository()
+    first = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, first, [
+        _finding(first, type="secret", identifier="aws-key", file_path="app.py", line=12)
+    ], types={"secret"})
+
+    second = make_scan(repo_id=repo.id, status="completed")
+    _sync(service, db_session, second, [
+        _finding(second, type="secret", identifier="aws-key", file_path="app.py", line=57)
+    ], types={"secret"})
+
+    issue = _issues(db_session)[0]
+    assert issue.line == 57
+    # A secret that moved down the file is the same secret; re-fingerprinting it
+    # would have reset its triage.
+    assert issue.times_seen == 2
+
+
+# --- Triage review dates ---
+
+def test_a_triage_without_a_delay_has_no_review_date(db_session, service, make_issue):
+    issue = make_issue()
+
+    service.triage(db_session, issue.id, TRIAGE_AFFECTED, actor="alice")
+
+    assert issue.triage_expires_at is None
+
+
+def test_a_delay_sets_a_review_date(db_session, service, make_issue):
+    issue = make_issue()
+
+    service.triage(
+        db_session, issue.id, TRIAGE_NOT_AFFECTED, actor="alice",
+        justification="vulnerable_code_not_in_execute_path", expires_in_days=90,
+    )
+
+    assert issue.triage_expires_at is not None
+    assert 89 <= (issue.triage_expires_at - utcnow()).days <= 90
+
+
+def test_returning_to_under_review_clears_any_review_date(db_session, service, make_issue):
+    """A date whose job is to bring the issue back would fire on an issue already
+    back."""
+    issue = make_issue()
+    service.triage(
+        db_session, issue.id, TRIAGE_FIXED, actor="alice", expires_in_days=30
+    )
+
+    service.triage(db_session, issue.id, TRIAGE_UNDER_REVIEW, actor="alice")
+
+    assert issue.triage_expires_at is None
+
+
+def test_a_zero_or_negative_delay_is_refused(db_session, service, make_issue):
+    issue = make_issue()
+
+    with pytest.raises(ValueError, match="au moins un jour"):
+        service.triage(db_session, issue.id, TRIAGE_FIXED, actor="alice", expires_in_days=0)
+
+
+def test_an_expired_decision_returns_to_review(db_session, service, make_issue):
+    """The point of the whole feature: a suppression recorded for a context that has
+    since changed stops suppressing, in the dashboard and in the exports alike."""
+    issue = make_issue()
+    service.triage(
+        db_session, issue.id, TRIAGE_NOT_AFFECTED, actor="alice",
+        justification="component_not_present", comment="Pas livré en production",
+        expires_in_days=30,
+    )
+    issue.triage_expires_at = utcnow() - timedelta(seconds=1)
+    db_session.commit()
+
+    expired = service.expire_stale_triages(db_session)
+
+    assert [i.id for i in expired] == [issue.id]
+    assert issue.triage_status == TRIAGE_UNDER_REVIEW
+    assert issue.triage_expires_at is None
+
+
+def test_the_reason_for_the_original_decision_is_kept(db_session, service, make_issue):
+    """Whoever reviews it needs to see what was decided and why. Clearing the text
+    would turn a scheduled re-examination into an investigation from nothing, which
+    is how a review date becomes something people stop setting."""
+    issue = make_issue()
+    service.triage(
+        db_session, issue.id, TRIAGE_NOT_AFFECTED, actor="alice",
+        justification="component_not_present", comment="Pas livré en production",
+        expires_in_days=30,
+    )
+    issue.triage_expires_at = utcnow() - timedelta(seconds=1)
+    db_session.commit()
+
+    service.expire_stale_triages(db_session)
+
+    assert issue.triage_comment == "Pas livré en production"
+    assert issue.triage_justification == "component_not_present"
+    assert issue.triaged_by == "alice"
+    assert issue.triaged_at is not None
+
+
+def test_a_decision_that_has_not_reached_its_date_is_left_alone(
+    db_session, service, make_issue
+):
+    issue = make_issue()
+    service.triage(
+        db_session, issue.id, TRIAGE_FIXED, actor="alice", expires_in_days=30
+    )
+
+    assert service.expire_stale_triages(db_session) == []
+    assert issue.triage_status == TRIAGE_FIXED
+
+
+def test_a_decision_without_a_date_never_expires(db_session, service, make_issue):
+    """The behaviour every existing decision already had, which is why the column
+    is nullable rather than backfilled."""
+    issue = make_issue()
+    service.triage(db_session, issue.id, TRIAGE_FIXED, actor="alice")
+
+    assert service.expire_stale_triages(db_session) == []
+    assert issue.triage_status == TRIAGE_FIXED
+
+
+def test_an_expired_decision_becomes_actionable_again(db_session, service, make_issue):
+    """What the dashboards, the gate and the badges all read."""
+    issue = make_issue()
+    service.triage(
+        db_session, issue.id, TRIAGE_NOT_AFFECTED, actor="alice",
+        justification="component_not_present", expires_in_days=1,
+    )
+    assert issue.is_actionable is False
+
+    issue.triage_expires_at = utcnow() - timedelta(seconds=1)
+    db_session.commit()
+    service.expire_stale_triages(db_session)
+
+    assert issue.is_actionable is True

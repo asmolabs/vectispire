@@ -577,6 +577,106 @@ restreignables à une cible). Quota et anti-bourrage en mémoire, donc par proce
 correct pour ce déploiement mono-processus, à repenser si l'application est répliquée.
 Le journal d'audit reste dans la même base que les données qu'il surveille.
 
+## 9nonies. Vague 4 — de la détection à l'action (2026-08-06)
+
+Revue de produit plutôt que de sécurité : la détection couvre déjà dépendances,
+secrets, IaC, licences et revue IA, et le manque n'est plus là. Il est dans ce qui
+se passe *après* la détection. Trois points retenus, ceux dont le rapport
+valeur/effort est le plus élevé.
+
+**F1 — export SARIF.** Un problème ne vivait que dans Zanshin. SARIF est le seul
+format que GitHub code scanning, GitLab et Azure DevOps ingèrent nativement : c'est
+ce qui met un finding sur la pull request qui l'a introduit, annoté sur la ligne,
+devant la personne qui peut le corriger — au lieu d'un tableau de bord qu'elle n'a
+aucune raison d'ouvrir. Un sérialiseur de plus à côté d'OpenVEX et du CSV.
+
+Décisions qui séparent un document SARIF *valide* d'un document *utile* :
+
+- **Les problèmes triés partent en `suppressions`, pas à la corbeille.** Les
+  retirer ferait qu'à l'envoi suivant la plateforme les redéclare comme nouveaux,
+  annulant le travail de triage ; et la suppression transporte la justification VEX,
+  donc le relecteur voit *pourquoi* c'était écarté. `affected` n'est pas supprimé :
+  décider qu'un problème est réel ne doit pas le cacher.
+- **`partialFingerprints` porte l'empreinte Zanshin.** Sans elle, la plateforme
+  réidentifie par fichier et ligne, donc un fichier déplacé devient un problème neuf
+  *et* un problème résolu. C'est la même identité qui garde le triage attaché d'un
+  scan à l'autre.
+- **Chaque résultat a une localisation**, avec repli sur la racine du dépôt. GitHub
+  écarte silencieusement les résultats sans localisation, et les problèmes de
+  dépendances — la majorité — n'ont pas de fichier : une localisation « honnêtement
+  vide » aurait signifié qu'ils n'apparaissent jamais.
+- **`security-severity` en plus de `level`.** SARIF n'a pas de « critique » ;
+  GitHub classe sur cette propriété, pas sur `level`. Sans elle, critique et élevé
+  se confondent en « error ».
+
+Effet de bord assumé : `line` ajouté sur `finding` et `issue`. Sans numéro de ligne,
+chaque annotation atterrit ligne 1 du fichier, ce qui dans une revue est du bruit.
+Volontairement hors empreinte : un secret qui descend de trois lignes reste le même
+secret, et re-fingerprinter à chaque reformatage remettrait son triage à zéro.
+
+**F2 — dépendance directe ou transitive.** Toutes les vulnérabilités arrivaient avec
+la même quantité d'information sur *quoi faire* : aucune. Un CVE critique dans un
+paquet déclaré dans `pyproject.toml` se corrige en changeant une ligne ; le même
+quatre niveaux plus bas attend une publication amont, un pin, ou une décision
+d'accepter le risque. Classés à l'identique, ils produisent un backlog que personne
+ne termine — et les transitifs, largement majoritaires, enterrent la poignée qui est
+actionnable aujourd'hui.
+
+Syft répondait déjà et la réponse était jetée. Dans son JSON, une relation
+`dependency-of` nomme la dépendance en `parent` et le dépendant en `child` : un
+paquet qui n'est jamais `parent` est une racine du graphe, c'est-à-dire quelque chose
+que le projet a demandé. Vérifié sur un scan réel de ce dépôt — 545 artefacts,
+43 racines, et les racines sont bien les dépendances déclarées (`fastapi`,
+`gitpython`, `@radix-ui/themes`, `esbuild`) tandis que les 392 paquets de `bun.lock`
+tombent de l'autre côté.
+
+Le point important est le cas où le graphe manque : certains catalogueurs n'émettent
+aucune arête, et alors *tout* paraît racine. Étiqueter une image entière
+« dépendances directes » serait pire que se taire — une réponse fausse et assurée sur
+le champ censé décider quoi corriger en premier. Donc graphe absent ⇒ `NULL` partout,
+et l'UI n'affiche rien plutôt qu'une supposition. Même logique pour un paquet absent
+du SBOM : inconnu, pas « transitif ».
+
+Vérifié de bout en bout sur un scan réel de conteneur : 53 directes / 368
+transitives, avec `openssl` et `openjdk` d'un côté, `openssl-libs` et
+`libcurl-minimal` de l'autre. Sur une image, « direct » se lit « paquet installé
+volontairement » plutôt que « déclaré dans un manifeste » — c'est le même fait de
+graphe, et il reste informatif, mais il est moins actionnable que sur un dépôt (la
+correction passe par l'image de base, cf. l'attribution par couche, non faite).
+
+**F3 — expiration des décisions de triage.** `not_affected` n'expirait jamais. C'est
+exactement comment les suppressions VEX pourrissent : quelqu'un écarte un problème en
+connaissance de cause en janvier, le contexte change en mars, et personne ne le revoit
+— ni dans le tableau de bord, ni dans le document VEX remis à un client, ni dans le
+gate qu'un pipeline appelle à 3h du matin.
+
+- **Offert, pas imposé.** « Composant absent du produit » n'a pas besoin d'être
+  revu ; « pas atteignable dans notre configuration » si. Seule la personne qui
+  décide sait laquelle des deux elle vient d'enregistrer. Un délai par défaut aurait
+  été une décision de politique déguisée en champ de formulaire.
+- **La justification et le commentaire sont conservés** à l'échéance. Les effacer
+  transformerait une réexamination programmée en enquête à partir de rien, ce qui est
+  la façon la plus sûre de faire cesser de renseigner des dates. `triaged_by` et
+  `triaged_at` restent aussi : c'est la trace de qui a dit quoi.
+- **Sur le tick de l'ordonnanceur**, pas au chargement de page : une suppression qui
+  expire pendant la nuit doit cesser de supprimer même si personne n'ouvre l'écran.
+- **Colonne nullable, pas de backfill.** NULL veut dire « jusqu'à nouvel ordre »,
+  exactement ce que voulaient dire toutes les décisions existantes. Poser une échéance
+  rétroactivement aurait réouvert un backlog du jour au lendemain.
+
+Un défaut trouvé par un test : `expires_in_days=0` était silencieusement traité comme
+« sans échéance », parce que `0` est falsy. `None` signifie sans échéance ; `0` ou un
+négatif est une erreur d'arithmétique de l'appelant, et l'avaler l'aurait masquée.
+
+### Reste ouvert après cette vague
+
+Atteignabilité réelle (le code vulnérable est-il appelé ?) — F2 en capture une part
+pour une fraction du coût, mais pas plus. Attribution par couche pour les conteneurs
+(« passer à cette image de base supprime 43 des 61 problèmes »), SAST déterministe
+(Semgrep) pour retirer à la revue IA une responsabilité qu'elle ne peut pas porter,
+politique de gate stockée et versionnée au lieu d'arriver dans le corps de la requête,
+et correction automatique (branche + PR à partir de `extract_remediation`).
+
 ## 9. Prochaines étapes immédiates
 
 1. ~~Valider le schéma de la table `Finding` et son articulation avec `VexDecision`.~~ Fait en vague 2 : `Issue` supersède `VexDecision` (voir 9quater).

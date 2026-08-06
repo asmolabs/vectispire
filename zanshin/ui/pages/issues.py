@@ -53,6 +53,12 @@ JUSTIFICATION_LABELS = {
     "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un attaquant",
     "inline_mitigations_already_exist": "Mitigations déjà en place",
 }
+DEPENDENCY_LABELS = {
+    True: "Directe",
+    False: "Transitive",
+    # No entry for None: nothing is displayed when nothing is known.
+}
+DEPENDENCY_COLORS = {True: "cyan", False: "gray"}
 TYPE_LABELS = {
     "vulnerability": "Vulnérabilité",
     "secret": "Secret",
@@ -62,6 +68,21 @@ TYPE_LABELS = {
 }
 
 PAGE_SIZE = 50
+
+
+def _positive_int(value: str):
+    """A review delay in days, or `None`.
+
+    Empty is the normal case, and an unparseable value is treated as empty rather
+    than as an error: the field sits in a dialog whose real subject is the triage
+    decision, and refusing to save a considered decision over a typo in an optional
+    box would be the wrong trade.
+    """
+    try:
+        days = int((value or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return days if days > 0 else None
 
 STATE_FILTERS = [
     ("open", "Ouverts"),
@@ -97,6 +118,7 @@ class IssuesState(BaseState):
     filter_severity: str = ""
     filter_type: str = ""
     filter_triage: str = ""
+    filter_only_direct: bool = False
     search_query: str = ""
 
     # Triage dialog
@@ -106,6 +128,7 @@ class IssuesState(BaseState):
     triage_status: str = TRIAGE_UNDER_REVIEW
     triage_justification: str = ""
     triage_comment: str = ""
+    triage_expires_in_days: str = ""
 
     @rx.var
     def page_label(self) -> str:
@@ -144,6 +167,7 @@ class IssuesState(BaseState):
                 severity=self.filter_severity or None,
                 issue_type=self.filter_type or None,
                 search=self.search_query or None,
+                only_direct=self.filter_only_direct,
             )
             self.total = repository.count_filtered(**filters)
             # A filter change can leave the offset past the end of the new result
@@ -188,6 +212,8 @@ class IssuesState(BaseState):
             severity=(issue.severity or "unknown").upper(),
             severity_color=severity_color(issue.severity),
             package=f"{issue.package_name or '—'} {issue.package_version or ''}".strip(),
+            dependency=DEPENDENCY_LABELS.get(issue.is_direct_dependency, ""),
+            dependency_color=DEPENDENCY_COLORS.get(issue.is_direct_dependency, "gray"),
             file_path=issue.file_path or "—",
             target=target,
             state="Ouvert" if issue.state == STATE_OPEN else "Résolu",
@@ -196,6 +222,7 @@ class IssuesState(BaseState):
             triage_color=TRIAGE_COLORS.get(issue.triage_status, "gray"),
             triage_comment=issue.triage_comment or "",
             triaged_by=issue.triaged_by or "",
+            triage_expires=format_datetime(issue.triage_expires_at, "%d/%m/%Y"),
             epss=format_percent(issue.epss_score),
             is_kev=bool(issue.is_kev),
             cvss=format_score(issue.cvss_score),
@@ -225,6 +252,11 @@ class IssuesState(BaseState):
     def set_filter_type(self, value: str):
         self.offset = 0
         self.filter_type = "" if value == "all" else value
+        return IssuesState.load_issues
+
+    def toggle_only_direct(self, enabled: bool):
+        self.offset = 0
+        self.filter_only_direct = bool(enabled)
         return IssuesState.load_issues
 
     def set_filter_triage(self, value: str):
@@ -262,6 +294,7 @@ class IssuesState(BaseState):
             self.triage_status = issue.triage_status
             self.triage_justification = issue.triage_justification or ""
             self.triage_comment = issue.triage_comment or ""
+            self.triage_expires_in_days = ""
             self.triage_dialog_open = True
         finally:
             container.db.close()
@@ -278,6 +311,9 @@ class IssuesState(BaseState):
     def set_triage_comment(self, value: str):
         self.triage_comment = value
 
+    def set_triage_expires_in_days(self, value: str):
+        self.triage_expires_in_days = value
+
     @requires_login
     def submit_triage(self):
         container = get_container()
@@ -289,6 +325,7 @@ class IssuesState(BaseState):
                 actor=self.username,
                 justification=self.triage_justification or None,
                 comment=self.triage_comment or None,
+                expires_in_days=_positive_int(self.triage_expires_in_days),
             )
             container.audit_log_service.record(
                 AuditOperation.ISSUE_TRIAGED,
@@ -343,6 +380,22 @@ def filter_bar() -> rx.Component:
             placeholder="Triage",
             width="160px",
         ),
+        rx.tooltip(
+            rx.hstack(
+                rx.switch(
+                    checked=IssuesState.filter_only_direct,
+                    on_change=IssuesState.toggle_only_direct,
+                    size="1",
+                ),
+                rx.text("Dépendances directes", size="2"),
+                spacing="2",
+                align="center",
+            ),
+            content=(
+                "Ne garder que les paquets déclarés par le projet — ceux qu'un bump de "
+                "version corrige aujourd'hui, sans attendre un amont."
+            ),
+        ),
         rx.spacer(),
         rx.input(
             placeholder="CVE, paquet, fichier...",
@@ -379,7 +432,20 @@ def issue_row(issue: rx.Var) -> rx.Component:
         rx.table.cell(rx.text(issue.epss, size="2")),
         rx.table.cell(
             rx.vstack(
-                rx.text(issue.package, size="2"),
+                rx.hstack(
+                    rx.text(issue.package, size="2"),
+                    rx.cond(
+                        issue.dependency != "",
+                        rx.badge(
+                            issue.dependency,
+                            color_scheme=issue.dependency_color,
+                            variant="soft",
+                            size="1",
+                        ),
+                    ),
+                    spacing="2",
+                    align="center",
+                ),
                 rx.text(issue.file_path, size="1", color="var(--slate-10)"),
                 spacing="0",
             )
@@ -408,6 +474,13 @@ def issue_row(issue: rx.Var) -> rx.Component:
                 rx.cond(
                     issue.triaged_by != "",
                     rx.text(issue.triaged_by, size="1", color="var(--slate-10)"),
+                ),
+                rx.cond(
+                    issue.triage_expires != "",
+                    rx.text(
+                        "à revoir le ", issue.triage_expires,
+                        size="1", color="var(--amber-11)",
+                    ),
                 ),
                 spacing="1",
                 align="start",
@@ -457,6 +530,28 @@ def triage_dialog() -> rx.Component:
                         rx.text(
                             "Ces valeurs sont celles du standard VEX, pour qu'un document "
                             "VEX puisse être produit à partir de ces décisions.",
+                            size="1", color="var(--slate-10)",
+                        ),
+                        spacing="1",
+                        width="100%",
+                    ),
+                ),
+                rx.cond(
+                    IssuesState.triage_status != TRIAGE_UNDER_REVIEW,
+                    rx.vstack(
+                        rx.text("Revoir cette décision dans (jours)", size="2", weight="medium"),
+                        rx.input(
+                            value=IssuesState.triage_expires_in_days,
+                            on_change=IssuesState.set_triage_expires_in_days,
+                            placeholder="ex. 90 — vide = sans échéance",
+                            type="number",
+                            width="100%",
+                        ),
+                        rx.text(
+                            "Une décision porte sur un contexte : « ce code n'est pas "
+                            "atteignable », « ce paquet n'est pas livré ». Le contexte "
+                            "change, la décision reste. À l'échéance, le problème revient "
+                            "à examiner — commentaire et justification conservés.",
                             size="1", color="var(--slate-10)",
                         ),
                         spacing="1",

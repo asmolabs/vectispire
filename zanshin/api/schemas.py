@@ -55,13 +55,18 @@ class IssueOut(BaseModel):
     package_name: Optional[str] = None
     package_version: Optional[str] = None
     purl: Optional[str] = None
+    # None when the SBOM carried no dependency graph to answer with — a missing
+    # answer, not a default one.
+    is_direct_dependency: Optional[bool] = None
     file_path: Optional[str] = None
+    line: Optional[int] = None
     fix_state: Optional[str] = None
     fix_versions: Optional[str] = None
     link: Optional[str] = None
     state: str
     triage_status: str
     triage_justification: Optional[str] = None
+    triage_expires_at: Optional[str] = None
     first_seen_at: Optional[str] = None
     last_seen_at: Optional[str] = None
     times_seen: int = 1

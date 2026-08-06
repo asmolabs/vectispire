@@ -630,3 +630,77 @@ def test_the_schema_is_served_to_a_valid_key(api):
     assert schema.status_code == 200
     assert "/api/v1/issues" in schema.json()["paths"]
     assert client.get("/api/v1/docs").status_code == 200
+
+
+# --- SARIF export ---
+
+def test_the_sarif_export_needs_the_export_scope(api, db_session):
+    client, _, _ = api
+    repo = ZanshinRepository(name="app", url="git@example.com:app.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+    headers = _issue_key(db_session, name="ci", scopes=["read", "scan"])
+
+    assert client.get(
+        f"/api/v1/targets/repository/{repo.id}/issues.sarif", headers=headers
+    ).status_code == 403
+
+
+def test_the_sarif_export_is_a_downloadable_log(api, db_session):
+    """The endpoint a pipeline pipes into `gh code-scanning upload` — hence the
+    download filename as well as the JSON body."""
+    client, _, _ = api
+    repo = ZanshinRepository(name="app", url="git@example.com:app.git", branch="main")
+    db_session.add(repo)
+    db_session.commit()
+    _issue(db_session, repo_id=repo.id, identifier="CVE-2024-9999", severity="critical")
+
+    response = client.get(f"/api/v1/targets/repository/{repo.id}/issues.sarif")
+
+    assert response.status_code == 200
+    assert ".sarif" in response.headers["content-disposition"]
+    document = response.json()
+    assert document["version"] == "2.1.0"
+    assert document["runs"][0]["results"][0]["level"] == "error"
+    # The target's real identity, not a row id: it is what the platform shows.
+    assert document["runs"][0]["properties"]["target"] == "git@example.com:app.git"
+
+
+def test_a_key_bound_elsewhere_cannot_export_sarif(api, db_session):
+    client, _, _ = api
+    mine = ZanshinRepository(name="mine", url="git@example.com:mine.git", branch="main")
+    theirs = ZanshinRepository(name="theirs", url="git@example.com:theirs.git", branch="main")
+    db_session.add_all([mine, theirs])
+    db_session.commit()
+    headers = _issue_key(db_session, name="projet-a", target_kind="repository", target_id=mine.id)
+
+    assert client.get(
+        f"/api/v1/targets/repository/{theirs.id}/issues.sarif", headers=headers
+    ).status_code == 403
+
+
+# --- Dependency directness on the listing ---
+
+def test_the_listing_can_be_narrowed_to_direct_dependencies(api, db_session):
+    """What a pipeline asks for when it wants the subset it can fix today."""
+    client, _, _ = api
+    _issue(db_session, identifier="CVE-DIRECT", is_direct_dependency=True)
+    _issue(db_session, identifier="CVE-TRANSITIVE", is_direct_dependency=False)
+    _issue(db_session, identifier="CVE-UNKNOWN")
+
+    page = client.get("/api/v1/issues", params={"only_direct": True}).json()
+
+    assert [i["identifier"] for i in page["items"]] == ["CVE-DIRECT"]
+    assert page["total"] == 1
+
+
+def test_directness_is_reported_on_each_issue(api, db_session):
+    client, _, _ = api
+    _issue(db_session, identifier="CVE-DIRECT", is_direct_dependency=True)
+    _issue(db_session, identifier="CVE-UNKNOWN")
+
+    by_id = {i["identifier"]: i for i in client.get("/api/v1/issues").json()["items"]}
+
+    assert by_id["CVE-DIRECT"]["is_direct_dependency"] is True
+    # Absent, not false: the SBOM said nothing about it.
+    assert by_id["CVE-UNKNOWN"]["is_direct_dependency"] is None

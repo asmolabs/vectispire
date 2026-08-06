@@ -20,6 +20,7 @@ from zanshin.services.ai_review_service import AiReviewService, SECURITY_ARCHITE
 from zanshin.services.git_url import validate_repo_url
 from zanshin.services.issue_service import IssueService, scanned_types_for
 from zanshin.services.notification_service import NotificationService
+from zanshin.services.dependency_graph import DependencyDirectness
 from zanshin.services.remediation import extract_remediation
 
 logger = logging.getLogger(__name__)
@@ -168,14 +169,23 @@ class ScanProcessor:
 
                 duration_ms = int((time.time() - start_time) * 1000)
                 summary = self._summarize_findings(cves)
-                findings = self._build_findings(scan.id, cves)
+                # Which packages the project declared, as opposed to what those
+                # packages dragged in. Built once from the SBOM and applied to every
+                # finding that names a package.
+                directness = DependencyDirectness(sbom)
+                findings = self._build_findings(scan.id, cves, directness)
                 if not is_container:
                     findings.extend(self._build_secret_findings(scan.id, leaks))
                     findings.extend(self._build_iac_findings(scan.id, iac_checks))
                 if self.license_compliance_service:
                     # Applies to both branches: Syft produces license data
                     # for container images just as much as for directories.
-                    findings.extend(self.license_compliance_service.build_findings(scan.id, sbom))
+                    license_findings = self.license_compliance_service.build_findings(scan.id, sbom)
+                    for finding in license_findings:
+                        finding.is_direct_dependency = directness.of(
+                            finding.purl, finding.package_name, finding.package_version
+                        )
+                    findings.extend(license_findings)
 
                 # Update Scan results
                 scan.status = "completed"
@@ -283,7 +293,12 @@ class ScanProcessor:
             if key_file_path and os.path.exists(key_file_path):
                 os.remove(key_file_path)
 
-    def _build_findings(self, scan_id: int, cves: Dict[str, Any]) -> list:
+    def _build_findings(
+        self,
+        scan_id: int,
+        cves: Dict[str, Any],
+        directness: Optional["DependencyDirectness"] = None,
+    ) -> list:
         """Turn a scanner engine's vulnerability-matching output into
         normalized `Finding` rows.
 
@@ -323,6 +338,9 @@ class ScanProcessor:
                 fix_state=remediation.fix_state,
                 fix_versions=remediation.fix_versions,
                 link=remediation.link,
+                is_direct_dependency=directness.of(
+                    artifact.get("purl"), artifact.get("name"), artifact.get("version")
+                ) if directness else None,
             ))
         return findings
 
@@ -341,6 +359,7 @@ class ScanProcessor:
                 severity="high",
                 identifier=leak.get("RuleID"),
                 file_path=leak.get("File"),
+                line=leak.get("StartLine"),
                 source="gitleaks",
             ))
         return findings
@@ -363,6 +382,9 @@ class ScanProcessor:
                 identifier=check.get("check_id"),
                 package_name=check.get("resource"),
                 file_path=check.get("file_path"),
+                # checkov reports a [start, end] range; the start is where a
+                # reviewer needs to look.
+                line=(check.get("file_line_range") or [None])[0],
                 source="checkov",
             ))
         return findings

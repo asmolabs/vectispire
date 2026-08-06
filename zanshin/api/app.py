@@ -8,6 +8,7 @@ Mounted onto the Reflex app through `api_transformer` (zanshin/zanshin.py), whic
 means it is served from the same process and port as the UI. Reflex reserves
 `/ping`, `/_event` and `/_upload`; everything here lives under `/api/v1`.
 """
+import json
 import logging
 from typing import List, Optional
 
@@ -36,7 +37,11 @@ from zanshin.container import IoCContainer
 from zanshin.models.api_key import SCOPE_EXPORT, SCOPE_READ, SCOPE_SCAN, ApiKey
 from zanshin.models.issue import STATE_OPEN, Issue
 from zanshin.services.audit_log_service import AuditOperation
-from zanshin.services.exports import build_issues_csv, build_openvex_document
+from zanshin.services.exports import (
+    build_issues_csv,
+    build_openvex_document,
+    build_sarif_document,
+)
 from zanshin.services.policy_gate import GatePolicy, evaluate
 from zanshin.services.repository_service import ScanAlreadyRunningError
 
@@ -263,6 +268,14 @@ def list_issues(
     severity: Optional[str] = None,
     type: Optional[str] = None,
     search: Optional[str] = None,
+    only_direct: bool = Query(
+        default=False,
+        description=(
+            "Ne renvoyer que les dépendances déclarées par le projet. Les problèmes "
+            "dont la directivité est inconnue sont exclus : une réponse absente n'est "
+            "pas une réponse positive."
+        ),
+    ),
     limit: int = Query(default=50, ge=1, le=MAX_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
 ):
@@ -283,6 +296,7 @@ def list_issues(
         repo_id=repository_id,
         container_id=container_id,
         search=search,
+        only_direct=only_direct,
     )
     issues = container.issue_repository.find_filtered(limit=limit, offset=offset, **filters)
     return IssuePage(
@@ -311,13 +325,16 @@ def _issue_out(issue: Issue) -> IssueOut:
         package_name=issue.package_name,
         package_version=issue.package_version,
         purl=issue.purl,
+        is_direct_dependency=issue.is_direct_dependency,
         file_path=issue.file_path,
+        line=issue.line,
         fix_state=issue.fix_state,
         fix_versions=issue.fix_versions,
         link=issue.link,
         state=issue.state,
         triage_status=issue.triage_status,
         triage_justification=issue.triage_justification,
+        triage_expires_at=issue.triage_expires_at.isoformat() if issue.triage_expires_at else None,
         first_seen_at=issue.first_seen_at.isoformat() if issue.first_seen_at else None,
         last_seen_at=issue.last_seen_at.isoformat() if issue.last_seen_at else None,
         times_seen=issue.times_seen or 1,
@@ -394,6 +411,40 @@ def export_vex(
         timestamp=utcnow().isoformat(),
     )
     return document
+
+
+@api_app.get("/api/v1/targets/{kind}/{target_id}/issues.sarif", tags=["exports"])
+def export_sarif(
+    kind: str,
+    target_id: int,
+    container: IoCContainer = Depends(get_container),
+    api_key: ApiKey = Depends(require_scope(SCOPE_EXPORT)),
+):
+    """A SARIF 2.1.0 log, for upload to GitHub code scanning / GitLab / Azure.
+
+    This is the endpoint that gets a finding out of Zanshin and onto the pull
+    request that introduced it. Served as `application/json` with a download
+    filename, because both consumers exist: `curl -o` in a pipeline step, and a
+    person clicking the link.
+
+    Open issues only, triaged ones marked as suppressed rather than removed — see
+    `build_sarif_document` for why that distinction matters to the receiving
+    platform.
+    """
+    require_target_access(api_key, kind, target_id)
+    repo_id, container_id, product_id = _resolve_target(container, kind, target_id)
+    issues = container.issue_repository.find_filtered(
+        repo_id=repo_id, container_id=container_id, state=STATE_OPEN, limit=MAX_PAGE_SIZE
+    )
+    return Response(
+        content=json.dumps(
+            build_sarif_document(issues, target_name=product_id), ensure_ascii=False
+        ),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="zanshin-{kind}-{target_id}.sarif"'
+        },
+    )
 
 
 @api_app.get("/api/v1/targets/{kind}/{target_id}/issues.csv", tags=["exports"])

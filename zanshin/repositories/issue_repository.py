@@ -28,6 +28,23 @@ class IssueRepository:
         rows = self.db.query(Issue).filter(Issue.fingerprint.in_(fingerprints)).all()
         return {issue.fingerprint: issue for issue in rows}
 
+    def find_with_expired_triage(self, now) -> List[Issue]:
+        """Decisions whose review date has passed and that still hold a status.
+
+        Filtered in SQL rather than by loading everything and testing
+        `Issue.triage_expired`: this runs on a scheduler tick against the whole
+        table, and the set it should return is almost always empty.
+        """
+        return (
+            self.db.query(Issue)
+            .filter(
+                Issue.triage_expires_at.isnot(None),
+                Issue.triage_expires_at <= now,
+                Issue.triage_status != TRIAGE_UNDER_REVIEW,
+            )
+            .all()
+        )
+
     def find_open_by_target(
         self,
         repo_id: Optional[int] = None,
@@ -55,6 +72,7 @@ class IssueRepository:
         repo_id: Optional[int] = None,
         container_id: Optional[int] = None,
         search: Optional[str] = None,
+        only_direct: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> List[Issue]:
@@ -73,11 +91,15 @@ class IssueRepository:
         """
         return (
             self._filtered_query(
-                state, triage_status, severity, issue_type, repo_id, container_id, search
+                state, triage_status, severity, issue_type, repo_id, container_id, search,
+                only_direct,
             )
             .order_by(
                 Issue.is_kev.desc(),
                 _SEVERITY_RANK,
+                # Between two otherwise identical problems, the one the project
+                # declared itself is the one that can be fixed today.
+                Issue.is_direct_dependency.desc().nullslast(),
                 Issue.epss_score.desc().nullslast(),
                 Issue.last_seen_at.desc(),
                 Issue.id.desc(),
@@ -96,11 +118,13 @@ class IssueRepository:
         repo_id: Optional[int] = None,
         container_id: Optional[int] = None,
         search: Optional[str] = None,
+        only_direct: bool = False,
     ) -> int:
         """How many issues match — the number a paginated view has to show."""
         return (
             self._filtered_query(
-                state, triage_status, severity, issue_type, repo_id, container_id, search
+                state, triage_status, severity, issue_type, repo_id, container_id, search,
+                only_direct,
             )
             .with_entities(func.count(Issue.id))
             .scalar()
@@ -116,6 +140,7 @@ class IssueRepository:
         repo_id: Optional[int],
         container_id: Optional[int],
         search: Optional[str],
+        only_direct: bool = False,
     ):
         query = self.db.query(Issue)
         if state:
@@ -127,6 +152,11 @@ class IssueRepository:
         if issue_type:
             query = query.filter(Issue.type == issue_type)
         query = self._apply_target(query, repo_id, container_id)
+        if only_direct:
+            # Strictly `is True`: an issue whose directness is unknown is not
+            # evidence of a direct dependency, and a filter meant to narrow to
+            # "what we can fix ourselves" must not quietly include the undecided.
+            query = query.filter(Issue.is_direct_dependency.is_(True))
         if search:
             pattern = f"%{search.lower()}%"
             query = query.filter(

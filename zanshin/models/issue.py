@@ -92,7 +92,15 @@ class Issue(Base):
     package_name = Column(String(255), nullable=True)
     package_version = Column(String(255), nullable=True)
     purl = Column(String(255), nullable=True)
+    # Deliberately *not* part of the fingerprint: a package that moves from direct
+    # to transitive is the same problem seen differently, and re-fingerprinting it
+    # would drop its history and its triage decision.
+    is_direct_dependency = Column(Boolean, nullable=True)
     file_path = Column(String(500), nullable=True)
+    # Not part of the fingerprint: a secret that moves down three lines when
+    # something is inserted above it is the same secret, and re-fingerprinting on
+    # every reformat would reset its triage.
+    line = Column(Integer, nullable=True)
     source = Column(String(50), nullable=True)  # grype, osv, gitleaks, checkov, syft, ollama:<model>
 
     # Latest known assessment data, refreshed on every sighting so lists and
@@ -123,12 +131,29 @@ class Issue(Base):
     triage_comment = Column(Text, nullable=True)
     triaged_by = Column(String(255), nullable=True)
     triaged_at = Column(SafeDateTime, nullable=True)
+    # When this decision stops being trusted. NULL means "until someone says
+    # otherwise", which is what every decision used to mean.
+    triage_expires_at = Column(SafeDateTime, nullable=True)
 
     repository = relationship("ZanshinRepository", back_populates="issues")
     container = relationship("Container", back_populates="issues")
     findings = relationship("Finding", back_populates="issue")
     first_seen_scan = relationship("Scan", foreign_keys=[first_seen_scan_id])
     last_seen_scan = relationship("Scan", foreign_keys=[last_seen_scan_id])
+
+    @property
+    def triage_expired(self) -> bool:
+        """Whether this decision is past its review date.
+
+        A suppression is a statement about a context — "this code path is not
+        reachable", "this package is not shipped in production". Contexts change,
+        and nothing brought the decision back for review: a `not_affected` recorded
+        in January stayed authoritative in December, in the export handed to a
+        customer as much as in the dashboard. This is how VEX suppressions rot.
+        """
+        if not self.triage_expires_at or self.triage_status == TRIAGE_UNDER_REVIEW:
+            return False
+        return utcnow() >= self.triage_expires_at
 
     @property
     def is_actionable(self) -> bool:

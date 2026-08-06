@@ -30,7 +30,11 @@ class Finding(Base):
     package_name = Column(String(255), nullable=True)
     package_version = Column(String(255), nullable=True)
     purl = Column(String(255), nullable=True)
+    # True declared by the project, False pulled in by another package, NULL when
+    # the SBOM carried no dependency graph to answer with (see dependency_graph.py).
+    is_direct_dependency = Column(Boolean, nullable=True)
     file_path = Column(String(500), nullable=True)
+    line = Column(Integer, nullable=True)
 
     # Which scanner/provider produced this finding (grype, gitleaks, osv, ...).
     source = Column(String(50), default="grype", nullable=False)

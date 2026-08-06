@@ -19,7 +19,7 @@ been fixed, and a fixed finding that someone once suppressed, must not look the
 same — otherwise "resolved" stops meaning anything.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 from sqlalchemy.orm import Session
@@ -48,6 +48,10 @@ logger = logging.getLogger(__name__)
 # different issue.
 _REFRESHED_FROM_FINDING = (
     "package_version",
+    "line",
+    # Refreshed like the rest, and skipped when null: a container scan cannot tell
+    # direct from transitive, and must not erase what a repository scan established.
+    "is_direct_dependency",
     "severity",
     "source",
     "epss_score",
@@ -175,9 +179,16 @@ class IssueService:
         actor: str,
         justification: Optional[str] = None,
         comment: Optional[str] = None,
+        expires_in_days: Optional[int] = None,
     ) -> Issue:
         """Record a human decision. Raises `ValueError` on anything invalid, so
-        the UI layer surfaces the reason as-is."""
+        the UI layer surfaces the reason as-is.
+
+        `expires_in_days` sets a review date. It is offered rather than imposed: a
+        decision that a component is simply not present does not need revisiting on
+        a schedule, while "not reachable in our configuration" very much does, and
+        only the person deciding knows which one they just recorded.
+        """
         if triage_status not in VALID_TRIAGE_STATUSES:
             raise ValueError(f"Statut de triage invalide : {triage_status}")
 
@@ -202,11 +213,57 @@ class IssueService:
         issue.triage_comment = (comment or "").strip() or None
         issue.triaged_by = actor
         issue.triaged_at = utcnow()
+        issue.triage_expires_at = self._expiry_from(triage_status, expires_in_days)
         db.commit()
         logger.info(
-            "Issue %s triaged as '%s' by '%s'", issue.id, triage_status, actor or "unknown"
+            "Issue %s triaged as '%s' by '%s'%s",
+            issue.id, triage_status, actor or "unknown",
+            f" until {issue.triage_expires_at.date()}" if issue.triage_expires_at else "",
         )
         return issue
+
+    @staticmethod
+    def _expiry_from(triage_status: str, expires_in_days: Optional[int]):
+        """A review date, or `None`.
+
+        Returning to `under_review` clears any expiry: the issue is already back in
+        the queue, so a date to bring it back would fire on nothing.
+        """
+        if triage_status == TRIAGE_UNDER_REVIEW or expires_in_days is None:
+            return None
+        # `None` means "no review date"; 0 or a negative number means the caller got
+        # its arithmetic wrong, and silently treating that as "never" would hide it.
+        days = int(expires_in_days)
+        if days <= 0:
+            raise ValueError("Le délai de révision doit être d'au moins un jour.")
+        return utcnow() + timedelta(days=days)
+
+    def expire_stale_triages(self, db: Session) -> List[Issue]:
+        """Return decisions past their review date to `under_review`.
+
+        The justification and comment are *kept*. The decision was made for a
+        reason, and whoever reviews it needs to see what that reason was — clearing
+        the text would turn a scheduled re-examination into a re-investigation from
+        nothing, which is how a review date becomes something people stop setting.
+
+        `triaged_by`/`triaged_at` are kept for the same reason, and because they are
+        the record of who said what: overwriting them would erase evidence.
+        """
+        repository = IssueRepository(db)
+        expired = [
+            issue for issue in repository.find_with_expired_triage(utcnow())
+            if issue.triage_expired
+        ]
+        for issue in expired:
+            logger.info(
+                "Triage of issue %s ('%s' by %s) reached its review date — back under review",
+                issue.id, issue.triage_status, issue.triaged_by or "unknown",
+            )
+            issue.triage_status = TRIAGE_UNDER_REVIEW
+            issue.triage_expires_at = None
+        if expired:
+            db.commit()
+        return expired
 
     def _create_issue(self, scan: Scan, fingerprint: str, finding: Finding, now: datetime) -> Issue:
         issue = Issue(

@@ -679,3 +679,93 @@ def test_the_current_password_is_required_even_when_already_signed_in(ui, ui_ses
 
     session_user = ui_session.query(User).one()
     assert AuthService(None).verify_password("le-vrai", session_user.password)
+
+
+# --- Issues screen: directness filter and triage review dates ---
+
+def test_the_direct_only_filter_narrows_the_backlog(ui, ui_session):
+    from zanshin.models.issue import Issue
+
+    for identifier, direct in (("CVE-D", True), ("CVE-T", False), ("CVE-U", None)):
+        ui_session.add(Issue(
+            fingerprint=f"fp-{identifier}", type="vulnerability", identifier=identifier,
+            severity="high", state="open", is_kev=False, is_direct_dependency=direct,
+        ))
+    ui_session.commit()
+
+    state = ui.state(IssuesState)
+    ui.run(state, "load_issues")
+    assert {row.identifier for row in state.issues} == {"CVE-D", "CVE-T", "CVE-U"}
+
+    ui.run(state, "toggle_only_direct", True)
+    ui.run(state, "load_issues")
+
+    assert [row.identifier for row in state.issues] == ["CVE-D"]
+
+
+def test_the_row_labels_directness_and_says_nothing_when_unknown(ui, ui_session):
+    from zanshin.models.issue import Issue
+
+    for identifier, direct in (("CVE-D", True), ("CVE-T", False), ("CVE-U", None)):
+        ui_session.add(Issue(
+            fingerprint=f"fp2-{identifier}", type="vulnerability", identifier=identifier,
+            severity="high", state="open", is_kev=False, is_direct_dependency=direct,
+        ))
+    ui_session.commit()
+
+    state = ui.state(IssuesState)
+    ui.run(state, "load_issues")
+    by_id = {row.identifier: row for row in state.issues}
+
+    assert by_id["CVE-D"].dependency == "Directe"
+    assert by_id["CVE-T"].dependency == "Transitive"
+    assert by_id["CVE-U"].dependency == ""
+
+
+def test_a_triage_can_be_given_a_review_date(ui, ui_session):
+    from zanshin.models.issue import TRIAGE_NOT_AFFECTED, Issue
+
+    issue = Issue(
+        fingerprint="fp-triage-expiry", type="vulnerability", identifier="CVE-2024-1",
+        severity="high", state="open", is_kev=False,
+    )
+    ui_session.add(issue)
+    ui_session.commit()
+
+    state = ui.state(
+        IssuesState,
+        triage_issue_id=issue.id,
+        triage_status=TRIAGE_NOT_AFFECTED,
+        triage_justification="component_not_present",
+        triage_expires_in_days="90",
+    )
+    ui.run(state, "submit_triage")
+
+    ui_session.expire_all()
+    assert ui_session.query(Issue).one().triage_expires_at is not None
+
+
+def test_a_typo_in_the_optional_delay_does_not_lose_the_decision(ui, ui_session):
+    """The dialog's real subject is the triage decision. Refusing to save a
+    considered decision over a typo in an optional box would be the wrong trade."""
+    from zanshin.models.issue import TRIAGE_AFFECTED, Issue
+
+    issue = Issue(
+        fingerprint="fp-triage-typo", type="vulnerability", identifier="CVE-2024-2",
+        severity="high", state="open", is_kev=False,
+    )
+    ui_session.add(issue)
+    ui_session.commit()
+
+    state = ui.state(
+        IssuesState,
+        triage_issue_id=issue.id,
+        triage_status=TRIAGE_AFFECTED,
+        triage_expires_in_days="quatre-vingt-dix",
+    )
+    ui.run(state, "submit_triage")
+
+    ui_session.expire_all()
+    saved = ui_session.query(Issue).one()
+    assert saved.triage_status == TRIAGE_AFFECTED
+    assert saved.triage_expires_at is None

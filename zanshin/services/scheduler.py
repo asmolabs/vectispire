@@ -113,6 +113,7 @@ def run_once(now: Optional[datetime] = None) -> int:
 
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
         _prune_raw_payloads(container, db, now)
+        _expire_stale_triages(container, db)
 
         due_repos, due_containers = find_due_targets(
             container.repository_repository.find_all(),
@@ -148,6 +149,24 @@ def run_once(now: Optional[datetime] = None) -> int:
         return dispatched
     finally:
         db.close()
+
+
+def _expire_stale_triages(container, db) -> None:
+    """Bring triage decisions back for review when their date arrives.
+
+    On the tick and not on a page load: a suppression that expires overnight has to
+    stop suppressing whether or not anyone opens the issues screen — including in
+    the VEX document a customer downloads and in the gate a pipeline calls at 3am.
+
+    Cheap enough to run every tick (an indexed query that normally returns nothing),
+    so unlike retention it gets no interval of its own.
+    """
+    try:
+        expired = container.issue_service.expire_stale_triages(db)
+        if expired:
+            logger.info("%d triage decision(s) returned to review", len(expired))
+    except Exception:
+        logger.exception("Triage expiry pass failed — will retry on the next tick")
 
 
 def _prune_raw_payloads(container, db, now: datetime) -> None:

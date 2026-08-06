@@ -796,3 +796,56 @@ def test_findings_carry_the_remediation_data_into_the_database(isolated_session)
     issue = isolated_session.query(Issue).filter(Issue.identifier == "RHSA-2024:1234").one()
     assert issue.fix_versions == "7.76.1-29"
     assert issue.description == "out of bounds read"
+
+
+def test_build_findings_marks_direct_and_transitive_dependencies():
+    """The SBOM already carried the answer and it was being discarded: a CVE in a
+    declared dependency is a version bump this afternoon, the same CVE four levels
+    down waits on an upstream release."""
+    from zanshin.services.dependency_graph import DependencyDirectness
+
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
+    sbom = {
+        "artifacts": [
+            {"id": "app", "name": "fastapi", "version": "1.0", "purl": "pkg:pypi/fastapi@1.0"},
+            {"id": "lib", "name": "starlette", "version": "2.0", "purl": "pkg:pypi/starlette@2.0"},
+        ],
+        "artifactRelationships": [{"parent": "lib", "child": "app", "type": "dependency-of"}],
+    }
+    cves = {"matches": [
+        {"vulnerability": {"id": "CVE-1", "severity": "high"},
+         "artifact": {"name": "fastapi", "version": "1.0", "purl": "pkg:pypi/fastapi@1.0"}},
+        {"vulnerability": {"id": "CVE-2", "severity": "high"},
+         "artifact": {"name": "starlette", "version": "2.0", "purl": "pkg:pypi/starlette@2.0"}},
+    ]}
+
+    findings = sp._build_findings(1, cves, DependencyDirectness(sbom))
+
+    assert [f.is_direct_dependency for f in findings] == [True, False]
+
+
+def test_build_findings_leaves_directness_unknown_without_a_graph():
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
+    cves = {"matches": [
+        {"vulnerability": {"id": "CVE-1", "severity": "high"}, "artifact": {"name": "x"}}
+    ]}
+
+    assert sp._build_findings(1, cves)[0].is_direct_dependency is None
+
+
+def test_secret_and_iac_findings_carry_the_line_a_reviewer_needs():
+    """Without it every SARIF annotation lands on line 1 of the file, which in a
+    pull request is noise."""
+    sp = ScanProcessor(ssh_key_service=None, scanner_engine=FakeScannerEngine())
+
+    secrets = sp._build_secret_findings(
+        1, [{"RuleID": "aws-access-token", "File": "config.py", "StartLine": 42}]
+    )
+    iac = sp._build_iac_findings(
+        1, [{"check_id": "CKV_1", "resource": "aws_s3.foo", "file_path": "/main.tf",
+             "file_line_range": [17, 24]}]
+    )
+
+    assert secrets[0].line == 42
+    # checkov reports a range; the start is where the reviewer has to look.
+    assert iac[0].line == 17

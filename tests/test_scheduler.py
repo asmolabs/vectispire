@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import pytest
 
 import zanshin.services.scheduler as scheduler_module
+from zanshin.services.issue_service import IssueService
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
@@ -67,7 +68,7 @@ class FakeScanService:
 
 
 @pytest.fixture()
-def scheduler_env(monkeypatch, isolated_session_local):
+def scheduler_env(monkeypatch, isolated_session_local):  # noqa: D401
     """Point the scheduler at an isolated database and stub the two services it
     dispatches through, so nothing reaches Docker or the thread pool."""
     monkeypatch.setattr(scheduler_module, "SessionLocal", isolated_session_local)
@@ -83,6 +84,9 @@ def scheduler_env(monkeypatch, isolated_session_local):
             self.container_repository = ContainerRepository(db)
             self.repository_service = services["repository"]
             self.container_service = services["container"]
+            # Real, not a stub: the tick is where triage review dates actually
+            # fire, and that they fire without anyone opening the UI is the point.
+            self.issue_service = IssueService()
 
     monkeypatch.setattr(scheduler_module, "IoCContainer", FakeContainer)
     session = isolated_session_local()
@@ -198,3 +202,31 @@ def test_a_broken_tick_returns_instead_of_killing_the_thread(monkeypatch, schedu
     monkeypatch.setattr(scheduler_module, "fail_stalled_scans", boom)
 
     assert run_once(now=NOW) == 0
+
+
+def test_the_tick_returns_expired_triage_decisions_to_review(scheduler_env):
+    """On the tick and not on a page load: a suppression that expires overnight has
+    to stop suppressing whether or not anyone opens the issues screen — including in
+    the VEX document a customer downloads and the gate a pipeline calls at 3am."""
+    from zanshin.clock import utcnow
+    from zanshin.models.issue import TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW, Issue
+
+    session, _ = scheduler_env
+    issue = Issue(
+        fingerprint="fp-expiry",
+        type="vulnerability",
+        identifier="CVE-2024-0001",
+        severity="high",
+        state="open",
+        triage_status=TRIAGE_NOT_AFFECTED,
+        triage_justification="component_not_present",
+        triage_expires_at=utcnow() - timedelta(days=1),
+        is_kev=False,
+    )
+    session.add(issue)
+    session.commit()
+
+    run_once()
+
+    session.expire_all()
+    assert session.query(Issue).one().triage_status == TRIAGE_UNDER_REVIEW

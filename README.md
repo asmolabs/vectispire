@@ -14,14 +14,15 @@ Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and
 
 - **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype or OSV.dev), with severity, CVE, and affected component.
 - **EPSS / CISA KEV enrichment**: every vulnerability is enriched with its exploitation probability (EPSS) and "actively exploited" status (KEV catalog), to prioritize beyond the raw CVSS score.
+- **Direct versus transitive dependencies**: each issue records whether the project declared the package itself or something else pulled it in, read from the SBOM's dependency graph. A critical CVE in a declared dependency is a version bump this afternoon; the same CVE four levels down waits on an upstream release. Ranked identically they produce a backlog nobody finishes, so the listing can be narrowed to what is fixable today. Unknown when the SBOM carries no dependency graph — a missing answer rather than a default one.
 - **Secret detection** (gitleaks): finds hardcoded API keys, tokens, and credentials in scanned repositories.
 - **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
 - **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
-- **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification. Each scan reports what it *changed*: new issues, resolved issues.
+- **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Periodic rescanning**: each target carries a scan interval, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed.
 - **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?" against a configurable policy (severity threshold, actively-exploited, fix-available). Authenticated with the API keys the UI issues.
 - **Notifications**: a webhook fires when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable.
-- **Exports**: an OpenVEX document built from the triage decisions, issues as CSV, and the stored SBOM.
+- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, and the stored SBOM.
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
 - **Interchangeable scan backends**: local Docker (default, nothing leaves the machine), OSV.dev (vulnerability matching via a free cloud API), or a self-hosted HTTP sidecar service (`scan-api/`) — selectable from the Settings page without changing the rest of the application.
 
@@ -99,7 +100,18 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Exports: `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced).
+
+SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
+
+```bash
+curl -H "Authorization: Bearer $ZANSHIN_KEY" \
+     -o zanshin.sarif "$ZANSHIN/api/v1/targets/repository/1/issues.sarif"
+gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
+     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
+```
+
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Zanshin's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -108,6 +120,8 @@ A key can be narrowed when it is created, and a CI key normally should be:
 | Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
 | Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
 | Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
+
+`GET /api/v1/issues` accepts `only_direct=true` to return just the packages the project declared itself — the subset a version bump fixes today, without waiting on an upstream release. Issues whose directness is unknown are excluded: a missing answer is not a positive one.
 
 Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
 
@@ -185,14 +199,15 @@ Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côt�
 
 - **Analyse SCA (dépendances)** : génération de SBOM (Syft) et détection de vulnérabilités connues (Grype ou OSV.dev), avec sévérité, CVE et composant concerné.
 - **Enrichissement EPSS / CISA KEV** : chaque vulnérabilité est complétée par sa probabilité d'exploitation (EPSS) et son statut "activement exploitée" (catalogue KEV), pour prioriser au-delà du seul score CVSS.
+- **Dépendances directes ou transitives** : chaque problème indique si le projet a déclaré le paquet lui-même ou si autre chose l'a tiré, d'après le graphe de dépendances du SBOM. Un CVE critique dans une dépendance déclarée se corrige cet après-midi ; le même quatre niveaux plus bas attend une publication amont. Classés à l'identique, ils produisent un backlog que personne ne termine — la liste peut donc être restreinte à ce qui est corrigeable aujourd'hui. Inconnu quand le SBOM ne porte aucun graphe : une réponse absente plutôt qu'une réponse par défaut.
 - **Détection de secrets** (gitleaks) : recherche de clés API, tokens et identifiants codés en dur dans les dépôts scannés.
 - **Conformité des licences** : évaluation d'une liste noire de licences configurable, à partir des données déjà présentes dans le SBOM.
 - **Scan IaC** (checkov) : détection de mauvaises configurations Terraform/Kubernetes dans les dépôts.
-- **Suivi et triage des problèmes** : chaque finding est suivi d'un scan à l'autre sous forme de *problème* — première détection, nombre de fois vu, existence d'un correctif, et décision de triage en vocabulaire VEX (affecté / non affecté / corrigé / à examiner) avec justification. Chaque scan indique ce qu'il a **changé** : problèmes apparus, problèmes résolus.
+- **Suivi et triage des problèmes** : chaque finding est suivi d'un scan à l'autre sous forme de *problème* — première détection, nombre de fois vu, existence d'un correctif, et décision de triage en vocabulaire VEX (affecté / non affecté / corrigé / à examiner) avec justification, et éventuellement une **date de révision**. Une suppression porte sur un contexte — « pas atteignable dans notre configuration », « pas livré en production » — et les contextes changent ; à l'échéance, le problème revient *à examiner*, justification et commentaire conservés. Chaque scan indique ce qu'il a **changé** : problèmes apparus, problèmes résolus.
 - **Rescan périodique** : chaque cible porte un intervalle de scan, honoré par un ordonnanceur intégré — l'intérêt étant que de nouvelles vulnérabilités apparaissent dans du code qui n'a pas bougé.
 - **API HTTP et *policy gate* CI** : déclencher un scan, lire les problèmes, et demander « ce build doit-il échouer ? » selon une politique configurable (seuil de sévérité, exploitation active, correctif disponible). Authentifiée par les clés API émises depuis l'UI.
 - **Notifications** : un webhook part quand un scan fait apparaître ou réapparaître quelque chose — pas à chaque scan, c'est ce qui garde le canal lisible.
-- **Exports** : document OpenVEX construit à partir des décisions de triage, problèmes en CSV, et SBOM stocké.
+- **Exports** : **SARIF 2.1.0** pour GitHub code scanning / GitLab / Azure DevOps — c'est ce qui sort un problème du tableau de bord pour l'amener sur la pull request qui l'a introduit — plus un document OpenVEX construit à partir des décisions de triage, les problèmes en CSV, et le SBOM stocké.
 - **Gestion des utilisateurs** et **journal d'audit** : rôles (SUPERUSER/ADMIN/USER), garde-fous (impossible de supprimer son propre compte ou le dernier superutilisateur actif), traçabilité des actions sensibles.
 - **Backends de scan interchangeables** : Docker local (par défaut, rien ne sort de la machine), OSV.dev (matching de vulnérabilités via API cloud gratuite) ou un service HTTP sidecar auto-hébergé (`scan-api/`) — au choix depuis la page Paramètres, sans changer le reste de l'application.
 
@@ -270,7 +285,18 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-Exports: `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced). Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Exports: `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced).
+
+SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
+
+```bash
+curl -H "Authorization: Bearer $ZANSHIN_KEY" \
+     -o zanshin.sarif "$ZANSHIN/api/v1/targets/repository/1/issues.sarif"
+gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
+     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
+```
+
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Zanshin's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -279,6 +305,8 @@ A key can be narrowed when it is created, and a CI key normally should be:
 | Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
 | Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
 | Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
+
+`GET /api/v1/issues` accepts `only_direct=true` to return just the packages the project declared itself — the subset a version bump fixes today, without waiting on an upstream release. Issues whose directness is unknown are excluded: a missing answer is not a positive one.
 
 Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
 
@@ -306,7 +334,18 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 Le gate répond HTTP 200 avec `{"passed": false, "violations": [...]}` quand la politique est violée — une politique violée est une réponse, pas une erreur de transport, et les pipelines traitent les deux différemment. Les problèmes déjà triés en *non affecté* ou *corrigé* ne font pas échouer un build, sauf demande explicite via `include_triaged`.
 
-Exports : `GET /api/v1/targets/{repository|container}/{id}/vex` (OpenVEX), `.../issues.csv`, et `GET /api/v1/scans/{id}/sbom` (le SBOM Syft tel que produit). Référence complète sur `/api/v1/docs` — qui exige une clé, comme toutes les autres routes : une carte anonyme des routes et des charges utiles est une étape de reconnaissance offerte.
+Exports : `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, et `GET /api/v1/scans/{id}/sbom` (le SBOM Syft tel que produit).
+
+SARIF est celui qui met un problème sous les yeux du développeur qui l'a introduit, annoté sur la ligne, dans la pull request :
+
+```bash
+curl -H "Authorization: Bearer $ZANSHIN_KEY" \
+     -o zanshin.sarif "$ZANSHIN/api/v1/targets/repository/1/issues.sarif"
+gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
+     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
+```
+
+Les problèmes triés partent en *suppressions* SARIF et non à la poubelle : les retirer ferait qu'à l'envoi suivant la plateforme les redéclare comme nouveaux, annulant le travail de triage — et la suppression porte la justification. L'empreinte d'identité Zanshin voyage en `partialFingerprint`, pour qu'un problème reste reconnu après un déplacement de fichier ou un décalage de ligne. Référence complète sur `/api/v1/docs` — qui exige une clé, comme toutes les autres routes : une carte anonyme des routes et des charges utiles est une étape de reconnaissance offerte.
 
 Une clé peut être restreinte à sa création, et une clé de CI devrait normalement l'être :
 
@@ -315,6 +354,8 @@ Une clé peut être restreinte à sa création, et une clé de CI devrait normal
 | Portées `read` / `scan` / `export` | Ce que la clé peut faire. Une clé qui ne fait que publier des résultats a besoin de `read` ; une qui déclenche des scans, de `scan`. Portée absente → 403. |
 | Cible `repository:{id}` ou `container:{id}` | Ce que la clé peut atteindre — y compris la liste `/issues` et les exports, restreints à cette cible. Une autre cible → 403 (et non 404 : l'appelant connaît déjà l'identifiant qu'il a demandé). |
 | Expiration en jours | Passée cette date, la clé est refusée comme invalide. La ligne subsiste : la liste montre encore que la clé a existé. |
+
+`GET /api/v1/issues` accepte `only_direct=true` pour ne renvoyer que les paquets déclarés par le projet — ce qu'un changement de version corrige aujourd'hui, sans attendre un amont. Les problèmes dont la directivité est inconnue sont exclus : une réponse absente n'est pas une réponse positive.
 
 Les valeurs par défaut restent larges (toutes les portées, toutes les cibles, sans expiration) : c'est ce qu'accordait une clé avant l'existence de ces restrictions, et un formulaire dont les défauts cassent le pipeline apprend surtout à cocher toutes les cases.
 

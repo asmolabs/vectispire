@@ -1,4 +1,4 @@
-"""Tests for the OpenVEX and CSV exports.
+"""Tests for the SARIF, OpenVEX and CSV exports.
 
 The VEX document is the one output someone else consumes — a customer, an auditor,
 another tool — so the cases below are about the statements being *true*: no
@@ -20,8 +20,10 @@ from zanshin.models.issue import (
 )
 from zanshin.services.exports import (
     OPENVEX_CONTEXT,
+    SARIF_VERSION,
     build_issues_csv,
     build_openvex_document,
+    build_sarif_document,
 )
 
 TIMESTAMP = "2026-08-06T12:00:00"
@@ -219,3 +221,186 @@ def test_csv_carries_the_triage_decision_and_the_history():
 
 def test_csv_of_nothing_is_still_a_valid_csv():
     assert build_issues_csv([]).strip().startswith("id,type,")
+
+
+# --- SARIF ---
+#
+# The output feeds a code-scanning platform, so the tests are about the things that
+# make a technically valid document useless in one: a result with no location is
+# dropped, a triaged issue that vanishes comes back as new, and a severity that
+# collapses to "warning" is scrolled past.
+
+def _sarif(issues, **kwargs):
+    kwargs.setdefault("target_name", PRODUCT)
+    return build_sarif_document(issues, **kwargs)
+
+
+def test_the_document_declares_the_version_a_platform_checks():
+    document = _sarif([_issue()])
+
+    assert document["version"] == SARIF_VERSION
+    assert document["runs"][0]["tool"]["driver"]["name"] == "Zanshin"
+
+
+def test_a_rule_is_emitted_once_for_several_issues_sharing_an_identifier():
+    """SARIF's model groups results under rules, and a platform's UI groups by
+    them — one rule per issue would defeat both."""
+    issues = [_issue(package_name="libfoo"), _issue(package_name="libbar")]
+
+    run = _sarif(issues)["runs"][0]
+
+    assert len(run["tool"]["driver"]["rules"]) == 1
+    assert len(run["results"]) == 2
+    assert {r["ruleIndex"] for r in run["results"]} == {0}
+
+
+def test_two_finding_types_sharing_an_identifier_stay_separate_rules():
+    """A gitleaks rule and a checkov check can collide on a name; merged under one
+    ruleId a platform would present them as the same class of problem."""
+    issues = [
+        _issue(type="secret", identifier="generic-api-key", file_path="a.py"),
+        _issue(type="iac", identifier="generic-api-key", file_path="main.tf"),
+    ]
+
+    rules = _sarif(issues)["runs"][0]["tool"]["driver"]["rules"]
+
+    assert len({rule["id"] for rule in rules}) == 2
+
+
+@pytest.mark.parametrize(
+    "severity,level",
+    [("critical", "error"), ("high", "error"), ("medium", "warning"), ("low", "note")],
+)
+def test_severity_maps_onto_sarif_levels(severity, level):
+    result = _sarif([_issue(severity=severity)])["runs"][0]["results"][0]
+
+    assert result["level"] == level
+
+
+def test_critical_and_high_stay_distinguishable_despite_both_being_errors():
+    """SARIF has no "critical", so the distinction has to survive somewhere:
+    GitHub ranks on `security-severity`, not on `level`."""
+    critical = _sarif([_issue(severity="critical")])["runs"][0]
+    high = _sarif([_issue(severity="high")])["runs"][0]
+
+    critical_score = critical["tool"]["driver"]["rules"][0]["properties"]["security-severity"]
+    high_score = high["tool"]["driver"]["rules"][0]["properties"]["security-severity"]
+    assert float(critical_score) > float(high_score)
+
+
+def test_every_result_has_a_location():
+    """GitHub silently drops results without one, and dependency issues — the bulk
+    of them — have no file. An "honest" empty location would mean they never
+    appeared at all."""
+    result = _sarif([_issue(file_path=None)])["runs"][0]["results"][0]
+
+    assert result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "."
+
+
+def test_a_finding_with_a_line_is_annotated_on_that_line():
+    result = _sarif([_issue(type="secret", file_path="app/config.py", line=42)])["runs"][0]["results"][0]
+
+    physical = result["locations"][0]["physicalLocation"]
+    assert physical["artifactLocation"]["uri"] == "app/config.py"
+    assert physical["region"]["startLine"] == 42
+
+
+def test_the_message_says_what_to_do():
+    """What a developer reads in the pull request. The fixed version is the whole
+    difference between "there is a CVE" and "change this line"."""
+    result = _sarif([_issue(fix_versions="1.2.3", is_kev=True)])["runs"][0]["results"][0]
+
+    message = result["message"]["text"]
+    assert "libfoo 1.0.0" in message
+    assert "1.2.3" in message
+    assert "KEV" in message
+
+
+def test_a_triaged_issue_is_suppressed_rather_than_dropped():
+    """Dropping it would make the platform re-report it as new on the next upload,
+    undoing the triage work — and the suppression carries the reason."""
+    issue = _issue(
+        triage_status=TRIAGE_NOT_AFFECTED,
+        triage_justification="vulnerable_code_not_in_execute_path",
+        triage_comment="Chemin non atteignable dans notre configuration",
+        triaged_by="alice",
+    )
+
+    result = _sarif([issue])["runs"][0]["results"][0]
+
+    assert result["suppressions"][0]["kind"] == "external"
+    justification = result["suppressions"][0]["justification"]
+    assert "vulnerable_code_not_in_execute_path" in justification
+    assert "alice" in justification
+
+
+def test_an_affected_issue_is_not_suppressed():
+    """Deciding a problem is real must not hide it."""
+    result = _sarif([_issue(triage_status=TRIAGE_AFFECTED)])["runs"][0]["results"][0]
+
+    assert "suppressions" not in result
+
+
+def test_a_review_date_is_stated_in_the_suppression():
+    issue = _issue(
+        triage_status=TRIAGE_FIXED,
+        triage_expires_at=datetime(2026, 12, 1, 8, 0),
+    )
+
+    justification = _sarif([issue])["runs"][0]["results"][0]["suppressions"][0]["justification"]
+
+    assert "2026-12-01" in justification
+
+
+def test_resolved_issues_are_left_out():
+    """SARIF here describes the current state of the branch being built, and a
+    resolved issue is not in it."""
+    run = _sarif([_issue(state=STATE_RESOLVED), _issue(state=STATE_OPEN)])["runs"][0]
+
+    assert len(run["results"]) == 1
+
+
+def test_the_fingerprint_lets_a_platform_match_across_uploads():
+    """Without it a platform re-identifies findings by file and line, so a moved
+    file or a shifted line reads as a new problem — and as a resolved one."""
+    result = _sarif([_issue(fingerprint="deadbeef")])["runs"][0]["results"][0]
+
+    assert result["partialFingerprints"]["zanshinIssueFingerprint"] == "deadbeef"
+
+
+def test_directness_travels_with_the_result():
+    direct = _sarif([_issue(is_direct_dependency=True)])["runs"][0]["results"][0]
+    transitive = _sarif([_issue(is_direct_dependency=False)])["runs"][0]["results"][0]
+    unknown = _sarif([_issue()])["runs"][0]["results"][0]
+
+    assert direct["properties"]["dependency"] == "direct"
+    assert transitive["properties"]["dependency"] == "transitive"
+    assert "dependency" not in unknown["properties"]
+
+
+def test_an_empty_backlog_is_a_valid_empty_run():
+    """A pipeline uploads unconditionally, so "nothing found" has to serialize —
+    and it is also what tells the platform to clear what it showed before."""
+    document = _sarif([])
+
+    assert document["runs"][0]["results"] == []
+    assert document["runs"][0]["tool"]["driver"]["rules"] == []
+
+
+# --- CSV additions ---
+
+def test_the_csv_states_directness_and_the_review_date():
+    csv_text = build_issues_csv([
+        _issue(is_direct_dependency=True, triage_expires_at=datetime(2026, 12, 1, 8, 0)),
+        _issue(is_direct_dependency=False),
+        _issue(),
+    ])
+    lines = csv_text.strip().split("\r\n")
+
+    assert "dependency" in lines[0]
+    assert ",direct," in lines[1]
+    assert "2026-12-01" in lines[1]
+    assert ",transitive," in lines[2]
+    # Unknown is blank, not the word "unknown": a column full of "unknown" reads
+    # like a finding about the dependency.
+    assert ",transitive," not in lines[3] and ",direct," not in lines[3]
