@@ -46,7 +46,7 @@ testpaths = ["tests"]
 # `pytest -m backends` (and in CI, as their own job).
 addopts = "-m 'not backends'"
 markers = [
-    "backends: runs against real PostgreSQL/MySQL servers via testcontainers (needs Docker)",
+    "backends: runs against real servers (PostgreSQL, MySQL, Redis) via testcontainers (needs Docker)",
 ]
 
 [tool.coverage.run]

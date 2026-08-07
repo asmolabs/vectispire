@@ -5,17 +5,15 @@ a naive script and not a patient one — and the password policy only asks for e
 characters. The audit log already recorded `LOGIN_FAILURE`; this is what finally
 reads it.
 
-**Where the state lives.** In memory, per process. That is a real limitation and it
-is deliberate:
+**Where the state lives.** In `counter_store`: per process when Zanshin runs alone,
+shared through Redis when `REDIS_URL` is set. It was per-process only, which is correct
+for one instance and a hole for two — an attacker alternating between instances gets
+the ceiling twice over, silently (ADR-002 §2.5). Counters are still never written to
+the database: one write per failed attempt would make an attacker's own traffic cheap
+to send and expensive to absorb.
 
-- Zanshin runs as a single process (one Reflex app, one scan pool, one SQLite
-  file). A shared store would buy nothing today and add an operational dependency.
-- Putting counters in SQLite would mean a write per failed attempt, which is a
-  denial-of-service amplifier: an attacker's own traffic would make them cheap to
-  send and expensive to absorb.
-
-The consequence to know: counters reset when the process restarts. An attacker who
-can force restarts can reset the lockout — but they would need an existing
+The consequence to know: with no Redis, counters reset when the process restarts. An
+attacker who can force restarts can reset the lockout — but they would need an existing
 vulnerability to do that, and the audit trail still records every attempt.
 
 **What is keyed.** The username *and* the client identifier separately. Keying only
@@ -24,12 +22,11 @@ of service dressed as a security control); keying only the client lets a botnet
 spread attempts across addresses. Both counters must stay under their ceiling.
 """
 import logging
-import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import timedelta
+from typing import Optional, Tuple
 
 from zanshin.clock import utcnow
+from zanshin.services.counter_store import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -41,26 +38,12 @@ MAX_ATTEMPTS_PER_CLIENT = 20
 WINDOW = timedelta(minutes=15)
 
 
-@dataclass
-class _Bucket:
-    attempts: List[datetime] = field(default_factory=list)
-
-    def prune(self, now: datetime, window: timedelta) -> None:
-        """Drop attempts older than the window.
-
-        The window is passed in rather than read from the module constant: a
-        `LoginThrottle` built with a different window would otherwise be pruned
-        against the default, so its configuration would silently not apply.
-        """
-        cutoff = now - window
-        self.attempts = [moment for moment in self.attempts if moment > cutoff]
-
-
 class LoginThrottle:
     """Counts recent failures and refuses once they pass a ceiling.
 
-    Thread-safe: Reflex handles events on a worker pool, so two attempts can be in
-    flight at once and a plain dict would lose one of them.
+    Concurrency is the store's problem, not this class's: Reflex handles events on a
+    worker pool, so two attempts can be in flight at once, and with Redis they can be
+    in flight on two *instances*.
     """
 
     def __init__(
@@ -68,13 +51,34 @@ class LoginThrottle:
         max_per_user: int = MAX_ATTEMPTS_PER_USER,
         max_per_client: int = MAX_ATTEMPTS_PER_CLIENT,
         window: timedelta = WINDOW,
+        store=None,
     ):
         self.max_per_user = max_per_user
         self.max_per_client = max_per_client
         self.window = window
-        self._users: Dict[str, _Bucket] = {}
-        self._clients: Dict[str, _Bucket] = {}
-        self._lock = threading.Lock()
+        # Resolved per call: see `FixedWindowLimiter` for why a store captured at
+        # construction would freeze the wrong one.
+        self._store = store
+
+    @property
+    def store(self):
+        return self._store or get_store()
+
+    @property
+    def _window_seconds(self) -> int:
+        return int(self.window.total_seconds())
+
+    def _keys(self, username: str, client_id: str):
+        """The two counters, and their ceilings.
+
+        Namespaced apart so a username can never collide with a client identifier —
+        with a shared store, keys from different callers live in one keyspace.
+        """
+        return (
+            (f"login:user:{self._normalize(username)}", self.max_per_user)
+            if self._normalize(username) else None,
+            (f"login:client:{client_id}", self.max_per_client) if client_id else None,
+        )
 
     def check(self, username: str, client_id: str = "") -> Tuple[bool, Optional[int]]:
         """`(allowed, seconds_to_wait)`.
@@ -85,35 +89,24 @@ class LoginThrottle:
         server's CPU for free.
         """
         now = utcnow()
-        with self._lock:
-            for key, buckets, ceiling in (
-                (self._normalize(username), self._users, self.max_per_user),
-                (client_id, self._clients, self.max_per_client),
-            ):
-                if not key:
-                    continue
-                bucket = buckets.get(key)
-                if bucket is None:
-                    continue
-                bucket.prune(now, self.window)
-                if len(bucket.attempts) >= ceiling:
-                    oldest = min(bucket.attempts)
-                    wait = int((oldest + self.window - now).total_seconds()) + 1
-                    return False, max(wait, 1)
+        for entry in self._keys(username, client_id):
+            if entry is None:
+                continue
+            key, ceiling = entry
+            if self.store.count(key, self._window_seconds) < ceiling:
+                continue
+            oldest = self.store.earliest(key, self._window_seconds)
+            if oldest is None:
+                continue
+            wait = int(oldest + self._window_seconds - now.timestamp()) + 1
+            return False, max(wait, 1)
         return True, None
 
     def record_failure(self, username: str, client_id: str = "") -> None:
-        now = utcnow()
-        with self._lock:
-            for key, buckets in (
-                (self._normalize(username), self._users),
-                (client_id, self._clients),
-            ):
-                if not key:
-                    continue
-                bucket = buckets.setdefault(key, _Bucket())
-                bucket.prune(now, self.window)
-                bucket.attempts.append(now)
+        for entry in self._keys(username, client_id):
+            if entry is None:
+                continue
+            self.store.record(entry[0], self._window_seconds)
         logger.warning(
             "Failed login for '%s' (client %s): %d recent attempt(s)",
             username, client_id or "unknown", self.attempts_for(username),
@@ -122,25 +115,19 @@ class LoginThrottle:
     def record_success(self, username: str, client_id: str = "") -> None:
         """Clear the counters: a correct password proves the earlier failures were
         someone forgetting theirs, not an attack in progress."""
-        with self._lock:
-            self._users.pop(self._normalize(username), None)
-            if client_id:
-                self._clients.pop(client_id, None)
+        for entry in self._keys(username, client_id):
+            if entry is not None:
+                self.store.clear(entry[0])
 
     def attempts_for(self, username: str) -> int:
-        with self._lock:
-            bucket = self._users.get(self._normalize(username))
-            if not bucket:
-                return 0
-            bucket.prune(utcnow(), self.window)
-            return len(bucket.attempts)
+        if not self._normalize(username):
+            return 0
+        return self.store.count(f"login:user:{self._normalize(username)}", self._window_seconds)
 
     def reset(self) -> None:
         """Drop every counter. For tests, and for an operator unlocking an account
         by restarting — which is what happens implicitly today anyway."""
-        with self._lock:
-            self._users.clear()
-            self._clients.clear()
+        self.store.clear()
 
     @staticmethod
     def _normalize(username: str) -> str:
@@ -149,6 +136,7 @@ class LoginThrottle:
         return (username or "").strip().lower()
 
 
-# Module-level instance: the counters have to be shared by every login attempt in
-# the process, and the UI layer builds a fresh container per event.
+# Module-level instance: every login attempt in the process goes through the same
+# object, and the UI layer builds a fresh container per event. What it *counts* through
+# may be shared with the other instances too — see `counter_store`.
 login_throttle = LoginThrottle()

@@ -61,3 +61,30 @@ jobs:
         run: |
           uv run alembic downgrade base
           uv run alembic upgrade head
+
+  # Everything that needs a real server: PostgreSQL and MySQL for the schema and for
+  # the transactional claim, Redis for the shared security counters.
+  #
+  # Its own job because it is slow (image pulls) and because it must be *seen* to run:
+  # these tests exist precisely for the defects that are invisible on SQLite and to a
+  # careful reading, so a suite that skipped them quietly would be worse than not
+  # having them (ADR-002 §7).
+  backends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run the server-backed tests
+        # Docker is available on GitHub runners, which is what testcontainers needs.
+        run: uv run pytest -m backends -q

@@ -20,8 +20,8 @@ from typing import Dict, Optional, Tuple
 from fastapi import Depends, HTTPException, status
 
 from zanshin.api.deps import require_api_key
-from zanshin.clock import utcnow
 from zanshin.models.api_key import ApiKey
+from zanshin.services.counter_store import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -32,29 +32,40 @@ WINDOW_SECONDS = int(os.getenv("ZANSHIN_API_RATE_WINDOW_SECONDS", "60"))
 
 
 class FixedWindowLimiter:
-    def __init__(self, max_requests: int = MAX_REQUESTS_PER_WINDOW, window_seconds: int = WINDOW_SECONDS):
+    """The quota itself. Where it *counts* is `counter_store`'s business.
+
+    That indirection is the whole change: the counters used to be a dictionary in this
+    object, which is correct for one process and doubles the quota for two (ADR-002
+    §2.5). The behaviour — a fixed window, and a `Retry-After` a caller can act on — is
+    unchanged.
+    """
+
+    def __init__(
+        self,
+        max_requests: int = MAX_REQUESTS_PER_WINDOW,
+        window_seconds: int = WINDOW_SECONDS,
+        store=None,
+    ):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        # key -> (window start, count)
-        self._windows: Dict[str, Tuple[float, int]] = {}
-        self._lock = threading.Lock()
+        # Resolved per call rather than captured here: `get_store()` builds the store
+        # lazily, and a limiter constructed at import time would otherwise freeze the
+        # in-memory one before `REDIS_URL` had been read.
+        self._store = store
+
+    @property
+    def store(self):
+        return self._store or get_store()
 
     def check(self, identity: str) -> Tuple[bool, Optional[int]]:
         """`(allowed, seconds_until_reset)`."""
-        now = utcnow().timestamp()
-        with self._lock:
-            start, count = self._windows.get(identity, (now, 0))
-            if now - start >= self.window_seconds:
-                start, count = now, 0
-            count += 1
-            self._windows[identity] = (start, count)
-            if count > self.max_requests:
-                return False, int(self.window_seconds - (now - start)) + 1
+        count, retry_after = self.store.increment(f"api:{identity}", self.window_seconds)
+        if count > self.max_requests:
+            return False, retry_after
         return True, None
 
     def reset(self) -> None:
-        with self._lock:
-            self._windows.clear()
+        self.store.clear()
 
 
 limiter = FixedWindowLimiter()
