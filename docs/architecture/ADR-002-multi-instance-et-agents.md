@@ -787,11 +787,11 @@ construction : un agent n'a ni socket ouvert, ni base, ni `ENCRYPTION_KEY`.
 - **Étape 4 (routage par capacité)** : les labels existent sur les agents et le
   filtrage est dans la signature de `claim_next`, mais aucune cible ne porte de label
   requis. Assumé : il n'y a pas encore deux agents à départager.
-- **Élection et compteurs non éprouvés à deux processus réels.** L'élection est testée
-  par des identités distinctes sur une base réelle, et les compteurs contre un vrai
-  Redis — ce que §7 prescrit pour tout sauf la réclamation. Deux instances Zanshin
-  complètes derrière un répartiteur, avec Redis et PostgreSQL, restent à essayer sur une
-  infrastructure réelle.
+- **Un répartiteur de charge réel n'a pas été essayé.** Deux processus contre un même
+  PostgreSQL et un même Redis, si (§11.7) — ce qui couvre l'élection et les compteurs.
+  Ce qui reste non éprouvé est la couche au-dessus : sessions collantes ou
+  `state_manager_mode = "redis"` sous un vrai trafic navigateur, c'est-à-dire §2.4, dont
+  la cause appartient à Reflex et pas à ce code.
 - **`scan_cron`** reste ignoré par l'ordonnanceur (limite antérieure, inchangée).
 
 ### 11.7 Vérification
@@ -807,4 +807,13 @@ construction : un agent n'a ni socket ouvert, ni base, ni `ENCRYPTION_KEY`.
   de réclamer du travail, le bail passe quand le porteur cesse de le renouveler, et une
   table injoignable ne fait pas croire à une instance qu'elle est seule ;
 - garde-fou : vérifié dans les deux sens sur une vraie base — une instance seule démarre,
-  une seconde est refusée avec le message attendu.
+  une seconde est refusée avec le message attendu ;
+- **deux processus réels contre un même PostgreSQL 16 et un même Redis** :
+  - trois cibles dues, deux ordonnanceurs qui tiquent six fois chacun en parallèle →
+    **trois scans créés, pas six**. C'est §2.2 clos entre processus, pas seulement entre
+    identités simulées ;
+  - le bail forcé à échéance est repris par une troisième instance au tick suivant ;
+  - compteurs partagés : la seconde instance n'obtient que 2 requêtes sur 8 (le quota
+    commun de 10 était déjà entamé) et voit les 6 échecs de connexion, donc le compte se
+    verrouille. **Sans `REDIS_URL`, le même scénario donne 8 sur 8 des deux côtés et
+    aucun verrouillage** — le défaut de §2.5 reproduit, puis corrigé.
