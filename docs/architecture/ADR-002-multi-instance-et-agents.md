@@ -1,18 +1,19 @@
 # ADR-002 — Exécution multi-instance et agents
 
-**Statut :** **agents implémentés (étape 3), plan de contrôle réparti toujours à faire (étapes 1 et 2)**
+**Statut :** **étapes 0, 1 et 3 implémentées ; étape 2 (rôles) écartée, étape 4 non faite**
 **Date :** 2026-08-06
 **Contexte :** suite d'ADR-001 §9decies (la base de données est devenue configurable, donc PostgreSQL et MySQL sont possibles)
 
-> **Où en est ce document.** L'étape 0 (outbox) et l'étape 3 (agents distants) sont
-> faites — voir §10 pour le détail de ce qui a été construit, ce qui a été tranché des
-> questions restées ouvertes, et les deux défauts trouvés en chemin. La recommandation
-> d'origine (§9) était de faire l'étape 1 d'abord ; l'ordre a été inversé sur demande,
-> parce que le besoin exprimé était de **déporter l'exécution**, pas de répartir l'étage
-> web. Les agents fonctionnent sur SQLite (c'est la conséquence heureuse de D3), donc
-> rien de l'étape 1 n'était un préalable. **Ce qui reste vrai : deux instances web
-> restent une configuration non supportée**, et §2.2, §2.4, §2.5 et §2.6 décrivent
-> toujours des défauts réels.
+> **Où en est ce document.** L'étape 0 (outbox), l'étape 3 (agents distants, §10) et
+> l'étape 1 (plan de contrôle multi-instance, §11) sont faites. L'ordre a été inversé
+> par rapport à la recommandation de §9 : le besoin exprimé était de **déporter
+> l'exécution**, et les agents fonctionnent sur SQLite (conséquence heureuse de D3),
+> donc rien de l'étape 1 n'était un préalable. Elle a suivi.
+>
+> Les points §2.1 à §2.6 sont désormais traités ou refusés au démarrage. **Deux
+> instances web sont donc supportées, sous conditions** : PostgreSQL ou MySQL, Redis, et
+> `ZANSHIN_AUTO_MIGRATE=false`. L'application refuse ou avertit quand elles ne sont pas
+> réunies (§11.3).
 
 ---
 
@@ -38,10 +39,12 @@ Chacun de ces points est vérifié dans le code actuel, pas supposé.
 
 ### 2.1 La file d'attente est dans le processus qui a reçu la requête *(corrigé — 2026-08-06)*
 
-> Traité en partie : la file est passée en base (`zanshin/services/scan_queue.py`), avec
-> une réclamation en ordre de création et une limite de simultanéité configurable sans
-> redémarrage. Il reste à rendre la réclamation sûre entre *processus*
-> (`FOR UPDATE SKIP LOCKED`) — c'est la seule fonction à changer, `claim_next`.
+> Traité : la file est passée en base (`zanshin/services/scan_queue.py`), et
+> `claim_next` est désormais transactionnelle sur PostgreSQL et MySQL
+> (`FOR UPDATE SKIP LOCKED`), avec un repli explicite sur SQLite qui ne prétend rien de
+> plus que ce que SQLite offre. Éprouvé par des réclamants concurrents contre de vrais
+> serveurs — voir §11.1, y compris la différence entre les deux moteurs que ces tests
+> ont révélée.
 
 
 [`repository_service.py`](../../zanshin/services/repository_service.py) crée un
@@ -51,7 +54,12 @@ exécuteur. Conséquence directe : le travail appartient au processus qui l'a ac
 Avec deux instances, il n'y a pas une file de dix travailleurs, il y a deux files de
 cinq qui s'ignorent — et une instance qui redémarre emporte les scans qu'elle tenait.
 
-### 2.2 L'ordonnanceur déclencherait chaque scan deux fois
+### 2.2 L'ordonnanceur déclencherait chaque scan deux fois *(corrigé — 2026-08-07)*
+
+> Corrigé par un bail d'élection (§11.2) : la partie du tick dont l'effet est « une fois
+> par période » n'est exécutée que par le porteur du bail. Ce qui est per-instance par
+> nature — réclamer du travail pour son propre agent intégré, se déclarer vivant — reste
+> exécuté partout, sans quoi une flotte resterait inactive derrière son leader.
 
 [`scheduler.py`](../../zanshin/services/scheduler.py) est un thread démon par
 processus. Il estampille `last_scheduled_scan_at` *avant* de dispatcher, ce qui protège
@@ -84,7 +92,12 @@ deux instances, **la seconde qui démarre fait échouer les scans en cours de la
 première.** C'est le même piège que la migration concurrente corrigée en §9decies :
 du code d'initialisation qui suppose être seul.
 
-### 2.4 L'état Reflex est sur le disque local
+### 2.4 L'état Reflex est sur le disque local *(signalé au démarrage — 2026-08-07)*
+
+> Inchangé sur le fond : c'est une propriété de Reflex, pas de ce code. Mais une
+> instance qui en voit une autre et ne trouve pas d'état partagé configuré le dit
+> maintenant à voix haute au démarrage (§11.3), au lieu de laisser découvrir le
+> problème par des utilisateurs déconnectés au hasard.
 
 `state_manager_mode` vaut `disk` par défaut dans Reflex 0.9.6 (les autres valeurs sont
 `memory` et `redis`). L'état serveur d'un client vit donc sur l'instance qui a accepté
@@ -97,7 +110,11 @@ il faut soit des sessions collantes au niveau du répartiteur, soit
 `state_manager_mode = "redis"` avec `redis_url`. **Redis n'est donc pas optionnel pour
 un étage web réparti** — ce qui change la réponse au point suivant.
 
-### 2.5 Deux garde-fous de sécurité sont en mémoire, par processus
+### 2.5 Deux garde-fous de sécurité sont en mémoire, par processus *(corrigé — 2026-08-07)*
+
+> Corrigé : les deux comptent à travers `zanshin/services/counter_store.py`, partagé via
+> Redis quand `REDIS_URL` est réglé et en mémoire sinon (§11.4). Le repli n'est pas un
+> mode dégradé : c'est l'implémentation correcte pour une instance seule.
 
 - [`rate_limit.py`](../../zanshin/api/rate_limit.py) : fenêtre fixe par clé API, dans un
   dictionnaire. Avec deux instances, le quota double.
@@ -107,7 +124,11 @@ un étage web réparti** — ce qui change la réponse au point suivant.
 Les deux dégradent une propriété de sécurité, silencieusement, sans qu'aucun test
 existant ne le voie.
 
-### 2.6 Le verrou de migration ne couvre qu'un hôte
+### 2.6 Le verrou de migration ne couvre qu'un hôte *(signalé au démarrage — 2026-08-07)*
+
+> Inchangé sur le fond — un verrou de fichier ne coordonnera jamais deux hôtes — mais
+> l'application avertit maintenant quand elle voit une autre instance vivante alors que
+> `ZANSHIN_AUTO_MIGRATE` est actif (§11.3).
 
 Le verrou `fcntl` d'ADR-001 §9decies sérialise les processus **d'un hôte**. Deux hôtes
 qui démarrent ensemble ne sont pas coordonnés. `ZANSHIN_AUTO_MIGRATE=false` existe déjà
@@ -651,3 +672,139 @@ Non vérifié en réel, et à savoir : le `Dockerfile.agent` n'a pas été const
 limite que `scan-api/Dockerfile`), et rien n'a été essayé contre PostgreSQL ou MySQL —
 la suite multi-backends (`pytest -m backends`) couvre le schéma, pas le protocole
 d'agent.
+
+---
+
+## 11. Statut d'implémentation — plan de contrôle multi-instance (étape 1), 2026-08-07
+
+L'étape 1 après l'étape 3, donc, et sans que l'inversion coûte quoi que ce soit : les
+baux et la propriété des scans posés pour les agents (§10.2) étaient précisément la
+moitié du travail que cette étape demandait.
+
+### 11.1 Réclamation transactionnelle (D1)
+
+`claim_next` fait maintenant `SELECT … FOR UPDATE SKIP LOCKED` puis le changement de
+statut **dans la même transaction** sur PostgreSQL et MySQL. SQLite garde l'`UPDATE`
+conditionnel, qui suffit aux threads d'un processus.
+
+Le contrôle de dialecte est explicite, et c'est important : le dialecte SQLite de
+SQLAlchemy **laisse tomber `FOR UPDATE` en silence** au lieu de le refuser. Demander
+sans vérifier aurait produit une réclamation d'apparence transactionnelle, verte sur la
+machine du développeur, distribuant le même scan à deux processus en production.
+
+**Ce que les tests réels ont trouvé.** Dix réclamants concurrents, connexions
+distinctes, contre PostgreSQL 16 et MySQL 8.4 : aucun scan jamais réclamé deux fois —
+la sûreté tenait dès la première version — mais six réclamants sur dix repartaient les
+mains vides alors que vingt scans attendaient. MySQL compte les lignes verrouillées
+dans `LIMIT` au lieu de les sauter ; PostgreSQL continue à parcourir. Un problème de
+débit, pas de sûreté, dont la forme en production est un agent qui interroge la file
+trente secondes pendant que du travail attend. Exactement la classe de défaut que §7
+annonçait : invisible sur SQLite et à la lecture.
+
+Deux corrections évidentes essayées et écartées, notées dans le code parce qu'elles
+reviendront à l'esprit du prochain lecteur :
+
+1. **élargir la fenêtre de sélection** puis la tronquer — fait échouer PostgreSQL sur
+   les tests que MySQL échouait, parce qu'un réclamant qui verrouille des lignes qu'il
+   ne prendra pas affame les autres tant qu'il les tient ;
+2. **une fenêtre réservée à MySQL** — fonctionne, puis devient inutile dès que le budget
+   de réessais est correct.
+
+Reste le plus simple : demander exactement ce dont on a besoin, et réessayer. Budget
+mesuré (4 tentatives laissaient trois réclamants à vide, 12 aucun), pas choisi au goût.
+
+### 11.2 Ordonnanceur à propriétaire unique (§2.2)
+
+Table `leader_lease` (migration `0012`), une ligne par travail devant avoir exactement
+un propriétaire. Le tick se coupe selon ce qu'est chaque travail :
+
+| Travail | Portée | Pourquoi |
+|---|---|---|
+| Rafraîchir son agent intégré, réclamer des scans | **chaque instance** | une flotte dont les instances n'attrapent du travail qu'en détenant le bail resterait inactive derrière son leader |
+| Scans planifiés, rétention, expiration des triages, relais outbox, tickets, reprise des baux | **le porteur du bail** | leur effet est « une fois par période » |
+
+Un bail en table plutôt qu'un verrou consultatif (`pg_advisory_lock`, `GET_LOCK`) :
+ceux-ci sont nommés et portés différemment selon le moteur et n'existent pas sur SQLite,
+donc le mono-processus devrait se traiter à part. Une ligne fonctionne pareil sur les
+trois, et — l'argument qui a tranché — elle est **observable** : quand quelque chose a
+cessé de se produire, la table dit qui était censé le faire et jusqu'à quand. La page
+Agents l'affiche.
+
+L'acquisition échoue **fermée** : une instance qui ne peut pas joindre la table ne
+s'autorise pas à supposer qu'elle est seule. Sauter un tick coûte une minute de
+latence ; se croire leader à tort coûte un scan dupliqué de chaque cible due.
+
+### 11.3 Refus et avertissements au démarrage (D6, §2.4, §2.6)
+
+`zanshin/startup_guard.py`. La détection ne demande rien à l'opérateur — un drapeau de
+configuration serait faux précisément quand ça compte, parce que personne ne le règle.
+Chaque instance enregistre déjà un agent intégré par hôte et le rafraîchit à chaque
+tick : une autre instance vivante, c'est la ligne d'un autre hôte vue récemment.
+
+- **deux instances sur SQLite : refus**, avec l'autre hôte, la raison et la sortie
+  nommés. Un seul écrivain, et pas de `SKIP LOCKED` pour rendre la réclamation sûre ;
+- **plusieurs instances sans état Reflex partagé** ou **avec `ZANSHIN_AUTO_MIGRATE`
+  actif** : avertissements. Ça dégrade, ça ne corrompt pas.
+
+Deux limites assumées : deux instances sur le **même hôte** partagent une ligne et sont
+invisibles ici (ce déploiement n'achète rien qu'une limite de simultanéité plus haute ne
+donnerait), et une instance arrêtée depuis moins de deux minutes paraît encore vivante —
+ce qui peut refuser un redémarrage sous un nouveau nom d'hôte, comme en fait un rolling
+restart Kubernetes. D'où `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE`, dont c'est le seul usage.
+
+### 11.4 Compteurs partagés (D2, §2.5)
+
+`zanshin/services/counter_store.py` : Redis quand `REDIS_URL` est réglé, mémoire sinon.
+La même variable que Reflex utilise pour son état, délibérément — un opérateur en flotte
+doit de toute façon la régler, et demander une seconde URL vers le même serveur serait un
+moyen de les désynchroniser.
+
+Deux formes, parce que les deux appelants comptent différemment et qu'aucun ne doit
+changer de sémantique pour partager un magasin : fenêtre fixe (le quota dit *quand*
+réessayer) et fenêtre glissante (un verrouillage ne doit pas devenir indulgent à la
+frontière d'une fenêtre).
+
+**Redis injoignable autorise au lieu de refuser.** Choix délibéré : ces garde-fous
+protègent d'un abus, et une panne Redis qui transformerait chaque login et chaque appel
+d'API en refus convertirait une panne de dépendance en panne totale.
+
+### 11.5 L'étape 2 (rôles) est écartée, pas oubliée
+
+`ZANSHIN_ROLE=all|web|agent` (D5) n'est pas implémenté, et ne devrait pas l'être tel
+quel : les deux rôles qu'il décrit existent déjà autrement. Le rôle `agent` est un point
+d'entrée séparé (`python -m zanshin.agent`) qui n'écoute sur aucun port applicatif et
+n'a pas de base ; le rôle `web` s'obtient en désactivant l'agent intégré depuis la page
+Agents, ce qui est visible là où un opérateur regarde déjà. Une troisième façon de dire
+la même chose finirait par contredire les deux autres — c'est le même raisonnement qui a
+fait réutiliser `scan_max_concurrent` pour l'agent intégré plutôt que d'inventer un
+second nombre (§10.3).
+
+Ce que l'étape 2 promettait vraiment — la séparation de privilèges — est acquis par
+construction : un agent n'a ni socket ouvert, ni base, ni `ENCRYPTION_KEY`.
+
+### 11.6 Ce qui reste
+
+- **Étape 4 (routage par capacité)** : les labels existent sur les agents et le
+  filtrage est dans la signature de `claim_next`, mais aucune cible ne porte de label
+  requis. Assumé : il n'y a pas encore deux agents à départager.
+- **Élection et compteurs non éprouvés à deux processus réels.** L'élection est testée
+  par des identités distinctes sur une base réelle, et les compteurs contre un vrai
+  Redis — ce que §7 prescrit pour tout sauf la réclamation. Deux instances Zanshin
+  complètes derrière un répartiteur, avec Redis et PostgreSQL, restent à essayer sur une
+  infrastructure réelle.
+- **`scan_cron`** reste ignoré par l'ordonnanceur (limite antérieure, inchangée).
+
+### 11.7 Vérification
+
+- `pytest -m backends`, qui tourne désormais **en CI** dans un job dédié — il n'en
+  existait aucun, donc la suite PostgreSQL/MySQL écrite en §9decies n'avait jamais été
+  exécutée automatiquement. Les tests qui exigent un serveur y sont marqués, y compris
+  la moitié Redis des tests de compteurs (le paramètre est marqué, pas le test, pour que
+  chaque cas reste écrit une seule fois pour les deux implémentations) ;
+- réclamation : dix réclamants concurrents sur PostgreSQL 16 et MySQL 8.4, trois
+  exécutions consécutives, chaque scan attribué exactement une fois ;
+- élection : un seul des deux ordonnanceurs dispatche une cible due, le suiveur continue
+  de réclamer du travail, le bail passe quand le porteur cesse de le renouveler, et une
+  table injoignable ne fait pas croire à une instance qu'elle est seule ;
+- garde-fou : vérifié dans les deux sens sur une vraie base — une instance seule démarre,
+  une seconde est refusée avec le message attendu.

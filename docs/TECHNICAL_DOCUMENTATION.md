@@ -358,8 +358,13 @@ Consequences worth knowing:
 - **A remote agent never touches the database**, and gets a deploy key only if its
   `credentials_mode` is `delegated` *and* the transport is TLS. An import test enforces
   the first half (`tests/test_agent_worker.py`); the API enforces the second.
-- **The control plane is still single-process.** Agents are distributed; two web
-  instances are not supported (ADR-002 §2.2, §2.4–2.6).
+- **More than one web instance is now possible**, and conditional: PostgreSQL or MySQL
+  (the claim uses `FOR UPDATE SKIP LOCKED`, which SQLite does not have), `REDIS_URL`
+  (Reflex's own state, and the security counters), and `ZANSHIN_AUTO_MIGRATE=false`. The
+  periodic work — scheduled scans, retention, the outbox relay — is taken under a lease
+  so exactly one instance does it; claiming scans is not, so every instance keeps
+  working. Start it wrong and the application refuses or warns, naming the reason
+  (ADR-002 §11).
 
 
 ### 4. Scanner backends
@@ -764,8 +769,13 @@ Conséquences à connaître :
   si son `credentials_mode` vaut `delegated` **et** que le transport est TLS. Un test
   d'imports garantit la première moitié (`tests/test_agent_worker.py`) ; l'API applique la
   seconde.
-- **Le plan de contrôle reste mono-processus.** Les agents sont répartis ; deux instances
-  web ne sont pas supportées (ADR-002 §2.2, §2.4–2.6).
+- **Plus d'une instance web est désormais possible**, sous conditions : PostgreSQL ou
+  MySQL (la réclamation utilise `FOR UPDATE SKIP LOCKED`, absent de SQLite), `REDIS_URL`
+  (l'état de Reflex, et les compteurs de sécurité) et `ZANSHIN_AUTO_MIGRATE=false`. Le
+  travail périodique — scans planifiés, rétention, relais de l'outbox — est pris sous un
+  bail pour qu'une seule instance le fasse ; réclamer des scans ne l'est pas, pour que
+  toutes continuent de travailler. Mal démarrée, l'application refuse ou avertit en
+  nommant la raison (ADR-002 §11).
 
 
 ### 4. Backends de scan

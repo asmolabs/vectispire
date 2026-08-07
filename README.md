@@ -82,9 +82,22 @@ python -m zanshin.agent
 
 See [`docker-compose.agent.yml`](docker-compose.agent.yml) for the containerized form, and
 [`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
-for the decisions and the known limits — in particular: **the control plane itself is
-still single-process.** Agents are distributed; running two web instances is not
-supported.
+for the decisions and the known limits.
+
+**Running more than one web instance.** Most of what made that unsafe is now fixed: the
+scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has exactly
+one owner across the fleet, startup recovery no longer fails another worker's scans, and
+the API quota and login throttle are shared through Redis. What it requires:
+
+- **PostgreSQL or MySQL** (`ZANSHIN_DATABASE_URL`). SQLite has one writer and no
+  `SKIP LOCKED`; a second instance on it is refused at startup rather than left to
+  corrupt the file;
+- **`REDIS_URL`**, both for Reflex's own state manager — without it a client that lands
+  on the other instance is intermittently logged out — and for the security counters;
+- **`ZANSHIN_AUTO_MIGRATE=false`**, with `alembic upgrade head` as its own deployment
+  step: the migration lock is a file lock and coordinates one host only.
+
+Start it wrong and the application says so: it refuses, or warns, with the reason named.
 
 ### Quick start
 
@@ -195,6 +208,8 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite only: how long a write waits for a concurrent writer before failing. Scan workers, the scheduler and requests all write, so contention is normal. |
 | `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Server databases only: connection pool. Ignored for SQLite, which has no pool worth tuning. |
 | `ZANSHIN_AUTO_MIGRATE` | `true` | Set to `false` for a deployment that runs `alembic upgrade head` as its own step — which is what a server database on several application hosts should do. The schema is still *checked* at startup: a database behind the code stops the application there rather than at the first query. |
+| `REDIS_URL` | — | Shares the API quota and the login throttle between instances. Without it they are counted per process, which is correct for one instance and means the quota doubles for two. Reflex reads the same variable for its own state manager, which a fleet needs anyway. |
+| `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` | `false` | Lifts the startup refusal that fires when another instance is live and the database is SQLite. Its only legitimate use is a restart under a *new* hostname within two minutes of the previous one stopping — a Kubernetes rolling restart. It does not make two instances safe on SQLite. |
 | `ZANSHIN_SCAN_WORKERS` | `5` | *Default* for the "maximum concurrent scans" setting, which is now edited from the **Settings** page and applied without a restart. Scans are queued in the order they were requested; the queue lives in the database, so a request survives a restart and its place in line is answerable (`queue_position` on `GET /api/v1/scans/{id}`). |
 | `ZANSHIN_SCAN_POOL_THREADS` | `32` | Hard ceiling on scan threads, and therefore on the setting above. The pool is a supply of threads, not the queue — a pool smaller than the configured limit would silently cap it. |
 | `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it, the container is killed and the scan fails with a timeout instead of hanging. |
@@ -372,9 +387,25 @@ python -m zanshin.agent
 Voir [`docker-compose.agent.yml`](docker-compose.agent.yml) pour la variante
 conteneurisée, et
 [`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
-pour les décisions et les limites connues — en particulier : **le plan de contrôle
-lui-même reste mono-processus.** Les agents sont répartis ; lancer deux instances web
-n'est pas supporté.
+pour les décisions et les limites connues.
+
+**Lancer plus d'une instance web.** L'essentiel de ce qui rendait cela dangereux est
+corrigé : la réclamation des scans est transactionnelle (`FOR UPDATE SKIP LOCKED`), le
+travail périodique a exactement un propriétaire dans la flotte, la reprise au démarrage
+ne fait plus échouer les scans d'un autre exécutant, et le quota d'API comme
+l'anti-bourrage sont partagés via Redis. Ce que cela exige :
+
+- **PostgreSQL ou MySQL** (`ZANSHIN_DATABASE_URL`). SQLite n'a qu'un écrivain et pas de
+  `SKIP LOCKED` ; une seconde instance dessus est refusée au démarrage plutôt que
+  laissée corrompre le fichier ;
+- **`REDIS_URL`**, à la fois pour le gestionnaire d'état de Reflex — sans lui, un client
+  qui atterrit sur l'autre instance est déconnecté par intermittence — et pour les
+  compteurs de sécurité ;
+- **`ZANSHIN_AUTO_MIGRATE=false`**, avec `alembic upgrade head` comme étape de
+  déploiement à part : le verrou de migration est un verrou de fichier et ne coordonne
+  qu'un hôte.
+
+Mal démarrée, l'application le dit : elle refuse, ou avertit, en nommant la raison.
 
 ### Démarrage rapide
 
@@ -535,6 +566,8 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 |---|---|---|
 | `ZANSHIN_DB_PATH` | `zanshin/database.sqlite` | Chemin du fichier SQLite. La façon la plus simple de garder les données hors de l'arborescence source ; rendu absolu, parce qu'un chemin relatif se résout par rapport au répertoire courant et que celui-ci diffère entre `reflex run`, `alembic` et une unité de service. |
 | `ZANSHIN_DATABASE_URL` | dérivée de `ZANSHIN_DB_PATH` | URL SQLAlchemy complète, pour tout ce qui n'est pas un fichier local — par exemple `postgresql+psycopg://utilisateur:motdepasse@hôte/zanshin`. Prend le pas sur `ZANSHIN_DB_PATH`. Nécessite le pilote : `uv sync --extra postgres`. |
+| `REDIS_URL` | — | Partage le quota d'API et l'anti-bourrage entre instances. Sans lui ils sont comptés par processus : correct pour une instance, et le quota double pour deux. Reflex lit la même variable pour son gestionnaire d'état, dont une flotte a de toute façon besoin. |
+| `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` | `false` | Lève le refus au démarrage déclenché quand une autre instance est vivante et que la base est SQLite. Son seul usage légitime : un redémarrage sous un *nouveau* nom d'hôte moins de deux minutes après l'arrêt du précédent — un rolling restart Kubernetes. Il ne rend pas deux instances sûres sur SQLite. |
 | `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite uniquement : combien de temps une écriture attend un autre écrivain avant d'échouer. Les workers de scan, l'ordonnanceur et les requêtes écrivent tous, donc la contention est normale. |
 | `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Bases serveur uniquement : pool de connexions. Ignoré pour SQLite, qui n'a pas de pool à régler. |
 | `ZANSHIN_AUTO_MIGRATE` | `true` | `false` pour un déploiement qui exécute `alembic upgrade head` comme étape propre — ce que devrait faire une base serveur répartie sur plusieurs hôtes applicatifs. Le schéma reste *vérifié* au démarrage : une base en retard sur le code arrête l'application là, et non à la première requête. |
