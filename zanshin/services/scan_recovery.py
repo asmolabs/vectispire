@@ -101,8 +101,6 @@ def _is_orphaned(scan: Scan, local_worker: Optional[str], now) -> bool:
     if local_worker and scan.claimed_by == local_worker:
         # This host's built-in agent — i.e. the process that just restarted.
         return True
-    # Compared in Python, like `fail_stalled_scans` below: `SafeDateTime`
-    # tolerates legacy string values, which don't compare reliably in SQL.
     return scan.lease_expires_at is None or scan.lease_expires_at < now
 
 
@@ -114,13 +112,15 @@ def fail_stalled_scans(db: Session, max_age_seconds: int) -> int:
     catch a wedged worker, not to cut short a slow but healthy scan.
     """
     cutoff = utcnow() - timedelta(seconds=max_age_seconds)
-    stalled = [
-        scan
-        for scan in db.query(Scan).filter(Scan.status.in_(IN_FLIGHT_STATUSES)).all()
-        # Compared in Python: `SafeDateTime` tolerates legacy string values,
-        # which don't compare reliably in SQL (see ScanRepository).
-        if scan.created_at and scan.created_at < cutoff
-    ]
+    stalled = (
+        db.query(Scan)
+        .filter(
+            Scan.status.in_(IN_FLIGHT_STATUSES),
+            Scan.created_at.isnot(None),
+            Scan.created_at < cutoff,
+        )
+        .all()
+    )
     if not stalled:
         return 0
 

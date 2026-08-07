@@ -22,11 +22,17 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# SQLite stores `GUID` as NUMERIC and `SafeDateTime` as TIMESTAMP, so reflection
-# never hands these back as themselves and autogenerate reports a type change on
-# every single run. Suppressing the comparison for these two types (and only
-# these two) is what makes `alembic check` a usable CI gate: without it, the
+# SQLite stores `GUID` as NUMERIC and hands `SafeDateTime` back as TIMESTAMP, so
+# reflection never returns these as themselves and autogenerate reports a type
+# change on every single run. Suppressing the comparison for these two types (and
+# only these two) is what makes `alembic check` a usable CI gate: without it, the
 # check fails permanently and stops meaning anything.
+#
+# Still true for `SafeDateTime` now that it is a real timestamp rather than text:
+# what reflection returns is `TIMESTAMP` on SQLite, `DATETIME` on MySQL and
+# `TIMESTAMP WITHOUT TIME ZONE` on PostgreSQL, none of which compares equal to the
+# decorator. `tests/test_timestamp_migration_backends.py` checks the conversion
+# produces what the models declare, which is the guarantee this exclusion gives up.
 _UNRELIABLY_REFLECTED_TYPES = (GUID, SafeDateTime)
 
 

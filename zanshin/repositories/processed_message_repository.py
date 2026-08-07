@@ -48,15 +48,15 @@ class ProcessedMessageRepository:
         the same reasoning as pruning delivered outbox messages.
         """
         cutoff = utcnow() - timedelta(days=older_than_days)
-        stale = [
-            entry
-            for entry in self.db.query(ProcessedMessage).all()
-            # Compared in Python: `SafeDateTime` tolerates legacy string values,
-            # which don't compare reliably in SQL (see ScanRepository).
-            if entry.processed_at and entry.processed_at < cutoff
-        ]
-        for entry in stale:
-            self.db.delete(entry)
-        if stale:
+        # A bulk delete, not a read-then-delete loop: this table grows with every agent
+        # report, and there is nothing to inspect on the way past. It became expressible
+        # in SQL with migration 0013 — while the column was text, the comparison had to
+        # happen in Python, which meant loading the whole table to throw most of it away.
+        removed = (
+            self.db.query(ProcessedMessage)
+            .filter(ProcessedMessage.processed_at < cutoff)
+            .delete(synchronize_session=False)
+        )
+        if removed:
             self.db.commit()
-        return len(stale)
+        return removed

@@ -768,9 +768,11 @@ PostgreSQL et ignorées par SQLite sauf `PRAGMA` explicite ; les cascades de ce 
 sont côté ORM et `Issue.findings` n'en a aucune, donc une suppression qui laisse
 aujourd'hui des orphelins en silence lèverait une erreur là-bas. Activer le `PRAGMA`
 aurait été un aller simple vers ce même échec sur SQLite : cela demande des règles
-`ondelete`, une migration et ses tests, pas un effet de bord. Et `SafeDateTime` stocke
-des chaînes ISO-8601, donc pas d'arithmétique de dates en SQL sur ces colonnes
-(l'ordre et les comparaisons fonctionnent, l'ISO-8601 se triant lexicographiquement).
+`ondelete`, une migration et ses tests, pas un effet de bord. Et `SafeDateTime` stockait
+des chaînes ISO-8601, donc pas d'arithmétique de dates en SQL sur ces colonnes — *levée
+depuis*, par la migration `0013` : les horodatages sont de vrais types date sur les trois
+moteurs, et les cinq endroits qui chargeaient une table entière pour la filtrer en Python
+sont devenus des requêtes.
 
 **`ZANSHIN_AUTO_MIGRATE=false`** pour les déploiements qui migrent comme étape propre
 — ce que devrait faire une base serveur répartie sur plusieurs hôtes, puisque le

@@ -33,6 +33,7 @@ with a recent `last_seen_at`. Two limits, both deliberate:
 """
 import logging
 import os
+from datetime import timedelta
 from typing import List, Optional
 
 from zanshin.clock import utcnow
@@ -106,19 +107,21 @@ def check(db, hostname: str, now=None) -> List[str]:
 def find_other_live_instances(db, hostname: str, now=None) -> List[Agent]:
     """Built-in agents belonging to another host and seen recently."""
     now = now or utcnow()
-    cutoff_seconds = ONLINE_TTL_SECONDS
-    others = []
-    for agent in db.query(Agent).filter(Agent.kind == KIND_BUILTIN).all():
-        # A row with no hostname cannot be attributed to another machine, and this
-        # check errs towards letting a lone instance start: refusing on a row nobody
-        # can identify would be the worst possible failure of a startup guard.
-        if not agent.hostname or agent.hostname == hostname or not agent.last_seen_at:
-            continue
-        # Compared in Python: `SafeDateTime` tolerates legacy string values, which do
-        # not compare reliably in SQL (see ScanRepository).
-        if (now - agent.last_seen_at).total_seconds() <= cutoff_seconds:
-            others.append(agent)
-    return others
+    cutoff = now - timedelta(seconds=ONLINE_TTL_SECONDS)
+    return (
+        db.query(Agent)
+        .filter(
+            Agent.kind == KIND_BUILTIN,
+            # A row with no hostname cannot be attributed to another machine, and this
+            # check errs towards letting a lone instance start: refusing on a row nobody
+            # can identify would be the worst possible failure of a startup guard.
+            Agent.hostname.isnot(None),
+            Agent.hostname != hostname,
+            Agent.last_seen_at.isnot(None),
+            Agent.last_seen_at >= cutoff,
+        )
+        .all()
+    )
 
 
 def _shared_state_configured() -> bool:

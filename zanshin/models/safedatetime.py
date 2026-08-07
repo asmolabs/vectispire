@@ -1,67 +1,133 @@
-from sqlalchemy.types import TypeDecorator, String
 from datetime import datetime
 
-# Long enough for the widest value this can produce: an ISO-8601 timestamp with
-# microseconds and a UTC offset is 32 characters ("2026-08-06T13:34:45.491348-09:30").
-# The margin covers a longer offset notation without being a free-for-all.
-_ISO_LENGTH = 40
+from sqlalchemy.types import DateTime, TypeDecorator
 
 
 class SafeDateTime(TypeDecorator):
-    """A DateTime type decorator that safely parses dates stored as ISO strings,
-    timestamps (seconds or milliseconds), or bytes from SQLite databases.
+    """A timestamp column that tolerates the shapes the pre-Alembic schema left behind.
 
-    Stored as text on every backend, not as a native timestamp. That is the point of
-    the class — it exists to read the several formats the pre-Alembic schema left
-    behind, and `zanshin.clock.utcnow` returns naive UTC for the same reason. Moving
-    to native timestamps means rewriting every timestamp column in a data migration,
-    which is a decision of its own rather than a side effect of adding a backend.
+    **It is a real timestamp now.** It used to be `String`: every date in the schema was
+    stored as ISO text, on every backend. That worked — ISO-8601 sorts lexicographically,
+    so ordering was right — but it cost more than it looked:
 
-    The length is declared because MySQL refuses `VARCHAR` without one — a
-    `CompileError` on the very first table, and the third portability defect this
-    schema had that SQLite could not reveal (SQLite ignores the length entirely, so
-    nothing changes for an existing deployment).
+    - no date arithmetic in SQL, so five places loaded a whole table to filter it in
+      Python (`fail_stalled_scans`, `reclaim_expired_leases`, the inbox purge…);
+    - an index on a timestamp column was an index on text, useful for ordering and
+      useless for a range;
+    - `WHERE expires_at > now()` was a type error on PostgreSQL, which is how the
+      conversion finally got written.
+
+    Migration `0013` rewrites the existing values through the parser below, so nothing
+    is lost in translation: the tolerance for legacy formats is exactly what makes the
+    conversion safe.
+
+    **What the tolerance still covers.** Values arriving as text (ISO with `T` or a
+    space, a trailing `Z`, a UTC offset), as an epoch in seconds or milliseconds, or as
+    bytes — the shapes the previous implementation of this application produced. After
+    the migration a backend returns real `datetime` objects and none of this runs, but
+    it stays because a database restored from an old dump would otherwise fail to read
+    rather than fail to parse one column.
+
+    Naive UTC throughout, matching `zanshin.clock.utcnow`: the stored values have always
+    been naive, and mixing naive and aware datetimes raises on the first comparison —
+    see that module for why going timezone-aware is a separate decision.
     """
-    impl = String(_ISO_LENGTH)
+
+    impl = DateTime
     cache_ok = True
 
+    def load_dialect_impl(self, dialect):
+        """Microsecond precision, explicitly, because MySQL's default is zero.
+
+        `DATETIME` on MySQL stores whole seconds unless a fractional-second precision is
+        declared, and it truncates silently. That is not cosmetic here: the audit trail's
+        integrity chain hashes `timestamp.isoformat()`, so a value written with
+        microseconds and read back without them recomputes to a different hash — every
+        entry would report itself as tampered with, on MySQL only. Found by running the
+        conversion against a real server; SQLite and PostgreSQL keep the fraction on
+        their own.
+        """
+        if dialect.name in ("mysql", "mariadb"):
+            from sqlalchemy.dialects import mysql
+
+            return dialect.type_descriptor(mysql.DATETIME(fsp=6))
+        return dialect.type_descriptor(DateTime())
+
     def process_bind_param(self, value, dialect):
-        if value is None:
+        """Accept a datetime, or anything the parser below understands.
+
+        Strings are parsed rather than passed through: a caller handing this column a
+        string used to work (it was a string column), and failing on the write path
+        would turn a cosmetic inconsistency into an outage.
+        """
+        if value is None or isinstance(value, datetime):
             return value
-        if isinstance(value, datetime):
-            return value.isoformat()
-        return value
+        return parse_legacy_timestamp(value)
 
     def process_result_value(self, value, dialect):
         if value is None:
             return value
         if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
-            try:
-                # Remove timezone 'Z' shorthand for compatibility with fromisoformat
-                val_str = value.replace("Z", "+00:00")
-                # Handle space separator instead of T
-                if " " in val_str and "T" not in val_str:
-                    val_str = val_str.replace(" ", "T")
-                return datetime.fromisoformat(val_str)
-            except ValueError:
-                # Fallback parser if format differs
-                try:
-                    return datetime.strptime(value.split(".")[0], "%Y-%m-%d %H:%M:%S")
-                except Exception:
-                    pass
-        if isinstance(value, (int, float)):
-            # If timestamp is stored in milliseconds (Spring Boot defaults to millis in some settings)
-            if value > 1e11:  # Milliseconds
-                return datetime.utcfromtimestamp(value / 1000.0)
-            return datetime.utcfromtimestamp(value)
-        if isinstance(value, bytes):
-            try:
-                val_str = value.decode("utf-8").replace("Z", "+00:00")
-                if " " in val_str and "T" not in val_str:
-                    val_str = val_str.replace(" ", "T")
-                return datetime.fromisoformat(val_str)
-            except Exception:
-                pass
+            # A backend can hand back an *aware* datetime from a legacy value that
+            # carried an offset — SQLite's own DATETIME parser does, before this code
+            # ever sees the text. Letting it through would put a mix of naive and aware
+            # values in one column, and the first comparison between them raises. This
+            # is the trap `zanshin.clock` exists to avoid, so it is closed here too.
+            return _to_naive_utc(value) if value.tzinfo is not None else value
+        return parse_legacy_timestamp(value)
+
+
+def parse_legacy_timestamp(value):
+    """Best-effort conversion of a stored value into a naive `datetime`.
+
+    Returns the value untouched when it cannot be read, rather than raising: this runs
+    while *reading* rows, and one unreadable timestamp should not make a whole screen
+    fail. The migration, which cannot be so relaxed, checks the result itself.
+    """
+    if value is None or isinstance(value, datetime):
         return value
+
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8")
+        except Exception:
+            return value
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        # `Z` is not understood by `fromisoformat` before Python 3.11, and a space
+        # separator is what the previous implementation wrote.
+        normalized = text.replace("Z", "+00:00")
+        if " " in normalized and "T" not in normalized:
+            normalized = normalized.replace(" ", "T", 1)
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            try:
+                parsed = datetime.strptime(text.split(".")[0], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return value
+        # Anything stored with an offset is converted to UTC and stripped, so the whole
+        # schema stays comparable: a mix of naive and aware values raises on the first
+        # comparison, which is the trap `zanshin.clock` exists to avoid.
+        if parsed.tzinfo is not None:
+            parsed = _to_naive_utc(parsed)
+        return parsed
+
+    if isinstance(value, (int, float)):
+        # Milliseconds, as some Spring Boot configurations wrote them.
+        seconds = value / 1000.0 if value > 1e11 else value
+        try:
+            return datetime.utcfromtimestamp(seconds)
+        except Exception:
+            return value
+
+    return value
+
+
+def _to_naive_utc(parsed: datetime) -> datetime:
+    from datetime import timezone
+
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None)

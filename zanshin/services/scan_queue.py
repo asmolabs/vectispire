@@ -70,18 +70,17 @@ LEASE_SECONDS = int(os.getenv("ZANSHIN_SCAN_LEASE_SECONDS", "1200"))
 MAX_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_MAX_ATTEMPTS", "3"))
 
 # How many times a transactional claim re-reads the queue when it came back short while
-# work was still waiting. Needed because of a measured difference between the two server
-# backends — see `_claim_locked`. Small: each retry is one indexed read, and the locks it
-# is waiting on are released by a commit that happens microseconds later.
-# Twelve, measured rather than guessed: with ten claimants contending on one queue, four
-# attempts left three of them empty-handed on MySQL and twelve left none (see
-# `tests/test_queue_concurrency_backends.py`). Each attempt is one indexed read plus the
-# sleep below, so the worst case is a fraction of a second against a scan that takes
-# minutes.
+# work was still waiting, because of a measured difference between the two server
+# backends — see `_claim_locked`. Twelve, measured rather than guessed: with ten
+# claimants contending on one queue, four attempts left three of them empty-handed on
+# MySQL and twelve left none (`tests/test_queue_concurrency_backends.py`). Each attempt
+# is one indexed read plus the sleep below, so the worst case is a fraction of a second
+# against a scan that takes minutes.
 CLAIM_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_CLAIM_ATTEMPTS", "12"))
 # Long enough for a competing claimant to commit, short enough to be invisible next to a
 # scan that takes minutes.
 CLAIM_RETRY_SECONDS = float(os.getenv("ZANSHIN_SCAN_CLAIM_RETRY_SECONDS", "0.01"))
+
 LEASE_EXHAUSTED_MESSAGE = (
     "Scan abandonné : l'exécutant a cessé de répondre à chacune des {attempts} tentatives."
 )
@@ -383,14 +382,18 @@ def reclaim_expired_leases(db: Session, now=None) -> List[Scan]:
     Returns the scans it touched, so a caller can log or count them.
     """
     now = now or utcnow()
-    stalled = [
-        scan
-        for scan in db.query(Scan).filter(Scan.status == STATUS_RUNNING).all()
-        # Compared in Python, like `scan_recovery.fail_stalled_scans`:
-        # `SafeDateTime` tolerates legacy string values, which do not compare
-        # reliably in SQL.
-        if scan.lease_expires_at is not None and scan.lease_expires_at < now
-    ]
+    # Filtered in SQL, and on an index. It used to load every running scan and compare
+    # in Python, because the column was text and text does not compare as a date —
+    # migration 0013 is what makes this a range query.
+    stalled = (
+        db.query(Scan)
+        .filter(
+            Scan.status == STATUS_RUNNING,
+            Scan.lease_expires_at.isnot(None),
+            Scan.lease_expires_at < now,
+        )
+        .all()
+    )
     if not stalled:
         return []
 
