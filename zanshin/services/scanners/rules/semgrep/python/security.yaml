@@ -1,0 +1,261 @@
+# Zanshin's own Semgrep rules — Python, security.
+#
+# Written here rather than vendored: `semgrep-rules` was relicensed under terms that
+# forbid redistribution, and the pre-relicense fork carries a Commons Clause that would
+# follow every downstream user of Zanshin. See ../README.md.
+#
+# Each rule below aims at something that is nearly always wrong and cheap to confirm by
+# reading the flagged line. A rule that needs a paragraph of context to judge belongs in
+# the operator's own ruleset, not in the one that ships enabled by default: a scanner
+# that cries wolf is a scanner people turn off.
+rules:
+  - id: zanshin-python-subprocess-shell-true
+    message: >-
+      Commande passée au shell (`shell=True`) avec une valeur qui n'est pas une chaîne
+      littérale. Tout ce qui vient d'une requête, d'un fichier ou d'une variable
+      d'environnement devient exécutable ici. Passez une liste d'arguments et laissez
+      `shell=False` (le défaut).
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-78: OS Command Injection"]
+      owasp: ["A03:2021 - Injection"]
+      references: ["https://docs.python.org/3/library/subprocess.html#security-considerations"]
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run($CMD, ...)
+          - pattern: subprocess.call($CMD, ...)
+          - pattern: subprocess.check_call($CMD, ...)
+          - pattern: subprocess.check_output($CMD, ...)
+          - pattern: subprocess.Popen($CMD, ...)
+      - pattern: $F(..., shell=True, ...)
+      # A literal command with `shell=True` is a style problem, not an injection: there
+      # is nothing for an attacker to influence.
+      - pattern-not: $F("...", ...)
+
+  - id: zanshin-python-os-system
+    message: >-
+      `os.system` exécute toujours à travers un shell et ne sait pas séparer la commande
+      de ses arguments. Utilisez `subprocess.run([...])`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-78: OS Command Injection"]
+      owasp: ["A03:2021 - Injection"]
+    patterns:
+      - pattern: os.system($CMD)
+      - pattern-not: os.system("...")
+
+  - id: zanshin-python-eval-exec
+    message: >-
+      `eval`/`exec` sur une valeur non littérale : c'est de l'exécution de code arbitraire
+      dès que cette valeur peut être influencée. Pour lire une donnée structurée, utilisez
+      `json.loads` ou `ast.literal_eval`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-95: Eval Injection"]
+      owasp: ["A03:2021 - Injection"]
+    patterns:
+      - pattern-either:
+          - pattern: eval($CODE, ...)
+          - pattern: exec($CODE, ...)
+      - pattern-not: eval("...", ...)
+      - pattern-not: exec("...", ...)
+
+  - id: zanshin-python-yaml-unsafe-load
+    message: >-
+      `yaml.load` sans chargeur sûr construit des objets Python arbitraires depuis le
+      document — c'est-à-dire de l'exécution de code. Utilisez `yaml.safe_load`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      references: ["https://pyyaml.org/wiki/PyYAMLDocumentation"]
+    patterns:
+      - pattern-either:
+          - pattern: yaml.load($DOC)
+          - pattern: yaml.load($DOC, Loader=yaml.Loader)
+          - pattern: yaml.load($DOC, Loader=yaml.UnsafeLoader)
+          - pattern: yaml.load($DOC, Loader=yaml.FullLoader)
+
+  - id: zanshin-python-pickle-load
+    message: >-
+      Désérialiser avec `pickle` exécute ce que contient la charge. Un fichier ou un
+      message pickle n'est sûr que s'il ne peut venir que de vous — sinon, préférez JSON.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      references: ["https://docs.python.org/3/library/pickle.html"]
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: cPickle.load(...)
+      - pattern: cPickle.loads(...)
+
+  - id: zanshin-python-weak-hash
+    message: >-
+      MD5 et SHA-1 sont cassés pour tout usage de sécurité (collisions praticables). Pour
+      une empreinte de sécurité, utilisez SHA-256 ; pour un mot de passe, un algorithme
+      dédié (bcrypt, argon2). Si l'empreinte n'a aucun rôle de sécurité, dites-le avec
+      `usedforsecurity=False`.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      likelihood: MEDIUM
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+          - pattern: hashlib.new("md5", ...)
+          - pattern: hashlib.new("sha1", ...)
+      - pattern-not: hashlib.$ALGO(..., usedforsecurity=False, ...)
+      - pattern-not: hashlib.new(..., usedforsecurity=False, ...)
+
+  - id: zanshin-python-requests-verify-false
+    message: >-
+      `verify=False` désactive la vérification du certificat TLS : la connexion reste
+      chiffrée mais n'importe qui sur le chemin peut se faire passer pour le serveur.
+      Pour une autorité interne, passez son certificat à `verify="/chemin/ca.pem"`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+    pattern-either:
+      - pattern: requests.$METHOD(..., verify=False, ...)
+      - pattern: httpx.$METHOD(..., verify=False, ...)
+      - pattern: httpx.Client(..., verify=False, ...)
+      - pattern: httpx.AsyncClient(..., verify=False, ...)
+
+  - id: zanshin-python-ssl-unverified-context
+    message: >-
+      Ce contexte SSL ne vérifie ni le certificat ni le nom d'hôte. Utilisez
+      `ssl.create_default_context()`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+    pattern-either:
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: |
+          $CTX.verify_mode = ssl.CERT_NONE
+      - pattern: |
+          $CTX.check_hostname = False
+
+  - id: zanshin-python-flask-debug
+    message: >-
+      Le mode debug de Flask expose une console Python exécutable depuis le navigateur.
+      Il ne doit jamais être activé en dehors d'un poste de développement.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-489: Active Debug Code"]
+      owasp: ["A05:2021 - Security Misconfiguration"]
+    patterns:
+      - pattern: $APP.run(..., debug=$TRUTHY, ...)
+      - pattern-not: $APP.run(..., debug=False, ...)
+
+  - id: zanshin-python-insecure-random-secret
+    message: >-
+      `random` est un générateur prédictible : un attaquant qui observe quelques valeurs
+      peut prédire les suivantes. Pour un secret, un jeton ou un sel, utilisez le module
+      `secrets`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: MEDIUM
+      impact: HIGH
+      likelihood: MEDIUM
+      cwe: ["CWE-338: Use of Cryptographically Weak PRNG"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      references: ["https://docs.python.org/3/library/secrets.html"]
+    patterns:
+      - pattern: $NAME = random.$F(...)
+      # Restricted to variables whose name says the value is a secret: `random` is
+      # perfectly fine for a retry jitter or a test fixture, and flagging those would
+      # teach people to ignore the rule.
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: (?i).*(secret|token|password|passwd|nonce|salt|api_?key|session_?id).*
+
+  - id: zanshin-python-password-timing-comparison
+    message: >-
+      Comparer un secret avec `==` s'arrête au premier octet différent, ce qui laisse
+      mesurer sa valeur octet par octet. Utilisez `hmac.compare_digest`.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      confidence: MEDIUM
+      impact: MEDIUM
+      likelihood: LOW
+      cwe: ["CWE-208: Observable Timing Discrepancy"]
+      references: ["https://docs.python.org/3/library/hmac.html#hmac.compare_digest"]
+    patterns:
+      - pattern-either:
+          - pattern: $SECRET == $OTHER
+          - pattern: $SECRET != $OTHER
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: (?i).*(secret|token|password|passwd|signature|hmac|digest|api_?key).*
+
+  - id: zanshin-python-jinja-autoescape-off
+    message: >-
+      Sans échappement automatique, toute valeur insérée dans un gabarit Jinja est
+      interprétée comme du HTML — c'est du XSS par construction. Passez
+      `autoescape=True`.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      impact: MEDIUM
+      likelihood: MEDIUM
+      cwe: ["CWE-79: Cross-site Scripting"]
+      owasp: ["A03:2021 - Injection"]
+    patterns:
+      - pattern: jinja2.Environment(...)
+      - pattern-not: jinja2.Environment(..., autoescape=True, ...)

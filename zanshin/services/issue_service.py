@@ -364,6 +364,8 @@ def scanned_types_for(
     ai_review_ran: bool,
     license_policy_ran: bool,
     eol_ran: bool = False,
+    iac_ran: bool = True,
+    sast_ran: bool = False,
 ) -> Set[str]:
     """Which finding types a scan actually looked for.
 
@@ -371,12 +373,27 @@ def scanned_types_for(
     secrets and IaC need source on disk, so they don't apply to images; the AI
     review is opt-in). Expressed here, next to the resolution logic that depends
     on it, so the two cannot drift apart silently.
+
+    Every `*_ran` flag guards against the same mistake, which destroys data rather than
+    merely losing a feature: a type present in this set and absent from the findings is
+    read as "looked for, no longer there", and its issues are resolved. A scanner that
+    crashed looked for nothing.
+
+    `iac_ran` defaults to `True` for compatibility with the callers written before
+    checkov could report a failure; `sast_ran` defaults to `False` because the Semgrep
+    step is off unless enabled.
     """
     types: Set[str] = {"vulnerability"}
     if not is_container:
-        types.update({"secret", "iac"})
+        types.add("secret")
+        if iac_ran:
+            types.add("iac")
         if ai_review_ran:
             types.add("ai_review")
+        if sast_ran:
+            # Both at once: one Semgrep run produces security and quality findings from
+            # the same pass, so either both types were looked for or neither was.
+            types.update({"sast", "quality"})
     if license_policy_ran:
         types.add("license")
     if eol_ran:

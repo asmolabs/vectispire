@@ -459,6 +459,41 @@ def test_scanned_types_mirror_the_pipeline_branches():
     assert minimal == {"vulnerability", "secret", "iac"}
 
 
+def test_a_scanner_that_did_not_run_keeps_its_type_out_of_the_set():
+    """The mechanism that stops a crashed scanner from declaring a target fixed.
+
+    A type in this set and absent from the findings is read as "looked for, gone", and
+    its issues are resolved. So each flag has to mean *observed*, not *configured*."""
+    crashed_checkov = scanned_types_for(
+        is_container=False, ai_review_ran=False, license_policy_ran=False, iac_ran=False
+    )
+    assert "iac" not in crashed_checkov
+    # …and the scanners that did run are unaffected.
+    assert "secret" in crashed_checkov and "vulnerability" in crashed_checkov
+
+
+def test_semgrep_contributes_both_of_its_types_or_neither():
+    """One run produces security and quality findings from the same pass, so either both
+    were looked for or neither was. Splitting them would let a security-only ruleset
+    resolve every quality issue in the system."""
+    ran = scanned_types_for(
+        is_container=False, ai_review_ran=False, license_policy_ran=False, sast_ran=True
+    )
+    assert {"sast", "quality"} <= ran
+
+    did_not_run = scanned_types_for(
+        is_container=False, ai_review_ran=False, license_policy_ran=False, sast_ran=False
+    )
+    assert not ({"sast", "quality"} & did_not_run)
+
+
+def test_an_image_never_claims_to_have_looked_at_source_code():
+    image = scanned_types_for(
+        is_container=True, ai_review_ran=False, license_policy_ran=False, sast_ran=True
+    )
+    assert not ({"sast", "quality"} & image)
+
+
 def test_summarize_issues_counts_by_severity():
     issues = [Issue(severity="critical"), Issue(severity="high"), Issue(severity=None)]
 

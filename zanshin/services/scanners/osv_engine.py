@@ -58,8 +58,16 @@ class OsvScannerEngine(ScannerEngine):
     def scan_secrets(self, work_dir: str, sub_path: str = "") -> list:
         return self._local_engine.scan_secrets(work_dir, sub_path)
 
-    def scan_iac(self, work_dir: str, sub_path: str = "") -> list:
+    def scan_iac(self, work_dir: str, sub_path: str = "") -> Optional[list]:
         return self._local_engine.scan_iac(work_dir, sub_path)
+
+    def scan_sast(
+        self, work_dir: str, sub_path: str = "", rules_sub_path: str = ""
+    ) -> Optional[list]:
+        # Delegated like the two above: this backend only replaces the *matching* step
+        # (OSV.dev instead of Grype), and forgetting the delegation would mean SAST
+        # silently never runs for anyone on this backend.
+        return self._local_engine.scan_sast(work_dir, sub_path, rules_sub_path)
 
     def scan_sbom(self, work_dir: str, sbom: Dict[str, Any]) -> Dict[str, Any]:
         """Query OSV.dev once per SBOM component and return a Grype-shaped

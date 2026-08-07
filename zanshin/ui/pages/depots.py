@@ -24,6 +24,7 @@ from zanshin.ui.view_models import (
     ScanRow,
     AiReviewSummary,
     IacRow,
+    SastRow,
     LicenseRow,
     SecretRow,
     SeverityCounts,
@@ -111,6 +112,7 @@ class DepotsState(BaseState):
     selected_scan_secrets: list[SecretRow] = []
     selected_scan_licenses: list[LicenseRow] = []
     selected_scan_iac: list[IacRow] = []
+    selected_scan_sast: list[SastRow] = []
     selected_scan_ai_review: AiReviewSummary = AiReviewSummary()
     selected_scan_ai_findings: list[AiFindingRow] = []
 
@@ -496,6 +498,25 @@ class DepotsState(BaseState):
                     file_path=f.file_path or "N/A",
                 )
                 for f in container.finding_repository.find_all_by_scan_id_and_type(scan_id, "iac")
+            ]
+
+            # Semgrep, both halves in one table: a reviewer reading a scan wants the
+            # whole of what the code analysis said, and the badge carries which half
+            # each line belongs to.
+            self.selected_scan_sast = [
+                SastRow(
+                    severity=(f.severity or "unknown").upper(),
+                    severity_color=severity_color(f.severity or "unknown"),
+                    rule_id=f.identifier or "N/A",
+                    message=f.description or "",
+                    file_path=f.file_path or "N/A",
+                    line=str(f.line) if f.line else "",
+                    kind=f.type,
+                    kind_label="Sécurité" if f.type == "sast" else "Qualité",
+                    kind_color="red" if f.type == "sast" else "blue",
+                )
+                for kind in ("sast", "quality")
+                for f in container.finding_repository.find_all_by_scan_id_and_type(scan_id, kind)
             ]
 
             # Optional AI code review (Ollama, see ADR-001 Phase 8) — at most one
@@ -1180,6 +1201,72 @@ def depots_page() -> rx.Component:
                                 width="100%"
                             ),
                             class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        width="100%",
+                        spacing="2",
+                        class_name="mt-6"
+                    )
+                ),
+
+                # Semgrep source-code analysis — security and quality in one table,
+                # each line badged with which it is. Every occurrence is listed here:
+                # the backlog folds all hits of one rule in one file into a single
+                # issue, so this is the only place the individual lines show up.
+                rx.cond(
+                    DepotsState.selected_scan_sast.length() > 0,
+                    rx.vstack(
+                        rx.heading(
+                            f"Analyse du code source ({DepotsState.selected_scan_sast.length()})",
+                            size="3", weight="bold",
+                        ),
+                        rx.box(
+                            rx.table.root(
+                                rx.table.header(
+                                    rx.table.row(
+                                        rx.table.column_header_cell("Sévérité"),
+                                        rx.table.column_header_cell("Nature"),
+                                        rx.table.column_header_cell("Règle"),
+                                        rx.table.column_header_cell("Constat"),
+                                        rx.table.column_header_cell("Emplacement"),
+                                    )
+                                ),
+                                rx.table.body(
+                                    rx.foreach(
+                                        DepotsState.selected_scan_sast,
+                                        lambda hit: rx.table.row(
+                                            rx.table.cell(
+                                                rx.badge(hit.severity, color_scheme=hit.severity_color)
+                                            ),
+                                            rx.table.cell(
+                                                rx.badge(
+                                                    hit.kind_label,
+                                                    color_scheme=hit.kind_color,
+                                                    variant="soft",
+                                                )
+                                            ),
+                                            rx.table.cell(hit.rule_id),
+                                            rx.table.cell(
+                                                rx.text(hit.message, size="2")
+                                            ),
+                                            rx.table.cell(
+                                                rx.cond(
+                                                    hit.line != "",
+                                                    f"{hit.file_path}:{hit.line}",
+                                                    hit.file_path,
+                                                )
+                                            ),
+                                            class_name="hover:bg-slate-3/60 transition-colors"
+                                        )
+                                    )
+                                ),
+                                width="100%"
+                            ),
+                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                        ),
+                        rx.text(
+                            "Les constats de qualité n'entrent jamais dans le verdict du "
+                            "gate CI.",
+                            size="1", color="var(--slate-10)",
                         ),
                         width="100%",
                         spacing="2",

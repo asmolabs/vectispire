@@ -14,7 +14,7 @@ This document covers everything needed to run Zanshin locally: prerequisites, in
 |---|---|
 | **Python ≥ 3.12** | Pinned in `pyproject.toml` (`requires-python = ">=3.12"`) and `.python-version`. |
 | **[uv](https://docs.astral.sh/uv/)** | Dependency manager used by this project (`uv.lock` is checked in). |
-| **Docker**, running and reachable | Required by the default `docker` scan backend: Zanshin runs Syft, Grype, gitleaks, and checkov as ephemeral containers via the Docker socket. Not needed if you only use the `osv` or `local_api` backend (see §5 and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4). |
+| **Docker**, running and reachable | Required by the default `docker` scan backend: Zanshin runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers via the Docker socket. Not needed if you only use the `osv` or `local_api` backend (see §5 and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4). |
 | **Git** | Used both to clone this repo and, internally, by Zanshin itself (GitPython) to clone the repositories it scans. |
 
 Node.js is **not** a separate prerequisite: Reflex compiles the frontend itself (a `.web/` directory with its own bundled `node_modules` is generated on first run).
@@ -150,7 +150,7 @@ Runs entirely against an in-memory database; never touches `zanshin/database.sql
 ### 9. Troubleshooting
 
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
-- **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, and `bridgecrew/checkov` images on demand the first time each is used — subsequent scans reuse the cached images.
+- **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
 - **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
 - **An SSH key shows "Illisible" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md) has the procedure.
@@ -169,7 +169,7 @@ Ce document couvre tout ce qui est nécessaire pour lancer Zanshin en local : pr
 |---|---|
 | **Python ≥ 3.12** | Fixé dans `pyproject.toml` (`requires-python = ">=3.12"`) et `.python-version`. |
 | **[uv](https://docs.astral.sh/uv/)** | Gestionnaire de dépendances utilisé par ce projet (`uv.lock` est versionné). |
-| **Docker**, en cours d'exécution et accessible | Requis par le backend de scan par défaut (`docker`) : Zanshin exécute Syft, Grype, gitleaks et checkov comme conteneurs éphémères via le socket Docker. Pas nécessaire si vous utilisez uniquement le backend `osv` ou `local_api` (voir §5 et [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4). |
+| **Docker**, en cours d'exécution et accessible | Requis par le backend de scan par défaut (`docker`) : Zanshin exécute Syft, Grype, gitleaks, checkov et Semgrep comme conteneurs éphémères via le socket Docker. Pas nécessaire si vous utilisez uniquement le backend `osv` ou `local_api` (voir §5 et [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4). |
 | **Git** | Utilisé pour cloner ce dépôt, et en interne par Zanshin lui-même (GitPython) pour cloner les dépôts qu'il scanne. |
 
 Node.js n'est **pas** un prérequis séparé : Reflex compile lui-même le frontend (un répertoire `.web/` avec son propre `node_modules` est généré au premier lancement).
@@ -306,7 +306,7 @@ S'exécute entièrement sur une base en mémoire ; ne touche jamais `zanshin/dat
 ### 9. Dépannage
 
 - **`docker.errors.DockerException` / permission refusée sur le socket Docker** : l'utilisateur qui lance Zanshin doit avoir accès au socket Docker (`/var/run/docker.sock` sous Linux/macOS avec Docker Desktop). Sous Linux, ajoutez l'utilisateur au groupe `docker` ou lancez avec les privilèges suffisants.
-- **Le premier scan est lent** : le backend `docker` télécharge les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks` et `bridgecrew/checkov` à la demande lors de leur première utilisation — les scans suivants réutilisent les images en cache.
+- **Le premier scan est lent** : le backend `docker` télécharge les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` et `semgrep/semgrep` à la demande lors de leur première utilisation — les scans suivants réutilisent les images en cache.
 - **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont erronés, soit le champ `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un admin existant) ou interrogez directement la table `user`.
 - **`ENCRYPTION_KEY` changée et le déchiffrement des clés SSH échoue désormais** : indiquez la clé précédente dans `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` (valeurs séparées par des virgules). Les valeurs existantes se déchiffrent à nouveau et basculent sur la nouvelle clé au fil des réenregistrements — la page **Clés SSH** signale celles qui dépendent encore de l'ancienne.
 - **Une clé SSH affiche « Illisible » après une mise à jour** : aucune clé configurée ne la déchiffre, le plus souvent parce qu'elle est antérieure à toute `ENCRYPTION_KEY` et qu'elle a été chiffrée avec la clé par défaut autrefois publiée dans ce dépôt. Cette valeur par défaut a été retirée. Sa moitié privée est publique : remplacez la paire chez votre fournisseur git plutôt que de chercher à la récupérer ; la marche à suivre est dans [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md).

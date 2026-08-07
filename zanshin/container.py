@@ -59,6 +59,7 @@ from zanshin.services.issue_service import IssueService
 from zanshin.services.notification_service import NotificationService
 from zanshin.services.agent_service import AgentService
 from zanshin.services.agent_job_service import AgentJobService
+from zanshin.services.sast_service import SastService
 from zanshin.services.scan_ingestor import ScanIngestor
 
 
@@ -184,6 +185,13 @@ class IoCContainer:
         return EolService(self.settings_service)
 
     @cached_property
+    def sast_service(self) -> SastService:
+        """Semgrep source-code analysis, disabled by default (`sast_enabled`). Owns both
+        the toggle and the translation of Semgrep's output into `sast` (security) and
+        `quality` findings."""
+        return SastService(self.settings_service)
+
+    @cached_property
     def ai_review_service(self) -> AiReviewService:
         """Optional local LLM code review via Ollama, disabled by default (see
         ADR-001, Phase 8)."""
@@ -231,6 +239,7 @@ class IoCContainer:
             self.issue_service,
             self.notification_service,
             eol_service=self.eol_service,
+            sast_service=self.sast_service,
         )
 
     @cached_property
@@ -260,6 +269,7 @@ class IoCContainer:
             issue_service=self.issue_service,
             notification_service=self.notification_service,
             eol_service=self.eol_service,
+            sast_service=self.sast_service,
         )
 
     @cached_property

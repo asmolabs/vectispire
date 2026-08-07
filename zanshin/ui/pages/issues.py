@@ -19,6 +19,7 @@ from zanshin.models.issue import (
     VEX_JUSTIFICATIONS,
 )
 from zanshin.services.audit_log_service import AuditOperation
+from zanshin.services.policy_gate import QUALITY_TYPES
 from zanshin.ui.auth import requires_login
 from zanshin.ui.components import empty_state, stat_card
 from zanshin.ui.layout import main_layout
@@ -66,6 +67,8 @@ TYPE_LABELS = {
     "license": "Licence",
     "eol": "Fin de vie",
     "ai_review": "Revue IA",
+    "sast": "Code vulnérable",
+    "quality": "Qualité",
 }
 
 PAGE_SIZE = 50
@@ -178,13 +181,19 @@ class IssuesState(BaseState):
             rows = repository.find_filtered(limit=PAGE_SIZE, offset=self.offset, **filters)
             self.issues = [self._to_view(issue) for issue in rows]
 
-            counts = repository.count_by_state_and_triage()
+            # The KPI row and the severity chart stay a picture of *security* work, and
+            # exclude code-quality findings — the list below still shows them, and the
+            # type filter still reaches them. Enabling the Semgrep step on a mature
+            # repository adds hundreds of entries in one afternoon, and letting them into
+            # "problèmes à traiter" would change what that number means overnight without
+            # anyone deciding to. The Qualité section counts them on its own terms.
+            counts = repository.count_by_state_and_triage(exclude_types=QUALITY_TYPES)
             self.actionable_count = counts.get("actionable", 0)
             self.open_count = counts.get("open", 0)
             self.resolved_count = counts.get("resolved", 0)
             self.under_review_count = counts.get(f"triage_{TRIAGE_UNDER_REVIEW}", 0)
 
-            by_severity = repository.count_open_by_severity()
+            by_severity = repository.count_open_by_severity(exclude_types=QUALITY_TYPES)
             self.severity_chart_data = [
                 {"name": label, "value": by_severity.get(key, 0), "color": color}
                 for key, label, color in (
@@ -370,7 +379,8 @@ def filter_bar() -> rx.Component:
             width="150px",
         ),
         rx.select(
-            ["all", "vulnerability", "secret", "iac", "license", "eol", "ai_review"],
+            ["all", "vulnerability", "secret", "iac", "license", "eol", "ai_review",
+             "sast", "quality"],
             value=rx.cond(IssuesState.filter_type == "", "all", IssuesState.filter_type),
             on_change=IssuesState.set_filter_type,
             placeholder="Type",

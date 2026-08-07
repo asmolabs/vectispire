@@ -71,7 +71,7 @@ class ScannerEngine(Protocol):
 - **Secrets** (gitleaks) : gain rapide, même pattern d'exécution que Syft/Grype (conteneur éphémère), risque faible. Priorité 1.
 - **Licences** : déjà présent dans le SBOM Syft (champ licence par composant) — pas besoin d'un nouveau scanner, juste une règle d'évaluation (liste noire/blanche) sur les données déjà collectées.
 - **IaC** (checkov ou `trivy config`) : même pattern conteneurisé, pertinent si des dépôts contiennent du Terraform/K8s.
-- **SAST** (semgrep) : nécessite le code source cloné (déjà disponible pour les dépôts Git), mais un pipeline distinct du flux SBOM — impact plus large sur `ScanProcessor`.
+- **SAST** (semgrep) : nécessite le code source cloné (déjà disponible pour les dépôts Git), mais un pipeline distinct du flux SBOM — impact plus large sur `ScanProcessor`. **Fait** (étape 6 de la feuille de route ci-dessous) ; voir §10 pour ce que la réalisation a tranché.
 - **Paquets malveillants / supply-chain** : les flux existent (OSV malicious packages, Socket.dev) mais sont réalistement des services cloud — à ne considérer qu'en option C.
 - Hors périmètre assumé : CSPM (posture cloud), DAST, scan d'API, pentest continu — nécessiteraient un accès aux comptes cloud / crawling web, hors nature "basé SBOM" de Zanshin.
 
@@ -95,7 +95,39 @@ class ScannerEngine(Protocol):
 3. **Enrichissement cloud gratuit** : intégrer EPSS + CISA KEV pour scorer les findings existants (première brique "API cloud", sans risque de fuite de code).
 4. **Backend API locale** : service interne exposant Syft/Grype/gitleaks en HTTP (ou Trivy en mode serveur), pour accélérer les scans et lever la contrainte Docker-in-Docker.
 5. **Backend cloud tiers (optionnel)** : intégration à une API cloud tierce (ou OSV.dev pour la partie SCA) via `ScanProviderConfig`, strictement opt-in, avec gestion de clé API chiffrée.
-6. **IaC puis SAST** : étendre au-delà du flux SBOM vers une analyse du code source cloné.
+6. **IaC puis SAST** : étendre au-delà du flux SBOM vers une analyse du code source cloné. — *fait.*
+
+## 10. SAST : ce que la réalisation a tranché (2026-08-07)
+
+Trois décisions que l'ADR laissait ouvertes, et une découverte qui a changé le plan.
+
+**Les règles ne peuvent pas être embarquées telles quelles.** Semgrep a relicencié
+`semgrep/semgrep-rules` sous des termes qui interdisent explicitement de distribuer les
+règles ; le fork pris avant ce changement (`opengrep/opengrep-rules`) est redistribuable
+mais porte une Commons Clause qui ferait sortir Zanshin de l'open source au sens OSI et
+s'imposerait à tous ses reprenants. Zanshin embarque donc **ses propres règles** (une
+trentaine, Python / JS-TS / Java, sécurité et qualité), et `scripts/fetch_semgrep_rules.py`
+installe chez l'opérateur celles qu'il choisit, sous `ZANSHIN_SEMGREP_RULES_DIR`. Le scan
+reste hors ligne : la récupération a lieu une fois, à l'installation.
+
+**Un scan, deux natures de constats.** Le champ `metadata.category` d'une règle décide :
+`security` produit un constat `sast`, traité comme toute vulnérabilité ; tout le reste
+produit un constat `quality`, exclu de **tout** verdict de gate, sans drapeau pour
+l'autoriser (`policy_gate.QUALITY_TYPES`). La raison est celle déjà avancée pour la revue
+IA, prise par l'autre bout : activer un analyseur de code ajoute des centaines d'entrées
+en une après-midi, et un gate qui rougit ce matin-là est un gate qu'on désactive à midi.
+Une confiance déclarée `LOW` fait descendre la sévérité d'un cran, ce qui place le constat
+sous le seuil de gate par défaut — visible, incapable de bloquer.
+
+**`None` n'est pas `[]`.** Un scanner qui a planté n'a rien observé, et lire son silence
+comme « propre » résout tout le backlog du type concerné, c'est-à-dire déclare le dépôt
+corrigé. `ScanArtifacts.iac` et `.sast` sont donc `Optional`, et `scanned_types_for`
+n'inclut un type que s'il a réellement été cherché. Le défaut existait déjà pour checkov,
+dont l'échec renvoyait `[]` : corrigé au passage.
+
+**Le §7 est respecté sans dérogation** : le conteneur Semgrep tourne réseau coupé, comme
+gitleaks et checkov. Aucun code source ne sort de la machine, et il n'y a pas de mode
+cloud à rendre opt-in puisqu'il n'y en a pas.
 
 ## 9bis. Statut d'implémentation (2026-07-28)
 

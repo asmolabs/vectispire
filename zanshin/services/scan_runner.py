@@ -51,6 +51,31 @@ AI_REVIEW_EXCLUDED_DIRS = {".git", "node_modules", ".venv", "__pycache__", "dist
 # of the code). Keeping the target in its own directory means anything
 # walking the source tree can never reach them, whatever gets added later.
 SOURCE_SUBDIR = "source"
+# Sibling of SOURCE_SUBDIR holding the Semgrep rule tree for the duration of the scan.
+#
+# Copying rules into the workspace looks like a detour — they already exist on disk next
+# to this module — but it is the only placement that works everywhere. Volume paths are
+# resolved by the *Docker daemon*, not by the process calling it: when Zanshin itself
+# runs in a container with the socket mounted, a directory inside Zanshin's image is
+# invisible to the sibling Semgrep container. The workspace is the one path both sides
+# already agree on, because every other scanner is handed files through it.
+#
+# It sits outside SOURCE_SUBDIR for the same reason `sbom.json` and the gitleaks report
+# do: nothing that walks the scanned tree — the AI review sample above all — must be able
+# to reach Zanshin's own files.
+RULES_SUBDIR = "rules"
+# Where the shipped rules live. `zanshin/services/scanners/rules/semgrep/`, resolved
+# relative to this file so it works from a checkout, an installed package and the agent
+# image alike.
+BUILTIN_SEMGREP_RULES_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "scanners", "rules", "semgrep"
+)
+# Optional second rule tree, provided by the operator. Zanshin ships only its own rules:
+# the upstream Semgrep registry rules are licensed in a way that forbids redistributing
+# them, so anyone wanting that breadth installs it here themselves
+# (`scripts/fetch_semgrep_rules.py`). Read from the environment rather than the database
+# because a remote agent has neither.
+OPERATOR_SEMGREP_RULES_ENV_VAR = "ZANSHIN_SEMGREP_RULES_DIR"
 # Size cap for the source sample sent to the model: no chunking/RAG, just a
 # straightforward "read files in order until the budget is used up" — good
 # enough for the "minimal review" this feature is scoped to, but it means
@@ -142,6 +167,20 @@ class ScanRunner:
                 step("Analyse des manifestes Infrastructure-as-Code")
                 artifacts.iac = self.scanner_engine.scan_iac(temp_dir, scan_target)
 
+                if task.run_sast:
+                    rules_sub_path = self._stage_semgrep_rules(temp_dir)
+                    if rules_sub_path is None:
+                        # No rule at all would make Semgrep exit non-zero, and a "SAST
+                        # found nothing" result from a run with no rules would resolve
+                        # the target's whole SAST backlog. Leaving `artifacts.sast` at
+                        # `None` says the analysis did not happen.
+                        step("Analyse du code source ignorée : aucune règle Semgrep disponible")
+                    else:
+                        step("Analyse du code source (motifs vulnérables et de qualité)")
+                        artifacts.sast = self.scanner_engine.scan_sast(
+                            temp_dir, scan_target, rules_sub_path
+                        )
+
                 if task.collect_code_sample:
                     # `source_dir`, not `temp_dir`: the review must only ever
                     # see the checkout, never the pipeline's own artifacts (see
@@ -154,6 +193,44 @@ class ScanRunner:
         finally:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def _stage_semgrep_rules(self, temp_dir: str) -> Optional[str]:
+        """Copy the rule trees into the workspace; return their path relative to it.
+
+        Two sources, merged into one directory: the rules Zanshin ships, and whatever the
+        operator installed (see `OPERATOR_SEMGREP_RULES_ENV_VAR`). They land in separate
+        sub-directories so a rule id collision between the two is visible as two files
+        rather than one silently overwriting the other.
+
+        Returns `None` when neither source yields a single rule file — the caller must
+        not run Semgrep with an empty config, since "no rules, no findings" is
+        indistinguishable from "clean code" once it reaches the ingestor.
+        """
+        destination = os.path.join(temp_dir, RULES_SUBDIR)
+        sources = [("builtin", BUILTIN_SEMGREP_RULES_DIR)]
+        operator_dir = (os.getenv(OPERATOR_SEMGREP_RULES_ENV_VAR) or "").strip()
+        if operator_dir:
+            sources.append(("operator", operator_dir))
+
+        staged = 0
+        for name, source in sources:
+            if not os.path.isdir(source):
+                logger.warning("Semgrep rule directory %s does not exist: %s", name, source)
+                continue
+            target = os.path.join(destination, name)
+            shutil.copytree(source, target, dirs_exist_ok=True)
+            staged += sum(
+                1
+                for _, _, files in os.walk(target)
+                for filename in files
+                if filename.endswith((".yaml", ".yml"))
+            )
+
+        if not staged:
+            logger.error("No Semgrep rule file found — skipping the SAST step")
+            return None
+        logger.info("Staged %d Semgrep rule file(s) for this scan", staged)
+        return RULES_SUBDIR
 
     def _make_workspace(self, task: ScanTask) -> str:
         # `get_workspace_root()` returns None for every backend except

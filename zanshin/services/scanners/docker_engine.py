@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import docker
 import requests
@@ -47,6 +47,14 @@ def _is_timeout(error: Exception) -> bool:
     if isinstance(error, (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout)):
         return True
     return "timed out" in str(error).lower() or "timeout" in type(error).__name__.lower()
+
+
+def _strip_prefix(path: Optional[str], prefix: str) -> Optional[str]:
+    """Container-side path to repository-relative path."""
+    if not path:
+        return path
+    stripped = path[len(prefix):] if path.startswith(prefix) else path
+    return stripped.lstrip("/") or path
 
 
 def _collapse(raw: bytes) -> str:
@@ -135,7 +143,7 @@ class DockerScannerEngine(ScannerEngine):
 
     # Pinned by digest, not by tag.
     #
-    # These four images *are* Zanshin's supply chain: they run on the host with
+    # These five images *are* Zanshin's supply chain: they run on the host with
     # the Docker socket mounted, so whoever controls `anchore/syft:latest`
     # controls this machine. A moving tag also means a scan is not reproducible —
     # two runs a week apart can disagree and nobody can say why.
@@ -159,7 +167,18 @@ class DockerScannerEngine(ScannerEngine):
         "ZANSHIN_CHECKOV_IMAGE",
         "bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144",
     )
+    SEMGREP_IMAGE = os.getenv(
+        "ZANSHIN_SEMGREP_IMAGE",
+        "semgrep/semgrep@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8",
+    )
     GITLEAKS_REPORT_FILENAME = "zanshin-gitleaks-report.json"
+
+    # Fraction of target files Semgrep may fail on before its result is treated as "did
+    # not run" rather than "found nothing". Semgrep exits 0 when individual files time
+    # out, so a run where most of the repository was skipped is indistinguishable from a
+    # clean one by its exit code alone — and reading it as clean would resolve the
+    # target's whole SAST backlog.
+    SEMGREP_MAX_ERROR_RATIO = 0.25
 
     def _docker_client(self):
         return docker.from_env()
@@ -358,7 +377,7 @@ class DockerScannerEngine(ScannerEngine):
             content = f.read().strip()
         return json.loads(content) if content else []
 
-    def scan_iac(self, work_dir: str, sub_path: str = "") -> list:
+    def scan_iac(self, work_dir: str, sub_path: str = "") -> Optional[list]:
         target = f"/repo/{sub_path}" if sub_path else "/repo"
 
         # --soft-fail: checkov exits 1 by default when it finds failed
@@ -373,10 +392,14 @@ class DockerScannerEngine(ScannerEngine):
             )
         except Exception:
             # checkov's exact CLI/output behavior varies across versions and
-            # detected frameworks; treat any failure to run or parse as "no
-            # IaC findings this time" rather than failing the whole scan.
+            # detected frameworks, so a failure here must not sink the whole scan.
+            #
+            # It returns `None`, not `[]`, and that changed: `[]` means "analysed,
+            # clean", which `ScanIngestor` reads as licence to resolve every IaC issue
+            # the target has. A checkov crash would therefore have declared a repository
+            # fixed. `None` says nothing was looked at, and the backlog is left alone.
             logger.exception("checkov IaC scan failed or returned unparsable output — skipping")
-            return []
+            return None
 
         # checkov returns a single report object when one framework (e.g.
         # terraform) is detected, or a list of report objects when several
@@ -386,3 +409,90 @@ class DockerScannerEngine(ScannerEngine):
         for report in reports:
             failed_checks.extend((report.get("results") or {}).get("failed_checks", []))
         return failed_checks
+
+    def scan_sast(
+        self, work_dir: str, sub_path: str = "", rules_sub_path: str = ""
+    ) -> Optional[list]:
+        """Run Semgrep over the checkout with the rules the runner placed in the workspace.
+
+        Several details here were established against the real image rather than assumed,
+        and each of them is load-bearing:
+
+        - **`semgrep` heads the command.** The image has no entrypoint (its `Cmd` is
+          `["semgrep", "--help"]`), unlike `bridgecrew/checkov` — copying the shape of
+          `scan_iac` would produce a nonsense command line and exit 2.
+        - **`--no-rewrite-rule-ids`.** With `--config` pointing at a *directory*, Semgrep
+          prefixes every `check_id` with the rule file's relative path. Reorganising the
+          rule tree would therefore rename every identifier — and the identifier is part
+          of an issue's fingerprint, so every SAST finding would resolve and reappear as
+          new, losing its triage.
+        - **No `--error`.** `semgrep scan` exits 0 when it finds something (it is
+          `semgrep ci` that exits 1), so there is no `--soft-fail` equivalent to pass and
+          any non-zero code is a genuine failure. `_run_container_json` already treats it
+          that way.
+        - **Network disabled**, like gitleaks and checkov: the rules are on disk, and
+          `--metrics=off` / `--disable-version-check` stop Semgrep from spending its
+          startup in a DNS timeout trying to reach semgrep.dev.
+        - **`--max-memory` sits below `SCAN_MEMORY_LIMIT`**, so a large repository
+          degrades through Semgrep's own limiter rather than being OOM-killed at 137.
+        """
+        target = f"/repo/{sub_path}" if sub_path else "/repo"
+        rules = f"/repo/{rules_sub_path}" if rules_sub_path else "/repo"
+        label = "semgrep (analyse du code source)"
+
+        try:
+            payload = self._run_container_json(
+                self.SEMGREP_IMAGE,
+                [
+                    "semgrep", "scan",
+                    f"--config={rules}",
+                    "--no-rewrite-rule-ids",
+                    "--json",
+                    "--metrics=off",
+                    "--disable-version-check",
+                    "--quiet",
+                    "--timeout=30",
+                    "--timeout-threshold=3",
+                    "--max-target-bytes=1000000",
+                    "--max-memory=1500",
+                    "--jobs=2",
+                    target,
+                ],
+                {os.path.abspath(work_dir): {"bind": "/repo", "mode": "ro"}},
+                label,
+            )
+        except Exception:
+            # `None`, not `[]` — see `scan_iac` above and `ScannerEngine.scan_sast`.
+            # This catch also covers `ScannerTimeoutError`, which is raised from
+            # `container.wait` rather than from parsing: Semgrep is the first scanner for
+            # which the global timeout is a plausible normal outcome on a large
+            # repository, and a timed-out run knows nothing about the code.
+            logger.exception("semgrep SAST scan failed or returned unparsable output — skipping")
+            return None
+
+        # A rule that fails to load is reported in `errors` while the run still exits 0.
+        # One malformed file aborts everything (`code 7`, nothing scanned), which would
+        # otherwise read as a clean repository.
+        errors = payload.get("errors") or []
+        scanned = (payload.get("paths") or {}).get("scanned") or []
+        if not scanned:
+            logger.error("semgrep scanned no file at all (%d error(s)) — treating as not run", len(errors))
+            return None
+        if errors and len(errors) > self.SEMGREP_MAX_ERROR_RATIO * len(scanned):
+            logger.error(
+                "semgrep reported %d error(s) over %d scanned file(s) — treating as not run",
+                len(errors), len(scanned),
+            )
+            return None
+        if errors:
+            logger.warning("semgrep reported %d non-fatal error(s)", len(errors))
+
+        # Paths come back container-side (`/repo/source/app/main.py`). They are rewritten
+        # here, in the one place that knows what `/repo` was mounted from, so that every
+        # backend hands the ingestor the same repository-relative path — and because the
+        # path is part of an issue's fingerprint, which must not depend on where the scan
+        # happened to run.
+        results = payload.get("results") or []
+        for result in results:
+            result["path"] = _strip_prefix(result.get("path"), target)
+        return results

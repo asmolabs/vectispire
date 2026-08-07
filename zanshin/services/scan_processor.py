@@ -79,6 +79,7 @@ class ScanProcessor:
         issue_service: Optional[IssueService] = None,
         notification_service: Optional[NotificationService] = None,
         eol_service: Optional[EolService] = None,
+        sast_service=None,
     ):
         # Only needed to build a `ScanTask`: the deploy key has to be decrypted
         # before it reaches a runner, because a runner — local or remote — has no
@@ -92,6 +93,7 @@ class ScanProcessor:
             issue_service=issue_service,
             notification_service=notification_service,
             eol_service=eol_service,
+            sast_service=sast_service,
         )
 
     # The collaborators stay readable as attributes: `IoCContainer`, the
@@ -238,6 +240,7 @@ class ScanProcessor:
             sub_path=sub_path or "",
             ssh_private_key=private_key,
             collect_code_sample=self.ingestor.wants_code_sample(is_container=False),
+            run_sast=self.ingestor.wants_sast(is_container=False),
         )
 
     # --- Delegates -------------------------------------------------------

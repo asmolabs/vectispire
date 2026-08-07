@@ -64,6 +64,9 @@ class ScanTask(BaseModel):
     # the control plane (it knows whether the feature is on) and executed by the
     # runner (it is the only one holding the checkout).
     collect_code_sample: bool = False
+    # Whether to run the Semgrep step. Same division of labour as above: the setting
+    # lives in the database, and an agent has no database.
+    run_sast: bool = False
 
     @property
     def is_container(self) -> bool:
@@ -86,8 +89,23 @@ class ScanArtifacts(BaseModel):
     cves: Dict[str, Any] = Field(default_factory=dict)
     # gitleaks report entries; empty for container targets.
     secrets: List[Dict[str, Any]] = Field(default_factory=list)
-    # checkov failed checks; empty for container targets.
-    iac: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # The three fields below distinguish `[]` from `None`, and the distinction is the
+    # whole point: `[]` means "the analysis ran and found nothing", which is what lets
+    # the control plane *resolve* a target's outstanding issues of that kind. `None`
+    # means it did not run — the step was disabled, the backend cannot do it, the tool
+    # crashed — and the backlog must then be left exactly as it was.
+    #
+    # `Optional` rather than a parallel `*_ran` boolean because a boolean can disagree
+    # with its payload and this cannot; and because an agent built before a field existed
+    # leaves it unset, which lands on the correct behaviour for free (no
+    # `CONTRACT_VERSION` bump needed for an optional field).
+
+    # checkov failed checks; `None` for container targets and on a checkov failure.
+    iac: Optional[List[Dict[str, Any]]] = None
+    # Semgrep `results` entries; `None` for container targets, when the SAST step is
+    # switched off, and on any Semgrep failure.
+    sast: Optional[List[Dict[str, Any]]] = None
     # Size-capped concatenation of source files, present only when the task
     # asked for it. Sent to the model by the control plane, not by the runner —
     # an agent has no reason to hold an Ollama URL.

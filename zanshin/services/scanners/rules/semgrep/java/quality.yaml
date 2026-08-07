@@ -1,0 +1,53 @@
+# Zanshin's own Semgrep rules — Java, code quality.
+rules:
+  - id: zanshin-java-empty-catch
+    message: >-
+      Exception avalée sans trace : quand ce chemin se déclenchera en production, il n'y
+      aura rien à lire. Journalisez-la, ou commentez pourquoi elle est ignorable.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: correctness
+      confidence: HIGH
+    pattern: |
+      try { ... } catch($TYPE $E) { }
+
+  - id: zanshin-java-print-stack-trace
+    message: >-
+      `printStackTrace()` écrit sur la sortie d'erreur, hors du système de journalisation :
+      la trace n'a ni horodatage, ni niveau, ni corrélation, et n'arrive nulle part en
+      production. Passez-la au journal.
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: maintainability
+      confidence: HIGH
+    pattern: $E.printStackTrace(...)
+
+  - id: zanshin-java-system-out-println
+    message: >-
+      Écriture directe sur la sortie standard : invisible pour la collecte de journaux et
+      impossible à filtrer par niveau. Utilisez le journal.
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: maintainability
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: System.out.println(...)
+      - pattern: System.err.println(...)
+
+  - id: zanshin-java-string-concatenation-in-loop
+    message: >-
+      Concaténer une chaîne dans une boucle recrée l'ensemble à chaque tour : le coût est
+      quadratique. Utilisez `StringBuilder`.
+    languages: [java]
+    severity: INFO
+    metadata:
+      category: performance
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: |
+          for (...) { ... $S += $X; ... }
+      - pattern: |
+          while (...) { ... $S += $X; ... }

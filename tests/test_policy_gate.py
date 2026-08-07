@@ -230,3 +230,50 @@ def test_excluding_ai_review_does_not_hide_the_real_scanners():
 
     assert verdict.evaluated == 4
     assert len(verdict.violations) == 4
+
+
+# --- Code quality ---
+
+
+def test_quality_findings_never_fail_a_build():
+    """Enabling a code scanner produces hundreds of style findings on a mature
+    repository in one afternoon. A gate that turns red that morning is a gate somebody
+    switches off by lunchtime — so quality is excluded whatever its severity."""
+    verdict = evaluate([_issue(type="quality", severity="critical")], GatePolicy())
+
+    assert verdict.passed is True
+    assert verdict.evaluated == 0
+
+
+def test_there_is_no_policy_flag_to_let_quality_in():
+    """Unlike the AI review, this exclusion has no opt-in. An option would turn "quality
+    never blocks" into a statement with an asterisk, and the rule is worth more as an
+    invariant than as a default."""
+    permissive = GatePolicy(include_ai_review=True, include_triaged=True)
+
+    verdict = evaluate([_issue(type="quality", severity="critical")], permissive)
+
+    assert verdict.passed is True
+    assert "quality" not in GatePolicy._fields
+
+
+def test_the_security_half_of_semgrep_does_fail_a_build():
+    """The other side of the split: `sast` is an ordinary security finding, gated like
+    any other. A security rule miscategorised as quality would silently stop blocking."""
+    verdict = evaluate([_issue(type="sast", severity="critical")], GatePolicy())
+
+    assert verdict.passed is False
+    assert verdict.violations[0].rule == "severity"
+
+
+def test_quality_does_not_dilute_the_counts_of_a_failing_verdict():
+    issues = [
+        _issue(type="quality", severity="critical"),
+        _issue(type="quality", severity="high"),
+        _issue(type="sast", severity="high"),
+    ]
+
+    verdict = evaluate(issues, GatePolicy())
+
+    assert verdict.evaluated == 1
+    assert verdict.counts_by_severity == {"high": 1}

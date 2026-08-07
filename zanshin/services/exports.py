@@ -79,7 +79,12 @@ _ISSUE_TYPE_LABEL = {
     "secret": "Secret exposé",
     "iac": "Configuration d'infrastructure",
     "license": "Licence",
+    # Was missing, so end-of-life issues exported with the raw string `eol` as their
+    # heading — a pre-existing gap, found while adding the two below.
+    "eol": "Fin de vie",
     "ai_review": "Revue IA",
+    "sast": "Code vulnérable",
+    "quality": "Qualité du code",
 }
 
 
@@ -234,6 +239,15 @@ def build_sarif_document(
     }
 
 
+def _sarif_tags(issue: Issue) -> List[str]:
+    """`security` only for what is genuinely a security finding."""
+    from zanshin.services.policy_gate import QUALITY_TYPES
+
+    if issue.type in QUALITY_TYPES:
+        return ["quality", issue.type]
+    return ["security", issue.type]
+
+
 def _sarif_rule_id(issue: Issue) -> str:
     """Stable, and namespaced by type.
 
@@ -251,7 +265,11 @@ def _sarif_rule(issue: Issue, rule_id: str) -> Dict[str, Any]:
         "id": rule_id,
         "name": (issue.identifier or issue.type).replace(" ", ""),
         "shortDescription": {"text": f"{label} : {issue.identifier or 'non identifié'}"},
-        "properties": {"tags": ["security", issue.type]},
+        # The `security` tag is what makes GitHub file a result as a code-scanning
+        # *security alert*. It used to be applied to every issue, which was harmless
+        # while every issue was a security issue — a code-quality finding uploaded that
+        # way would be raised as a vulnerability in somebody's security dashboard.
+        "properties": {"tags": _sarif_tags(issue)},
     }
     if issue.description:
         rule["fullDescription"] = {"text": issue.description[:1000]}

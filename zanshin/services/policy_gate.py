@@ -28,6 +28,8 @@ Design decisions worth stating:
   reverse is just as bad: LLM noise in a gate teaches people to disable the gate.
   They stay visible in the backlog, where a human weighs them; they do not get a
   vote on a build. `include_ai_review` exists for a team that decides otherwise.
+- **Code-quality findings never fail a build**, and unlike the AI review that one
+  has no opt-in — see `QUALITY_TYPES`.
 """
 from typing import Iterable, List, NamedTuple, Optional
 
@@ -40,8 +42,22 @@ DEFAULT_FAIL_ON_SEVERITY = "high"
 
 # Finding types produced by a deterministic scanner. `ai_review` is deliberately
 # absent — see the module docstring.
-DETERMINISTIC_TYPES = ("vulnerability", "secret", "iac", "license", "eol")
+DETERMINISTIC_TYPES = ("vulnerability", "secret", "iac", "license", "eol", "sast")
 AI_REVIEW_TYPE = "ai_review"
+
+# Types that describe how the code is written rather than whether it is safe. Excluded
+# from every verdict, unconditionally and with no policy flag to re-enable them.
+#
+# The reason is the one the module docstring gives for AI findings, arrived at from the
+# other direction: a quality backlog is large by nature — enabling the Semgrep step on a
+# mature repository produces hundreds of entries in one afternoon — and a gate that turns
+# red on the day somebody switches on a linter is a gate that gets switched off. They are
+# visible in the backlog, they are exportable, they simply do not get a vote on a build.
+#
+# No `GatePolicy` flag on purpose: an option would make "quality never blocks" a
+# statement with an asterisk, and this rule is worth more as an invariant than as a
+# default.
+QUALITY_TYPES = ("quality",)
 
 
 class GatePolicy(NamedTuple):
@@ -136,6 +152,8 @@ def evaluate(issues: Iterable[Issue], policy: GatePolicy) -> GateVerdict:
 
 def _is_considered(issue: Issue, policy: GatePolicy) -> bool:
     if issue.state != STATE_OPEN:
+        return False
+    if issue.type in QUALITY_TYPES:
         return False
     if issue.type == AI_REVIEW_TYPE and not policy.include_ai_review:
         return False

@@ -19,6 +19,13 @@ Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and
 - **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
 - **End-of-life detection** (endoflife.date): flags platforms and runtimes whose security support has ended — the container's own distribution first of all. A whole class of risk with no CVE attached: nothing will be fixed for the *next* vulnerability, whatever it turns out to be. Coverage is deliberately scoped to products (languages, runtimes, frameworks, distributions), not every library.
 - **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
+- **Source-code analysis** (Semgrep, off by default): reads the code itself — a
+  concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
+  which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
+  like any vulnerability, and *quality* ones, which are visible in the backlog and can
+  never fail a CI gate. Runs with the network disabled, using rules that ship with
+  Zanshin; see [the rule directory](zanshin/services/scanners/rules/semgrep/README.md)
+  for how to add your own.
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
 - **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?" against a **stored, versioned policy** — global, or per target. The rules used to arrive in the request body, which meant each project decided its own bar; a request can now only *tighten* the stored policy, never loosen it, and the verdict says which policy it applied. Authenticated with the API keys the UI issues.
@@ -34,7 +41,7 @@ The central design choice is the `ScannerEngine` interface (`zanshin/services/sc
 
 | Backend | SBOM / secrets / IaC generation | Vulnerability matching | Use case |
 |---|---|---|---|
-| `docker` (default) | Ephemeral Docker containers (Syft/gitleaks/checkov) | Grype (local container) | No external dependency, fully local |
+| `docker` (default) | Ephemeral Docker containers (Syft/gitleaks/checkov/Semgrep) | Grype (local container) | No external dependency, fully local |
 | `osv` | Delegated to the local Docker backend | OSV.dev cloud API (free) | CVE matching without maintaining Grype locally |
 | `local_api` | HTTP sidecar service (`scan-api/`), same host, shared disk | Same, via the sidecar | Removes Docker socket access from the main process |
 
@@ -196,6 +203,7 @@ Three things are *not* runtime settings, because they have to exist before the a
 | Variable | Required | Purpose |
 |---|---|---|
 | `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. |
+| `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. Zanshin only carries its own: the public Semgrep rule sets are not redistributable, so `scripts/fetch_semgrep_rules.py` installs the set you choose on your own machine. Run once at install time — the scan itself stays offline. |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
@@ -320,6 +328,13 @@ Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côt�
 - **Conformité des licences** : évaluation d'une liste noire de licences configurable, à partir des données déjà présentes dans le SBOM.
 - **Détection de fin de vie** (endoflife.date) : signale les plateformes et exécutions dont le support de sécurité est terminé — la distribution du conteneur en premier lieu. Toute une classe de risque sans CVE : aucun correctif ne sera publié pour la *prochaine* faille, quelle qu'elle soit. La couverture porte volontairement sur des produits (langages, exécutions, frameworks, distributions), pas sur chaque bibliothèque.
 - **Scan IaC** (checkov) : détection de mauvaises configurations Terraform/Kubernetes dans les dépôts.
+- **Analyse du code source** (Semgrep, désactivée par défaut) : lit le code lui-même —
+  requête SQL concaténée, commande passée au shell, certificat TLS non vérifié — ce
+  qu'aucun autre scanner ne voit ici. Produit deux natures de constats : *sécurité*,
+  traités comme toute vulnérabilité, et *qualité*, visibles dans le backlog mais
+  incapables de faire échouer un gate CI. Tourne réseau coupé, avec des règles embarquées
+  dans Zanshin ; voir [le répertoire de règles](zanshin/services/scanners/rules/semgrep/README.md)
+  pour en ajouter.
 - **Suivi et triage des problèmes** : chaque finding est suivi d'un scan à l'autre sous forme de *problème* — première détection, nombre de fois vu, existence d'un correctif, et décision de triage en vocabulaire VEX (affecté / non affecté / corrigé / à examiner) avec justification, et éventuellement une **date de révision**. Une suppression porte sur un contexte — « pas atteignable dans notre configuration », « pas livré en production » — et les contextes changent ; à l'échéance, le problème revient *à examiner*, justification et commentaire conservés. Chaque scan indique ce qu'il a **changé** : problèmes apparus, problèmes résolus.
 - **Rescan périodique** : chaque cible porte un intervalle de scan, honoré par un ordonnanceur intégré — l'intérêt étant que de nouvelles vulnérabilités apparaissent dans du code qui n'a pas bougé.
 - **API HTTP et *policy gate* CI** : déclencher un scan, lire les problèmes, et demander « ce build doit-il échouer ? » selon une **politique stockée et versionnée** — globale, ou par cible. Ces règles arrivaient auparavant dans le corps de la requête, donc chaque projet décidait du seuil qu'on lui appliquait ; une requête peut désormais seulement *durcir* la politique stockée, jamais l'assouplir, et le verdict indique laquelle a été appliquée. Authentifiée par les clés API émises depuis l'UI.
@@ -335,7 +350,7 @@ Le choix de conception central est l'interface `ScannerEngine` (`zanshin/service
 
 | Backend | Génération SBOM / secrets / IaC | Matching de vulnérabilités | Cas d'usage |
 |---|---|---|---|
-| `docker` (défaut) | Conteneurs Docker éphémères (Syft/gitleaks/checkov) | Grype (conteneur local) | Aucune dépendance externe, 100 % local |
+| `docker` (défaut) | Conteneurs Docker éphémères (Syft/gitleaks/checkov/Semgrep) | Grype (conteneur local) | Aucune dépendance externe, 100 % local |
 | `osv` | Délégué au backend Docker local | API cloud OSV.dev (gratuite) | Matching CVE sans maintenir Grype localement |
 | `local_api` | Service HTTP sidecar (`scan-api/`), même hôte, disque partagé | Idem, via le sidecar | Retire l'accès au socket Docker du processus principal |
 
@@ -558,6 +573,7 @@ Trois éléments ne sont *pas* des réglages runtime, parce qu'ils doivent exist
 | Variable | Requise | Rôle |
 |---|---|---|
 | `ENCRYPTION_KEY` | Pour stocker des clés SSH | Clé de 32 octets utilisée pour chiffrer les clés SSH privées et les jetons (AES-GCM). Sans elle, l'enregistrement d'un secret est refusé, au lieu de l'écrire sous quelque chose qui ne le protège pas. L'application ne transporte plus de clé par défaut : elle en publiait une dans son propre code, si bien qu'une copie du fichier de base suffisait à lire toutes les clés privées stockées. |
+| `ZANSHIN_SEMGREP_RULES_DIR` | Pour élargir la couverture de Semgrep | Un répertoire de règles Semgrep supplémentaires, fusionné avec celles que Zanshin embarque. Zanshin ne transporte que les siennes : les jeux de règles publics de Semgrep ne sont pas redistribuables, donc `scripts/fetch_semgrep_rules.py` installe sur votre machine celui que vous choisissez. À lancer une fois, à l'installation — le scan lui-même reste hors ligne. |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | Pour faire tourner `ENCRYPTION_KEY` | Anciennes clés séparées par des virgules, essayées **au déchiffrement uniquement**. Les valeurs basculent sur la clé courante au fil des réenregistrements, et la page *Clés SSH* signale les lignes qui dépendent encore d'une ancienne — la variable se retire quand il n'en reste plus. C'est aussi par là qu'une valeur chiffrée avec l'ancienne clé par défaut publiée se relit une dernière fois ; voir [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | Premier démarrage | Nom du SUPERUSER initial, créé au démarrage quand la table `user` est vide. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | Premier démarrage | Son mot de passe (8 caractères minimum). |

@@ -9,6 +9,7 @@ from zanshin.models.issue import (
     TRIAGE_UNDER_REVIEW,
     Issue,
 )
+from zanshin.services.policy_gate import QUALITY_TYPES
 
 
 def _desc_nulls_last(column):
@@ -45,6 +46,12 @@ class IssueRepository:
         The `ticket_ref IS NULL` filter is what makes the sweep idempotent: an issue
         that already has a ticket is never a candidate again, so a retry after a
         tracker outage cannot duplicate anything.
+
+        Quality issues are excluded in SQL rather than skipped by the caller, and that
+        placement is the point. The sweep takes the worst `limit` candidates per tick and
+        the gate then refuses to ticket a quality issue — so filtering afterwards would
+        leave every tick spending its whole window on rows it will discard, forever,
+        while genuine findings queue behind them.
         """
         return (
             self.db.query(Issue)
@@ -52,6 +59,7 @@ class IssueRepository:
                 Issue.state == STATE_OPEN,
                 Issue.triage_status.in_((TRIAGE_UNDER_REVIEW, TRIAGE_AFFECTED)),
                 Issue.ticket_ref.is_(None),
+                Issue.type.notin_(QUALITY_TYPES),
             )
             .order_by(Issue.is_kev.desc(), _SEVERITY_RANK, Issue.id)
             .limit(limit)
@@ -220,13 +228,20 @@ class IssueRepository:
         )
         return {owner_id: count for owner_id, count in rows}
 
-    def count_by_state_and_triage(self) -> Dict[str, int]:
-        """Global tallies for the issues screen's KPI row, in one query."""
-        rows = (
-            self.db.query(Issue.state, Issue.triage_status, func.count(Issue.id))
-            .group_by(Issue.state, Issue.triage_status)
-            .all()
-        )
+    def count_by_state_and_triage(self, exclude_types: Iterable[str] = ()) -> Dict[str, int]:
+        """Global tallies for the issues screen's KPI row, in one query.
+
+        `exclude_types` exists for the quality backlog. "Problèmes à traiter" is the
+        number somebody reports upward, and it has always meant security work; letting a
+        few hundred style findings into it would change what the figure means overnight
+        without anyone deciding to. The caller passes the exclusion rather than it being
+        hardcoded, because a page dedicated to quality wants the opposite view.
+        """
+        query = self.db.query(Issue.state, Issue.triage_status, func.count(Issue.id))
+        exclude_types = tuple(exclude_types)
+        if exclude_types:
+            query = query.filter(Issue.type.notin_(exclude_types))
+        rows = query.group_by(Issue.state, Issue.triage_status).all()
         counts = {"total": 0, "open": 0, "resolved": 0, "actionable": 0}
         for state, triage_status, count in rows:
             counts["total"] += count
@@ -236,13 +251,16 @@ class IssueRepository:
             counts[f"triage_{triage_status}"] = counts.get(f"triage_{triage_status}", 0) + count
         return counts
 
-    def count_open_by_severity(self) -> Dict[str, int]:
-        rows = (
-            self.db.query(Issue.severity, func.count(Issue.id))
-            .filter(Issue.state == STATE_OPEN)
-            .group_by(Issue.severity)
-            .all()
+    def count_open_by_severity(self, exclude_types: Iterable[str] = ()) -> Dict[str, int]:
+        """Open issues per severity bucket. See `count_by_state_and_triage` for why the
+        caller decides which types to leave out."""
+        query = self.db.query(Issue.severity, func.count(Issue.id)).filter(
+            Issue.state == STATE_OPEN
         )
+        exclude_types = tuple(exclude_types)
+        if exclude_types:
+            query = query.filter(Issue.type.notin_(exclude_types))
+        rows = query.group_by(Issue.severity).all()
         return {(severity or "unknown"): count for severity, count in rows}
 
     def save(self, issue: Issue) -> Issue:

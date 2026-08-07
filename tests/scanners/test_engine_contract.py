@@ -28,6 +28,16 @@ SBOM = {"artifacts": [{"name": "libfoo", "version": "1.0", "purl": "pkg:deb/libf
 GRYPE_OUTPUT = {"matches": [{"vulnerability": {"id": "CVE-1", "severity": "High"}, "artifact": {}}]}
 GITLEAKS_REPORT = [{"RuleID": "aws-key", "File": "app.py"}]
 CHECKOV_OUTPUT = {"results": {"failed_checks": [{"check_id": "CKV_AWS_1"}]}}
+SEMGREP_OUTPUT = {
+    "results": [{
+        "check_id": "zanshin-python-eval-exec",
+        "path": "/repo/source/app.py",
+        "start": {"line": 3},
+        "extra": {"message": "eval", "severity": "ERROR", "metadata": {"category": "security"}},
+    }],
+    "errors": [],
+    "paths": {"scanned": ["/repo/source/app.py"]},
+}
 
 
 class _FakeDockerHarness:
@@ -80,6 +90,8 @@ class _FakeDockerHarness:
 
     def _output_for(self, command):
         joined = " ".join(str(c) for c in command)
+        if joined.startswith("semgrep "):
+            return SEMGREP_OUTPUT
         if "sbom:" in joined:
             return GRYPE_OUTPUT
         if joined.startswith("-d "):
@@ -258,3 +270,46 @@ def test_no_engine_writes_into_the_scanned_directory(engine_case):
     engine.scan_sbom(harness.work_dir, SBOM)
 
     assert os.listdir(source_dir) == []
+
+
+# --- Source-code analysis (SAST) ----------------------------------------------
+#
+# `scan_sast` is the one method on the interface with a *concrete* default, and the
+# default is `None` — "this backend does not do SAST". That is not a stylistic choice:
+# `ScanIngestor` resolves a target's outstanding issues of every type a scan looked for,
+# so a backend answering `[]` because it cannot run Semgrep would declare the repository
+# clean and wipe its SAST backlog. The contract is therefore "a list, or None", and both
+# answers have to remain distinguishable through every backend.
+
+def test_every_backend_answers_sast_with_a_list_or_none(engine_case, tmp_path):
+    engine, _ = engine_case
+
+    result = engine.scan_sast(str(tmp_path), "source", "rules")
+
+    assert result is None or isinstance(result, list)
+
+
+def test_a_backend_that_cannot_do_sast_says_none_rather_than_nothing_found():
+    """The base implementation, which `LocalApiScannerEngine` inherits: the sidecar has
+    no Semgrep endpoint, and ADR-002 §8.4 has it slated for removal rather than
+    extension."""
+    class MinimalEngine(ScannerEngine):
+        generate_sbom_for_image = staticmethod(lambda *a, **k: {})
+        generate_sbom_for_directory = staticmethod(lambda *a, **k: {})
+        scan_sbom = staticmethod(lambda *a, **k: {})
+        scan_secrets = staticmethod(lambda *a, **k: [])
+        scan_iac = staticmethod(lambda *a, **k: [])
+
+    assert MinimalEngine().scan_sast("/tmp", "source", "rules") is None
+
+
+def test_the_osv_backend_delegates_sast_instead_of_dropping_it(tmp_path):
+    """OSV only replaces the *matching* step. Forgetting the delegation would leave
+    Semgrep silently never running for anyone on that backend."""
+    harness = _FakeOsvHarness()
+    harness.work_dir = str(tmp_path)
+    engine = harness.build()
+
+    result = engine.scan_sast(str(tmp_path), "source", "rules")
+
+    assert result is not None and len(result) == 1

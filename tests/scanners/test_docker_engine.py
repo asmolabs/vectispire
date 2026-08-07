@@ -215,10 +215,16 @@ def test_scan_iac_handles_list_shaped_checkov_output_multiple_frameworks(engine,
     assert {c["check_id"] for c in result} == {"CKV_K8S_1", "CKV_AWS_99"}
 
 
-def test_scan_iac_returns_empty_list_on_malformed_output(engine, tmp_path):
+def test_scan_iac_reports_none_rather_than_empty_on_malformed_output(engine, tmp_path):
+    """`None`, not `[]`, and the difference destroys data.
+
+    `[]` is the positive claim "checkov ran and this repository is clean", which is what
+    `ScanIngestor` acts on to *resolve* every outstanding IaC issue of the target. A
+    checkov crash returning `[]` therefore declared the repository fixed. `None` says
+    nothing was observed, and the backlog is left alone."""
     engine._docker_client = lambda: FakeClient(b"not valid json {{{")
 
-    assert engine.scan_iac(str(tmp_path)) == []
+    assert engine.scan_iac(str(tmp_path)) is None
 
 
 # --- stderr propagation -----------------------------------------------------

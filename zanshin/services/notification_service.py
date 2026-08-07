@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from zanshin.models.issue import Issue
-from zanshin.services.policy_gate import is_at_least
+from zanshin.services.policy_gate import QUALITY_TYPES, is_at_least
 from zanshin.services.settings_service import SettingsService
 from zanshin.services.url_guard import UnsafeUrlError, validate_outbound_url
 
@@ -82,10 +82,19 @@ class NotificationService:
         A known-exploited vulnerability passes regardless of its severity bucket
         when `always_on_kev` is set — that is the whole point of the KEV signal,
         and severity alone would drop a "medium" being exploited today.
+
+        Code-quality findings never qualify, whatever their severity. Semgrep maps its
+        `ERROR` level to `high`, which clears the default threshold, so the first scan of
+        a repository with the SAST step enabled would fire one webhook announcing several
+        hundred problems. Excluding the type is the honest fix; rating those findings
+        lower to keep them quiet would be a lie about their severity, and would also
+        change how they sort in the backlog.
         """
         threshold = self.min_severity()
         notable = []
         for issue in issues:
+            if issue.type in QUALITY_TYPES:
+                continue
             if self.always_on_kev() and issue.is_kev:
                 notable.append(issue)
             elif is_at_least(issue.severity, threshold):

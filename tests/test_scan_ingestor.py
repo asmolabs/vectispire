@@ -258,3 +258,135 @@ def test_issues_are_reconciled_from_ingested_artifacts(db_session, make_reposito
     ingestor.ingest(db_session, second, artifacts(cves={"matches": []}))
     db_session.refresh(second)
     assert (second.new_issues_count, second.resolved_issues_count) == (0, 1)
+
+
+# --- "Did not run" versus "found nothing" -------------------------------------
+#
+# The failure these close destroys data rather than losing a feature: a type listed as
+# scanned but absent from the findings is read as "the problem is gone", and its issues
+# are resolved. A crashed scanner must therefore look different from a clean one.
+
+SEMGREP_SECURITY_HIT = {
+    "check_id": "zanshin-python-eval-exec",
+    "path": "app/main.py",
+    "start": {"line": 12},
+    "extra": {
+        "message": "Appel à eval sur une valeur non littérale",
+        "severity": "ERROR",
+        "metadata": {"category": "security", "confidence": "HIGH"},
+    },
+}
+SEMGREP_QUALITY_HIT = {
+    "check_id": "zanshin-python-bare-except",
+    "path": "app/main.py",
+    "start": {"line": 30},
+    "extra": {
+        "message": "except nu",
+        "severity": "WARNING",
+        "metadata": {"category": "best-practice", "confidence": "HIGH"},
+    },
+}
+
+
+def _issue_types(db_session, repo_id):
+    from zanshin.models.issue import STATE_OPEN, Issue
+
+    return {
+        issue.type
+        for issue in db_session.query(Issue).filter(
+            Issue.repo_id == repo_id, Issue.state == STATE_OPEN
+        )
+    }
+
+
+def test_semgrep_results_split_into_security_and_quality_findings(
+    db_session, make_repository, make_scan
+):
+    from zanshin.services.sast_service import SastService
+
+    scan = make_scan(repo_id=make_repository().id, status="scanning")
+
+    ScanIngestor(sast_service=SastService()).ingest(
+        db_session, scan, artifacts(sast=[SEMGREP_SECURITY_HIT, SEMGREP_QUALITY_HIT])
+    )
+
+    findings = db_session.query(Finding).filter(Finding.scan_id == scan.id).all()
+    by_type = {f.type: f for f in findings}
+    assert {"sast", "quality"} <= set(by_type)
+    # The message is on the row, which is the whole reason `Finding.description` exists.
+    assert by_type["sast"].description == "Appel à eval sur une valeur non littérale"
+    assert by_type["sast"].severity == "high"
+    assert by_type["quality"].severity == "medium"
+
+
+def test_a_semgrep_failure_does_not_resolve_the_previous_findings(
+    db_session, make_repository, make_scan
+):
+    """`sast=None` is a crashed or disabled step. Reading it as "clean" would mark a
+    repository fixed on the strength of a scanner that never looked at it."""
+    from zanshin.services.sast_service import SastService
+
+    repo = make_repository()
+    ingestor = ScanIngestor(issue_service=IssueService(), sast_service=SastService())
+
+    first = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, first, artifacts(sast=[SEMGREP_SECURITY_HIT]))
+    assert "sast" in _issue_types(db_session, repo.id)
+
+    second = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, second, artifacts(sast=None))
+
+    assert "sast" in _issue_types(db_session, repo.id)
+
+
+def test_a_clean_semgrep_run_does_resolve_them(db_session, make_repository, make_scan):
+    """The other half — without it the `None` distinction would just be a way of never
+    resolving anything."""
+    from zanshin.services.sast_service import SastService
+
+    repo = make_repository()
+    ingestor = ScanIngestor(issue_service=IssueService(), sast_service=SastService())
+
+    first = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, first, artifacts(sast=[SEMGREP_SECURITY_HIT]))
+    assert "sast" in _issue_types(db_session, repo.id)
+
+    second = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, second, artifacts(sast=[]))
+
+    assert "sast" not in _issue_types(db_session, repo.id)
+
+
+def test_a_checkov_failure_does_not_resolve_the_previous_iac_findings(
+    db_session, make_repository, make_scan
+):
+    """The same defect, which existed before this work: `scan_iac` swallowed any failure
+    and returned `[]`, so a checkov crash declared the repository's infrastructure fixed."""
+    repo = make_repository()
+    ingestor = ScanIngestor(issue_service=IssueService())
+    iac_hit = [{"check_id": "CKV_AWS_1", "resource": "aws_s3_bucket.data", "file_path": "main.tf"}]
+
+    first = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, first, artifacts(iac=iac_hit))
+    assert "iac" in _issue_types(db_session, repo.id)
+
+    second = make_scan(repo_id=repo.id, status="scanning")
+    ingestor.ingest(db_session, second, artifacts(iac=None))
+
+    assert "iac" in _issue_types(db_session, repo.id)
+
+
+def test_semgrep_findings_stay_out_of_the_scan_summary(db_session, make_repository, make_scan):
+    """`summary` and `findings_count` count vulnerabilities: they feed `SeverityCounts`,
+    the dashboard and the OpenVEX export. Three hundred style findings folded in would
+    make a scan's headline number mean nothing."""
+    from zanshin.services.sast_service import SastService
+
+    scan = make_scan(repo_id=make_repository().id, status="scanning")
+
+    ScanIngestor(sast_service=SastService()).ingest(
+        db_session, scan, artifacts(sast=[SEMGREP_SECURITY_HIT, SEMGREP_QUALITY_HIT])
+    )
+
+    db_session.refresh(scan)
+    assert scan.findings_count == scan.summary["total"] == 1  # the single CVE

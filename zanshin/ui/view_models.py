@@ -197,6 +197,34 @@ class IacRow:
 
 
 @dataclasses.dataclass
+class SastRow:
+    """One Semgrep hit in a scan's detail panel.
+
+    Carries `message` where the other rows do not, and that is the whole reason this is
+    a separate row type rather than a reuse of `IacRow`: a checkov check id names the
+    problem (`CKV_AWS_18`, "S3 bucket without access logging"), whereas a Semgrep rule id
+    only names the rule. Without the message the panel would show an identifier, a file
+    and a line, and leave the reader to guess.
+
+    One line per occurrence, deliberately: the backlog groups every hit of one rule in
+    one file into a single issue, so this panel is the only place the individual lines
+    are visible.
+    """
+
+    severity: str = "medium"
+    severity_color: str = "gray"
+    rule_id: str = "N/A"
+    message: str = ""
+    file_path: str = "N/A"
+    line: str = ""
+    # `sast` (security) or `quality` — shown as a badge, because the two are gated
+    # differently and the difference is invisible otherwise.
+    kind: str = "sast"
+    kind_label: str = "Sécurité"
+    kind_color: str = "red"
+
+
+@dataclasses.dataclass
 class AiFindingRow:
     severity: str = "unknown"
     severity_color: str = "gray"

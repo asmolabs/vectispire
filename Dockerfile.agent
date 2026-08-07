@@ -34,12 +34,21 @@ COPY zanshin/__init__.py zanshin/scan_contract.py ./zanshin/
 COPY zanshin/agent/ ./zanshin/agent/
 COPY zanshin/services/__init__.py zanshin/services/scan_runner.py \
      zanshin/services/git_url.py ./zanshin/services/
+# Includes `scanners/rules/semgrep/` — Zanshin's own rules, which the runner copies
+# into each scan's workspace. A rule tree living only in this image would be invisible
+# to the sibling Semgrep container, since volume paths are resolved by the Docker
+# daemon; going through the workspace is what makes it reachable.
 COPY zanshin/services/scanners/ ./zanshin/services/scanners/
 
-# The agent runs Docker containers (syft/grype/gitleaks/checkov) through the host's
-# socket, so it needs it mounted — see docker-compose.agent.yml. That is a strong
+# The agent runs Docker containers (syft/grype/gitleaks/checkov/semgrep) through the
+# host's socket, so it needs it mounted — see docker-compose.agent.yml. That is a strong
 # privilege on the *agent's* host, which is precisely the point of moving scanning
 # off the machine that serves the UI.
+#
+# To widen Semgrep's coverage, install a third-party rule set on the agent's host
+# (`scripts/fetch_semgrep_rules.py`), mount it, and set ZANSHIN_SEMGREP_RULES_DIR. It is
+# deliberately not baked in: those rules are not Zanshin's to redistribute, so an image
+# built with them is fine for your own use and must not be published.
 ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT ["python", "-m", "zanshin.agent"]

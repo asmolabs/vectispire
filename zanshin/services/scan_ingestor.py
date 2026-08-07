@@ -32,8 +32,27 @@ from zanshin.services.license_compliance_service import LicenseComplianceService
 from zanshin.services.notification_service import NotificationService
 from zanshin.services.outbox_service import enqueue
 from zanshin.services.remediation import extract_remediation
+from zanshin.services.sast_service import SastService
 
 logger = logging.getLogger(__name__)
+
+def _descriptions_from_findings(findings) -> Dict[str, str]:
+    """Per-identifier free text for the issue layer, taken from the findings themselves.
+
+    `Issue.description` is filled from this map, keyed by identifier. That key cannot
+    distinguish two hits of one Semgrep rule in different files, so the issue keeps one
+    of their messages — acceptable, because those hits are one issue by fingerprint
+    anyway, and every individual message survives on its own `Finding.description` row,
+    which is what the per-scan detail panel reads.
+    """
+    if not findings:
+        return {}
+    return {
+        finding.identifier: finding.description
+        for finding in findings
+        if finding.identifier and finding.description
+    }
+
 
 class ScanIngestor:
     """Turns `ScanArtifacts` into everything the application knows about a scan.
@@ -52,6 +71,7 @@ class ScanIngestor:
         issue_service: Optional[IssueService] = None,
         notification_service: Optional[NotificationService] = None,
         eol_service: Optional[EolService] = None,
+        sast_service: Optional[SastService] = None,
     ):
         # Optional: EPSS/CISA-KEV scoring, run after a scan completes. Never
         # allowed to turn a successful scan into a failed one.
@@ -75,6 +95,22 @@ class ScanIngestor:
         # Optional: end-of-life detection over the same SBOM. Applies to both
         # branches, like the licence policy.
         self.eol_service = eol_service
+        # Optional: translation of the Semgrep step's output into `sast` and `quality`
+        # findings, and the owner of the setting that decides whether that step runs at
+        # all. Repository scans only — there is no source to read in an image.
+        self.sast_service = sast_service
+
+    def wants_sast(self, is_container: bool) -> bool:
+        """Whether a runner should run the Semgrep step.
+
+        Same split as `wants_code_sample`: the control plane holds the setting, the
+        runner holds the checkout, and a remote agent has no database to ask.
+        """
+        return (
+            not is_container
+            and self.sast_service is not None
+            and self.sast_service.is_enabled()
+        )
 
     def wants_code_sample(self, is_container: bool) -> bool:
         """Whether a runner should bother collecting a source sample.
@@ -100,9 +136,18 @@ class ScanIngestor:
         # names a package.
         directness = DependencyDirectness(artifacts.sbom)
         findings = self._build_findings(scan.id, artifacts.cves, directness)
+        # `None` versus `[]` on the two lines below is the same distinction the
+        # end-of-life step makes further down, and for the same reason: a scanner that
+        # crashed observed nothing, and reading its silence as "clean" would resolve
+        # every outstanding issue of that type. See `scanned_types_for`.
+        sast_findings = None
         if not is_container:
             findings.extend(self._build_secret_findings(scan.id, artifacts.secrets))
-            findings.extend(self._build_iac_findings(scan.id, artifacts.iac))
+            if artifacts.iac is not None:
+                findings.extend(self._build_iac_findings(scan.id, artifacts.iac))
+            if self.sast_service:
+                sast_findings = self.sast_service.build_findings(scan.id, artifacts.sast)
+                findings.extend(sast_findings or [])
         if self.license_compliance_service:
             # Applies to both branches: Syft produces license data for container
             # images just as much as for directories.
@@ -169,10 +214,14 @@ class ScanIngestor:
                         ai_review_ran=ai_findings is not None,
                         license_policy_ran=self.license_compliance_service is not None,
                         eol_ran=eol_findings is not None,
+                        iac_ran=artifacts.iac is not None,
+                        # One Semgrep run produces both types, so they enter together.
+                        sast_ran=sast_findings is not None,
                     ),
                     descriptions={
                         **self._collect_vulnerability_descriptions(artifacts.cves),
                         **self._collect_eol_descriptions(eol_findings),
+                        **_descriptions_from_findings(sast_findings),
                     },
                     # Enqueued inside the sync transaction: the notification
                     # becomes durable at the same instant as the issues it
@@ -377,6 +426,11 @@ class ScanIngestor:
             for finding in eol_findings
             if finding.identifier
         }
+
+    # --- Semgrep ---------------------------------------------------------
+    # `_build_sast_findings` deliberately does not exist here: the translation lives in
+    # `SastService`, because deciding whether a rule is a security or a quality finding
+    # is judgement rather than mapping, and it needs somewhere it can be explained.
 
     # --- AI review -------------------------------------------------------
 

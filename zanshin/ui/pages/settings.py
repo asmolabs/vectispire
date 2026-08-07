@@ -22,6 +22,7 @@ from zanshin.services.eol_service import (
     SETTING_KEY_EOL_WARN_DAYS,
 )
 from zanshin.services.policy_gate import DEFAULT_FAIL_ON_SEVERITY, SEVERITY_ORDER
+from zanshin.services.sast_service import SETTING_KEY_SAST_ENABLED
 from zanshin.services.ticket_service import (
     DEFAULT_JIRA_ISSUE_TYPE,
     DEFAULT_LABELS as DEFAULT_TICKET_LABELS,
@@ -124,6 +125,7 @@ class SettingsState(BaseState):
 
     # End-of-life detection
     eol_enabled: bool = True
+    sast_enabled: bool = False
     eol_warn_days_input: str = str(DEFAULT_EOL_WARN_DAYS)
 
     # Gate policy (global scope; per-target overrides are listed below it)
@@ -249,6 +251,7 @@ class SettingsState(BaseState):
 
     def _load_eol(self, container) -> None:
         self.eol_enabled = container.eol_service.is_enabled()
+        self.sast_enabled = container.sast_service.is_enabled()
         self.eol_warn_days_input = str(container.eol_service.warn_days())
 
     def _load_gate_policy(self, container) -> None:
@@ -291,6 +294,24 @@ class SettingsState(BaseState):
         self.ticket_token_input = ""
 
     # --- End-of-life detection ---
+
+    @requires_admin
+    def set_sast_enabled(self, value: bool):
+        container = get_container()
+        try:
+            container.sast_service.set_enabled(value)
+            container.audit_log_service.record(
+                AuditOperation.SETTING_UPDATED,
+                resource_id=SETTING_KEY_SAST_ENABLED,
+                description=f"Analyse du code source (Semgrep) {'activée' if value else 'désactivée'}",
+                user_id=self.username,
+            )
+            self.sast_enabled = value
+            yield self.trigger_toast("Analyse du code source mise à jour")
+        except Exception as e:
+            yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
+        finally:
+            container.db.close()
 
     @requires_admin
     def set_eol_enabled(self, value: bool):
@@ -1163,6 +1184,51 @@ def settings_page() -> rx.Component:
             width="100%",
             spacing="2",
             class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+        ),
+
+        # Semgrep source-code analysis
+        rx.vstack(
+            rx.heading("Analyse du code source (Semgrep)", size="3", weight="bold"),
+            rx.text(
+                "Cherche dans le code lui-même ce qu'aucun autre scanner ne voit : une "
+                "requête SQL concaténée, une commande passée au shell, un certificat TLS "
+                "non vérifié. Tourne dans un conteneur sans accès réseau, avec des règles "
+                "embarquées — rien du code ne quitte la machine.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.text(
+                "Deux natures de constats : « Code vulnérable », traité comme toute "
+                "vulnérabilité, et « Qualité », qui reste visible dans le backlog mais "
+                "n'entre jamais dans le verdict du gate CI — activer cette analyse ne "
+                "peut pas faire rougir vos chaînes d'intégration du jour au lendemain.",
+                size="2", color="var(--slate-10)", class_name="mb-2"
+            ),
+            rx.hstack(
+                rx.switch(
+                    checked=SettingsState.sast_enabled,
+                    on_change=SettingsState.set_sast_enabled,
+                ),
+                rx.text(
+                    rx.cond(SettingsState.sast_enabled, "Activé", "Désactivé"),
+                    size="2", weight="medium",
+                ),
+                spacing="3",
+                align="center",
+            ),
+            rx.callout(
+                "Zanshin embarque ses propres règles. Les jeux de règles publics de "
+                "Semgrep ne sont pas redistribuables : pour élargir la couverture, "
+                "installez-les vous-même avec « uv run python scripts/fetch_semgrep_rules.py » "
+                "et indiquez le répertoire dans ZANSHIN_SEMGREP_RULES_DIR. Mettre à jour "
+                "les règles est alors un déploiement, pas un réglage.",
+                icon="info",
+                size="1",
+                color_scheme="gray",
+                class_name="mt-3",
+            ),
+            width="100%",
+            align_items="start",
+            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6",
         ),
 
         # End-of-life detection

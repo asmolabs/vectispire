@@ -39,7 +39,7 @@ flowchart TB
     end
 
     subgraph Scanners["Scanner backends (ScannerEngine)"]
-        Docker["DockerScannerEngine<br/>(Syft/Grype/gitleaks/checkov<br/>via ephemeral containers)"]
+        Docker["DockerScannerEngine<br/>(Syft/Grype/gitleaks/checkov/Semgrep<br/>via ephemeral containers)"]
         Osv["OsvScannerEngine<br/>(OSV.dev cloud API for CVE<br/>matching, delegates the rest)"]
         LocalApi["LocalApiScannerEngine<br/>(HTTP calls to scan-api/ sidecar)"]
     end
@@ -153,7 +153,7 @@ erDiagram
         string package_version
         string purl
         string file_path
-        string source "grype/osv/gitleaks/checkov/syft"
+        string source "grype/osv/gitleaks/checkov/syft/semgrep"
         float epss_score
         bool is_kev
         float cvss_score
@@ -295,7 +295,9 @@ sequenceDiagram
 
 Key points not obvious from the diagram alone:
 
-- Secrets and IaC scanning only run for **repository** scans, never for container images (see ADR-001 §5) — Syft's license data, on the other hand, applies to both.
+- Secrets, IaC and source-code (Semgrep) scanning only run for **repository** scans, never for container images (see ADR-001 §5) — Syft's license data, on the other hand, applies to both.
+- **`None` is not `[]` in `ScanArtifacts`.** `iac` and `sast` are `Optional`: an empty list is the positive claim *"the analysis ran and found nothing"*, which is what allows `IssueService` to resolve a target's outstanding issues of that type. `None` means the step did not run — disabled, unsupported by the backend, or crashed — and the backlog is then left untouched. Reading a crashed scanner as a clean one would declare a repository fixed, so every scanner that can fail returns `None`, and `scanned_types_for(..., iac_ran=…, sast_ran=…)` is what carries that through to resolution.
+- **Semgrep produces two finding types from one run.** `SastService` reads each rule's `metadata.category`: `security` becomes a `sast` finding, gated like any vulnerability; everything else becomes a `quality` finding, which `policy_gate.QUALITY_TYPES` excludes from every verdict with no opt-in. Since both come from the same pass, they enter `scanned_types` together. The rules are Zanshin's own (`zanshin/services/scanners/rules/semgrep/`), copied into each scan's workspace beside `SOURCE_SUBDIR` — a rule tree inside Zanshin's own image would be invisible to the sibling Semgrep container, because volume paths are resolved by the Docker daemon.
 - `cves["engine_source"]` (not `"source"` — Grype's own JSON already uses that key for something unrelated) records which backend actually produced the vulnerability matches, so `_build_findings` can set `Finding.source` correctly regardless of which `ScannerEngine` ran.
 - `ScannerEngine.get_workspace_root()` returns `None` for every backend except `LocalApiScannerEngine`, which needs its temp directory created inside the volume shared with the `scan-api` sidecar rather than the OS default temp location.
 
@@ -307,7 +309,7 @@ was split in two:
 
 | Object | Job | Needs a database? |
 |---|---|---|
-| `ScanRunner` (`scan_runner.py`) | workspace, clone, Syft/Grype/gitleaks/checkov, AI-review sample | **no** |
+| `ScanRunner` (`scan_runner.py`) | workspace, clone, Syft/Grype/gitleaks/checkov/Semgrep, AI-review sample | **no** |
 | `ScanIngestor` (`scan_ingestor.py`) | `Finding` rows, licences, EOL, EPSS/KEV, AI review, issue reconciliation, outbox | yes, only |
 
 `ScanProcessor` is now the composition of the two, and it keeps its old signature — which
@@ -371,7 +373,7 @@ Consequences worth knowing:
 
 | Backend | SBOM / secrets / IaC | Vulnerability matching | Notes |
 |---|---|---|---|
-| `docker` (default) | Ephemeral containers: `anchore/syft`, `zricethezav/gitleaks`, `bridgecrew/checkov` | `anchore/grype` (ephemeral container) | Requires Docker socket access from the Zanshin process. |
+| `docker` (default) | Ephemeral containers: `anchore/syft`, `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` | `anchore/grype` (ephemeral container) | Requires Docker socket access from the Zanshin process. |
 | `osv` | Delegated to a `DockerScannerEngine` instance via composition | OSV.dev `/v1/query`, one package (purl) at a time | Only package identifiers leave the machine, never code or the full SBOM. Response translated into Grype's own shape so the rest of the pipeline is backend-agnostic. |
 | `local_api` | HTTP calls to the `scan-api/` FastAPI sidecar, which runs the same tools as direct subprocesses | Same sidecar | Sidecar must share a filesystem volume with Zanshin (same host); paths are passed, never file uploads. See `scan-api/README.md`. |
 
@@ -448,7 +450,7 @@ flowchart TB
     end
 
     subgraph Scanners["Backends de scan (ScannerEngine)"]
-        Docker["DockerScannerEngine<br/>(Syft/Grype/gitleaks/checkov<br/>via conteneurs éphémères)"]
+        Docker["DockerScannerEngine<br/>(Syft/Grype/gitleaks/checkov/Semgrep<br/>via conteneurs éphémères)"]
         Osv["OsvScannerEngine<br/>(API cloud OSV.dev pour le matching<br/>de CVE, délègue le reste)"]
         LocalApi["LocalApiScannerEngine<br/>(appels HTTP vers le sidecar scan-api/)"]
     end
@@ -562,7 +564,7 @@ erDiagram
         string package_version
         string purl
         string file_path
-        string source "grype/osv/gitleaks/checkov/syft"
+        string source "grype/osv/gitleaks/checkov/syft/semgrep"
         float epss_score
         bool is_kev
         float cvss_score
@@ -704,7 +706,9 @@ sequenceDiagram
 
 Points importants non visibles sur le seul diagramme :
 
-- Le scan de secrets et d'IaC ne s'exécute que pour les scans de **dépôts**, jamais pour les images de conteneurs (voir ADR-001 §5) — les données de licence de Syft, elles, s'appliquent aux deux.
+- Le scan de secrets, d'IaC et du code source (Semgrep) ne s'exécute que pour les scans de **dépôts**, jamais pour les images de conteneurs (voir ADR-001 §5) — les données de licence de Syft, elles, s'appliquent aux deux.
+- **`None` n'est pas `[]` dans `ScanArtifacts`.** `iac` et `sast` sont `Optional` : une liste vide affirme que *l'analyse a tourné et n'a rien trouvé*, ce qui autorise `IssueService` à résoudre les problèmes existants de ce type. `None` signifie que l'étape n'a pas eu lieu — désactivée, non supportée par le backend, ou plantée — et le backlog est alors laissé intact. Lire un scanner planté comme un scanner propre reviendrait à déclarer un dépôt corrigé : tout scanner susceptible d'échouer renvoie donc `None`, et `scanned_types_for(..., iac_ran=…, sast_ran=…)` porte cette distinction jusqu'à la résolution.
+- **Semgrep produit deux types de constats en un seul passage.** `SastService` lit le `metadata.category` de chaque règle : `security` donne un constat `sast`, traité comme toute vulnérabilité ; tout le reste donne un constat `quality`, que `policy_gate.QUALITY_TYPES` exclut de tout verdict, sans option pour le réactiver. Les deux venant du même passage, ils entrent ensemble dans `scanned_types`. Les règles sont celles de Zanshin (`zanshin/services/scanners/rules/semgrep/`), recopiées dans l'espace de travail de chaque scan à côté de `SOURCE_SUBDIR` — un répertoire de règles vivant dans l'image de Zanshin serait invisible du conteneur Semgrep voisin, les chemins de volume étant résolus par le démon Docker.
 - `cves["engine_source"]` (pas `"source"` — la sortie JSON native de Grype utilise déjà cette clé pour autre chose) enregistre quel backend a réellement produit le matching de vulnérabilités, afin que `_build_findings` renseigne correctement `Finding.source` quel que soit le `ScannerEngine` utilisé.
 - `ScannerEngine.get_workspace_root()` retourne `None` pour tous les backends sauf `LocalApiScannerEngine`, qui a besoin que son répertoire temporaire soit créé dans le volume partagé avec le sidecar `scan-api` plutôt que dans le répertoire temporaire par défaut du système.
 
