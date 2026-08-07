@@ -17,6 +17,42 @@ def _truncate(value: str, limit: int = 35) -> str:
     return value[:limit] + "..." if len(value) > limit else value
 
 
+def _encryption_badge(state) -> rx.Component:
+    """Which encryption key this key's private half is still under.
+
+    Worth a column rather than a log line: a key readable only under a previous key
+    has not finished being rotated, and one that reads under *no* configured key will
+    fail the next clone that needs it — at scan time, in a worker thread, hours later.
+    """
+    return rx.match(
+        state,
+        (
+            "previous_key",
+            rx.tooltip(
+                rx.badge("À faire tourner", color_scheme="amber", variant="soft"),
+                content=(
+                    "Cette clé est chiffrée avec une clé de chiffrement précédente. "
+                    "Réenregistrez-la pour la passer sous ENCRYPTION_KEY — et si elle "
+                    "date de la clé par défaut publiée dans le dépôt, sa moitié privée "
+                    "est publique : générez une nouvelle paire."
+                ),
+            ),
+        ),
+        (
+            "unreadable",
+            rx.tooltip(
+                rx.badge("Illisible", color_scheme="red", variant="soft"),
+                content=(
+                    "Aucune clé configurée ne déchiffre cette valeur : le prochain clone "
+                    "qui en a besoin échouera. Renseignez la clé précédente dans "
+                    "ZANSHIN_PREVIOUS_ENCRYPTION_KEYS, ou remplacez cette clé SSH."
+                ),
+            ),
+        ),
+        rx.badge("OK", color_scheme="green", variant="soft"),
+    )
+
+
 class SSHKeysState(BaseState):
     """Handles loading, adding, generating and deleting SSH Keys."""
     
@@ -42,12 +78,14 @@ class SSHKeysState(BaseState):
         container = get_container()
         try:
             db_keys = container.ssh_key_repository.find_all()
+            service = container.ssh_key_service
             self.keys = [
                 SshKeyRow(
                     id=str(k.id),
                     name=k.name,
                     public_key=_truncate(k.public_key or "N/A"),
                     created_at=format_datetime(k.created_at),
+                    secret_state=service.state_of(k).value,
                 )
                 for k in db_keys
             ]
@@ -189,6 +227,7 @@ def ssh_keys_page() -> rx.Component:
                         rx.table.column_header_cell("Nom"),
                         rx.table.column_header_cell("ID / Référence"),
                         rx.table.column_header_cell("Clé Publique"),
+                        rx.table.column_header_cell("Chiffrement"),
                         rx.table.column_header_cell("Créée le"),
                         rx.table.column_header_cell("Actions")
                     )
@@ -200,6 +239,7 @@ def ssh_keys_page() -> rx.Component:
                             rx.table.row_header_cell(k.name),
                             rx.table.cell(k.id),
                             rx.table.cell(k.public_key),
+                            rx.table.cell(_encryption_badge(k.secret_state)),
                             rx.table.cell(k.created_at),
                             rx.table.cell(
                                 rx.tooltip(

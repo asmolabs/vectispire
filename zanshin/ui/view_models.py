@@ -378,6 +378,11 @@ class SshKeyRow:
     # Truncated for display; the private half is never sent to the browser.
     public_key: str = "N/A"
     created_at: str = ""
+    # `current` | `previous_key` | `unreadable` — the encryption key this row's secret
+    # is under. Anything but `current` is a key whose rotation is unfinished, and the
+    # point of carrying it to the browser is that it is otherwise invisible until a
+    # clone fails.
+    secret_state: str = "current"
 
 
 @dataclasses.dataclass

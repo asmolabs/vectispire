@@ -24,12 +24,27 @@ cet accès a pu récupérer la base, et le retrait d'accès ultérieur n'y chang
 
 Constaté sur la base actuelle : la clé nommée `perso`
 (`ae2088e9-e958-40a6-afe2-0cf2de2d3d60`, créée le 2026-07-29) est une **clé privée RSA**
-qui se déchiffre **sans aucun secret d'environnement**, avec la constante
-`LEGACY_DEFAULT_KEY = "my-secret-encryption-key-32bytes"` encore présente dans
-[`zanshin/services/encryption_service.py`](../zanshin/services/encryption_service.py).
+chiffrée avec la clé par défaut `my-secret-encryption-key-32bytes` — une constante qui
+était publiée dans le code source de ce dépôt.
 
 Autrement dit : quiconque a obtenu une copie de l'ancien `database.sqlite` détient cette
 clé privée en clair. Elle doit être considérée comme compromise.
+
+**Ce que le code fait désormais.** Cette constante a été retirée de
+[`zanshin/services/encryption_service.py`](../zanshin/services/encryption_service.py) :
+l'application ne transporte plus la clé qui ouvre sa propre base, et la valeur ci-dessus
+n'est plus essayée au déchiffrement. La ligne `perso` apparaît donc **« Illisible »**
+sur la page *Clés SSH* — c'est le résultat attendu, et le remplacement ci-dessous est la
+seule suite correcte : réenregistrer le même contenu sous une vraie `ENCRYPTION_KEY` ne
+servirait à rien, puisque sa moitié privée est déjà publique.
+
+Si vous avez besoin de la relire une dernière fois (pour identifier chez quel
+fournisseur la révoquer, par exemple), donnez l'ancienne clé explicitement, le temps de
+l'opération :
+
+```bash
+ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" uv run reflex run
+```
 
 À faire, **dans cet ordre** :
 
@@ -91,6 +106,25 @@ Elles se révoquent depuis la page *Clés API* comme les autres, et un agent qui
 sienne ne peut plus réclamer de travail : il ne détient ni accès à la base ni
 `ENCRYPTION_KEY`, ce qui est précisément ce qui limite les conséquences d'un agent
 compromis.
+
+### 1.6 Faire tourner `ENCRYPTION_KEY` elle-même
+
+Utile au-delà de cet incident, et impossible jusqu'ici : changer `ENCRYPTION_KEY`
+rendait tous les secrets stockés illisibles d'un coup, et la procédure documentée était
+de ressaisir chaque valeur à la main.
+
+```bash
+ENCRYPTION_KEY="<nouvelle clé>" \
+ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<ancienne clé>" \
+uv run reflex run
+```
+
+L'ancienne clé sert **au déchiffrement uniquement** : toute écriture passe sous la
+nouvelle. Les valeurs migrent donc au fur et à mesure des réenregistrements, et la page
+*Clés SSH* affiche **« À faire tourner »** tant qu'une ligne dépend encore de l'ancienne
+— l'ancienne clé se retire de l'environnement quand plus aucune ne l'affiche. Plusieurs
+clés précédentes peuvent être listées, séparées par des virgules, pour une rotation
+interrompue.
 
 ---
 

@@ -35,13 +35,16 @@ Zanshin has almost no environment-variable configuration — most runtime settin
 
 | Variable | Default |
 |---|---|
-| `ENCRYPTION_KEY` | `"my-secret-encryption-key-32bytes"` (hardcoded fallback, kept for backward compatibility with previously encrypted data) |
+| `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
 
-`ENCRYPTION_KEY` is the AES-GCM key `EncryptionService` uses to encrypt SSH private keys at rest (`SSHKey.private_key`). **Set this explicitly to a real secret in any environment beyond local experimentation** — the default is public (it's in this repo's source code) and offers no real protection. Changing it after keys have already been encrypted will make them undecryptable, so set it once, before first use.
+`ENCRYPTION_KEY` is the AES-GCM key `EncryptionService` uses to encrypt SSH private keys at rest (`SSHKey.private_key`) and ticket tokens. **There is no default.** There used to be one, hardcoded in this repository's source, which meant a copy of the database file was enough to read every stored private key; it has been removed, and the application will refuse to write a secret rather than write one it cannot protect.
 
 ```bash
-export ENCRYPTION_KEY="a-real-32-byte-secret-value-here"
+export ENCRYPTION_KEY="$(python -c 'import base64,os; print(base64.b64encode(os.urandom(32)).decode())')"
 ```
+
+Changing it later no longer strands what is already stored: list the old key in `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` and existing values keep decrypting while new ones are written under the current key. The **SSH keys** page shows which rows still depend on an older key, so you can tell when the old one can be dropped. A value encrypted with the removed default key is a different matter — its plaintext is public, so it must be replaced at the provider, not re-encrypted; see [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md).
 
 ### 4. Database
 
@@ -149,7 +152,8 @@ Runs entirely against an in-memory database; never touches `zanshin/database.sql
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, and `bridgecrew/checkov` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
-- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: expected — AES-GCM decryption requires the exact same key used to encrypt. There's no key-rotation mechanism; re-add affected SSH keys after changing the key.
+- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
+- **An SSH key shows "Illisible" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md) has the procedure.
 - **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` / `docker compose -f docker-compose.ollama.yml ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
 - **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.
 
@@ -186,13 +190,16 @@ Zanshin n'a presque aucune configuration par variable d'environnement — la plu
 
 | Variable | Défaut |
 |---|---|
-| `ENCRYPTION_KEY` | `"my-secret-encryption-key-32bytes"` (valeur de repli codée en dur, conservée pour compatibilité avec des données déjà chiffrées) |
+| `ENCRYPTION_KEY` | *aucun* — l'enregistrement d'un secret est refusé tant qu'elle n'est pas définie |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *aucun* — anciennes clés séparées par des virgules, essayées au déchiffrement uniquement |
 
-`ENCRYPTION_KEY` est la clé AES-GCM utilisée par `EncryptionService` pour chiffrer les clés privées SSH au repos (`SSHKey.private_key`). **À définir explicitement avec un vrai secret dans tout environnement au-delà d'une expérimentation locale** — la valeur par défaut est publique (elle figure dans le code source de ce dépôt) et n'offre aucune protection réelle. La changer après que des clés ont déjà été chiffrées les rendra indéchiffrables : définissez-la une fois, avant la première utilisation.
+`ENCRYPTION_KEY` est la clé AES-GCM utilisée par `EncryptionService` pour chiffrer au repos les clés privées SSH (`SSHKey.private_key`) et les jetons de ticket. **Il n'y a pas de valeur par défaut.** Il y en avait une, codée en dur dans le source de ce dépôt, si bien qu'une copie du fichier de base suffisait à lire toutes les clés privées stockées ; elle a été retirée, et l'application refuse d'écrire un secret plutôt que d'en écrire un qu'elle ne peut pas protéger.
 
 ```bash
-export ENCRYPTION_KEY="une-vraie-valeur-secrete-de-32-octets"
+export ENCRYPTION_KEY="$(python -c 'import base64,os; print(base64.b64encode(os.urandom(32)).decode())')"
 ```
+
+La changer ensuite ne condamne plus ce qui est déjà stocké : listez l'ancienne clé dans `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` et les valeurs existantes continuent de se déchiffrer, tandis que les nouvelles sont écrites sous la clé courante. La page **Clés SSH** indique les lignes qui dépendent encore d'une ancienne clé, ce qui permet de savoir quand la retirer. Une valeur chiffrée avec l'ancienne clé par défaut est un autre sujet : son contenu en clair est public, elle est donc à remplacer chez le fournisseur et non à rechiffrer — voir [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md).
 
 ### 4. Base de données
 
@@ -301,6 +308,7 @@ S'exécute entièrement sur une base en mémoire ; ne touche jamais `zanshin/dat
 - **`docker.errors.DockerException` / permission refusée sur le socket Docker** : l'utilisateur qui lance Zanshin doit avoir accès au socket Docker (`/var/run/docker.sock` sous Linux/macOS avec Docker Desktop). Sous Linux, ajoutez l'utilisateur au groupe `docker` ou lancez avec les privilèges suffisants.
 - **Le premier scan est lent** : le backend `docker` télécharge les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks` et `bridgecrew/checkov` à la demande lors de leur première utilisation — les scans suivants réutilisent les images en cache.
 - **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont erronés, soit le champ `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un admin existant) ou interrogez directement la table `user`.
-- **`ENCRYPTION_KEY` changée et le déchiffrement des clés SSH échoue désormais** : comportement attendu — le déchiffrement AES-GCM nécessite exactement la même clé que celle utilisée au chiffrement. Il n'y a pas de mécanisme de rotation de clé ; réajoutez les clés SSH concernées après avoir changé la clé.
+- **`ENCRYPTION_KEY` changée et le déchiffrement des clés SSH échoue désormais** : indiquez la clé précédente dans `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` (valeurs séparées par des virgules). Les valeurs existantes se déchiffrent à nouveau et basculent sur la nouvelle clé au fil des réenregistrements — la page **Clés SSH** signale celles qui dépendent encore de l'ancienne.
+- **Une clé SSH affiche « Illisible » après une mise à jour** : aucune clé configurée ne la déchiffre, le plus souvent parce qu'elle est antérieure à toute `ENCRYPTION_KEY` et qu'elle a été chiffrée avec la clé par défaut autrefois publiée dans ce dépôt. Cette valeur par défaut a été retirée. Sa moitié privée est publique : remplacez la paire chez votre fournisseur git plutôt que de chercher à la récupérer ; la marche à suivre est dans [`ROTATION_ET_PURGE.md`](ROTATION_ET_PURGE.md).
 - **La liste des modèles IA n'affiche que les deux suggestions** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`ollama list` en natif, `docker ps` / `docker compose -f docker-compose.ollama.yml ps` en conteneur) et que l'URL/le port correspondent, puis cliquez sur "Rafraîchir la liste" dans la page Paramètres.
 - **La revue IA fonctionne mais semble lente** : normal si Ollama tourne en Docker sur un Mac Apple Silicon (pas de passthrough GPU/Metal — inférence CPU uniquement). Passez à une installation native pour l'accélération GPU, ou utilisez le modèle plus léger `gemma4:e4b-it-qat`.

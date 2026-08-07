@@ -195,7 +195,8 @@ Three things are *not* runtime settings, because they have to exist before the a
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys (AES-GCM). Without it, saving an SSH key is refused rather than silently falling back to the well-known default key that used to ship in this repository. Existing values encrypted with that old key still decrypt, and move to the new key when re-saved. |
+| `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
 
@@ -556,7 +557,8 @@ Trois éléments ne sont *pas* des réglages runtime, parce qu'ils doivent exist
 
 | Variable | Requise | Rôle |
 |---|---|---|
-| `ENCRYPTION_KEY` | Pour stocker des clés SSH | Clé de 32 octets utilisée pour chiffrer les clés SSH privées (AES-GCM). Sans elle, l'enregistrement d'une clé SSH est refusé, au lieu de retomber silencieusement sur la clé par défaut publiée dans ce dépôt. Les valeurs déjà chiffrées avec cette ancienne clé restent déchiffrables, et basculent sur la nouvelle clé lors du prochain enregistrement. |
+| `ENCRYPTION_KEY` | Pour stocker des clés SSH | Clé de 32 octets utilisée pour chiffrer les clés SSH privées et les jetons (AES-GCM). Sans elle, l'enregistrement d'un secret est refusé, au lieu de l'écrire sous quelque chose qui ne le protège pas. L'application ne transporte plus de clé par défaut : elle en publiait une dans son propre code, si bien qu'une copie du fichier de base suffisait à lire toutes les clés privées stockées. |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | Pour faire tourner `ENCRYPTION_KEY` | Anciennes clés séparées par des virgules, essayées **au déchiffrement uniquement**. Les valeurs basculent sur la clé courante au fil des réenregistrements, et la page *Clés SSH* signale les lignes qui dépendent encore d'une ancienne — la variable se retire quand il n'en reste plus. C'est aussi par là qu'une valeur chiffrée avec l'ancienne clé par défaut publiée se relit une dernière fois ; voir [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | Premier démarrage | Nom du SUPERUSER initial, créé au démarrage quand la table `user` est vide. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | Premier démarrage | Son mot de passe (8 caractères minimum). |
 

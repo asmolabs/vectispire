@@ -9,7 +9,7 @@ import uuid
 
 from zanshin.models.ssh_key import SSHKey
 from zanshin.repositories.ssh_key_repository import SSHKeyRepository
-from zanshin.services.encryption_service import EncryptionService
+from zanshin.services.encryption_service import EncryptionService, SecretState
 
 
 def private_key_context(key_id) -> str:
@@ -52,5 +52,19 @@ class SSHKeyService:
         if not key:
             raise RuntimeError("SSH Key not found")
         return self.encryption_service.decrypt(
+            key.private_key, context=private_key_context(key.id)
+        )
+
+    def state_of(self, key: SSHKey) -> SecretState:
+        """Whether this key is under the current encryption key, an older one, or none.
+
+        Shown on the SSH keys page. A key readable only under a previous key has not
+        been rotated, and the reason to surface it is concrete: the deployment that
+        this application was written against had a deploy key encrypted with the
+        default key published in this repository, so its private half was public. The
+        only signal was a line in a log nobody reads — the failure mode this makes
+        visible is finding out months later.
+        """
+        return self.encryption_service.state_of(
             key.private_key, context=private_key_context(key.id)
         )
