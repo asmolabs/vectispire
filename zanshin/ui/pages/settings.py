@@ -974,7 +974,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Audited image architecture
@@ -1016,7 +1016,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Scan queue
@@ -1079,7 +1079,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Gate policy
@@ -1183,7 +1183,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Semgrep source-code analysis
@@ -1228,7 +1228,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             align_items="start",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6",
+            class_name="zs-card mb-6",
         ),
 
         # End-of-life detection
@@ -1273,7 +1273,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Tracker tickets
@@ -1398,7 +1398,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Enrichment toggle
@@ -1425,7 +1425,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # License blocklist
@@ -1450,7 +1450,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Raw payload retention
@@ -1500,7 +1500,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # Notifications
@@ -1593,7 +1593,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
 
         # AI code review (Ollama)
@@ -1709,7 +1709,7 @@ def settings_page() -> rx.Component:
             ),
             width="100%",
             spacing="2",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm"
+            class_name="zs-card"
         ),
 
         width="100%",

@@ -188,7 +188,7 @@ def activity_chart() -> rx.Component:
         ),
         width="100%",
         spacing="1",
-        class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm flex-1"
+        class_name="zs-card flex-1"
     )
 
 def dashboard_page() -> rx.Component:
@@ -273,7 +273,7 @@ def dashboard_page() -> rx.Component:
 
             width="100%",
             spacing="3",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm"
+            class_name="zs-card"
         ),
 
         width="100%",

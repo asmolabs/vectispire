@@ -706,7 +706,7 @@ def list_layout_view() -> rx.Component:
                 width="100%"
             ),
             width="100%",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            class_name="zs-card w-full"
             )
         ),
         width="100%"
@@ -814,7 +814,7 @@ def history_layout_view() -> rx.Component:
                 width="100%"
             ),
             width="100%",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            class_name="zs-card w-full"
             )
         ),
         width="100%"
@@ -879,7 +879,7 @@ def details_layout_view() -> rx.Component:
                 width="100%"
             ),
             width="100%",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm mb-6"
+            class_name="zs-card mb-6"
         ),
         
         # Scan history
@@ -1304,7 +1304,7 @@ def depots_page() -> rx.Component:
                                     DepotsState.selected_scan_ai_review.response,
                                     size="2", white_space="pre-wrap"
                                 ),
-                                class_name="p-4 rounded-lg bg-slate-2 border border-slate-4 max-h-64 overflow-y-auto"
+                                class_name="p-4 rounded-md bg-slate-2 max-h-64 overflow-y-auto"
                             )
                         ),
                         # Normalized findings extracted from the response

@@ -137,7 +137,7 @@ def _tally_card(title: str, subtitle: str, icon: str, rows) -> rx.Component:
         ),
         width="100%",
         align_items="start",
-        class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm h-full",
+        class_name="zs-card h-full",
     )
 
 
@@ -158,7 +158,8 @@ def qualite_page() -> rx.Component:
         ),
 
         rx.grid(
-            stat_card("Constats ouverts", QualiteState.open_count, "list-checks", "blue"),
+            stat_card("Constats ouverts", QualiteState.open_count, "list-checks", "blue",
+                      caption="ne bloquent aucune compilation"),
             stat_card("Règles concernées", QualiteState.rule_count, "scan-text", "cyan"),
             stat_card("Fichiers touchés", QualiteState.file_count, "file-code", "gray"),
             columns="3",
@@ -200,7 +201,7 @@ def qualite_page() -> rx.Component:
                     "Activez l'analyse du code source dans les Paramètres, puis relancez un scan.",
                 ),
                 width="100%",
-                class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full",
+                class_name="zs-card w-full",
             ),
         ),
 

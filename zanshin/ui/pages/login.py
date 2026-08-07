@@ -71,7 +71,7 @@ def login_page() -> rx.Component:
             
             spacing="6",
             align="center",
-            class_name="p-8 rounded-xl bg-slate-2 border border-slate-4 max-w-sm w-full shadow-lg"
+            class_name="zs-card zs-card-lg max-w-sm w-full"
         ),
         min_height="100vh",
         class_name="w-full bg-slate-1"

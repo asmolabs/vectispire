@@ -50,7 +50,15 @@ check_deployment()
 # to nothing.
 from zanshin.api import api_app
 
-app = rx.App(api_transformer=api_app)
+app = rx.App(
+    api_transformer=api_app,
+    # Lato at 14px and the shell geometry, both taken from the Sakai template — see
+    # assets/theme.css.
+    stylesheets=[
+        "https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap",
+        "/theme.css",
+    ],
+)
 
 # Periodic rescanning (see zanshin/services/scheduler.py), started as a Reflex
 # lifespan task rather than at import time.

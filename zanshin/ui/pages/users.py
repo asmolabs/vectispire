@@ -340,7 +340,7 @@ def users_page() -> rx.Component:
                 width="100%"
             ),
             width="100%",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full"
+            class_name="zs-card w-full"
         ),
 
         # Create dialog

@@ -143,7 +143,7 @@ def change_password_page() -> rx.Component:
             ),
             spacing="4",
             width="100%",
-            class_name="p-8 rounded-xl bg-slate-2 border border-slate-4 shadow-lg max-w-md",
+            class_name="zs-card zs-card-lg max-w-md",
         ),
         class_name="min-h-screen w-full",
         on_mount=ChangePasswordState.check_auth,

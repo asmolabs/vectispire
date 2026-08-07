@@ -1,0 +1,190 @@
+/* Zanshin's visual layer, modelled on the Sakai admin template (sakai.primeng.org).
+ *
+ * The values here are measured from that template rather than approximated: a 28px
+ * gutter, a 56px top bar, a 280px sidebar floating 84px from the top, 6px corners,
+ * 28px card padding, and — the part that carries most of the look — **no borders and
+ * no shadows anywhere**. Surfaces are told apart by their background alone.
+ *
+ * Everything is expressed against Radix's `--slate-*` scale rather than hex values,
+ * because that scale flips with the light/dark toggle the header already has. Sakai's
+ * white-card-on-slate-100 becomes, unchanged, a dark-card-on-darker-page: the same
+ * relationship between surface and page, both ways round.
+ */
+
+:root {
+  /* The gutter. One number, used for the page padding, the gaps between cards and the
+     sidebar's offsets — which is what makes a grid read as deliberate. */
+  --zs-gap: 1.75rem;      /* 28px */
+  --zs-topbar-height: 3.5rem;  /* 56px */
+  --zs-sidebar-width: 17.5rem; /* 280px */
+  --zs-radius: 6px;
+
+}
+
+/* The two surface colours are defined **here and not on `:root`**, and the difference
+ * is not cosmetic: Radix puts its colour *scales* on `:root` but its semantic tokens —
+ * `--color-panel-solid`, `--color-background` — on `.radix-themes`. A custom property
+ * is substituted where it is *declared*, so `--zs-surface: var(--color-panel-solid)`
+ * written on `:root` resolves against a token that does not exist there, becomes
+ * invalid, and inherits down as nothing. The symptom is cards with correct padding and
+ * corners and no colour at all, which reads as a missing stylesheet rather than as one
+ * bad line.
+ */
+.radix-themes {
+  /* Raised surfaces: cards, the top bar, the sidebar. Radix's own panel colour — white
+     in the light appearance, a raised grey in the dark one — rather than `--slate-1`,
+     which sits too close to the page for the contrast to read. */
+  --zs-surface: var(--color-panel-solid);
+  /* The page behind them: Sakai's slate-100. */
+  --zs-canvas: var(--slate-3);
+}
+
+/* Lato at 14px, as the reference uses. Loaded from Google Fonts in `rx.App`. */
+body {
+  font-family: "Lato", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+}
+
+/* The page colour has to be set on Radix's own root, not on `body`.
+ *
+ * `.radix-themes` paints `--color-background` over the whole viewport, so a background
+ * on `body` is simply covered — and the symptom is not "the wrong colour" but *no
+ * visible cards at all*: white panels on a white page, with the padding and corners
+ * intact and invisible. Overriding the variable makes Radix paint the canvas itself,
+ * and leaves `--color-panel-solid` (white here, raised grey in the dark appearance) to
+ * do the surfaces.
+ */
+.radix-themes {
+  --color-background: var(--zs-canvas);
+  color: var(--slate-12);
+}
+
+/* --- The shell ------------------------------------------------------------------ */
+/*
+ * The surface rules below are scoped under `.radix-themes` on purpose. Unscoped, the
+ * padding and corners applied but the *background* came out transparent — cards with
+ * the right geometry and no colour, which looks like the stylesheet failing to load
+ * rather than losing one property. Something in the Radix/emotion cascade paints
+ * transparent at single-class specificity; one extra class is enough to outrank it,
+ * and is preferable to `!important`, which would make every later override a fight.
+ */
+
+.radix-themes .zs-topbar {
+  height: var(--zs-topbar-height);
+  padding: 0 var(--zs-gap);
+  background: var(--zs-surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* The sidebar is a card, not a wall: it starts below the top bar and keeps the gutter
+   on its left, so the page background shows around it. That gap is most of what
+   separates this look from a conventional admin frame. */
+.radix-themes .zs-sidebar {
+  width: var(--zs-sidebar-width);
+  flex: 0 0 var(--zs-sidebar-width);
+  margin: var(--zs-gap) 0 var(--zs-gap) var(--zs-gap);
+  padding: 0.5rem 1.3rem;
+  background: var(--zs-surface);
+  border-radius: var(--zs-radius);
+  position: sticky;
+  top: calc(var(--zs-topbar-height) + var(--zs-gap));
+  height: calc(100vh - var(--zs-topbar-height) - (2 * var(--zs-gap)));
+  overflow-y: auto;
+}
+
+.zs-main {
+  padding: var(--zs-gap);
+  min-width: 0; /* so a wide table scrolls inside the column instead of stretching it */
+}
+
+/* --- Cards ---------------------------------------------------------------------- */
+
+.radix-themes .zs-card {
+  background: var(--zs-surface);
+  border-radius: var(--zs-radius);
+  padding: var(--zs-gap);
+}
+
+.radix-themes .zs-card-lg {
+  padding: 2.25rem;
+}
+
+/* An empty state keeps its dashed outline: it is the one case where the absence of a
+   border would leave nothing at all on screen. */
+.radix-themes .zs-empty {
+  background: var(--zs-surface);
+  border: 1px dashed var(--slate-6);
+  border-radius: var(--zs-radius);
+}
+
+/* --- Navigation ----------------------------------------------------------------- */
+
+.zs-nav-section {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--slate-12);
+  padding: 0 0.75rem;
+  margin: 1.15rem 0 0.4rem;
+}
+
+/* The active item is coloured text, not a filled pill — the reference marks position
+   with weight and hue rather than with a block of background. */
+.zs-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--zs-radius);
+  color: var(--slate-11);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.zs-nav-item:hover {
+  background: var(--slate-3);
+  color: var(--slate-12);
+}
+
+.zs-nav-item[data-active="true"],
+.zs-nav-item[data-active="true"]:hover {
+  color: var(--accent-11);
+  font-weight: 700;
+  background: transparent;
+}
+
+/* --- Tables --------------------------------------------------------------------- */
+
+/* Radix's table draws its own separators; the reference keeps only the horizontal
+   ones, on a taller row. */
+.zs-table :where(th) {
+  font-weight: 700;
+  color: var(--slate-12);
+  white-space: nowrap;
+}
+
+.zs-table :where(th, td) {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+  box-shadow: inset 0 -1px 0 var(--slate-4);
+}
+
+.zs-table :where(tbody tr:last-child td) {
+  box-shadow: none;
+}
+
+/* --- Stat cards ----------------------------------------------------------------- */
+
+/* The signature element of the reference: a 35px tinted square holding the icon, in
+   the top-right corner of the card. The tint comes from a Radix accent scale passed
+   per card, so a severity keeps its own colour. */
+.zs-stat-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--zs-radius);
+  flex: 0 0 auto;
+}

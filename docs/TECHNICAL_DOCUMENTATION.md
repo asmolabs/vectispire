@@ -301,6 +301,31 @@ Key points not obvious from the diagram alone:
 - `cves["engine_source"]` (not `"source"` — Grype's own JSON already uses that key for something unrelated) records which backend actually produced the vulnerability matches, so `_build_findings` can set `Finding.source` correctly regardless of which `ScannerEngine` ran.
 - `ScannerEngine.get_workspace_root()` returns `None` for every backend except `LocalApiScannerEngine`, which needs its temp directory created inside the volume shared with the `scan-api` sidecar rather than the OS default temp location.
 
+### 3quater. The visual layer
+
+The interface follows the [Sakai](https://sakai.primeng.org) admin template, and the
+values in `assets/theme.css` are measured from it rather than approximated: a 28px
+gutter used for every gap, a 56px top bar, a 280px sidebar that **floats as a card**
+below it instead of being flush to the window, 6px corners, 28px card padding — and no
+borders and no shadows anywhere. Surfaces are told apart by background alone; that last
+point carries most of the look and is the easiest thing to lose, since every component
+library draws a line by default.
+
+Two details are worth knowing before editing that file, because both fail *silently*:
+
+- The page colour must be set through `--color-background` **on `.radix-themes`**, not on
+  `body`. Radix paints its own background over the viewport, so a `body` rule is simply
+  covered — and the symptom is white cards on a white page, i.e. no visible cards at all.
+- `--zs-surface` is declared on `.radix-themes` and not on `:root`, because Radix puts its
+  colour *scales* on `:root` but its semantic tokens (`--color-panel-solid`) on
+  `.radix-themes`. A custom property is substituted where it is declared, so the same
+  declaration on `:root` resolves to nothing and inherits down as transparent.
+
+Everything is expressed against Radix's `--slate-*` scale, so the header's light/dark
+toggle switches between two versions of one design rather than one design and an
+afterthought. Cards across the application share the `zs-card` class instead of repeating
+a utility string, which is what lets a change to the language reach every screen at once.
+
 ### 3ter. The Sécurité and Qualité sections
 
 The navigation carries two named sections. **Sécurité** groups its overview with

@@ -141,11 +141,26 @@ def securite_page() -> rx.Component:
         ),
 
         rx.grid(
-            stat_card("Cibles non conformes", SecuriteState.failing_count, "shield-alert", "red"),
-            stat_card("Cibles suivies", SecuriteState.total_count, "target", "cyan"),
-            stat_card("Exploitées (KEV)", SecuriteState.kev_count, "flame", "orange"),
-            stat_card("Jamais scannées", SecuriteState.never_scanned_count, "eye-off", "amber"),
-            stat_card("Dernier scan en échec", SecuriteState.last_scan_failed_count, "circle-x", "red"),
+            stat_card(
+                "Non conformes", SecuriteState.failing_count, "shield-alert", "red",
+                caption="bloqueraient une compilation",
+            ),
+            stat_card(
+                "Cibles suivies", SecuriteState.total_count, "target", "cyan",
+                caption="dépôts et conteneurs",
+            ),
+            stat_card(
+                "KEV ouverts", SecuriteState.kev_count, "flame", "orange",
+                caption="exploitation active connue",
+            ),
+            stat_card(
+                "Jamais scannées", SecuriteState.never_scanned_count, "eye-off", "amber",
+                caption="verdict sans observation",
+            ),
+            stat_card(
+                "Scan en échec", SecuriteState.last_scan_failed_count, "circle-x", "red",
+                caption="verdict périmé",
+            ),
             columns="5",
             spacing="4",
             width="100%",
@@ -223,6 +238,7 @@ def securite_page() -> rx.Component:
                         )
                     ),
                     width="100%",
+                    class_name="zs-table",
                 ),
                 empty_state(
                     "shield",
@@ -231,7 +247,7 @@ def securite_page() -> rx.Component:
                 ),
             ),
             width="100%",
-            class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm w-full",
+            class_name="zs-card w-full",
         ),
 
         width="100%",

@@ -1,25 +1,54 @@
 import reflex as rx
 
-def stat_card(title: str, value, icon_name: str, color: str = "accent") -> rx.Component:
-    """Shared KPI card used across the dashboard, containers, and dépôts
-    pages — a title/value pair with a colored icon badge, and a subtle
-    hover highlight matching the card's color."""
-    return rx.hstack(
-        rx.vstack(
-            rx.text(title, size="2", color="var(--slate-10)"),
-            rx.heading(value, size="7", weight="bold"),
-            spacing="1"
+def stat_card(
+    title: str, value, icon_name: str, color: str = "accent", caption=None
+) -> rx.Component:
+    """Shared KPI card — the signature element of the Sakai template.
+
+    Its shape is specific and worth keeping exactly: the label sits small and grey on
+    the *first* line with the icon opposite it, and the number comes underneath, large.
+    The usual arrangement — number and label stacked on the left, icon floated right —
+    reads as an icon with a caption; this one reads as a labelled measurement, which is
+    what a KPI is.
+
+    The icon lives in a tinted square rather than on the card background. That tint is
+    what lets a row of five cards carry five different meanings without five different
+    card colours, and it is why `color` is a Radix accent name rather than a hex value:
+    it has to hold up in both appearances.
+
+    `caption` is the reference's third line — the small qualifier under the number
+    ("24 new since last visit"). Optional, because a number with nothing useful to say
+    about itself is better left alone than padded.
+    """
+    return rx.vstack(
+        rx.hstack(
+            # A fixed height on the label row, so a title that wraps to two lines does
+            # not push its number below its neighbours'. A row of KPI cards is read by
+            # scanning the numbers across; one of them sitting lower breaks that in a
+            # way that looks like a rendering fault.
+            rx.text(title, size="2", color="var(--slate-10)", class_name="leading-tight"),
+            rx.spacer(),
+            rx.box(
+                rx.icon(tag=icon_name, size=20, color=f"var(--{color}-11)"),
+                # The tint is an inline style, not a `bg-{color}-3` utility class:
+                # Tailwind generates only the classes it can *see* in the source, and a
+                # class name assembled from a parameter at runtime is invisible to it —
+                # so the utility silently produced no background at all.
+                background=f"var(--{color}-3)",
+                class_name="zs-stat-icon",
+            ),
+            width="100%",
+            align="start",
+            class_name="min-h-[2.5rem]",
         ),
-        rx.spacer(),
-        rx.center(
-            rx.icon(tag=icon_name, size=24, color=f"var(--{color}-9)"),
-            class_name=f"p-3 rounded-lg bg-{color}-3"
+        rx.heading(value, size="7", weight="bold"),
+        rx.cond(
+            caption is not None,
+            rx.text(caption, size="1", color="var(--slate-10)"),
         ),
-        align="center",
-        class_name=(
-            f"p-6 rounded-xl bg-slate-2 border border-slate-4 flex-1 shadow-sm "
-            f"hover:border-{color}-7 hover:shadow-md transition-all min-w-[200px]"
-        )
+        spacing="2",
+        align_items="start",
+        class_name="zs-card flex-1 min-w-[180px]",
     )
 
 def severity_donut_chart(
@@ -67,7 +96,7 @@ def severity_donut_chart(
         ),
         width="100%",
         spacing="1",
-        class_name="p-6 rounded-xl bg-slate-2 border border-slate-4 shadow-sm flex-1"
+        class_name="zs-card flex-1"
     )
 
 def empty_state(icon_name: str, title: str, subtitle: str) -> rx.Component:
@@ -80,7 +109,7 @@ def empty_state(icon_name: str, title: str, subtitle: str) -> rx.Component:
             spacing="2",
             align="center"
         ),
-        class_name="w-full py-16 rounded-xl bg-slate-2 border border-dashed border-slate-5"
+        class_name="w-full py-16 zs-empty"
     )
 
 

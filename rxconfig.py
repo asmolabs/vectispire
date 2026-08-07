@@ -24,10 +24,20 @@ config = rx.Config(
         rx.plugins.SitemapPlugin(),
         rx.plugins.TailwindV4Plugin(),
         rx.plugins.RadixThemesPlugin(
+            # Modelled on the Sakai admin template (sakai.primeng.org), whose look is
+            # light surfaces on a slightly darker page, small corners and no chrome.
+            #
+            # `appearance="light"` is the reference's default and the one the visual
+            # language was measured in; the header keeps its toggle, and
+            # `assets/theme.css` is written against Radix's `--slate-*` scale so the
+            # dark side is the same design rather than an afterthought.
+            #
+            # `radius="medium"` renders the 6px corners the template uses — "large"
+            # was noticeably rounder than the reference.
             theme=rx.theme(
-                appearance="dark",
+                appearance="light",
                 accent_color="cyan",
-                radius="large",
+                radius="medium",
             )
         )
     ]
