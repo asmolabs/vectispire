@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
 
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
@@ -10,6 +10,27 @@ from zanshin.models.issue import (
     Issue,
 )
 from zanshin.services.policy_gate import QUALITY_TYPES
+
+
+class GateIssue(NamedTuple):
+    """An open issue, reduced to what a gate verdict reads.
+
+    Deliberately shaped to be substitutable for `Issue` in `policy_gate.evaluate`: same
+    attribute names, nothing else. Loading whole rows would mean pulling every triage
+    comment and description of an entire backlog to answer "does this build pass".
+    """
+
+    id: int
+    repo_id: Optional[int]
+    container_id: Optional[int]
+    type: str
+    state: str
+    triage_status: Optional[str]
+    severity: Optional[str]
+    is_kev: Optional[bool]
+    fix_versions: Optional[str]
+    identifier: Optional[str]
+    package_name: Optional[str]
 
 
 def _desc_nulls_last(column):
@@ -250,6 +271,52 @@ class IssueRepository:
                 counts["actionable"] += count
             counts[f"triage_{triage_status}"] = counts.get(f"triage_{triage_status}", 0) + count
         return counts
+
+    def find_open_for_gate(self) -> List["GateIssue"]:
+        """Every open issue, in the few columns a gate verdict actually reads.
+
+        Exists so the security overview can evaluate *every* target from one query
+        instead of one per target. `policy_gate.evaluate` touches only the attributes
+        below, so a NamedTuple carrying exactly those is interchangeable with an `Issue`
+        — which is the point: the overview reuses the gate's semantics unchanged rather
+        than reimplementing them in SQL and drifting from it at the first new flag.
+        """
+        rows = (
+            self.db.query(
+                Issue.id,
+                Issue.repo_id,
+                Issue.container_id,
+                Issue.type,
+                Issue.state,
+                Issue.triage_status,
+                Issue.severity,
+                Issue.is_kev,
+                Issue.fix_versions,
+                Issue.identifier,
+                Issue.package_name,
+            )
+            .filter(Issue.state == STATE_OPEN)
+            .all()
+        )
+        return [GateIssue(*row) for row in rows]
+
+    def count_open_grouped(
+        self, column, issue_type: str, limit: int = 10
+    ) -> List[Tuple[Optional[str], int]]:
+        """Open issues of one type, tallied by `column`, worst offender first.
+
+        The axis the backlog list cannot show. In front of a four-figure quality
+        backlog, "these eight rules are seventy percent of it" is the only framing
+        somebody can act on; a paginated list of two thousand rows is not.
+        """
+        return (
+            self.db.query(column, func.count(Issue.id).label("total"))
+            .filter(Issue.state == STATE_OPEN, Issue.type == issue_type)
+            .group_by(column)
+            .order_by(func.count(Issue.id).desc(), column)
+            .limit(limit)
+            .all()
+        )
 
     def count_open_by_severity(self, exclude_types: Iterable[str] = ()) -> Dict[str, int]:
         """Open issues per severity bucket. See `count_by_state_and_triage` for why the

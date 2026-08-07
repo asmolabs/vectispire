@@ -197,6 +197,50 @@ class IacRow:
 
 
 @dataclasses.dataclass
+class PostureRow:
+    """One target on the Sécurité overview: its gate verdict and why.
+
+    `observed` is separate from `passed` on purpose. A target nobody has scanned has an
+    empty backlog, and an empty backlog satisfies every policy — so a green badge with no
+    qualifier would be the most misleading thing this screen could show.
+    """
+
+    kind: str = "repository"
+    target_id: int = 0
+    name: str = ""
+    passed: bool = True
+    verdict_label: str = "Conforme"
+    verdict_color: str = "green"
+    # Which rule failed first — "kev" or "severity" — and how many issues were weighed.
+    reason: str = ""
+    evaluated: int = 0
+    # "politique de la cible v3" / "politique globale v1" / "politique par défaut".
+    # A pipeline that fails needs to know whose rules failed it, or the first reaction is
+    # to widen its own settings and change nothing.
+    policy_label: str = ""
+    observed: bool = True
+    observation_label: str = ""
+    observation_color: str = "gray"
+    last_scan_at: str = ""
+    detail_href: str = "/issues"
+
+
+@dataclasses.dataclass
+class TallyRow:
+    """One line of a "worst offenders" tally — a rule, a file, or a repository.
+
+    Deliberately generic: the Qualité page ranks the same shape on three axes, and three
+    near-identical row types would only differ by the name of their first field.
+    """
+
+    label: str = ""
+    count: int = 0
+    # Share of the total, as a width percentage for the inline bar.
+    share: float = 0.0
+    href: str = ""
+
+
+@dataclasses.dataclass
 class SastRow:
     """One Semgrep hit in a scan's detail panel.
 

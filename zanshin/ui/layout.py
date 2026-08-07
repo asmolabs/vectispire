@@ -1,10 +1,27 @@
 import reflex as rx
 from zanshin.ui.state import BaseState
 
-def nav_item(label: str, icon_name: str, path: str, current_page: str) -> rx.Component:
+def section_label(text: str) -> rx.Component:
+    """A heading above a group of navigation links.
+
+    Not a link, and not collapsible: it names a section, the way "Administration" has
+    always done. Making these expandable would need per-section state on `BaseState` for
+    a sidebar with nine entries."""
+    return rx.text(
+        text,
+        size="1",
+        weight="bold",
+        color="var(--slate-9)",
+        class_name="px-4 mt-4 mb-2 uppercase tracking-wider",
+    )
+
+
+def nav_item(
+    label: str, icon_name: str, path: str, current_page: str, class_name: str = ""
+) -> rx.Component:
     """Helper to build a navigation link with highlighting."""
     is_active = (current_page == label)
-    
+
     return rx.link(
         rx.hstack(
             rx.icon(tag=icon_name, size=20, color=rx.cond(is_active, "var(--accent-9)", "var(--slate-10)")),
@@ -23,7 +40,7 @@ def nav_item(label: str, icon_name: str, path: str, current_page: str) -> rx.Com
             )
         ),
         href=path,
-        class_name="w-full text-none"
+        class_name=f"w-full text-none {class_name}".strip(),
     )
 
 def sidebar(current_page: str, user_role: str) -> rx.Component:
@@ -45,16 +62,34 @@ def sidebar(current_page: str, user_role: str) -> rx.Component:
         # Navigation Items
         rx.vstack(
             nav_item("Tableau de bord", "home", "/dashboard", current_page),
-            nav_item("Conteneurs", "box", "/containers", current_page),
-            nav_item("Dépôts & Scans", "git-branch", "/depots", current_page),
+
+            # Two named sections, on the same pattern as Administration below.
+            #
+            # Note what the grouping does *not* do: `nav_item` highlights on
+            # `current_page == label`, and each page sets that label itself, so visiting
+            # /issues highlights "Problèmes" without lighting up "Sécurité". Highlighting
+            # a parent would need a label→section map this navigation has no room for,
+            # and the cost of not having it is cosmetic.
+            #
+            # The routes are unchanged: /depots and /containers keep their addresses.
+            # Renaming them to sit under a section prefix would break every bookmark for
+            # a purely visual gain.
+            section_label("Sécurité"),
+            nav_item("Sécurité", "shield-check", "/securite", current_page),
             nav_item("Problèmes", "shield-alert", "/issues", current_page),
-            nav_item("Clés SSH", "key", "/ssh-keys", current_page),
+            nav_item("Dépôts & Scans", "git-branch", "/depots", current_page),
+            nav_item("Conteneurs", "box", "/containers", current_page),
+
+            section_label("Qualité"),
+            nav_item("Qualité", "sparkles", "/qualite", current_page),
+
+            nav_item("Clés SSH", "key", "/ssh-keys", current_page, class_name="mt-4"),
 
             # Admin only pages
             rx.cond(
                 (user_role == "SUPERUSER") | (user_role == "ADMIN"),
                 rx.vstack(
-                    rx.text("Administration", size="1", weight="bold", color="var(--slate-9)", class_name="px-4 mt-4 mb-2 uppercase tracking-wider"),
+                    section_label("Administration"),
                     nav_item("Clés API", "lock", "/api-keys", current_page),
                     nav_item("Agents", "server", "/agents", current_page),
                     nav_item("Utilisateurs", "users", "/users", current_page),

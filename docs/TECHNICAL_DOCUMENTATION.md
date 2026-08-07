@@ -15,7 +15,7 @@ Zanshin follows a classic layered architecture with manual dependency injection 
 ```mermaid
 flowchart TB
     subgraph UI["UI layer (Reflex)"]
-        Pages["Pages (rx.State classes)<br/>dashboard, depots, issues, containers,<br/>ssh_keys, api_keys, settings, users, audit_log"]
+        Pages["Pages (rx.State classes)<br/>dashboard, securite, qualite, depots, issues,<br/>containers, ssh_keys, api_keys, agents,<br/>settings, users, audit_log"]
     end
 
     subgraph API["HTTP API (FastAPI, mounted via api_transformer)"]
@@ -301,6 +301,37 @@ Key points not obvious from the diagram alone:
 - `cves["engine_source"]` (not `"source"` — Grype's own JSON already uses that key for something unrelated) records which backend actually produced the vulnerability matches, so `_build_findings` can set `Finding.source` correctly regardless of which `ScannerEngine` ran.
 - `ScannerEngine.get_workspace_root()` returns `None` for every backend except `LocalApiScannerEngine`, which needs its temp directory created inside the volume shared with the `scan-api` sidecar rather than the OS default temp location.
 
+### 3ter. The Sécurité and Qualité sections
+
+The navigation carries two named sections. **Sécurité** groups its overview with
+Problèmes, Dépôts & Scans and Conteneurs; **Qualité** has one page. The routes are
+unchanged — `/depots` and `/containers` keep their addresses, because renaming them for a
+visual grouping would break every bookmark.
+
+`/securite` (`security_overview.py` + `ui/pages/securite.py`) finally displays something
+that has been computed since gate policies existed and shown nowhere: the verdict of
+`POST /api/v1/gate`, per target. It obtains it by calling `policy_gate.evaluate` with the
+same resolved policy the endpoint uses — not by a second implementation in SQL, which
+would agree today and diverge the first time `GatePolicy` grows a flag. A test asserts
+the two agree across six issue configurations.
+
+Two costs are avoided deliberately, and both would otherwise scale with the number of
+targets: `GatePolicyService.resolve` issues one or two queries per call, and loading a
+target's issues issues another. Everything is read once — policies, open issues in the
+few columns a verdict needs (`IssueRepository.find_open_for_gate`), latest scan per
+target — and matched in memory. A test counts the SQL statements at 3 and at 30 targets
+and requires the same number.
+
+The page also names what no other screen does: a target **never scanned**, or whose
+**last scan failed**, has an empty backlog, and an empty backlog satisfies every policy.
+Those two states are counted in the header and badged next to the verdict rather than
+being allowed to read as "clean".
+
+`/qualite` ranks the `quality` backlog by rule, by file and by repository — axes the
+issue list cannot offer, and the only useful framing in front of a four-figure backlog.
+It states explicitly that none of those findings can fail a build, because a screen full
+of counts otherwise reads as if they could.
+
 ### 3bis. Who executes a scan: the built-in agent and remote agents
 
 The sequence above is one process doing everything. Since ADR-002, *where* the scanners
@@ -430,7 +461,7 @@ flowchart TB
     end
 
     subgraph UI["Couche UI (Reflex)"]
-        Pages["Pages (classes rx.State)<br/>dashboard, depots, containers,<br/>ssh_keys, api_keys, settings, users, audit_log"]
+        Pages["Pages (classes rx.State)<br/>dashboard, securite, qualite, depots, issues,<br/>containers, ssh_keys, api_keys, agents,<br/>settings, users, audit_log"]
     end
 
     subgraph Services["Couche services (logique métier)"]

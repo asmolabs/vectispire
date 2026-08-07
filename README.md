@@ -19,6 +19,13 @@ Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and
 - **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
 - **End-of-life detection** (endoflife.date): flags platforms and runtimes whose security support has ended — the container's own distribution first of all. A whole class of risk with no CVE attached: nothing will be fixed for the *next* vulnerability, whatever it turns out to be. Coverage is deliberately scoped to products (languages, runtimes, frameworks, distributions), not every library.
 - **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
+- **Security and Quality sections.** The navigation is grouped: *Sécurité* holds an
+  overview that finally shows the gate verdict per target — computed since gate policies
+  existed and displayed nowhere until now — alongside the issue backlog, repositories and
+  containers. *Qualité* ranks the code-quality backlog by rule, file and repository, and
+  says plainly that none of it can fail a build. The overview also names the two states
+  no other screen did: a target never scanned, and one whose last scan failed — both have
+  an empty backlog, and an empty backlog passes every policy.
 - **Source-code analysis** (Semgrep, off by default): reads the code itself — a
   concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
@@ -328,6 +335,14 @@ Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côt�
 - **Conformité des licences** : évaluation d'une liste noire de licences configurable, à partir des données déjà présentes dans le SBOM.
 - **Détection de fin de vie** (endoflife.date) : signale les plateformes et exécutions dont le support de sécurité est terminé — la distribution du conteneur en premier lieu. Toute une classe de risque sans CVE : aucun correctif ne sera publié pour la *prochaine* faille, quelle qu'elle soit. La couverture porte volontairement sur des produits (langages, exécutions, frameworks, distributions), pas sur chaque bibliothèque.
 - **Scan IaC** (checkov) : détection de mauvaises configurations Terraform/Kubernetes dans les dépôts.
+- **Rubriques Sécurité et Qualité.** La navigation est regroupée : *Sécurité* réunit une
+  vue d'ensemble qui affiche enfin le verdict du gate par cible — calculé depuis
+  l'apparition des politiques et montré nulle part jusqu'ici — avec le backlog, les dépôts
+  et les conteneurs. *Qualité* classe les constats de qualité par règle, par fichier et par
+  dépôt, et dit clairement qu'aucun ne peut faire échouer une compilation. La vue
+  d'ensemble nomme aussi les deux états qu'aucun écran ne montrait : une cible jamais
+  scannée, et une cible dont le dernier scan a échoué — toutes deux ont un backlog vide, et
+  un backlog vide satisfait toutes les politiques.
 - **Analyse du code source** (Semgrep, désactivée par défaut) : lit le code lui-même —
   requête SQL concaténée, commande passée au shell, certificat TLS non vérifié — ce
   qu'aucun autre scanner ne voit ici. Produit deux natures de constats : *sécurité*,
