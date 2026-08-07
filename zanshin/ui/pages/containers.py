@@ -11,6 +11,7 @@ from zanshin.ui.components import (
     empty_state,
     severity_badges,
     severity_donut_chart,
+    severity_summary,
     stat_card,
     status_badge,
 )
@@ -299,10 +300,13 @@ def containers_page() -> rx.Component:
 
         # KPI cards
         rx.flex(
-            stat_card("Images surveillées", ContainersState.containers.length().to(str), "box", "cyan"),
-            stat_card("Vulnérabilités", rx.Var.create(f"{ContainersState.total_vulns}"), "shield-alert", "orange"),
-            stat_card("Critiques", rx.Var.create(f"{ContainersState.critical_count}"), "triangle-alert", "red"),
-            stat_card("Élevées", rx.Var.create(f"{ContainersState.high_count}"), "circle-alert", "amber"),
+            stat_card("Images surveillées", ContainersState.containers.length().to(str), "box"),
+            stat_card("Vulnérabilités", rx.Var.create(f"{ContainersState.total_vulns}"),
+                      "shield-alert", "orange", alert=ContainersState.total_vulns > 0),
+            stat_card("Critiques", rx.Var.create(f"{ContainersState.critical_count}"),
+                      "triangle-alert", "red", alert=ContainersState.critical_count > 0),
+            stat_card("Élevées", rx.Var.create(f"{ContainersState.high_count}"),
+                      "circle-alert", "amber", alert=ContainersState.high_count > 0),
             width="100%",
             spacing="4",
             flex_wrap="wrap",
@@ -403,47 +407,7 @@ def containers_page() -> rx.Component:
                 rx.dialog.title(f"Vulnérabilités de {ContainersState.selected_container_name}"),
                 rx.dialog.description("Liste détaillée des CVEs identifiées par Grype"),
                 
-                # Severity Cards
-                rx.hstack(
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="flame", size=14, color="var(--red-11)"),
-                            rx.text("Critique", size="1", color="var(--red-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(ContainersState.selected_scan_summary.get("critical", 0).to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-red-2 border border-red-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="triangle-alert", size=14, color="var(--orange-11)"),
-                            rx.text("Élevé", size="1", color="var(--orange-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(ContainersState.selected_scan_summary.get("high", 0).to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-orange-2 border border-orange-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="circle-alert", size=14, color="var(--yellow-11)"),
-                            rx.text("Moyen", size="1", color="var(--yellow-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(ContainersState.selected_scan_summary.get("medium", 0).to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-yellow-2 border border-yellow-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="info", size=14, color="var(--blue-11)"),
-                            rx.text("Faible", size="1", color="var(--blue-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(ContainersState.selected_scan_summary.get("low", 0).to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-blue-2 border border-blue-4 text-center flex-1"
-                    ),
-                    spacing="3",
-                    class_name="w-full mt-4"
-                ),
+                severity_summary(ContainersState.selected_scan_summary),
                 
                 # Findings Table
                 rx.box(
@@ -497,7 +461,7 @@ def containers_page() -> rx.Component:
                         ),
                         width="100%"
                     ),
-                    class_name="mt-6 max-h-96 overflow-y-auto border border-slate-4 rounded-lg"
+                    class_name="mt-6 max-h-96 overflow-y-auto zs-scrollbox"
                 ),
                 
                 rx.hstack(

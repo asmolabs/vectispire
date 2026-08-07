@@ -20,6 +20,11 @@ ALLOWED_ORIGINS = [
 config = rx.Config(
     app_name="zanshin",
     cors_allowed_origins=ALLOWED_ORIGINS,
+    # Reflex's sticky "Built with Reflex" badge, which it adds in production builds only.
+    # Off here: it is an outbound link to a third-party site pinned to the corner of every
+    # page of a security console, including the ones an auditor is shown. A supported
+    # option of `rx.Config`, not a patch.
+    show_built_with_reflex=False,
     plugins=[
         rx.plugins.SitemapPlugin(),
         rx.plugins.TailwindV4Plugin(),

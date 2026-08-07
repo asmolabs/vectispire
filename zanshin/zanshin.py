@@ -52,12 +52,13 @@ from zanshin.api import api_app
 
 app = rx.App(
     api_transformer=api_app,
-    # Lato at 14px and the shell geometry, both taken from the Sakai template — see
-    # assets/theme.css.
-    stylesheets=[
-        "https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap",
-        "/theme.css",
-    ],
+    # The type and the shell geometry both live in assets/theme.css, which also carries
+    # the @font-face rules for the embedded Inter files.
+    #
+    # There is deliberately **no third-party stylesheet here**. The previous version
+    # linked Google Fonts and this application's own CSP refused it, so the typeface never
+    # loaded in production — see assets/fonts/README.md.
+    stylesheets=["/theme.css"],
 )
 
 # Periodic rescanning (see zanshin/services/scheduler.py), started as a Reflex

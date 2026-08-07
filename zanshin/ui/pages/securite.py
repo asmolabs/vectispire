@@ -144,22 +144,26 @@ def securite_page() -> rx.Component:
             stat_card(
                 "Non conformes", SecuriteState.failing_count, "shield-alert", "red",
                 caption="bloqueraient une compilation",
+                alert=SecuriteState.failing_count > 0,
             ),
             stat_card(
-                "Cibles suivies", SecuriteState.total_count, "target", "cyan",
+                "Cibles suivies", SecuriteState.total_count, "target",
                 caption="dépôts et conteneurs",
             ),
             stat_card(
                 "KEV ouverts", SecuriteState.kev_count, "flame", "orange",
                 caption="exploitation active connue",
+                alert=SecuriteState.kev_count > 0,
             ),
             stat_card(
                 "Jamais scannées", SecuriteState.never_scanned_count, "eye-off", "amber",
                 caption="verdict sans observation",
+                alert=SecuriteState.never_scanned_count > 0,
             ),
             stat_card(
                 "Scan en échec", SecuriteState.last_scan_failed_count, "circle-x", "red",
                 caption="verdict périmé",
+                alert=SecuriteState.last_scan_failed_count > 0,
             ),
             columns="5",
             spacing="4",

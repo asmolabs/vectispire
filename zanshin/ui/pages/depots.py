@@ -13,6 +13,7 @@ from zanshin.ui.components import (
     empty_state,
     severity_badges,
     severity_donut_chart,
+    severity_summary,
     stat_card,
     status_badge,
 )
@@ -928,7 +929,7 @@ def details_layout_view() -> rx.Component:
                     ),
                     width="100%"
                 ),
-                class_name="w-full border border-slate-4 rounded-lg overflow-hidden"
+                class_name="w-full zs-scrollbox overflow-hidden"
             ),
             width="100%"
         ),
@@ -941,10 +942,13 @@ def overview_summary() -> rx.Component:
     single repo's details."""
     return rx.vstack(
         rx.flex(
-            stat_card("Dépôts", DepotsState.repositories.length().to(str), "git-branch", "blue"),
-            stat_card("Vulnérabilités", rx.Var.create(f"{DepotsState.total_vulns}"), "shield-alert", "orange"),
-            stat_card("Critiques", rx.Var.create(f"{DepotsState.critical_count}"), "triangle-alert", "red"),
-            stat_card("Secrets", rx.Var.create(f"{DepotsState.secret_count}"), "key-round", "amber"),
+            stat_card("Dépôts", DepotsState.repositories.length().to(str), "git-branch"),
+            stat_card("Vulnérabilités", rx.Var.create(f"{DepotsState.total_vulns}"),
+                      "shield-alert", "orange", alert=DepotsState.total_vulns > 0),
+            stat_card("Critiques", rx.Var.create(f"{DepotsState.critical_count}"),
+                      "triangle-alert", "red", alert=DepotsState.critical_count > 0),
+            stat_card("Secrets", rx.Var.create(f"{DepotsState.secret_count}"),
+                      "key-round", "amber", alert=DepotsState.secret_count > 0),
             width="100%",
             spacing="4",
             flex_wrap="wrap",
@@ -1004,47 +1008,7 @@ def depots_page() -> rx.Component:
                 rx.dialog.title(f"Vulnérabilités de {DepotsState.selected_scan_name}"),
                 rx.dialog.description("Détails des failles, secrets, licences non conformes, et manifestes IaC mal configurés identifiés"),
                 
-                # Severity Summary
-                rx.hstack(
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="flame", size=14, color="var(--red-11)"),
-                            rx.text("Critique", size="1", color="var(--red-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(DepotsState.selected_scan_summary.critical.to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-red-2 border border-red-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="triangle-alert", size=14, color="var(--orange-11)"),
-                            rx.text("Élevé", size="1", color="var(--orange-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(DepotsState.selected_scan_summary.high.to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-orange-2 border border-orange-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="circle-alert", size=14, color="var(--yellow-11)"),
-                            rx.text("Moyen", size="1", color="var(--yellow-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(DepotsState.selected_scan_summary.medium.to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-yellow-2 border border-yellow-4 text-center flex-1"
-                    ),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon(tag="info", size=14, color="var(--blue-11)"),
-                            rx.text("Faible", size="1", color="var(--blue-11)"),
-                            spacing="1", align="center", justify="center", width="100%"
-                        ),
-                        rx.heading(DepotsState.selected_scan_summary.low.to(str), size="5"),
-                        class_name="p-4 rounded-lg bg-blue-2 border border-blue-4 text-center flex-1"
-                    ),
-                    spacing="3",
-                    class_name="w-full mt-4"
-                ),
+                severity_summary(DepotsState.selected_scan_summary),
                 
                 # CVE list table
                 rx.box(
@@ -1098,7 +1062,7 @@ def depots_page() -> rx.Component:
                         ),
                         width="100%"
                     ),
-                    class_name="mt-6 max-h-96 overflow-y-auto border border-slate-4 rounded-lg"
+                    class_name="mt-6 max-h-96 overflow-y-auto zs-scrollbox"
                 ),
 
                 # Secrets section (gitleaks) — only rendered when relevant
@@ -1126,7 +1090,7 @@ def depots_page() -> rx.Component:
                                 ),
                                 width="100%"
                             ),
-                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                            class_name="max-h-64 overflow-y-auto zs-scrollbox"
                         ),
                         width="100%",
                         spacing="2",
@@ -1160,7 +1124,7 @@ def depots_page() -> rx.Component:
                                 ),
                                 width="100%"
                             ),
-                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                            class_name="max-h-64 overflow-y-auto zs-scrollbox"
                         ),
                         width="100%",
                         spacing="2",
@@ -1200,7 +1164,7 @@ def depots_page() -> rx.Component:
                                 ),
                                 width="100%"
                             ),
-                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                            class_name="max-h-64 overflow-y-auto zs-scrollbox"
                         ),
                         width="100%",
                         spacing="2",
@@ -1261,7 +1225,7 @@ def depots_page() -> rx.Component:
                                 ),
                                 width="100%"
                             ),
-                            class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg"
+                            class_name="max-h-64 overflow-y-auto zs-scrollbox"
                         ),
                         rx.text(
                             "Les constats de qualité n'entrent jamais dans le verdict du "
@@ -1304,7 +1268,7 @@ def depots_page() -> rx.Component:
                                     DepotsState.selected_scan_ai_review.response,
                                     size="2", white_space="pre-wrap"
                                 ),
-                                class_name="p-4 rounded-md bg-slate-2 max-h-64 overflow-y-auto"
+                                class_name="p-4 max-h-64 overflow-y-auto zs-scrollbox"
                             )
                         ),
                         # Normalized findings extracted from the response
@@ -1336,7 +1300,7 @@ def depots_page() -> rx.Component:
                                     ),
                                     width="100%"
                                 ),
-                                class_name="max-h-64 overflow-y-auto border border-slate-4 rounded-lg mt-3"
+                                class_name="max-h-64 overflow-y-auto zs-scrollbox mt-3"
                             )
                         ),
                         width="100%",

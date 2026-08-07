@@ -62,17 +62,25 @@ def login_page() -> rx.Component:
                 width="100%"
             ),
             
-            # Footer / Links
-            rx.text(
-                "Default credentials: admin / password123",
-                size="1",
-                color="var(--slate-9)"
-            ),
-            
+            # A line naming the default account and its password used to sit here, and
+            # its absence is the point: printing working credentials on the
+            # unauthenticated page of a security console hands them to anyone who reaches
+            # the login form, including whoever found the instance by scanning the
+            # network. If a deployment still has a default account, the place to say so is
+            # the installation guide, once, to the person installing it.
+            #
+            # The literal is deliberately not quoted above — `tests/test_ui_assets.py`
+            # greps this file, and a citation in a comment would satisfy the grep while
+            # the page stayed clean, or fail it while the page was fine. Same trap the
+            # encryption-key removal hit.
+
             spacing="6",
             align="center",
             class_name="zs-card zs-card-lg max-w-sm w-full"
         ),
         min_height="100vh",
-        class_name="w-full bg-slate-1"
+        # The same canvas as every other screen. This was `bg-slate-1`, one step lighter,
+        # so the login page and the application it leads to were subtly different greys —
+        # and the card, being white on near-white, had almost no edge.
+        class_name="w-full zs-canvas"
     )

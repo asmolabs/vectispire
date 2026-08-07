@@ -203,12 +203,18 @@ def dashboard_page() -> rx.Component:
 
         # Stat cards row
         rx.flex(
-            stat_card("Dépôts", rx.Var.create(f"{DashboardState.repo_count}"), "git-branch", "blue"),
-            stat_card("Conteneurs", rx.Var.create(f"{DashboardState.container_count}"), "box", "cyan"),
-            stat_card("Vulnérabilités", rx.Var.create(f"{DashboardState.vuln_count}"), "shield-alert", "orange"),
-            stat_card("Critiques", rx.Var.create(f"{DashboardState.critical_count}"), "triangle-alert", "red"),
-            stat_card("Secrets", rx.Var.create(f"{DashboardState.secret_count}"), "key-round", "amber"),
-            stat_card("Dernier scan", DashboardState.last_scan_display, "clock", "teal"),
+            # Inventory counts are neutral: how many repositories exist is not news. The
+            # three that can demand something light up only when they are non-zero — see
+            # `stat_card`'s `alert`.
+            stat_card("Dépôts", rx.Var.create(f"{DashboardState.repo_count}"), "git-branch"),
+            stat_card("Conteneurs", rx.Var.create(f"{DashboardState.container_count}"), "box"),
+            stat_card("Vulnérabilités", rx.Var.create(f"{DashboardState.vuln_count}"),
+                      "shield-alert", "orange", alert=DashboardState.vuln_count > 0),
+            stat_card("Critiques", rx.Var.create(f"{DashboardState.critical_count}"),
+                      "triangle-alert", "red", alert=DashboardState.critical_count > 0),
+            stat_card("Secrets", rx.Var.create(f"{DashboardState.secret_count}"),
+                      "key-round", "amber", alert=DashboardState.secret_count > 0),
+            stat_card("Dernier scan", DashboardState.last_scan_display, "clock"),
             width="100%",
             spacing="4",
             flex_wrap="wrap",

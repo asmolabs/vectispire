@@ -1178,7 +1178,7 @@ def settings_page() -> rx.Component:
                         variant="surface",
                         width="100%",
                     ),
-                    class_name="w-full overflow-x-auto rounded-lg border border-slate-4 mt-4",
+                    class_name="w-full overflow-x-auto mt-4",
                 ),
             ),
             width="100%",

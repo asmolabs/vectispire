@@ -158,10 +158,12 @@ def qualite_page() -> rx.Component:
         ),
 
         rx.grid(
-            stat_card("Constats ouverts", QualiteState.open_count, "list-checks", "blue",
+            # Nothing here is ever alarming — quality findings cannot fail a build, and
+            # this row would be lying if it looked urgent.
+            stat_card("Constats ouverts", QualiteState.open_count, "list-checks",
                       caption="ne bloquent aucune compilation"),
-            stat_card("Règles concernées", QualiteState.rule_count, "scan-text", "cyan"),
-            stat_card("Fichiers touchés", QualiteState.file_count, "file-code", "gray"),
+            stat_card("Règles concernées", QualiteState.rule_count, "scan-text"),
+            stat_card("Fichiers touchés", QualiteState.file_count, "file-code"),
             columns="3",
             spacing="4",
             width="100%",
