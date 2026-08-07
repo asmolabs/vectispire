@@ -23,6 +23,7 @@ from zanshin.models.agent import (
     STATUS_DISABLED,
     STATUS_ONLINE,
 )
+from zanshin.services import leader_election
 from zanshin.services.audit_log_service import AuditOperation
 from zanshin.services.scan_queue import (
     STATUS_QUEUED,
@@ -55,6 +56,11 @@ class AgentsState(BaseState):
     # True when nothing can pick work up: shown as a warning, because from the
     # operator's side the only symptom is a queue that has silently stopped moving.
     no_worker_available: bool = False
+    # Who runs the periodic work (scheduled scans, retention, the outbox relay). Shown
+    # because "why did nothing run last night" is a question this answers, and because
+    # answering it is why the lease is a table rather than an advisory lock.
+    scheduler_owner: str = ""
+    scheduler_is_this_instance: bool = False
 
     create_dialog_open: bool = False
     display_dialog_open: bool = False
@@ -122,6 +128,10 @@ class AgentsState(BaseState):
             self.no_worker_available = not any(
                 row.status == STATUS_ONLINE for row in rows
             )
+
+            holder = leader_election.current_holder(container.db)
+            self.scheduler_is_this_instance = holder == leader_election.INSTANCE_ID
+            self.scheduler_owner = holder or ""
 
             self.queue = self._build_queue(container)
             self.queued_count = sum(1 for row in self.queue if row.status == STATUS_QUEUED)
@@ -528,8 +538,33 @@ def agents_page() -> rx.Component:
                     f"{AgentsState.queued_count} en attente", color_scheme="gray"
                 ),
                 rx.badge(f"{AgentsState.running_count} en cours", color_scheme="blue"),
+                rx.spacer(),
+                # The periodic work has exactly one owner across a fleet; naming it here
+                # is what makes "nothing ran last night" diagnosable.
+                rx.cond(
+                    AgentsState.scheduler_owner != "",
+                    rx.tooltip(
+                        rx.badge(
+                            rx.cond(
+                                AgentsState.scheduler_is_this_instance,
+                                "scans planifiés : cette instance",
+                                "scans planifiés : autre instance",
+                            ),
+                            color_scheme=rx.cond(
+                                AgentsState.scheduler_is_this_instance, "cyan", "gray"
+                            ),
+                            variant="surface",
+                        ),
+                        content=(
+                            "Les scans planifiés, la rétention et le relais des "
+                            "notifications n'ont qu'un seul propriétaire : sans cela, "
+                            "deux instances scanneraient chaque cible deux fois."
+                        ),
+                    ),
+                ),
                 spacing="3",
                 align="center",
+                width="100%",
             ),
             rx.cond(
                 AgentsState.queue.length() > 0,

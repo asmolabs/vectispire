@@ -15,6 +15,7 @@ from zanshin.models.gate_policy import StoredGatePolicy
 from zanshin.models.outbox_message import OutboxMessage
 from zanshin.models.agent import Agent
 from zanshin.models.processed_message import ProcessedMessage
+from zanshin.models.leader_lease import LeaderLease
 
 __all__ = [
     "GUID",
@@ -34,4 +35,5 @@ __all__ = [
     "OutboxMessage",
     "Agent",
     "ProcessedMessage",
+    "LeaderLease",
 ]

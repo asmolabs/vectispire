@@ -314,3 +314,49 @@ def test_a_non_admin_cannot_register_an_agent(ui, ui_session):
 
     assert state.created_key_raw == ""
     assert ApiKeyRepository(ui_session).find_all() == []
+
+
+# --- Who owns the periodic work -----------------------------------------------
+
+def test_the_page_names_this_instance_when_it_owns_the_scheduled_work(ui, ui_session):
+    """"Why did nothing run last night" is the question this answers — and answering it
+    is why the lease is a table rather than an engine advisory lock."""
+    from zanshin.services import leader_election
+
+    leader_election.acquire(ui_session)
+    state = ui.state(AgentsState)
+
+    ui.run(state, "load_agents_data")
+
+    assert state.scheduler_owner == leader_election.INSTANCE_ID
+    assert state.scheduler_is_this_instance is True
+
+
+def test_the_page_says_another_instance_owns_it(ui, ui_session):
+    from zanshin.services import leader_election
+
+    leader_election.acquire(ui_session, holder="another-instance")
+    state = ui.state(AgentsState)
+
+    ui.run(state, "load_agents_data")
+
+    assert state.scheduler_owner == "another-instance"
+    assert state.scheduler_is_this_instance is False
+
+
+def test_an_expired_lease_names_nobody(ui, ui_session):
+    """A dead instance must not still be shown as the one doing the work."""
+    from datetime import timedelta
+
+    from zanshin.models.leader_lease import JOB_SCHEDULER, LeaderLease
+    from zanshin.services import leader_election
+
+    leader_election.acquire(ui_session, holder="dead-instance")
+    lease = ui_session.query(LeaderLease).filter(LeaderLease.name == JOB_SCHEDULER).first()
+    lease.expires_at = utcnow() - timedelta(seconds=1)
+    ui_session.commit()
+    state = ui.state(AgentsState)
+
+    ui.run(state, "load_agents_data")
+
+    assert state.scheduler_owner == ""

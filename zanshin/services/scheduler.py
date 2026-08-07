@@ -33,6 +33,7 @@ from zanshin.database import SessionLocal
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
+from zanshin.services import leader_election
 from zanshin.services.outbox_service import prune_sent as prune_sent_messages, relay as outbox_relay
 from zanshin.services.scan_queue import dispatch as dispatch_queued_scans
 from zanshin.services.scan_queue import reclaim_expired_leases
@@ -106,6 +107,17 @@ def find_due_targets(
 def run_once(now: Optional[datetime] = None) -> int:
     """One scheduler pass. Returns how many scans were dispatched.
 
+    Split in two by what each job *is*, not by cost:
+
+    - **per-instance**, always: refreshing this instance's built-in agent, and
+      dispatching queued scans to it. A fleet whose instances only claimed work while
+      holding the lease would idle behind whichever one holds it.
+    - **exclusive**, only for the leader: everything whose effect is once per period.
+      Chief among them is dispatching due targets — `last_scheduled_scan_at` is stamped
+      before dispatch, which protects against one process ticking twice and not at all
+      against two processes ticking together, so two instances would scan every target
+      twice per interval (ADR-002 §2.2).
+
     Never raises: an exception here would kill the scheduler thread and silently
     end all automatic scanning.
     """
@@ -115,16 +127,22 @@ def run_once(now: Optional[datetime] = None) -> int:
     try:
         container = IoCContainer(db)
 
+        # Per-instance, and first: an instance that cannot take the lease must still
+        # be a working scan agent.
+        _refresh_builtin_agent(container)
+        # The queue's safety net: this is what starts scans left waiting by a restart,
+        # and the only dispatch that runs when nothing else is happening.
+        dispatch_queued_scans()
+
+        if not _hold_leadership(db):
+            return 0
+
         _reclaim_abandoned_scans(db)
         fail_stalled_scans(db, STALLED_SCAN_MAX_AGE_SECONDS)
         _prune_raw_payloads(container, db, now)
         _expire_stale_triages(container, db)
-        _refresh_builtin_agent(container)
         _relay_notifications(container, db)
         _open_tracker_tickets(container, db)
-        # The queue's safety net: this is what starts scans left waiting by a restart,
-        # and the only dispatch that runs when nothing else is happening.
-        dispatch_queued_scans()
 
         due_repos, due_containers = find_due_targets(
             container.repository_repository.find_all(),
@@ -160,6 +178,20 @@ def run_once(now: Optional[datetime] = None) -> int:
         return dispatched
     finally:
         db.close()
+
+
+def _hold_leadership(db) -> bool:
+    """Take or renew the lease on the exclusive part of the tick.
+
+    Never raises, and **fails closed**: an instance that cannot reach the lease table
+    does not get to assume it is alone. Skipping a tick costs a minute of latency;
+    assuming leadership wrongly costs a duplicated scan of every due target.
+    """
+    try:
+        return leader_election.acquire(db)
+    except Exception:
+        logger.exception("Could not take the scheduler lease — skipping the exclusive work")
+        return False
 
 
 def _reclaim_abandoned_scans(db) -> None:
@@ -316,4 +348,18 @@ def start() -> None:
 
 
 def stop() -> None:
+    """Stop the tick, and hand the lease back if this instance held it.
+
+    Best-effort by construction: a process that is killed releases nothing, which is
+    why the lease expires on its own. Releasing when we *can* just means a successor
+    picks the job up in seconds instead of after the expiry.
+    """
     _stop_event.set()
+    db = SessionLocal()
+    try:
+        if leader_election.release(db):
+            logger.info("Released the scheduler lease")
+    except Exception:
+        logger.exception("Could not release the scheduler lease — it will expire on its own")
+    finally:
+        db.close()

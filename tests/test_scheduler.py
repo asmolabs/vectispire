@@ -23,6 +23,7 @@ from zanshin.services.ticket_service import TicketService
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.models.scan import Scan
+from zanshin.services import leader_election
 from zanshin.services.scheduler import find_due_targets, is_due, run_once
 
 NOW = datetime(2026, 8, 6, 12, 0, 0)
@@ -286,3 +287,99 @@ def test_the_tick_delivers_a_pending_notification(scheduler_env):
     session.expire_all()
     assert services["posts"] == ["https://hooks.example.com/abc"]
     assert session.query(OutboxMessage).one().status == STATUS_SENT
+
+
+# --- Leadership (ADR-002 §2.2) ---
+#
+# The tick is split by what each job *is*: the exclusive work happens once per period
+# across the whole fleet, the per-instance work happens on every instance. Getting that
+# split wrong is expensive in one direction (every target scanned twice per interval)
+# and paralysing in the other (a fleet idling behind whichever instance holds the lease).
+
+def test_only_one_of_two_instances_dispatches_a_due_target(scheduler_env, monkeypatch):
+    """The defect this closes. `last_scheduled_scan_at` is stamped before dispatch,
+    which protects against one process ticking twice and not at all against two
+    processes ticking together."""
+    session, services = scheduler_env
+    _repo(session, scan_interval_minutes=60)
+
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-a")
+    assert run_once() == 1
+
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-b")
+    assert run_once() == 0
+
+    assert services["repository"].calls == [1], "the target was dispatched twice"
+
+
+def test_a_follower_still_claims_queued_scans_for_its_own_agent(scheduler_env, monkeypatch):
+    """Per-instance, and it has to be: a fleet whose instances only claimed work while
+    holding the lease would idle behind whichever one holds it."""
+    session, _ = scheduler_env
+    dispatched = []
+    monkeypatch.setattr(
+        scheduler_module, "dispatch_queued_scans", lambda: dispatched.append(True)
+    )
+    refreshed = []
+    monkeypatch.setattr(
+        scheduler_module, "_refresh_builtin_agent", lambda container: refreshed.append(True)
+    )
+
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-a")
+    run_once()
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-b")
+    run_once()
+
+    assert len(dispatched) == 2, "the follower stopped claiming work"
+    assert len(refreshed) == 2, "the follower stopped reporting itself as alive"
+
+
+def test_the_leader_keeps_the_lease_across_ticks(scheduler_env, monkeypatch):
+    session, services = scheduler_env
+    _repo(session, scan_interval_minutes=60)
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-a")
+
+    run_once()
+    run_once()
+
+    assert leader_election.current_holder(session) == "instance-a"
+
+
+def test_leadership_passes_on_when_the_holder_stops_renewing(scheduler_env, monkeypatch):
+    from datetime import timedelta
+
+    from zanshin.clock import utcnow
+    from zanshin.models.leader_lease import JOB_SCHEDULER, LeaderLease
+
+    session, services = scheduler_env
+    _repo(session, scan_interval_minutes=60)
+
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-a")
+    run_once()
+
+    lease = session.query(LeaderLease).filter(LeaderLease.name == JOB_SCHEDULER).first()
+    lease.expires_at = utcnow() - timedelta(seconds=1)
+    session.commit()
+
+    monkeypatch.setattr(leader_election, "INSTANCE_ID", "instance-b")
+    run_once()
+
+    session.expire_all()
+    assert leader_election.current_holder(session) == "instance-b"
+
+
+def test_a_tick_that_cannot_reach_the_lease_does_not_assume_it_is_alone(
+    scheduler_env, monkeypatch
+):
+    """Fails closed. Skipping a tick costs a minute of latency; assuming leadership
+    wrongly costs a duplicated scan of every due target."""
+    session, services = scheduler_env
+    _repo(session, scan_interval_minutes=60)
+
+    def unreachable(*args, **kwargs):
+        raise RuntimeError("lease table unreachable")
+
+    monkeypatch.setattr(leader_election, "acquire", unreachable)
+
+    assert run_once() == 0
+    assert services["repository"].calls == []
