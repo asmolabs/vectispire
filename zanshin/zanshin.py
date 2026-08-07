@@ -35,6 +35,13 @@ ensure_bootstrap_superuser()
 from zanshin.bootstrap import recover_interrupted_scans
 recover_interrupted_scans()
 
+# Refuse, here and not later, the deployments that cannot work — chiefly a second
+# instance on SQLite, which has one writer (see zanshin/startup_guard.py and ADR-002
+# D6). Raising stops the process, which is the point: the alternative is an operator
+# discovering it from a corrupt database.
+from zanshin.startup_guard import run as check_deployment
+check_deployment()
+
 # The programmatic API (see zanshin/api/) is mounted onto the same ASGI app, so
 # it is served from the same process and port as the UI. This is what finally
 # gives the API keys a consumer: they could be issued from the UI and presented
