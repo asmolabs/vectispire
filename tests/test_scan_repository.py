@@ -192,10 +192,15 @@ def test_deleting_a_repository_still_cascades_to_its_scans(
     """Dropping `lazy="joined"` must not weaken the delete cascade."""
     repo = make_repository()
     scan = _add_scan(db_session, repo_id=repo.id)
+    scan_id = scan.id
 
     repository_repository.delete_by_id(repo.id)
 
-    assert scan_repository.find_by_id(scan.id) is None
+    # Expunged first: `find_by_id` on an instance still in the identity map raises
+    # `ObjectDeletedError` once the row is gone, which is the ORM reporting that the
+    # cascade worked rather than a failure.
+    db_session.expunge_all()
+    assert scan_repository.find_by_id(scan_id) is None
 
 
 def test_recent_scans_ordering_survives_a_naive_utcnow_mix(

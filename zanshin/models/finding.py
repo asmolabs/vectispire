@@ -19,7 +19,7 @@ class Finding(Base):
     id = Column(Integer, primary_key=True, index=True)
     # Indexed: `count_by_scan_ids_and_type` runs on every list and history
     # render, filtering on `scan_id IN (...)`.
-    scan_id = Column(Integer, ForeignKey("scan.id"), nullable=False, index=True)
+    scan_id = Column(Integer, ForeignKey("scan.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # "vulnerability" (SCA/Grype) today; "secret" / "iac" / "license" are the
     # extension points for the additional scanners described in ADR-001.
@@ -56,7 +56,7 @@ class Finding(Base):
     # The cross-scan issue this observation belongs to. State and triage live
     # there, not here: a scan rewrites its findings wholesale, so a status on
     # this row could never outlive one scan (see zanshin/models/issue.py).
-    issue_id = Column(Integer, ForeignKey("issue.id"), nullable=True, index=True)
+    issue_id = Column(Integer, ForeignKey("issue.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_at = Column(SafeDateTime, default=utcnow, nullable=False)
 

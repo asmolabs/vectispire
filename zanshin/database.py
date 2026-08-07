@@ -28,7 +28,7 @@ pooling and `pool_pre_ping`, which are meaningless for a file.
 import logging
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -146,13 +146,30 @@ def create_configured_engine(url=None):
 
 engine = create_configured_engine()
 
-# Note for whoever configures a server database: SQLite ignores foreign keys unless
-# `PRAGMA foreign_keys=ON` is set per connection, while PostgreSQL always enforces
-# them. This schema's cascades are declared ORM-side (`cascade="all, delete-orphan"`)
-# and `Issue.findings` has none, so deletes that silently orphan rows on SQLite today
-# would raise on PostgreSQL. Enforcing them is the right end state and deliberately
-# not done here: it needs `ondelete` rules, a migration and its own tests, not a side
-# effect of making the URL configurable.
+
+def enable_sqlite_foreign_keys(target_engine) -> None:
+    """Make SQLite enforce the foreign keys it declares.
+
+    SQLite parses `REFERENCES` clauses and then ignores them unless asked, per
+    connection. PostgreSQL and MySQL always enforce them, so without this the same
+    schema had two behaviours: a delete that silently orphaned rows on the development
+    machine raised on a server — the sort of difference that is found in production.
+
+    Now that every foreign key carries an `ondelete` rule (migration 0013), enforcing
+    them here makes the three backends agree. Registered per engine rather than
+    globally so a test engine gets the same treatment.
+    """
+    if not is_sqlite(str(target_engine.url)):
+        return
+
+    @event.listens_for(target_engine, "connect")
+    def _set_pragma(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
+enable_sqlite_foreign_keys(engine)
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

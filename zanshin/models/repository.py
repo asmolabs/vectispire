@@ -16,7 +16,7 @@ class ZanshinRepository(Base):
     scan_cron = Column(String(255), nullable=True)
     last_scheduled_scan_at = Column(SafeDateTime, nullable=True)
     
-    ssh_key_id = Column(GUID, ForeignKey("ssh_key.id"), nullable=True)
+    ssh_key_id = Column(GUID, ForeignKey("ssh_key.id", ondelete="SET NULL"), nullable=True)
     ssh_key = relationship("SSHKey")
     
     # Cascade deletes to scans and vex decisions.
@@ -27,5 +27,9 @@ class ZanshinRepository(Base):
     # Screens that need scan data now ask `ScanRepository` for column-only
     # summaries (see `ScanSummary`); this relationship exists for the cascade
     # and for the rare case where whole `Scan` entities are genuinely wanted.
-    scans = relationship("Scan", back_populates="repository", cascade="all, delete-orphan")
-    issues = relationship("Issue", back_populates="repository", cascade="all, delete-orphan")
+    scans = relationship(
+        "Scan", back_populates="repository", cascade="all, delete-orphan", passive_deletes=True
+    )
+    issues = relationship(
+        "Issue", back_populates="repository", cascade="all, delete-orphan", passive_deletes=True
+    )

@@ -17,8 +17,12 @@ class Container(Base):
     # Not `lazy="joined"` — same reasoning as `ZanshinRepository.scans`:
     # listing containers must not drag every scan's raw SBOM/CVE blob into
     # memory. Lists read `ScanRepository` summaries instead.
-    scans = relationship("Scan", back_populates="container", cascade="all, delete-orphan")
-    issues = relationship("Issue", back_populates="container", cascade="all, delete-orphan")
+    scans = relationship(
+        "Scan", back_populates="container", cascade="all, delete-orphan", passive_deletes=True
+    )
+    issues = relationship(
+        "Issue", back_populates="container", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     @property
     def image_string(self) -> str:

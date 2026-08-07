@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from zanshin.database import Base
+from zanshin.database import Base, enable_sqlite_foreign_keys
 import zanshin.models  # noqa: F401 — registers every model on Base.metadata
 
 from zanshin.models.user import User
@@ -57,6 +57,10 @@ def db_session():
         # tables at all.
         poolclass=StaticPool,
     )
+    # The same pragma the application sets on its own engine. Without it the test
+    # database would ignore the foreign keys it declares, which is precisely how the
+    # delete rules could have been wrong for months without a test noticing.
+    enable_sqlite_foreign_keys(engine)
     Base.metadata.create_all(bind=engine)
     TestSessionLocal = sessionmaker(bind=engine)
     session = TestSessionLocal()
@@ -80,6 +84,7 @@ def isolated_session_local():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,  # see `db_session` for why
     )
+    enable_sqlite_foreign_keys(engine)
     Base.metadata.create_all(bind=engine)
     factory = sessionmaker(bind=engine)
     yield factory

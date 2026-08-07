@@ -80,8 +80,8 @@ class Issue(Base):
     # Exactly one of these is set, mirroring `Scan`. Not a polymorphic
     # "target_type/target_id" pair: real foreign keys mean the cascade below
     # deletes an entity's issues with it, the way scans already are.
-    repo_id = Column(Integer, ForeignKey("repository.id"), nullable=True)
-    container_id = Column(Integer, ForeignKey("container.id"), nullable=True)
+    repo_id = Column(Integer, ForeignKey("repository.id", ondelete="CASCADE"), nullable=True)
+    container_id = Column(Integer, ForeignKey("container.id", ondelete="CASCADE"), nullable=True)
 
     # Stable identity across scans; see `build_fingerprint`.
     fingerprint = Column(String(64), nullable=False, index=True)
@@ -119,8 +119,8 @@ class Issue(Base):
     first_seen_at = Column(SafeDateTime, default=utcnow, nullable=False)
     last_seen_at = Column(SafeDateTime, default=utcnow, nullable=False)
     resolved_at = Column(SafeDateTime, nullable=True)
-    first_seen_scan_id = Column(Integer, ForeignKey("scan.id"), nullable=True)
-    last_seen_scan_id = Column(Integer, ForeignKey("scan.id"), nullable=True)
+    first_seen_scan_id = Column(Integer, ForeignKey("scan.id", ondelete="SET NULL"), nullable=True)
+    last_seen_scan_id = Column(Integer, ForeignKey("scan.id", ondelete="SET NULL"), nullable=True)
     # How many scans have seen it — the cheap signal for "is this chronic".
     times_seen = Column(Integer, default=1, nullable=False)
 
@@ -143,7 +143,11 @@ class Issue(Base):
 
     repository = relationship("ZanshinRepository", back_populates="issues")
     container = relationship("Container", back_populates="issues")
-    findings = relationship("Finding", back_populates="issue")
+    # Pas de cascade : supprimer un problème ne supprime pas les observations qui
+    # l'ont constitué, elles se détachent (`ondelete="SET NULL"` sur la colonne).
+    # `passive_deletes` laisse la base appliquer cette règle au lieu de charger
+    # chaque finding pour le modifier.
+    findings = relationship("Finding", back_populates="issue", passive_deletes=True)
     first_seen_scan = relationship("Scan", foreign_keys=[first_seen_scan_id])
     last_seen_scan = relationship("Scan", foreign_keys=[last_seen_scan_id])
 

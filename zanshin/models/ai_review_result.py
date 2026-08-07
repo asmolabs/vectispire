@@ -23,7 +23,7 @@ class AiReviewResult(Base):
     __tablename__ = "ai_review_result"
 
     id = Column(Integer, primary_key=True, index=True)
-    scan_id = Column(Integer, ForeignKey("scan.id"), nullable=False, unique=True)
+    scan_id = Column(Integer, ForeignKey("scan.id", ondelete="CASCADE"), nullable=False, unique=True)
 
     model = Column(String(255), nullable=False)
     prompt = Column(Text, nullable=False)

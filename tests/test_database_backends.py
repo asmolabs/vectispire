@@ -469,3 +469,145 @@ def test_the_dashboard_aggregates_run(container_for, session):
     assert counts["total"] >= 1
     assert counts["actionable"] >= 1
     assert by_severity.get("critical", 0) >= 1
+
+
+# --- Delete rules (migration 0013) ---
+#
+# This is where "the database enforces this" is actually proved. On SQLite the rules are
+# only honoured because a pragma asks for it; PostgreSQL and MySQL enforce them always,
+# and they are the reason the rules had to exist at all — before 0013, deleting a scan
+# on a server database failed outright, because `issue.first_seen_scan_id` referenced it
+# with no rule and no ORM relationship to clear it.
+
+def _target_with_history(session, suffix: str):
+    from zanshin.models.ai_review_result import AiReviewResult
+    from zanshin.models.finding import Finding
+    from zanshin.models.issue import Issue
+    from zanshin.models.repository import ZanshinRepository
+    from zanshin.models.scan import Scan
+
+    repo = ZanshinRepository(
+        name=_unique("app"), url=f"git@example.com:{_unique(suffix)}.git", branch="main"
+    )
+    session.add(repo)
+    session.commit()
+
+    scan = Scan(repo_id=repo.id, branch="main", status="completed", findings_count=1)
+    session.add(scan)
+    session.commit()
+
+    issue = Issue(
+        repo_id=repo.id, fingerprint=_unique("fp"), type="vulnerability",
+        identifier="CVE-2024-0001", severity="high", state="open", is_kev=False,
+        first_seen_scan_id=scan.id, last_seen_scan_id=scan.id,
+    )
+    session.add(issue)
+    session.commit()
+
+    finding = Finding(
+        scan_id=scan.id, type="vulnerability", severity="high",
+        identifier="CVE-2024-0001", source="grype", issue_id=issue.id,
+    )
+    review = AiReviewResult(
+        scan_id=scan.id, model="test", prompt="p", response="r", status="completed"
+    )
+    session.add_all([finding, review])
+    session.commit()
+    return repo, scan, issue, finding, review
+
+
+def test_the_server_enforces_foreign_keys(session):
+    """The premise. A driver that let an invalid reference through would make every
+    rule below meaningless."""
+    from sqlalchemy.exc import IntegrityError
+
+    from zanshin.models.finding import Finding
+
+    session.add(Finding(scan_id=999_999, type="vulnerability", severity="high", source="grype"))
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+
+def test_deleting_a_scan_no_longer_fails(session):
+    """The bug 0013 fixes, in its original form: on PostgreSQL this raised, because two
+    issue columns referenced the scan with no delete rule and no ORM relationship
+    through which SQLAlchemy could have cleared them."""
+    from zanshin.models.issue import Issue
+
+    _repo, scan, issue, _finding, _review = _target_with_history(session, "del-scan")
+    issue_id = issue.id
+
+    session.delete(scan)
+    session.commit()
+    session.expunge_all()
+
+    reloaded = session.get(Issue, issue_id)
+    assert reloaded is not None
+    assert reloaded.first_seen_scan_id is None
+    assert reloaded.last_seen_scan_id is None
+
+
+def test_deleting_a_target_cascades_on_the_server(session):
+    from zanshin.models.finding import Finding
+    from zanshin.models.issue import Issue
+    from zanshin.models.scan import Scan
+
+    repo, scan, issue, finding, _review = _target_with_history(session, "del-target")
+    scan_id, issue_id, finding_id = scan.id, issue.id, finding.id
+
+    session.delete(repo)
+    session.commit()
+    session.expunge_all()
+
+    assert session.get(Scan, scan_id) is None
+    assert session.get(Issue, issue_id) is None
+    assert session.get(Finding, finding_id) is None
+
+
+def test_deleting_an_issue_detaches_its_findings_on_the_server(session):
+    """SET NULL and not CASCADE: the observation genuinely happened, only its
+    attachment to an issue goes away."""
+    from zanshin.models.finding import Finding
+
+    _repo, _scan, issue, finding, _review = _target_with_history(session, "del-issue")
+    finding_id = finding.id
+
+    session.delete(issue)
+    session.commit()
+    session.expunge_all()
+
+    reloaded = session.get(Finding, finding_id)
+    assert reloaded is not None
+    assert reloaded.issue_id is None
+
+
+def test_every_foreign_key_carries_a_delete_rule(migrated):
+    """No column left behind. Read from the server's own catalogue rather than from the
+    models, so this checks what was actually applied."""
+    from sqlalchemy import inspect
+
+    expected = {
+        ("scan", "repo_id"): "CASCADE",
+        ("scan", "container_id"): "CASCADE",
+        ("issue", "repo_id"): "CASCADE",
+        ("issue", "container_id"): "CASCADE",
+        ("issue", "first_seen_scan_id"): "SET NULL",
+        ("issue", "last_seen_scan_id"): "SET NULL",
+        ("finding", "scan_id"): "CASCADE",
+        ("finding", "issue_id"): "SET NULL",
+        ("ai_review_result", "scan_id"): "CASCADE",
+        ("repository", "ssh_key_id"): "SET NULL",
+    }
+
+    inspector = inspect(migrated.engine)
+    actual = {}
+    for table in {name for name, _ in expected}:
+        for fk in inspector.get_foreign_keys(table):
+            for column in fk.get("constrained_columns") or []:
+                rule = (fk.get("options") or {}).get("ondelete")
+                actual[(table, column)] = (rule or "").upper() or None
+
+    missing = {key: rule for key, rule in expected.items() if actual.get(key) != rule}
+    assert not missing, f"delete rule missing or wrong: {missing}"

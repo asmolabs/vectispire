@@ -64,15 +64,17 @@ class Scan(Base):
     # abandoned fails visibly instead of cycling forever.
     attempts = Column(Integer, default=0, nullable=False)
 
-    repo_id = Column(Integer, ForeignKey("repository.id"), nullable=True)
+    repo_id = Column(Integer, ForeignKey("repository.id", ondelete="CASCADE"), nullable=True)
     repository = relationship("ZanshinRepository", back_populates="scans")
 
-    container_id = Column(Integer, ForeignKey("container.id"), nullable=True)
+    container_id = Column(Integer, ForeignKey("container.id", ondelete="CASCADE"), nullable=True)
     container = relationship("Container", back_populates="scans")
 
     # Normalized, queryable results (see ADR-001). `cves`/`sbom` above stay
     # as the raw tool output for audit purposes.
-    findings = relationship("Finding", back_populates="scan", cascade="all, delete-orphan")
+    findings = relationship(
+        "Finding", back_populates="scan", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     # Optional AI code review result (Ollama-backed, see AiReviewService).
     # At most one per scan; absent unless the feature was enabled when this
