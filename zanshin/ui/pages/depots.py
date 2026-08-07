@@ -36,7 +36,27 @@ from zanshin.ui.view_models import (
     severity_color,
 )
 from zanshin.models.repository import ZanshinRepository
+from zanshin.services.cron import (
+    InvalidCronExpression,
+    next_occurrence as next_cron_occurrence,
+    validate_expression as validate_cron,
+)
 from zanshin.models.scan import Scan
+
+def _describe_cron(expression) -> str:
+    """A one-line answer to "when does this next fire", or the reason it never will."""
+    expression = (expression or "").strip()
+    if not expression:
+        return ""
+    try:
+        validate_cron(expression)
+    except InvalidCronExpression:
+        return "Expression invalide — la planification par intervalle reste utilisée."
+    upcoming = next_cron_occurrence(expression)
+    if upcoming is None:
+        return ""
+    return f"Prochaine exécution : {format_datetime(upcoming)} (UTC)"
+
 
 class DepotsState(BaseState):
     """Manages the Git repositories configuration, planning, and unified global scan history."""
@@ -74,6 +94,11 @@ class DepotsState(BaseState):
     selected_repo_url: str = ""
     selected_repo_branch: str = ""
     selected_repo_cron: str = ""
+    # What the expression actually means, recomputed as it is typed. A cron expression
+    # is the kind of input that is easy to get subtly wrong and impossible to verify by
+    # re-reading — so the screen answers "when does this next fire" instead of leaving
+    # the operator to find out by watching scans not happen.
+    selected_repo_cron_hint: str = ""
     selected_repo_interval: int = 1440
     selected_repo_scans: list[RepoScanRow] = []
     is_viewing_details: bool = False
@@ -109,6 +134,7 @@ class DepotsState(BaseState):
 
     def set_selected_repo_cron(self, val: str):
         self.selected_repo_cron = val
+        self.selected_repo_cron_hint = _describe_cron(val)
 
     def set_search_history_query(self, val: str):
         self.search_history_query = val
@@ -349,6 +375,7 @@ class DepotsState(BaseState):
             self.selected_repo_url = r.url
             self.selected_repo_branch = r.branch
             self.selected_repo_cron = r.scan_cron or ""
+            self.selected_repo_cron_hint = _describe_cron(r.scan_cron)
             self.selected_repo_interval = r.scan_interval_minutes or 1440
             
             # Load scans list (summaries only — no SBOM/CVE blobs)
@@ -389,10 +416,17 @@ class DepotsState(BaseState):
             r.name = self.selected_repo_name if self.selected_repo_name else None
             r.scan_interval_minutes = self.selected_repo_interval
             r.scan_cron = self.selected_repo_cron if self.selected_repo_cron else None
-            db.commit()
-            
+            # Through the service, not a bare commit: that is where the cron expression
+            # is validated, and a screen that wrote around it would put an unschedulable
+            # value in the database — the exact defect this replaces.
+            container.repository_service.save(r)
+
+            self.selected_repo_cron_hint = _describe_cron(r.scan_cron)
             yield self.trigger_toast("Configuration enregistrée")
             yield DepotsState.load_repositories_data(self)
+        except InvalidCronExpression as e:
+            db.rollback()
+            yield self.trigger_toast(str(e), is_error=True)
         except Exception as e:
             yield self.trigger_toast(f"Erreur d'enregistrement : {str(e)}", is_error=True)
         finally:
@@ -800,8 +834,23 @@ def details_layout_view() -> rx.Component:
                 ),
                 rx.vstack(
                     rx.text("Expression Cron (Optionnel)", size="2", weight="medium"),
-                    rx.input(value=DepotsState.selected_repo_cron, on_change=DepotsState.set_selected_repo_cron, class_name="w-full"),
-                    width="30%"
+                    rx.input(
+                        value=DepotsState.selected_repo_cron,
+                        on_change=DepotsState.set_selected_repo_cron,
+                        placeholder="Ex : 0 2 * * *",
+                        class_name="w-full",
+                    ),
+                    rx.text(
+                        rx.cond(
+                            DepotsState.selected_repo_cron_hint != "",
+                            DepotsState.selected_repo_cron_hint,
+                            "Vide : l'intervalle ci-contre est utilisé.",
+                        ),
+                        size="1",
+                        color="var(--slate-10)",
+                    ),
+                    width="30%",
+                    spacing="1",
                 ),
                 rx.button("Enregistrer", on_click=DepotsState.save_config, color_scheme="cyan", class_name="self-end mb-1"),
                 align="center",

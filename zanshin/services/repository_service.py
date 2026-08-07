@@ -4,6 +4,7 @@ from zanshin.models.scan import Scan
 from zanshin.repositories.repository_repository import RepositoryRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.clock import utcnow
+from zanshin.services.cron import validate_expression as validate_cron
 from zanshin.services.git_url import validate_repo_url
 from zanshin.services.scan_queue import dispatch
 
@@ -41,11 +42,16 @@ class RepositoryService:
         return self.repository_repository.find_by_id(repo_id)
 
     def save(self, repo: ZanshinRepository) -> ZanshinRepository:
-        """Persist a repository, refusing URLs git would treat as anything
-        other than a fetch (see `validate_repo_url`). Validation lives here
-        rather than only in `ScanProcessor` so the operator finds out when
-        adding the repository, not when the first scan fails."""
+        """Persist a repository, refusing what would only fail later.
+
+        Two checks, both here for the same reason: the entry point is where a mistake
+        is cheap to fix. A URL git would treat as anything other than a fetch
+        (`validate_repo_url` — an unchecked one is remote code execution, not a bad
+        input), and a cron expression nothing can schedule on. Finding out about the
+        second by watching scans *not* happen is the expensive way.
+        """
         repo.url = validate_repo_url(repo.url)
+        repo.scan_cron = validate_cron(repo.scan_cron)
         return self.repository_repository.save(repo)
 
     def delete_by_id(self, repo_id: int):

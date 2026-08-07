@@ -383,3 +383,82 @@ def test_a_tick_that_cannot_reach_the_lease_does_not_assume_it_is_alone(
 
     assert run_once() == 0
     assert services["repository"].calls == []
+
+
+# --- Cron ---
+#
+# The expression was collected by the repository screen and ignored by this module,
+# with a log warning as its only trace. These pin down that it is honoured, and that it
+# wins over the interval when both are set.
+
+def test_a_cron_expression_is_honoured(scheduler_env):
+    from datetime import datetime
+
+    session, services = scheduler_env
+    # Never scanned: due immediately, like the interval path.
+    _repo(session, scan_cron="0 2 * * *")
+
+    assert run_once(now=datetime(2026, 8, 7, 0, 0)) == 1
+    assert services["repository"].calls == [1]
+
+
+def test_a_cron_target_is_not_dispatched_again_before_its_next_occurrence(scheduler_env):
+    from datetime import datetime
+
+    session, services = scheduler_env
+    _repo(session, scan_cron="0 2 * * *")
+
+    run_once(now=datetime(2026, 8, 7, 2, 0))     # first run, stamps 02:00
+    run_once(now=datetime(2026, 8, 7, 23, 0))    # same day, next occurrence not reached
+
+    assert services["repository"].calls == [1]
+
+
+def test_a_cron_target_is_dispatched_again_at_the_next_occurrence(scheduler_env):
+    from datetime import datetime
+
+    session, services = scheduler_env
+    _repo(session, scan_cron="0 2 * * *")
+
+    run_once(now=datetime(2026, 8, 7, 2, 0))
+    run_once(now=datetime(2026, 8, 8, 2, 1))
+
+    assert services["repository"].calls == [1, 1]
+
+
+def test_the_cron_expression_wins_over_the_interval(scheduler_env):
+    """One target, one schedule. The expression is the more specific of the two, and an
+    interval cannot say "every night at two"."""
+    from datetime import datetime
+
+    session, services = scheduler_env
+    # An interval that would fire hourly, and an expression that would not fire today.
+    repo = _repo(session, scan_interval_minutes=60, scan_cron="0 2 * * *")
+    repo.last_scheduled_scan_at = datetime(2026, 8, 7, 2, 0)
+    session.commit()
+
+    assert run_once(now=datetime(2026, 8, 7, 20, 0)) == 0
+    assert services["repository"].calls == []
+
+
+def test_clearing_the_expression_returns_the_target_to_its_interval(scheduler_env):
+    from datetime import datetime
+
+    session, services = scheduler_env
+    repo = _repo(session, scan_interval_minutes=60, scan_cron=None)
+    repo.last_scheduled_scan_at = datetime(2026, 8, 7, 2, 0)
+    session.commit()
+
+    assert run_once(now=datetime(2026, 8, 7, 4, 0)) == 1
+
+
+def test_an_unschedulable_expression_dispatches_nothing(scheduler_env):
+    """It can only get here by being hand-edited — the screen refuses it — and when it
+    does, the target stops being scheduled rather than firing once."""
+    from datetime import datetime
+
+    session, services = scheduler_env
+    _repo(session, scan_cron="tous les soirs")
+
+    assert run_once(now=datetime(2026, 8, 7, 0, 0)) == 0
+    assert services["repository"].calls == []

@@ -8,6 +8,7 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "alembic>=1.19.0",
     "bcrypt>=4.2.0",
+    "croniter>=6.0",
     "cryptography>=49.0.0",
     "docker>=7.1.0",
     "fastapi>=0.141.1",

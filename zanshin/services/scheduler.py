@@ -16,6 +16,8 @@ Design notes:
   `ContainerService.trigger_scan` the UI calls, so a scheduled scan and a manual
   one are indistinguishable downstream — same pool, same processor, same issue
   sync. No second code path to keep in step.
+- A target carries either an interval or a cron expression, and the expression wins
+  when both are set (see `is_target_due` and `zanshin/services/cron.py`).
 - `last_scheduled_scan_at` is stamped *before* dispatch. Stamping afterwards
   would re-dispatch the same target on the next tick whenever a scan takes
   longer than one interval.
@@ -33,7 +35,7 @@ from zanshin.database import SessionLocal
 from zanshin.models.container import Container
 from zanshin.models.repository import ZanshinRepository
 from zanshin.clock import utcnow
-from zanshin.services import leader_election
+from zanshin.services import cron, leader_election
 from zanshin.services.outbox_service import prune_sent as prune_sent_messages, relay as outbox_relay
 from zanshin.services.scan_queue import dispatch as dispatch_queued_scans
 from zanshin.services.scan_queue import reclaim_expired_leases
@@ -88,6 +90,20 @@ def is_due(
     return now - last_scheduled_at >= timedelta(minutes=interval_minutes)
 
 
+def is_target_due(target, now: datetime) -> bool:
+    """Whether this target is due, by whichever schedule it carries.
+
+    A cron expression takes precedence over the interval: it is the more specific of the
+    two, and an interval cannot express "every night at two" — it drifts a little each
+    run, so a scan configured for the quiet hours ends up running in the middle of the
+    day. Clearing the expression returns the target to its interval.
+    """
+    expression = getattr(target, "scan_cron", None)
+    if expression:
+        return cron.is_due(expression, target.last_scheduled_scan_at, now)
+    return is_due(target.scan_interval_minutes, target.last_scheduled_scan_at, now)
+
+
 def find_due_targets(
     repositories: List[ZanshinRepository],
     containers: List[Container],
@@ -95,12 +111,8 @@ def find_due_targets(
 ) -> Tuple[List[ZanshinRepository], List[Container]]:
     """Split targets into due and not due. Pure, so the policy is testable
     without a database or a running thread."""
-    due_repos = [
-        r for r in repositories if is_due(r.scan_interval_minutes, r.last_scheduled_scan_at, now)
-    ]
-    due_containers = [
-        c for c in containers if is_due(c.scan_interval_minutes, c.last_scheduled_scan_at, now)
-    ]
+    due_repos = [r for r in repositories if is_target_due(r, now)]
+    due_containers = [c for c in containers if is_target_due(c, now)]
     return due_repos, due_containers
 
 
@@ -171,7 +183,6 @@ def run_once(now: Optional[datetime] = None) -> int:
             except Exception:
                 logger.exception("Could not dispatch scheduled scan for container %s", image.id)
 
-        _warn_about_unsupported_cron(due_repos, due_containers)
         return dispatched
     except Exception:
         logger.exception("Scheduler tick failed — will retry on the next tick")
@@ -304,23 +315,6 @@ def _prune_raw_payloads(container, db, now: datetime) -> None:
         container.retention_service.prune(db)
     except Exception:
         logger.exception("Retention pass failed — will retry on a later tick")
-
-
-def _warn_about_unsupported_cron(repositories, containers) -> None:
-    """`scan_cron` is editable in the UI but not honoured here.
-
-    Scheduling on a cron expression needs a cron parser (croniter or
-    equivalent), i.e. a new dependency; the interval covers what the UI collects
-    by default. Saying so out loud beats silently ignoring a value an operator
-    deliberately typed.
-    """
-    with_cron = [t for t in list(repositories) + list(containers) if getattr(t, "scan_cron", None)]
-    if with_cron:
-        logger.warning(
-            "%d target(s) define a cron expression, which the scheduler does not "
-            "support yet — their interval is used instead",
-            len(with_cron),
-        )
 
 
 def _loop() -> None:

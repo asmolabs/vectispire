@@ -953,3 +953,75 @@ def test_the_ticket_reference_reaches_the_row(ui, ui_session):
 
     assert state.issues[0].ticket_ref == "#42"
     assert state.issues[0].ticket_url.endswith("/issues/42")
+
+
+# --- Cron expressions on the repository screen ---
+#
+# The screen used to write the expression straight to the database with a bare commit,
+# which is how an unschedulable value got in: the validation lives in the service, and
+# the screen went around it.
+
+def test_saving_a_valid_cron_expression_keeps_it_and_shows_when_it_fires(ui, ui_session):
+    from zanshin.models.repository import ZanshinRepository
+
+    repo = _repo(ui_session)
+    state = ui.state(DepotsState)
+    ui.run(state, "view_details", repo.id)
+    state.selected_repo_cron = "0 2 * * *"
+
+    ui.run(state, "save_config")
+
+    ui_session.expire_all()
+    saved = ui_session.query(ZanshinRepository).filter(ZanshinRepository.id == repo.id).first()
+    assert saved.scan_cron == "0 2 * * *"
+    # The screen answers "when does this next fire", which is the only way to check a
+    # cron expression short of waiting for it.
+    assert "Prochaine exécution" in state.selected_repo_cron_hint
+
+
+def test_an_unschedulable_cron_expression_is_refused_at_the_screen(ui, ui_session):
+    """Where a mistake is cheap to fix. Finding out by watching scans not happen is the
+    expensive way."""
+    from zanshin.models.repository import ZanshinRepository
+
+    repo = _repo(ui_session)
+    state = ui.state(DepotsState)
+    ui.run(state, "view_details", repo.id)
+    state.selected_repo_cron = "tous les soirs"
+
+    ui.run(state, "save_config")
+
+    ui_session.expire_all()
+    saved = ui_session.query(ZanshinRepository).filter(ZanshinRepository.id == repo.id).first()
+    assert saved.scan_cron is None, "an unschedulable expression reached the database"
+
+
+def test_clearing_the_expression_is_allowed(ui, ui_session):
+    """That is how an operator goes back to interval scheduling."""
+    from zanshin.models.repository import ZanshinRepository
+
+    repo = _repo(ui_session)
+    repo.scan_cron = "0 2 * * *"
+    ui_session.commit()
+    state = ui.state(DepotsState)
+    ui.run(state, "view_details", repo.id)
+    state.selected_repo_cron = ""
+
+    ui.run(state, "save_config")
+
+    ui_session.expire_all()
+    saved = ui_session.query(ZanshinRepository).filter(ZanshinRepository.id == repo.id).first()
+    assert saved.scan_cron is None
+    assert state.selected_repo_cron_hint == ""
+
+
+def test_typing_an_expression_previews_it_without_saving(ui, ui_session):
+    state = ui.state(DepotsState)
+
+    ui.run(state, "set_selected_repo_cron", "0 3 * * 1")
+
+    assert "Prochaine exécution" in state.selected_repo_cron_hint
+
+    ui.run(state, "set_selected_repo_cron", "n'importe quoi")
+
+    assert "invalide" in state.selected_repo_cron_hint

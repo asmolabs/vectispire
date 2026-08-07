@@ -4,6 +4,7 @@ from zanshin.models.scan import Scan
 from zanshin.repositories.container_repository import ContainerRepository
 from zanshin.repositories.scan_repository import ScanRepository
 from zanshin.clock import utcnow
+from zanshin.services.cron import validate_expression as validate_cron
 from zanshin.services.repository_service import ScanAlreadyRunningError
 from zanshin.services.scan_queue import dispatch
 
@@ -20,6 +21,10 @@ class ContainerService:
         return self.container_repository.find_by_id(container_id)
 
     def save(self, container: Container) -> Container:
+        """Same cron validation as a repository: the column exists on both models, so
+        an expression set through the API or by hand is honoured — and refused here if
+        it cannot be scheduled on."""
+        container.scan_cron = validate_cron(container.scan_cron)
         return self.container_repository.save(container)
 
     def delete_by_id(self, container_id: int):
