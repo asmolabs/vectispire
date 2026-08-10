@@ -31,27 +31,19 @@ class SafeDateTime(TypeDecorator):
     Naive UTC throughout, matching `zanshin.clock.utcnow`: the stored values have always
     been naive, and mixing naive and aware datetimes raises on the first comparison —
     see that module for why going timezone-aware is a separate decision.
+
+    **On sub-second precision.** There used to be a `load_dialect_impl` here declaring
+    `DATETIME(fsp=6)` on MySQL, because MySQL truncates to whole seconds unless asked
+    otherwise — and the audit trail hashes `timestamp.isoformat()`, so a value written
+    with microseconds and read back without them recomputed to a different hash and every
+    entry reported itself as tampered with. SQLite and PostgreSQL keep the fraction on
+    their own, so with MySQL withdrawn (see `zanshin/database.py`) the override has no
+    dialect left to correct. It is recorded here because a future backend that truncates
+    would reintroduce exactly that failure, and it does not look like a clock problem.
     """
 
     impl = DateTime
     cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        """Microsecond precision, explicitly, because MySQL's default is zero.
-
-        `DATETIME` on MySQL stores whole seconds unless a fractional-second precision is
-        declared, and it truncates silently. That is not cosmetic here: the audit trail's
-        integrity chain hashes `timestamp.isoformat()`, so a value written with
-        microseconds and read back without them recomputes to a different hash — every
-        entry would report itself as tampered with, on MySQL only. Found by running the
-        conversion against a real server; SQLite and PostgreSQL keep the fraction on
-        their own.
-        """
-        if dialect.name in ("mysql", "mariadb"):
-            from sqlalchemy.dialects import mysql
-
-            return dialect.type_descriptor(mysql.DATETIME(fsp=6))
-        return dialect.type_descriptor(DateTime())
 
     def process_bind_param(self, value, dialect):
         """Accept a datetime, or anything the parser below understands.

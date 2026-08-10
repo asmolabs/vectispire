@@ -26,7 +26,6 @@ dependencies = [
 # that will never open a socket. Install with `uv sync --extra postgres`.
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2"]
-mysql = ["pymysql>=1.1"]
 
 [dependency-groups]
 dev = [
@@ -35,9 +34,8 @@ dev = [
     # Real database servers for the cross-backend tests: the portability defects
     # found so far (a DDL type PostgreSQL rejects, a reserved word in raw SQL) were
     # all invisible to SQLite and to reading the code.
-    "testcontainers[postgres,mysql]>=4.8",
+    "testcontainers[postgres]>=4.8",
     "psycopg[binary]>=3.2",
-    "pymysql>=1.1",
 ]
 
 [tool.pytest.ini_options]
@@ -47,7 +45,7 @@ testpaths = ["tests"]
 # `pytest -m backends` (and in CI, as their own job).
 addopts = "-m 'not backends'"
 markers = [
-    "backends: runs against real servers (PostgreSQL, MySQL, Redis) via testcontainers (needs Docker)",
+    "backends: runs against real servers (PostgreSQL, Redis) via testcontainers (needs Docker)",
 ]
 
 [tool.coverage.run]

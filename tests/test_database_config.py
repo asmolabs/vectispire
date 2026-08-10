@@ -14,7 +14,9 @@ import pytest
 
 from zanshin.database import (
     DEFAULT_DB_PATH,
+    SUPPORTED_BACKENDS,
     DatabaseConfigurationError,
+    assert_backend_supported,
     create_configured_engine,
     describe_database,
     is_sqlite,
@@ -139,6 +141,56 @@ def test_an_unknown_dialect_names_the_problem():
 def test_an_unparseable_url_names_the_problem():
     with pytest.raises(DatabaseConfigurationError):
         create_configured_engine("this is not a url")
+
+
+# --- Which backends are supported ---
+
+@pytest.mark.parametrize("url", [
+    "sqlite:////tmp/zanshin.sqlite",
+    "postgresql+psycopg://u:p@db/zanshin",
+])
+def test_the_supported_backends_are_accepted(url):
+    assert_backend_supported(url)
+
+
+@pytest.mark.parametrize("url", [
+    "mysql+pymysql://u:p@db/zanshin",
+    "mariadb+pymysql://u:p@db/zanshin",
+])
+def test_a_withdrawn_backend_is_refused_and_says_so(url):
+    """MySQL is refused rather than left to work by accident.
+
+    This is the whole point of removing it explicitly: SQLAlchemy would connect happily
+    and most of Zanshin would function, so an operator who kept a MySQL URL would meet
+    the removal months later, as an audit log declaring itself tampered with. The message
+    has to name what happened and what to do instead — an "unsupported dialect" would
+    send the reader hunting for a typo.
+    """
+    with pytest.raises(DatabaseConfigurationError) as failure:
+        assert_backend_supported(url)
+
+    message = str(failure.value)
+    assert "PostgreSQL" in message, "the message must say what to migrate to"
+    assert "audit" in message.lower() or "falsifié" in message, (
+        "the message must say why, or it reads as an arbitrary removal"
+    )
+
+
+def test_the_refusal_also_guards_the_engine_factory():
+    """Every engine goes through one door, including the ones tests and tooling build."""
+    with pytest.raises(DatabaseConfigurationError):
+        create_configured_engine("mysql+pymysql://u:p@db/zanshin")
+
+
+def test_an_unparseable_url_is_left_to_the_url_parser():
+    """`assert_backend_supported` must not claim a typo is an unsupported dialect."""
+    assert_backend_supported("this is not a url")
+
+
+def test_the_supported_list_is_the_two_backends_the_suite_covers():
+    """A guard on the list itself: adding a backend here without tests would make this
+    module's other assertions vacuous."""
+    assert SUPPORTED_BACKENDS == ("sqlite", "postgresql")
 
 
 def test_the_password_is_not_logged(monkeypatch):

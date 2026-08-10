@@ -78,7 +78,7 @@ def check(db, hostname: str, now=None) -> List[str]:
             f"Une autre instance Zanshin est active ({names}) alors que la base est "
             "SQLite, qui n'accepte qu'un seul écrivain : deux instances corrompraient "
             "les données, et la réclamation des scans ne peut pas y être rendue sûre "
-            "(FOR UPDATE SKIP LOCKED n'existe pas). Utilisez PostgreSQL ou MySQL "
+            "(FOR UPDATE SKIP LOCKED n'existe pas). Utilisez PostgreSQL "
             "(ZANSHIN_DATABASE_URL), ou ne lancez qu'une instance.\n"
             "Si cette instance est en réalité seule — un redémarrage sous un nouveau "
             "nom d'hôte, moins de deux minutes après l'arrêt du précédent —, "

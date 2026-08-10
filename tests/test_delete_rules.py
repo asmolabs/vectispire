@@ -7,7 +7,7 @@ would have been found in production.
 
 Each test below states the rule and why it is that rule rather than the other one. They
 run on SQLite here — where the pragma is now enabled, so the behaviour is the real one —
-and the same deletes are exercised against PostgreSQL and MySQL in
+and the same deletes are exercised against PostgreSQL in
 `test_delete_rules_backends.py`, which is where "the database enforces this" is actually
 proved.
 """

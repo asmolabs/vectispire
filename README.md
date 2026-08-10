@@ -103,9 +103,8 @@ scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has ex
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
 the API quota and login throttle are shared through Redis. What it requires:
 
-- **PostgreSQL or MySQL** (`ZANSHIN_DATABASE_URL`). SQLite has one writer and no
-  `SKIP LOCKED`; a second instance on it is refused at startup rather than left to
-  corrupt the file;
+- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). SQLite has one writer and no `SKIP LOCKED`;
+  a second instance on it is refused at startup rather than left to corrupt the file;
 - **`REDIS_URL`**, both for Reflex's own state manager — without it a client that lands
   on the other instance is intermittently logged out — and for the security counters;
 - **`ZANSHIN_AUTO_MIGRATE=false`**, with `alembic upgrade head` as its own deployment
@@ -255,14 +254,21 @@ somewhere durable and back that up — that file is the whole installation.
 ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
 ```
 
-PostgreSQL and MySQL both work and are verified by tests that start real servers —
-`pytest -m backends` runs the whole schema and every service that owns a column
-against PostgreSQL 16 and MySQL 8.4 via testcontainers. They are excluded from the
-default run because an image pull has no place in the loop you run on every edit.
-One thing to know before choosing either.
+PostgreSQL is the other supported backend, verified by tests that start a real server —
+`pytest -m backends` runs the whole schema and every service that owns a column against
+PostgreSQL 16 via testcontainers. They are excluded from the default run because an image
+pull has no place in the loop you run on every edit. One thing to know before choosing it.
+
+**MySQL was supported and was withdrawn.** It filled no role the other two did not: it is
+neither the zero-configuration option nor the deployment target, and it had its own
+behaviour in three places that matter — `DATETIME` truncated to whole seconds, so every
+audit-log entry reported itself as tampered with; `SKIP LOCKED` counted skipped rows
+against `LIMIT`, so concurrent scan claims came back empty; `NULLS LAST` was a syntax
+error. Three dialect branches in code whose subject is integrity, for no gain. A MySQL URL
+is now refused at startup with that explanation rather than half-working.
 
 ```bash
-uv sync --extra postgres          # or --extra mysql
+uv sync --extra postgres
 ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
 ZANSHIN_AUTO_MIGRATE=false        # run `alembic upgrade head` as a deployment step
 ```
@@ -293,7 +299,7 @@ uv run pytest
 uv run pytest -m backends     # needs Docker
 ```
 
-Additionally, a cross-backend suite starts real PostgreSQL 16 and MySQL 8.4 servers with testcontainers, applies every migration and pushes a row through each custom column type and each service that owns one. It is excluded from the default run (`addopts = -m 'not backends'`) because an image pull does not belong in the loop you run on every edit, and it skips itself when Docker is unavailable. It exists because every portability defect this schema had was invisible both to SQLite and to reading the code — a `BINARY` type PostgreSQL has no name for, `FROM user` resolving to a function instead of a table, `VARCHAR` without a length, a `BIGINT` foreign key onto an `INT` key, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six of them, all found by running.
+Additionally, a cross-backend suite starts a real PostgreSQL 16 server with testcontainers, applies every migration and pushes a row through each custom column type and each service that owns one. It is excluded from the default run (`addopts = -m 'not backends'`) because an image pull does not belong in the loop you run on every edit, and it skips itself when Docker is unavailable. It exists because every portability defect this schema had was invisible both to SQLite and to reading the code — a `BINARY` type PostgreSQL has no name for, `FROM user` resolving to a function instead of a table, `VARCHAR` without a length, a `BIGINT` foreign key onto an `INT` key, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six of them, all found by running.
 
 ### Project structure
 
@@ -426,7 +432,7 @@ travail périodique a exactement un propriétaire dans la flotte, la reprise au 
 ne fait plus échouer les scans d'un autre exécutant, et le quota d'API comme
 l'anti-bourrage sont partagés via Redis. Ce que cela exige :
 
-- **PostgreSQL ou MySQL** (`ZANSHIN_DATABASE_URL`). SQLite n'a qu'un écrivain et pas de
+- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). SQLite n'a qu'un écrivain et pas de
   `SKIP LOCKED` ; une seconde instance dessus est refusée au démarrage plutôt que
   laissée corrompre le fichier ;
 - **`REDIS_URL`**, à la fois pour le gestionnaire d'état de Reflex — sans lui, un client
@@ -633,14 +639,23 @@ Placez-le à un endroit durable et sauvegardez-le — ce fichier *est* l'install
 ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
 ```
 
-PostgreSQL et MySQL fonctionnent tous les deux, et c'est vérifié par des tests qui
-démarrent de vrais serveurs — `pytest -m backends` passe tout le schéma et chaque
-service propriétaire d'une colonne sur PostgreSQL 16 et MySQL 8.4 via testcontainers.
-Ils sont exclus de l'exécution par défaut : un téléchargement d'image n'a rien à faire
-dans la boucle qu'on lance à chaque modification. Une chose à savoir avant de choisir.
+PostgreSQL est l'autre moteur pris en charge, vérifié par des tests qui démarrent un
+vrai serveur — `pytest -m backends` passe tout le schéma et chaque service propriétaire
+d'une colonne sur PostgreSQL 16 via testcontainers. Ils sont exclus de l'exécution par
+défaut : un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque
+modification. Une chose à savoir avant de choisir.
+
+**MySQL a été pris en charge, puis retiré.** Il ne remplissait aucun rôle que les deux
+autres ne couvrent : il n'est ni l'option sans configuration, ni la cible de déploiement,
+et il avait son comportement propre à trois endroits qui comptent — `DATETIME` tronqué à
+la seconde entière, donc chaque entrée du journal d'audit se déclarait falsifiée ;
+`SKIP LOCKED` comptant les lignes sautées dans `LIMIT`, donc des réclamations de scan qui
+revenaient vides ; `NULLS LAST` en erreur de syntaxe. Trois branches par dialecte dans du
+code dont le sujet est l'intégrité, sans contrepartie. Une URL MySQL est désormais refusée
+au démarrage avec cette explication, plutôt que de marcher à moitié.
 
 ```bash
-uv sync --extra postgres          # ou --extra mysql
+uv sync --extra postgres
 ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
 ZANSHIN_AUTO_MIGRATE=false        # exécuter « alembic upgrade head » comme étape de déploiement
 ```
@@ -672,7 +687,7 @@ uv run pytest
 uv run pytest -m backends     # nécessite Docker
 ```
 
-En complément, une suite multi-backends démarre de vrais serveurs PostgreSQL 16 et MySQL 8.4 avec testcontainers, applique toutes les migrations et fait passer une ligne par chaque type de colonne maison et chaque service qui en possède un. Elle est exclue de l'exécution par défaut (`addopts = -m 'not backends'`), parce qu'un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque modification, et elle se saute d'elle-même sans Docker. Elle existe parce que tous les défauts de portabilité de ce schéma étaient invisibles à la fois pour SQLite et à la lecture : un type `BINARY` que PostgreSQL ne connaît pas, `FROM user` qui désigne une fonction au lieu d'une table, `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six, tous trouvés en exécutant.
+En complément, une suite multi-backends démarre un vrai serveur PostgreSQL 16 avec testcontainers, applique toutes les migrations et fait passer une ligne par chaque type de colonne maison et chaque service qui en possède un. Elle est exclue de l'exécution par défaut (`addopts = -m 'not backends'`), parce qu'un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque modification, et elle se saute d'elle-même sans Docker. Elle existe parce que tous les défauts de portabilité de ce schéma étaient invisibles à la fois pour SQLite et à la lecture : un type `BINARY` que PostgreSQL ne connaît pas, `FROM user` qui désigne une fonction au lieu d'une table, `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six, tous trouvés en exécutant.
 
 ### Structure du projet
 

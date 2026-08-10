@@ -29,9 +29,9 @@ target_metadata = Base.metadata
 # check fails permanently and stops meaning anything.
 #
 # Still true for `SafeDateTime` now that it is a real timestamp rather than text:
-# what reflection returns is `TIMESTAMP` on SQLite, `DATETIME` on MySQL and
-# `TIMESTAMP WITHOUT TIME ZONE` on PostgreSQL, none of which compares equal to the
-# decorator. `tests/test_timestamp_migration_backends.py` checks the conversion
+# what reflection returns is `TIMESTAMP` on SQLite and `TIMESTAMP WITHOUT TIME ZONE`
+# on PostgreSQL, neither of which compares equal to the decorator.
+# `tests/test_timestamp_migration_backends.py` checks the conversion
 # produces what the models declare, which is the guarantee this exclusion gives up.
 _UNRELIABLY_REFLECTED_TYPES = (GUID, SafeDateTime)
 

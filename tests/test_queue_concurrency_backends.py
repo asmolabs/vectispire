@@ -9,7 +9,8 @@ portability bug found in this schema so far was invisible both to SQLite and to
 reading the code.
 
 So the claimants here are *real*: separate sessions on separate connections, running
-in threads, hitting PostgreSQL 16 and MySQL 8.4. The assertion that matters is not
+in threads, hitting PostgreSQL 16 — the only backend where the transactional claim
+applies at all. The assertion that matters is not
 "it didn't crash" but "each scan was handed out exactly once".
 
 Run with `pytest -m backends`.
@@ -47,20 +48,14 @@ if not _docker_available():
 
 BACKENDS = [
     pytest.param("postgres", id="postgresql-16"),
-    pytest.param("mysql", id="mysql-8.4"),
 ]
 
 
 @pytest.fixture(scope="module", params=BACKENDS)
 def backend_url(request):
-    if request.param == "postgres":
-        from testcontainers.community.postgres import PostgresContainer
+    from testcontainers.community.postgres import PostgresContainer
 
-        container = PostgresContainer("postgres:16-alpine", driver="psycopg")
-    else:
-        from testcontainers.community.mysql import MySqlContainer
-
-        container = MySqlContainer("mysql:8.4", dialect="pymysql")
+    container = PostgresContainer("postgres:16-alpine", driver="psycopg")
 
     with container as running:
         yield running.get_connection_url()

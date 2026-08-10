@@ -20,8 +20,9 @@ class Scan(Base):
     summary = Column(JSON(none_as_null=True), nullable=True)
     # BigInteger here is not a foreign key: it is a duration, and the only column in
     # this schema that legitimately wants the wider type. Every *foreign key* matches
-    # the Integer primary key it references — MySQL refuses a BIGINT column
-    # referencing an INT one outright, and SQLite/PostgreSQL merely tolerated it.
+    # the Integer primary key it references — a mismatch MySQL used to refuse outright
+    # and SQLite/PostgreSQL merely tolerate, which is why it existed unnoticed until a
+    # third backend named it. Keeping the types aligned is right on its own terms.
     duration_ms = Column(BigInteger, nullable=True)
     findings_count = Column(Integer, default=0, nullable=False)
 

@@ -11,10 +11,10 @@ So the exclusive part of the tick is taken under a **lease** held in this table:
 row per job name, holding the instance's id and an expiry. A holder that dies simply
 stops renewing, and the next tick to run after the expiry takes over.
 
-**Why a lease row rather than an advisory lock.** `pg_advisory_lock` and MySQL's
-`GET_LOCK` are per-engine, differently named and differently scoped, and neither
-exists on SQLite — so the mono-instance deployment would have to special-case itself.
-A row works identically on all three, keeps working when the "fleet" is one process,
+**Why a lease row rather than an advisory lock.** `pg_advisory_lock` has no equivalent
+on SQLite, so the mono-instance deployment would have to special-case itself — and the
+special case would be the one nearly everybody runs, i.e. the least exercised path.
+A row works identically on both, keeps working when the "fleet" is one process,
 and — the reason that decided it — is *observable*: when something has stopped
 happening, `SELECT * FROM leader_lease` says who was supposed to be doing it and
 until when. An advisory lock answers no question after the fact.

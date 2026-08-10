@@ -24,6 +24,10 @@ want opposite things: SQLite needs its cross-thread check disabled (the scan poo
 and Reflex's event loop touch the same connection pool) and a busy timeout so a
 concurrent writer waits instead of failing; a server database needs connection
 pooling and `pool_pre_ping`, which are meaningless for a file.
+
+**Two backends, and the third is refused rather than tolerated.** SQLite is the
+single-instance deployment; PostgreSQL is every other one. MySQL used to be a third,
+and dropping it is a deliberate narrowing — see `SUPPORTED_BACKENDS`.
 """
 import logging
 import os
@@ -36,6 +40,32 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "database.sqlite"))
+
+# The two backends this application is written for, and tested against.
+#
+# **Why MySQL was removed rather than left to work by accident.** It had no role the
+# other two did not already fill: it is not the zero-configuration option (SQLite) and it
+# is not the deployment target (PostgreSQL). What it did have was its own behaviour in
+# three places that matter here, each found by a test rather than by reading:
+#
+# - `DATETIME` truncates to whole seconds unless a fractional precision is asked for, so
+#   an audit-log entry re-read after a write hashed differently and **reported itself as
+#   tampered with, on MySQL only**;
+# - `SKIP LOCKED` counts skipped rows against `LIMIT`, so concurrent scan claims came back
+#   empty-handed while work was queued;
+# - `NULLS LAST` is a syntax error, so the backlog ordering needed its own expression.
+#
+# Three dialect branches in code whose subject is integrity, exercised by one CI job. The
+# cost was not the code, it was that a bug there looks like correct behaviour everywhere
+# it is tested.
+SUPPORTED_BACKENDS = ("sqlite", "postgresql")
+
+# Named so the refusal below can say what happened rather than "unsupported". Anyone
+# reaching this configured MySQL on purpose and deserves to know it was withdrawn.
+_WITHDRAWN_BACKENDS = {
+    "mysql": "MySQL",
+    "mariadb": "MariaDB",
+}
 
 
 class DatabaseConfigurationError(RuntimeError):
@@ -63,7 +93,46 @@ def resolve_database_url() -> str:
     return f"sqlite:///{DEFAULT_DB_PATH}"
 
 
+def assert_backend_supported(url) -> None:
+    """Refuse a dialect this application is not written for, at configuration time.
+
+    The alternative is worse than an error: SQLAlchemy would happily connect to MySQL and
+    most of Zanshin would work, so the operator would meet the removal months later as an
+    audit log declaring itself tampered with. A backend that is no longer tested has to
+    fail loudly on the first line, not subtly on the hundredth.
+
+    A URL that cannot even be parsed is left alone — `create_configured_engine` turns that
+    into its own message, and reporting "unsupported dialect" for a typo would send the
+    reader looking in the wrong place.
+    """
+    try:
+        backend = make_url(url).get_backend_name()
+    except Exception:
+        return
+
+    if backend in SUPPORTED_BACKENDS:
+        return
+
+    withdrawn = _WITHDRAWN_BACKENDS.get(backend)
+    if withdrawn:
+        raise DatabaseConfigurationError(
+            f"{withdrawn} n'est plus pris en charge par Zanshin. Il différait de "
+            "PostgreSQL sur la précision des horodatages (le journal d'audit se "
+            "déclarait falsifié), sur SKIP LOCKED et sur NULLS LAST, sans rien apporter "
+            "que SQLite ou PostgreSQL ne couvrent déjà.\n"
+            "Migrez vers PostgreSQL (postgresql+psycopg://utilisateur:motdepasse@hôte/"
+            "zanshin), ou vers SQLite pour une instance unique."
+        )
+
+    raise DatabaseConfigurationError(
+        f"Dialecte « {backend} » non pris en charge. Zanshin est écrit et testé pour "
+        f"{' et '.join(SUPPORTED_BACKENDS)} : SQLite pour une instance unique, "
+        "PostgreSQL pour tout le reste."
+    )
+
+
 DATABASE_URL = resolve_database_url()
+assert_backend_supported(DATABASE_URL)
 
 
 def is_sqlite(url=None) -> bool:
@@ -125,6 +194,9 @@ def _engine_options(url: str) -> dict:
 def create_configured_engine(url=None):
     """Build the engine, turning every way this fails into a readable error."""
     url = url if url is not None else DATABASE_URL
+    # Also checked here, not only at import: tests and tooling build engines from a URL
+    # of their own, and this is the single door they all go through.
+    assert_backend_supported(url)
     try:
         return create_engine(url, **_engine_options(url))
     except NoSuchModuleError as e:
@@ -151,13 +223,13 @@ def enable_sqlite_foreign_keys(target_engine) -> None:
     """Make SQLite enforce the foreign keys it declares.
 
     SQLite parses `REFERENCES` clauses and then ignores them unless asked, per
-    connection. PostgreSQL and MySQL always enforce them, so without this the same
-    schema had two behaviours: a delete that silently orphaned rows on the development
-    machine raised on a server — the sort of difference that is found in production.
+    connection. PostgreSQL always enforces them, so without this the same schema had two
+    behaviours: a delete that silently orphaned rows on the development machine raised on
+    a server — the sort of difference that is found in production.
 
     Now that every foreign key carries an `ondelete` rule (migration 0013), enforcing
-    them here makes the three backends agree. Registered per engine rather than
-    globally so a test engine gets the same treatment.
+    them here makes both backends agree. Registered per engine rather than globally so a
+    test engine gets the same treatment.
     """
     if not is_sqlite(str(target_engine.url)):
         return

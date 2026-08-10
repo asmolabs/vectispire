@@ -743,6 +743,16 @@ lancer. À l'import, pas à la première requête — une faute de frappe dans u
 doit arrêter l'application, pas ressortir plus tard en requête échouée avec une pile
 d'appels interne à SQLAlchemy.
 
+> **Amendé le 2026-08-10 — MySQL a été retiré.** Ce qui suit reste le compte rendu
+> exact de ce qui a été trouvé et décidé à la date de ce document, et n'est pas réécrit :
+> les six obstacles de portabilité listés ici sont réels et trois d'entre eux n'ont été
+> visibles que grâce à MySQL. La conclusion, elle, a changé. MySQL ne remplissait aucun
+> rôle que SQLite et PostgreSQL ne couvrent — ni option sans configuration, ni cible de
+> déploiement — pour trois branches par dialecte dans du code dont le sujet est
+> l'intégrité, exercées par un seul job de CI. Les deux moteurs pris en charge sont
+> désormais SQLite et PostgreSQL, et une URL MySQL est refusée au démarrage
+> (`zanshin/database.py`, `SUPPORTED_BACKENDS`).
+
 **PostgreSQL et MySQL vérifiés, pas supposés.** Six obstacles réels ont été trouvés
 en les faisant tourner, pas en les lisant — et aucun n'était visible depuis SQLite :
 

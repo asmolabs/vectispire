@@ -416,8 +416,8 @@ Consequences worth knowing:
 - **A remote agent never touches the database**, and gets a deploy key only if its
   `credentials_mode` is `delegated` *and* the transport is TLS. An import test enforces
   the first half (`tests/test_agent_worker.py`); the API enforces the second.
-- **More than one web instance is now possible**, and conditional: PostgreSQL or MySQL
-  (the claim uses `FOR UPDATE SKIP LOCKED`, which SQLite does not have), `REDIS_URL`
+- **More than one web instance is now possible**, and conditional: PostgreSQL (the claim
+  uses `FOR UPDATE SKIP LOCKED`, which SQLite does not have), `REDIS_URL`
   (Reflex's own state, and the security counters), and `ZANSHIN_AUTO_MIGRATE=false`. The
   periodic work — scheduled scans, retention, the outbox relay — is taken under a lease
   so exactly one instance does it; claiming scans is not, so every instance keeps
@@ -829,8 +829,8 @@ Conséquences à connaître :
   si son `credentials_mode` vaut `delegated` **et** que le transport est TLS. Un test
   d'imports garantit la première moitié (`tests/test_agent_worker.py`) ; l'API applique la
   seconde.
-- **Plus d'une instance web est désormais possible**, sous conditions : PostgreSQL ou
-  MySQL (la réclamation utilise `FOR UPDATE SKIP LOCKED`, absent de SQLite), `REDIS_URL`
+- **Plus d'une instance web est désormais possible**, sous conditions : PostgreSQL (la
+  réclamation utilise `FOR UPDATE SKIP LOCKED`, absent de SQLite), `REDIS_URL`
   (l'état de Reflex, et les compteurs de sécurité) et `ZANSHIN_AUTO_MIGRATE=false`. Le
   travail périodique — scans planifiés, rétention, relais de l'outbox — est pris sous un
   bail pour qu'une seule instance le fasse ; réclamer des scans ne l'est pas, pour que

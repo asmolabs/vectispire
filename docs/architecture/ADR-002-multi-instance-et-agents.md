@@ -10,6 +10,12 @@
 > l'exécution**, et les agents fonctionnent sur SQLite (conséquence heureuse de D3),
 > donc rien de l'étape 1 n'était un préalable. Elle a suivi.
 >
+> **Amendé le 2026-08-10 — MySQL a été retiré.** Partout où ce document écrit
+> « PostgreSQL ou MySQL », lire « PostgreSQL ». Le corps du texte n'est pas réécrit : la
+> différence de comportement de `SKIP LOCKED` entre les deux moteurs, relevée en §11.1,
+> est ce qui a motivé le budget de réessais, et ce budget est conservé. La raison du
+> retrait est dans ADR-001 (note du même jour) et dans `zanshin/database.py`.
+>
 > Les points §2.1 à §2.6 sont désormais traités ou refusés au démarrage. **Deux
 > instances web sont donc supportées, sous conditions** : PostgreSQL ou MySQL, Redis, et
 > `ZANSHIN_AUTO_MIGRATE=false`. L'application refuse ou avertit quand elles ne sont pas

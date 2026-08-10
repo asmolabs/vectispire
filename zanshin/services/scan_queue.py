@@ -21,8 +21,8 @@ Order is creation order, no priority. A priority column would be easy to add lat
 is deliberately not here: "in the order they were asked for" is a rule an operator can
 predict, and the first thing a priority scheme costs is that predictability.
 
-**Claiming is transactional where the database allows it.** On PostgreSQL and MySQL the
-claim is `SELECT … FOR UPDATE SKIP LOCKED` followed by the status change in the *same*
+**Claiming is transactional where the database allows it.** On PostgreSQL the claim is
+`SELECT … FOR UPDATE SKIP LOCKED` followed by the status change in the *same*
 transaction: either a claimant holds the row and the row says so, or neither (ADR-002
 D1). On SQLite, which has neither `SKIP LOCKED` nor more than one writer, it falls back
 to a conditional `UPDATE ... WHERE status = 'pending'` whose row count decides the
@@ -70,12 +70,19 @@ LEASE_SECONDS = int(os.getenv("ZANSHIN_SCAN_LEASE_SECONDS", "1200"))
 MAX_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_MAX_ATTEMPTS", "3"))
 
 # How many times a transactional claim re-reads the queue when it came back short while
-# work was still waiting, because of a measured difference between the two server
-# backends — see `_claim_locked`. Twelve, measured rather than guessed: with ten
-# claimants contending on one queue, four attempts left three of them empty-handed on
-# MySQL and twelve left none (`tests/test_queue_concurrency_backends.py`). Each attempt
-# is one indexed read plus the sleep below, so the worst case is a fraction of a second
-# against a scan that takes minutes.
+# work was still waiting — see `_claim_locked`.
+#
+# The number was measured against MySQL, which counted skipped rows against `LIMIT` and
+# needed twelve attempts where four left three claimants of ten empty-handed. MySQL is
+# gone, and PostgreSQL keeps scanning until it has `LIMIT` unlocked rows, so on the one
+# remaining backend this budget is almost never spent.
+#
+# It is kept rather than dropped to one, deliberately. The loop exits as soon as the
+# queue is empty or the limit is filled, so the cost when it is not needed is zero; and
+# retiring a concurrency safety net in the same change that deletes the job which
+# exercised it would leave nothing to notice the regression. A rewrite of the claim is
+# its own change, with its own evidence.
+
 CLAIM_ATTEMPTS = int(os.getenv("ZANSHIN_SCAN_CLAIM_ATTEMPTS", "12"))
 # Long enough for a competing claimant to commit, short enough to be invisible next to a
 # scan that takes minutes.
@@ -195,13 +202,17 @@ def claim_next(
 def supports_skip_locked(db: Session) -> bool:
     """Whether this database can lock rows and skip the ones already locked.
 
-    PostgreSQL and MySQL 8 can; SQLite cannot, and SQLAlchemy's SQLite dialect
-    *silently drops* `FOR UPDATE` rather than refusing it — so asking without checking
-    would produce a claim that looks transactional, passes every test on a developer's
-    machine, and hands the same scan to two processes in production. Hence the explicit
-    check, and the honest fallback below.
+    PostgreSQL can; SQLite cannot, and SQLAlchemy's SQLite dialect *silently drops*
+    `FOR UPDATE` rather than refusing it — so asking without checking would produce a
+    claim that looks transactional, passes every test on a developer's machine, and hands
+    the same scan to two processes in production. Hence the explicit check, and the honest
+    fallback below.
+
+    Still a capability test rather than `dialect.name == "postgresql"` written inline at
+    the call site: the question the caller is asking is "can this database do the safe
+    claim", and the answer is a property of the backend, not of its name.
     """
-    return db.bind.dialect.name in ("postgresql", "mysql", "mariadb")
+    return db.bind.dialect.name == "postgresql"
 
 
 def _claim_locked(db: Session, limit: int, worker: Optional[str]) -> List[Scan]:
@@ -213,27 +224,23 @@ def _claim_locked(db: Session, limit: int, worker: Optional[str]) -> List[Scan]:
     oldest row. The status change and the lock release happen in the same commit, so
     there is no window in which a row is claimed but not marked.
 
-    **Why it retries when it comes back short.** The two server backends disagree about
-    how `LIMIT` and `SKIP LOCKED` interact: PostgreSQL keeps scanning until it has
-    `LIMIT` unlocked rows, while MySQL counts skipped rows against the limit and returns
-    short. Measured rather than assumed — with `LIMIT 1`, ten concurrent claimants on a
-    queue of twenty scans left six of them empty-handed on MySQL 8.4
-    (`tests/test_queue_concurrency_backends.py`). Nothing was claimed twice, so this was
-    never a safety problem; it was a throughput one, and the shape it takes in production
-    is an agent long-polling for thirty seconds while work sits in the queue.
+    **Why it retries when it comes back short.** The retry was added for MySQL, which
+    counted skipped rows against `LIMIT` and returned short: with `LIMIT 1`, ten
+    concurrent claimants on a queue of twenty scans left six empty-handed. Nothing was
+    ever claimed twice — it was a throughput problem, whose shape in production is an
+    agent long-polling for thirty seconds while work sits in the queue.
 
-    The fix is a **bounded retry**: every claimant commits within microseconds, so a row
-    that is locked now is either gone or free on the next read, and on MySQL each read
-    advances roughly one row past the contention. `CLAIM_ATTEMPTS` is sized from the
-    measurement, not from taste.
+    PostgreSQL does not behave that way; it keeps scanning until it has `LIMIT` unlocked
+    rows. With MySQL withdrawn the retry is therefore near-dead code, and it stays anyway:
+    the loop exits as soon as the limit is filled or the queue is empty, so it costs
+    nothing when it is not needed, and the alternative is to remove a concurrency
+    safeguard in the same commit that removes the tests which would catch its absence.
 
-    Two things were tried first and are worth recording, because both are the obvious
-    idea. Selecting a *wider window* than needed and trimming it made PostgreSQL fail the
-    very tests MySQL was failing — a claimant that locks rows it will not claim starves
-    the others for as long as it holds them. A window on MySQL only then worked, but
-    turned out to be unnecessary once the retry budget was right, so it is gone: asking
-    for exactly what you need, and retrying, is both simpler and the correct behaviour on
-    every backend.
+    One thing tried first is worth recording, because it is the obvious idea. Selecting a
+    *wider window* than needed and trimming it made PostgreSQL fail the very tests MySQL
+    was failing — a claimant that locks rows it will not claim starves the others for as
+    long as it holds them. Asking for exactly what you need, and retrying, is both simpler
+    and the correct behaviour.
     """
     claimed: List[Scan] = []
     for attempt in range(CLAIM_ATTEMPTS):

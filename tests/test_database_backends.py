@@ -8,7 +8,7 @@ user` in raw SQL (a reserved word in PostgreSQL, where it silently resolves to t
 dialect-string check, or a careful reading — only by running the migrations against
 the server.
 
-So these tests start actual PostgreSQL and MySQL containers, apply all six
+So these tests start an actual PostgreSQL container, apply all six
 migrations, and then push one row through every custom column type and every service
 that owns one. They are slow (an image pull on the first run) and they skip
 themselves when Docker is unavailable, which is what keeps them from turning a
@@ -50,7 +50,6 @@ if not _docker_available():
 # between two runs cannot be used to decide whether a backend is supported.
 BACKENDS = [
     pytest.param("postgres", id="postgresql-16"),
-    pytest.param("mysql", id="mysql-8.4"),
 ]
 
 
@@ -70,14 +69,9 @@ def backend_url(request):
     Module-scoped: starting a database server per test would dominate the runtime
     and prove nothing extra, since each test below writes its own rows.
     """
-    if request.param == "postgres":
-        from testcontainers.community.postgres import PostgresContainer
+    from testcontainers.community.postgres import PostgresContainer
 
-        container = PostgresContainer("postgres:16-alpine", driver="psycopg")
-    else:
-        from testcontainers.community.mysql import MySqlContainer
-
-        container = MySqlContainer("mysql:8.4", dialect="pymysql")
+    container = PostgresContainer("postgres:16-alpine", driver="psycopg")
 
     with container as running:
         yield running.get_connection_url()
@@ -229,9 +223,9 @@ def test_a_timestamp_round_trips_as_a_datetime(container_for, session):
 
 
 def test_a_json_column_round_trips(migrated, session):
-    """`Scan.sbom` holds a whole SBOM. On MySQL that is a native JSON column, on
-    PostgreSQL a `json`, and on SQLite text — and `none_as_null` behaviour is what
-    retention depends on."""
+    """`Scan.sbom` holds a whole SBOM: a `json` column on PostgreSQL, text on SQLite —
+    and `none_as_null` behaviour, which differs between the two, is what retention
+    depends on."""
     from zanshin.models.container import Container
     from zanshin.models.scan import Scan
 
@@ -387,8 +381,11 @@ def test_a_triage_review_date_expires(container_for, session):
 
 
 def test_the_direct_dependency_filter_is_a_real_query(container_for, session):
-    """It filters on `is_direct_dependency IS TRUE`, and boolean handling is exactly
-    the sort of thing that differs between backends — MySQL has no boolean type."""
+    """It filters on `is_direct_dependency IS TRUE`.
+
+    Boolean handling is exactly the sort of thing that differs between backends —
+    SQLite stores 0/1 with no boolean type at all, so a three-valued filter (true, false,
+    unknown) is worth proving against a server rather than assuming."""
     from zanshin.models.issue import Issue
 
     for suffix, direct in (("d", True), ("t", False), ("u", None)):
@@ -474,7 +471,7 @@ def test_the_dashboard_aggregates_run(container_for, session):
 # --- Delete rules (migration 0013) ---
 #
 # This is where "the database enforces this" is actually proved. On SQLite the rules are
-# only honoured because a pragma asks for it; PostgreSQL and MySQL enforce them always,
+# only honoured because a pragma asks for it; PostgreSQL enforces them always,
 # and they are the reason the rules had to exist at all — before 0013, deleting a scan
 # on a server database failed outright, because `issue.first_seen_scan_id` referenced it
 # with no rule and no ORM relationship to clear it.

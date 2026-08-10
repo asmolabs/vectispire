@@ -62,8 +62,8 @@ jobs:
           uv run alembic downgrade base
           uv run alembic upgrade head
 
-  # Everything that needs a real server: PostgreSQL and MySQL for the schema and for
-  # the transactional claim, Redis for the shared security counters.
+  # Everything that needs a real server: PostgreSQL for the schema and the transactional
+  # claim, Redis for the shared security counters.
   #
   # Its own job because it is slow (image pulls) and because it must be *seen* to run:
   # these tests exist precisely for the defects that are invisible on SQLite and to a

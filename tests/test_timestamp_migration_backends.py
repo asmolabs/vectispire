@@ -1,14 +1,17 @@
 """The text-to-timestamp conversion, against real database servers.
 
-Migration `0013` rewrites every timestamp in the schema. Two things about it cannot be
-checked on SQLite, and both were found by running it for real:
+Migration `0013` rewrites every timestamp in the schema, and what it does cannot be
+checked on SQLite alone: `ALTER COLUMN`, index handling and batch mode behave
+differently per backend, and the migration failed first on exactly the *indexed*
+timestamp columns.
 
-- **MySQL truncates `DATETIME` to whole seconds** unless a fractional precision is
-  declared. Silently. The audit trail hashes `timestamp.isoformat()`, so a value written
-  with microseconds and read back without them recomputes to a different hash — every
-  entry would report itself as tampered with, on MySQL only;
-- `ALTER COLUMN`, index handling and batch mode behave differently on each backend, and
-  the migration failed first on exactly the *indexed* timestamp columns.
+The sub-second assertion below outlived the backend that motivated it. MySQL truncated
+`DATETIME` to whole seconds unless a fractional precision was declared — silently — and
+because the audit trail hashes `timestamp.isoformat()`, every entry re-read after a
+write reported itself as tampered with. MySQL is gone (see `zanshin/database.py`), but
+the invariant it exposed is a property of the audit chain, not of MySQL, so the check
+stays: any backend that rounds a timestamp breaks integrity verification, and it does
+not look like a timestamp bug when it happens.
 
 The "before" state is built with the migration's own downgrade rather than an old
 checkout: it puts the schema back to text columns, which is precisely what a database
@@ -48,7 +51,6 @@ if not _docker_available():
 
 BACKENDS = [
     pytest.param("postgres", id="postgresql-16"),
-    pytest.param("mysql", id="mysql-8.4"),
 ]
 
 # The shapes the pre-Alembic implementation wrote, and what each must become.
@@ -71,14 +73,9 @@ def _encryption_key(monkeypatch):
 
 @pytest.fixture(scope="module", params=BACKENDS)
 def backend_url(request):
-    if request.param == "postgres":
-        from testcontainers.community.postgres import PostgresContainer
+    from testcontainers.community.postgres import PostgresContainer
 
-        container = PostgresContainer("postgres:16-alpine", driver="psycopg")
-    else:
-        from testcontainers.community.mysql import MySqlContainer
-
-        container = MySqlContainer("mysql:8.4", dialect="pymysql")
+    container = PostgresContainer("postgres:16-alpine", driver="psycopg")
 
     with container as running:
         yield running.get_connection_url()
@@ -164,8 +161,12 @@ def test_text_timestamps_become_real_timestamps(text_schema):
 
 
 def test_microseconds_survive_the_round_trip(text_schema):
-    """MySQL's `DATETIME` keeps whole seconds unless told otherwise, and truncates in
-    silence. The audit chain depends on the fraction, so this is not a nicety."""
+    """A stored timestamp must come back with its fraction intact.
+
+    The audit chain hashes `timestamp.isoformat()`, so a backend that rounds turns every
+    existing entry into a forgery report. PostgreSQL keeps microseconds on its own — this
+    passes today without any help — which is exactly why the assertion is worth keeping:
+    it is the tripwire for the next backend, not a fix for this one."""
     from zanshin.clock import utcnow
     from zanshin.models.repository import ZanshinRepository
 

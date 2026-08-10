@@ -36,10 +36,14 @@ class GateIssue(NamedTuple):
 def _desc_nulls_last(column):
     """Descending order with nulls at the end, on every backend.
 
-    `nullslast()` renders `NULLS LAST`, which MySQL rejects as a syntax error — it has
-    no such clause. Sorting on `column IS NULL` first is the portable spelling: false
-    sorts before true, so rows with a value come first, and the intent (a missing EPSS
-    score must not outrank a real one) is unchanged.
+    Written this way for MySQL, which rejected `NULLS LAST` as a syntax error, and kept
+    now that MySQL is gone: sorting on `column IS NULL` first is *also* what SQLite needs.
+    SQLite has no `NULLS LAST` clause before 3.30 and orders nulls first by default on
+    a descending sort, so `nullslast()` would put every issue with no EPSS score above
+    the ones that have one — silently, and only on the backend most people run.
+
+    False sorts before true, so rows with a value come first, and the intent — a missing
+    EPSS score must not outrank a real one — holds on both backends.
     """
     return (column.is_(None), column.desc())
 
