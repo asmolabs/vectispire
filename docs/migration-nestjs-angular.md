@@ -1,6 +1,72 @@
 # Migration de Zanshin vers NestJS + Angular
 
-**Statut : proposition.** Rien n'est engagé. Ce document sert à décider, puis à exécuter.
+**Statut : en cours.** Branche `claude/migration-nestjs-angular`. Le plan ci-dessous reste
+la référence ; cette section dit où l'on en est.
+
+## Avancement
+
+| Lot | État | Ce qui est fait |
+|---|---|---|
+| 0 — Socle | **terminé** | Monorepo npm, NestJS 11 + Angular 21 (Sakai converti vers Optimus UI), deux jobs CI, vérification des ressources tierces |
+| 1 — Socle NestJS | en cours | Chaîne d'intégrité du journal d'audit, format d'horodatage Python, correctif du pilote PostgreSQL |
+| 2 — Cœur métier | en cours | Empreinte des problèmes, verdict du gate et durcissement de politique |
+| 3 — API d'administration | à faire | |
+| 4 — File de scans et agents | à faire | |
+| 5 — Interface Angular | à faire | Seule la coquille existe |
+| 6 — Bascule | à faire | |
+
+**Prochaines étapes, dans l'ordre :** les exports (SARIF, OpenVEX, CSV), puis
+`sync_from_scan` — qui demande d'abord les entités TypeORM.
+
+## Le banc différentiel, tel qu'il existe aujourd'hui
+
+C'est la pièce qui rend la réécriture vérifiable, et elle est en place.
+
+`scripts/generate_parity_vectors.py` produit, **depuis le code Python réel**, les
+valeurs que la pile TypeScript doit reproduire. Les fichiers atterrissent dans
+`backend/test/vectors/` et sont commités, la CI TypeScript n'ayant pas d'interpréteur
+Python. Deux garde-fous encadrent ce dispositif :
+
+* `tests/test_parity_vectors.py` vérifie que les fichiers commités correspondent
+  encore à ce que produit le code Python d'aujourd'hui, et que les fonctions recopiées
+  dans le générateur n'ont pas dérivé de leurs originales ;
+* les suites Jest les rejouent.
+
+Le jour où quelqu'un modifie une formule côté Python, c'est la suite TypeScript qui le
+dit. Recopier les valeurs à la main aurait figé un instantané.
+
+| Vecteurs | Contenu | Généré par |
+|---|---|---|
+| `audit-hash.json` | 5 entrées de journal et leur empreinte | copie vérifiée de `compute_entry_hash` |
+| `python-timestamp.json` | 7 horodatages, isoformat et rendu PostgreSQL | `datetime.isoformat()` |
+| `issue-fingerprint.json` | 8 empreintes de problèmes | copie vérifiée de `build_fingerprint` |
+| `policy-gate.json` | 20 verdicts, 14 durcissements | **le vrai `policy_gate.evaluate`**, importé |
+
+Quand le code Python s'importe sans ouvrir de connexion — c'est le cas de
+`policy_gate` — le générateur importe l'original plutôt que d'en recopier la logique.
+Quarante lignes de règles imbriquées se recopient mal ; cinq lignes de hachage se
+recopient bien, et la copie est alors confrontée à l'originale par un test.
+
+## Ce que le chantier a déjà appris
+
+Quatre choses trouvées en construisant, dont trois n'auraient pas été trouvées en
+lisant :
+
+1. **`node-postgres` casse les horodatages deux fois.** Il rend un `Date`, qui perd la
+   microseconde, et applique le fuseau de la machine à une colonne sans fuseau
+   contenant de l'UTC. La chaîne d'audit se serait déclarée falsifiée sur tout
+   l'historique. Correctif dans `backend/src/database/pg-types.ts`, vérifié contre un
+   PostgreSQL réel.
+2. **`datetime.isoformat()` n'a aucun équivalent JavaScript** — trois écarts avec
+   `toISOString()`, chacun suffisant à casser un hachage.
+3. **`primeicons@8` n'est plus MIT.** Épinglé en `7.0.0` exact.
+4. **Sakai chargeait une police depuis un CDN**, ce que la CSP de Zanshin refuse — le
+   piège qui avait déjà tué la typographie côté Reflex. `frontend/scripts/check-assets.mjs`
+   le refuse désormais.
+
+Et deux défauts du code Python, corrigés au passage : `ScanRepository.count_by_queue_state`
+levait un `NameError` à chaque appel, et `AgentJobService.build_task` omettait `run_sast`,
+si bien qu'aucun agent distant n'exécutait jamais Semgrep.
 
 ---
 
