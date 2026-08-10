@@ -60,3 +60,48 @@ omit = [
     # omitted wholesale.
     "zanshin/zanshin.py",
 ]
+
+# Pyright, deliberately narrowed to the rules that find defects *in this codebase*.
+#
+# Run as-is over `zanshin/`, pyright reports ~674 errors, and essentially all of them
+# are one of two shapes:
+#
+#   * the models declare columns the SQLAlchemy 1.x way (`id = Column(Integer)`)
+#     rather than `Mapped[int]`, so every attribute is typed `Column[Any]`. Passing
+#     `scan.id` to anything typed `int`, or writing `if repo.name:`, is then an error
+#     — 460 of them, none real;
+#   * Reflex event handlers and `Var` arithmetic, where the class attribute is a
+#     descriptor rather than the method, so `State.handler(x)` reads as a bad call.
+#
+# A gate that fails on all of that would be turned off within a week. The rules kept
+# below are the ones whose findings were checked one by one and were all true: chiefly
+# `reportUndefinedVariable`, which caught `func.count` used without importing `func`
+# in `ScanRepository.count_by_queue_state` — a `NameError` on every call, and the
+# reason the Paramètres screen silently loaded defaults for everything after it.
+#
+# Widening this list is a good thing to do *after* the models move to `Mapped[...]`,
+# which is what would make the type-of-a-column errors mean something.
+[tool.pyright]
+include = ["zanshin", "scripts", "migrations"]
+exclude = ["**/__pycache__", ".venv", ".web"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+# The project's own environment, not whatever `python` happens to be on PATH: without
+# this, pyright resolves no third-party import and reports 145 phantom errors.
+venvPath = "."
+venv = ".venv"
+
+reportArgumentType = "none"
+reportAttributeAccessIssue = "none"
+reportGeneralTypeIssues = "none"
+reportReturnType = "none"
+reportCallIssue = "none"
+reportAssignmentType = "none"
+reportOptionalMemberAccess = "none"
+reportIndexIssue = "none"
+reportFunctionMemberAccess = "none"
+
+reportUndefinedVariable = "error"
+reportPossiblyUnboundVariable = "error"
+reportSelfClsParameterName = "error"
+reportUnsupportedDunderAll = "warning"

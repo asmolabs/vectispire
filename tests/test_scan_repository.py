@@ -216,3 +216,30 @@ def test_recent_scans_ordering_survives_a_naive_utcnow_mix(
     summaries = scan_repository.find_summaries_by_repository_id(repo.id)
 
     assert [s.id for s in summaries] == [recent.id, old.id]
+
+
+def test_count_by_queue_state_counts_queued_and_running(
+    db_session, scan_repository, make_repository
+):
+    """Regression: this method used `func.count` without importing `func`, so every
+    call raised `NameError`.
+
+    It was invisible because its only caller is the Paramètres loader, inside a
+    `try` that turns any exception into a toast — so the symptom was not a crash but
+    a settings screen showing defaults instead of stored values, every field after
+    this one left unloaded. A type checker named it in one pass; no test did.
+    """
+    from zanshin.services.scan_queue import STATUS_QUEUED, STATUS_RUNNING
+
+    repo = make_repository()
+    _add_scan(db_session, repo_id=repo.id, status=STATUS_QUEUED)
+    _add_scan(db_session, repo_id=repo.id, status=STATUS_QUEUED)
+    _add_scan(db_session, repo_id=repo.id, status=STATUS_RUNNING)
+    _add_scan(db_session, repo_id=repo.id, status="completed")
+
+    assert scan_repository.count_by_queue_state() == {"queued": 2, "running": 1}
+
+
+def test_count_by_queue_state_reports_zero_rather_than_an_empty_mapping(scan_repository):
+    """The settings screen reads both keys unconditionally."""
+    assert scan_repository.count_by_queue_state() == {"queued": 0, "running": 0}

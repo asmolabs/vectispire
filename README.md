@@ -301,6 +301,12 @@ uv run pytest -m backends     # needs Docker
 
 Additionally, a cross-backend suite starts a real PostgreSQL 16 server with testcontainers, applies every migration and pushes a row through each custom column type and each service that owns one. It is excluded from the default run (`addopts = -m 'not backends'`) because an image pull does not belong in the loop you run on every edit, and it skips itself when Docker is unavailable. It exists because every portability defect this schema had was invisible both to SQLite and to reading the code — a `BINARY` type PostgreSQL has no name for, `FROM user` resolving to a function instead of a table, `VARCHAR` without a length, a `BIGINT` foreign key onto an `INT` key, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six of them, all found by running.
 
+```bash
+uvx pyright
+```
+
+A type check, deliberately narrow. Run with its default rules over `zanshin/`, pyright reports ~674 errors and almost none are real: the models declare columns the SQLAlchemy 1.x way (`id = Column(Integer)`) rather than `Mapped[int]`, so every attribute reads as `Column[Any]` and `if repo.name:` is an error; and Reflex event handlers are descriptors on the state class, so `State.handler(x)` reads as a bad call. A gate that failed on that would be switched off within a week, so `[tool.pyright]` in `pyproject.toml` keeps only the rules whose findings were checked one by one and were all true. That short list still earned its place immediately: `func.count` was used in `ScanRepository.count_by_queue_state` without importing `func`, a `NameError` on every call, and its only caller turns any exception into a toast — so the symptom was a Paramètres screen quietly showing defaults for every field loaded after it. 1 000 tests did not see it. Widening the list is worth doing *after* the models move to `Mapped[...]`, which is what would make a column's declared type mean something.
+
 ### Project structure
 
 ```
@@ -688,6 +694,12 @@ uv run pytest -m backends     # nécessite Docker
 ```
 
 En complément, une suite multi-backends démarre un vrai serveur PostgreSQL 16 avec testcontainers, applique toutes les migrations et fait passer une ligne par chaque type de colonne maison et chaque service qui en possède un. Elle est exclue de l'exécution par défaut (`addopts = -m 'not backends'`), parce qu'un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque modification, et elle se saute d'elle-même sans Docker. Elle existe parce que tous les défauts de portabilité de ce schéma étaient invisibles à la fois pour SQLite et à la lecture : un type `BINARY` que PostgreSQL ne connaît pas, `FROM user` qui désigne une fonction au lieu d'une table, `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six, tous trouvés en exécutant.
+
+```bash
+uvx pyright
+```
+
+Une vérification de types, délibérément étroite. Avec ses règles par défaut sur `zanshin/`, pyright signale ~674 erreurs dont presque aucune n'est réelle : les modèles déclarent leurs colonnes à la façon SQLAlchemy 1.x (`id = Column(Integer)`) plutôt qu'en `Mapped[int]`, donc chaque attribut se lit `Column[Any]` et `if repo.name:` devient une erreur ; et les gestionnaires d'évènements Reflex sont des descripteurs posés sur la classe d'état, donc `State.handler(x)` se lit comme un mauvais appel. Une barrière qui échouerait là-dessus serait désactivée en une semaine : `[tool.pyright]` dans `pyproject.toml` ne garde donc que les règles dont les constats ont été vérifiés un à un et étaient tous justes. Cette courte liste a payé immédiatement : `func.count` était utilisé dans `ScanRepository.count_by_queue_state` sans importer `func` — un `NameError` à chaque appel — et son unique appelant transforme toute exception en notification, si bien que le symptôme était un écran Paramètres affichant silencieusement les valeurs par défaut pour tous les champs chargés après celui-là. Mille tests ne l'avaient pas vu. Élargir la liste vaudra la peine *après* le passage des modèles à `Mapped[...]`, qui est ce qui donnerait un sens au type déclaré d'une colonne.
 
 ### Structure du projet
 

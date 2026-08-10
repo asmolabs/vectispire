@@ -52,6 +52,13 @@ jobs:
           ZANSHIN_DATABASE_URL: sqlite:///${{ runner.temp }}/ci.sqlite
         run: uv run alembic check
 
+      - name: Type check
+        # Narrowed to the rules that find real defects here — see the long comment on
+        # [tool.pyright] in pyproject.toml for why the rest are off. It earned its place
+        # by catching a `NameError` in `ScanRepository.count_by_queue_state` that the
+        # whole suite missed, because its only caller swallows exceptions into a toast.
+        run: uvx pyright
+
       - name: Check migrations are reversible
         # Not to use downgrades in production, but because a downgrade that
         # doesn't parse usually means the upgrade was written without thinking

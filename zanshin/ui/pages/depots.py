@@ -410,8 +410,11 @@ class DepotsState(BaseState):
     @requires_login
     def save_config(self):
         container = get_container()
+        # Bound before the `try`, because the rollback handler below uses it: opened
+        # inside, a failure on this very line would raise `NameError` from the handler
+        # and hide the real error.
+        db = container.db
         try:
-            db = container.db
             r = db.query(ZanshinRepository).filter(ZanshinRepository.id == self.selected_repo_id).first()
             if not r:
                 return
