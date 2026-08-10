@@ -25,6 +25,41 @@ export interface AuditRecord {
     userAgent?: string | null;
 }
 
+/**
+ * Le dernier horodatage rendu, pour garantir qu'il croît strictement.
+ *
+ * `nowForDatabase()` a la milliseconde pour résolution : deux entrées écrites dans la
+ * même milliseconde porteraient le même horodatage, et l'ordre entre elles ne serait
+ * plus défini que par un UUID aléatoire. La chaîne serait alors construite dans un ordre
+ * et relue dans un autre — la vérification échouerait sur un journal parfaitement
+ * intact, ce qu'un test a montré sur cinq entrées écrites en boucle serrée.
+ *
+ * Avancer d'une milliseconde plutôt que d'attendre : le journal n'a pas besoin d'une
+ * horloge exacte, il a besoin d'un ordre. Le décalage est borné par le débit d'écriture
+ * et se résorbe dès la première pause.
+ */
+let lastIssued = '';
+
+function monotonicNow(): string {
+    const now = nowForDatabase();
+    if (now > lastIssued) {
+        lastIssued = now;
+        return now;
+    }
+    lastIssued = advanceOneMillisecond(lastIssued);
+    return lastIssued;
+}
+
+function advanceOneMillisecond(timestamp: string): string {
+    const at = new Date(`${timestamp}Z`);
+    at.setUTCMilliseconds(at.getUTCMilliseconds() + 1);
+    const pad = (value: number, width = 2) => String(value).padStart(width, '0');
+    return (
+        `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}` +
+        `T${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}.${pad(at.getUTCMilliseconds(), 3)}`
+    );
+}
+
 export class AuditLogService {
     constructor(private readonly entries = new AuditLogRepository()) {}
 
@@ -36,7 +71,7 @@ export class AuditLogService {
                 // Posé ici et non laissé à un défaut de colonne : le hachage couvre
                 // l'horodatage, et une valeur appliquée par la base après le calcul
                 // ferait échouer chaque entrée à sa propre vérification.
-                timestamp: nowForDatabase(),
+                timestamp: monotonicNow(),
                 operationType: entry.operationType,
                 resourceId: String(entry.resourceId),
                 // La colonne fait 255 : tronquer ici plutôt que laisser la base

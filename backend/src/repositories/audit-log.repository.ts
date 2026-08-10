@@ -38,10 +38,22 @@ const COLUMNS = `id,
     description`;
 
 export class AuditLogRepository {
-    /** La dernière entrée écrite — celle dont l'empreinte devient le maillon suivant. */
+    /**
+     * La dernière entrée écrite — celle dont l'empreinte devient le maillon suivant.
+     *
+     * **La queue de la liste chaînée, et non le maximum d'un tri.** Trier par
+     * horodatage puis par identifiant paraît suffisant et ne l'est pas : deux entrées
+     * écrites dans la même milliseconde se départagent alors par un UUID aléatoire, si
+     * bien que l'ordre dans lequel la chaîne est *construite* peut différer de celui
+     * dans lequel elle est *relue*. La vérification échoue alors sur un journal
+     * parfaitement intact — c'est ce qu'un test a montré, sur cinq entrées écrites en
+     * boucle serrée.
+     *
+     * La chaîne définit son propre ordre : c'est elle qu'on suit.
+     */
     async findLatest(manager: EntityManager): Promise<AuditRow | null> {
-        const rows: AuditRow[] = await manager.query(`SELECT ${COLUMNS} FROM audit_logs ORDER BY timestamp DESC, id DESC LIMIT 1`);
-        return rows[0] ?? null;
+        const ordered = await this.findAllOldestFirst(manager);
+        return ordered[ordered.length - 1] ?? null;
     }
 
     async insert(manager: EntityManager, row: AuditRow): Promise<void> {
@@ -58,14 +70,36 @@ export class AuditLogRepository {
     }
 
     /**
-     * Toute la table, de la plus ancienne à la plus récente.
+     * Toute la table, dans l'ordre où la chaîne a été construite.
      *
-     * L'ordre est celui dans lequel la chaîne a été construite, donc le seul dans lequel
-     * elle se vérifie. `id` départage deux entrées du même horodatage — sans quoi la
-     * vérification échouerait au gré du plan d'exécution choisi par la base.
+     * Obtenu en **suivant les maillons** — de l'entrée sans précédente vers la suivante,
+     * et ainsi de suite — et non par un tri, pour la raison exposée sur `findLatest`.
+     *
+     * Les entrées qu'aucun maillon n'atteint sont ajoutées à la fin, triées par
+     * horodatage. C'est délibéré : elles sont soit antérieures au chaînage, soit le
+     * signe d'une rupture, et dans les deux cas c'est `verifyChain` qui doit le dire —
+     * les taire ici masquerait précisément ce que le journal existe pour révéler.
      */
     async findAllOldestFirst(manager: EntityManager): Promise<AuditRow[]> {
-        return manager.query(`SELECT ${COLUMNS} FROM audit_logs ORDER BY timestamp ASC, id ASC`);
+        const rows: AuditRow[] = await manager.query(`SELECT ${COLUMNS} FROM audit_logs ORDER BY timestamp ASC, id ASC`);
+        if (rows.length === 0) return rows;
+
+        const byPrevious = new Map<string, AuditRow>();
+        for (const row of rows) {
+            if (row.entryHash) byPrevious.set(row.previousHash ?? '', row);
+        }
+
+        const chained: AuditRow[] = [];
+        const seen = new Set<string>();
+        let current = byPrevious.get('');
+        while (current && current.entryHash && !seen.has(current.id)) {
+            chained.push(current);
+            seen.add(current.id);
+            current = byPrevious.get(current.entryHash);
+        }
+
+        const unreachable = rows.filter((row) => !seen.has(row.id));
+        return [...chained, ...unreachable];
     }
 
     async updateHashes(manager: EntityManager, id: string, previousHash: string | null, entryHash: string): Promise<void> {

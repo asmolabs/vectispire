@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
-import { MAX_ATTEMPTS_PER_USER } from '../domain/auth/login-throttle';
+import { MAX_ATTEMPTS_PER_USER, WINDOW_MS } from '../domain/auth/login-throttle';
+import { nowForDatabase } from '../domain/common/timestamp';
 import { ENTITIES, LoginAttempt, Session, User } from '../persistence/entities';
 import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { AuthService } from './auth.service';
+import { SessionCleanupService } from './session-cleanup.service';
 import { hashPassword } from './password.service';
 
 /**
@@ -200,5 +203,100 @@ describeWithPostgres('authentification', () => {
         it.each([[null], [''], ['abc'], ['Bearer inconnu']])('rend null sur %p', async (header) => {
             expect(await service.resolve(manager, header as string | null)).toBeNull();
         });
+    });
+});
+
+describeWithPostgres('purge des tables d’authentification', () => {
+    let dataSource: DataSource;
+    let manager: EntityManager;
+    let release: () => Promise<void>;
+    const cleanup = new SessionCleanupService();
+    const auth = new AuthService();
+
+    beforeAll(async () => {
+        configurePostgresTypeParsers();
+        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
+        await dataSource.initialize();
+    }, 30_000);
+
+    afterAll(async () => {
+        if (dataSource?.isInitialized) await dataSource.destroy();
+    });
+
+    beforeEach(async () => {
+        const runner = dataSource.createQueryRunner();
+        await runner.connect();
+        await runner.startTransaction();
+        manager = runner.manager;
+        release = async () => {
+            await runner.rollbackTransaction();
+            await runner.release();
+        };
+    });
+
+    afterEach(async () => release());
+
+    async function user(): Promise<User> {
+        return manager.save(
+            Object.assign(new User(), {
+                username: `bob-${Math.trunc(Math.random() * 1e9)}`,
+                email: null,
+                password: hashPassword('x'),
+                displayName: null,
+                avatarUrl: null,
+                role: 'USER',
+                isActive: true,
+                githubId: null,
+                keycloakId: null,
+                createdAt: '2026-01-01T00:00:00',
+                updatedAt: '2026-01-01T00:00:00',
+                mustChangePassword: false
+            })
+        );
+    }
+
+    it('retire les sessions périmées et garde les vivantes', async () => {
+        const account = await user();
+        await auth.login(manager, { username: account.username, password: 'x', clientId: 'poste' });
+        await manager.save(
+            Object.assign(new Session(), {
+                token: 'perimee',
+                userId: account.id,
+                createdAt: '2020-01-01T00:00:00',
+                lastSeenAt: '2020-01-01T00:00:00',
+                expiresAt: '2020-01-02T00:00:00',
+                userAgent: null,
+                ipAddress: null
+            })
+        );
+
+        expect((await cleanup.prune(manager)).sessions).toBe(1);
+        expect(await manager.countBy(Session, { userId: account.id })).toBe(1);
+    });
+
+    it('retire les tentatives sorties de la fenêtre de rétention', async () => {
+        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:vieux', occurredAt: '2020-01-01T00:00:00' }));
+        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:recent', occurredAt: nowForDatabase() }));
+
+        expect((await cleanup.prune(manager)).attempts).toBe(1);
+        expect(await manager.countBy(LoginAttempt, { counterKey: 'login:user:recent' })).toBe(1);
+    });
+
+    it('garde les tentatives deux fois la fenêtre, pas une', async () => {
+        // Couper au ras du seuil abaisserait un compteur qu'un comptage en cours est
+        // peut-être en train de lire — donc ouvrirait une fenêtre à qui essaie des mots
+        // de passe.
+        const justPastWindow = new Date(Date.now() - WINDOW_MS - 60_000).toISOString().replace('Z', '').replace('T', 'T');
+        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:limite', occurredAt: justPastWindow }));
+
+        await cleanup.prune(manager);
+
+        expect(await manager.countBy(LoginAttempt, { counterKey: 'login:user:limite' })).toBe(1);
+    });
+
+    it('ne lève jamais, même sur une base qui refuse', async () => {
+        const broken = { deleteExpired: async () => { throw new Error('table absente'); }, deleteBefore: async () => { throw new Error('table absente'); } };
+        const fragile = new SessionCleanupService(broken as never, broken as never);
+        await expect(fragile.prune(manager)).resolves.toEqual({ sessions: 0, attempts: 0 });
     });
 });
