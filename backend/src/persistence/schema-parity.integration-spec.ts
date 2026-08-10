@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
-import { AuditLog } from '../audit/audit-log.entity';
-import { Setting } from '../settings/setting.entity';
-import { User } from '../users/user.entity';
+import { AuditLog } from './entities/audit-log.entity';
+import { Setting } from './entities/setting.entity';
+import { User } from './entities/user.entity';
 import { configurePostgresTypeParsers } from './pg-types';
 
 /**

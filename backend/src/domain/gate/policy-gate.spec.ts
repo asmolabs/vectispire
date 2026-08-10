@@ -16,7 +16,7 @@ interface HardenVector {
     expected: { policy: GatePolicy; ignoredRelaxations: string[] };
 }
 
-const vectors: { verdicts: VerdictVector[]; hardenings: HardenVector[] } = JSON.parse(readFileSync(join(__dirname, '../../test/vectors/policy-gate.json'), 'utf8'));
+const vectors: { verdicts: VerdictVector[]; hardenings: HardenVector[] } = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/policy-gate.json'), 'utf8'));
 
 describe('verdict du gate', () => {
     it('dispose de vecteurs générés depuis le code Python', () => {

@@ -10,7 +10,7 @@ interface ExportVector {
     csv: string;
 }
 
-const vectors: { cases: ExportVector[]; sarifWithoutInformationUri: Record<string, unknown> } = JSON.parse(readFileSync(join(__dirname, '../../test/vectors/exports.json'), 'utf8'));
+const vectors: { cases: ExportVector[]; sarifWithoutInformationUri: Record<string, unknown> } = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/exports.json'), 'utf8'));
 
 const SARIF_OPTIONS = { targetName: 'org/exemple', toolVersion: '1.2.3', informationUri: 'https://zanshin.interne' };
 const VEX_OPTIONS = {

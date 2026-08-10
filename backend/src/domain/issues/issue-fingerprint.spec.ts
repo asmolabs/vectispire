@@ -8,7 +8,7 @@ interface FingerprintVector {
     expected: string;
 }
 
-const vectors: FingerprintVector[] = JSON.parse(readFileSync(join(__dirname, '../../test/vectors/issue-fingerprint.json'), 'utf8'));
+const vectors: FingerprintVector[] = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/issue-fingerprint.json'), 'utf8'));
 
 const base: FingerprintInput = {
     repoId: 3,

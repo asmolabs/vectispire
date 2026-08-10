@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
-import { stringColumn, timestampColumn } from '../database/columns';
+import { stringColumn, timestampColumn } from '../columns';
 
 /**
  * Une entrée du journal d'audit.

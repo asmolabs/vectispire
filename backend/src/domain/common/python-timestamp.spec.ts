@@ -8,7 +8,7 @@ interface TimestampVector {
     microsecond: number;
 }
 
-const vectors: TimestampVector[] = JSON.parse(readFileSync(join(__dirname, '../../test/vectors/python-timestamp.json'), 'utf8'));
+const vectors: TimestampVector[] = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/python-timestamp.json'), 'utf8'));
 
 describe('horodatages au format Python', () => {
     it('dispose de vecteurs générés depuis le code Python', () => {

@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { stringColumn, timestampColumn } from '../database/columns';
+import { stringColumn, timestampColumn } from '../columns';
 
 /** Les rôles auxquels l'administration est réservée. */
 export const ADMIN_ROLES = ['SUPERUSER', 'ADMIN'] as const;

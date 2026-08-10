@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Client } from 'pg';
-import { computeEntryHash } from '../audit/audit-hash';
-import { toPythonIsoformat } from '../common/python-timestamp';
+import { computeEntryHash } from '../domain/audit/audit-hash';
+import { toPythonIsoformat } from '../domain/common/python-timestamp';
 import { configurePostgresTypeParsers } from './pg-types';
 
 /**

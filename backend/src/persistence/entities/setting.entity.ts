@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
-import { stringColumn } from '../database/columns';
+import { stringColumn } from '../columns';
 
 /**
  * Un réglage, en clé/valeur texte.

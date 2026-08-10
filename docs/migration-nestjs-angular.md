@@ -7,16 +7,20 @@ la référence ; cette section dit où l'on en est.
 
 | Lot | État | Ce qui est fait |
 |---|---|---|
-| 0 — Socle | **terminé** | Monorepo npm, NestJS 11 + Angular 21 (Sakai converti vers Optimus UI), deux jobs CI, vérification des ressources tierces |
-| 1 — Socle NestJS | en cours | Chaîne d'intégrité du journal d'audit, format d'horodatage Python, correctif du pilote PostgreSQL |
-| 2 — Cœur métier | en cours | Empreinte des problèmes, verdict du gate et durcissement de politique |
+| 0 — Socle | **terminé** | Monorepo npm, NestJS 11 + Angular 21 (Sakai converti vers Optimus UI), trois jobs CI, vérification des ressources tierces |
+| 1 — Socle NestJS | en cours | Chaîne d'intégrité du journal d'audit, format d'horodatage Python, correctif du pilote PostgreSQL, harnais de parité de schéma, entités `user` / `audit_logs` / `setting` |
+| 2 — Cœur métier | en cours | Empreinte des problèmes, verdict du gate et durcissement de politique, exports SARIF / OpenVEX / CSV |
 | 3 — API d'administration | à faire | |
 | 4 — File de scans et agents | à faire | |
 | 5 — Interface Angular | à faire | Seule la coquille existe |
 | 6 — Bascule | à faire | |
 
-**Prochaines étapes, dans l'ordre :** les exports (SARIF, OpenVEX, CSV), puis
-`sync_from_scan` — qui demande d'abord les entités TypeORM.
+**Prochaines étapes, dans l'ordre :** les treize entités restantes (le harnais rend
+l'exercice mécanique et sûr), puis `sync_from_scan`, qui est le premier morceau à
+*écrire* dans la base, puis l'authentification.
+
+Reste entièrement à faire, et c'est l'essentiel du coût : les 9 150 lignes de services,
+l'API d'administration, et le portage des 17 970 lignes de tests.
 
 ## Le banc différentiel, tel qu'il existe aujourd'hui
 

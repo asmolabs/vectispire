@@ -9,7 +9,7 @@ interface AuditVector {
     expected: string;
 }
 
-const vectors: AuditVector[] = JSON.parse(readFileSync(join(__dirname, '../../test/vectors/audit-hash.json'), 'utf8'));
+const vectors: AuditVector[] = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/audit-hash.json'), 'utf8'));
 
 describe('empreinte d’une entrée du journal d’audit', () => {
     it('dispose de vecteurs générés depuis le code Python', () => {
