@@ -14,9 +14,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "gitpython>=3.1.50",
     "httpx>=0.28.1",
-    "passlib>=1.7.4",
     "pydantic>=2.13.4",
-    "python-jose>=3.5.0",
     "reflex>=0.9.6.post1",
     "sqlalchemy>=2.0.51",
 ]

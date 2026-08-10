@@ -574,3 +574,35 @@ def test_a_nonsensical_slice_is_refused(agent_api, make_repository):
     })
 
     assert response.status_code == 400
+
+
+def test_a_remote_agent_is_told_to_run_semgrep_when_the_setting_is_on(agent_api, make_repository, monkeypatch):
+    """Régression : `build_task` posait `collect_code_sample` mais pas `run_sast`.
+
+    Le champ retombait donc sur son défaut `False`, et **aucun agent distant
+    n'exécutait jamais Semgrep**, quel que soit le réglage `sast_enabled`. Rien ne le
+    signalait : le contrat traite l'absence de résultat SAST comme « l'étape n'a pas
+    tourné », ce qui était exact et laissait le backlog intact — donc pas de constat
+    résolu à tort, juste une fonctionnalité muette.
+
+    Le réglage vit en base et un agent n'a pas de base (décision 0003) : c'est bien au
+    plan de contrôle de trancher, comme il le fait déjà pour l'échantillon de code.
+    """
+    client, stub, _, _ = agent_api
+    monkeypatch.setattr(stub.agent_job_service.scan_ingestor, "wants_sast", lambda is_container: True)
+    _queued_scan(stub.db, repo_id=make_repository().id)
+
+    task = client.get("/api/v1/agents/jobs").json()
+
+    assert task["run_sast"] is True
+
+
+def test_a_remote_agent_is_not_told_to_run_semgrep_when_the_setting_is_off(agent_api, make_repository, monkeypatch):
+    client, stub, _, _ = agent_api
+    monkeypatch.setattr(stub.agent_job_service.scan_ingestor, "wants_sast", lambda is_container: False)
+    _queued_scan(stub.db, repo_id=make_repository().id)
+
+    task = client.get("/api/v1/agents/jobs").json()
+
+    # `response_model_exclude_none=True` retire les champs nuls ; `False` n'est pas nul.
+    assert task.get("run_sast", False) is False

@@ -144,6 +144,13 @@ class AgentJobService:
             sub_path=scan.sub_path or "",
             ssh_private_key=private_key,
             collect_code_sample=self.scan_ingestor.wants_code_sample(is_container=False),
+            # Décidé ici et pas par l'agent : le réglage vit en base, et un agent n'a
+            # pas de base (décision 0003). L'oubli de cette ligne faisait que les
+            # agents distants n'exécutaient jamais Semgrep, quel que soit le réglage —
+            # sans erreur nulle part, puisque `run_sast` retombait sur son défaut
+            # `False` et que le contrat traite l'absence de résultat SAST comme
+            # « l'étape n'a pas tourné », ce qui est vrai et laisse le backlog intact.
+            run_sast=self.scan_ingestor.wants_sast(is_container=False),
         )
 
     def _release(self, db, scan: Scan) -> None:
