@@ -27,6 +27,7 @@ from scripts.generate_parity_vectors import (
     _postgres_rendering,
     build_audit_vectors,
     build_fingerprint_vectors,
+    build_export_vectors,
     build_gate_vectors,
     build_timestamp_vectors,
 )
@@ -82,6 +83,7 @@ def test_the_committed_vectors_match_what_the_script_produces_today():
         ("python-timestamp.json", build_timestamp_vectors()),
         ("issue-fingerprint.json", build_fingerprint_vectors()),
         ("policy-gate.json", build_gate_vectors()),
+        ("exports.json", build_export_vectors()),
     ):
         committed = json.loads((OUTPUT_DIR / name).read_text(encoding="utf-8"))
         assert committed == expected, (

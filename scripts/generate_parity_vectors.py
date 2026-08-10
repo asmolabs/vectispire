@@ -549,6 +549,215 @@ def build_gate_vectors() -> dict:
     return {"verdicts": verdicts, "hardenings": hardenings}
 
 
+def _export_issue(**overrides):
+    """Un problème complet, tel que les exports le lisent.
+
+    Comme pour le gate : `build_sarif_document` et ses voisines ne touchent ni la
+    session ni la base, un porteur d'attributs suffit.
+    """
+    from types import SimpleNamespace
+
+    fields = {
+        "id": 1,
+        "fingerprint": "f" * 64,
+        "type": "vulnerability",
+        "identifier": "CVE-2024-1234",
+        "severity": "high",
+        "cvss_score": 7.5,
+        "epss_score": 0.42,
+        "is_kev": False,
+        "package_name": "requests",
+        "package_version": "2.31.0",
+        "purl": "pkg:pypi/requests@2.31.0",
+        "is_direct_dependency": True,
+        "file_path": "requirements.txt",
+        "line": 12,
+        "fix_state": "fixed",
+        "fix_versions": "2.32.0",
+        "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
+        "description": "Une description de la vulnérabilité.",
+        "state": "open",
+        "triage_status": "under_review",
+        "triage_justification": None,
+        "triage_comment": None,
+        "triaged_by": None,
+        "triaged_at": None,
+        "triage_expires_at": None,
+        "first_seen_at": datetime(2026, 1, 5, 9, 30, 0),
+        "last_seen_at": datetime(2026, 8, 1, 14, 0, 0, 500000),
+        "times_seen": 4,
+    }
+    fields.update(overrides)
+    return SimpleNamespace(**fields)
+
+
+# Les situations où une erreur de portage produit un document valide mais faux.
+EXPORT_CASES = [
+    ("backlog vide", []),
+    ("une vulnérabilité ordinaire", [{}]),
+    (
+        "un problème résolu est exclu de SARIF, et déclaré fixed en VEX",
+        [{"state": "resolved"}],
+    ),
+    (
+        "un not_affected devient une suppression SARIF et porte sa justification",
+        [
+            {
+                "triage_status": "not_affected",
+                "triage_justification": "vulnerable_code_not_in_execute_path",
+                "triage_comment": "Le module n'est pas chargé en production.",
+                "triaged_by": "alice",
+                "triaged_at": datetime(2026, 6, 1, 10, 0, 0),
+                "triage_expires_at": datetime(2026, 12, 1, 10, 0, 0),
+            }
+        ],
+    ),
+    (
+        "un affected reste visible et porte un action_statement",
+        [{"triage_status": "affected", "triage_comment": "Correctif planifié en sprint 12."}],
+    ),
+    ("un fixed est supprimé dans SARIF", [{"triage_status": "fixed"}]),
+    (
+        "un constat de qualité est étiqueté quality, pas security",
+        [{"type": "quality", "identifier": "zanshin-python-bare-except", "purl": None, "package_name": None, "package_version": None}],
+    ),
+    (
+        "un secret, sans paquet ni purl",
+        [{"type": "secret", "identifier": "aws-access-token", "purl": None, "package_name": None, "package_version": None, "severity": "high", "file_path": "config/settings.py", "line": 3}],
+    ),
+    (
+        "un constat sans fichier retombe sur la racine du dépôt",
+        [{"file_path": None, "line": None}],
+    ),
+    (
+        "un KEV sans correctif, message complet",
+        [{"is_kev": True, "fix_versions": None, "fix_state": "not-fixed", "severity": "critical"}],
+    ),
+    (
+        "une dépendance transitive le dit dans le message",
+        [{"is_direct_dependency": False}],
+    ),
+    (
+        "l'absence d'information sur la dépendance ne s'invente pas",
+        [{"is_direct_dependency": None}],
+    ),
+    (
+        "deux problèmes partageant un identifiant ne produisent qu'une règle",
+        [{"id": 1, "file_path": "a.txt"}, {"id": 2, "file_path": "b.txt"}],
+    ),
+    (
+        "même identifiant, types différents : deux règles distinctes",
+        [{"id": 1, "type": "secret"}, {"id": 2, "type": "iac"}],
+    ),
+    (
+        "un problème sans identifiant",
+        [{"identifier": None, "type": "eol"}],
+    ),
+    (
+        "une sévérité hors vocabulaire retombe sur warning et n'a pas de security-severity",
+        [{"severity": "catastrophique"}],
+    ),
+    (
+        "un type non vulnérable est écarté de VEX",
+        [{"type": "iac", "identifier": "CKV_AWS_1"}],
+    ),
+    (
+        "une vulnérabilité sans identifiant est écartée de VEX",
+        [{"identifier": None}],
+    ),
+    (
+        # Le piège du CSV : virgules, guillemets et sauts de ligne. `csv.DictWriter`
+        # met des guillemets et double ceux du contenu, et termine ses lignes en CRLF.
+        "champs contenant virgule, guillemets et saut de ligne",
+        [
+            {
+                "description": 'Contient une virgule, un "guillemet" et\nun saut de ligne.',
+                "triage_status": "not_affected",
+                "triage_justification": "component_not_present",
+                "triage_comment": 'Commentaire, avec "citation"\net retour.',
+                "triaged_by": "bob",
+                "triaged_at": datetime(2026, 6, 1, 10, 0, 0),
+            }
+        ],
+    ),
+    (
+        "scores absents et times_seen nul",
+        [{"cvss_score": None, "epss_score": None, "times_seen": 0, "line": None, "severity": None}],
+    ),
+    (
+        # `str(9.0)` vaut « 9.0 » en Python et « 9 » en JavaScript. Sur une colonne
+        # de score CVSS, la moitié des valeurs sont entières.
+        "scores entiers, rendus avec leur décimale",
+        [{"cvss_score": 9.0, "epss_score": 1.0}],
+    ),
+    (
+        "score à zéro, qui n'est pas une absence de score",
+        [{"cvss_score": 0.0, "epss_score": 0.0}],
+    ),
+]
+
+
+def build_export_vectors() -> dict:
+    """Documents SARIF, OpenVEX et CSV produits par le vrai `zanshin.services.exports`.
+
+    Importé, pas recopié : quatre cents lignes de mise en forme, dont les subtilités
+    (suppressions plutôt qu'omissions, location obligatoire, `security-severity`
+    numérique, CRLF du module `csv`) sont précisément ce qu'un portage rate.
+    """
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT))
+    from zanshin.services.exports import (
+        build_issues_csv,
+        build_openvex_document,
+        build_sarif_document,
+    )
+
+    vectors = []
+    for label, issue_overrides in EXPORT_CASES:
+        issues = [_export_issue(**{"id": index + 1, **overrides}) for index, overrides in enumerate(issue_overrides)]
+        vectors.append(
+            {
+                "label": label,
+                "issues": [_serialize_issue(issue) for issue in issues],
+                "sarif": build_sarif_document(
+                    issues,
+                    target_name="org/exemple",
+                    tool_version="1.2.3",
+                    information_uri="https://zanshin.interne",
+                ),
+                "openvex": build_openvex_document(
+                    issues,
+                    author="Zanshin <security@exemple.be>",
+                    product_id="pkg:github/org/exemple",
+                    document_id="https://zanshin.interne/vex/1",
+                    timestamp="2026-08-10T08:00:00",
+                    version=3,
+                ),
+                "csv": build_issues_csv(issues),
+            }
+        )
+    return {
+        "cases": vectors,
+        # Sans `informationUri`, la clé doit être absente et non nulle.
+        "sarifWithoutInformationUri": build_sarif_document([_export_issue()], target_name="org/exemple", tool_version="1.2.3"),
+    }
+
+
+def _serialize_issue(issue) -> dict:
+    """Le problème sous la forme que lit le code TypeScript : camelCase, horodatages
+    en texte (jamais un `Date`, qui perdrait la microseconde)."""
+
+    def camel(name: str) -> str:
+        head, *rest = name.split("_")
+        return head + "".join(word.capitalize() for word in rest)
+
+    serialized = {}
+    for key, value in vars(issue).items():
+        serialized[camel(key)] = value.isoformat() if isinstance(value, datetime) else value
+    return serialized
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     written = []
@@ -557,6 +766,7 @@ def main() -> None:
         ("python-timestamp.json", build_timestamp_vectors()),
         ("issue-fingerprint.json", build_fingerprint_vectors()),
         ("policy-gate.json", build_gate_vectors()),
+        ("exports.json", build_export_vectors()),
     ):
         path = OUTPUT_DIR / name
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
