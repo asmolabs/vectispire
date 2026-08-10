@@ -50,6 +50,17 @@ et d'`exports` — le générateur importe l'original plutôt que d'en recopier 
 Quarante lignes de règles imbriquées se recopient mal ; cinq lignes de hachage se
 recopient bien, et la copie est alors confrontée à l'originale par un test.
 
+## Points ouverts
+
+* **`@nestjs/swagger` tire un `js-yaml` affecté par un déni de service** (temps
+  d'analyse exponentiel sur les collections en flux, sévérité haute). `npm audit fix`
+  veut changer le majeur de `@nestjs/swagger` pour y arriver, et un `overrides` — sous
+  ses deux formes, globale et ciblée — n'est pas appliqué par npm : l'arbre reste sur
+  la version affectée et se déclare simplement « invalid ». Laissé tel quel plutôt que
+  contourné à moitié. La surface est faible (l'analyse YAML ne sert qu'à produire le
+  document OpenAPI, sur une entrée que Zanshin écrit lui-même), mais c'est une
+  vulnérabilité connue dans un outil qui en cherche chez les autres — donc à reprendre.
+
 ## Ce que le chantier a déjà appris
 
 Trois choses trouvées en construisant, qui ne se seraient pas trouvées en lisant :
