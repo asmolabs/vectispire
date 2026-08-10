@@ -1,7 +1,5 @@
 import { DataSource } from 'typeorm';
-import { AuditLog } from './entities/audit-log.entity';
-import { Setting } from './entities/setting.entity';
-import { User } from './entities/user.entity';
+import { AuditLog, ENTITIES } from './entities';
 import { configurePostgresTypeParsers } from './pg-types';
 
 /**
@@ -33,13 +31,6 @@ import { configurePostgresTypeParsers } from './pg-types';
  */
 const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
 const describeWithPostgres = connectionString ? describe : describe.skip;
-
-/**
- * Les entités portées à ce jour. La liste grandit lot après lot ; ce test ne se
- * prononce que sur ce qu'elle contient, de sorte qu'une entité manquante soit une
- * absence assumée et non un test qui échoue par principe.
- */
-const ENTITIES = [User, AuditLog, Setting];
 
 interface ColumnShape {
     name: string;

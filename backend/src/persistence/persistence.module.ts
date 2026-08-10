@@ -1,14 +1,9 @@
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { AuditLog } from './entities/audit-log.entity';
-import { Setting } from './entities/setting.entity';
-import { User } from './entities/user.entity';
+import { ENTITIES } from './entities';
 import { Dialect, parseDialect, warningsFor } from './dialects';
 import { configurePostgresTypeParsers } from './pg-types';
-
-/** Les entités portées à ce jour. La liste grandit lot après lot. */
-export const ENTITIES = [User, AuditLog, Setting];
 
 /**
  * La connexion à la base.

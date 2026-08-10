@@ -46,3 +46,51 @@ export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions => ({
     type: 'uuid',
     ...options
 });
+
+/** `Text` du modèle SQLAlchemy : sans longueur, pour ce qu'on ne veut pas tronquer. */
+export const textColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'text',
+    ...options
+});
+
+export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'integer',
+    ...options
+});
+
+/**
+ * `BigInteger`. Une seule colonne du schéma en a légitimement besoin : `scan.duration_ms`,
+ * qui est une durée. Toute *clé étrangère* correspond à la clé `integer` qu'elle
+ * référence — une divergence que MySQL refusait et que SQLite comme PostgreSQL
+ * toléraient, d'où son existence inaperçue jusqu'à ce qu'un troisième moteur la nomme.
+ *
+ * Rendu en **chaîne** par node-postgres, qui ne suppose pas qu'un `bigint` tient dans
+ * un `number`. C'est correct et il ne faut pas le « corriger » : la valeur dépasserait
+ * `Number.MAX_SAFE_INTEGER` sans prévenir.
+ */
+export const bigIntColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'bigint',
+    ...options
+});
+
+export const boolColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'boolean',
+    ...options
+});
+
+/** `Float` du modèle SQLAlchemy — scores CVSS et EPSS. */
+export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'double precision',
+    ...options
+});
+
+/**
+ * `JSON(none_as_null=True)` côté Python, et le drapeau compte : avec le défaut de
+ * SQLAlchemy, écrire `None` stockait le littéral JSON `null`, qui n'est **pas** un
+ * NULL SQL. `sbom IS NOT NULL` restait donc vrai pour une charge déjà purgée, et la
+ * passe de rétention repurgeait les mêmes lignes indéfiniment.
+ */
+export const jsonColumn = (options: ColumnOptions = {}): ColumnOptions => ({
+    type: 'json',
+    ...options
+});
