@@ -17,10 +17,12 @@ export { Finding } from './finding.entity';
 export { GatePolicyRow } from './gate-policy.entity';
 export { Issue, STATE_OPEN, STATE_RESOLVED, TRIAGE_AFFECTED, TRIAGE_FIXED, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from './issue.entity';
 export { LeaderLease } from './leader-lease.entity';
+export { LoginAttempt } from './login-attempt.entity';
 export { OUTBOX_FAILED, OUTBOX_PENDING, OUTBOX_SENT, OutboxMessage } from './outbox-message.entity';
 export { ProcessedMessage } from './processed-message.entity';
 export { Repository } from './repository.entity';
 export { STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED, STATUS_RUNNING, Scan } from './scan.entity';
+export { Session } from './session.entity';
 export { Setting } from './setting.entity';
 export { SshKey } from './ssh-key.entity';
 export { ADMIN_ROLES, User, VALID_ROLES } from './user.entity';
@@ -34,10 +36,12 @@ import { Finding } from './finding.entity';
 import { GatePolicyRow } from './gate-policy.entity';
 import { Issue } from './issue.entity';
 import { LeaderLease } from './leader-lease.entity';
+import { LoginAttempt } from './login-attempt.entity';
 import { OutboxMessage } from './outbox-message.entity';
 import { ProcessedMessage } from './processed-message.entity';
 import { Repository } from './repository.entity';
 import { Scan } from './scan.entity';
+import { Session } from './session.entity';
 import { Setting } from './setting.entity';
 import { SshKey } from './ssh-key.entity';
 import { User } from './user.entity';
@@ -52,10 +56,12 @@ export const ENTITIES = [
     GatePolicyRow,
     Issue,
     LeaderLease,
+    LoginAttempt,
     OutboxMessage,
     ProcessedMessage,
     Repository,
     Scan,
+    Session,
     Setting,
     SshKey,
     User

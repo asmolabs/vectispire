@@ -1,0 +1,204 @@
+import { DataSource, EntityManager } from 'typeorm';
+import { MAX_ATTEMPTS_PER_USER } from '../domain/auth/login-throttle';
+import { ENTITIES, LoginAttempt, Session, User } from '../persistence/entities';
+import { configurePostgresTypeParsers } from '../persistence/pg-types';
+import { AuthService } from './auth.service';
+import { hashPassword } from './password.service';
+
+/**
+ * L'authentification contre une vraie base.
+ *
+ * Ce qui peut casser ici — un compte qui ne se verrouille pas, une session qui survit à
+ * sa révocation, un compteur qui ne se vide pas après une connexion réussie — ne se voit
+ * que dans les lignes qui restent.
+ */
+const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
+const describeWithPostgres = connectionString ? describe : describe.skip;
+
+describeWithPostgres('authentification', () => {
+    let dataSource: DataSource;
+    let manager: EntityManager;
+    let release: () => Promise<void>;
+    const service = new AuthService();
+
+    beforeAll(async () => {
+        configurePostgresTypeParsers();
+        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
+        await dataSource.initialize();
+    }, 30_000);
+
+    afterAll(async () => {
+        if (dataSource?.isInitialized) await dataSource.destroy();
+    });
+
+    beforeEach(async () => {
+        const runner = dataSource.createQueryRunner();
+        await runner.connect();
+        await runner.startTransaction();
+        manager = runner.manager;
+        release = async () => {
+            await runner.rollbackTransaction();
+            await runner.release();
+        };
+    });
+
+    afterEach(async () => release());
+
+    async function account(over: Partial<User> = {}): Promise<User> {
+        return manager.save(
+            Object.assign(new User(), {
+                username: `alice-${Math.trunc(Math.random() * 1e9)}`,
+                email: null,
+                password: hashPassword('bon-mot-de-passe'),
+                displayName: null,
+                avatarUrl: null,
+                role: 'ADMIN',
+                isActive: true,
+                githubId: null,
+                keycloakId: null,
+                createdAt: '2026-01-01T00:00:00',
+                updatedAt: '2026-01-01T00:00:00',
+                mustChangePassword: false,
+                ...over
+            })
+        );
+    }
+
+    const request = (user: User, over = {}) => ({ username: user.username, password: 'bon-mot-de-passe', clientId: 'poste-42', ...over });
+
+    describe('connexion', () => {
+        it('ouvre une session sur un mot de passe correct', async () => {
+            const user = await account();
+            const { outcome, audit } = await service.login(manager, request(user));
+
+            expect(outcome.kind).toBe('success');
+            expect(audit.operationType).toBe('LOGIN_SUCCESS');
+            expect(await manager.countBy(Session, { userId: user.id })).toBe(1);
+        });
+
+        it('refuse un mot de passe faux, et compte l’échec', async () => {
+            const user = await account();
+            const { outcome, audit } = await service.login(manager, request(user, { password: 'faux' }));
+
+            expect(outcome.kind).toBe('invalid');
+            expect(audit.operationType).toBe('LOGIN_FAILURE');
+            // Deux lignes : le compteur utilisateur et le compteur client.
+            expect(await manager.countBy(LoginAttempt, {})).toBe(2);
+        });
+
+        it('refuse un compte désactivé', async () => {
+            const user = await account({ isActive: false });
+            expect((await service.login(manager, request(user))).outcome.kind).toBe('invalid');
+        });
+
+        it('refuse un identifiant inconnu sans révéler qu’il est inconnu', async () => {
+            const { outcome, audit } = await service.login(manager, { username: 'personne', password: 'x', clientId: 'poste-42' });
+            expect(outcome.kind).toBe('invalid');
+            // Le message d'audit ne dit pas si le compte existe : une réponse trop
+            // précise finit par fuiter dans un message d'erreur.
+            expect(audit.description).toBe('Échec de connexion');
+        });
+
+        it('efface les compteurs après une connexion réussie', async () => {
+            const user = await account();
+            await service.login(manager, request(user, { password: 'faux' }));
+            await service.login(manager, request(user));
+
+            expect(await manager.countBy(LoginAttempt, {})).toBe(0);
+        });
+    });
+
+    describe('verrouillage', () => {
+        it('bloque après le seuil, et annonce un délai', async () => {
+            const user = await account();
+            for (let i = 0; i < MAX_ATTEMPTS_PER_USER; i += 1) {
+                await service.login(manager, request(user, { password: 'faux' }));
+            }
+
+            const { outcome, audit } = await service.login(manager, request(user));
+
+            // Bloqué **même avec le bon mot de passe** : le limiteur passe avant toute
+            // comparaison, sinon il devient lui-même un levier de déni de service.
+            expect(outcome.kind).toBe('blocked');
+            if (outcome.kind === 'blocked') expect(outcome.retryAfterSeconds).toBeGreaterThan(0);
+            expect(audit.operationType).toBe('LOGIN_BLOCKED');
+        });
+
+        it('n’ouvre aucune session quand il bloque', async () => {
+            const user = await account();
+            for (let i = 0; i < MAX_ATTEMPTS_PER_USER; i += 1) {
+                await service.login(manager, request(user, { password: 'faux' }));
+            }
+            await service.login(manager, request(user));
+
+            expect(await manager.countBy(Session, { userId: user.id })).toBe(0);
+        });
+
+        it('ne verrouille pas un autre compte depuis le même poste', async () => {
+            // Le seuil client est plus élevé, précisément pour qu'un poste partagé ne
+            // punisse pas le collègue suivant.
+            const first = await account();
+            const second = await account();
+            for (let i = 0; i < MAX_ATTEMPTS_PER_USER; i += 1) {
+                await service.login(manager, request(first, { password: 'faux' }));
+            }
+
+            expect((await service.login(manager, request(second))).outcome.kind).toBe('success');
+        });
+    });
+
+    describe('résolution et révocation', () => {
+        async function loggedIn() {
+            const user = await account();
+            const { outcome } = await service.login(manager, request(user));
+            if (outcome.kind !== 'success') throw new Error('connexion attendue');
+            return { user, token: outcome.session.token };
+        }
+
+        it('résout un jeton valide', async () => {
+            const { token, user } = await loggedIn();
+            const resolved = await service.resolve(manager, `Bearer ${token}`);
+            expect(resolved?.userId).toBe(user.id);
+        });
+
+        it('rafraîchit l’horodatage d’activité', async () => {
+            const { token } = await loggedIn();
+            const before = (await manager.findOneByOrFail(Session, { token })).lastSeenAt;
+            await new Promise((resolve) => setTimeout(resolve, 5));
+
+            await service.resolve(manager, `Bearer ${token}`);
+
+            expect((await manager.findOneByOrFail(Session, { token })).lastSeenAt).not.toBe(before);
+        });
+
+        it('déconnecte réellement — ce que Reflex ne pouvait pas faire', async () => {
+            const { token } = await loggedIn();
+            await service.revoke(manager, token);
+
+            expect(await service.resolve(manager, `Bearer ${token}`)).toBeNull();
+            expect(await manager.countBy(Session, { token })).toBe(0);
+        });
+
+        it('ferme toutes les sessions d’un compte', async () => {
+            const user = await account();
+            await service.login(manager, request(user));
+            await service.login(manager, request(user, { clientId: 'autre-poste' }));
+
+            expect(await service.revokeAllForUser(manager, user.id)).toBe(2);
+            expect(await manager.countBy(Session, { userId: user.id })).toBe(0);
+        });
+
+        it('supprime une session périmée au lieu de seulement la refuser', async () => {
+            const { token } = await loggedIn();
+            // Antidatée au-delà de la durée absolue.
+            await manager.update(Session, { token }, { createdAt: '2020-01-01T00:00:00', lastSeenAt: '2020-01-01T00:00:00' });
+
+            expect(await service.resolve(manager, `Bearer ${token}`)).toBeNull();
+            expect(await manager.countBy(Session, { token })).toBe(0);
+        });
+
+        it.each([[null], [''], ['abc'], ['Bearer inconnu']])('rend null sur %p', async (header) => {
+            expect(await service.resolve(manager, header as string | null)).toBeNull();
+        });
+    });
+});
