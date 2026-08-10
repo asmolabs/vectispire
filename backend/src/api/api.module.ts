@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { PersistenceModule } from '../persistence/persistence.module';
 import { IssueRepository } from '../repositories/issue.repository';
+import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
 import { IssueTriageService } from '../services/issue-triage.service';
 import { SessionCleanupService } from '../services/session-cleanup.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 
 /**
@@ -21,13 +23,14 @@ import { IssuesController } from './issues.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController],
+    controllers: [AuthController, IssuesController, GateController],
     providers: [
         AuthService,
         AuditLogService,
         IssueTriageService,
         SessionCleanupService,
         IssueRepository,
+        TargetRepository,
         { provide: APP_GUARD, useClass: AuthGuard }
     ]
 })
