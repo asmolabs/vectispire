@@ -17,3 +17,10 @@ __pycache__/
 # the pattern has to match wherever that is.
 .migration.lock
 *.migration.lock
+
+# --- Pile TypeScript (migration vers NestJS + Angular) ---
+node_modules/
+dist/
+.angular/
+coverage/
+*.tsbuildinfo

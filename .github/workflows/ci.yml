@@ -95,3 +95,31 @@ jobs:
       - name: Run the server-backed tests
         # Docker is available on GitHub runners, which is what testcontainers needs.
         run: uv run pytest -m backends -q
+
+  # La pile TypeScript en cours de construction (docs/migration-nestjs-angular.md).
+  #
+  # Son propre job, et non des étapes ajoutées à `test` : tant que les deux plans de
+  # contrôle coexistent, un échec de l'un ne doit pas masquer l'état de l'autre. Node
+  # est épinglé sur la LTS 24 — Angular refuse Node 25, ce qui a été le premier
+  # obstacle rencontré.
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        # `npm ci` et pas `npm install` : le lockfile est ce qui rend l'arbre de
+        # dépendances reproductible, et pour un outil qui audite des chaînes
+        # d'approvisionnement, l'installer sans le respecter serait difficile à tenir.
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

@@ -1,0 +1,61 @@
+/* Feuille de style globale.
+ *
+ * `layout/` et `tailwind.css` viennent du template Sakai (MIT, PrimeTek), plus
+ * précisément de son sous-module d'assets `cetincakiroglu/sakai-assets` — ce qui
+ * explique pourquoi ils sont absents d'un clone superficiel de `sakai-ng`.
+ *
+ * Deux écarts avec l'original, tous deux volontaires :
+ *
+ *  - `demo/demo.scss` n'est pas repris : il n'habille que la vitrine de composants,
+ *    supprimée avec les pages de démonstration ;
+ *  - les icônes restent `primeicons` **en 7.0.0**, la dernière version MIT. La 8.0.0
+ *    est passée sous une licence propriétaire avec le reste de la famille PrimeNG,
+ *    ce qui est précisément la raison pour laquelle l'interface s'appuie sur Optimus.
+ */
+@use 'primeicons/primeicons.css';
+@use './layout/layout.scss';
+
+/* Inter, servi localement.
+ *
+ * Sakai chargeait Lato depuis un CDN. La politique de sécurité de contenu de
+ * Zanshin refuse toute feuille de style tierce, et c'est ainsi que la typographie
+ * de la version Reflex n'a jamais atteint la production : la requête était bloquée,
+ * la page retombait sur la police système, et rien ne le signalait.
+ *
+ * Deux fichiers plutôt qu'un : `unicode-range` fait que le sous-ensemble étendu
+ * (85 ko) n'est téléchargé que si la page affiche réellement un caractère qui en
+ * relève. Licence SIL OFL 1.1, dans `public/fonts/LICENSE.txt`.
+ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/inter-latin.woff2') format('woff2');
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+    --zs-font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+    font-family: var(--zs-font-family);
+    /* Chiffres à chasse fixe et zéro barré : les tableaux de Zanshin sont pleins de
+     * comptes, de scores CVSS et d'identifiants, et des chiffres de largeur variable
+     * font danser les colonnes d'une ligne à l'autre. */
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings:
+        'tnum' 1,
+        'zero' 1;
+}
