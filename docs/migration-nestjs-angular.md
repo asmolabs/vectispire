@@ -8,16 +8,16 @@ la référence ; cette section dit où l'on en est.
 | Lot | État | Ce qui est fait |
 |---|---|---|
 | 0 — Socle | **terminé** | Monorepo npm, NestJS 11 + Angular 21 (Sakai converti vers Optimus UI), trois jobs CI, vérification des ressources tierces |
-| 1 — Socle NestJS | en cours | Chaîne d'intégrité du journal d'audit, format d'horodatage Python, correctif du pilote PostgreSQL, harnais de parité de schéma, entités `user` / `audit_logs` / `setting` |
-| 2 — Cœur métier | en cours | Empreinte des problèmes, verdict du gate et durcissement de politique, exports SARIF / OpenVEX / CSV |
+| 1 — Socle NestJS | en cours | Chaîne d'intégrité reconstruite, correctif du pilote PostgreSQL, harnais de parité de schéma, les seize entités |
+| 2 — Cœur métier | en cours | Empreinte, gate et durcissement, exports SARIF / OpenVEX / CSV, cycle de vie des problèmes, triage VEX |
 | 3 — API d'administration | à faire | |
 | 4 — File de scans et agents | à faire | |
 | 5 — Interface Angular | à faire | Seule la coquille existe |
 | 6 — Bascule | à faire | |
 
-**Prochaines étapes, dans l'ordre :** les treize entités restantes (le harnais rend
-l'exercice mécanique et sûr), puis `sync_from_scan`, qui est le premier morceau à
-*écrire* dans la base, puis l'authentification.
+**Prochaines étapes, dans l'ordre :** la résolution de politique de gate
+(cible > globale > intégrée), la vue de posture qui alimente l'écran Sécurité, puis
+l'authentification — qui termine le lot 1.
 
 Reste entièrement à faire, et c'est l'essentiel du coût : les 9 150 lignes de services,
 l'API d'administration, et le portage des 17 970 lignes de tests.
@@ -41,32 +41,54 @@ dit. Recopier les valeurs à la main aurait figé un instantané.
 
 | Vecteurs | Contenu | Généré par |
 |---|---|---|
-| `audit-hash.json` | 5 entrées de journal et leur empreinte | copie vérifiée de `compute_entry_hash` |
-| `python-timestamp.json` | 7 horodatages, isoformat et rendu PostgreSQL | `datetime.isoformat()` |
 | `issue-fingerprint.json` | 8 empreintes de problèmes | copie vérifiée de `build_fingerprint` |
+| `exports.json` | 25 documents SARIF / OpenVEX / CSV | **le vrai `exports`**, importé |
 | `policy-gate.json` | 20 verdicts, 14 durcissements | **le vrai `policy_gate.evaluate`**, importé |
 
-Quand le code Python s'importe sans ouvrir de connexion — c'est le cas de
-`policy_gate` — le générateur importe l'original plutôt que d'en recopier la logique.
+Quand le code Python s'importe sans ouvrir de connexion — c'est le cas de `policy_gate`
+et d'`exports` — le générateur importe l'original plutôt que d'en recopier la logique.
 Quarante lignes de règles imbriquées se recopient mal ; cinq lignes de hachage se
 recopient bien, et la copie est alors confrontée à l'originale par un test.
 
 ## Ce que le chantier a déjà appris
 
-Quatre choses trouvées en construisant, dont trois n'auraient pas été trouvées en
-lisant :
+Trois choses trouvées en construisant, qui ne se seraient pas trouvées en lisant :
 
 1. **`node-postgres` casse les horodatages deux fois.** Il rend un `Date`, qui perd la
    microseconde, et applique le fuseau de la machine à une colonne sans fuseau
-   contenant de l'UTC. La chaîne d'audit se serait déclarée falsifiée sur tout
-   l'historique. Correctif dans `backend/src/database/pg-types.ts`, vérifié contre un
-   PostgreSQL réel.
-2. **`datetime.isoformat()` n'a aucun équivalent JavaScript** — trois écarts avec
-   `toISOString()`, chacun suffisant à casser un hachage.
-3. **`primeicons@8` n'est plus MIT.** Épinglé en `7.0.0` exact.
-4. **Sakai chargeait une police depuis un CDN**, ce que la CSP de Zanshin refuse — le
+   contenant de l'UTC. Correctif dans `backend/src/persistence/pg-types.ts`, vérifié
+   contre un PostgreSQL réel. **Indépendant de Python** : ce serait vrai dans une pile
+   TypeScript écrite de zéro, et le décalage de fuseau est nul sur une machine en UTC,
+   donc invisible en développement comme en CI.
+2. **`primeicons@8` n'est plus MIT.** Épinglé en `7.0.0` exact.
+3. **Sakai chargeait une police depuis un CDN**, ce que la CSP de Zanshin refuse — le
    piège qui avait déjà tué la typographie côté Reflex. `frontend/scripts/check-assets.mjs`
    le refuse désormais.
+
+## La chaîne d'audit est reconstruite, pas reproduite
+
+L'implémentation Python hachait l'horodatage sous la forme que produit
+`datetime.isoformat()` : fraction omise quand les microsecondes valent zéro, six
+chiffres sinon. Cela couplait un contrôle de sécurité au format d'un langage, et rendait
+la vérification sensible à la façon dont un moteur rend ses dates — `.123` et `.123000`
+désignent le même instant et donnaient deux empreintes différentes.
+
+La chaîne est donc **reconstruite** sur une forme canonique
+(`YYYY-MM-DDTHH:MM:SS.sssZ`, fraction toujours présente). Deux conséquences assumées :
+
+* les empreintes écrites par Python ne se vérifient plus ;
+* la chaîne ne certifie plus l'ordre en deçà de la milliseconde, ce dont rien ne
+  dépendait — deux entrées de la même milliseconde restent distinguées par leur contenu
+  et par l'empreinte de la précédente.
+
+**L'opération de bascule** est `rebuildChain()`
+(`backend/src/domain/audit/audit-hash.ts`) : lire toutes les entrées de la plus ancienne
+à la plus récente, recalculer `previous_hash` et `entry_hash`, écrire. Elle ne touche
+pas au contenu des entrées, et elle est idempotente.
+
+À exécuter **une fois, sous les yeux de quelqu'un**. Réécrire un journal d'intégrité est
+précisément ce que ce journal existe pour rendre détectable : elle ne doit jamais être
+déclenchée automatiquement, ni au démarrage, ni par une route.
 
 Et deux défauts du code Python, corrigés au passage : `ScanRepository.count_by_queue_state`
 levait un `NameError` à chaque appel, et `AgentJobService.build_task` omettait `run_sast`,

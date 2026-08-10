@@ -113,7 +113,7 @@ export const CSV_COLUMNS = [
  *
  * Les horodatages sont des **chaînes** au format `datetime.isoformat()` — jamais des
  * `Date`, qui perdent la microseconde et appliquent un fuseau (voir
- * `common/python-timestamp.ts` et `database/pg-types.ts`).
+ * `common/timestamp.ts` et `persistence/pg-types.ts`).
  */
 export interface ExportableIssue {
     id: number;

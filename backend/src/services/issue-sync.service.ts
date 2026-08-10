@@ -1,4 +1,5 @@
 import { EntityManager } from 'typeorm';
+import { nowForDatabase } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { Finding, Issue, STATE_OPEN, STATE_RESOLVED, Scan, TRIAGE_FIXED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
@@ -89,7 +90,7 @@ export class IssueSyncService {
     async sync(manager: EntityManager, scan: Scan, findings: Finding[], options: SyncOptions): Promise<SyncResult> {
         const scannedTypes = [...new Set(options.scannedTypes)];
         const descriptions = options.descriptions ?? {};
-        const now = nowAsPythonIsoformat();
+        const now = nowForDatabase();
 
         // Un même constat peut se répéter dans un scan — le même CVE à deux endroits du
         // même paquet. Le problème est un, ses occurrences sont multiples.
@@ -257,21 +258,4 @@ export class IssueSyncService {
 /** `assign` typé, pour ne pas perdre la vérification sur la liste des champs. */
 function assignRefreshed(issue: Issue, field: RefreshedField, value: unknown): void {
     (issue as unknown as Record<string, unknown>)[field] = value;
-}
-
-/**
- * L'instant courant, au format `datetime.isoformat()` de Python.
- *
- * Les colonnes de date circulent en texte de bout en bout (voir
- * `persistence/pg-types.ts`) : écrire un `Date` ici réintroduirait la conversion de
- * fuseau que tout le reste évite.
- */
-function nowAsPythonIsoformat(): string {
-    const now = new Date();
-    const pad = (value: number, width = 2) => String(value).padStart(width, '0');
-    const base =
-        `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}` +
-        `T${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
-    const micros = now.getUTCMilliseconds() * 1000;
-    return micros === 0 ? base : `${base}.${pad(micros, 6)}`;
 }

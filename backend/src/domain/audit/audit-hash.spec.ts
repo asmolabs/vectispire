@@ -1,30 +1,41 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { AuditEntryForHash, AuditEntryForVerification, computeEntryHash, verifyChain } from './audit-hash';
-
-interface AuditVector {
-    label: string;
-    entry: AuditEntryForHash;
-    postgresRendering: string;
-    expected: string;
-}
-
-const vectors: AuditVector[] = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/audit-hash.json'), 'utf8'));
+import { AuditEntryForHash, AuditEntryForVerification, computeEntryHash, rebuildChain, verifyChain } from './audit-hash';
 
 describe('empreinte d’une entrée du journal d’audit', () => {
-    it('dispose de vecteurs générés depuis le code Python', () => {
-        expect(vectors.length).toBeGreaterThan(0);
-    });
+    describe("indépendance vis-à-vis du rendu des dates", () => {
+        // La raison d'être de la reconstruction : l'ancienne formule hachait le format
+        // de `datetime.isoformat()`, si bien que « .123 » et « .123000 » — le même
+        // instant, rendu différemment selon le moteur — donnaient deux empreintes.
+        const base: AuditEntryForHash = {
+            previousHash: null,
+            timestamp: '2026-01-02 03:04:05.123',
+            operationType: 'LOGIN_SUCCESS',
+            resourceId: 'alice',
+            userId: 'alice',
+            ipAddress: '10.0.0.4',
+            userAgent: 'Mozilla/5.0',
+            description: 'Connexion réussie'
+        };
 
-    describe.each(vectors)('$label', (vector) => {
-        it("reproduit l'empreinte calculée par Python", () => {
-            expect(computeEntryHash(vector.entry)).toBe(vector.expected);
+        it.each([
+            ['fraction tronquée par PostgreSQL', '2026-01-02 03:04:05.123'],
+            ['fraction complète', '2026-01-02 03:04:05.123000'],
+            ['séparateur T', '2026-01-02T03:04:05.123000'],
+            ['suffixe de fuseau UTC', '2026-01-02 03:04:05.123+00:00'],
+            ['suffixe Z', '2026-01-02T03:04:05.123Z']
+        ])('%s donne la même empreinte', (_label, timestamp) => {
+            expect(computeEntryHash({ ...base, timestamp })).toBe(computeEntryHash(base));
         });
 
-        it('donne le même résultat depuis le rendu brut de PostgreSQL', () => {
-            // C'est la forme réelle : les entrées vérifiées viennent de la base, pas
-            // d'un objet déjà normalisé.
-            expect(computeEntryHash({ ...vector.entry, timestamp: vector.postgresRendering })).toBe(vector.expected);
+        it('ignore ce qui se trouve sous la milliseconde', () => {
+            // Compromis assumé : la chaîne ne certifie plus l'ordre en deçà, ce dont
+            // rien ne dépendait — deux entrées de la même milliseconde restent
+            // distinguées par leur contenu et par l'empreinte de la précédente.
+            expect(computeEntryHash({ ...base, timestamp: '2026-01-02 03:04:05.123001' })).toBe(computeEntryHash(base));
+            expect(computeEntryHash({ ...base, timestamp: '2026-01-02 03:04:05.124' })).not.toBe(computeEntryHash(base));
+        });
+
+        it('distingue une absence d’horodatage', () => {
+            expect(computeEntryHash({ ...base, timestamp: null })).not.toBe(computeEntryHash(base));
         });
     });
 
@@ -42,7 +53,9 @@ describe('empreinte d’une entrée du journal d’audit', () => {
 
         it.each([['operationType'], ['resourceId'], ['userId'], ['ipAddress'], ['userAgent'], ['description'], ['previousHash'], ['timestamp']] as const)('change si %s change', (field) => {
             const altered: AuditEntryForHash = { ...base };
-            altered[field] = field === 'timestamp' ? '2026-08-10T08:13:58.322452' : 'modifié';
+            // Une milliseconde d'écart, et non une microseconde : la forme canonique
+            // s'arrête à la milliseconde, ce que le bloc précédent vérifie en propre.
+            altered[field] = field === 'timestamp' ? '2026-08-10T08:13:58.323451' : 'modifié';
             expect(computeEntryHash(altered)).not.toBe(computeEntryHash(base));
         });
 
@@ -119,5 +132,60 @@ describe('vérification de la chaîne', () => {
         entries.splice(2, 0, { ...entries[0], id: 'inserée', entryHash: null });
         expect(verifyChain(entries).broken).toContain('inserée');
         expect(verifyChain(entries).broken).toContain('insérée ou modifiée');
+    });
+});
+
+describe('reconstruction de la chaîne', () => {
+    /**
+     * L'opération de bascule : les entrées écrites par l'implémentation Python portent
+     * des empreintes calculées sur l'ancienne formule et ne se vérifient plus.
+     */
+    function pythonEra(count: number): AuditEntryForVerification[] {
+        return Array.from({ length: count }, (_, index) => ({
+            id: `entry-${index}`,
+            // Des empreintes d'une autre formule : présentes, cohérentes entre elles,
+            // et fausses pour celle-ci.
+            previousHash: index === 0 ? null : `ancienne-${index - 1}`,
+            entryHash: `ancienne-${index}`,
+            timestamp: `2026-08-10T08:00:0${index}.000001`,
+            operationType: 'SETTING_UPDATED',
+            resourceId: String(index),
+            userId: 'admin',
+            ipAddress: null,
+            userAgent: null,
+            description: `Modification ${index}`
+        }));
+    }
+
+    it('rend vérifiable un historique venu de l’ancienne formule', () => {
+        const entries = pythonEra(5);
+        expect(verifyChain(entries).broken).not.toBeNull();
+
+        rebuildChain(entries);
+
+        expect(verifyChain(entries)).toEqual({ broken: null, unverifiable: 0 });
+    });
+
+    it('ne touche pas au contenu des entrées', () => {
+        // Réécrire un journal d'intégrité est déjà assez ; en réécrire le contenu
+        // serait exactement ce que ce journal existe pour rendre détectable.
+        const entries = pythonEra(3);
+        const before = entries.map((entry) => ({ ...entry, previousHash: undefined, entryHash: undefined }));
+
+        rebuildChain(entries);
+
+        expect(entries.map((entry) => ({ ...entry, previousHash: undefined, entryHash: undefined }))).toEqual(before);
+    });
+
+    it('repart de zéro : la première entrée n’a pas de précédente', () => {
+        const [first] = rebuildChain(pythonEra(3));
+        expect(first.previousHash).toBeNull();
+    });
+
+    it('est idempotente', () => {
+        // Relancée par erreur, elle doit rendre exactement la même chaîne.
+        const once = rebuildChain(pythonEra(4)).map((entry) => entry.entryHash);
+        const twice = rebuildChain(rebuildChain(pythonEra(4))).map((entry) => entry.entryHash);
+        expect(twice).toEqual(once);
     });
 });

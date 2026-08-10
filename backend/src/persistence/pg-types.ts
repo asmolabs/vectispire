@@ -28,8 +28,7 @@ import { types } from 'pg';
  *    chaque fenêtre de bail.
  *
  * Le correctif est de ne rien décoder du tout : le texte de PostgreSQL passe tel quel,
- * et `common/python-timestamp.ts` le normalise vers la forme exacte que produisait
- * `datetime.isoformat()`. Rendre une chaîne plutôt qu'un `Date` est un choix : le type
+ * et `domain/common/timestamp.ts` le décompose et le canonicalise. Rendre une chaîne plutôt qu'un `Date` est un choix : le type
  * riche est précisément celui qui perd de l'information ici.
  *
  * Attention au rendu : PostgreSQL **retire les zéros de queue** de la fraction. 123 000
