@@ -12,7 +12,7 @@ way to say "stop running scans on the web instance".
 `status = 'scanning'` used to be the whole story, which forced startup recovery to
 assume every in-flight scan was orphaned and fail it — correct with one process,
 and destructive as soon as a second worker exists, because starting the web
-instance would fail the scans an agent was running (ADR-002 §2.3).
+instance would fail the scans an agent was running (docs/architecture/04).
 
 Existing rows: `attempts` defaults to 0 and the other three stay null, which reads
 as "queued or claimed by nobody". A scan that was running when this migration is

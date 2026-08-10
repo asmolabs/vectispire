@@ -8,7 +8,7 @@ reads it.
 **Where the state lives.** In `counter_store`: per process when Zanshin runs alone,
 shared through Redis when `REDIS_URL` is set. It was per-process only, which is correct
 for one instance and a hole for two — an attacker alternating between instances gets
-the ceiling twice over, silently (ADR-002 §2.5). Counters are still never written to
+the ceiling twice over, silently (docs/architecture/04). Counters are still never written to
 the database: one write per failed attempt would make an attacker's own traffic cheap
 to send and expensive to absorb.
 

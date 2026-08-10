@@ -4,7 +4,7 @@ This file exists because the guarantee it tests **cannot** be tested on SQLite:
 `FOR UPDATE SKIP LOCKED` does not exist there, and SQLAlchemy's SQLite dialect
 silently drops `FOR UPDATE` rather than refusing it. A claim that looks
 transactional, passes on a developer's machine, and hands the same scan to two
-processes in production is exactly the class of defect ADR-002 §7 warns about — every
+processes in production is exactly the class of defect docs/architecture/04 warns about — every
 portability bug found in this schema so far was invisible both to SQLite and to
 reading the code.
 
@@ -148,7 +148,7 @@ def test_the_backend_supports_skip_locked(empty):
 
 
 def test_concurrent_claimants_never_receive_the_same_scan(empty):
-    """The property ADR-002 D1 is about, and the reason this file needs a server.
+    """The property décision 0002 is about, and the reason this file needs a server.
 
     Ten claimants, one scan each, twenty scans available: every scan handed out at most
     once, and no claimant handed a scan another one also got.

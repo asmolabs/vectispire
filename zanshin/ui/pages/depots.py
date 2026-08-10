@@ -520,7 +520,7 @@ class DepotsState(BaseState):
                 for f in container.finding_repository.find_all_by_scan_id_and_type(scan_id, kind)
             ]
 
-            # Optional AI code review (Ollama, see ADR-001 Phase 8) — at most one
+            # Optional AI code review (Ollama, see docs/architecture/01) — at most one
             # row per scan, absent unless the feature was enabled when it ran.
             ai_review = container.ai_review_result_repository.find_by_scan_id(scan_id)
             self.selected_scan_ai_review = AiReviewSummary(
@@ -1238,7 +1238,7 @@ def depots_page() -> rx.Component:
                     )
                 ),
 
-                # Optional AI code review (Ollama, see ADR-001 Phase 8) —
+                # Optional AI code review (Ollama, see docs/architecture/01) —
                 # only rendered when a review actually ran for this scan
                 # (feature is disabled by default).
                 rx.cond(

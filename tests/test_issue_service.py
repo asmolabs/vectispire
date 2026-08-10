@@ -451,7 +451,7 @@ def test_scanned_types_mirror_the_pipeline_branches():
     assert repo_full == {"vulnerability", "secret", "iac", "license", "ai_review"}
 
     # Images have no source on disk: no secrets, no IaC, no AI review
-    # (ADR-001 section 5) — but Syft still yields licenses.
+    # (docs/architecture/01) — but Syft still yields licenses.
     image = scanned_types_for(is_container=True, ai_review_ran=False, license_policy_ran=True)
     assert image == {"vulnerability", "license"}
 

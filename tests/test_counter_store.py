@@ -177,7 +177,7 @@ def test_clearing_everything_empties_both_shapes(store):
 
 @pytest.mark.backends
 def test_two_instances_share_one_redis_counter(redis_container):
-    """The defect this closes (ADR-002 §2.5): two instances counting separately means
+    """The defect this closes (docs/architecture/04): two instances counting separately means
     the quota doubles and the anti-stuffing guard is bypassed by alternating between
     them."""
     first = RedisCounterStore(redis_container, prefix="zanshin:shared-test:")

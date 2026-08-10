@@ -162,7 +162,7 @@ class IoCContainer:
     @cached_property
     def scanner_engine(self):
         """The `scan_backend` setting picks the implementation (docker /
-        local_api / osv — see ADR-001). Reads the database, which is why it
+        local_api / osv — see docs/architecture/). Reads the database, which is why it
         matters that nothing builds it unless a scan is actually involved."""
         return get_scanner_engine(self.settings_service)
 
@@ -175,7 +175,7 @@ class IoCContainer:
     @cached_property
     def license_compliance_service(self) -> LicenseComplianceService:
         """License blocklist evaluation over the SBOM (no scanner needed — see
-        its docstring / ADR-001 section 5)."""
+        its docstring / docs/architecture/01)."""
         return LicenseComplianceService(self.settings_service)
 
     @cached_property
@@ -194,7 +194,7 @@ class IoCContainer:
     @cached_property
     def ai_review_service(self) -> AiReviewService:
         """Optional local LLM code review via Ollama, disabled by default (see
-        ADR-001, Phase 8)."""
+        docs/architecture/01)."""
         return AiReviewService(self.settings_service)
 
     @cached_property

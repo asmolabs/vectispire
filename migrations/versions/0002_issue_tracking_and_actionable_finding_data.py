@@ -10,7 +10,7 @@ drift between the models and the tables the *previous* implementation created
 `SafeDateTime`, missing indexes and unique constraints). None of it is touched
 here: on SQLite those type differences are storage-identical, and rewriting
 populated tables to add constraints is a separate, deliberate operation — not a
-side effect of shipping issue tracking. It is recorded in ADR-001 instead.
+side effect of shipping issue tracking. It is recorded in docs/architecture/02 instead.
 
 Existing `finding` rows are backfilled into issues so that history isn't lost:
 the first scan run after this migration would otherwise report every

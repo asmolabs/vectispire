@@ -9,14 +9,14 @@ shapes travel between objects in one process (`ScanProcessor` composing
 `ScanRunner` and `ScanIngestor`) and between two machines over HTTP (a remote
 agent and the control plane). A module that depended on `zanshin.models` would
 drag SQLAlchemy into an agent that has no database, which is precisely the
-property ADR-002 D3 exists to protect. It is also the future
-`zanshin-common` package described in ADR-002 §8.4, minus the packaging.
+property décision 0003 exists to protect. It is also the future
+`zanshin-common` package described in docs/architecture/01, minus the packaging.
 
 **Why a version.** Once an agent is a separate deployment, an agent of one
 version will eventually talk to a control plane of another. The server compares
 `CONTRACT_VERSION` at registration and refuses what it cannot interpret, with a
 message naming both versions — rather than failing later, deeper, on a missing
-field (ADR-002 §8.5).
+field (docs/architecture/04).
 """
 from typing import Any, Dict, List, Optional
 
@@ -46,12 +46,12 @@ class ScanTask(BaseModel):
     branch: str = "main"
     sub_path: str = ""
     # Deploy key material, present only for an agent whose `credentials_mode` is
-    # `delegated` (ADR-002 §5). Empty for a `local`-mode agent — which is the
+    # `delegated` (décision 0003). Empty for a `local`-mode agent — which is the
     # default, and the reason the field is optional rather than required: the
     # normal case is that no secret travels at all. Never written anywhere but a
     # 0600 temp file that the clone deletes.
     ssh_private_key: Optional[str] = None
-    # Reserved for the short-lived-credential model of ADR-002 §5, which is the
+    # Reserved for the short-lived-credential model of décision 0003, which is the
     # end state for `delegated`. Present in the contract from the start so that
     # moving to it does not change the shape of the message — the server does not
     # emit it yet, and a runner that sees it may refuse an expired task.
@@ -82,7 +82,7 @@ class ScanArtifacts(BaseModel):
     Raw on purpose: normalization into `Finding` rows, enrichment, licence
     policy and issue reconciliation all happen in the control plane, so a
     result produced by a remote agent is indistinguishable from a local one and
-    a rule change does not require redeploying agents (ADR-002 §8.3).
+    a rule change does not require redeploying agents (décision 0003).
     """
 
     sbom: Dict[str, Any] = Field(default_factory=dict)

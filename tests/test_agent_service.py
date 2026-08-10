@@ -137,7 +137,7 @@ def test_a_remote_agent_can_be_deleted(agent_service):
 
 
 def test_credentials_mode_defaults_to_sending_no_secret(agent_service):
-    """ADR-002 §5: the safe mode is the default, and the other one has to be asked
+    """décision 0003: the safe mode is the default, and the other one has to be asked
     for."""
     agent, _ = agent_service.create_remote_agent(name="paris-01")
 

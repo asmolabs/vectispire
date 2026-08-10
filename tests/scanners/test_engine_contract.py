@@ -1,7 +1,7 @@
 """One suite, run against every `ScannerEngine` implementation.
 
 `ScannerEngine` promises that the rest of the application can swap backends
-without knowing which one runs (ADR-001, section 3). Nothing checked that
+without knowing which one runs (décision 0001). Nothing checked that
 promise: each engine had its own tests, so a fix applied to one silently left the
 others behind. Two such divergences existed — the sidecar hardcoded
 `linux/amd64` while the Docker backend had been made configurable, and it wrote
@@ -291,7 +291,7 @@ def test_every_backend_answers_sast_with_a_list_or_none(engine_case, tmp_path):
 
 def test_a_backend_that_cannot_do_sast_says_none_rather_than_nothing_found():
     """The base implementation, which `LocalApiScannerEngine` inherits: the sidecar has
-    no Semgrep endpoint, and ADR-002 §8.4 has it slated for removal rather than
+    no Semgrep endpoint, and docs/architecture/01 has it slated for removal rather than
     extension."""
     class MinimalEngine(ScannerEngine):
         generate_sbom_for_image = staticmethod(lambda *a, **k: {})

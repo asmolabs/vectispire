@@ -185,7 +185,7 @@ class TargetOut(BaseModel):
     last_scan_at: Optional[str] = None
 
 
-# --- Agents (ADR-002) ---
+# --- Agents (docs/architecture/04) ---
 #
 # The task and result shapes themselves live in `zanshin/scan_contract.py`, not
 # here: they are exchanged between a runner and an ingestor whether or not HTTP is
@@ -241,7 +241,7 @@ class AgentResultChunk(BaseModel):
     """One slice of a result too large to post in a single request.
 
     A Syft SBOM for a substantial image runs to megabytes, and the agent has to
-    send it whole because normalization happens on this side (ADR-002 §8.3). The
+    send it whole because normalization happens on this side (décision 0003). The
     slices are of the serialized JSON, reassembled here — chunking the *text*
     rather than the structure keeps the agent from having to understand what it is
     splitting.

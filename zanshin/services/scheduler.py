@@ -128,7 +128,7 @@ def run_once(now: Optional[datetime] = None) -> int:
       Chief among them is dispatching due targets — `last_scheduled_scan_at` is stamped
       before dispatch, which protects against one process ticking twice and not at all
       against two processes ticking together, so two instances would scan every target
-      twice per interval (ADR-002 §2.2).
+      twice per interval (docs/architecture/04).
 
     Never raises: an exception here would kill the scheduler thread and silently
     end all automatic scanning.

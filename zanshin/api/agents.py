@@ -5,7 +5,7 @@ ask for work, say you are still alive, report what happened. An agent can do no
 more than that — it cannot read the issue history, export a VEX document or queue
 a scan, because its key carries no other scope.
 
-**Why the agent polls instead of being pushed to** (ADR-002 D3): it needs no
+**Why the agent polls instead of being pushed to** (décision 0003): it needs no
 inbound port and no database credentials, so it works behind NAT, and it asks for
 work only when it has capacity — which is flow control that costs nothing to
 implement. The cost is a long-poll, and 30 seconds of waiting on a scan that takes
@@ -64,8 +64,8 @@ HEARTBEAT_SECONDS = max(15, LEASE_SECONDS // 20)
 
 # Assembly buffer for results that arrived in slices, keyed by (agent, upload id).
 # In memory, per process — the same choice, for the same reason, as the API rate
-# limiter and the login throttle: this control plane is single-process (ADR-002
-# étape 1 is not done), and a table would mean writing megabytes twice. An
+# limiter and the login throttle: this control plane is single-process (see
+# docs/architecture/04), and a table would mean writing megabytes twice. An
 # interrupted upload is therefore lost on restart, which is correct: the agent
 # still holds the lease and retries the whole report.
 _CHUNK_TTL_SECONDS = 600
@@ -109,7 +109,7 @@ def _is_secure_transport(request: Request, forwarded_proto: Optional[str]) -> bo
     proxy in front, where the application itself only ever sees plain HTTP. That
     header is trivially forgeable by whoever can reach this port directly — which
     is why it decides *only* whether a deploy key may travel, a decision the
-    operator has already had to opt into per agent (ADR-002 §5).
+    operator has already had to opt into per agent (décision 0003).
     """
     if (forwarded_proto or "").split(",")[0].strip().lower() == "https":
         return True

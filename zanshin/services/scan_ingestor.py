@@ -6,7 +6,7 @@ end-of-life detection, EPSS/KEV enrichment, the optional AI review, folding
 results into the cross-scan issue history, and the outbound notification.
 
 None of it needs to run where the scan ran, and all of it needs the database, so
-it lives on the control plane exclusively (ADR-002 §8.3). Two consequences worth
+it lives on the control plane exclusively (décision 0003). Two consequences worth
 stating, because they are the reason for the split:
 
 - a result produced by a remote agent is **indistinguishable** from a locally
@@ -78,9 +78,9 @@ class ScanIngestor:
         self.enrichment_service = enrichment_service
         # Optional: license blocklist evaluation over the SBOM Syft already
         # produced — applies to both repo and container scans, unlike secrets
-        # scanning (see ADR-001, section 5).
+        # scanning (see docs/architecture/01).
         self.license_compliance_service = license_compliance_service
-        # Optional: local LLM code review via Ollama (see ADR-001, Phase 8).
+        # Optional: local LLM code review via Ollama (see docs/architecture/01).
         # Repository scans only, and only over the sample the runner collected —
         # this side never sees a checkout, which is exactly why the sample
         # travels in `ScanArtifacts`.
@@ -238,7 +238,7 @@ class ScanIngestor:
         The message is whatever the runner raised — including, for a remote
         agent, a clone failure caused by that machine not having access to the
         repository. That is a readable scan result rather than a crash, which is
-        the trade-off `credentials_mode=local` accepts (ADR-002 §5).
+        the trade-off `credentials_mode=local` accepts (décision 0003).
         """
         scan.status = "failed"
         scan.error = error or "Erreur inconnue"
@@ -267,7 +267,7 @@ class ScanIngestor:
         Kept alongside the raw `cves`/`sbom` blobs (not instead of), so the
         UI/VEX workflow and future enrichment (EPSS/KEV) can query
         structured data instead of re-parsing tool-specific JSON — see
-        ADR-001, section 4.
+        docs/architecture/02.
         """
         source = cves.get("engine_source", "grype")
         findings = []

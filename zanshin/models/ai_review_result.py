@@ -12,12 +12,12 @@ class AiReviewResult(Base):
     free-form narrative response from the model, not a normalized,
     queryable finding. Adding a `Text` column to the existing `Finding`
     table would need a manual migration (no such tool exists yet — see
-    ADR-001), whereas a brand-new table is created safely by
+    docs/architecture/), whereas a brand-new table is created safely by
     `Base.metadata.create_all()` at startup, same as `Finding` and
     `AuditLog` were.
 
     One row per scan (`scan_id` is unique): re-running the review for the
-    same scan is not supported in this first version — see ADR-001 for the
+    same scan is not supported in this first version — see docs/architecture/01 for the
     open question of whether/how this should feed into `Finding` later.
     """
     __tablename__ = "ai_review_result"

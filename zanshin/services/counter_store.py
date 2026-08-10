@@ -4,10 +4,10 @@ Two guards count things per unit of time — the API quota (`zanshin/api/rate_li
 and the login throttle (`zanshin/services/login_throttle.py`). Both counted in the
 process's own memory, which is correct for one instance and quietly wrong for two: the
 quota doubles, and the anti-stuffing guard is bypassed by alternating between instances
-(ADR-002 §2.5). Neither failure raises anything or shows up in a test — the numbers are
+(docs/architecture/04). Neither failure raises anything or shows up in a test — the numbers are
 simply larger than the operator asked for.
 
-**Why Redis and not a table** (D2): these are counters written on *every* request,
+**Why Redis and not a table** (docs/architecture/04): these are counters written on *every* request,
 including the ones being refused. A table would mean a write per request, so the
 counter would amplify exactly the traffic it exists to limit — and losing them on
 restart is acceptable, which is the profile Redis serves well and a relational database

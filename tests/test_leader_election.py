@@ -2,7 +2,7 @@
 
 The job in question is the exclusive part of the scheduler tick, and the failure it
 prevents is concrete: two instances each dispatching every due target, i.e. every
-target scanned twice per interval (ADR-002 §2.2).
+target scanned twice per interval (docs/architecture/04).
 
 Concurrency is simulated here by calling with distinct holder ids, which is what the
 ADR's testing strategy prescribes for everything except the claim itself — the claim

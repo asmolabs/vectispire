@@ -35,8 +35,9 @@ class FixedWindowLimiter:
     """The quota itself. Where it *counts* is `counter_store`'s business.
 
     That indirection is the whole change: the counters used to be a dictionary in this
-    object, which is correct for one process and doubles the quota for two (ADR-002
-    §2.5). The behaviour — a fixed window, and a `Retry-After` a caller can act on — is
+    object, which is correct for one process and doubles the quota for two
+    (docs/architecture/04). The behaviour — a fixed window, and a `Retry-After` a caller can
+    act on — is
     unchanged.
     """
 

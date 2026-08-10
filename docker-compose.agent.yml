@@ -1,5 +1,5 @@
 # A Zanshin scan agent: a worker that executes scans somewhere other than the
-# machine serving the UI (ADR-002).
+# machine serving the UI (docs/architecture/04).
 #
 # Why you would run this: the controller's host should not need the Docker socket;
 # a repository or a registry is only reachable from another network segment; or the
@@ -21,7 +21,7 @@
 # Two things worth knowing before deploying:
 #
 # * **Git access is the agent's own.** By default the controller sends no secret
-#   (credentials_mode=local, the recommendation of ADR-002 §5): this machine needs
+#   (credentials_mode=local, the recommendation of décision 0003): this machine needs
 #   its own read access to the repositories it will scan — mount an SSH key below,
 #   or use a credential helper. If you would rather the controller hand over its
 #   deploy key per job, switch the agent to « délégué » in the UI *and* serve the

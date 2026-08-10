@@ -1,5 +1,5 @@
 # Zanshin scan agent — a worker that runs scans on a machine other than the one
-# serving the UI (ADR-002). Started with `python -m zanshin.agent`; it talks to the
+# serving the UI (docs/architecture/04). Started with `python -m zanshin.agent`; it talks to the
 # controller over HTTP with an API key carrying the `agent` scope, and never needs a
 # database connection or ENCRYPTION_KEY.
 #

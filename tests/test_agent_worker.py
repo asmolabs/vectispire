@@ -4,7 +4,7 @@ Driven against a fake controller, so no HTTP and no scanners are involved. What 
 being pinned down is the loop's behaviour under the three failures that actually
 happen — a scan that fails, a controller that is unreachable, a lease that was
 reassigned — plus the import graph, which is where the "an agent has no database"
-guarantee of ADR-002 D3 actually lives.
+guarantee of décision 0003 actually lives.
 """
 import subprocess
 import sys
@@ -267,7 +267,7 @@ def test_a_trailing_slash_on_the_url_is_dropped(monkeypatch):
 # --- The property that makes an agent safe ------------------------------------
 
 def test_the_agent_package_imports_no_database_model_or_ui_code():
-    """ADR-002 D3, as an import graph. An agent that could reach the database would
+    """décision 0003, as an import graph. An agent that could reach the database would
     need its credentials *and* `ENCRYPTION_KEY` — i.e. the ability to decrypt every
     deploy key Zanshin holds. Checked in a fresh interpreter, since anything the rest
     of this session imported would already be in `sys.modules`.

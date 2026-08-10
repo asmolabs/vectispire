@@ -9,7 +9,7 @@ the entire persistence layer as a side effect of running this file.
 
 That was merely wasteful until scans became runnable on a remote agent: an agent
 holds engines but has no database and no `ENCRYPTION_KEY`, and that absence is a
-security property, not an optimisation (ADR-002 D3). A test asserts it
+security property, not an optimisation (décision 0003). A test asserts it
 (`tests/test_scan_runner.py`), and it is this module that would have broken it.
 
 PEP 562 module-level `__getattr__` keeps every existing call site working —

@@ -26,7 +26,7 @@ _OSV_SEVERITY_MAP = {
 }
 
 class OsvScannerEngine(ScannerEngine):
-    """A "cloud API" SCA backend, as described in ADR-001 (section 3,
+    """A "cloud API" SCA backend, as described in docs/architecture/ (section 3,
     option C / Phase 5): vulnerability *matching* is delegated to OSV.dev
     (a free, public vulnerability database) instead of running Grype
     locally. SBOM generation and secrets scanning stay local — Syft needs
@@ -34,7 +34,7 @@ class OsvScannerEngine(ScannerEngine):
     and there's no meaningful "send it to the cloud" alternative short of
     uploading the whole codebase/image, which defeats the point. Delegated
     to an inner `DockerScannerEngine` by default (composition, not
-    inheritance, so a future local-API backend — ADR-001 Phase 4 — can be
+    inheritance, so a future local-API backend — docs/architecture/01 — can be
     plugged in here instead without changing this class).
 
     Only bare package identifiers (purl + version, already produced by the
@@ -120,7 +120,7 @@ class OsvScannerEngine(ScannerEngine):
                 "severity": self._resolve_severity(vuln),
                 "description": vuln.get("summary") or (vuln.get("details") or "")[:300],
                 # Same keys Grype uses, so `extract_remediation` reads both
-                # backends with one code path (ADR-001's whole point: the rest
+                # backends with one code path (the whole point of décision 0001: the rest
                 # of the pipeline must not know which engine ran).
                 "fix": {
                     "state": "fixed" if fixed_versions else "unknown",

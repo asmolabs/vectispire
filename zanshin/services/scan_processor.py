@@ -1,7 +1,7 @@
 """Local execution of a scan, end to end.
 
 Historically this module *was* the pipeline. It now composes the two halves it
-was split into (ADR-002 §8.3):
+was split into (décision 0003):
 
 - [`ScanRunner`](scan_runner.py) — clone and run the scanners, no database;
 - [`ScanIngestor`](scan_ingestor.py) — normalize, enrich, reconcile issues,
@@ -83,7 +83,7 @@ class ScanProcessor:
     ):
         # Only needed to build a `ScanTask`: the deploy key has to be decrypted
         # before it reaches a runner, because a runner — local or remote — has no
-        # key store (ADR-002 D3).
+        # key store (décision 0003).
         self.ssh_key_service = ssh_key_service
         self.runner = ScanRunner(scanner_engine)
         self.ingestor = ScanIngestor(
@@ -219,7 +219,7 @@ class ScanProcessor:
         The one place where a scan stops being a database row. Also used, in
         spirit, by the agent API when it builds the task it hands to a remote
         agent — the difference being whether the deploy key is included, which is
-        a property of the agent, not of the task (ADR-002 §5).
+        a property of the agent, not of the task (décision 0003).
         """
         if scan.container_id is not None:
             return ScanTask(

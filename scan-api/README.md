@@ -13,7 +13,7 @@
 >   `{"path": "/"}` faisait parcourir tout le système de fichiers.
 
 Sidecar HTTP service implementing the `local_api` scan backend described in
-[ADR-001](../docs/architecture/ADR-001-scanner-backends.md), Phase 4.
+[docs/architecture/](../docs/architecture/), Phase 4.
 
 It runs Syft, Grype, gitleaks, and checkov **directly** (as subprocesses,
 not nested Docker containers) and exposes them over a small HTTP API that

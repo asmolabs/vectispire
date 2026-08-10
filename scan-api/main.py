@@ -1,4 +1,4 @@
-"""Zanshin Scan API — local HTTP backend for ScannerEngine (ADR-001, Phase 4).
+"""Zanshin Scan API — local HTTP backend for ScannerEngine (docs/architecture/01).
 
 Runs Syft, Grype, gitleaks, and checkov directly as subprocesses (no nested
 Docker) against paths on a filesystem *shared* with the Zanshin process —
@@ -45,7 +45,7 @@ AUTH_TOKEN = os.getenv("ZANSHIN_SCAN_API_TOKEN", "")
 app = FastAPI(
     title="Zanshin Scan API",
     description=(
-        "Sidecar scanning service for Zanshin (ADR-001 Phase 4). Requires the "
+        "Sidecar scanning service for Zanshin (docs/architecture/01). Requires the "
         "shared token in `X-Zanshin-Token`, and only reads paths inside "
         "ZANSHIN_SHARED_ROOT."
     ),

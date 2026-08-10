@@ -56,7 +56,7 @@ Results are normalized into a single `Finding` table (type, severity, identifier
 
 A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`zanshin/services/issue_service.py`](zanshin/services/issue_service.py).
 
-The detailed decisions, discarded alternatives, and phase-by-phase implementation status are documented in [`docs/architecture/ADR-001-scanner-backends.md`](docs/architecture/ADR-001-scanner-backends.md) (written in French). The `scan-api/` sidecar has its own [README](scan-api/README.md) (deployment model, security, known limitations). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). The `scan-api/` sidecar has its own [README](scan-api/README.md) (deployment model, security, known limitations). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
 #### Distributed scanning: agents
 
@@ -95,7 +95,7 @@ python -m zanshin.agent
 ```
 
 See [`docker-compose.agent.yml`](docker-compose.agent.yml) for the containerized form, and
-[`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
+[`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
@@ -379,7 +379,7 @@ Les résultats sont normalisés dans une table `Finding` unique (type, sévérit
 
 Un `Finding` est une *observation*, valable pour un seul scan. Au-dessus, un `Issue` suit le même problème d'un scan à l'autre — identifié par une empreinte qui ignore volontairement la version du paquet, pour qu'une dépendance restée vulnérable pendant trois versions correctives conserve un seul historique et une seule décision de triage. Deux axes sont maintenus strictement séparés : `state` (ouvert/résolu) n'est écrit que par le pipeline, d'après ce que les scanners observent ; `triage_status` (VEX) n'est écrit que par un humain. Les confondre viderait « résolu » de son sens — un finding masqué et un finding réellement corrigé ne doivent pas se ressembler. Voir [`zanshin/services/issue_service.py`](zanshin/services/issue_service.py).
 
-Le détail des décisions, alternatives écartées et le statut d'implémentation phase par phase sont documentés dans [`docs/architecture/ADR-001-scanner-backends.md`](docs/architecture/ADR-001-scanner-backends.md). Le service sidecar `scan-api/` a son propre [README](scan-api/README.md) (modèle de déploiement, sécurité, limites connues). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+Le dossier d'architecture — vue d'ensemble, modèle de données, sécurité, déploiement, et un registre des décisions avec les alternatives écartées — est dans [`docs/architecture/`](docs/architecture/). Le service sidecar `scan-api/` a son propre [README](scan-api/README.md) (modèle de déploiement, sécurité, limites connues). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
 #### Scan distribué : les agents
 
@@ -423,7 +423,7 @@ python -m zanshin.agent
 
 Voir [`docker-compose.agent.yml`](docker-compose.agent.yml) pour la variante
 conteneurisée, et
-[`docs/architecture/ADR-002-multi-instance-et-agents.md`](docs/architecture/ADR-002-multi-instance-et-agents.md)
+[`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 pour les décisions et les limites connues.
 
 **Lancer plus d'une instance web.** L'essentiel de ce qui rendait cela dangereux est

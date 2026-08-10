@@ -207,7 +207,7 @@ def test_hello_records_what_the_agent_reported(agent_api):
 
 def test_an_agent_speaking_another_contract_version_is_refused_with_both_numbers(agent_api):
     """Two artefacts deployed separately will eventually disagree; failing here
-    beats a KeyError halfway through ingesting a result (ADR-002 §8.5)."""
+    beats a KeyError halfway through ingesting a result (docs/architecture/04)."""
     client, _, _, _ = agent_api
 
     response = client.post("/api/v1/agents/hello", json={"contract_version": "99"})
@@ -263,7 +263,7 @@ def test_a_container_task_carries_the_image_reference(agent_api, make_container)
 def test_no_deploy_key_travels_to_an_agent_in_local_mode(
     agent_api, make_repository, ssh_key_repository, encryption_service
 ):
-    """The default, and the recommendation of ADR-002 §5: the control plane sends
+    """The default, and the recommendation of décision 0003: the control plane sends
     no secret, and the agent uses the git credentials its own machine holds."""
     client, stub, _, ssh_key_service = agent_api
     from zanshin.models.ssh_key import SSHKey
@@ -514,7 +514,7 @@ def test_a_successful_submission_is_audited(agent_api, make_repository):
 
 def test_a_large_payload_can_arrive_in_slices(agent_api, make_repository):
     """An SBOM for a substantial image runs to megabytes and has to travel whole,
-    because normalization happens on this side (ADR-002 §8.3)."""
+    because normalization happens on this side (décision 0003)."""
     client, stub, _, _ = agent_api
     scan = _queued_scan(stub.db, repo_id=make_repository().id)
     client.get("/api/v1/agents/jobs")

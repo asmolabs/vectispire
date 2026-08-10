@@ -18,8 +18,7 @@ from zanshin.ui.pages.audit_log import audit_log_page
 
 # Schema is managed by Alembic (see zanshin/schema.py). This replaces the
 # previous `Base.metadata.create_all`, which could only add whole tables and so
-# blocked every column change — the limitation recorded in
-# docs/architecture/ADR-001-scanner-backends.md.
+# blocked every column change — the limitation recorded in docs/architecture/02.
 import zanshin.models  # noqa: F401 (ensures every model is registered on Base.metadata)
 from zanshin.schema import upgrade_to_head
 upgrade_to_head()
@@ -38,9 +37,9 @@ from zanshin.bootstrap import recover_interrupted_scans
 recover_interrupted_scans()
 
 # Refuse, here and not later, the deployments that cannot work — chiefly a second
-# instance on SQLite, which has one writer (see zanshin/startup_guard.py and ADR-002
-# D6). Raising stops the process, which is the point: the alternative is an operator
-# discovering it from a corrupt database.
+# instance on SQLite, which has one writer (see zanshin/startup_guard.py and
+# docs/architecture/04). Raising stops the process, which is the point: the
+# alternative is an operator discovering it from a corrupt database.
 from zanshin.startup_guard import run as check_deployment
 check_deployment()
 

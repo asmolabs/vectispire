@@ -3,7 +3,7 @@
 One row per job that must have exactly one owner across a fleet. Today there is one
 such job — the exclusive part of the scheduler tick — and without this table two
 instances would each dispatch every due target, i.e. scan everything twice per
-interval (ADR-002 §2.2).
+interval (docs/architecture/04).
 
 A row rather than an engine-specific advisory lock: `pg_advisory_lock` and MySQL's
 `GET_LOCK` are named and scoped differently and neither exists on SQLite, so the

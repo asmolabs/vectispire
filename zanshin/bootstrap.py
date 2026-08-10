@@ -91,7 +91,7 @@ def recover_interrupted_scans() -> None:
     The built-in agent is resolved first, and that ordering matters: it is what
     tells recovery which in-flight scans belonged to *this* host. Without it,
     every running scan looks orphaned — which is how starting the web instance
-    used to fail the scans a remote agent was busy running (ADR-002 §2.3).
+    used to fail the scans a remote agent was busy running (docs/architecture/04).
     """
     db = SessionLocal()
     try:

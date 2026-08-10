@@ -88,7 +88,7 @@ class AgentService:
                 labels="",
                 # The control plane cannot "send itself" a key: it reads the key
                 # store directly, which is exactly the privilege a remote agent
-                # is denied (ADR-002 D3).
+                # is denied (décision 0003).
                 credentials_mode=CREDENTIALS_LOCAL,
                 enabled=True,
                 # Null: capacity comes from `scan_max_concurrent` (see `capacity_of`).
@@ -285,7 +285,7 @@ def agent_matches_label(agent: Agent, required_label: Optional[str]) -> bool:
     One label covers the need that exists — "this scan must run on a machine that
     can reach X" — without inventing an expression parser, its precedence rules
     and its error messages. If two labels ever need combining, that is the moment
-    to write it, with a real case to test against (ADR-002, étape 4).
+    to write it, with a real case to test against (docs/architecture/04).
     """
     if not required_label:
         return True

@@ -100,7 +100,7 @@ AI_REVIEW_DEPLOYMENT_MODE_OPTIONS = [
 ]
 
 class SettingsState(BaseState):
-    """Exposes the scan-execution settings introduced in ADR-001
+    """Exposes the scan-execution settings introduced in docs/architecture/
     (`scan_backend`, `enrichment_enabled`) through the UI instead of
     requiring direct edits to the `setting` table."""
 
@@ -886,7 +886,7 @@ def gate_policy_row(row: rx.Var) -> rx.Component:
 
 def settings_page() -> rx.Component:
     """Scan-execution settings view: choose the ScannerEngine backend and
-    toggle EPSS/CISA-KEV enrichment (see ADR-001)."""
+    toggle EPSS/CISA-KEV enrichment (see docs/architecture/)."""
     content = rx.vstack(
         rx.text(
             "Configure le moteur d'analyse et l'enrichissement des vulnérabilités utilisés par les prochains scans.",

@@ -1,5 +1,5 @@
 # Zanshin Scan API — sidecar service for ScannerEngine's "local_api" backend
-# (ADR-001, Phase 4). See README.md before deploying: this image has not
+# (docs/architecture/01). See README.md before deploying: this image has not
 # been built/run in the environment that authored it (no Docker/network
 # access there) — verify the install steps and tool versions below work on
 # your infrastructure before relying on it.

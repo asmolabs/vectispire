@@ -39,13 +39,13 @@ class Scan(Base):
     version = Column(String(255), nullable=True)
     project_type = Column(String(255), nullable=True)
 
-    # --- Ownership of the work (ADR-002) ---
+    # --- Ownership of the work (docs/architecture/04) ---
     #
     # `status` says a scan is running; these four say *who* is running it and
     # until when. Without them, "running" meant "some thread, somewhere, maybe":
     # startup recovery had to assume every in-flight scan was orphaned and fail
     # it, which is correct for one process and destroys another agent's work as
-    # soon as there are two (ADR-002 §2.3).
+    # soon as there are two (docs/architecture/04).
     #
     # `claimed_by` holds an `Agent.worker_id` (the agent's uuid as hex), not a
     # foreign key: `Agent.id` is a 16-byte binary GUID, so a join would need a
@@ -71,7 +71,7 @@ class Scan(Base):
     container_id = Column(Integer, ForeignKey("container.id", ondelete="CASCADE"), nullable=True)
     container = relationship("Container", back_populates="scans")
 
-    # Normalized, queryable results (see ADR-001). `cves`/`sbom` above stay
+    # Normalized, queryable results (see docs/architecture/). `cves`/`sbom` above stay
     # as the raw tool output for audit purposes.
     findings = relationship(
         "Finding", back_populates="scan", cascade="all, delete-orphan", passive_deletes=True

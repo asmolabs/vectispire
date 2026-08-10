@@ -59,7 +59,7 @@ def test_a_queued_scan_is_left_alone(db_session):
 
 
 def test_a_scan_held_by_another_worker_under_a_valid_lease_is_not_touched(db_session):
-    """ADR-002 §2.3: with one process, assuming every in-flight scan was orphaned
+    """docs/architecture/04: with one process, assuming every in-flight scan was orphaned
     was correct. With a remote agent it is destructive — starting the web instance
     would fail the scans that agent is busy running."""
     scan = _scan(db_session, "scanning")

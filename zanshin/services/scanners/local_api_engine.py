@@ -13,7 +13,7 @@ DEFAULT_TIMEOUT_SECONDS = 180.0
 
 class LocalApiScannerEngine(ScannerEngine):
     """Delegates every step to a sidecar HTTP service (`scan-api/`, see
-    ADR-001 Phase 4 and `scan-api/README.md`) instead of spinning up a
+    docs/architecture/01 and `scan-api/README.md`) instead of spinning up a
     Docker container per step from inside Zanshin's own process.
 
     Deployment model (the one chosen for this implementation — see the ADR):

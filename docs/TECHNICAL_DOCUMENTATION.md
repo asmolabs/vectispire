@@ -6,7 +6,7 @@
 
 ## English
 
-This document describes Zanshin's internal architecture, database schema, and the scan pipeline's runtime flow. For features and quick start, see [`README.md`](../README.md). For the design rationale behind the pluggable scanner backends, see [`ADR-001`](architecture/ADR-001-scanner-backends.md).
+This document describes Zanshin's internal architecture, database schema, and the scan pipeline's runtime flow. For features and quick start, see [`README.md`](../README.md). For the design rationale behind the pluggable scanner backends, see [`docs/architecture/`](architecture/).
 
 ### 1. Layered architecture
 
@@ -295,7 +295,7 @@ sequenceDiagram
 
 Key points not obvious from the diagram alone:
 
-- Secrets, IaC and source-code (Semgrep) scanning only run for **repository** scans, never for container images (see ADR-001 §5) — Syft's license data, on the other hand, applies to both.
+- Secrets, IaC and source-code (Semgrep) scanning only run for **repository** scans, never for container images (see docs/architecture/ §5) — Syft's license data, on the other hand, applies to both.
 - **`None` is not `[]` in `ScanArtifacts`.** `iac` and `sast` are `Optional`: an empty list is the positive claim *"the analysis ran and found nothing"*, which is what allows `IssueService` to resolve a target's outstanding issues of that type. `None` means the step did not run — disabled, unsupported by the backend, or crashed — and the backlog is then left untouched. Reading a crashed scanner as a clean one would declare a repository fixed, so every scanner that can fail returns `None`, and `scanned_types_for(..., iac_ran=…, sast_ran=…)` is what carries that through to resolution.
 - **Semgrep produces two finding types from one run.** `SastService` reads each rule's `metadata.category`: `security` becomes a `sast` finding, gated like any vulnerability; everything else becomes a `quality` finding, which `policy_gate.QUALITY_TYPES` excludes from every verdict with no opt-in. Since both come from the same pass, they enter `scanned_types` together. The rules are Zanshin's own (`zanshin/services/scanners/rules/semgrep/`), copied into each scan's workspace beside `SOURCE_SUBDIR` — a rule tree inside Zanshin's own image would be invisible to the sibling Semgrep container, because volume paths are resolved by the Docker daemon.
 - `cves["engine_source"]` (not `"source"` — Grype's own JSON already uses that key for something unrelated) records which backend actually produced the vulnerability matches, so `_build_findings` can set `Finding.source` correctly regardless of which `ScannerEngine` ran.
@@ -359,7 +359,7 @@ of counts otherwise reads as if they could.
 
 ### 3bis. Who executes a scan: the built-in agent and remote agents
 
-The sequence above is one process doing everything. Since ADR-002, *where* the scanners
+The sequence above is one process doing everything. Since docs/architecture/04, *where* the scanners
 run is a separate question from *what happens to their output*, because `ScanProcessor`
 was split in two:
 
@@ -422,7 +422,7 @@ Consequences worth knowing:
   periodic work — scheduled scans, retention, the outbox relay — is taken under a lease
   so exactly one instance does it; claiming scans is not, so every instance keeps
   working. Start it wrong and the application refuses or warns, naming the reason
-  (ADR-002 §11).
+  (docs/architecture/04).
 
 
 ### 4. Scanner backends
@@ -473,7 +473,7 @@ The `tests/` suite (pytest) runs entirely against an in-memory SQLite database, 
 
 ## Français
 
-Ce document décrit l'architecture interne de Zanshin, le schéma de base de données, et le déroulement du pipeline de scan. Pour les fonctionnalités et le démarrage rapide, voir [`README.md`](../README.md). Pour le raisonnement derrière les backends de scan pluggables, voir [`ADR-001`](architecture/ADR-001-scanner-backends.md).
+Ce document décrit l'architecture interne de Zanshin, le schéma de base de données, et le déroulement du pipeline de scan. Pour les fonctionnalités et le démarrage rapide, voir [`README.md`](../README.md). Pour le raisonnement derrière les backends de scan pluggables, voir [`docs/architecture/`](architecture/).
 
 ### 1. Architecture en couches
 
@@ -762,7 +762,7 @@ sequenceDiagram
 
 Points importants non visibles sur le seul diagramme :
 
-- Le scan de secrets, d'IaC et du code source (Semgrep) ne s'exécute que pour les scans de **dépôts**, jamais pour les images de conteneurs (voir ADR-001 §5) — les données de licence de Syft, elles, s'appliquent aux deux.
+- Le scan de secrets, d'IaC et du code source (Semgrep) ne s'exécute que pour les scans de **dépôts**, jamais pour les images de conteneurs (voir docs/architecture/ §5) — les données de licence de Syft, elles, s'appliquent aux deux.
 - **`None` n'est pas `[]` dans `ScanArtifacts`.** `iac` et `sast` sont `Optional` : une liste vide affirme que *l'analyse a tourné et n'a rien trouvé*, ce qui autorise `IssueService` à résoudre les problèmes existants de ce type. `None` signifie que l'étape n'a pas eu lieu — désactivée, non supportée par le backend, ou plantée — et le backlog est alors laissé intact. Lire un scanner planté comme un scanner propre reviendrait à déclarer un dépôt corrigé : tout scanner susceptible d'échouer renvoie donc `None`, et `scanned_types_for(..., iac_ran=…, sast_ran=…)` porte cette distinction jusqu'à la résolution.
 - **Semgrep produit deux types de constats en un seul passage.** `SastService` lit le `metadata.category` de chaque règle : `security` donne un constat `sast`, traité comme toute vulnérabilité ; tout le reste donne un constat `quality`, que `policy_gate.QUALITY_TYPES` exclut de tout verdict, sans option pour le réactiver. Les deux venant du même passage, ils entrent ensemble dans `scanned_types`. Les règles sont celles de Zanshin (`zanshin/services/scanners/rules/semgrep/`), recopiées dans l'espace de travail de chaque scan à côté de `SOURCE_SUBDIR` — un répertoire de règles vivant dans l'image de Zanshin serait invisible du conteneur Semgrep voisin, les chemins de volume étant résolus par le démon Docker.
 - `cves["engine_source"]` (pas `"source"` — la sortie JSON native de Grype utilise déjà cette clé pour autre chose) enregistre quel backend a réellement produit le matching de vulnérabilités, afin que `_build_findings` renseigne correctement `Finding.source` quel que soit le `ScannerEngine` utilisé.
@@ -770,7 +770,7 @@ Points importants non visibles sur le seul diagramme :
 
 ### 3bis. Qui exécute un scan : agent intégré et agents distants
 
-La séquence ci-dessus décrit un processus qui fait tout. Depuis l'ADR-002, *où* les
+La séquence ci-dessus décrit un processus qui fait tout. Depuis les agents distants, *où* les
 scanners tournent est une question distincte de *ce qu'il advient de leur sortie*, parce
 que `ScanProcessor` a été coupé en deux :
 
@@ -835,7 +835,7 @@ Conséquences à connaître :
   travail périodique — scans planifiés, rétention, relais de l'outbox — est pris sous un
   bail pour qu'une seule instance le fasse ; réclamer des scans ne l'est pas, pour que
   toutes continuent de travailler. Mal démarrée, l'application refuse ou avertit en
-  nommant la raison (ADR-002 §11).
+  nommant la raison (docs/architecture/04).
 
 
 ### 4. Backends de scan

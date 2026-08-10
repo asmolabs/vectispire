@@ -1,7 +1,7 @@
 """Schema management at startup.
 
 Replaces `Base.metadata.create_all`, which could only ever *add* tables — the
-limitation ADR-001 recorded, and the reason every earlier feature had to invent
+limitation docs/architecture/02 records, and the reason every earlier feature had to invent
 a new table rather than add a column to an existing one.
 
 Three situations have to be handled, because this application is deployed by

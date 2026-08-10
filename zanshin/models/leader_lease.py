@@ -5,7 +5,7 @@ process does them. The clearest is periodic rescanning: `last_scheduled_scan_at`
 stamped before dispatch, which protects against one process ticking twice and not at
 all against two processes ticking at the same moment. Two instances would mean two
 scans per due target — double the containers, double the registry traffic, double the
-enrichment calls, and two scan rows where an operator expects one (ADR-002 §2.2).
+enrichment calls, and two scan rows where an operator expects one (docs/architecture/04).
 
 So the exclusive part of the tick is taken under a **lease** held in this table: one
 row per job name, holding the instance's id and an expiry. A holder that dies simply

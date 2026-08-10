@@ -4,7 +4,7 @@ Two things are being pinned down here. The obvious one is that the steps still
 happen in the right order for each kind of target. The load-bearing one is that
 this module stays **runnable without the control plane**: an agent has no
 database, no encryption key and no settings table, so a test that proves the
-import graph is clean is testing the feature, not the code style (ADR-002 D3).
+import graph is clean is testing the feature, not the code style (décision 0003).
 """
 import os
 import subprocess
@@ -142,7 +142,7 @@ def test_container_scan_skips_the_source_code_only_steps():
 
     assert [c[0] for c in engine.calls] == ["generate_sbom_for_image", "scan_sbom"]
     # No checkout exists for an image, so secrets/IaC/SAST would have nothing to read
-    # (ADR-001 section 5). IaC and SAST report `None` — "not analysed" — rather than an
+    # (docs/architecture/01). IaC and SAST report `None` — "not analysed" — rather than an
     # empty list, which would claim the image was analysed and found clean.
     assert artifacts.secrets == []
     assert artifacts.iac is None
@@ -262,7 +262,7 @@ def test_validate_sub_path_accepts_normal_relative_paths():
 
 def test_scan_runner_and_the_contract_import_no_database_or_ui_code():
     """A runner that could import `zanshin.database` would eventually be given a
-    session, and the "agents need no database" guarantee of ADR-002 D3 would
+    session, and the "agents need no database" guarantee of décision 0003 would
     quietly stop being true. Checked in a fresh interpreter because anything the
     rest of this test session imported would otherwise already be in
     `sys.modules`.

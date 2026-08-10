@@ -78,7 +78,7 @@ def test_a_builtin_row_with_no_hostname_is_ignored(db_session):
 
 def test_two_instances_on_sqlite_are_refused(db_session):
     """Not slow — corrupt. SQLite has one writer, and the claim cannot be made safe
-    there because `FOR UPDATE SKIP LOCKED` does not exist (ADR-002 D6)."""
+    there because `FOR UPDATE SKIP LOCKED` does not exist (décision 0004)."""
     _builtin(db_session, "scanner-02", seen_secs_ago=5)
 
     with pytest.raises(UnsafeDeployment) as refusal:

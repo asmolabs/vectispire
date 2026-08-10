@@ -5,7 +5,7 @@ The half of the old `ScanProcessor` that touches a disk, a git remote and a
 encryption key, no settings lookup: it takes a `ScanTask` and returns
 `ScanArtifacts`.
 
-That is not tidiness, it is the enabling constraint for agents (ADR-002 §8.3):
+That is not tidiness, it is the enabling constraint for agents (décision 0003):
 a remote agent has a Docker socket and a temp directory but no access to the
 control plane's database, so the only code it can possibly run is code shaped
 like this. `ScanProcessor` composes this class with `ScanIngestor` for local
@@ -95,7 +95,7 @@ class ScanRunner:
     def __init__(self, scanner_engine: ScannerEngine):
         # `scanner_engine` decides *where* the tools actually run (local Docker
         # containers, a sidecar HTTP service, or OSV.dev for the matching step —
-        # see ADR-001). This class only orders the steps; it never talks to
+        # see docs/architecture/). This class only orders the steps; it never talks to
         # Docker directly, which is also why an agent can pick a different
         # engine than the control plane would have used.
         self.scanner_engine = scanner_engine
@@ -160,7 +160,7 @@ class ScanRunner:
                 artifacts.cves = self.scanner_engine.scan_sbom(temp_dir, artifacts.sbom)
 
                 # Source-code-only steps: not run for container images, see
-                # ADR-001 section 5.
+                # docs/architecture/01.
                 step("Recherche de secrets codés en dur")
                 artifacts.secrets = self.scanner_engine.scan_secrets(temp_dir, scan_target)
 
@@ -236,7 +236,7 @@ class ScanRunner:
         # `get_workspace_root()` returns None for every backend except
         # LocalApiScannerEngine, which needs the workspace created inside the
         # volume it shares with its sidecar service instead of the OS default
-        # temp location (see ADR-001 Phase 4).
+        # temp location (see docs/architecture/01).
         workspace_root = self.scanner_engine.get_workspace_root()
         if workspace_root:
             os.makedirs(workspace_root, exist_ok=True)
@@ -255,7 +255,7 @@ def clone_repo(
     """Shallow-clone `repo_url` into `work_dir`.
 
     Takes key *material* rather than a key id: there is no key store to look an
-    id up in here, and on an agent there could not be one (ADR-002 D3). The
+    id up in here, and on an agent there could not be one (décision 0003). The
     control plane resolves the id and decides whether to include the material at
     all — a `local`-mode agent gets none and relies on the credentials its own
     machine already has.
@@ -281,7 +281,7 @@ def clone_repo(
         else:
             # No key supplied: git falls back to whatever the machine running
             # this already has (`~/.ssh`, an ssh-agent, a credential helper).
-            # That is the whole point of a `local`-mode agent — see ADR-002 §5.
+            # That is the whole point of a `local`-mode agent — see décision 0003.
             env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o BatchMode=yes"
 
         git.Repo.clone_from(
@@ -301,7 +301,7 @@ def collect_ai_review_sample(source_dir: str, sub_path: str) -> str:
     embeddings/RAG): walks the tree in sorted order and stops once the character
     budget is used up, so large repositories are silently truncated rather than
     exhaustively reviewed. Adequate for the "minimal review" this feature is
-    scoped to (see ADR-001, Phase 8), not a substitute for a real SAST pipeline.
+    scoped to (see docs/architecture/01), not a substitute for a real SAST pipeline.
 
     `source_dir` is the checkout itself (`SOURCE_SUBDIR`), never the workspace
     root — that's what keeps the pipeline's own artifacts out of the sample, and

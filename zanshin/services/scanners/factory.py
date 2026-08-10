@@ -23,7 +23,7 @@ def get_scanner_engine(settings_service: SettingsService) -> ScannerEngine:
       IaC) runs in ephemeral local containers — nothing leaves the host.
     - "local_api": every step is delegated over HTTP to a sidecar service
       (`scan-api/`) sharing a volume with Zanshin — see
-      LocalApiScannerEngine's docstring and ADR-001 Phase 4. Configured via
+      LocalApiScannerEngine's docstring and docs/architecture/01. Configured via
       `local_scan_api_url` and `local_scan_api_shared_dir`.
     - "osv": vulnerability matching is delegated to the free OSV.dev cloud
       API instead of running Grype locally; SBOM generation and secrets
@@ -54,5 +54,5 @@ def get_scanner_engine(settings_service: SettingsService) -> ScannerEngine:
         )
     raise ValueError(
         f"Backend de scan inconnu ou pas encore implémenté : '{backend}'. "
-        "Backends disponibles : 'docker', 'local_api', 'osv' (voir ADR-001)."
+        "Backends disponibles : 'docker', 'local_api', 'osv' (voir docs/architecture/)."
     )

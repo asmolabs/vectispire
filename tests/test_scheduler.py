@@ -289,7 +289,7 @@ def test_the_tick_delivers_a_pending_notification(scheduler_env):
     assert session.query(OutboxMessage).one().status == STATUS_SENT
 
 
-# --- Leadership (ADR-002 §2.2) ---
+# --- Leadership (docs/architecture/04) ---
 #
 # The tick is split by what each job *is*: the exclusive work happens once per period
 # across the whole fleet, the per-instance work happens on every instance. Getting that

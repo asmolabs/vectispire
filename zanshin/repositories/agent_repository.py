@@ -61,7 +61,7 @@ class AgentRepository:
 
         Keyed on hostname rather than "the only builtin row": one row per host
         keeps the model honest the day two web instances share a database, even
-        though that deployment is not supported yet (ADR-002 étape 1).
+        though that deployment is not supported yet (docs/architecture/04).
         """
         return (
             self.db.query(Agent)

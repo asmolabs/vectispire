@@ -52,7 +52,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         # SQLite cannot ALTER most things in place; batch mode rewrites the
         # table instead, which is what makes column changes possible at all
-        # here (the limitation ADR-001 flagged).
+        # here (the limitation recorded in docs/architecture/02).
         render_as_batch=True,
     )
     with context.begin_transaction():

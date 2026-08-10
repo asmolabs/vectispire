@@ -9,7 +9,7 @@ class Finding(Base):
 
     `Scan.cves`/`Scan.sbom` keep the raw tool output for audit purposes;
     `Finding` rows are the structured projection of that output used by the UI
-    and the enrichment step (EPSS/KEV) — see ADR-001, section 4.
+    and the enrichment step (EPSS/KEV) — see docs/architecture/02.
 
     A finding is an *observation*, valid for the scan that produced it. State and
     triage belong to `Issue`, which tracks the same problem across scans.
@@ -53,7 +53,7 @@ class Finding(Base):
     # Which scanner/provider produced this finding (grype, gitleaks, osv, ...).
     source = Column(String(50), default="grype", nullable=False)
 
-    # Populated by the enrichment step (ADR-001, section 6).
+    # Populated by the enrichment step (docs/architecture/01).
     epss_score = Column(Float, nullable=True)
     is_kev = Column(Boolean, default=False, nullable=False)
 

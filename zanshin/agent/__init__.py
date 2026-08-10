@@ -6,7 +6,7 @@ report back.
 
 **The invariant this package exists to hold.** Nothing here imports
 `zanshin.database`, `zanshin.models` or `zanshin.ui`. That is not a style
-preference — it is the security property of ADR-002 D3 expressed as an import
+preference — it is the security property of décision 0003 expressed as an import
 graph. An agent with a database connection would need the connection string *and*
 `ENCRYPTION_KEY`, i.e. the ability to decrypt every deploy key Zanshin holds. With
 only HTTP and a scoped key, a compromised agent is limited to the work it was

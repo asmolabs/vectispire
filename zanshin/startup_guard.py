@@ -1,12 +1,12 @@
 """Refusing, at startup, the deployments that cannot work.
 
-ADR-002 lists what breaks when a second instance appears. Some of it is now fixed —
-the claim is transactional (D1), the periodic work has one owner (§2.2), startup
+docs/architecture/04 lists what breaks when a second instance appears. Some of it is now fixed —
+the claim is transactional (décision 0002), the periodic work has one owner (§2.2), startup
 recovery no longer kills another worker's scans (§2.3). Some is not, and cannot be
 fixed by this application:
 
 * **SQLite has one writer.** Two instances on one file is not slow, it is corrupt, and
-  `FOR UPDATE SKIP LOCKED` does not exist there to make the claim safe (D6).
+  `FOR UPDATE SKIP LOCKED` does not exist there to make the claim safe (décision 0004).
 * **Reflex keeps a client's server-side state on the instance that accepted its
   socket.** Without `state_manager_mode = "redis"`, a client that lands on the other
   instance is intermittently logged out with no error anybody can act on (§2.4).

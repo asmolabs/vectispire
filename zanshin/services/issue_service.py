@@ -369,7 +369,7 @@ def scanned_types_for(
 ) -> Set[str]:
     """Which finding types a scan actually looked for.
 
-    Mirrors the branching in `ScanProcessor.process_scan` (ADR-001 section 5:
+    Mirrors the branching in `ScanProcessor.process_scan` (docs/architecture/01:
     secrets and IaC need source on disk, so they don't apply to images; the AI
     review is opt-in). Expressed here, next to the resolution logic that depends
     on it, so the two cannot drift apart silently.

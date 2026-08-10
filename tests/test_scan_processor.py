@@ -287,7 +287,7 @@ def test_process_scan_container_success_skips_secrets_but_still_applies_license_
     isolated_session.refresh(scan)
     assert scan.status == "completed"
     # Container scans must NOT call scan_secrets/scan_iac (source-code-only
-    # scanners, see ADR-001 section 5).
+    # scanners, see docs/architecture/01).
     assert not any(c[0] in ("scan_secrets", "scan_iac") for c in engine.calls)
     # But license policy still runs — Syft produces license data for images too.
     assert license_svc.calls == 1
@@ -317,7 +317,7 @@ def test_process_scan_missing_scan_id_is_a_no_op(isolated_session):
     sp.process_scan(9999, repo_url="git@example.com:org/repo.git", branch="main", sub_path="", ssh_key_id=None)
 
 
-# --- Optional AI code review (Ollama, ADR-001 Phase 8) ---
+# --- Optional AI code review (Ollama, docs/architecture/01) ---
 
 def test_process_scan_runs_ai_review_when_enabled_for_repo_scan(isolated_session):
     repo = ZanshinRepository(url="git@example.com:org/repo.git", branch="main")
@@ -460,7 +460,7 @@ def test_process_scan_skips_ai_review_for_container_scan_even_if_enabled(isolate
     isolated_session.refresh(scan)
     assert scan.status == "completed"
     # Container scans have no source code on disk — same reasoning as
-    # secrets/IaC not running for images (ADR-001 section 5).
+    # secrets/IaC not running for images (docs/architecture/01).
     assert ai_review.review_calls == []
     assert isolated_session.query(AiReviewResult).filter(AiReviewResult.scan_id == scan.id).first() is None
 

@@ -13,8 +13,8 @@ class LicenseComplianceService:
     Unlike vulnerability or secret scanning, this needs no new scanning
     tool: Syft already records each component's license(s) in the SBOM it
     generates for every scan — container image or directory — so this is
-    pure rule evaluation over data that's already collected (see ADR-001,
-    section 5). Which licenses are disallowed is an organization policy
+    pure rule evaluation over data that's already collected (see docs/architecture/01).
+    Which licenses are disallowed is an organization policy
     decision, not a technical one, so nothing is flagged until a blocklist
     is explicitly configured (empty by default).
     """

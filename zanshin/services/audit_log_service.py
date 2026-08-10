@@ -58,7 +58,7 @@ class AuditOperation:
     # every handler left no trace an operator would ever look at.
     ACCESS_DENIED = "ACCESS_DENIED"
     # A deploy key left the control plane for a remote agent (delegated mode only,
-    # see ADR-002 §5). If that agent is later found compromised, this is the only
+    # see décision 0003). If that agent is later found compromised, this is the only
     # record of which keys it was given.
     AGENT_CREDENTIAL_SENT = "AGENT_CREDENTIAL_SENT"
     # An agent submitted scan results. Audited like a triage, because both change

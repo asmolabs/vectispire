@@ -34,7 +34,7 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # default: no compatibility risk, "workstation-grade reasoning" tier per
 # Google/Ollama's own positioning. `gemma4:e4b-it-qat` (~6.1GB) is a lighter
 # alternative for CPU-only/low-RAM hosts, at some cost in review quality —
-# see docs/architecture/ADR-001-scanner-backends.md.
+# see docs/architecture/01.
 DEFAULT_AI_REVIEW_MODEL = "gemma4:12b-it-qat"
 # Shown only as a fallback suggestion when Ollama itself can't be reached
 # (not running yet, wrong URL, ...) so the Settings page isn't empty during
@@ -84,7 +84,7 @@ class AiReviewService:
     """Optional, local LLM-based source code review via Ollama.
 
     This is a lightweight complement to the existing Grype/gitleaks/checkov
-    scanners (see ADR-001) — a single prompt against whichever model is
+    scanners (see docs/architecture/) — a single prompt against whichever model is
     configured, not a structured SAST engine with its own analysis pipeline.
     Disabled by default (`ai_review_enabled`). Wired into `ScanProcessor` for
     repository scans (see its `_run_ai_review`): this service covers

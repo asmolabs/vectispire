@@ -16,7 +16,7 @@ So both kinds of worker are rows in this table:
   disabling it is how an operator says "everything must run on agents from now
   on".
 - **`remote`** — a separate `python -m zanshin.agent` process, authenticated by an
-  API key carrying the `agent` scope (ADR-002 D3). It polls over HTTP, so it can
+  API key carrying the `agent` scope (décision 0003). It polls over HTTP, so it can
   live behind NAT and never needs a database connection.
 
 Two design notes worth stating because they are decisions, not consequences:
@@ -30,7 +30,7 @@ plus a TTL answers the question at read time and cannot disagree with itself.
 agent clones with whatever credentials its own machine already has. The
 alternative — shipping the decrypted deploy key inside the task — is available
 per agent (`delegated`) but has to be asked for, because a compromised agent then
-holds a long-lived key to every repository it ever scanned. See ADR-002 §5, which
+holds a long-lived key to every repository it ever scanned. See décision 0003, which
 resolves an explicitly open question in favour of "no secret leaves by default".
 """
 import uuid
@@ -50,7 +50,7 @@ KIND_REMOTE = "remote"
 # own machine holds. The default, and the recommendation.
 CREDENTIALS_LOCAL = "local"
 # The deploy key travels inside the task, per job. Opt-in, per agent — see the
-# module docstring and ADR-002 §5.
+# module docstring and décision 0003.
 CREDENTIALS_DELEGATED = "delegated"
 
 # How long an agent may stay silent before it is reported offline. Comfortably

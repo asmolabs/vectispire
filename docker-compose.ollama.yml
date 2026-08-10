@@ -1,6 +1,6 @@
 # Optional: run Ollama in a container instead of installing it natively,
 # for the AI code review feature (see docs/GETTING_STARTED.md §7 and
-# docs/architecture/ADR-001-scanner-backends.md, Phase 8).
+# docs/architecture/, Phase 8).
 #
 # Performance note: on Apple Silicon Macs, Docker Desktop has no GPU/Metal
 # passthrough, so Ollama in this container runs CPU-only — noticeably

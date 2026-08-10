@@ -24,13 +24,13 @@ class EnrichmentService:
     """Best-effort, post-scan enrichment of vulnerability `Finding` rows with
     EPSS (exploit prediction) scores and CISA KEV (known-exploited) status.
 
-    This is ADR-001's first "cloud API" backend: both EPSS and CISA KEV are
+    The first "cloud API" backend (décision 0001): both EPSS and CISA KEV are
     free, public, metadata-only endpoints — only bare CVE ids are sent, never
     source code or SBOM content — so there is no confidentiality trade-off
-    like there would be for a SAST/secrets cloud backend (see ADR-001,
-    section 6/7). Any network failure here is logged and swallowed: a scan
-    that already produced valid results must never be marked "failed"
-    because an optional enrichment call didn't succeed.
+    like there would be for a SAST/secrets cloud backend (see docs/architecture/03).
+    Any network failure here is logged and swallowed: a scan that already produced
+    valid results must never be marked "failed" because an optional enrichment call
+    didn't succeed.
 
     The KEV catalog (a few thousand entries) is cached at the *class* level,
     not the instance level: `IoCContainer` — and therefore this service — is

@@ -23,11 +23,12 @@ predict, and the first thing a priority scheme costs is that predictability.
 
 **Claiming is transactional where the database allows it.** On PostgreSQL the claim is
 `SELECT … FOR UPDATE SKIP LOCKED` followed by the status change in the *same*
-transaction: either a claimant holds the row and the row says so, or neither (ADR-002
-D1). On SQLite, which has neither `SKIP LOCKED` nor more than one writer, it falls back
+transaction: either a claimant holds the row and the row says so, or neither
+(décision 0002). On SQLite, which has neither `SKIP LOCKED` nor more than one writer,
+it falls back
 to a conditional `UPDATE ... WHERE status = 'pending'` whose row count decides the
 winner — correct for the several threads of one process, which is all SQLite supports
-anyway (D6).
+anyway (décision 0004).
 
 The two paths exist because the guarantee differs, not because the code was easier that
 way: `SKIP LOCKED` makes two *processes* safe, and the fallback does not. The fallback's
@@ -185,12 +186,12 @@ def claim_next(
     (see `LEASE_SECONDS`). Optional so that a caller with no notion of agents — the
     tests that predate them, mainly — still works, but every production path passes
     one: without an owner, "running" means "some thread, somewhere, maybe", which is
-    what made startup recovery destructive (ADR-002 §2.3).
+    what made startup recovery destructive (docs/architecture/04).
 
     `required_label` is accepted for symmetry with agent labels; `None` (the
     default) means the queue is not filtered. There is no per-scan label column
     yet, so today this only ever excludes everything or nothing — it is here so
-    the claim signature does not change when routing arrives (ADR-002, étape 4).
+    the claim signature does not change when routing arrives (docs/architecture/04).
     """
     if limit <= 0:
         return []
@@ -216,7 +217,7 @@ def supports_skip_locked(db: Session) -> bool:
 
 
 def _claim_locked(db: Session, limit: int, worker: Optional[str]) -> List[Scan]:
-    """The transactional claim (ADR-002 D1).
+    """The transactional claim (décision 0002).
 
     `FOR UPDATE SKIP LOCKED` gives this transaction exclusive hold on the rows it
     selected, and lets a concurrent claimant *skip past them* instead of blocking —
@@ -289,7 +290,7 @@ def _claim_conditional(db: Session, limit: int, worker: Optional[str]) -> List[S
 
     Safe for the several threads of one process — which is the only concurrency SQLite
     offers, since it has a single writer. Not safe for two processes, and that is not a
-    gap to fill here: SQLite is documented as single-instance (D6), and the check in
+    gap to fill here: SQLite is documented as single-instance (décision 0004), and the check in
     `zanshin/startup_guard.py` refuses the deployment that would need more.
     """
     now = utcnow()
@@ -433,7 +434,7 @@ def dispatch(session_factory=None, container_factory=None) -> int:
       queued by a restart, and the only path that runs when nothing else happens.
 
     This is the **built-in agent** at work: the web process claiming queued scans for
-    itself (ADR-002 étape 3). It is also why the default single-process deployment
+    itself (docs/architecture/04). It is also why the default single-process deployment
     needs no configuration — and why an operator who disables the built-in agent gets
     what they asked for here, immediately: nothing is claimed, and the queue waits for
     a remote agent.

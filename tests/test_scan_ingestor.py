@@ -4,7 +4,7 @@ These exercise ingestion from `ScanArtifacts` handed in directly, which is the
 remote-agent path: nothing here ran a scanner. That is the point of the split —
 if these produce the same rows as `tests/test_scan_processor.py` does end to end,
 then a result computed on another machine is genuinely indistinguishable from a
-local one (ADR-002 §8.3).
+local one (décision 0003).
 """
 import pytest
 
@@ -156,7 +156,7 @@ def test_record_failure_marks_the_scan_with_the_reported_message(
     db_session.refresh(scan)
     assert scan.status == "failed"
     # A `local`-mode agent without git access produces exactly this: a readable
-    # scan result, not a crash (ADR-002 §5).
+    # scan result, not a crash (décision 0003).
     assert "accès refusé" in scan.error
 
 

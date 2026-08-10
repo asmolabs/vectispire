@@ -36,7 +36,7 @@ def reconcile_interrupted_scans(db: Session, local_worker: Optional[str] = None)
     """Recover the scans a previous run of *this* process left behind.
 
     Returns how many rows were touched. Two things changed here when scans became
-    ownable (ADR-002), and both were defects rather than preferences:
+    ownable (docs/architecture/04), and both were defects rather than preferences:
 
     **Queued scans are no longer failed.** `pending` stopped meaning "accepted, about
     to run in this process" when the queue moved into the database — it now means
@@ -47,7 +47,7 @@ def reconcile_interrupted_scans(db: Session, local_worker: Optional[str] = None)
     **A running scan is only reclaimed if nobody else holds it.** The old version
     failed every in-flight scan on the assumption that its worker died with the
     previous process. True with one worker; destructive with two — starting the web
-    instance would have failed the scans a remote agent was running (ADR-002 §2.3).
+    instance would have failed the scans a remote agent was running (docs/architecture/04).
     So a scan is reclaimed when it has no owner, when its owner is this host's
     built-in agent (whose threads did die with the previous process), or when its
     lease has lapsed; otherwise it belongs to somebody who is still reporting, and
