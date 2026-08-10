@@ -123,3 +123,37 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # Le pendant TypeScript du job `backends` : ce qui ne peut se vérifier que contre un
+  # vrai serveur. Le pilote `node-postgres` rend par défaut un `Date` pour un
+  # `timestamp`, ce qui perd la microseconde *et* applique le fuseau de la machine —
+  # deux défauts silencieux qui casseraient la chaîne d'intégrité du journal d'audit.
+  # Aucun test sur base simulée ne peut le voir.
+  typescript-backends:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: zanshin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run the server-backed tests
+        env:
+          ZANSHIN_TEST_DATABASE_URL: postgres://postgres:zanshin@localhost:5432/postgres
+        run: npm run test:integration --workspace @zanshin/backend

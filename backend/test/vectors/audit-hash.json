@@ -1,0 +1,77 @@
+[
+  {
+    "label": "microsecondes non nulles",
+    "entry": {
+      "previousHash": null,
+      "timestamp": "2026-08-10T08:13:58.322451",
+      "operationType": "LOGIN_SUCCESS",
+      "resourceId": "alice",
+      "userId": "alice",
+      "ipAddress": "10.0.0.4",
+      "userAgent": "Mozilla/5.0",
+      "description": "Connexion réussie"
+    },
+    "postgresRendering": "2026-08-10 08:13:58.322451",
+    "expected": "d853a7545127ea326b5929a09a871ba92bb75edcc031d0e7b38b1ace1eb7e093"
+  },
+  {
+    "label": "microsecondes nulles",
+    "entry": {
+      "previousHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "timestamp": "2026-08-10T08:13:58",
+      "operationType": "USER_CREATED",
+      "resourceId": "7",
+      "userId": "admin",
+      "ipAddress": null,
+      "userAgent": null,
+      "description": "Utilisateur créé"
+    },
+    "postgresRendering": "2026-08-10 08:13:58",
+    "expected": "6ad4781eb0c9f4eb29d7ee4c3df3906837bc1b8280bd7d4cae71a47101605b0f"
+  },
+  {
+    "label": "millisecondes rondes",
+    "entry": {
+      "previousHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "timestamp": "2026-01-02T03:04:05.123000",
+      "operationType": "ISSUE_TRIAGED",
+      "resourceId": "42",
+      "userId": "bob",
+      "ipAddress": "::1",
+      "userAgent": "curl/8",
+      "description": "Triage : not_affected"
+    },
+    "postgresRendering": "2026-01-02 03:04:05.123",
+    "expected": "02449d9e4354c93bd428b3e0b2fce073bf118bb697468abac4eef272867b1bd3"
+  },
+  {
+    "label": "champs vides et caractères non ASCII",
+    "entry": {
+      "previousHash": "",
+      "timestamp": "1999-12-31T23:59:59.999999",
+      "operationType": "ACCESS_DENIED",
+      "resourceId": "",
+      "userId": null,
+      "ipAddress": "",
+      "userAgent": "",
+      "description": "Accès refusé — rôle insuffisant « éèàçü »"
+    },
+    "postgresRendering": "1999-12-31 23:59:59.999999",
+    "expected": "82d658c7b5cdfc9f534e81f0e8bfc16b160ca1af57b6e28c11972311bd11c43c"
+  },
+  {
+    "label": "description contenant un octet NUL",
+    "entry": {
+      "previousHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "timestamp": "2026-03-01T12:00:00.000001",
+      "operationType": "SETTING_UPDATED",
+      "resourceId": "sast_enabled",
+      "userId": "admin",
+      "ipAddress": "192.168.1.1",
+      "userAgent": "-",
+      "description": "avant\u0000après"
+    },
+    "postgresRendering": "2026-03-01 12:00:00.000001",
+    "expected": "21e465ad23217875e750c4b17de0d2e55433d7efb282cdcd34722ca18ee7bba4"
+  }
+]
