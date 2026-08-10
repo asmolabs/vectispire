@@ -105,3 +105,32 @@ export function nowForDatabase(): string {
         `.${pad(now.getUTCMilliseconds(), 3)}`
     );
 }
+
+/**
+ * Ce qu'une couche supérieure doit appeler sur **toute** valeur de date lue à travers
+ * une entité TypeORM, avant de la passer à une règle du domaine.
+ *
+ * TypeORM ré-hydrate les colonnes de date pour son compte : ce qui sort d'une entité
+ * est un `Date`, construit en interprétant le texte naïf de la base comme une heure
+ * *locale*. Deux conséquences, et les deux ont déjà mordu :
+ *
+ * 1. la valeur est décalée du fuseau de la machine — nulle en UTC, donc invisible en
+ *    CI, et fausse en production ;
+ * 2. les règles du domaine comparent des **chaînes** ; leur passer un `Date` produit
+ *    une comparaison entre une chaîne ISO et « Mon Aug 10 2026… », c'est-à-dire un
+ *    résultat arbitraire qui ne lève rien.
+ *
+ * Cette fonction annule les deux : relire les composantes *locales* du `Date` restitue
+ * les chiffres que la base contient, et les réécrire au format attendu rend la valeur
+ * comparable. C'est le point de passage unique, et c'est délibéré — trois correctifs
+ * locaux valaient moins qu'un endroit nommé.
+ */
+export function asTimestampText(value: string | Date | null | undefined): string | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') return value;
+    const pad = (n: number, w = 2) => String(n).padStart(w, '0');
+    return (
+        `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}` +
+        `T${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}.${pad(value.getMilliseconds(), 3)}`
+    );
+}

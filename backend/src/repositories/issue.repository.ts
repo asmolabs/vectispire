@@ -1,6 +1,33 @@
 import { EntityManager, In } from 'typeorm';
 import { Issue, STATE_OPEN } from '../persistence/entities';
 
+export interface IssueFilters {
+    state?: string | null;
+    severity?: string | null;
+    type?: string | null;
+    triageStatus?: string | null;
+    repoId?: number | null;
+    containerId?: number | null;
+    onlyDirect?: boolean;
+    search?: string | null;
+}
+
+/**
+ * L'ordre de gravité, en SQL.
+ *
+ * Écrit ici plutôt que déduit d'un `ORDER BY severity` : l'ordre alphabétique placerait
+ * « critical » après « high » et « low » avant « medium ». Il suit `SEVERITY_ORDER` du
+ * domaine, et `unknown` se classe sous `low` pour la même raison qu'ailleurs — le
+ * backend OSV le renvoie dès qu'un avis n'a pas de sévérité normalisée.
+ */
+const SEVERITY_RANK = `CASE issue.severity
+    WHEN 'critical' THEN 0
+    WHEN 'high' THEN 1
+    WHEN 'medium' THEN 2
+    WHEN 'low' THEN 3
+    WHEN 'negligible' THEN 4
+    ELSE 5 END`;
+
 /**
  * Accès aux problèmes. **Aucune règle métier ici** : la règle de couches veut qu'un
  * dépôt sache interroger et qu'un service sache décider.
@@ -62,6 +89,55 @@ export class IssueRepository {
         else query.andWhere('issue.container_id = :containerId', { containerId: target.containerId });
 
         return query.getMany();
+    }
+
+    /**
+     * Le backlog filtré, paginé.
+     *
+     * `count` et `find` partagent la construction du `WHERE` : deux constructions
+     * séparées finiraient par diverger, et le symptôme serait une pagination qui annonce
+     * un nombre de pages que la liste ne contient pas.
+     */
+    async findFiltered(manager: EntityManager, filters: IssueFilters, page: { limit: number; offset: number }): Promise<Issue[]> {
+        return this.filtered(manager, filters)
+            // Les plus graves d'abord, puis les plus récemment vues : c'est l'ordre
+            // dans lequel quelqu'un veut traiter un backlog.
+            .orderBy(SEVERITY_RANK, 'ASC')
+            .addOrderBy('issue.last_seen_at', 'DESC')
+            .addOrderBy('issue.id', 'DESC')
+            .limit(page.limit)
+            .offset(page.offset)
+            .getMany();
+    }
+
+    async countFiltered(manager: EntityManager, filters: IssueFilters): Promise<number> {
+        return this.filtered(manager, filters).getCount();
+    }
+
+    async findById(manager: EntityManager, id: number): Promise<Issue | null> {
+        return manager.findOneBy(Issue, { id });
+    }
+
+    private filtered(manager: EntityManager, filters: IssueFilters) {
+        const query = manager.createQueryBuilder(Issue, 'issue');
+
+        if (filters.state) query.andWhere('issue.state = :state', { state: filters.state });
+        if (filters.severity) query.andWhere('issue.severity = :severity', { severity: filters.severity });
+        if (filters.type) query.andWhere('issue.type = :type', { type: filters.type });
+        if (filters.triageStatus) query.andWhere('issue.triage_status = :triageStatus', { triageStatus: filters.triageStatus });
+        if (filters.repoId != null) query.andWhere('issue.repo_id = :repoId', { repoId: filters.repoId });
+        if (filters.containerId != null) query.andWhere('issue.container_id = :containerId', { containerId: filters.containerId });
+        // `true` seulement : « ne montre que les directes » est une demande, « montre
+        // aussi les transitives » est le défaut. Filtrer sur `false` cacherait les
+        // problèmes dont on ignore la nature (`null`), qui sont les plus nombreux sur
+        // un dépôt sans graphe de dépendances.
+        if (filters.onlyDirect) query.andWhere('issue.is_direct_dependency = true');
+        if (filters.search) {
+            query.andWhere('(issue.identifier ILIKE :search OR issue.package_name ILIKE :search OR issue.file_path ILIKE :search)', {
+                search: `%${filters.search}%`
+            });
+        }
+        return query;
     }
 
     async save(manager: EntityManager, issues: Issue[]): Promise<Issue[]> {
