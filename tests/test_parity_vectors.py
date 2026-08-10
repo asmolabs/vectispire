@@ -15,14 +15,19 @@ from pathlib import Path
 import pytest
 
 from zanshin.models.audit_log import AuditLog
+from zanshin.models.issue import build_fingerprint
 from zanshin.services.audit_log_service import compute_entry_hash
 
 from scripts.generate_parity_vectors import (
     AUDIT_CASES,
+    FINGERPRINT_CASES,
     OUTPUT_DIR,
     _audit_entry_hash,
+    _build_fingerprint,
     _postgres_rendering,
     build_audit_vectors,
+    build_fingerprint_vectors,
+    build_gate_vectors,
     build_timestamp_vectors,
 )
 
@@ -52,6 +57,18 @@ def test_the_generator_copy_agrees_with_the_real_hash(case):
     ) == compute_entry_hash(entry)
 
 
+@pytest.mark.parametrize("case", FINGERPRINT_CASES, ids=lambda c: c["label"])
+def test_the_generator_copy_agrees_with_the_real_fingerprint(case):
+    """La copie du script et `build_fingerprint` doivent rendre la même empreinte.
+
+    C'est le contrat le plus coûteux à casser du système : une divergence ne lève
+    rien, elle fait simplement que plus aucune empreinte calculée ne correspond à
+    celles en base — donc tout le backlog est résolu puis recréé à neuf, triage perdu.
+    """
+    arguments = {key: value for key, value in case.items() if key != "label"}
+    assert _build_fingerprint(**arguments) == build_fingerprint(**arguments)
+
+
 def test_the_committed_vectors_match_what_the_script_produces_today():
     """Les fichiers sous `backend/test/vectors/` sont commités parce que la CI
     TypeScript n'a pas d'interpréteur Python. Ce test est ce qui les empêche de
@@ -63,6 +80,8 @@ def test_the_committed_vectors_match_what_the_script_produces_today():
     for name, expected in (
         ("audit-hash.json", build_audit_vectors()),
         ("python-timestamp.json", build_timestamp_vectors()),
+        ("issue-fingerprint.json", build_fingerprint_vectors()),
+        ("policy-gate.json", build_gate_vectors()),
     ):
         committed = json.loads((OUTPUT_DIR / name).read_text(encoding="utf-8"))
         assert committed == expected, (

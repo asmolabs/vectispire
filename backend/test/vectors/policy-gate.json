@@ -1,0 +1,1109 @@
+{
+  "verdicts": [
+    {
+      "label": "backlog vide",
+      "issues": [],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "une high sous le seuil high par défaut",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "high",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "high": 1
+        },
+        "violations": [
+          {
+            "rule": "severity",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "high",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité high ≥ seuil high"
+          }
+        ]
+      }
+    },
+    {
+      "label": "une medium sous le seuil high",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "medium",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "medium": 1
+        },
+        "violations": []
+      }
+    },
+    {
+      "label": "une medium sous un seuil medium",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "medium",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "medium",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "medium": 1
+        },
+        "violations": [
+          {
+            "rule": "severity",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "medium",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité medium ≥ seuil medium"
+          }
+        ]
+      }
+    },
+    {
+      "label": "unknown se classe sous low et ne déclenche rien",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "unknown",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "low",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "unknown": 1
+        },
+        "violations": []
+      }
+    },
+    {
+      "label": "une sévérité hors vocabulaire se classe en dernier",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "catastrophique",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "catastrophique": 1
+        },
+        "violations": []
+      }
+    },
+    {
+      "label": "un problème résolu n'est pas évalué",
+      "issues": [
+        {
+          "id": 1,
+          "state": "resolved",
+          "type": "vulnerability",
+          "severity": "high",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "un KEV medium échoue quand même",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "medium",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": true,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "medium": 1
+        },
+        "violations": [
+          {
+            "rule": "kev",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "medium",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+          }
+        ]
+      }
+    },
+    {
+      "label": "KEV désactivé : la sévérité seule décide",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "medium",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": true,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": false,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "medium": 1
+        },
+        "violations": []
+      }
+    },
+    {
+      "label": "un KEV ne produit qu'une violation, la règle KEV",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": true,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "critical": 1
+        },
+        "violations": [
+          {
+            "rule": "kev",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "critical",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+          }
+        ]
+      }
+    },
+    {
+      "label": "la qualité ne vote jamais, même en critique",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "quality",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "la qualité reste exclue même avec include_ai_review",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "quality",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": true
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "la revue IA est exclue par défaut",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "ai_review",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "la revue IA vote si on le demande",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "ai_review",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": true
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "critical": 1
+        },
+        "violations": [
+          {
+            "rule": "severity",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "critical",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité critical ≥ seuil high"
+          }
+        ]
+      }
+    },
+    {
+      "label": "un problème trié not_affected est écarté",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "not_affected"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "include_triaged le fait revenir",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "not_affected"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": true,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 1,
+        "countsBySeverity": {
+          "critical": 1
+        },
+        "violations": [
+          {
+            "rule": "severity",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "critical",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité critical ≥ seuil high"
+          }
+        ]
+      }
+    },
+    {
+      "label": "fixable_only écarte ce qui n'a pas de correctif",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": null,
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": true,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "fixable_only laisse passer un KEV sans correctif — le cas qui demande un humain",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "medium",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "",
+          "isKev": true,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": true,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": true,
+        "evaluated": 0,
+        "countsBySeverity": {},
+        "violations": []
+      }
+    },
+    {
+      "label": "sans règle de sévérité, seul KEV décide",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 2,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": true,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": null,
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 2,
+        "countsBySeverity": {
+          "critical": 2
+        },
+        "violations": [
+          {
+            "rule": "kev",
+            "issueId": 2,
+            "identifier": "CVE-2024-1234",
+            "severity": "critical",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+          }
+        ]
+      }
+    },
+    {
+      "label": "comptage par sévérité sur un backlog mêlé",
+      "issues": [
+        {
+          "id": 1,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 2,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "high",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 3,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "high",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 4,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": "low",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 5,
+          "state": "open",
+          "type": "vulnerability",
+          "severity": null,
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 6,
+          "state": "open",
+          "type": "quality",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        },
+        {
+          "id": 7,
+          "state": "resolved",
+          "type": "vulnerability",
+          "severity": "critical",
+          "identifier": "CVE-2024-1234",
+          "packageName": "requests",
+          "fixVersions": "2.32.0",
+          "isKev": false,
+          "triageStatus": "under_review"
+        }
+      ],
+      "policy": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "expected": {
+        "passed": false,
+        "evaluated": 5,
+        "countsBySeverity": {
+          "critical": 1,
+          "high": 2,
+          "low": 1,
+          "unknown": 1
+        },
+        "violations": [
+          {
+            "rule": "severity",
+            "issueId": 1,
+            "identifier": "CVE-2024-1234",
+            "severity": "critical",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité critical ≥ seuil high"
+          },
+          {
+            "rule": "severity",
+            "issueId": 2,
+            "identifier": "CVE-2024-1234",
+            "severity": "high",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité high ≥ seuil high"
+          },
+          {
+            "rule": "severity",
+            "issueId": 3,
+            "identifier": "CVE-2024-1234",
+            "severity": "high",
+            "package": "requests",
+            "fixVersions": "2.32.0",
+            "reason": "sévérité high ≥ seuil high"
+          }
+        ]
+      }
+    }
+  ],
+  "hardenings": [
+    {
+      "label": "rien de demandé",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {},
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "un seuil plus bas (low) fait échouer davantage : durcissement",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": "low"
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "low",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "un seuil plus haut (critical) fait échouer moins : refusé",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": "critical"
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": [
+          "fail_on_severity"
+        ]
+      }
+    },
+    {
+      "label": "retirer la règle de sévérité est refusé",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": null
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": [
+          "fail_on_severity"
+        ]
+      }
+    },
+    {
+      "label": "retirer une règle qui n'existe pas ne refuse rien",
+      "base": {
+        "failOnSeverity": null,
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": null
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": null,
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "ajouter une règle là où il n'y en avait pas est un durcissement",
+      "base": {
+        "failOnSeverity": null,
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": "medium"
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "medium",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "un seuil identique ne signale rien",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": "high"
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "désactiver KEV est refusé",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnKev": false
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": [
+          "fail_on_kev"
+        ]
+      }
+    },
+    {
+      "label": "activer KEV quand il l'est déjà ne signale rien",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnKev": true
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "inclure les triés est un durcissement",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "includeTriaged": true
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": true,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "exclure les triés quand ils l'étaient déjà ne signale rien",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "includeTriaged": false
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "repasser fixable_only à faux est un durcissement",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": true,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "fixableOnly": false
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": []
+      }
+    },
+    {
+      "label": "activer fixable_only est refusé",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "fixableOnly": true
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "high",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": [
+          "fixable_only"
+        ]
+      }
+    },
+    {
+      "label": "plusieurs refus à la fois",
+      "base": {
+        "failOnSeverity": "high",
+        "failOnKev": true,
+        "fixableOnly": false,
+        "includeTriaged": false,
+        "includeAiReview": false
+      },
+      "requested": {
+        "failOnSeverity": "low",
+        "failOnKev": false,
+        "fixableOnly": true
+      },
+      "expected": {
+        "policy": {
+          "failOnSeverity": "low",
+          "failOnKev": true,
+          "fixableOnly": false,
+          "includeTriaged": false,
+          "includeAiReview": false
+        },
+        "ignoredRelaxations": [
+          "fail_on_kev",
+          "fixable_only"
+        ]
+      }
+    }
+  ]
+}

@@ -199,16 +199,369 @@ def build_timestamp_vectors() -> list[dict]:
     ]
 
 
+FINGERPRINT_CASES = [
+    {
+        "label": "vulnérabilité sur un dépôt, identifiée par purl",
+        "repo_id": 3,
+        "container_id": None,
+        "finding_type": "vulnerability",
+        "identifier": "CVE-2024-1234",
+        "purl": "pkg:pypi/requests@2.31.0",
+        "package_name": "requests",
+        "file_path": "requirements.txt",
+    },
+    {
+        # Le purl prime sur le nom : c'est l'identité qualifiée par écosystème.
+        "label": "le purl prime sur le nom de paquet",
+        "repo_id": 3,
+        "container_id": None,
+        "finding_type": "vulnerability",
+        "identifier": "CVE-2024-1234",
+        "purl": "pkg:npm/lodash@4.17.20",
+        "package_name": "un-autre-nom",
+        "file_path": "package-lock.json",
+    },
+    {
+        # Sans purl (secrets, IaC, licences), le nom prend le relais.
+        "label": "repli sur le nom de paquet quand il n'y a pas de purl",
+        "repo_id": 3,
+        "container_id": None,
+        "finding_type": "license",
+        "identifier": "GPL-3.0",
+        "purl": None,
+        "package_name": "quelque-lib",
+        "file_path": None,
+    },
+    {
+        "label": "cible conteneur",
+        "repo_id": None,
+        "container_id": 7,
+        "finding_type": "vulnerability",
+        "identifier": "CVE-2024-1234",
+        "purl": "pkg:deb/debian/openssl@3.0.11",
+        "package_name": "openssl",
+        "file_path": None,
+    },
+    {
+        "label": "secret, sans paquet",
+        "repo_id": 12,
+        "container_id": None,
+        "finding_type": "secret",
+        "identifier": "aws-access-token",
+        "purl": None,
+        "package_name": None,
+        "file_path": "config/settings.py",
+    },
+    {
+        "label": "constat Semgrep, chemin accentué",
+        "repo_id": 12,
+        "container_id": None,
+        "finding_type": "sast",
+        "identifier": "zanshin-python-eval-exec",
+        "purl": None,
+        "package_name": None,
+        "file_path": "app/données/traitement.py",
+    },
+    {
+        # Le séparateur est une barre verticale, pas un octet NUL comme pour le
+        # journal d'audit. Un chemin qui en contient une peut donc, en principe,
+        # imiter une frontière de champ. C'est une faiblesse du calcul existant,
+        # reproduite telle quelle : la corriger changerait toutes les empreintes
+        # déjà en base, donc résoudrait tout le backlog et détruirait les triages.
+        "label": "chemin contenant le séparateur",
+        "repo_id": 12,
+        "container_id": None,
+        "finding_type": "sast",
+        "identifier": "regle",
+        "purl": None,
+        "package_name": None,
+        "file_path": "a|b",
+    },
+    {
+        "label": "tous les champs optionnels absents",
+        "repo_id": 1,
+        "container_id": None,
+        "finding_type": "",
+        "identifier": None,
+        "purl": None,
+        "package_name": None,
+        "file_path": None,
+    },
+]
+
+
+def _build_fingerprint(
+    *, repo_id, container_id, finding_type, identifier, purl, package_name, file_path
+) -> str:
+    """Copie fidèle de `zanshin.models.issue.build_fingerprint`.
+
+    Recopiée pour la même raison que `_audit_entry_hash` : importer le modèle
+    tirerait `zanshin.database`, qui construit son moteur à l'import et créerait un
+    fichier SQLite au passage. Un script de génération de vecteurs n'a pas à toucher
+    de base. `tests/test_parity_vectors.py` confronte les deux implémentations.
+    """
+    target = f"repo:{repo_id}" if repo_id is not None else f"container:{container_id}"
+    parts = [
+        target,
+        finding_type or "",
+        identifier or "",
+        purl or package_name or "",
+        file_path or "",
+    ]
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+
+
+def build_fingerprint_vectors() -> list[dict]:
+    vectors = []
+    for case in FINGERPRINT_CASES:
+        arguments = {key: value for key, value in case.items() if key != "label"}
+        vectors.append(
+            {
+                "label": case["label"],
+                "input": {
+                    "repoId": case["repo_id"],
+                    "containerId": case["container_id"],
+                    "findingType": case["finding_type"],
+                    "identifier": case["identifier"],
+                    "purl": case["purl"],
+                    "packageName": case["package_name"],
+                    "filePath": case["file_path"],
+                },
+                "expected": _build_fingerprint(**arguments),
+            }
+        )
+    return vectors
+
+
+def _gate_issue(**overrides):
+    """Un objet portant les attributs que `evaluate` regarde, et rien d'autre.
+
+    `evaluate` n'accède qu'à une dizaine d'attributs, jamais à la session : un simple
+    porteur d'attributs suffit, et évite de construire une ligne `Issue` — donc
+    d'ouvrir une base — pour tester des fonctions pures.
+    """
+    from types import SimpleNamespace
+
+    fields = {
+        "id": 1,
+        "state": "open",
+        "type": "vulnerability",
+        "severity": "high",
+        "identifier": "CVE-2024-1234",
+        "package_name": "requests",
+        "fix_versions": "2.32.0",
+        "is_kev": False,
+        "triage_status": "under_review",
+    }
+    fields.update(overrides)
+    return SimpleNamespace(**fields)
+
+
+# Les combinaisons où une erreur de portage change le verdict d'une compilation.
+GATE_CASES = [
+    ("backlog vide", [], {}),
+    ("une high sous le seuil high par défaut", [{}], {}),
+    ("une medium sous le seuil high", [{"severity": "medium"}], {}),
+    ("une medium sous un seuil medium", [{"severity": "medium"}], {"fail_on_severity": "medium"}),
+    (
+        "unknown se classe sous low et ne déclenche rien",
+        [{"severity": "unknown"}],
+        {"fail_on_severity": "low"},
+    ),
+    ("une sévérité hors vocabulaire se classe en dernier", [{"severity": "catastrophique"}], {}),
+    ("un problème résolu n'est pas évalué", [{"state": "resolved"}], {}),
+    (
+        "un KEV medium échoue quand même",
+        [{"severity": "medium", "is_kev": True}],
+        {},
+    ),
+    (
+        "KEV désactivé : la sévérité seule décide",
+        [{"severity": "medium", "is_kev": True}],
+        {"fail_on_kev": False},
+    ),
+    (
+        "un KEV ne produit qu'une violation, la règle KEV",
+        [{"severity": "critical", "is_kev": True}],
+        {},
+    ),
+    (
+        "la qualité ne vote jamais, même en critique",
+        [{"type": "quality", "severity": "critical"}],
+        {},
+    ),
+    (
+        "la qualité reste exclue même avec include_ai_review",
+        [{"type": "quality", "severity": "critical"}],
+        {"include_ai_review": True},
+    ),
+    ("la revue IA est exclue par défaut", [{"type": "ai_review", "severity": "critical"}], {}),
+    (
+        "la revue IA vote si on le demande",
+        [{"type": "ai_review", "severity": "critical"}],
+        {"include_ai_review": True},
+    ),
+    (
+        "un problème trié not_affected est écarté",
+        [{"triage_status": "not_affected", "severity": "critical"}],
+        {},
+    ),
+    (
+        "include_triaged le fait revenir",
+        [{"triage_status": "not_affected", "severity": "critical"}],
+        {"include_triaged": True},
+    ),
+    (
+        "fixable_only écarte ce qui n'a pas de correctif",
+        [{"severity": "critical", "fix_versions": None}],
+        {"fixable_only": True},
+    ),
+    (
+        "fixable_only laisse passer un KEV sans correctif — le cas qui demande un humain",
+        [{"severity": "medium", "fix_versions": "", "is_kev": True}],
+        {"fixable_only": True},
+    ),
+    (
+        "sans règle de sévérité, seul KEV décide",
+        [{"severity": "critical"}, {"id": 2, "severity": "critical", "is_kev": True}],
+        {"fail_on_severity": None},
+    ),
+    (
+        "comptage par sévérité sur un backlog mêlé",
+        [
+            {"id": 1, "severity": "critical"},
+            {"id": 2, "severity": "high"},
+            {"id": 3, "severity": "high"},
+            {"id": 4, "severity": "low"},
+            {"id": 5, "severity": None},
+            {"id": 6, "type": "quality", "severity": "critical"},
+            {"id": 7, "state": "resolved", "severity": "critical"},
+        ],
+        {},
+    ),
+]
+
+
+HARDEN_CASES = [
+    ("rien de demandé", {}, {}),
+    # Attention au sens, c'est le piège de cette fonction : le seuil est une
+    # sévérité *minimale* pour échouer. Descendre de « high » à « low » fait
+    # échouer sur davantage de problèmes — c'est un durcissement. Monter à
+    # « critical » en fait échouer moins — c'est un assouplissement, donc refusé.
+    ("un seuil plus bas (low) fait échouer davantage : durcissement", {}, {"fail_on_severity": "low"}),
+    ("un seuil plus haut (critical) fait échouer moins : refusé", {}, {"fail_on_severity": "critical"}),
+    ("retirer la règle de sévérité est refusé", {}, {"fail_on_severity": None}),
+    (
+        "retirer une règle qui n'existe pas ne refuse rien",
+        {"fail_on_severity": None},
+        {"fail_on_severity": None},
+    ),
+    (
+        "ajouter une règle là où il n'y en avait pas est un durcissement",
+        {"fail_on_severity": None},
+        {"fail_on_severity": "medium"},
+    ),
+    ("un seuil identique ne signale rien", {}, {"fail_on_severity": "high"}),
+    ("désactiver KEV est refusé", {}, {"fail_on_kev": False}),
+    ("activer KEV quand il l'est déjà ne signale rien", {}, {"fail_on_kev": True}),
+    ("inclure les triés est un durcissement", {}, {"include_triaged": True}),
+    ("exclure les triés quand ils l'étaient déjà ne signale rien", {}, {"include_triaged": False}),
+    (
+        "repasser fixable_only à faux est un durcissement",
+        {"fixable_only": True},
+        {"fixable_only": False},
+    ),
+    ("activer fixable_only est refusé", {}, {"fixable_only": True}),
+    (
+        "plusieurs refus à la fois",
+        {},
+        {"fail_on_severity": "low", "fail_on_kev": False, "fixable_only": True},
+    ),
+]
+
+
+def build_gate_vectors() -> dict:
+    """Verdicts et durcissements produits par le vrai code Python.
+
+    Importe `zanshin.services.policy_gate` plutôt que d'en recopier la logique : ce
+    sont quarante lignes de règles imbriquées, qui se recopient mal. L'import
+    n'ouvre aucune connexion — SQLAlchemy ne crée le fichier qu'à la première
+    requête — ce que vérifie `tests/test_parity_vectors.py`.
+    """
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT))
+    from zanshin.services.gate_policy_service import harden
+    from zanshin.services.policy_gate import GatePolicy, evaluate
+
+    def camel(name: str) -> str:
+        head, *rest = name.split("_")
+        return head + "".join(word.capitalize() for word in rest)
+
+    verdicts = []
+    for label, issue_overrides, policy_fields in GATE_CASES:
+        issues = [_gate_issue(**{"id": index + 1, **overrides}) for index, overrides in enumerate(issue_overrides)]
+        policy = GatePolicy(**policy_fields)
+        verdict = evaluate(issues, policy)
+        verdicts.append(
+            {
+                "label": label,
+                "issues": [
+                    {camel(key): value for key, value in vars(issue).items()} for issue in issues
+                ],
+                "policy": {camel(key): value for key, value in policy._asdict().items()},
+                "expected": {
+                    "passed": verdict.passed,
+                    "evaluated": verdict.evaluated,
+                    "countsBySeverity": verdict.counts_by_severity,
+                    "violations": [
+                        {
+                            "rule": violation.rule,
+                            "issueId": violation.issue_id,
+                            "identifier": violation.identifier,
+                            "severity": violation.severity,
+                            "package": violation.package,
+                            "fixVersions": violation.fix_versions,
+                            "reason": violation.reason,
+                        }
+                        for violation in verdict.violations
+                    ],
+                },
+            }
+        )
+
+    hardenings = []
+    for label, base_fields, requested in HARDEN_CASES:
+        base = GatePolicy(**base_fields)
+        policy, ignored = harden(base, requested)
+        hardenings.append(
+            {
+                "label": label,
+                "base": {camel(key): value for key, value in base._asdict().items()},
+                "requested": {camel(key): value for key, value in requested.items()},
+                "expected": {
+                    "policy": {camel(key): value for key, value in policy._asdict().items()},
+                    "ignoredRelaxations": ignored,
+                },
+            }
+        )
+
+    return {"verdicts": verdicts, "hardenings": hardenings}
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     written = []
     for name, payload in (
         ("audit-hash.json", build_audit_vectors()),
         ("python-timestamp.json", build_timestamp_vectors()),
+        ("issue-fingerprint.json", build_fingerprint_vectors()),
+        ("policy-gate.json", build_gate_vectors()),
     ):
         path = OUTPUT_DIR / name
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        written.append(f"{path.relative_to(REPO_ROOT)} ({len(payload)} vecteurs)")
+        count = len(payload) if isinstance(payload, list) else sum(len(group) for group in payload.values())
+        written.append(f"{path.relative_to(REPO_ROOT)} ({count} vecteurs)")
     print("Écrit :\n  " + "\n  ".join(written))
 
 

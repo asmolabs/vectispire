@@ -1,0 +1,106 @@
+[
+  {
+    "label": "vulnérabilité sur un dépôt, identifiée par purl",
+    "input": {
+      "repoId": 3,
+      "containerId": null,
+      "findingType": "vulnerability",
+      "identifier": "CVE-2024-1234",
+      "purl": "pkg:pypi/requests@2.31.0",
+      "packageName": "requests",
+      "filePath": "requirements.txt"
+    },
+    "expected": "b7bf7de967e01ee620cd71da44640bde2d50aa07e41f301dc9ab2f21fa872fcf"
+  },
+  {
+    "label": "le purl prime sur le nom de paquet",
+    "input": {
+      "repoId": 3,
+      "containerId": null,
+      "findingType": "vulnerability",
+      "identifier": "CVE-2024-1234",
+      "purl": "pkg:npm/lodash@4.17.20",
+      "packageName": "un-autre-nom",
+      "filePath": "package-lock.json"
+    },
+    "expected": "5b9af35adf1f3fa72670d16de119f723d008c2e4c785340a3b0b3ea8243a7b4e"
+  },
+  {
+    "label": "repli sur le nom de paquet quand il n'y a pas de purl",
+    "input": {
+      "repoId": 3,
+      "containerId": null,
+      "findingType": "license",
+      "identifier": "GPL-3.0",
+      "purl": null,
+      "packageName": "quelque-lib",
+      "filePath": null
+    },
+    "expected": "c4a3f1f3a2e6ce2fbd30f3517fa07262c709d40e6ba35e73a8eaf83c3f1b6481"
+  },
+  {
+    "label": "cible conteneur",
+    "input": {
+      "repoId": null,
+      "containerId": 7,
+      "findingType": "vulnerability",
+      "identifier": "CVE-2024-1234",
+      "purl": "pkg:deb/debian/openssl@3.0.11",
+      "packageName": "openssl",
+      "filePath": null
+    },
+    "expected": "ee2d694a8472994cba7cb505197125b330e8f9e4c010dc04b496bfbbc0732b5f"
+  },
+  {
+    "label": "secret, sans paquet",
+    "input": {
+      "repoId": 12,
+      "containerId": null,
+      "findingType": "secret",
+      "identifier": "aws-access-token",
+      "purl": null,
+      "packageName": null,
+      "filePath": "config/settings.py"
+    },
+    "expected": "113d80cecc0ca7194e80d9b008025d6ec395c245b16823101a9ff33157bf93b3"
+  },
+  {
+    "label": "constat Semgrep, chemin accentué",
+    "input": {
+      "repoId": 12,
+      "containerId": null,
+      "findingType": "sast",
+      "identifier": "zanshin-python-eval-exec",
+      "purl": null,
+      "packageName": null,
+      "filePath": "app/données/traitement.py"
+    },
+    "expected": "8b51d1aba308a0d0c455db5ecc74a2864e60db478359c9ba8bf72c7f38da5c92"
+  },
+  {
+    "label": "chemin contenant le séparateur",
+    "input": {
+      "repoId": 12,
+      "containerId": null,
+      "findingType": "sast",
+      "identifier": "regle",
+      "purl": null,
+      "packageName": null,
+      "filePath": "a|b"
+    },
+    "expected": "05c9fad3d542351facf0e53bf395a2edd51d0c53f20f67cf2033f534baeae250"
+  },
+  {
+    "label": "tous les champs optionnels absents",
+    "input": {
+      "repoId": 1,
+      "containerId": null,
+      "findingType": "",
+      "identifier": null,
+      "purl": null,
+      "packageName": null,
+      "filePath": null
+    },
+    "expected": "39fcd7df7159e9db54455442b5004ee7eeb4320701fd85c28ce92956588a37c4"
+  }
+]
