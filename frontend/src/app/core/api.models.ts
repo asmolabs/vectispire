@@ -1,14 +1,15 @@
 /**
  * Les formes que rend l'API.
  *
- * **Écrites à la main, provisoirement.** L'intention reste de les générer depuis
- * `/api/v1/openapi.json` avec `openapi-typescript` : c'est ce qui fait traverser les
- * types à la frontière au lieu de les recopier des deux côtés, et c'est l'un des rares
- * gains que le passage à un langage unique apporte réellement.
+ * **Écrites à la main, et pas encore remplaçables.** `npm run generate:api` produit
+ * bien `api.generated.ts` depuis `/api/v1/openapi.json`, mais ce document ne décrit
+ * aujourd'hui que les *chemins* : NestJS ne déclare un schéma de réponse que si le
+ * contrôleur porte les décorateurs `@ApiResponse`/`@ApiOkResponse` et rend une classe
+ * DTO. Sans eux, le générateur rend des opérations aux réponses vides — utiles pour
+ * les URL, muettes sur les formes.
  *
- * Elles sont ici parce que le registre npm n'était pas joignable au moment de les
- * écrire. Le jour où le générateur est installé, ce fichier disparaît — il ne doit
- * donc contenir que des formes, aucune logique, pour que sa suppression soit sans
+ * Ce fichier disparaîtra donc quand les contrôleurs auront leurs DTO, et pas avant. Il
+ * ne contient que des formes, aucune logique, pour que sa suppression soit alors sans
  * conséquence.
  */
 
