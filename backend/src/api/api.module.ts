@@ -9,6 +9,7 @@ import { IssueTriageService } from '../services/issue-triage.service';
 import { SessionCleanupService } from '../services/session-cleanup.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { ExportsController } from './exports.controller';
 import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 
@@ -23,7 +24,7 @@ import { IssuesController } from './issues.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController],
     providers: [
         AuthService,
         AuditLogService,
