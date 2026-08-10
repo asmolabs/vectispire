@@ -7,22 +7,23 @@
  * et c'est celle du test qui aurait manqué la nouvelle entité — soit exactement la
  * moitié où l'oubli ne se voit pas.
  */
-export { Agent } from './agent.entity';
+export { Agent, CREDENTIALS_DELEGATED, CREDENTIALS_LOCAL, KIND_BUILTIN, KIND_REMOTE, ONLINE_TTL_SECONDS } from './agent.entity';
 export { AiReviewResult } from './ai-review-result.entity';
-export { ApiKey } from './api-key.entity';
-export { AuditLog } from './audit-log.entity';
+export { ALL_SCOPES, ApiKey, DEFAULT_SCOPES, SCOPE_AGENT, SCOPE_EXPORT, SCOPE_READ, SCOPE_SCAN } from './api-key.entity';
+export { AuditLog, AuditOperation } from './audit-log.entity';
+export type { AuditOperationType } from './audit-log.entity';
 export { Container } from './container.entity';
 export { Finding } from './finding.entity';
 export { GatePolicyRow } from './gate-policy.entity';
-export { Issue } from './issue.entity';
+export { Issue, STATE_OPEN, STATE_RESOLVED, TRIAGE_AFFECTED, TRIAGE_FIXED, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from './issue.entity';
 export { LeaderLease } from './leader-lease.entity';
-export { OutboxMessage } from './outbox-message.entity';
+export { OUTBOX_FAILED, OUTBOX_PENDING, OUTBOX_SENT, OutboxMessage } from './outbox-message.entity';
 export { ProcessedMessage } from './processed-message.entity';
 export { Repository } from './repository.entity';
-export { Scan } from './scan.entity';
+export { STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED, STATUS_RUNNING, Scan } from './scan.entity';
 export { Setting } from './setting.entity';
 export { SshKey } from './ssh-key.entity';
-export { User } from './user.entity';
+export { ADMIN_ROLES, User, VALID_ROLES } from './user.entity';
 
 import { Agent } from './agent.entity';
 import { AiReviewResult } from './ai-review-result.entity';
