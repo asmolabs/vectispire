@@ -153,6 +153,22 @@ jobs:
 
       - run: npm ci
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Build the schema from the Alembic migrations
+        # Le schéma appartient encore à Alembic : les entités TypeORM *décrivent* des
+        # tables existantes, elles ne les créent pas. C'est contre ce schéma-là qu'il
+        # faut les vérifier, pas contre ce que TypeORM aurait créé lui-même.
+        env:
+          ZANSHIN_DATABASE_URL: postgresql+psycopg://postgres:zanshin@localhost:5432/postgres
+        run: |
+          uv python install 3.12
+          uv sync --all-extras --dev
+          uv run alembic upgrade head
+
       - name: Run the server-backed tests
         env:
           ZANSHIN_TEST_DATABASE_URL: postgres://postgres:zanshin@localhost:5432/postgres
