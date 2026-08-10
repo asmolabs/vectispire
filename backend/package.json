@@ -14,7 +14,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:integration": "jest --testRegex '.*\\.integration-spec\\.ts$'",
+    "//test:integration": "--runInBand : les suites partagent une base ; en parallele, une suite qui vide audit_logs voit les lignes d une autre",
+    "test:integration": "jest --runInBand --testRegex '.*\\.integration-spec\\.ts$'",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
