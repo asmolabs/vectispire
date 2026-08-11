@@ -1,7 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOverview, TriageRequest } from './api.models';
+import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOverview, TriageRequest ,
+    MonitoredRepository,
+    NewRepository} from './api.models';
 
 /**
  * L'accès à l'API, en un point unique.
@@ -46,5 +48,17 @@ export class ApiService {
 
     qualityOverview(): Observable<QualityOverview> {
         return this.http.get<QualityOverview>('/api/v1/quality/overview');
+    }
+
+    repositories(): Observable<MonitoredRepository[]> {
+        return this.http.get<MonitoredRepository[]>('/api/v1/repositories');
+    }
+
+    createRepository(repository: NewRepository): Observable<MonitoredRepository> {
+        return this.http.post<MonitoredRepository>('/api/v1/repositories', repository);
+    }
+
+    deleteRepository(id: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/repositories/${id}`);
     }
 }

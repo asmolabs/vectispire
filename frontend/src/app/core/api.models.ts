@@ -151,3 +151,23 @@ export interface QualityOverview {
     topFiles: Tally[];
     topTargets: Tally[];
 }
+
+/** Un dépôt surveillé, avec l'état de son dernier scan. */
+export interface MonitoredRepository {
+    id: number;
+    url: string;
+    branch: string;
+    name: string | null;
+    subPath: string | null;
+    scanIntervalMinutes: number | null;
+    scanCron: string | null;
+    sshKeyId: string | null;
+    lastScan: { id: number; status: string; createdAt: string | null; error: string | null } | null;
+    openIssues: number;
+}
+
+export interface NewRepository {
+    url: string;
+    branch: string;
+    name?: string;
+}

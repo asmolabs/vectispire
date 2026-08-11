@@ -13,6 +13,7 @@ import { ExportsController } from './exports.controller';
 import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 import { QualityController } from './quality.controller';
+import { RepositoriesController } from './repositories.controller';
 
 /**
  * La couche HTTP.
@@ -25,7 +26,7 @@ import { QualityController } from './quality.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController],
     providers: [
         AuthService,
         AuditLogService,

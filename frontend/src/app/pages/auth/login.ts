@@ -39,7 +39,11 @@ import { SessionStore } from '@/app/core/session.store';
                             <input pInputText id="username" name="username" type="text" autocomplete="username" class="w-full mb-6" [(ngModel)]="username" />
 
                             <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Mot de passe</label>
-                            <p-password id="password" name="password" [(ngModel)]="password" [toggleMask]="true" [feedback]="false" styleClass="mb-4" [fluid]="true" />
+                            <!-- Entrée valide explicitement : « p-password » encapsule son champ, et la touche
+                                 n'atteignait pas la soumission du formulaire — se connecter au clavier
+                                 ne marchait pas, ce qui ne se voit qu'en essayant. -->
+                            <p-password id="password" name="password" [(ngModel)]="password" [toggleMask]="true" [feedback]="false"
+                                        styleClass="mb-4" [fluid]="true" (keyup.enter)="submit()" />
 
                             @if (error()) {
                                 <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />

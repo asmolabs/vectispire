@@ -1,4 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
+
+/** Le serveur les écrit en majuscules (`user.entity.ts`). */
+export const ADMIN_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN'];
 import { AuthenticatedUser } from './api.models';
 
 /**
@@ -21,6 +24,16 @@ export class SessionStore {
 
     readonly isAuthenticated = computed(() => this.token() !== null);
     readonly role = computed(() => this.user()?.role ?? '');
+
+    /**
+     * Le vocabulaire des rôles administrateurs, **défini une seule fois**.
+     *
+     * Il vivait dans le menu, et l'écran des dépôts en avait recopié une variante
+     * comparant à `'admin'` en minuscules — donc toujours fausse. Une comparaison de
+     * rôle dupliquée est un contrôle d'accès dupliqué : elle divergera, et la divergence
+     * se lit soit comme un bouton absent, soit comme un bouton qui rend 403.
+     */
+    readonly isAdmin = computed(() => ADMIN_ROLES.includes(this.role()));
     /** Le compte doit changer son mot de passe avant d'accéder au reste. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);
 
