@@ -41,8 +41,8 @@ export interface TriageDecision {
     justification: string | null;
     comment: string | null;
     triagedBy: string;
-    triagedAt: string;
-    expiresAt: string | null;
+    triagedAt: Date;
+    expiresAt: Date | null;
 }
 
 /**
@@ -54,7 +54,7 @@ export interface TriageDecision {
  *
  * @param now L'instant de la décision, au format `datetime.isoformat()`.
  */
-export function decideTriage(request: TriageRequest, now: string): TriageDecision {
+export function decideTriage(request: TriageRequest, asOf: Date): TriageDecision {
     if (!VALID_TRIAGE_STATUSES.includes(request.status)) {
         throw new InvalidTriageError(`Statut de triage invalide : ${request.status}`);
     }
@@ -75,8 +75,8 @@ export function decideTriage(request: TriageRequest, now: string): TriageDecisio
         justification,
         comment: (request.comment ?? '').trim() || null,
         triagedBy: request.actor,
-        triagedAt: now,
-        expiresAt: expiryFrom(request.status, request.expiresInDays ?? null, now)
+        triagedAt: asOf,
+        expiresAt: expiryFrom(request.status, request.expiresInDays ?? null, asOf)
     };
 }
 
@@ -86,7 +86,7 @@ export function decideTriage(request: TriageRequest, now: string): TriageDecisio
  * Un retour à `under_review` efface toute échéance : le problème est déjà dans la
  * file, et une date pour l'y ramener ne déclencherait sur rien.
  */
-export function expiryFrom(status: string, expiresInDays: number | null, now: string): string | null {
+export function expiryFrom(status: string, expiresInDays: number | null, asOf: Date): Date | null {
     if (status === TRIAGE_UNDER_REVIEW || expiresInDays === null || expiresInDays === undefined) return null;
 
     // `null` veut dire « pas de date de révision » ; zéro ou un nombre négatif veut
@@ -95,7 +95,7 @@ export function expiryFrom(status: string, expiresInDays: number | null, now: st
     const days = Math.trunc(expiresInDays);
     if (days <= 0) throw new InvalidTriageError("Le délai de révision doit être d'au moins un jour.");
 
-    return addDays(now, days);
+    return addDays(asOf, days);
 }
 
 /**
@@ -106,12 +106,9 @@ export function expiryFrom(status: string, expiresInDays: number | null, now: st
  * — dans le document VEX remis à un client autant que sur le tableau de bord. C'est
  * ainsi que pourrissent les suppressions VEX.
  */
-export function isTriageExpired(issue: { triageStatus: string | null; triageExpiresAt: string | null }, now: string): boolean {
+export function isTriageExpired(issue: { triageStatus: string | null; triageExpiresAt: Date | null }, asOf: Date): boolean {
     if (!issue.triageExpiresAt || issue.triageStatus === TRIAGE_UNDER_REVIEW) return false;
-    // Comparaison lexicographique : deux isoformat de même forme s'ordonnent comme
-    // les instants qu'ils représentent, et cela évite un aller-retour par `Date` qui
-    // perdrait la microseconde.
-    return now >= issue.triageExpiresAt;
+    return asOf >= issue.triageExpiresAt;
 }
 
 /**
@@ -126,27 +123,16 @@ export function isTriageExpired(issue: { triageStatus: string | null; triageExpi
  * `triagedBy` et `triagedAt` sont gardés pour la même raison, et parce qu'ils sont la
  * trace de qui a dit quoi : les écraser effacerait une preuve.
  */
-export function expireTriage<T extends { triageStatus: string | null; triageExpiresAt: string | null }>(issue: T): T {
+export function expireTriage<T extends { triageStatus: string | null; triageExpiresAt: Date | null }>(issue: T): T {
     issue.triageStatus = TRIAGE_UNDER_REVIEW;
     issue.triageExpiresAt = null;
     return issue;
 }
 
-function addDays(isoformat: string, days: number): string {
-    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?$/.exec(isoformat);
-    if (!match) throw new InvalidTriageError(`Horodatage illisible : ${JSON.stringify(isoformat)}`);
-
-    const [, year, month, day, hour, minute, second, fraction] = match;
-    const shifted = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
+function addDays(from: Date, days: number): Date {
+    const shifted = new Date(from);
     shifted.setUTCDate(shifted.getUTCDate() + days);
-
-    const pad = (value: number) => String(value).padStart(2, '0');
-    const base =
-        `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}` +
-        `T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}`;
-    // La fraction est reportée telle quelle : ajouter des jours ne la touche pas, et
-    // la reconstruire risquerait de la reformater autrement que Python.
-    return fraction ? `${base}${fraction}` : base;
+    return shifted;
 }
 
 export const VALID_TRIAGE_STATUSES: readonly string[] = [TRIAGE_UNDER_REVIEW, TRIAGE_AFFECTED, TRIAGE_NOT_AFFECTED, TRIAGE_FIXED];

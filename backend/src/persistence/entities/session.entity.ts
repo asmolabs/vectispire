@@ -21,11 +21,11 @@ export class Session {
     userId!: number;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     /** Rafraîchi à chaque requête : ce qui distingue une session oubliée d'une active. */
     @Column({ ...timestampColumn(), name: 'last_seen_at' })
-    lastSeenAt!: string;
+    lastSeenAt!: Date;
 
     /**
      * L'échéance absolue, calculée à la création. Stockée plutôt que recalculée pour
@@ -33,7 +33,7 @@ export class Session {
      * ouvertes.
      */
     @Column({ ...timestampColumn(), name: 'expires_at' })
-    expiresAt!: string;
+    expiresAt!: Date;
 
     /** Pour qu'un utilisateur reconnaisse ses propres sessions et révoque les autres. */
     @Column({ ...stringColumn(255, { nullable: true }), name: 'user_agent' })

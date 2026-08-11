@@ -1,13 +1,10 @@
 import { AuditEntryForHash, AuditEntryForVerification, computeEntryHash, rebuildChain, verifyChain } from './audit-hash';
 
 describe('empreinte d’une entrée du journal d’audit', () => {
-    describe("indépendance vis-à-vis du rendu des dates", () => {
-        // La raison d'être de la reconstruction : l'ancienne formule hachait le format
-        // de `datetime.isoformat()`, si bien que « .123 » et « .123000 » — le même
-        // instant, rendu différemment selon le moteur — donnaient deux empreintes.
+    describe('canonicalisation', () => {
         const base: AuditEntryForHash = {
             previousHash: null,
-            timestamp: '2026-01-02 03:04:05.123',
+            timestamp: new Date('2026-01-02T03:04:05.123Z'),
             operationType: 'LOGIN_SUCCESS',
             resourceId: 'alice',
             userId: 'alice',
@@ -16,22 +13,17 @@ describe('empreinte d’une entrée du journal d’audit', () => {
             description: 'Connexion réussie'
         };
 
-        it.each([
-            ['fraction tronquée par PostgreSQL', '2026-01-02 03:04:05.123'],
-            ['fraction complète', '2026-01-02 03:04:05.123000'],
-            ['séparateur T', '2026-01-02T03:04:05.123000'],
-            ['suffixe de fuseau UTC', '2026-01-02 03:04:05.123+00:00'],
-            ['suffixe Z', '2026-01-02T03:04:05.123Z']
-        ])('%s donne la même empreinte', (_label, timestamp) => {
-            expect(computeEntryHash({ ...base, timestamp })).toBe(computeEntryHash(base));
+        it('dépend de l’instant et non de la façon dont il a été construit', () => {
+            // Deux `Date` construits différemment pour le même instant : la forme
+            // canonique est en UTC, donc l'empreinte ne dépend pas du fuseau de la
+            // machine qui la calcule. C'est la propriété qui compte pour un contrôle
+            // vérifiable ailleurs que là où il a été écrit.
+            const sameInstant = new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 123));
+            expect(computeEntryHash({ ...base, timestamp: sameInstant })).toBe(computeEntryHash(base));
         });
 
-        it('ignore ce qui se trouve sous la milliseconde', () => {
-            // Compromis assumé : la chaîne ne certifie plus l'ordre en deçà, ce dont
-            // rien ne dépendait — deux entrées de la même milliseconde restent
-            // distinguées par leur contenu et par l'empreinte de la précédente.
-            expect(computeEntryHash({ ...base, timestamp: '2026-01-02 03:04:05.123001' })).toBe(computeEntryHash(base));
-            expect(computeEntryHash({ ...base, timestamp: '2026-01-02 03:04:05.124' })).not.toBe(computeEntryHash(base));
+        it('distingue deux instants à la milliseconde', () => {
+            expect(computeEntryHash({ ...base, timestamp: new Date('2026-01-02T03:04:05.124Z') })).not.toBe(computeEntryHash(base));
         });
 
         it('distingue une absence d’horodatage', () => {
@@ -42,7 +34,7 @@ describe('empreinte d’une entrée du journal d’audit', () => {
     describe('sensibilité au contenu', () => {
         const base: AuditEntryForHash = {
             previousHash: null,
-            timestamp: '2026-08-10T08:13:58.322451',
+            timestamp: new Date('2026-08-10T08:13:58.322Z'),
             operationType: 'LOGIN_SUCCESS',
             resourceId: 'alice',
             userId: 'alice',
@@ -55,11 +47,12 @@ describe('empreinte d’une entrée du journal d’audit', () => {
             const altered: AuditEntryForHash = { ...base };
             // Une milliseconde d'écart, et non une microseconde : la forme canonique
             // s'arrête à la milliseconde, ce que le bloc précédent vérifie en propre.
-            altered[field] = field === 'timestamp' ? '2026-08-10T08:13:58.323451' : 'modifié';
+            if (field === 'timestamp') altered.timestamp = new Date('2026-08-10T08:13:58.323Z');
+            else (altered as unknown as Record<string, unknown>)[field] = 'modifié';
             expect(computeEntryHash(altered)).not.toBe(computeEntryHash(base));
         });
 
-        it('traite null et chaîne vide comme équivalents, comme Python', () => {
+        it('traite null et chaîne vide comme équivalents', () => {
             expect(computeEntryHash({ ...base, userAgent: null })).toBe(computeEntryHash({ ...base, userAgent: '' }));
         });
 
@@ -81,7 +74,7 @@ describe('vérification de la chaîne', () => {
             const entry: AuditEntryForVerification = {
                 id: `entry-${i}`,
                 previousHash,
-                timestamp: `2026-08-10T08:00:0${i}.000001`,
+                timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, i)),
                 operationType: 'SETTING_UPDATED',
                 resourceId: String(i),
                 userId: 'admin',
@@ -137,17 +130,18 @@ describe('vérification de la chaîne', () => {
 
 describe('reconstruction de la chaîne', () => {
     /**
-     * L'opération de bascule : les entrées écrites par l'implémentation Python portent
-     * des empreintes calculées sur l'ancienne formule et ne se vérifient plus.
+     * Des entrées portant des empreintes d'une autre formule — cohérentes entre elles et
+     * fausses pour celle-ci. C'est la situation d'un journal repris d'une version
+     * antérieure : la reconstruction doit le rendre vérifiable sans toucher au contenu.
      */
-    function pythonEra(count: number): AuditEntryForVerification[] {
+    function foreignFormula(count: number): AuditEntryForVerification[] {
         return Array.from({ length: count }, (_, index) => ({
             id: `entry-${index}`,
             // Des empreintes d'une autre formule : présentes, cohérentes entre elles,
             // et fausses pour celle-ci.
             previousHash: index === 0 ? null : `ancienne-${index - 1}`,
             entryHash: `ancienne-${index}`,
-            timestamp: `2026-08-10T08:00:0${index}.000001`,
+            timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, index)),
             operationType: 'SETTING_UPDATED',
             resourceId: String(index),
             userId: 'admin',
@@ -158,7 +152,7 @@ describe('reconstruction de la chaîne', () => {
     }
 
     it('rend vérifiable un historique venu de l’ancienne formule', () => {
-        const entries = pythonEra(5);
+        const entries = foreignFormula(5);
         expect(verifyChain(entries).broken).not.toBeNull();
 
         rebuildChain(entries);
@@ -169,7 +163,7 @@ describe('reconstruction de la chaîne', () => {
     it('ne touche pas au contenu des entrées', () => {
         // Réécrire un journal d'intégrité est déjà assez ; en réécrire le contenu
         // serait exactement ce que ce journal existe pour rendre détectable.
-        const entries = pythonEra(3);
+        const entries = foreignFormula(3);
         const before = entries.map((entry) => ({ ...entry, previousHash: undefined, entryHash: undefined }));
 
         rebuildChain(entries);
@@ -178,14 +172,14 @@ describe('reconstruction de la chaîne', () => {
     });
 
     it('repart de zéro : la première entrée n’a pas de précédente', () => {
-        const [first] = rebuildChain(pythonEra(3));
+        const [first] = rebuildChain(foreignFormula(3));
         expect(first.previousHash).toBeNull();
     });
 
     it('est idempotente', () => {
         // Relancée par erreur, elle doit rendre exactement la même chaîne.
-        const once = rebuildChain(pythonEra(4)).map((entry) => entry.entryHash);
-        const twice = rebuildChain(rebuildChain(pythonEra(4))).map((entry) => entry.entryHash);
+        const once = rebuildChain(foreignFormula(4)).map((entry) => entry.entryHash);
+        const twice = rebuildChain(rebuildChain(foreignFormula(4))).map((entry) => entry.entryHash);
         expect(twice).toEqual(once);
     });
 });

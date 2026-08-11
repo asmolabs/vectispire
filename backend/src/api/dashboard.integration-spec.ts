@@ -1,7 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ENTITIES, Issue, Repository as GitRepository, Scan, STATE_OPEN, STATE_RESOLVED, TRIAGE_AFFECTED } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { DashboardController } from './dashboard.controller';
 import { GateController } from './gate.controller';
 
@@ -15,7 +14,6 @@ describeWithPostgres('tableau de bord', () => {
     let controller: DashboardController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -65,7 +63,7 @@ describeWithPostgres('tableau de bord', () => {
             Object.assign(new Issue(), {
                 repoId, fingerprint: `f-${repoId}-${severity}-${type}-${Math.round(performance.now() * 1000)}`,
                 type, identifier: 'CVE-2026-0001', severity, state, isKev,
-                firstSeenAt: nowForDatabase(), lastSeenAt: nowForDatabase(), timesSeen: 1, triageStatus
+                firstSeenAt: now(), lastSeenAt: now(), timesSeen: 1, triageStatus
             })
         );
     }
@@ -86,7 +84,7 @@ describeWithPostgres('tableau de bord', () => {
 
     it('rend une posture identique à celle de l’écran Sécurité', async () => {
         const repository = await seedRepository('api');
-        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 1, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 1, createdAt: now() }));
         await seedIssue(repository.id, 'critical');
 
         // Le tableau de bord est en page d'accueil : c'est son chiffre qu'on croit. S'il
@@ -110,7 +108,7 @@ describeWithPostgres('tableau de bord', () => {
 
     it('liste les cibles en échec avec la règle en cause', async () => {
         const repository = await seedRepository('api');
-        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 1, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 1, createdAt: now() }));
         await seedIssue(repository.id, 'critical');
 
         const result = await controller.overview();
@@ -119,15 +117,16 @@ describeWithPostgres('tableau de bord', () => {
         expect(result.failing[0].violations.length).toBeGreaterThan(0);
     });
 
-    it('rend les scans récents avec un horodatage textuel', async () => {
+    it('rend les scans récents avec leur erreur', async () => {
         const repository = await seedRepository('api');
-        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'failed', findingsCount: 0, error: 'clone refusé', createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'failed', findingsCount: 0, error: 'clone refusé', createdAt: now() }));
 
         const result = await controller.overview();
         expect(result.recentScans).toHaveLength(1);
         expect(result.recentScans[0].error).toBe('clone refusé');
-        // Pas un `Date` : sérialisé, il porterait le fuseau de la machine.
-        expect(typeof result.recentScans[0].createdAt).toBe('string');
+        // Un instant absolu : sérialisé en JSON, il porte son fuseau, et l'écran le rend
+        // dans celui du lecteur. C'est ce que `timestamptz` a rendu possible.
+        expect(result.recentScans[0].createdAt).toBeInstanceOf(Date);
     });
 
     it('rend des zéros et non une erreur sur une base vide', async () => {

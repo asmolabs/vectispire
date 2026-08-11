@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { asTimestampText, nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { InvalidTriageError, TriageRequest, decideTriage, expireTriage, isTriageExpired } from '../domain/issues/triage';
 import { Issue } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
@@ -22,7 +22,7 @@ export class IssueTriageService {
     async triage(manager: EntityManager, issueId: number, request: TriageRequest): Promise<Issue> {
         // Validé **avant** de charger le problème : une demande mal formée ne doit pas
         // coûter une requête, et le message ne dépend pas de l'existence de la cible.
-        const decision = decideTriage(request, nowForDatabase());
+        const decision = decideTriage(request, now());
 
         const issue = await this.issues.findById(manager, issueId);
         if (!issue) throw new InvalidTriageError('Problème introuvable.');
@@ -47,17 +47,17 @@ export class IssueTriageService {
      * heures du matin — pas seulement quand quelqu'un ouvre l'écran.
      */
     async expireStale(manager: EntityManager): Promise<Issue[]> {
-        const now = nowForDatabase();
+        const moment = now();
         const candidates = await manager
             .createQueryBuilder(Issue, 'issue')
             .where('issue.triage_expires_at IS NOT NULL')
-            .andWhere('issue.triage_expires_at <= :now', { now })
+            .andWhere('issue.triage_expires_at <= :moment', { moment })
             .getMany();
 
         // Normalisé avant d'atteindre la règle : ce que rend une entité TypeORM est un
         // `Date`, et la règle compare des chaînes (voir `asTimestampText`).
         const expired = candidates.filter((issue) =>
-            isTriageExpired({ triageStatus: issue.triageStatus, triageExpiresAt: asTimestampText(issue.triageExpiresAt) }, now)
+            isTriageExpired({ triageStatus: issue.triageStatus, triageExpiresAt: issue.triageExpiresAt }, moment)
         );
         for (const issue of expired) expireTriage(issue);
         await this.issues.save(manager, expired);

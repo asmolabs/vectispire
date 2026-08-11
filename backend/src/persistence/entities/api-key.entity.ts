@@ -33,10 +33,10 @@ export class ApiKey {
     prefix!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'last_used_at' })
-    lastUsedAt!: string | null;
+    lastUsedAt!: Date | null;
 
     /** Liste séparée par des virgules. */
     @Column(stringColumn())
@@ -51,5 +51,5 @@ export class ApiKey {
     /** Une clé expirée est traitée comme invalide, mais la ligne est conservée : la
      *  piste d'audit a besoin de savoir qu'elle a existé. */
     @Column({ ...timestampColumn({ nullable: true }), name: 'expires_at' })
-    expiresAt!: string | null;
+    expiresAt!: Date | null;
 }

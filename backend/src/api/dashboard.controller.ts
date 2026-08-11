@@ -3,7 +3,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { buildOverview } from '../domain/gate/security-overview';
 import { TYPE_QUALITY } from '../domain/issues/types';
-import { asTimestampText } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { Scan, STATE_OPEN } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
 import { TargetRepository } from '../repositories/target.repository';
@@ -92,7 +92,7 @@ export class DashboardController {
             error: scan.error,
             // TypeORM réhydrate les colonnes date : sans cela, l'écran reçoit un `Date`
             // sérialisé dans le fuseau de la machine, décalé de deux heures l'été.
-            createdAt: asTimestampText(scan.createdAt)
+            createdAt: scan.createdAt
         }));
     }
 }

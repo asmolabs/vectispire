@@ -1,8 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { DataSource, EntityManager } from 'typeorm';
 import { Container, ENTITIES, Issue, Scan, STATE_OPEN, STATE_RESOLVED } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { ContainersController } from './containers.controller';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -18,7 +17,6 @@ describeWithPostgres('API des conteneurs', () => {
     let controller: ContainersController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -61,7 +59,7 @@ describeWithPostgres('API des conteneurs', () => {
     it("distingue « jamais scanné » d'un scan existant", async () => {
         const never = await manager.save(Container, Object.assign(new Container(), { imageName: 'jamais', tag: 'latest' }));
         const scanned = await manager.save(Container, Object.assign(new Container(), { imageName: 'scanne', tag: 'latest' }));
-        await manager.save(Scan, Object.assign(new Scan(), { containerId: scanned.id, branch: 'n/a', status: 'completed', findingsCount: 0, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { containerId: scanned.id, branch: 'n/a', status: 'completed', findingsCount: 0, createdAt: now() }));
 
         const listed = await controller.list();
         expect(listed.find((row) => row.id === never.id)?.lastScan).toBeNull();
@@ -80,8 +78,8 @@ describeWithPostgres('API des conteneurs', () => {
                     identifier: 'CVE-2026-0001',
                     severity: 'high',
                     state,
-                    firstSeenAt: nowForDatabase(),
-                    lastSeenAt: nowForDatabase(),
+                    firstSeenAt: now(),
+                    lastSeenAt: now(),
                     timesSeen: 1,
                     triageStatus: 'untriaged',
                     isKev: false
@@ -98,7 +96,7 @@ describeWithPostgres('API des conteneurs', () => {
 
     it('supprime le conteneur et son historique', async () => {
         const container = await manager.save(Container, Object.assign(new Container(), { imageName: 'adieu', tag: 'latest' }));
-        await manager.save(Scan, Object.assign(new Scan(), { containerId: container.id, branch: 'n/a', status: 'completed', findingsCount: 0, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { containerId: container.id, branch: 'n/a', status: 'completed', findingsCount: 0, createdAt: now() }));
 
         await controller.remove(container.id, asRequest);
 

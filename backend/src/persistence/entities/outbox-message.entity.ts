@@ -36,14 +36,14 @@ export class OutboxMessage {
 
     /** Recul exponentiel, de 60 s à une heure, sur huit tentatives. */
     @Column({ ...timestampColumn({ nullable: true }), name: 'next_attempt_at' })
-    nextAttemptAt!: string | null;
+    nextAttemptAt!: Date | null;
 
     @Column({ ...textColumn({ nullable: true }), name: 'last_error' })
     lastError!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'sent_at' })
-    sentAt!: string | null;
+    sentAt!: Date | null;
 }

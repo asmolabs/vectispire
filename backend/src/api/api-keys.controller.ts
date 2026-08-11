@@ -3,7 +3,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { generateKey, InvalidApiKeyError, normalizeLifetime, normalizeScopes, normalizeTarget } from '../domain/api-keys/api-key-rules';
-import { asTimestampText, nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ApiKey, Container, Repository as GitRepository } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { hashPassword } from '../services/password.service';
@@ -11,7 +11,7 @@ import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
 /** Ce qu'une clé montre. `keyHash` n'y figure pas ; `prefix` oui, il n'est pas secret. */
-function toSummary(key: ApiKey, now: string, targetLabel: string | null) {
+function toSummary(key: ApiKey, asOf: Date, targetLabel: string | null) {
     return {
         id: key.id,
         name: key.name,
@@ -20,16 +20,12 @@ function toSummary(key: ApiKey, now: string, targetLabel: string | null) {
         targetKind: key.targetKind,
         targetId: key.targetId,
         targetLabel,
-        createdAt: asTimestampText(key.createdAt),
-        lastUsedAt: asTimestampText(key.lastUsedAt),
-        // `asTimestampText` parce que TypeORM réhydrate les colonnes date en `Date`,
-        // même quand l'entité les déclare en texte. Comparer une `Date` à une chaîne
-        // rendait ici « jamais expirée » — ce qui aurait laissé une clé périmée
-        // s'afficher comme valable jusqu'au premier appel refusé.
-        expiresAt: asTimestampText(key.expiresAt),
+        createdAt: key.createdAt,
+        lastUsedAt: key.lastUsedAt,
+        expiresAt: key.expiresAt,
         // Calculé ici et non à l'écran : une clé expirée est refusée par le serveur, et
         // deux notions d'« expirée » finiraient par diverger d'un fuseau horaire.
-        isExpired: asTimestampText(key.expiresAt) !== null && asTimestampText(key.expiresAt)! <= now
+        isExpired: key.expiresAt !== null && key.expiresAt <= asOf
     };
 }
 
@@ -43,12 +39,12 @@ export class ApiKeysController {
 
     @Get()
     async list() {
-        const now = nowForDatabase();
+        const asOf = now();
         const [keys, labels] = await Promise.all([
             this.manager.find(ApiKey, { order: { createdAt: 'DESC' } }),
             this.targetLabels()
         ]);
-        return keys.map((key) => toSummary(key, now, this.labelFor(key, labels)));
+        return keys.map((key) => toSummary(key, asOf, this.labelFor(key, labels)));
     }
 
     /**
@@ -78,7 +74,7 @@ export class ApiKeysController {
         if (target.targetKind !== null) await this.assertTargetExists(target.targetKind, target.targetId!);
 
         const { fullKey, prefix } = generateKey();
-        const now = nowForDatabase();
+        const issuedAt = now();
         const saved = await this.manager.save(
             ApiKey,
             Object.assign(new ApiKey(), {
@@ -88,9 +84,9 @@ export class ApiKeysController {
                 prefix,
                 scopes: scopes.join(','),
                 ...target,
-                createdAt: now,
+                createdAt: issuedAt,
                 lastUsedAt: null,
-                expiresAt: lifetime === null ? null : addDays(now, lifetime)
+                expiresAt: lifetime === null ? null : addDays(issuedAt, lifetime)
             })
         );
 
@@ -103,7 +99,7 @@ export class ApiKeysController {
         });
 
         return {
-            key: toSummary(saved, now, this.labelFor(saved, await this.targetLabels())),
+            key: toSummary(saved, issuedAt, this.labelFor(saved, await this.targetLabels())),
             /** La seule occurrence de la valeur en clair. Elle ne réapparaîtra jamais. */
             secret: fullKey
         };
@@ -169,8 +165,8 @@ export class ApiKeysController {
     }
 }
 
-function addDays(from: string, days: number): string {
-    const date = new Date(`${from}Z`);
+function addDays(from: Date, days: number): Date {
+    const date = new Date(from);
     date.setUTCDate(date.getUTCDate() + days);
-    return date.toISOString().slice(0, 23);
+    return date;
 }

@@ -59,7 +59,7 @@ export class AuditLogRepository {
     async insert(manager: EntityManager, row: AuditRow): Promise<void> {
         await manager.query(
             `INSERT INTO audit_logs (id, description, operation_type, resource_id, timestamp, user_id, ip_address, user_agent, previous_hash, entry_hash)
-             VALUES ($1, $2, $3, $4, $5::timestamp, $6, $7, $8, $9, $10)`,
+             VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9, $10)`,
             [row.id, row.description, row.operationType, row.resourceId, row.timestamp, row.userId, row.ipAddress, row.userAgent, row.previousHash, row.entryHash]
         );
     }

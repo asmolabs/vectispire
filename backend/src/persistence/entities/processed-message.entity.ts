@@ -27,5 +27,5 @@ export class ProcessedMessage {
     agentId!: string | null;
 
     @Column({ ...timestampColumn(), name: 'processed_at' })
-    processedAt!: string;
+    processedAt!: Date;
 }

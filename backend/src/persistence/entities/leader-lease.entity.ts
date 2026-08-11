@@ -19,11 +19,11 @@ export class LeaderLease {
     holder!: string | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'acquired_at' })
-    acquiredAt!: string | null;
+    acquiredAt!: Date | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'expires_at' })
-    expiresAt!: string | null;
+    expiresAt!: Date | null;
 
     @Column({ ...timestampColumn(), name: 'updated_at' })
-    updatedAt!: string;
+    updatedAt!: Date;
 }

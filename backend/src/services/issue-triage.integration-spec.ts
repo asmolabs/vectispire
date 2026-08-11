@@ -1,7 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { InvalidTriageError } from '../domain/issues/triage';
 import { ENTITIES, Issue, Repository, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { IssueRepository } from '../repositories/issue.repository';
 import { IssueTriageService } from './issue-triage.service';
 
@@ -16,7 +15,6 @@ describeWithPostgres('triage et backlog', () => {
     const issues = new IssueRepository();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -71,8 +69,8 @@ describeWithPostgres('triage et backlog', () => {
                 link: null,
                 description: null,
                 state: 'open',
-                firstSeenAt: '2026-01-01T00:00:00',
-                lastSeenAt: '2026-08-01T00:00:00',
+                firstSeenAt: new Date('2026-01-01T00:00:00Z'),
+                lastSeenAt: new Date('2026-08-01T00:00:00Z'),
                 resolvedAt: null,
                 firstSeenScanId: null,
                 lastSeenScanId: null,
@@ -127,7 +125,7 @@ describeWithPostgres('triage et backlog', () => {
                 triageJustification: 'component_not_present',
                 triageComment: 'Module absent en production.',
                 triagedBy: 'alice',
-                triageExpiresAt: '2020-01-01T00:00:00'
+                triageExpiresAt: new Date('2020-01-01T00:00:00Z')
             });
 
             const expired = await service.expireStale(manager);
@@ -143,7 +141,7 @@ describeWithPostgres('triage et backlog', () => {
         });
 
         it('laisse tranquille une décision dont l’échéance est à venir', async () => {
-            await issue(await repo(), { triageStatus: TRIAGE_NOT_AFFECTED, triageJustification: 'component_not_present', triageExpiresAt: '2099-01-01T00:00:00' });
+            await issue(await repo(), { triageStatus: TRIAGE_NOT_AFFECTED, triageJustification: 'component_not_present', triageExpiresAt: new Date('2099-01-01T00:00:00Z') });
             expect(await service.expireStale(manager)).toHaveLength(0);
         });
     });

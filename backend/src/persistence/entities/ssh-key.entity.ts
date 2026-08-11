@@ -28,5 +28,5 @@ export class SshKey {
     publicKey!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 }

@@ -1,8 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ApiKey, Container, ENTITIES, Repository as GitRepository } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { verifyPassword } from '../services/password.service';
 import { ApiKeysController } from './api-keys.controller';
 import type { AuthenticatedRequest } from './auth.guard';
@@ -19,7 +18,6 @@ describeWithPostgres("API des clés d'API", () => {
     let controller: ApiKeysController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -112,8 +110,8 @@ describeWithPostgres("API des clés d'API", () => {
             ApiKey,
             Object.assign(new ApiKey(), {
                 id: '66666666-6666-6666-6666-666666666666', name: 'périmée', keyHash: 'peu importe', prefix: 'zsk_aaaaaaaa',
-                scopes: 'read', targetKind: null, targetId: null, createdAt: nowForDatabase(), lastUsedAt: null,
-                expiresAt: '2020-01-01T00:00:00.000'
+                scopes: 'read', targetKind: null, targetId: null, createdAt: now(), lastUsedAt: null,
+                expiresAt: new Date('2020-01-01T00:00:00.000Z')
             })
         );
         const listed = await controller.list();

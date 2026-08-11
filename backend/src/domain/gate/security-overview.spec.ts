@@ -30,7 +30,7 @@ const input = (over: Partial<OverviewInput> = {}): OverviewInput => ({
     containers: [],
     policies: [],
     openIssues: [],
-    latestScanByRepository: new Map([[1, { id: 10, status: 'completed', createdAt: '2026-08-10T08:00:00' }]]),
+    latestScanByRepository: new Map([[1, { id: 10, status: 'completed', createdAt: new Date('2026-08-10T08:00:00Z') }]]),
     latestScanByContainer: new Map(),
     ...over
 });
@@ -48,7 +48,7 @@ describe('vue de posture', () => {
         const overview = buildOverview(
             input({
                 containers: [{ id: 5, name: 'nginx:1.25' }],
-                latestScanByContainer: new Map([[5, { id: 20, status: 'completed', createdAt: '2026-08-09T08:00:00' }]])
+                latestScanByContainer: new Map([[5, { id: 20, status: 'completed', createdAt: new Date('2026-08-09T08:00:00Z') }]])
             })
         );
 
@@ -61,7 +61,7 @@ describe('vue de posture', () => {
         const overview = buildOverview(
             input({
                 containers: [{ id: 1, name: 'nginx:1.25' }],
-                latestScanByContainer: new Map([[1, { id: 20, status: 'completed', createdAt: '2026-08-09T08:00:00' }]]),
+                latestScanByContainer: new Map([[1, { id: 20, status: 'completed', createdAt: new Date('2026-08-09T08:00:00Z') }]]),
                 openIssues: [issue({ repoId: 1, containerId: null })]
             })
         );
@@ -111,8 +111,8 @@ describe('vue de posture', () => {
                         { id: 2, name: 'b' }
                     ],
                     latestScanByRepository: new Map([
-                        [1, { id: 10, status: 'completed', createdAt: '2026-08-10T08:00:00' }],
-                        [2, { id: 11, status: 'completed', createdAt: '2026-08-10T08:00:00' }]
+                        [1, { id: 10, status: 'completed', createdAt: new Date('2026-08-10T08:00:00Z') }],
+                        [2, { id: 11, status: 'completed', createdAt: new Date('2026-08-10T08:00:00Z') }]
                     ]),
                     policies: [{ targetKind: TARGET_REPOSITORY, targetId: 1, policy: targetPolicy }]
                 })
@@ -136,7 +136,7 @@ describe('vue de posture', () => {
         });
 
         it('signale un dernier scan en échec', () => {
-            const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'failed', createdAt: '2026-08-10T08:00:00' }]]) }));
+            const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'failed', createdAt: new Date('2026-08-10T08:00:00Z') }]]) }));
 
             expect(overview.targets[0].observed).toBe(false);
             expect(overview.targets[0].observation).toBe(OBSERVATION_LAST_SCAN_FAILED);
@@ -150,7 +150,7 @@ describe('vue de posture', () => {
         });
 
         it('ne compte pas un scan en cours comme un échec', () => {
-            const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'scanning', createdAt: '2026-08-10T08:00:00' }]]) }));
+            const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'scanning', createdAt: new Date('2026-08-10T08:00:00Z') }]]) }));
             expect(overview.lastScanFailedCount).toBe(0);
             expect(overview.neverScannedCount).toBe(0);
             expect(overview.targets[0].observed).toBe(false);

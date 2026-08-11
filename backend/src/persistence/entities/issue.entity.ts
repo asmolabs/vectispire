@@ -96,13 +96,13 @@ export class Issue {
     state!: string;
 
     @Column({ ...timestampColumn(), name: 'first_seen_at' })
-    firstSeenAt!: string;
+    firstSeenAt!: Date;
 
     @Column({ ...timestampColumn(), name: 'last_seen_at' })
-    lastSeenAt!: string;
+    lastSeenAt!: Date;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'resolved_at' })
-    resolvedAt!: string | null;
+    resolvedAt!: Date | null;
 
     @Column({ ...intColumn({ nullable: true }), name: 'first_seen_scan_id' })
     firstSeenScanId!: number | null;
@@ -130,7 +130,7 @@ export class Issue {
     triagedBy!: string | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'triaged_at' })
-    triagedAt!: string | null;
+    triagedAt!: Date | null;
 
     /**
      * Une suppression est un énoncé sur un contexte — « ce chemin de code n'est pas
@@ -140,7 +140,7 @@ export class Issue {
      * que sur le tableau de bord. C'est ainsi que pourrissent les suppressions VEX.
      */
     @Column({ ...timestampColumn({ nullable: true }), name: 'triage_expires_at' })
-    triageExpiresAt!: string | null;
+    triageExpiresAt!: Date | null;
 
     @Column({ ...boolColumn({ nullable: true }), name: 'is_direct_dependency' })
     isDirectDependency!: boolean | null;

@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { Finding, Issue, STATE_OPEN, STATE_RESOLVED, Scan, TRIAGE_FIXED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
@@ -90,7 +90,7 @@ export class IssueSyncService {
     async sync(manager: EntityManager, scan: Scan, findings: Finding[], options: SyncOptions): Promise<SyncResult> {
         const scannedTypes = [...new Set(options.scannedTypes)];
         const descriptions = options.descriptions ?? {};
-        const now = nowForDatabase();
+        const moment = now();
 
         // Un même constat peut se répéter dans un scan — le même CVE à deux endroits du
         // même paquet. Le problème est un, ses occurrences sont multiples.
@@ -120,7 +120,7 @@ export class IssueSyncService {
             let issue = existing.get(fingerprint);
 
             if (!issue) {
-                issue = this.createIssue(scan, fingerprint, finding, now);
+                issue = this.createIssue(scan, fingerprint, finding, moment);
                 issue.description = descriptions[finding.identifier ?? ''] ?? null;
                 newIssues.push(issue);
             } else {
@@ -128,7 +128,7 @@ export class IssueSyncService {
                     this.reopen(issue);
                     reopenedIssues.push(issue);
                 }
-                this.refresh(issue, finding, scan, now);
+                this.refresh(issue, finding, scan, moment);
                 if (!issue.description) issue.description = descriptions[finding.identifier ?? ''] ?? null;
             }
             touched.push(issue);
@@ -143,7 +143,7 @@ export class IssueSyncService {
             for (const occurrence of occurrences) occurrence.issueId = issueId ?? null;
         }
 
-        const resolved = await this.resolveDisappeared(manager, scan, scannedTypes, new Set(byFingerprint.keys()), now);
+        const resolved = await this.resolveDisappeared(manager, scan, scannedTypes, new Set(byFingerprint.keys()), moment);
 
         scan.newIssuesCount = newIssues.length;
         scan.resolvedIssuesCount = resolved;
@@ -170,7 +170,7 @@ export class IssueSyncService {
         return result;
     }
 
-    private createIssue(scan: Scan, fingerprint: string, finding: Finding, now: string): Issue {
+    private createIssue(scan: Scan, fingerprint: string, finding: Finding, moment: Date): Issue {
         const issue = new Issue();
         issue.repoId = scan.repoId;
         issue.containerId = scan.containerId;
@@ -181,8 +181,8 @@ export class IssueSyncService {
         issue.packageName = finding.packageName;
         issue.filePath = finding.filePath;
         issue.state = STATE_OPEN;
-        issue.firstSeenAt = now;
-        issue.lastSeenAt = now;
+        issue.firstSeenAt = moment;
+        issue.lastSeenAt = moment;
         issue.resolvedAt = null;
         issue.firstSeenScanId = scan.id;
         issue.lastSeenScanId = scan.id;
@@ -206,7 +206,7 @@ export class IssueSyncService {
         return issue;
     }
 
-    private refresh(issue: Issue, finding: Finding, scan: Scan, now: string): void {
+    private refresh(issue: Issue, finding: Finding, scan: Scan, moment: Date): void {
         for (const field of REFRESHED_FROM_FINDING) {
             const value = (finding as unknown as Record<string, unknown>)[field];
             // L'enrichissement EPSS/KEV tourne *après* cette réconciliation pour un
@@ -214,7 +214,7 @@ export class IssueSyncService {
             // qu'un scan précédent avait déjà établi.
             if (value !== null && value !== undefined) assignRefreshed(issue, field, value);
         }
-        issue.lastSeenAt = now;
+        issue.lastSeenAt = moment;
         issue.lastSeenScanId = scan.id;
         issue.timesSeen = (issue.timesSeen || 0) + 1;
         issue.state = STATE_OPEN;
@@ -238,7 +238,7 @@ export class IssueSyncService {
         }
     }
 
-    private async resolveDisappeared(manager: EntityManager, scan: Scan, scannedTypes: string[], seen: Set<string>, now: string): Promise<number> {
+    private async resolveDisappeared(manager: EntityManager, scan: Scan, scannedTypes: string[], seen: Set<string>, moment: Date): Promise<number> {
         // Aucun type observé : rien ne peut être déclaré disparu. C'est le garde-fou
         // qui rend inoffensif un appel mal formé.
         if (scannedTypes.length === 0) return 0;
@@ -248,7 +248,7 @@ export class IssueSyncService {
         const disappeared = candidates.filter((issue) => !seen.has(issue.fingerprint));
         for (const issue of disappeared) {
             issue.state = STATE_RESOLVED;
-            issue.resolvedAt = now;
+            issue.resolvedAt = moment;
         }
         await this.issues.save(manager, disappeared);
         return disappeared.length;

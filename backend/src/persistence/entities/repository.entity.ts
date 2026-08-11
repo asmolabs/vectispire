@@ -38,7 +38,7 @@ export class Repository {
     /** Estampillé **avant** le déclenchement : après, un scan plus long que l'intervalle
      *  ferait redéclencher la même cible à chaque tick. */
     @Column({ ...timestampColumn({ nullable: true }), name: 'last_scheduled_scan_at' })
-    lastScheduledScanAt!: string | null;
+    lastScheduledScanAt!: Date | null;
 
     @Column({ ...uuidColumn({ nullable: true }), name: 'ssh_key_id' })
     sshKeyId!: string | null;

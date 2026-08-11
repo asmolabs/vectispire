@@ -21,5 +21,5 @@ export class LoginAttempt {
     counterKey!: string;
 
     @Column({ ...timestampColumn(), name: 'occurred_at' })
-    occurredAt!: string;
+    occurredAt!: Date;
 }

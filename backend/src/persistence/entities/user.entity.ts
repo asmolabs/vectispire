@@ -52,10 +52,10 @@ export class User {
     keycloakId!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     @Column({ ...timestampColumn(), name: 'updated_at' })
-    updatedAt!: string;
+    updatedAt!: Date;
 
     /**
      * Posé par le provisionnement initial : le compte doit changer son mot de passe

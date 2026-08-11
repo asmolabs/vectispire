@@ -1,7 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { computeEntryHash } from '../domain/audit/audit-hash';
 import { ENTITIES } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { AuditLogService } from './audit-log.service';
 
 /**
@@ -23,7 +22,6 @@ describeWithPostgres('journal d’audit', () => {
     const service = new AuditLogService();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -62,7 +60,10 @@ describeWithPostgres('journal d’audit', () => {
 
         const [stored] = await service.findRecent(manager);
 
-        expect(typeof stored.timestamp).toBe('string');
+        // Un `Date`, désormais : la colonne est en `timestamptz` et le pilote rend un
+        // instant absolu. C'est ce qui a supprimé les conversions dont chacune décalait
+        // l'horodatage d'une façon ou d'une autre.
+        expect(stored.timestamp).toBeInstanceOf(Date);
         expect(computeEntryHash(stored)).toBe(stored.entryHash);
     });
 

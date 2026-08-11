@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { MAX_ATTEMPTS_PER_USER, WINDOW_MS } from '../domain/auth/login-throttle';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ENTITIES, LoginAttempt, Session, User } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { AuthService } from './auth.service';
 import { SessionCleanupService } from './session-cleanup.service';
 import { hashPassword } from './password.service';
@@ -25,7 +24,6 @@ describeWithPostgres('authentification', () => {
     const service = new AuthService();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -59,8 +57,8 @@ describeWithPostgres('authentification', () => {
                 isActive: true,
                 githubId: null,
                 keycloakId: null,
-                createdAt: '2026-01-01T00:00:00',
-                updatedAt: '2026-01-01T00:00:00',
+                createdAt: new Date('2026-01-01T00:00:00Z'),
+                updatedAt: new Date('2026-01-01T00:00:00Z'),
                 mustChangePassword: false,
                 ...over
             })
@@ -194,7 +192,7 @@ describeWithPostgres('authentification', () => {
         it('supprime une session périmée au lieu de seulement la refuser', async () => {
             const { token } = await loggedIn();
             // Antidatée au-delà de la durée absolue.
-            await manager.update(Session, { token }, { createdAt: '2020-01-01T00:00:00', lastSeenAt: '2020-01-01T00:00:00' });
+            await manager.update(Session, { token }, { createdAt: new Date('2020-01-01T00:00:00Z'), lastSeenAt: new Date('2020-01-01T00:00:00Z') });
 
             expect(await service.resolve(manager, `Bearer ${token}`)).toBeNull();
             expect(await manager.countBy(Session, { token })).toBe(0);
@@ -214,7 +212,6 @@ describeWithPostgres('purge des tables d’authentification', () => {
     const auth = new AuthService();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -248,8 +245,8 @@ describeWithPostgres('purge des tables d’authentification', () => {
                 isActive: true,
                 githubId: null,
                 keycloakId: null,
-                createdAt: '2026-01-01T00:00:00',
-                updatedAt: '2026-01-01T00:00:00',
+                createdAt: new Date('2026-01-01T00:00:00Z'),
+                updatedAt: new Date('2026-01-01T00:00:00Z'),
                 mustChangePassword: false
             })
         );
@@ -262,9 +259,9 @@ describeWithPostgres('purge des tables d’authentification', () => {
             Object.assign(new Session(), {
                 token: 'perimee',
                 userId: account.id,
-                createdAt: '2020-01-01T00:00:00',
-                lastSeenAt: '2020-01-01T00:00:00',
-                expiresAt: '2020-01-02T00:00:00',
+                createdAt: new Date('2020-01-01T00:00:00Z'),
+                lastSeenAt: new Date('2020-01-01T00:00:00Z'),
+                expiresAt: new Date('2020-01-02T00:00:00Z'),
                 userAgent: null,
                 ipAddress: null
             })
@@ -275,8 +272,8 @@ describeWithPostgres('purge des tables d’authentification', () => {
     });
 
     it('retire les tentatives sorties de la fenêtre de rétention', async () => {
-        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:vieux', occurredAt: '2020-01-01T00:00:00' }));
-        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:recent', occurredAt: nowForDatabase() }));
+        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:vieux', occurredAt: new Date('2020-01-01T00:00:00Z') }));
+        await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:recent', occurredAt: now() }));
 
         expect((await cleanup.prune(manager)).attempts).toBe(1);
         expect(await manager.countBy(LoginAttempt, { counterKey: 'login:user:recent' })).toBe(1);
@@ -286,7 +283,11 @@ describeWithPostgres('purge des tables d’authentification', () => {
         // Couper au ras du seuil abaisserait un compteur qu'un comptage en cours est
         // peut-être en train de lire — donc ouvrirait une fenêtre à qui essaie des mots
         // de passe.
-        const justPastWindow = new Date(Date.now() - WINDOW_MS - 60_000).toISOString().replace('Z', '').replace('T', 'T');
+        // Un `Date`, pas une chaîne sans fuseau : sur une colonne `timestamptz`, une
+        // chaîne naïve est interprétée dans le fuseau de la session, et l'instant écrit
+        // n'est plus celui qu'on croyait poser. C'est précisément l'ambiguïté que le
+        // passage à `timestamptz` supprime.
+        const justPastWindow = new Date(Date.now() - WINDOW_MS - 60_000);
         await manager.save(Object.assign(new LoginAttempt(), { id: randomUUID(), counterKey: 'login:user:limite', occurredAt: justPastWindow }));
 
         await cleanup.prune(manager);

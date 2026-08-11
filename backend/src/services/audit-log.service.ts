@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { computeEntryHash, rebuildChain, verifyChain } from '../domain/audit/audit-hash';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { AuditLogRepository, AuditRow } from '../repositories/audit-log.repository';
 
 /**
@@ -28,7 +28,7 @@ export interface AuditRecord {
 /**
  * Le dernier horodatage rendu, pour garantir qu'il croît strictement.
  *
- * `nowForDatabase()` a la milliseconde pour résolution : deux entrées écrites dans la
+ * `now()` a la milliseconde pour résolution : deux entrées écrites dans la
  * même milliseconde porteraient le même horodatage, et l'ordre entre elles ne serait
  * plus défini que par un UUID aléatoire. La chaîne serait alors construite dans un ordre
  * et relue dans un autre — la vérification échouerait sur un journal parfaitement
@@ -38,26 +38,14 @@ export interface AuditRecord {
  * horloge exacte, il a besoin d'un ordre. Le décalage est borné par le débit d'écriture
  * et se résorbe dès la première pause.
  */
-let lastIssued = '';
+let lastIssued = 0;
 
-function monotonicNow(): string {
-    const now = nowForDatabase();
-    if (now > lastIssued) {
-        lastIssued = now;
-        return now;
-    }
-    lastIssued = advanceOneMillisecond(lastIssued);
-    return lastIssued;
-}
-
-function advanceOneMillisecond(timestamp: string): string {
-    const at = new Date(`${timestamp}Z`);
-    at.setUTCMilliseconds(at.getUTCMilliseconds() + 1);
-    const pad = (value: number, width = 2) => String(value).padStart(width, '0');
-    return (
-        `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}` +
-        `T${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}.${pad(at.getUTCMilliseconds(), 3)}`
-    );
+function monotonicNow(): Date {
+    const candidate = now().getTime();
+    // Avancer d'une milliseconde plutôt que d'attendre : le journal n'a pas besoin d'une
+    // horloge exacte, il a besoin d'un ordre.
+    lastIssued = candidate > lastIssued ? candidate : lastIssued + 1;
+    return new Date(lastIssued);
 }
 
 export class AuditLogService {

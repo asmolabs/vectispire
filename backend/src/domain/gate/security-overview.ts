@@ -52,7 +52,7 @@ export interface OverviewTarget {
 export interface LatestScan {
     id: number;
     status: string | null;
-    createdAt: string | null;
+    createdAt: Date | null;
 }
 
 export interface TargetPosture {
@@ -62,7 +62,7 @@ export interface TargetPosture {
     verdict: GateVerdict;
     policy: ResolvedPolicy;
     observation: Observation;
-    lastScanAt: string | null;
+    lastScanAt: Date | null;
     lastScanId: number | null;
     passed: boolean;
     /**

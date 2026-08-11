@@ -75,8 +75,8 @@ export class Agent {
     contractVersion!: string | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'last_seen_at' })
-    lastSeenAt!: string | null;
+    lastSeenAt!: Date | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 }

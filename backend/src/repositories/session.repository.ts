@@ -36,8 +36,8 @@ export class SessionRepository {
      * Une session expirée est déjà refusée à la lecture ; la purge n'est pas un
      * contrôle de sécurité, seulement de l'hygiène de table.
      */
-    async deleteExpired(manager: EntityManager, now: string): Promise<number> {
-        const result = await manager.delete(Session, { expiresAt: LessThan(now) });
+    async deleteExpired(manager: EntityManager, asOf: Date): Promise<number> {
+        const result = await manager.delete(Session, { expiresAt: LessThan(asOf) });
         return result.affected ?? 0;
     }
 }
@@ -50,13 +50,13 @@ export class SessionRepository {
  */
 export class LoginAttemptRepository {
     /** Les instants des échecs encore dans la fenêtre, pour une clé. */
-    async since(manager: EntityManager, counterKey: string, since: string): Promise<string[]> {
+    async since(manager: EntityManager, counterKey: string, since: Date): Promise<Date[]> {
         const rows = await manager
             .createQueryBuilder(LoginAttempt, 'attempt')
             .select('attempt.occurred_at', 'occurredAt')
             .where('attempt.counter_key = :counterKey', { counterKey })
             .andWhere('attempt.occurred_at >= :since', { since })
-            .getRawMany<{ occurredAt: string }>();
+            .getRawMany<{ occurredAt: Date }>();
         return rows.map((row) => row.occurredAt);
     }
 

@@ -55,5 +55,5 @@ export class GatePolicyRow {
     createdBy!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 }

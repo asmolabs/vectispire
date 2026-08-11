@@ -123,8 +123,8 @@ function requestedPolicy(body: Record<string, unknown>): RequestedPolicy {
     return requested;
 }
 
-export function toLatest(scans: Map<number, { id: number; status: string | null; created_at?: string; createdAt?: string }>) {
-    const latest = new Map<number, { id: number; status: string | null; createdAt: string | null }>();
+export function toLatest(scans: Map<number, { id: number; status: string | null; created_at?: Date; createdAt?: Date }>) {
+    const latest = new Map<number, { id: number; status: string | null; createdAt: Date | null }>();
     for (const [id, scan] of scans) {
         // La requête brute rend les colonnes telles que la base les nomme.
         latest.set(id, { id: scan.id, status: scan.status, createdAt: scan.createdAt ?? scan.created_at ?? null });

@@ -1,9 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { encryptWith, deriveKey, privateKeyContext } from '../domain/crypto/encryption';
 import { ENTITIES, Repository as GitRepository, SshKey } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { EncryptionService } from '../services/encryption.service';
 import { SshKeysController } from './ssh-keys.controller';
 import type { AuthenticatedRequest } from './auth.guard';
@@ -24,7 +23,6 @@ describeWithPostgres('API des clés SSH', () => {
     const encryption = new EncryptionService(CURRENT, [PREVIOUS]);
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -73,7 +71,7 @@ describeWithPostgres('API des clés SSH', () => {
                 name: 'à faire tourner',
                 privateKey: encryptWith(deriveKey(PREVIOUS), PRIVATE, privateKeyContext(id)),
                 publicKey: null,
-                createdAt: nowForDatabase()
+                createdAt: now()
             })
         );
         expect((await controller.list()).find((row) => row.id === id)?.encryptionState).toBe('previous_key');
@@ -88,7 +86,7 @@ describeWithPostgres('API des clés SSH', () => {
                 name: 'perdue',
                 privateKey: encryptWith(deriveKey('une-clé-que-personne-n-a'), PRIVATE, privateKeyContext(id)),
                 publicKey: null,
-                createdAt: nowForDatabase()
+                createdAt: now()
             })
         );
         expect((await controller.list()).find((row) => row.id === id)?.encryptionState).toBe('unreadable');

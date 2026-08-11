@@ -1,6 +1,5 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { ENTITIES } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuditLogController } from './audit-log.controller';
 
@@ -15,7 +14,6 @@ describeWithPostgres("API du journal d'audit", () => {
     const audit = new AuditLogService();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);

@@ -10,19 +10,41 @@ interface ExportVector {
     csv: string;
 }
 
-const vectors: { cases: ExportVector[]; sarifWithoutInformationUri: Record<string, unknown> } = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/exports.json'), 'utf8'));
+/**
+ * JSON ne porte pas de type date : les instants du fichier de vecteurs sont des chaînes et
+ * doivent redevenir des `Date`, comme la base les rend. Sans cette étape, le test
+ * n'exercerait pas le même code que la production.
+ */
+const INSTANT_FIELDS = ['firstSeenAt', 'lastSeenAt', 'triagedAt', 'triageExpiresAt'] as const;
+
+function reviveInstants(issue: Record<string, unknown>): ExportableIssue {
+    const revived = { ...issue };
+    for (const field of INSTANT_FIELDS) {
+        const value = revived[field];
+        if (typeof value === 'string') revived[field] = new Date(value.endsWith('Z') ? value : `${value}Z`);
+    }
+    return revived as unknown as ExportableIssue;
+}
+
+const raw: { cases: (Omit<ExportVector, 'issues'> & { issues: Record<string, unknown>[] })[]; sarifWithoutInformationUri: Record<string, unknown> } = JSON.parse(
+    readFileSync(join(__dirname, '../../../test/vectors/exports.json'), 'utf8')
+);
+const vectors = { ...raw, cases: raw.cases.map((vector) => ({ ...vector, issues: vector.issues.map(reviveInstants) })) };
 
 const SARIF_OPTIONS = { targetName: 'org/exemple', toolVersion: '1.2.3', informationUri: 'https://zanshin.interne' };
 const VEX_OPTIONS = {
     author: 'Zanshin <security@exemple.be>',
     productId: 'pkg:github/org/exemple',
     documentId: 'https://zanshin.interne/vex/1',
-    timestamp: '2026-08-10T08:00:00',
+    timestamp: new Date('2026-08-10T08:00:00Z'),
     version: 3
 };
 
 describe('exports', () => {
-    it('dispose de vecteurs générés depuis le code Python', () => {
+    // Les vecteurs venaient du code Python ; ils sont désormais régénérés depuis cette
+    // implémentation et servent de garde-fou contre une régression de format, non de
+    // preuve d'équivalence avec un autre langage.
+    it('dispose de vecteurs à comparer', () => {
         expect(vectors.cases.length).toBeGreaterThan(0);
     });
 

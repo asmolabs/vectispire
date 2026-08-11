@@ -1,8 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { DataSource, EntityManager } from 'typeorm';
 import { ENTITIES, Issue, Repository as GitRepository, Scan, STATE_OPEN, STATE_RESOLVED } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { RepositoriesController } from './repositories.controller';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -18,7 +17,6 @@ describeWithPostgres('API des dépôts', () => {
     let controller: RepositoriesController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -61,7 +59,7 @@ describeWithPostgres('API des dépôts', () => {
     it("distingue « jamais scanné » d'un scan existant", async () => {
         const never = await seedRepository('https://github.com/org/jamais.git');
         const scanned = await seedRepository('https://github.com/org/scanne.git');
-        await manager.save(Scan, Object.assign(new Scan(), { repoId: scanned.id, branch: 'main', status: 'completed', findingsCount: 0, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { repoId: scanned.id, branch: 'main', status: 'completed', findingsCount: 0, createdAt: now() }));
 
         const listed = await controller.list();
         expect(listed.find((row) => row.id === never.id)?.lastScan).toBeNull();
@@ -80,8 +78,8 @@ describeWithPostgres('API des dépôts', () => {
                     identifier: 'regle',
                     severity: 'high',
                     state,
-                    firstSeenAt: nowForDatabase(),
-                    lastSeenAt: nowForDatabase(),
+                    firstSeenAt: now(),
+                    lastSeenAt: now(),
                     timesSeen: 1,
                     triageStatus: 'untriaged',
                     isKev: false
@@ -94,7 +92,7 @@ describeWithPostgres('API des dépôts', () => {
 
     it('supprime le dépôt et son historique', async () => {
         const repository = await seedRepository('https://github.com/org/adieu.git');
-        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 0, createdAt: nowForDatabase() }));
+        await manager.save(Scan, Object.assign(new Scan(), { repoId: repository.id, branch: 'main', status: 'completed', findingsCount: 0, createdAt: now() }));
 
         await controller.remove(repository.id, asRequest);
 

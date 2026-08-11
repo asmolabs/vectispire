@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ENTITIES } from './entities';
 import { Dialect, parseDialect, warningsFor } from './dialects';
-import { configurePostgresTypeParsers } from './pg-types';
 
 /**
  * La connexion à la base.
@@ -37,7 +36,6 @@ import { configurePostgresTypeParsers } from './pg-types';
                     // À faire avant la première connexion : sans cela, le pilote rend
                     // un `Date` pour un `timestamp`, ce qui perd la microseconde et
                     // applique le fuseau de la machine.
-                    configurePostgresTypeParsers();
                 }
 
                 return { ...connectionFor(dialect, config), entities: ENTITIES, synchronize: false };

@@ -48,7 +48,7 @@ export class Finding {
     isKev!: boolean;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     @Column({ ...floatColumn({ nullable: true }), name: 'cvss_score' })
     cvssScore!: number | null;

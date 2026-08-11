@@ -2,7 +2,7 @@ import { BadRequestException, Controller, Get, Header, NotFoundException, Param,
 import { InjectEntityManager } from '@nestjs/typeorm';
 import type { Response } from 'express';
 import { EntityManager } from 'typeorm';
-import { asTimestampText } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ExportableIssue, buildIssuesCsv, buildOpenVexDocument, buildSarifDocument } from '../domain/exports/exports';
 import { TARGET_CONTAINER, TARGET_REPOSITORY } from '../domain/gate/security-overview';
 import { Container, Issue, Repository as GitRepository } from '../persistence/entities';
@@ -48,7 +48,7 @@ export class ExportsController {
             author: author || (process.env.ZANSHIN_VEX_AUTHOR ?? 'Zanshin'),
             productId: name,
             documentId: `${process.env.ZANSHIN_PUBLIC_URL ?? 'urn:zanshin'}/vex/${kind}/${targetId}`,
-            timestamp: new Date().toISOString()
+            timestamp: now()
         });
     }
 
@@ -103,9 +103,9 @@ export class ExportsController {
 function toExportable(issue: Issue): ExportableIssue {
     return {
         ...issue,
-        triagedAt: asTimestampText(issue.triagedAt),
-        triageExpiresAt: asTimestampText(issue.triageExpiresAt),
-        firstSeenAt: asTimestampText(issue.firstSeenAt),
-        lastSeenAt: asTimestampText(issue.lastSeenAt)
+        triagedAt: issue.triagedAt,
+        triageExpiresAt: issue.triageExpiresAt,
+        firstSeenAt: issue.firstSeenAt,
+        lastSeenAt: issue.lastSeenAt
     } as ExportableIssue;
 }

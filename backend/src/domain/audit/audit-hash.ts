@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { canonicalTimestamp } from '../common/timestamp';
+import { canonical } from '../common/timestamp';
 
 /**
  * La chaîne d'intégrité du journal d'audit.
@@ -10,29 +10,24 @@ import { canonicalTimestamp } from '../common/timestamp';
  * cela rend détectable la modification *sélective*, qui est la menace réaliste quand la
  * ligne intéressante est une parmi des milliers.
  *
- * ## Ce qui a changé, et pourquoi
+ * ## L'horodatage entre sous une forme canonique
  *
- * La version Python hachait l'horodatage sous la forme que produisait
- * `datetime.isoformat()` : fraction omise quand les microsecondes valaient zéro, six
- * chiffres sinon. Cela couplait un contrôle de sécurité au format d'un langage, et
- * rendait la vérification sensible à la façon dont un moteur rend ses dates —
- * `.123000` et `.123` désignent le même instant et donnaient deux empreintes.
+ * `canonical()`, soit ISO 8601 UTC à la milliseconde. Un contrôle de sécurité ne doit pas
+ * dépendre de la façon dont un moteur rend ses dates : `.123000` et `.123` désignent le
+ * même instant et donneraient deux empreintes. Deux processus dans deux fuseaux
+ * produisent ainsi la même chaîne pour le même instant.
  *
- * La chaîne est donc **reconstruite** : l'horodatage entre sous une forme canonique
- * (`canonicalTimestamp`), et le séparateur de champs reste l'octet NUL. Conséquence
- * assumée : les empreintes écrites par l'implémentation Python ne se vérifient plus, et
- * la chaîne doit être recalculée en une passe unique lors de la bascule — voir
- * `docs/migration-nestjs-angular.md`.
+ * Le séparateur de champs est l'octet NUL, qui ne peut apparaître dans aucune des valeurs
+ * hachées — sans quoi deux entrées différentes pourraient produire la même
+ * concaténation.
  */
 
 /** Les champs d'une entrée qui entrent dans son empreinte, dans cet ordre. */
 export interface AuditEntryForHash {
     previousHash: string | null;
     /**
-     * Le texte rendu par la base, ou déjà canonique. **Pas un `Date`** : il ne porte ni
-     * la microseconde ni l'absence de fuseau (voir `persistence/pg-types.ts`).
-     */
-    timestamp: string | null;
+     * L'instant tel que la base le rend. Canonicalisé ici, pas par l'appelant. */
+    timestamp: Date | null;
     operationType: string | null;
     resourceId: string | null;
     userId: string | null;
@@ -55,7 +50,7 @@ export interface AuditEntryForHash {
 export function computeEntryHash(entry: AuditEntryForHash): string {
     const parts = [
         entry.previousHash ?? '',
-        entry.timestamp ? canonicalTimestamp(entry.timestamp) : '',
+        entry.timestamp ? canonical(entry.timestamp) : '',
         entry.operationType ?? '',
         entry.resourceId ?? '',
         entry.userId ?? '',

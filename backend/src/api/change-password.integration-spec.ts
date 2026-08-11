@@ -1,8 +1,7 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ENTITIES, Session, User } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
 import { hashPassword, verifyPassword } from '../services/password.service';
@@ -22,7 +21,6 @@ describeWithPostgres('changement de mot de passe', () => {
     let controller: AuthController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -46,19 +44,19 @@ describeWithPostgres('changement de mot de passe', () => {
     afterEach(async () => release());
 
     async function seed(): Promise<{ user: User; request: AuthenticatedRequest; otherToken: string }> {
-        const now = nowForDatabase();
+        const createdAt = now();
         const user = await manager.save(
             User,
             Object.assign(new User(), {
                 username: `compte-${Math.round(performance.now() * 1000)}`, role: 'USER', isActive: true,
                 password: hashPassword(CURRENT), email: null, displayName: null, avatarUrl: null,
-                githubId: null, keycloakId: null, mustChangePassword: true, createdAt: now, updatedAt: now
+                githubId: null, keycloakId: null, mustChangePassword: true, createdAt, updatedAt: createdAt
             })
         );
         const session = (token: string) =>
             Object.assign(new Session(), {
-                token, userId: user.id, createdAt: now, lastSeenAt: now,
-                expiresAt: '2099-01-01T00:00:00.000', userAgent: null, ipAddress: null
+                token, userId: user.id, createdAt, lastSeenAt: createdAt,
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
             });
         const current = `courante-${user.id}`;
         const other = `ailleurs-${user.id}`;

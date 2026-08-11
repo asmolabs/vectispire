@@ -1,7 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { ENTITIES, Finding, Issue, Repository, STATE_OPEN, STATE_RESOLVED, Scan, TRIAGE_FIXED, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { IssueSyncService } from './issue-sync.service';
 
 /**
@@ -25,7 +24,6 @@ describeWithPostgres('réconciliation des problèmes depuis un scan', () => {
     const service = new IssueSyncService();
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -61,7 +59,7 @@ describeWithPostgres('réconciliation des problèmes depuis un scan', () => {
                 newIssuesCount: 0,
                 resolvedIssuesCount: 0,
                 attempts: 0,
-                createdAt: '2026-08-10T08:00:00'
+                createdAt: new Date('2026-08-10T08:00:00Z')
             })
         );
     }
@@ -78,7 +76,7 @@ describeWithPostgres('réconciliation des problèmes depuis un scan', () => {
             filePath: 'requirements.txt',
             source: 'grype',
             isKev: false,
-            createdAt: '2026-08-10T08:00:00',
+            createdAt: new Date('2026-08-10T08:00:00Z'),
             epssScore: null,
             cvssScore: null,
             cvssVector: null,
@@ -206,7 +204,7 @@ describeWithPostgres('réconciliation des problèmes depuis un scan', () => {
         it('remet sous revue un triage « fixed » factuellement contredit', async () => {
             const scan = await targetWithScan();
             await service.sync(manager, scan, [finding(scan)], { scannedTypes: VULN });
-            await manager.update(Issue, { repoId: scan.repoId }, { state: STATE_RESOLVED, triageStatus: TRIAGE_FIXED, triagedBy: 'alice', triagedAt: '2026-07-01T10:00:00' });
+            await manager.update(Issue, { repoId: scan.repoId }, { state: STATE_RESOLVED, triageStatus: TRIAGE_FIXED, triagedBy: 'alice', triagedAt: new Date('2026-07-01T10:00:00Z') });
 
             await service.sync(manager, scan, [finding(scan)], { scannedTypes: VULN });
 

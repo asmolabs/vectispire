@@ -22,8 +22,21 @@ import { ColumnOptions } from 'typeorm';
  * donc au format `datetime.isoformat()` de Python, qui est celui qui entre dans la
  * chaîne d'intégrité du journal d'audit.
  */
+/**
+ * Un instant, avec son fuseau.
+ *
+ * C'était `timestamp without time zone`, reproduit du schéma SQLAlchemy. Ce choix a
+ * produit cinq défauts distincts dans ce portage : node-postgres rendait un `Date`
+ * interprété dans le fuseau de la machine, TypeORM réhydratait les colonnes que l'entité
+ * déclarait en texte, et une session naissait deux heures dans le passé l'été. Chacun
+ * demandait un contournement — `pg-types.ts`, `asTimestampText()`, la canonicalisation
+ * dans l'empreinte d'audit — et chacun s'est fait oublier au moins une fois.
+ *
+ * `timestamptz` supprime la cause : PostgreSQL stocke un instant absolu, le pilote rend
+ * un `Date`, et il n'y a plus rien à convertir ni à canonicaliser.
+ */
 export const timestampColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'timestamp without time zone',
+    type: 'timestamp with time zone',
     ...options
 });
 

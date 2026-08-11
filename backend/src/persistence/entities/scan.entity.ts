@@ -77,7 +77,7 @@ export class Scan {
     error!: string | null;
 
     @Column({ ...timestampColumn(), name: 'created_at' })
-    createdAt!: string;
+    createdAt!: Date;
 
     @Column(stringColumn(255, { nullable: true }))
     version!: string | null;
@@ -95,7 +95,7 @@ export class Scan {
     claimedBy!: string | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'claimed_at' })
-    claimedAt!: string | null;
+    claimedAt!: Date | null;
 
     /**
      * Renouvelé par le worker à mesure qu'il progresse. Un scan dont le bail a expiré
@@ -103,7 +103,7 @@ export class Scan {
      * *réclamable*, et le worker qui finit par rendre son résultat est refusé.
      */
     @Column({ ...timestampColumn({ nullable: true }), name: 'lease_expires_at' })
-    leaseExpiresAt!: string | null;
+    leaseExpiresAt!: Date | null;
 
     /**
      * Incrémenté à chaque réclamation, pour qu'un scan repris et abandonné en boucle

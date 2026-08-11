@@ -27,7 +27,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
@@ -132,7 +132,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -148,7 +148,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -165,11 +165,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un problème résolu est exclu de SARIF, et déclaré fixed en VEX",
@@ -229,7 +229,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -246,11 +246,11 @@
               }
             ],
             "status": "fixed",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,resolved,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,resolved,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un not_affected devient une suppression SARIF et porte sa justification",
@@ -350,7 +350,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 },
@@ -372,7 +372,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -391,11 +391,11 @@
             "status": "not_affected",
             "justification": "vulnerable_code_not_in_execute_path",
             "impact_statement": "Le module n'est pas chargé en production.",
-            "timestamp": "2026-06-01T10:00:00"
+            "timestamp": "2026-06-01T10:00:00.000Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,not_affected,vulnerable_code_not_in_execute_path,alice,2026-06-01T10:00:00,2026-12-01T10:00:00,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,not_affected,vulnerable_code_not_in_execute_path,alice,2026-06-01T10:00:00.000Z,2026-12-01T10:00:00.000Z,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un affected reste visible et porte un action_statement",
@@ -495,7 +495,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -511,7 +511,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -529,11 +529,11 @@
             ],
             "status": "affected",
             "action_statement": "Correctif planifié en sprint 12.",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,affected,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,affected,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un fixed est supprimé dans SARIF",
@@ -633,7 +633,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 },
@@ -655,7 +655,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -672,11 +672,11 @@
               }
             ],
             "status": "fixed",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,fixed,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,fixed,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un constat de qualité est étiqueté quality, pas security",
@@ -770,7 +770,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "quality",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -786,12 +786,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,quality,zanshin-python-bare-except,high,7.5,0.42,false,,,,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,quality,zanshin-python-bare-except,high,7.5,0.42,false,,,,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un secret, sans paquet ni purl",
@@ -885,7 +885,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "secret",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -901,12 +901,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,aws-access-token,high,7.5,0.42,false,,,,direct,config/settings.py,3,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,aws-access-token,high,7.5,0.42,false,,,,direct,config/settings.py,3,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un constat sans fichier retombe sur la racine du dépôt",
@@ -1003,7 +1003,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1019,7 +1019,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -1036,11 +1036,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un KEV sans correctif, message complet",
@@ -1140,7 +1140,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1156,7 +1156,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -1173,11 +1173,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,critical,7.5,0.42,true,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,not-fixed,,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,critical,7.5,0.42,true,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,not-fixed,,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "une dépendance transitive le dit dans le message",
@@ -1277,7 +1277,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "transitive"
                 }
@@ -1293,7 +1293,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -1310,11 +1310,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,transitive,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,transitive,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "l'absence d'information sur la dépendance ne s'invente pas",
@@ -1414,7 +1414,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4
                 }
               }
@@ -1429,7 +1429,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -1446,11 +1446,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "deux problèmes partageant un identifiant ne produisent qu'une règle",
@@ -1580,7 +1580,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1616,7 +1616,7 @@
                 "properties": {
                   "zanshinIssueId": 2,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1632,7 +1632,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -1649,7 +1649,7 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           },
           {
             "vulnerability": {
@@ -1664,11 +1664,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,a.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,b.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,a.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,b.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "même identifiant, types différents : deux règles distinctes",
@@ -1816,7 +1816,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "secret",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1852,7 +1852,7 @@
                 "properties": {
                   "zanshinIssueId": 2,
                   "type": "iac",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1868,12 +1868,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,iac,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,iac,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un problème sans identifiant",
@@ -1973,7 +1973,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "eol",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -1989,12 +1989,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,eol,,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,eol,,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "une sévérité hors vocabulaire retombe sur warning et n'a pas de security-severity",
@@ -2093,7 +2093,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -2109,7 +2109,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -2126,11 +2126,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,catastrophique,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,catastrophique,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "un type non vulnérable est écarté de VEX",
@@ -2230,7 +2230,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "iac",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -2246,12 +2246,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,iac,CKV_AWS_1,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,iac,CKV_AWS_1,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "une vulnérabilité sans identifiant est écartée de VEX",
@@ -2351,7 +2351,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -2367,12 +2367,12 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": []
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "champs contenant virgule, guillemets et saut de ligne",
@@ -2472,7 +2472,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 },
@@ -2494,7 +2494,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -2513,11 +2513,11 @@
             "status": "not_affected",
             "justification": "component_not_present",
             "impact_statement": "Commentaire, avec \"citation\"\net retour.",
-            "timestamp": "2026-06-01T10:00:00"
+            "timestamp": "2026-06-01T10:00:00.000Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,not_affected,component_not_present,bob,2026-06-01T10:00:00,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,not_affected,component_not_present,bob,2026-06-01T10:00:00.000Z,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "scores absents et times_seen nul",
@@ -2613,7 +2613,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 1,
                   "dependency": "direct"
                 }
@@ -2629,7 +2629,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -2646,11 +2646,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,,,,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,1,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,,,,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,1,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "scores entiers, rendus avec leur décimale",
@@ -2661,8 +2661,8 @@
           "type": "vulnerability",
           "identifier": "CVE-2024-1234",
           "severity": "high",
-          "cvssScore": 9.0,
-          "epssScore": 1.0,
+          "cvssScore": 9,
+          "epssScore": 1,
           "isKev": false,
           "packageName": "requests",
           "packageVersion": "2.31.0",
@@ -2750,7 +2750,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -2766,7 +2766,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -2783,11 +2783,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,9.0,1.0,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,9.0,1.0,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
       "label": "score à zéro, qui n'est pas une absence de score",
@@ -2798,8 +2798,8 @@
           "type": "vulnerability",
           "identifier": "CVE-2024-1234",
           "severity": "high",
-          "cvssScore": 0.0,
-          "epssScore": 0.0,
+          "cvssScore": 0,
+          "epssScore": 0,
           "isKev": false,
           "packageName": "requests",
           "packageVersion": "2.31.0",
@@ -2887,7 +2887,7 @@
                 "properties": {
                   "zanshinIssueId": 1,
                   "type": "vulnerability",
-                  "firstSeen": "2026-01-05T09:30:00",
+                  "firstSeen": "2026-01-05T09:30:00.000Z",
                   "timesSeen": 4,
                   "dependency": "direct"
                 }
@@ -2903,7 +2903,7 @@
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": "https://zanshin.interne/vex/1",
         "author": "Zanshin <security@exemple.be>",
-        "timestamp": "2026-08-10T08:00:00",
+        "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
         "statements": [
@@ -2920,11 +2920,11 @@
               }
             ],
             "status": "under_investigation",
-            "timestamp": "2026-08-01T14:00:00.500000"
+            "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,0.0,0.0,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00,2026-08-01T14:00:00.500000,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,0.0,0.0,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     }
   ],
   "sarifWithoutInformationUri": {
@@ -2990,7 +2990,7 @@
             "properties": {
               "zanshinIssueId": 1,
               "type": "vulnerability",
-              "firstSeen": "2026-01-05T09:30:00",
+              "firstSeen": "2026-01-05T09:30:00.000Z",
               "timesSeen": 4,
               "dependency": "direct"
             }

@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Req
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { Not } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { validatePassword } from '../domain/users/account-rules';
 import { Session, User } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
@@ -106,7 +106,7 @@ export class AuthController {
         await this.manager.update(
             User,
             { id: user.id },
-            { password: hashPassword(next), mustChangePassword: false, updatedAt: nowForDatabase() }
+            { password: hashPassword(next), mustChangePassword: false, updatedAt: now() }
         );
         await this.manager.delete(Session, { userId: user.id, token: Not(request.session!.token) });
 

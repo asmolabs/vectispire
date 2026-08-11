@@ -1,8 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { ENTITIES, Session, User } from '../persistence/entities';
-import { configurePostgresTypeParsers } from '../persistence/pg-types';
 import { verifyPassword } from '../services/password.service';
 import { UsersController } from './users.controller';
 import type { AuthenticatedRequest } from './auth.guard';
@@ -19,7 +18,6 @@ describeWithPostgres('API des utilisateurs', () => {
     let controller: UsersController;
 
     beforeAll(async () => {
-        configurePostgresTypeParsers();
         dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
         await dataSource.initialize();
     }, 30_000);
@@ -47,12 +45,12 @@ describeWithPostgres('API des utilisateurs', () => {
     afterEach(async () => release());
 
     async function seed(username: string, role: string, isActive = true): Promise<User> {
-        const now = nowForDatabase();
+        const createdAt = now();
         return manager.save(
             User,
             Object.assign(new User(), {
                 username, role, isActive, password: null, email: null, displayName: null, avatarUrl: null,
-                githubId: null, keycloakId: null, mustChangePassword: false, createdAt: now, updatedAt: now
+                githubId: null, keycloakId: null, mustChangePassword: false, createdAt, updatedAt: createdAt
             })
         );
     }
@@ -104,8 +102,8 @@ describeWithPostgres('API des utilisateurs', () => {
         await manager.save(
             Session,
             Object.assign(new Session(), {
-                token: 'jeton-de-test', userId: cible.id, createdAt: nowForDatabase(), lastSeenAt: nowForDatabase(),
-                expiresAt: '2099-01-01T00:00:00.000', userAgent: null, ipAddress: null
+                token: 'jeton-de-test', userId: cible.id, createdAt: now(), lastSeenAt: now(),
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
             })
         );
 
@@ -120,8 +118,8 @@ describeWithPostgres('API des utilisateurs', () => {
         await manager.save(
             Session,
             Object.assign(new Session(), {
-                token: 'jeton-admin', userId: admin.id, createdAt: nowForDatabase(), lastSeenAt: nowForDatabase(),
-                expiresAt: '2099-01-01T00:00:00.000', userAgent: null, ipAddress: null
+                token: 'jeton-admin', userId: admin.id, createdAt: now(), lastSeenAt: now(),
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
             })
         );
         const listed = await controller.list(as(admin));

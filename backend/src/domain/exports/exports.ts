@@ -1,4 +1,5 @@
 import { QUALITY_TYPES } from '../gate/policy-gate';
+import { canonical } from '../common/timestamp';
 
 /**
  * Formats d'export des problèmes : SARIF, OpenVEX et CSV.
@@ -113,7 +114,7 @@ export const CSV_COLUMNS = [
  *
  * Les horodatages sont des **chaînes** au format `datetime.isoformat()` — jamais des
  * `Date`, qui perdent la microseconde et appliquent un fuseau (voir
- * `common/timestamp.ts` et `persistence/pg-types.ts`).
+ * `common/timestamp.ts`).
  */
 export interface ExportableIssue {
     id: number;
@@ -139,10 +140,10 @@ export interface ExportableIssue {
     triageJustification: string | null;
     triageComment: string | null;
     triagedBy: string | null;
-    triagedAt: string | null;
-    triageExpiresAt: string | null;
-    firstSeenAt: string | null;
-    lastSeenAt: string | null;
+    triagedAt: Date | null;
+    triageExpiresAt: Date | null;
+    firstSeenAt: Date | null;
+    lastSeenAt: Date | null;
     timesSeen: number | null;
 }
 
@@ -154,7 +155,7 @@ export interface OpenVexOptions {
     documentId: string;
     /** Fourni par l'appelant : un document VEX est une assertion sur qui a dit quoi
      *  et quand, ce qui appartient à celui qui le publie, pas à une fonction utilitaire. */
-    timestamp: string;
+    timestamp: Date;
     version?: number;
 }
 
@@ -199,8 +200,11 @@ export function buildOpenVexDocument(issues: Iterable<ExportableIssue>, options:
         if (issue.purl) {
             statement.products = [{ '@id': options.productId, identifiers: { purl: issue.purl } }];
         }
-        if (issue.triagedAt) statement.timestamp = issue.triagedAt;
-        else if (issue.lastSeenAt) statement.timestamp = issue.lastSeenAt;
+        // RFC 3339, comme la spécification OpenVEX l'exige. Le document précédent portait
+        // « 2026-08-10T08:00:00 » sans fuseau, ce qui n'est pas un instant valide au
+        // regard de cette norme : un consommateur strict avait le droit de le refuser.
+        if (issue.triagedAt) statement.timestamp = canonical(issue.triagedAt);
+        else if (issue.lastSeenAt) statement.timestamp = canonical(issue.lastSeenAt);
 
         statements.push(statement);
     }
@@ -209,7 +213,7 @@ export function buildOpenVexDocument(issues: Iterable<ExportableIssue>, options:
         '@context': OPENVEX_CONTEXT,
         '@id': options.documentId,
         author: options.author,
-        timestamp: options.timestamp,
+        timestamp: canonical(options.timestamp),
         version: options.version ?? 1,
         tooling: 'Zanshin',
         statements
@@ -269,7 +273,7 @@ export function buildSarifDocument(issues: Iterable<ExportableIssue>, options: S
         const properties: Record<string, unknown> = {
             zanshinIssueId: issue.id,
             type: issue.type,
-            firstSeen: issue.firstSeenAt ?? '',
+            firstSeen: issue.firstSeenAt ? canonical(issue.firstSeenAt) : '',
             timesSeen: issue.timesSeen || 1
         };
         if (issue.isDirectDependency !== null && issue.isDirectDependency !== undefined) {
@@ -402,7 +406,7 @@ function suppressionJustification(issue: ExportableIssue): string {
     if (issue.triagedBy) parts.push(`décidé par ${issue.triagedBy}`);
     // `.date().isoformat()` en Python : la partie date seule, donc les dix premiers
     // caractères d'un isoformat.
-    if (issue.triageExpiresAt) parts.push(`à revoir le ${issue.triageExpiresAt.slice(0, 10)}`);
+    if (issue.triageExpiresAt) parts.push(`à revoir le ${issue.triageExpiresAt.toISOString().slice(0, 10)}`);
     return parts.join(' — ');
 }
 
@@ -439,10 +443,12 @@ export function buildIssuesCsv(issues: Iterable<ExportableIssue>): string {
                 issue.triageStatus ?? '',
                 issue.triageJustification || '',
                 issue.triagedBy || '',
-                issue.triagedAt || '',
-                issue.triageExpiresAt || '',
-                issue.firstSeenAt || '',
-                issue.lastSeenAt || '',
+                // Canonicalisés comme partout ailleurs : un CSV comparé octet pour octet
+                // ne doit pas dépendre du fuseau de la machine qui l'a produit.
+                issue.triagedAt ? canonical(issue.triagedAt) : '',
+                issue.triageExpiresAt ? canonical(issue.triageExpiresAt) : '',
+                issue.firstSeenAt ? canonical(issue.firstSeenAt) : '',
+                issue.lastSeenAt ? canonical(issue.lastSeenAt) : '',
                 String(issue.timesSeen || 1),
                 issue.link || ''
             ]

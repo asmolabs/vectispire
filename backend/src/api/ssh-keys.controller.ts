@@ -3,7 +3,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { Repository as GitRepository, SshKey } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { EncryptionService, MissingEncryptionKeyError } from '../services/encryption.service';
@@ -74,7 +74,7 @@ export class SshKeysController {
                     // devient illisible plutôt que de déchiffrer la mauvaise clé.
                     privateKey: this.encryption.encrypt(privateKey, privateKeyContext(id)),
                     publicKey: publicKey || null,
-                    createdAt: nowForDatabase()
+                    createdAt: now()
                 })
             );
         } catch (error) {

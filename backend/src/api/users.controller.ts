@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Patch, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager, Not } from 'typeorm';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { isAdminRole, refuseDeletion, refuseSelfLockout, validatePassword, validateRole, validateUsername } from '../domain/users/account-rules';
 import { ADMIN_ROLES, Session, User } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
@@ -60,7 +60,7 @@ export class UsersController {
             throw new BadRequestException(`L'identifiant « ${username} » est déjà pris.`);
         }
 
-        const now = nowForDatabase();
+        const createdAt = now();
         const saved = await this.manager.save(
             User,
             Object.assign(new User(), {
@@ -76,8 +76,8 @@ export class UsersController {
                 githubId: null,
                 keycloakId: null,
                 avatarUrl: null,
-                createdAt: now,
-                updatedAt: now
+                createdAt,
+                updatedAt: createdAt
             })
         );
 
@@ -120,7 +120,7 @@ export class UsersController {
         Object.assign(user, {
             role,
             isActive,
-            updatedAt: nowForDatabase(),
+            updatedAt: now(),
             ...(password !== null ? { password: hashPassword(password), mustChangePassword: true } : {})
         });
         await this.manager.save(User, user);
@@ -165,7 +165,7 @@ export class UsersController {
             .createQueryBuilder(Session, 'session')
             .select('session.user_id', 'userId')
             .addSelect('COUNT(*)', 'count')
-            .where('session.expires_at > :now', { now: nowForDatabase() })
+            .where('session.expires_at > :now', { now: now() })
             .groupBy('session.user_id')
             .getRawMany();
         return new Map(rows.map((row) => [Number(row.userId), Number(row.count)]));

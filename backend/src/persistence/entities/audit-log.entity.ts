@@ -32,7 +32,7 @@ export class AuditLog {
     resourceId!: string;
 
     @Column(timestampColumn())
-    timestamp!: string;
+    timestamp!: Date;
 
     @Column({ ...stringColumn(255, { nullable: true }), name: 'user_id' })
     userId!: string | null;

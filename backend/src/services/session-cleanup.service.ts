@@ -1,7 +1,7 @@
 import { EntityManager } from 'typeorm';
 import { WINDOW_MS } from '../domain/auth/login-throttle';
 import { SESSION_TTL_MS } from '../domain/auth/session';
-import { nowForDatabase } from '../domain/common/timestamp';
+import { now } from '../domain/common/timestamp';
 import { LoginAttemptRepository, SessionRepository } from '../repositories/session.repository';
 
 /**
@@ -38,7 +38,7 @@ export class SessionCleanupService {
     async prune(manager: EntityManager): Promise<CleanupResult> {
         const result: CleanupResult = { sessions: 0, attempts: 0 };
         try {
-            result.sessions = await this.sessions.deleteExpired(manager, nowForDatabase());
+            result.sessions = await this.sessions.deleteExpired(manager, now());
         } catch {
             // Rien à faire : la prochaine passe reprendra.
         }

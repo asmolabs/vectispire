@@ -23,5 +23,5 @@ export class Container {
     scanCron!: string | null;
 
     @Column({ ...timestampColumn({ nullable: true }), name: 'last_scheduled_scan_at' })
-    lastScheduledScanAt!: string | null;
+    lastScheduledScanAt!: Date | null;
 }

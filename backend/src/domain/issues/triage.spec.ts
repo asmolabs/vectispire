@@ -11,7 +11,7 @@ import {
     isTriageExpired
 } from './triage';
 
-const NOW = '2026-08-10T08:13:58.322451';
+const NOW = new Date('2026-08-10T08:13:58.322Z');
 
 describe('décision de triage', () => {
     it('accepte les quatre statuts du vocabulaire', () => {
@@ -74,19 +74,19 @@ describe('date de révision', () => {
     });
 
     it('ajoute le nombre de jours demandé', () => {
-        expect(expiryFrom(TRIAGE_NOT_AFFECTED, 30, NOW)).toBe('2026-09-09T08:13:58.322451');
+        expect(expiryFrom(TRIAGE_NOT_AFFECTED, 30, NOW)).toEqual(new Date('2026-09-09T08:13:58.322Z'));
     });
 
     it('franchit correctement les mois et les années', () => {
-        expect(expiryFrom(TRIAGE_AFFECTED, 1, '2026-12-31T23:00:00')).toBe('2027-01-01T23:00:00');
+        expect(expiryFrom(TRIAGE_AFFECTED, 1, new Date('2026-12-31T23:00:00Z'))).toEqual(new Date('2027-01-01T23:00:00Z'));
         // 2028 est bissextile : le 29 février existe.
-        expect(expiryFrom(TRIAGE_AFFECTED, 1, '2028-02-28T12:00:00')).toBe('2028-02-29T12:00:00');
+        expect(expiryFrom(TRIAGE_AFFECTED, 1, new Date('2028-02-28T12:00:00Z'))).toEqual(new Date('2028-02-29T12:00:00Z'));
     });
 
     it('conserve la fraction de seconde telle quelle', () => {
         // La reconstruire risquerait de la reformater autrement que Python.
-        expect(expiryFrom(TRIAGE_AFFECTED, 7, '2026-01-02T03:04:05.123000')).toBe('2026-01-09T03:04:05.123000');
-        expect(expiryFrom(TRIAGE_AFFECTED, 7, '2026-01-02T03:04:05')).toBe('2026-01-09T03:04:05');
+        expect(expiryFrom(TRIAGE_AFFECTED, 7, new Date('2026-01-02T03:04:05.123Z'))).toEqual(new Date('2026-01-09T03:04:05.123Z'));
+        expect(expiryFrom(TRIAGE_AFFECTED, 7, new Date('2026-01-02T03:04:05Z'))).toEqual(new Date('2026-01-09T03:04:05Z'));
     });
 
     it('refuse zéro ou un délai négatif', () => {
@@ -98,14 +98,14 @@ describe('date de révision', () => {
 });
 
 describe('expiration d’une décision', () => {
-    const suppressed = { triageStatus: TRIAGE_NOT_AFFECTED, triageExpiresAt: '2026-08-10T08:00:00' };
+    const suppressed = { triageStatus: TRIAGE_NOT_AFFECTED, triageExpiresAt: new Date('2026-08-10T08:00:00Z') };
 
     it('reconnaît une décision échue', () => {
         expect(isTriageExpired(suppressed, NOW)).toBe(true);
     });
 
     it('ne considère pas échue une décision dont la date est à venir', () => {
-        expect(isTriageExpired({ ...suppressed, triageExpiresAt: '2027-01-01T00:00:00' }, NOW)).toBe(false);
+        expect(isTriageExpired({ ...suppressed, triageExpiresAt: new Date('2027-01-01T00:00:00Z') }, NOW)).toBe(false);
     });
 
     it('ignore une décision sans date', () => {
@@ -113,7 +113,7 @@ describe('expiration d’une décision', () => {
     });
 
     it('ignore un problème déjà sous revue', () => {
-        expect(isTriageExpired({ triageStatus: TRIAGE_UNDER_REVIEW, triageExpiresAt: '2020-01-01T00:00:00' }, NOW)).toBe(false);
+        expect(isTriageExpired({ triageStatus: TRIAGE_UNDER_REVIEW, triageExpiresAt: new Date('2020-01-01T00:00:00Z') }, NOW)).toBe(false);
     });
 
     it('conserve la justification, le commentaire et l’auteur', () => {
@@ -122,11 +122,11 @@ describe('expiration d’une décision', () => {
         // renseigner. `triagedBy` est de surcroît une preuve de qui a dit quoi.
         const issue = {
             triageStatus: TRIAGE_NOT_AFFECTED,
-            triageExpiresAt: '2026-08-10T08:00:00',
+            triageExpiresAt: new Date('2026-08-10T08:00:00Z'),
             triageJustification: 'component_not_present',
             triageComment: 'Module absent de l’image de production.',
             triagedBy: 'alice',
-            triagedAt: '2026-02-01T09:00:00'
+            triagedAt: new Date('2026-02-01T09:00:00Z')
         };
 
         const expired = expireTriage(issue);
@@ -136,6 +136,6 @@ describe('expiration d’une décision', () => {
         expect(expired.triageJustification).toBe('component_not_present');
         expect(expired.triageComment).toBe('Module absent de l’image de production.');
         expect(expired.triagedBy).toBe('alice');
-        expect(expired.triagedAt).toBe('2026-02-01T09:00:00');
+        expect(expired.triagedAt).toEqual(new Date('2026-02-01T09:00:00Z'));
     });
 });
