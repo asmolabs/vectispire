@@ -17,7 +17,8 @@ export const appRoutes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
             { path: 'dashboard', loadComponent: () => import('./app/pages/dashboard/dashboard').then((m) => m.Dashboard) },
-            { path: 'securite', loadComponent: () => import('./app/pages/securite/securite').then((m) => m.Securite) }
+            { path: 'securite', loadComponent: () => import('./app/pages/securite/securite').then((m) => m.Securite) },
+            { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) }
         ]
     },
     { path: 'login', loadComponent: () => import('./app/pages/auth/login').then((m) => m.Login) },
