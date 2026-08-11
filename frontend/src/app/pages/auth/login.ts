@@ -82,7 +82,20 @@ export class Login {
             error: (response: { status: number; error?: { message?: string; retryAfterSeconds?: number } }) => {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
-                this.error.set(retryAfter ? `Trop de tentatives. Réessayez dans ${Math.ceil(retryAfter / 60)} minute(s).` : 'Identifiants invalides.');
+                if (retryAfter) {
+                    this.error.set(`Trop de tentatives. Réessayez dans ${Math.ceil(retryAfter / 60)} minute(s).`);
+                } else if (response.status === 401) {
+                    this.error.set('Identifiants invalides.');
+                } else {
+                    // Un serveur injoignable ou en erreur affichait « Identifiants
+                    // invalides », ce qui envoie chercher un mot de passe correct pendant
+                    // que la vraie panne est ailleurs. Vu en essayant, pas en relisant.
+                    this.error.set(
+                        response.status === 0
+                            ? 'Serveur injoignable. Vérifiez que Zanshin est démarré.'
+                            : `Le serveur a répondu ${response.status}. Réessayez, ou consultez ses journaux.`
+                    );
+                }
             }
         });
     }

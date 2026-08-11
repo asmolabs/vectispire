@@ -217,3 +217,37 @@ export interface NewSshKey {
     private_key: string;
     public_key?: string;
 }
+
+/** Un compte. L'empreinte du mot de passe n'y figure jamais : le serveur ne la rend
+ *  pas, et une empreinte bcrypt qui sort du serveur est une empreinte à casser. */
+export interface UserSummary {
+    id: number;
+    username: string;
+    email: string | null;
+    displayName: string | null;
+    role: string;
+    isActive: boolean;
+    mustChangePassword: boolean;
+    createdAt: string;
+    activeSessions: number;
+}
+
+export interface UserList {
+    users: UserSummary[];
+    /** Pour ne pas proposer des actions que le serveur refusera de toute façon. */
+    currentUserId: number | null;
+}
+
+export interface NewUser {
+    username: string;
+    password: string;
+    role: string;
+    email?: string;
+    display_name?: string;
+}
+
+export interface UserPatch {
+    role?: string;
+    is_active?: boolean;
+    password?: string;
+}

@@ -1,9 +1,9 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { stringColumn, timestampColumn } from '../columns';
 
-/** Les rôles auxquels l'administration est réservée. */
-export const ADMIN_ROLES = ['SUPERUSER', 'ADMIN'] as const;
-export const VALID_ROLES = ['SUPERUSER', 'ADMIN', 'USER'] as const;
+// Réexportés depuis le domaine : la définition y vit, parce que le vocabulaire des
+// rôles est une règle métier et non une colonne.
+export { ADMIN_ROLES, VALID_ROLES } from '../../domain/users/roles';
 
 /**
  * Un compte.

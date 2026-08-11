@@ -6,7 +6,11 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     MonitoredRepository,
     NewContainer,
     NewSshKey,
+    NewUser,
     SshKeySummary,
+    UserList,
+    UserPatch,
+    UserSummary,
     NewRepository} from './api.models';
 
 /**
@@ -88,5 +92,21 @@ export class ApiService {
 
     deleteSshKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/ssh-keys/${id}`);
+    }
+
+    users(): Observable<UserList> {
+        return this.http.get<UserList>('/api/v1/users');
+    }
+
+    createUser(user: NewUser): Observable<UserSummary> {
+        return this.http.post<UserSummary>('/api/v1/users', user);
+    }
+
+    updateUser(id: number, patch: UserPatch): Observable<UserSummary> {
+        return this.http.patch<UserSummary>(`/api/v1/users/${id}`, patch);
+    }
+
+    deleteUser(id: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/users/${id}`);
     }
 }
