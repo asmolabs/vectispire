@@ -12,6 +12,10 @@ export interface IssueFilters {
     search?: string | null;
 }
 
+/** Les seules colonnes sur lesquelles un regroupement est permis. */
+const GROUPABLE = { rule: 'identifier', file: 'file_path', target: 'repo_id' } as const;
+export type GroupableColumn = keyof typeof GROUPABLE;
+
 /**
  * L'ordre de gravité, en SQL.
  *
@@ -138,6 +142,34 @@ export class IssueRepository {
             });
         }
         return query;
+    }
+
+    /**
+     * Les problèmes ouverts d'un type, groupés par une colonne, les plus nombreux d'abord.
+     *
+     * C'est ce qui rend l'écran Qualité utile plutôt que redondant : un backlog de
+     * qualité à quatre chiffres ne se traite pas ligne à ligne, et « huit règles font
+     * soixante-dix pour cent de la dette » est le seul cadrage actionnable devant lui.
+     * Un filtre sur `/issues` ne dirait pas cela.
+     *
+     * La colonne est choisie dans une liste fermée et non interpolée depuis l'appelant :
+     * un nom de colonne ne peut pas être un paramètre lié, donc la seule protection
+     * contre une injection est qu'il ne vienne jamais de l'extérieur.
+     */
+    async countOpenGrouped(manager: EntityManager, type: string, column: GroupableColumn, limit = 8): Promise<{ label: string | null; count: number }[]> {
+        const rows: { label: string | null; count: string }[] = await manager
+            .createQueryBuilder(Issue, 'issue')
+            .select(`issue.${GROUPABLE[column]}`, 'label')
+            .addSelect('COUNT(*)', 'count')
+            .where('issue.state = :state', { state: STATE_OPEN })
+            .andWhere('issue.type = :type', { type })
+            .groupBy(`issue.${GROUPABLE[column]}`)
+            .orderBy('COUNT(*)', 'DESC')
+            .limit(limit)
+            .getRawMany();
+        // `COUNT(*)` revient en chaîne : PostgreSQL le rend en `bigint`, et le pilote ne
+        // suppose pas qu'un bigint tient dans un `number`.
+        return rows.map((row) => ({ label: row.label, count: Number(row.count) }));
     }
 
     async save(manager: EntityManager, issues: Issue[]): Promise<Issue[]> {

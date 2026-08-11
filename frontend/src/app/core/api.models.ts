@@ -136,3 +136,18 @@ export interface SecurityOverview {
     neverScannedCount: number;
     lastScanFailedCount: number;
 }
+
+/** Un décompte groupé — une règle, un fichier ou un dépôt, et son nombre de constats. */
+export interface Tally {
+    label: string | null;
+    count: number;
+}
+
+export interface QualityOverview {
+    openCount: number;
+    ruleCount: number;
+    fileCount: number;
+    topRules: Tally[];
+    topFiles: Tally[];
+    topTargets: Tally[];
+}

@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Issue, IssueFilters, LoginResponse, Page, SecurityOverview, TriageRequest } from './api.models';
+import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOverview, TriageRequest } from './api.models';
 
 /**
  * L'accès à l'API, en un point unique.
@@ -42,5 +42,9 @@ export class ApiService {
 
     securityOverview(): Observable<SecurityOverview> {
         return this.http.get<SecurityOverview>('/api/v1/security/overview');
+    }
+
+    qualityOverview(): Observable<QualityOverview> {
+        return this.http.get<QualityOverview>('/api/v1/quality/overview');
     }
 }
