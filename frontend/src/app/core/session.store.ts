@@ -37,6 +37,13 @@ export class SessionStore {
     /** Le compte doit changer son mot de passe avant d'accéder au reste. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);
 
+    /** Après un changement réussi : l'obligation tombe sans qu'il faille se reconnecter,
+     *  la session courante ayant délibérément survécu côté serveur. */
+    clearMustChangePassword(): void {
+        const user = this.user();
+        if (user) this.user.set({ ...user, mustChangePassword: false });
+    }
+
     open(token: string, user: AuthenticatedUser): void {
         this.token.set(token);
         this.user.set(user);

@@ -1,7 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
+import { Not } from 'typeorm';
+import { nowForDatabase } from '../domain/common/timestamp';
+import { validatePassword } from '../domain/users/account-rules';
+import { Session, User } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
+import { hashPassword, verifyPassword } from '../services/password.service';
 import { AuthService } from '../services/auth.service';
 import { Public } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
@@ -66,6 +71,54 @@ export class AuthController {
         // La ligne disparaît : la déconnexion est réelle, y compris pour un onglet
         // resté ouvert ailleurs.
         if (request.session) await this.auth.revoke(this.manager, request.session.token);
+    }
+
+    /**
+     * Change son propre mot de passe.
+     *
+     * Le mot de passe courant est exigé même quand `mustChangePassword` est posé : sans
+     * lui, un poste laissé déverrouillé une minute suffirait à s'emparer du compte. Il
+     * n'y a pas d'exception « première connexion » — la personne vient précisément de
+     * saisir ce mot de passe pour arriver ici.
+     *
+     * Les **autres** sessions du compte sont fermées. Changer son mot de passe est ce
+     * qu'on fait quand on le croit compromis : laisser vivre les sessions ouvertes
+     * ailleurs viderait le geste de son sens. La session courante survit, sans quoi
+     * l'écran renverrait à la connexion juste après avoir réussi.
+     */
+    @Post('change-password')
+    async changePassword(@Body() body: Record<string, unknown>, @Req() request: AuthenticatedRequest) {
+        const current = String(body.current_password ?? '');
+        const next = String(body.new_password ?? '');
+        const user = request.user!;
+
+        if (!verifyPassword(current, user.password)) {
+            // 401 et non 400 : c'est une preuve d'identité qui manque, pas une saisie mal
+            // formée, et l'écran doit pouvoir les distinguer.
+            throw new UnauthorizedException('Mot de passe actuel incorrect.');
+        }
+        const invalid = validatePassword(next);
+        if (invalid) throw new BadRequestException(invalid);
+        if (next === current) {
+            throw new BadRequestException("Le nouveau mot de passe est identique à l'ancien.");
+        }
+
+        await this.manager.update(
+            User,
+            { id: user.id },
+            { password: hashPassword(next), mustChangePassword: false, updatedAt: nowForDatabase() }
+        );
+        await this.manager.delete(Session, { userId: user.id, token: Not(request.session!.token) });
+
+        await this.audit.record(this.manager, {
+            operationType: 'PASSWORD_CHANGED',
+            resourceId: String(user.id),
+            description: `Mot de passe changé par ${user.username}`,
+            userId: user.username,
+            ipAddress: request.ip ?? null
+        });
+
+        return { mustChangePassword: false };
     }
 
     @Get('me')

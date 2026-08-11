@@ -28,6 +28,7 @@ export const appRoutes: Routes = [
             { path: 'qualite', loadComponent: () => import('./app/pages/qualite/qualite').then((m) => m.Qualite) }
         ]
     },
+    { path: 'change-password', loadComponent: () => import('./app/pages/auth/change-password').then((m) => m.ChangePassword) },
     { path: 'login', loadComponent: () => import('./app/pages/auth/login').then((m) => m.Login) },
     { path: 'access', loadComponent: () => import('./app/pages/auth/access').then((m) => m.Access) },
     { path: 'error', loadComponent: () => import('./app/pages/auth/error').then((m) => m.Error) },

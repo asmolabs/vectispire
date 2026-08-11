@@ -39,6 +39,13 @@ export class ApiService {
         return this.http.post<LoginResponse>('/api/v1/auth/login', { username, password, client_id: clientId });
     }
 
+    changePassword(currentPassword: string, newPassword: string): Observable<{ mustChangePassword: boolean }> {
+        return this.http.post<{ mustChangePassword: boolean }>('/api/v1/auth/change-password', {
+            current_password: currentPassword,
+            new_password: newPassword
+        });
+    }
+
     logout(): Observable<void> {
         return this.http.delete<void>('/api/v1/auth/session');
     }
