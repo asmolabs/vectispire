@@ -171,3 +171,29 @@ export interface NewRepository {
     branch: string;
     name?: string;
 }
+
+/** L'état d'un dernier scan, partagé par les dépôts et les conteneurs. */
+export interface LastScan {
+    id: number;
+    status: string;
+    createdAt: string | null;
+    error: string | null;
+}
+
+/** Une image de conteneur surveillée. */
+export interface MonitoredContainer {
+    id: number;
+    registry: string | null;
+    imageName: string;
+    tag: string;
+    /** Calculée par le serveur : la forme qu'un registre attend. */
+    reference: string;
+    lastScan: LastScan | null;
+    openIssues: number;
+}
+
+export interface NewContainer {
+    registry?: string;
+    image_name: string;
+    tag: string;
+}

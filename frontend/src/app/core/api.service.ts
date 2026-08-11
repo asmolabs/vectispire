@@ -2,7 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOverview, TriageRequest ,
+    MonitoredContainer,
     MonitoredRepository,
+    NewContainer,
     NewRepository} from './api.models';
 
 /**
@@ -60,5 +62,17 @@ export class ApiService {
 
     deleteRepository(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/repositories/${id}`);
+    }
+
+    containers(): Observable<MonitoredContainer[]> {
+        return this.http.get<MonitoredContainer[]>('/api/v1/containers');
+    }
+
+    createContainer(container: NewContainer): Observable<MonitoredContainer> {
+        return this.http.post<MonitoredContainer>('/api/v1/containers', container);
+    }
+
+    deleteContainer(id: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/containers/${id}`);
     }
 }

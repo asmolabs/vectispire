@@ -12,6 +12,7 @@ import { AuthGuard } from './auth.guard';
 import { ExportsController } from './exports.controller';
 import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
+import { ContainersController } from './containers.controller';
 import { QualityController } from './quality.controller';
 import { RepositoriesController } from './repositories.controller';
 
@@ -26,7 +27,7 @@ import { RepositoriesController } from './repositories.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController],
     providers: [
         AuthService,
         AuditLogService,

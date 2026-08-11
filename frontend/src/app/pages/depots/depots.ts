@@ -8,25 +8,15 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
-import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import type { MonitoredRepository } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
-
-/** Les statuts de scan, traduits. Table fermée : un statut inconnu s'affiche brut plutôt
- *  que d'être masqué par un libellé rassurant. */
-const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
-    completed: { label: 'Terminé', severity: 'success' },
-    running: { label: 'En cours', severity: 'info' },
-    queued: { label: 'En file', severity: 'info' },
-    failed: { label: 'Échoué', severity: 'danger' },
-    cancelled: { label: 'Annulé', severity: 'warn' }
-};
+import { LastScanTag } from '../../shared/last-scan';
 
 @Component({
     selector: 'app-depots',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, LastScanTag],
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
@@ -67,15 +57,7 @@ const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn
                         </td>
                         <td>{{ repository.branch }}</td>
                         <td>
-                            @if (repository.lastScan; as scan) {
-                                <p-tag [value]="statusLabel(scan.status)" [severity]="statusSeverity(scan.status)" />
-                                <div class="text-sm text-muted-color mt-1">{{ scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
-                                @if (scan.error) { <div class="text-sm text-red-500 mt-1">{{ scan.error }}</div> }
-                            } @else {
-                                <!-- Jamais scanné n'est pas « aucun problème » : c'est une absence
-                                     d'observation, et l'écran doit les distinguer. -->
-                                <span class="text-muted-color">Jamais scanné</span>
-                            }
+                            <app-last-scan [scan]="repository.lastScan" />
                         </td>
                         <td class="text-right">
                             @if (repository.openIssues > 0) {
@@ -222,11 +204,4 @@ export class Depots {
         return url.replace(/\.git$/, '').split(/[/:]/).slice(-2).join('/');
     }
 
-    statusLabel(status: string): string {
-        return STATUS_LABELS[status]?.label ?? status;
-    }
-
-    statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' {
-        return STATUS_LABELS[status]?.severity ?? 'info';
-    }
 }
