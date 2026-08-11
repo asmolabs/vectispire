@@ -251,3 +251,40 @@ export interface UserPatch {
     is_active?: boolean;
     password?: string;
 }
+
+/** Une clé d'API. La valeur en clair n'y figure pas : elle n'existe qu'une fois, dans la
+ *  réponse à la création. */
+export interface ApiKeySummary {
+    id: string;
+    name: string;
+    /** Les douze premiers caractères, en clair. Ce n'est pas un secret. */
+    prefix: string | null;
+    scopes: string[];
+    targetKind: string | null;
+    targetId: number | null;
+    targetLabel: string | null;
+    createdAt: string | null;
+    lastUsedAt: string | null;
+    expiresAt: string | null;
+    /** Calculé par le serveur : deux notions d'« expirée » divergeraient d'un fuseau. */
+    isExpired: boolean;
+}
+
+export interface NewApiKey {
+    name: string;
+    scopes: string[];
+    target_kind?: string;
+    target_id?: number;
+    expires_in_days?: number;
+}
+
+export interface IssuedApiKey {
+    key: ApiKeySummary;
+    /** La seule occurrence de la valeur en clair. Elle ne réapparaîtra jamais. */
+    secret: string;
+}
+
+export interface ApiKeyTargets {
+    repositories: { id: number; label: string }[];
+    containers: { id: number; label: string }[];
+}

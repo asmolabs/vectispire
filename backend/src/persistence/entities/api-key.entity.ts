@@ -1,14 +1,9 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { intColumn, stringColumn, timestampColumn } from '../columns';
 
-export const SCOPE_READ = 'read';
-export const SCOPE_SCAN = 'scan';
-export const SCOPE_EXPORT = 'export';
-export const SCOPE_AGENT = 'agent';
-
-export const ALL_SCOPES = [SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT, SCOPE_AGENT] as const;
-/** `agent` n'est **jamais** implicite : ce périmètre donne le droit d'exécuter des scans. */
-export const DEFAULT_SCOPES = [SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT] as const;
+// Réexportés depuis le domaine : le vocabulaire des portées est une règle métier, pas
+// une colonne, et la règle de couches interdit l'inverse.
+export { ALL_SCOPES, DEFAULT_SCOPES, SCOPE_AGENT, SCOPE_EXPORT, SCOPE_READ, SCOPE_SCAN } from '../../domain/api-keys/scopes';
 
 /**
  * Une clé d'API.

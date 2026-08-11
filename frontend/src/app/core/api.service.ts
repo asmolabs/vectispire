@@ -6,6 +6,10 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     MonitoredRepository,
     NewContainer,
     NewSshKey,
+    ApiKeySummary,
+    ApiKeyTargets,
+    IssuedApiKey,
+    NewApiKey,
     NewUser,
     SshKeySummary,
     UserList,
@@ -108,5 +112,21 @@ export class ApiService {
 
     deleteUser(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/users/${id}`);
+    }
+
+    apiKeys(): Observable<ApiKeySummary[]> {
+        return this.http.get<ApiKeySummary[]>('/api/v1/api-keys');
+    }
+
+    apiKeyTargets(): Observable<ApiKeyTargets> {
+        return this.http.get<ApiKeyTargets>('/api/v1/api-keys/targets');
+    }
+
+    createApiKey(key: NewApiKey): Observable<IssuedApiKey> {
+        return this.http.post<IssuedApiKey>('/api/v1/api-keys', key);
+    }
+
+    deleteApiKey(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/api-keys/${id}`);
     }
 }
