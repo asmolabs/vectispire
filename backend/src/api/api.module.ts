@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PersistenceModule } from '../persistence/persistence.module';
 import { IssueRepository } from '../repositories/issue.repository';
 import { TargetRepository } from '../repositories/target.repository';
+import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
 import { IssueTriageService } from '../services/issue-triage.service';
@@ -13,6 +14,7 @@ import { ExportsController } from './exports.controller';
 import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 import { ContainersController } from './containers.controller';
+import { AuditLogController } from './audit-log.controller';
 import { ApiKeysController } from './api-keys.controller';
 import { UsersController } from './users.controller';
 import { SshKeysController } from './ssh-keys.controller';
@@ -31,7 +33,7 @@ import { RepositoriesController } from './repositories.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController],
     providers: [
         AuthService,
         AuditLogService,
@@ -43,6 +45,7 @@ import { RepositoriesController } from './repositories.controller';
         SessionCleanupService,
         IssueRepository,
         TargetRepository,
+        AuditLogRepository,
         { provide: APP_GUARD, useClass: AuthGuard }
     ]
 })

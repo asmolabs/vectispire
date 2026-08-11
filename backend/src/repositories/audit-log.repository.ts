@@ -70,6 +70,39 @@ export class AuditLogRepository {
     }
 
     /**
+     * Une page du journal, filtrée.
+     *
+     * Les clauses sont assemblées à partir d'un vocabulaire fermé et les valeurs passent
+     * toujours par des paramètres — ce fichier écrit du SQL à la main, donc la seule
+     * discipline qui tienne est de ne jamais interpoler ce qui vient de l'appelant.
+     */
+    async findFiltered(
+        manager: EntityManager,
+        filters: AuditFilters,
+        limit: number,
+        offset: number
+    ): Promise<{ rows: AuditRow[]; total: number }> {
+        const { clause, parameters } = buildWhere(filters);
+        const [rows, counted] = await Promise.all([
+            manager.query(
+                `SELECT ${COLUMNS} FROM audit_logs ${clause} ORDER BY timestamp DESC, id DESC LIMIT $${parameters.length + 1} OFFSET $${parameters.length + 2}`,
+                [...parameters, limit, offset]
+            ),
+            manager.query(`SELECT COUNT(*) AS total FROM audit_logs ${clause}`, parameters)
+        ]);
+        return { rows, total: Number(counted[0].total) };
+    }
+
+    /** Les types d'opération réellement présents, pour que le filtre ne propose pas des
+     *  valeurs qui ne rendraient rien. */
+    async distinctOperationTypes(manager: EntityManager): Promise<string[]> {
+        const rows: { operationType: string | null }[] = await manager.query(
+            'SELECT DISTINCT operation_type AS "operationType" FROM audit_logs WHERE operation_type IS NOT NULL ORDER BY 1'
+        );
+        return rows.map((row) => row.operationType!).filter(Boolean);
+    }
+
+    /**
      * Toute la table, dans l'ordre où la chaîne a été construite.
      *
      * Obtenu en **suivant les maillons** — de l'entrée sans précédente vers la suivante,
@@ -105,4 +138,33 @@ export class AuditLogRepository {
     async updateHashes(manager: EntityManager, id: string, previousHash: string | null, entryHash: string): Promise<void> {
         await manager.query('UPDATE audit_logs SET previous_hash = $1, entry_hash = $2 WHERE id = $3', [previousHash, entryHash, id]);
     }
+}
+
+export interface AuditFilters {
+    operationType?: string | null;
+    userId?: string | null;
+    /** Recherche libre sur la description. */
+    search?: string | null;
+}
+
+function buildWhere(filters: AuditFilters): { clause: string; parameters: unknown[] } {
+    const conditions: string[] = [];
+    const parameters: unknown[] = [];
+
+    if (filters.operationType) {
+        parameters.push(filters.operationType);
+        conditions.push(`operation_type = $${parameters.length}`);
+    }
+    if (filters.userId) {
+        parameters.push(filters.userId);
+        conditions.push(`user_id = $${parameters.length}`);
+    }
+    if (filters.search) {
+        // `%` et `_` échappés : sans cela une recherche sur « 100_% » rendrait tout, ce
+        // qui se lit comme un filtre qui ne marche pas.
+        parameters.push(`%${filters.search.replace(/[\\%_]/g, (match) => `\\${match}`)}%`);
+        conditions.push(`description ILIKE $${parameters.length}`);
+    }
+
+    return { clause: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', parameters };
 }

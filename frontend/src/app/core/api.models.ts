@@ -288,3 +288,35 @@ export interface ApiKeyTargets {
     repositories: { id: number; label: string }[];
     containers: { id: number; label: string }[];
 }
+
+/** Une entrée du journal d'audit. */
+export interface AuditEntry {
+    id: string;
+    timestamp: string | null;
+    operationType: string | null;
+    resourceId: string | null;
+    userId: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    description: string | null;
+    previousHash: string | null;
+    entryHash: string | null;
+}
+
+export interface AuditFilters {
+    operation_type?: string;
+    user_id?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+}
+
+/** Le résultat de la vérification de la chaîne d'intégrité. */
+export interface AuditVerification {
+    total: number;
+    /** Entrées antérieures au chaînage : ni une preuve ni une alerte. */
+    unverifiable: number;
+    verified: number;
+    intact: boolean;
+    broken: string | null;
+}

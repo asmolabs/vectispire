@@ -7,6 +7,9 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     NewContainer,
     NewSshKey,
     ApiKeySummary,
+    AuditEntry,
+    AuditFilters,
+    AuditVerification,
     ApiKeyTargets,
     IssuedApiKey,
     NewApiKey,
@@ -128,5 +131,21 @@ export class ApiService {
 
     deleteApiKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/api-keys/${id}`);
+    }
+
+    auditLog(filters: AuditFilters = {}): Observable<Page<AuditEntry>> {
+        let params = new HttpParams();
+        for (const [key, value] of Object.entries(filters)) {
+            if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
+        }
+        return this.http.get<Page<AuditEntry>>('/api/v1/audit-log', { params });
+    }
+
+    auditOperationTypes(): Observable<string[]> {
+        return this.http.get<string[]>('/api/v1/audit-log/operation-types');
+    }
+
+    verifyAuditChain(): Observable<AuditVerification> {
+        return this.http.get<AuditVerification>('/api/v1/audit-log/verify');
     }
 }
