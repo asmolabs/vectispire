@@ -1,75 +1,119 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { decryptWith, decryptWithAny, deriveKey, encryptWith, privateKeyContext } from './encryption';
-
-/**
- * Vecteurs produits par le vrai service Python (`scripts` de génération dans l'historique) :
- * la seule preuve qui compte est qu'un chiffré écrit par Python se lise ici, puisque les
- * lignes déjà en base viennent de lui.
- */
-const vectors = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/encryption.json'), 'utf8')) as {
-    currentKey: string;
-    previousKeys: string[];
-    derivations: { secret: string; hex: string }[];
-    cases: { name: string; plainText: string; context: string | null; encrypted: string; state?: string }[];
-};
+import { decryptWith, decryptWithAny, deriveKey, encryptWith, equalsSecret, generateEncryptionKey, privateKeyContext } from './encryption';
 
 describe('chiffrement au repos', () => {
-    const current = deriveKey(vectors.currentKey);
-    const keys = [current, ...vectors.previousKeys.map(deriveKey)];
+    const PASSPHRASE = 'une phrase de passe choisie par un humain';
+    const key = deriveKey(PASSPHRASE);
+    const previous = deriveKey('la phrase précédente');
+    const keys = [key, previous];
 
-    describe('dérivation de clé, identique à Python', () => {
-        it.each(vectors.derivations)('« $secret »', ({ secret, hex }) => {
-            expect(deriveKey(secret).toString('hex')).toBe(hex);
+    describe('dérivation', () => {
+        it('accepte une clé de 32 octets en base64 telle quelle', () => {
+            const generated = generateEncryptionKey();
+            expect(Buffer.from(generated, 'base64')).toHaveLength(32);
+            expect(deriveKey(generated).equals(Buffer.from(generated, 'base64'))).toBe(true);
         });
 
-        it('complète avec des NUL plutôt que de dériver — et une clé courte vaut donc peu', () => {
+        it('étire une phrase de passe plutôt que de la tronquer', () => {
+            // L'implémentation précédente rendait « abc » suivi de 29 octets nuls : la
+            // clé valait l'entropie des trois caractères. C'est le défaut corrigé.
             const derived = deriveKey('abc');
             expect(derived).toHaveLength(32);
-            expect(derived.subarray(3).every((byte) => byte === 0)).toBe(true);
+            expect(derived.subarray(3).some((byte) => byte !== 0)).toBe(true);
+        });
+
+        it('est déterministe, sans quoi rien ne se relirait après un redémarrage', () => {
+            expect(deriveKey(PASSPHRASE).equals(deriveKey(PASSPHRASE))).toBe(true);
+        });
+
+        it('donne des clés distinctes pour des phrases voisines', () => {
+            expect(deriveKey('phrase-a').equals(deriveKey('phrase-b'))).toBe(false);
+        });
+
+        it("normalise l'unicode, pour qu'un même mot saisi autrement ouvre la même serrure", () => {
+            // « é » composé et décomposé sont visuellement identiques et différents en
+            // octets : sans normalisation, l'opérateur qui recopie sa phrase depuis un
+            // autre système se retrouve devant des secrets illisibles.
+            expect(deriveKey('clé-de-chiffrement').equals(deriveKey('clé-de-chiffrement'))).toBe(true);
+        });
+
+        it("ne prend pas pour une clé une chaîne de la bonne longueur qui n'est pas du base64", () => {
+            // Sinon `Buffer.from` la tronque en silence et la clé est plus faible qu'elle
+            // n'en a l'air.
+            const notBase64 = '!'.repeat(44);
+            expect(deriveKey(notBase64).equals(Buffer.from(notBase64, 'base64'))).toBe(false);
         });
     });
 
-    describe('lecture de ce que Python a écrit', () => {
-        it.each(vectors.cases)('$name', ({ plainText, context, encrypted, state }) => {
-            const result = decryptWithAny(keys, encrypted, context);
-            expect(result.plainText).toBe(plainText);
-            expect(result.state).toBe(state ?? 'current');
+    describe('aller-retour', () => {
+        it('relit ce qu’il a écrit, contexte compris', () => {
+            const context = privateKeyContext('11111111-1111-1111-1111-111111111111');
+            const encrypted = encryptWith(key, 'clé privée', context);
+            expect(encrypted.startsWith('v2:')).toBe(true);
+            expect(decryptWith(key, encrypted, context)).toBe('clé privée');
+        });
+
+        it('préserve les accents et les caractères non latins', () => {
+            const encrypted = encryptWith(key, 'clé privée é à ü 漢字', null);
+            expect(decryptWith(key, encrypted, null)).toBe('clé privée é à ü 漢字');
+        });
+
+        it('ne répète pas un chiffré pour un même clair', () => {
+            // L'IV est tiré à chaque appel : deux chiffrés identiques révéleraient que
+            // deux lignes portent le même secret.
+            expect(encryptWith(key, 'même clair', null)).not.toBe(encryptWith(key, 'même clair', null));
+        });
+
+        it('laisse une chaîne vide telle quelle', () => {
+            expect(encryptWith(key, '', null)).toBe('');
         });
     });
 
-    it('produit un format que Python relira : base64(iv‖chiffré‖tag)', () => {
-        const context = privateKeyContext('11111111-1111-1111-1111-111111111111');
-        const encrypted = encryptWith(current, 'secret', context);
-        const raw = Buffer.from(encrypted, 'base64');
-        expect(raw.length).toBe(12 + 'secret'.length + 16);
-        expect(decryptWith(current, encrypted, context)).toBe('secret');
+    describe('liaison à la ligne', () => {
+        it("refuse un chiffré déplacé d'une ligne à l'autre", () => {
+            const encrypted = encryptWith(key, 'clé privée de A', privateKeyContext('aaaaaaaa-0000-0000-0000-000000000000'));
+            const elsewhere = privateKeyContext('bbbbbbbb-0000-0000-0000-000000000000');
+            expect(decryptWith(key, encrypted, elsewhere)).toBeNull();
+            expect(decryptWithAny(keys, encrypted, elsewhere).state).toBe('unreadable');
+        });
+
+        it('ne se rabat pas sur l’absence de donnée associée', () => {
+            // Ce repli existait pour les lignes antérieures aux contextes ; il n'en reste
+            // aucune, et le retirer supprime une façon d'accepter un chiffré déplacé.
+            const encrypted = encryptWith(key, 'lié', privateKeyContext('cccccccc-0000-0000-0000-000000000000'));
+            expect(decryptWith(key, encrypted, null)).toBeNull();
+        });
     });
 
-    it("refuse un chiffré déplacé d'une ligne à l'autre", () => {
-        // Sans cette liaison, le dépôt A serait cloné avec la clé de B, en silence.
-        const encrypted = encryptWith(current, 'clé privée de A', privateKeyContext('aaaaaaaa-0000-0000-0000-000000000000'));
-        expect(decryptWith(current, encrypted, privateKeyContext('bbbbbbbb-0000-0000-0000-000000000000'))).toBeNull();
-        expect(decryptWithAny(keys, encrypted, privateKeyContext('bbbbbbbb-0000-0000-0000-000000000000')).state).toBe('unreadable');
+    describe('rotation', () => {
+        it('déclare « current » ce qui est écrit avec la clé courante', () => {
+            expect(decryptWithAny(keys, encryptWith(key, 'x', null), null).state).toBe('current');
+        });
+
+        it('déclare « previous_key » ce qui n’a pas encore été réenregistré', () => {
+            expect(decryptWithAny(keys, encryptWith(previous, 'x', null), null)).toEqual({ plainText: 'x', state: 'previous_key' });
+        });
+
+        it('rend « unreadable » plutôt que de lever, quand aucune clé ne lit', () => {
+            const foreign = encryptWith(deriveKey('une clé que personne n’a'), 'x', null);
+            expect(decryptWithAny(keys, foreign, null)).toEqual({ plainText: '', state: 'unreadable' });
+        });
     });
 
-    it("lit une valeur écrite avant l'existence des contextes", () => {
-        const encrypted = encryptWith(current, 'ancienne valeur', null);
-        expect(decryptWithAny(keys, encrypted, privateKeyContext('cccccccc-0000-0000-0000-000000000000')).plainText).toBe('ancienne valeur');
-    });
-
-    it('rend « unreadable » plutôt que de lever, quand aucune clé ne lit', () => {
-        const foreign = encryptWith(deriveKey('une-clé-que-personne-n-a'), 'secret', null);
-        expect(decryptWithAny(keys, foreign, null)).toEqual({ plainText: '', state: 'unreadable' });
-    });
-
-    it('rend « unreadable » sur une valeur tronquée ou absurde', () => {
-        for (const value of ['', 'pas du base64 !!', 'AAAA']) {
+    describe('valeurs mal formées', () => {
+        it.each([[''], ['pas du base64 !!'], ['v2:AAAA'], ['v2:'], ['sans-prefixe'], ['v1:AAAA']])('rend « unreadable » sur %p', (value) => {
             expect(decryptWithAny(keys, value, null).state).toBe('unreadable');
-        }
+        });
+
+        it('détecte une altération du tag', () => {
+            const encrypted = encryptWith(key, 'intact', null);
+            const tampered = encrypted.slice(0, -4) + (encrypted.endsWith('AAAA') ? 'BBBB' : 'AAAA');
+            expect(decryptWith(key, tampered, null)).toBeNull();
+        });
     });
 
-    it('ne déclare jamais ancienne une valeur écrite avec la clé courante', () => {
-        expect(decryptWithAny(keys, encryptWith(current, 'x', null), null).state).toBe('current');
+    it('compare deux secrets à temps constant', () => {
+        expect(equalsSecret('secret', 'secret')).toBe(true);
+        expect(equalsSecret('secret', 'secrez')).toBe(false);
+        expect(equalsSecret('secret', 'secret-plus-long')).toBe(false);
     });
 });

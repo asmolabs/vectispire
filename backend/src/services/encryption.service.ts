@@ -11,13 +11,18 @@ export class MissingEncryptionKeyError extends Error {
     constructor() {
         super(
             `${ENCRYPTION_KEY_ENV_VAR} n'est pas définie : impossible de chiffrer une nouvelle valeur. ` +
-                "Définissez une clé de 32 octets dans l'environnement de Zanshin avant d'enregistrer une clé SSH."
+                'Générez une clé avec « openssl rand -base64 32 » et posez-la dans ' +
+                `${ENCRYPTION_KEY_ENV_VAR} avant d'enregistrer un secret.`
         );
     }
 }
 
 /**
  * Le chiffrement au repos, tel que l'environnement le configure.
+ *
+ * **La dérivation n'a lieu qu'ici, une fois par clé, au démarrage.** scrypt coûte une
+ * centaine de millisecondes : imperceptible au lancement, ruineux si on l'appelait par
+ * valeur chiffrée. Les clés dérivées sont conservées pour la durée de vie du service.
  *
  * **L'application n'embarque aucune clé vers ses propres secrets.** Une version
  * antérieure en publiait une dans ce dépôt : quiconque tenait une copie de la base
@@ -36,7 +41,10 @@ export class EncryptionService {
         const configured = key !== undefined ? key : process.env[ENCRYPTION_KEY_ENV_VAR];
         this.encryptionKey = configured ? deriveKey(configured) : null;
         if (this.encryptionKey === null) {
-            this.logger.warn(`${ENCRYPTION_KEY_ENV_VAR} n'est pas définie — les secrets stockés restent lisibles, mais aucun nouveau ne peut être chiffré.`);
+            this.logger.warn(
+                `${ENCRYPTION_KEY_ENV_VAR} n'est pas définie — les secrets stockés restent lisibles, mais aucun nouveau ne peut être chiffré. ` +
+                    'Générez une clé avec « openssl rand -base64 32 ».'
+            );
         }
 
         const previous = previousKeys ?? (process.env[PREVIOUS_KEYS_ENV_VAR] ?? '').split(',').map((part) => part.trim()).filter(Boolean);
