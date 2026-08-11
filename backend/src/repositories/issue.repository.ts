@@ -1,5 +1,6 @@
 import { EntityManager, In } from 'typeorm';
 import { Issue, STATE_OPEN } from '../persistence/entities';
+import { SECURITY_TYPES } from '../domain/issues/types';
 
 export interface IssueFilters {
     state?: string | null;
@@ -156,6 +157,28 @@ export class IssueRepository {
      * un nom de colonne ne peut pas être un paramètre lié, donc la seule protection
      * contre une injection est qu'il ne vienne jamais de l'extérieur.
      */
+    /**
+     * Le backlog ouvert par sévérité, **hors qualité**.
+     *
+     * L'exclusion est le point : sans elle, le chiffre de tête du tableau de bord passe
+     * à quatre chiffres le jour de la mise en service du SAST, et devient le nombre que
+     * plus personne ne regarde.
+     */
+    async countOpenBySeverity(manager: EntityManager): Promise<Record<string, number>> {
+        const rows: { severity: string | null; count: string }[] = await manager
+            .createQueryBuilder(Issue, 'issue')
+            .select('issue.severity', 'severity')
+            .addSelect('COUNT(*)', 'count')
+            .where('issue.state = :state', { state: STATE_OPEN })
+            .andWhere('issue.type IN (:...types)', { types: [...SECURITY_TYPES] })
+            .groupBy('issue.severity')
+            .getRawMany();
+
+        const counts: Record<string, number> = {};
+        for (const row of rows) counts[row.severity ?? 'unknown'] = Number(row.count);
+        return counts;
+    }
+
     async countOpenGrouped(manager: EntityManager, type: string, column: GroupableColumn, limit = 8): Promise<{ label: string | null; count: number }[]> {
         const rows: { label: string | null; count: string }[] = await manager
             .createQueryBuilder(Issue, 'issue')

@@ -10,6 +10,7 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     AuditEntry,
     AuditFilters,
     AuditVerification,
+    DashboardOverview,
     ApiKeyTargets,
     IssuedApiKey,
     NewApiKey,
@@ -62,6 +63,10 @@ export class ApiService {
 
     triage(issueId: number, request: TriageRequest): Observable<Issue> {
         return this.http.post<Issue>(`/api/v1/issues/${issueId}/triage`, request);
+    }
+
+    dashboard(): Observable<DashboardOverview> {
+        return this.http.get<DashboardOverview>('/api/v1/dashboard');
     }
 
     securityOverview(): Observable<SecurityOverview> {

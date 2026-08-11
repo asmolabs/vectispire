@@ -7,6 +7,7 @@ import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
+import { repositoryDisplayName } from '../domain/targets/display-name';
 
 /**
  * Les dépôts surveillés.
@@ -36,6 +37,7 @@ export class RepositoriesController {
             const scan = latestScans.get(repository.id) as unknown as Record<string, unknown> | undefined;
             return {
                 ...repository,
+                displayName: repositoryDisplayName(repository),
                 lastScan: scan ? { id: scan.id, status: scan.status, createdAt: scan.created_at ?? null, error: scan.error ?? null } : null,
                 openIssues: issues.get(repository.id) ?? 0
             };

@@ -7,6 +7,7 @@ import { StoredPolicy, describeSource, resolvePolicy } from '../domain/gate/poli
 import { TARGET_CONTAINER, TARGET_REPOSITORY, buildOverview } from '../domain/gate/security-overview';
 import { GatePolicyRow } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
+import { containerDisplayName, repositoryDisplayName } from '../domain/targets/display-name';
 
 /**
  * Le verdict que demande un pipeline, et la posture qu'affiche l'écran Sécurité.
@@ -78,8 +79,8 @@ export class GateController {
         ]);
 
         return buildOverview({
-            repositories: repositories.map((repository) => ({ id: repository.id, name: repository.name || repository.url })),
-            containers: containers.map((container) => ({ id: container.id, name: `${container.imageName}:${container.tag}` })),
+            repositories: repositories.map((repository) => ({ id: repository.id, name: repositoryDisplayName(repository) })),
+            containers: containers.map((container) => ({ id: container.id, name: containerDisplayName(container) })),
             policies: policies.map((row) => ({ targetKind: row.targetKind, targetId: row.targetId, policy: toStoredPolicy(row) })),
             openIssues: issues as unknown as (GateIssue & { repoId: number | null; containerId: number | null })[],
             latestScanByRepository: toLatest(scansByRepository),
@@ -94,7 +95,7 @@ function indexPolicies(rows: GatePolicyRow[]): Map<string, StoredPolicy> {
     return byScope;
 }
 
-function toStoredPolicy(row: GatePolicyRow): StoredPolicy {
+export function toStoredPolicy(row: GatePolicyRow): StoredPolicy {
     return {
         failOnSeverity: row.failOnSeverity,
         failOnKev: row.failOnKev,
@@ -122,7 +123,7 @@ function requestedPolicy(body: Record<string, unknown>): RequestedPolicy {
     return requested;
 }
 
-function toLatest(scans: Map<number, { id: number; status: string | null; created_at?: string; createdAt?: string }>) {
+export function toLatest(scans: Map<number, { id: number; status: string | null; created_at?: string; createdAt?: string }>) {
     const latest = new Map<number, { id: number; status: string | null; createdAt: string | null }>();
     for (const [id, scan] of scans) {
         // La requête brute rend les colonnes telles que la base les nomme.

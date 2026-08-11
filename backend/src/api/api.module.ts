@@ -15,6 +15,7 @@ import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 import { ContainersController } from './containers.controller';
 import { AuditLogController } from './audit-log.controller';
+import { DashboardController } from './dashboard.controller';
 import { ApiKeysController } from './api-keys.controller';
 import { UsersController } from './users.controller';
 import { SshKeysController } from './ssh-keys.controller';
@@ -33,7 +34,7 @@ import { RepositoriesController } from './repositories.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController, DashboardController],
     providers: [
         AuthService,
         AuditLogService,

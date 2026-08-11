@@ -158,6 +158,8 @@ export interface MonitoredRepository {
     url: string;
     branch: string;
     name: string | null;
+    /** Calculé par le serveur, pour que le même dépôt porte le même nom partout. */
+    displayName: string;
     subPath: string | null;
     scanIntervalMinutes: number | null;
     scanCron: string | null;
@@ -319,4 +321,36 @@ export interface AuditVerification {
     verified: number;
     intact: boolean;
     broken: string | null;
+}
+
+/** Ce que montre le tableau de bord. Aucun de ces chiffres ne lui est propre : la
+ *  posture vient de la même construction que l'écran Sécurité et que POST /gate. */
+export interface DashboardOverview {
+    posture: {
+        failingCount: number;
+        totalCount: number;
+        kevCount: number;
+        neverScannedCount: number;
+        lastScanFailedCount: number;
+    };
+    /** Hors qualité, délibérément. */
+    backlogBySeverity: Record<string, number>;
+    /** À part, et jamais mêlé au backlog de sécurité : il ne bloque rien. */
+    qualityTotal: number;
+    failing: {
+        kind: string;
+        targetId: number;
+        name: string;
+        observed: boolean;
+        violations: { rule: string; reason: string; identifier?: string | null; severity?: string | null }[];
+    }[];
+    recentScans: {
+        id: number;
+        repoId: number | null;
+        containerId: number | null;
+        status: string;
+        findingsCount: number | null;
+        error: string | null;
+        createdAt: string | null;
+    }[];
 }

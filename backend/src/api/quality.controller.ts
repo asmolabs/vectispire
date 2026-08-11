@@ -3,9 +3,10 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { Repository as GitRepository, STATE_OPEN } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
+import { TYPE_QUALITY } from '../domain/issues/types';
 
 /** Le type que les scanners produisent pour ce qui touche à l'écriture du code. */
-const QUALITY = 'quality';
+
 
 /**
  * L'agrégation qui rend l'écran Qualité utile.
@@ -26,10 +27,10 @@ export class QualityController {
     @Get('overview')
     async overview() {
         const [total, byRule, byFile, byTarget] = await Promise.all([
-            this.issues.countFiltered(this.manager, { state: STATE_OPEN, type: QUALITY }),
-            this.issues.countOpenGrouped(this.manager, QUALITY, 'rule'),
-            this.issues.countOpenGrouped(this.manager, QUALITY, 'file'),
-            this.issues.countOpenGrouped(this.manager, QUALITY, 'target')
+            this.issues.countFiltered(this.manager, { state: STATE_OPEN, type: TYPE_QUALITY }),
+            this.issues.countOpenGrouped(this.manager, TYPE_QUALITY, 'rule'),
+            this.issues.countOpenGrouped(this.manager, TYPE_QUALITY, 'file'),
+            this.issues.countOpenGrouped(this.manager, TYPE_QUALITY, 'target')
         ]);
 
         return {

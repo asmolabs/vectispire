@@ -52,7 +52,7 @@ import { LastScanTag } from '../../shared/last-scan';
                 <ng-template #body let-repository>
                     <tr>
                         <td>
-                            <div class="font-medium">{{ repository.name || shortName(repository.url) }}</div>
+                            <div class="font-medium">{{ repository.displayName }}</div>
                             <div class="text-sm text-muted-color break-all">{{ repository.url }}</div>
                         </td>
                         <td>{{ repository.branch }}</td>
@@ -200,8 +200,5 @@ export class Depots {
         });
     }
 
-    shortName(url: string): string {
-        return url.replace(/\.git$/, '').split(/[/:]/).slice(-2).join('/');
-    }
 
 }
