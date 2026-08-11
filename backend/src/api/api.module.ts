@@ -13,6 +13,8 @@ import { ExportsController } from './exports.controller';
 import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 import { ContainersController } from './containers.controller';
+import { SshKeysController } from './ssh-keys.controller';
+import { EncryptionService } from '../services/encryption.service';
 import { QualityController } from './quality.controller';
 import { RepositoriesController } from './repositories.controller';
 
@@ -27,10 +29,14 @@ import { RepositoriesController } from './repositories.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController],
     providers: [
         AuthService,
         AuditLogService,
+        // Construit par fabrique et non par injection : son constructeur prend des
+        // secrets, que les tests fournissent directement. Le laisser à l'injection ferait
+        // chercher à Nest un fournisseur pour « string ».
+        { provide: EncryptionService, useFactory: () => new EncryptionService() },
         IssueTriageService,
         SessionCleanupService,
         IssueRepository,

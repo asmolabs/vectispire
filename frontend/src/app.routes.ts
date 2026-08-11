@@ -19,6 +19,7 @@ export const appRoutes: Routes = [
             { path: 'dashboard', loadComponent: () => import('./app/pages/dashboard/dashboard').then((m) => m.Dashboard) },
             { path: 'depots', loadComponent: () => import('./app/pages/depots/depots').then((m) => m.Depots) },
             { path: 'containers', loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers) },
+            { path: 'ssh-keys', loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
             { path: 'securite', loadComponent: () => import('./app/pages/securite/securite').then((m) => m.Securite) },
             { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) },
             { path: 'qualite', loadComponent: () => import('./app/pages/qualite/qualite').then((m) => m.Qualite) }

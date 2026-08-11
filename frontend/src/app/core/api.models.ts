@@ -197,3 +197,23 @@ export interface NewContainer {
     image_name: string;
     tag: string;
 }
+
+/** Où en est une clé privée vis-à-vis des clés de chiffrement configurées. */
+export type EncryptionState = 'current' | 'previous_key' | 'unreadable';
+
+/** Une clé de déploiement. La moitié privée n'apparaît jamais ici : le serveur ne la
+ *  rend pas, et aucun écran n'aurait de raison de l'afficher. */
+export interface SshKeySummary {
+    id: string;
+    name: string;
+    publicKey: string | null;
+    createdAt: string;
+    encryptionState: EncryptionState;
+    usedByRepositories: number;
+}
+
+export interface NewSshKey {
+    name: string;
+    private_key: string;
+    public_key?: string;
+}

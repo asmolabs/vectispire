@@ -5,6 +5,8 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     MonitoredContainer,
     MonitoredRepository,
     NewContainer,
+    NewSshKey,
+    SshKeySummary,
     NewRepository} from './api.models';
 
 /**
@@ -74,5 +76,17 @@ export class ApiService {
 
     deleteContainer(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/containers/${id}`);
+    }
+
+    sshKeys(): Observable<SshKeySummary[]> {
+        return this.http.get<SshKeySummary[]>('/api/v1/ssh-keys');
+    }
+
+    createSshKey(key: NewSshKey): Observable<{ id: string }> {
+        return this.http.post<{ id: string }>('/api/v1/ssh-keys', key);
+    }
+
+    deleteSshKey(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/ssh-keys/${id}`);
     }
 }
