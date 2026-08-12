@@ -20,6 +20,8 @@ import { GateController } from './gate.controller';
 import { IssuesController } from './issues.controller';
 import { ContainersController } from './containers.controller';
 import { AuditLogController } from './audit-log.controller';
+import { AgentsController } from './agents.controller';
+import { ApiKeyAuthService } from '../services/api-key-auth.service';
 import { DashboardController } from './dashboard.controller';
 import { ApiKeysController } from './api-keys.controller';
 import { UsersController } from './users.controller';
@@ -39,7 +41,7 @@ import { RepositoriesController } from './repositories.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController, DashboardController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController, DashboardController, AgentsController],
     providers: [
         AuthService,
         AuditLogService,
@@ -52,6 +54,7 @@ import { RepositoriesController } from './repositories.controller';
         IssueRepository,
         TargetRepository,
         AuditLogRepository,
+        ApiKeyAuthService,
         ScanRepository,
         // Construits par fabrique : leurs constructeurs prennent des collaborateurs avec
         // des valeurs par défaut, que l'injection prendrait pour des dépendances à

@@ -3,11 +3,22 @@ import { DataSource, EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
 import { now } from '../domain/common/timestamp';
 import { capacity } from '../domain/scans/queue-rules';
-import { Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED } from '../persistence/entities';
+import { Agent, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
 import { ScanRepository } from '../repositories/scan.repository';
 import { ScanRunner, type ScanArtifacts } from '../scanning/scan-runner';
 import { EncryptionService } from './encryption.service';
 import { ScanIngestorService } from './scan-ingestor.service';
+
+/** Levée quand une clé de déploiement partirait en clair. Sa propre classe, pour que
+ *  l'API la traduise en 412 et non en 500. */
+export class InsecureCredentialTransport extends Error {
+    constructor() {
+        super("Cet agent reçoit les clés de déploiement, ce qui exige une liaison chiffrée.");
+    }
+}
+
+/** Ce qu'un agent reçoit : la tâche, plus l'identifiant du scan qu'il devra rendre. */
+export type AgentTask = Awaited<ReturnType<ScanDispatcherService['buildTaskPublic']>> & { scanId: number };
 
 /**
  * Le distributeur : il réclame des scans, les fait exécuter, ingère leurs résultats et
@@ -59,6 +70,94 @@ export class ScanDispatcherService {
             (await this.execute(scan, worker)) ? (completed += 1) : (failed += 1);
         }
         return { claimed: claimed.length, completed, failed };
+    }
+
+    /**
+     * Remet une tâche à un agent distant, ou rend `null` s'il n'y a rien à faire.
+     *
+     * **La clé de déploiement ne part que si la liaison est chiffrée.** Un agent en mode
+     * `delegated` reçoit la clé privée du dépôt ; l'envoyer en clair la donnerait à qui
+     * écoute le réseau. Le scan est alors remis en file plutôt que confié.
+     */
+    async claimForAgent(agent: Agent, secureTransport: boolean, waitSeconds: number): Promise<AgentTask | null> {
+        const deadline = Date.now() + waitSeconds * 1000;
+
+        do {
+            const claimed = await this.dataSource.transaction((manager) => this.scans.claim(manager, 1, agent.id));
+            if (claimed.length > 0) {
+                const scan = claimed[0];
+                try {
+                    const task = await this.dataSource.transaction((manager) => this.buildTask(manager, scan));
+                    if (task.privateKey && !secureTransport) {
+                        // Remis en file avant de refuser : sans cela le scan resterait
+                        // réclamé par un agent qui n'a rien reçu, jusqu'à expiration.
+                        await this.dataSource.transaction((manager) =>
+                            manager.update(Scan, { id: scan.id }, { status: STATUS_QUEUED, claimedBy: null, claimedAt: null, leaseExpiresAt: null })
+                        );
+                        throw new InsecureCredentialTransport();
+                    }
+                    return { scanId: scan.id, ...task };
+                } catch (error) {
+                    if (error instanceof InsecureCredentialTransport) throw error;
+                    await this.finishAsFailed(scan, (error as Error).message);
+                    return null;
+                }
+            }
+
+            // Attente courte plutôt qu'une seule vérification : un agent qui interroge
+            // toutes les trente secondes verrait sinon un scan attendre presque autant.
+            if (Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 1000));
+        } while (Date.now() < deadline);
+
+        return null;
+    }
+
+    /** Prolonge le bail d'un scan confié à cet agent. */
+    async renewAgentLease(scanId: number, agent: Agent): Promise<boolean> {
+        return this.dataSource.transaction((manager) => this.scans.renewLease(manager, scanId, agent.id));
+    }
+
+    /**
+     * Accepte le résultat d'un scan exécuté ailleurs.
+     *
+     * Rend `false` si le bail a été repris entre-temps : les résultats sont alors écartés
+     * plutôt qu'écrits, pour ne pas écraser le travail du successeur.
+     */
+    async acceptAgentResult(scanId: number, agent: Agent, payload: Record<string, unknown>): Promise<boolean> {
+        const artifacts: ScanArtifacts = {
+            // `?? null` et non `?? []` : un agent qui n'a pas exécuté une étape doit laisser
+            // le backlog de ce type intact, et l'absence de champ le dit.
+            sbom: (payload.sbom as ScanArtifacts['sbom']) ?? null,
+            dependencies: (payload.dependencies as ScanArtifacts['dependencies']) ?? null,
+            secrets: (payload.secrets as ScanArtifacts['secrets']) ?? null,
+            iac: (payload.iac as ScanArtifacts['iac']) ?? null,
+            sast: (payload.sast as ScanArtifacts['sast']) ?? null,
+            failures: (payload.failures as ScanArtifacts['failures']) ?? [],
+            durationMs: Number(payload.duration_ms ?? 0)
+        };
+
+        let accepted = false;
+        await this.dataSource.transaction(async (manager) => {
+            if (!(await this.scans.stillOwned(manager, scanId, agent.id))) return;
+
+            const scan = await manager.findOneByOrFail(Scan, { id: scanId });
+            const result = await this.ingestor.ingest(manager, scan, artifacts);
+            Object.assign(scan, {
+                status: STATUS_COMPLETED,
+                findingsCount: result.new + result.reopened + result.stillOpen,
+                newIssuesCount: result.new,
+                resolvedIssuesCount: result.resolved,
+                durationMs: artifacts.durationMs,
+                sbom: artifacts.sbom,
+                error: artifacts.failures.length ? artifacts.failures.map((f) => `${f.step} : ${f.reason}`).join(' | ').slice(0, 2000) : null,
+                claimedBy: null,
+                claimedAt: null,
+                leaseExpiresAt: null
+            });
+            await manager.save(Scan, scan);
+            accepted = true;
+        });
+        return accepted;
     }
 
     private async reclaimLostLeases(): Promise<void> {
@@ -139,6 +238,11 @@ export class ScanDispatcherService {
      * connaît ni la base ni la clé de chiffrement — c'est ce qui permet à un agent distant
      * d'exécuter le même code sans jamais approcher le secret d'un autre dépôt.
      */
+    /** Exposée pour le typage de `AgentTask` uniquement. */
+    async buildTaskPublic(manager: EntityManager, scan: Scan) {
+        return this.buildTask(manager, scan);
+    }
+
     private async buildTask(manager: EntityManager, scan: Scan) {
         if (scan.repoId === null) {
             throw new Error("Ce scan ne porte pas de dépôt : le scan d'image n'est pas encore distribué par ce chemin.");

@@ -24,7 +24,10 @@ function guardWith(options: { metadata?: Record<string, unknown>; session?: unkn
     const audited: unknown[] = [];
     const audit = { record: async (_m: unknown, entry: unknown) => void audited.push(entry) };
     const manager = { findOneBy: async () => options.user ?? null };
-    return { guard: new AuthGuard(reflector, auth as never, audit as never, manager as never), audited };
+    // Le service de clés d'API rend toujours `null` : ces tests portent sur la session, et
+    // le protocole d'agent a ses propres tests d'intégration.
+    const apiKeys = { resolve: async () => null, hasScope: () => false, agentFor: async () => null };
+    return { guard: new AuthGuard(reflector, apiKeys as never, auth as never, audit as never, manager as never), audited };
 }
 
 const session = { token: 'jeton', userId: 1 };

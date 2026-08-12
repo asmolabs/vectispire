@@ -2,9 +2,11 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, SetMetad
 import { Reflector } from '@nestjs/core';
 import { EntityManager } from 'typeorm';
 import { InjectEntityManager } from '@nestjs/typeorm';
-import { ADMIN_ROLES, Session, User } from '../persistence/entities';
+import { Agent, ADMIN_ROLES, Session, User } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
+import { ApiKeyAuthService } from '../services/api-key-auth.service';
+import { SCOPE_AGENT } from '../domain/api-keys/scopes';
 
 /**
  * Les gardes d'accès.
@@ -39,6 +41,9 @@ export const AdminOnly = () => Roles(...ADMIN_ROLES);
 export interface AuthenticatedRequest {
     session?: Session;
     user?: User;
+    /** Posé sur les routes d'agent, qui s'authentifient par clé d'API et non par session. */
+    agent?: Agent;
+    protocol?: string;
     headers: Record<string, string | string[] | undefined>;
     ip?: string;
     route?: { path?: string };
@@ -48,6 +53,7 @@ export interface AuthenticatedRequest {
 export class AuthGuard implements CanActivate {
     constructor(
         private readonly reflector: Reflector,
+        private readonly apiKeys: ApiKeyAuthService,
         private readonly auth: AuthService,
         private readonly audit: AuditLogService,
         @InjectEntityManager() private readonly manager: EntityManager
@@ -58,9 +64,16 @@ export class AuthGuard implements CanActivate {
         // contrôleur. Sans cela, un contrôleur marqué public rendrait publiques des
         // routes qui ne le sont pas.
         const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC, [context.getHandler(), context.getClass()]);
-        if (isPublic) return true;
-
         const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+        // **Les routes publiques peuvent quand même porter une clé d'API.** Le protocole
+        // d'agent vit hors du garde de session — un agent n'a pas de session — mais il
+        // s'authentifie bel et bien. Résoudre la clé ici, avant de rendre la main, pose
+        // `request.agent` pour le contrôleur, qui refuse si elle est absente.
+        if (isPublic) {
+            await this.attachApiKey(request);
+            return true;
+        }
         const session = await this.auth.resolve(this.manager, headerValue(request, 'authorization'));
         if (!session) {
             // Pas d'audit ici : une requête sans session valide est le cas ordinaire
@@ -93,6 +106,30 @@ export class AuthGuard implements CanActivate {
 
         return true;
     }
+    /**
+     * Résout une clé d'API et, si elle porte le périmètre « agent », l'agent associé.
+     *
+     * Silencieuse en cas d'échec : c'est au contrôleur de refuser, avec un message qui
+     * parle de son propre contexte. Lever ici rendrait impossible une route publique qui
+     * accepte à la fois une clé et l'anonymat.
+     */
+    private async attachApiKey(request: AuthenticatedRequest): Promise<void> {
+        const presented = bearerToken(headerValue(request, 'authorization') ?? undefined);
+        if (!presented) return;
+
+        const key = await this.apiKeys.resolve(this.manager, presented);
+        if (!key || !this.apiKeys.hasScope(key, SCOPE_AGENT)) return;
+
+        const agent = await this.apiKeys.agentFor(this.manager, key);
+        if (agent) request.agent = agent;
+    }
+}
+
+/** `Bearer zsk_…` — le schéma est exigé, pour qu'une clé nue ne passe pas par accident. */
+function bearerToken(header: string | undefined): string | null {
+    if (!header) return null;
+    const [scheme, ...rest] = header.trim().split(/\s+/);
+    return scheme.toLowerCase() === 'bearer' && rest.length ? rest.join(' ') : null;
 }
 
 function headerValue(request: AuthenticatedRequest, name: string): string | null {
