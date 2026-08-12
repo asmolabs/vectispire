@@ -13,7 +13,7 @@ import { stringColumn, textColumn, timestampColumn } from '../columns';
  * complète avec des NUL. C'est délibéré, et à reproduire à l'octet près, sous peine de
  * rendre illisible tout ce qui est déjà stocké.
  */
-@Entity('ssh_key')
+@Entity('t_ssh_key')
 export class SshKey {
     @PrimaryGeneratedColumn('uuid')
     id!: string;

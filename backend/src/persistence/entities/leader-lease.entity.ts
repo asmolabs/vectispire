@@ -10,7 +10,7 @@ import { stringColumn, timestampColumn } from '../columns';
  * suffisant ici : deux instances se croyant brièvement chef font un tick dupliqué, pas
  * une ligne corrompue, et le tick suivant tranche.
  */
-@Entity('leader_lease')
+@Entity('t_leader_lease')
 export class LeaderLease {
     @PrimaryColumn({ type: 'character varying', length: 64 })
     name!: string;

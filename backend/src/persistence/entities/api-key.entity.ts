@@ -19,7 +19,7 @@ import { DEFAULT_SCOPES } from '../../domain/api-keys/scopes';
  * pas le droit de savoir serait un mensonge utile, mais dire « vous n'y avez pas
  * droit » est ce que l'opérateur a besoin de lire.
  */
-@Entity('api_key')
+@Entity('t_api_key')
 export class ApiKey {
     @PrimaryGeneratedColumn('uuid')
     id!: string;

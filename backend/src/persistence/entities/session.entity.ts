@@ -13,7 +13,7 @@ import { User } from './user.entity';
  * et ce qui retire un composant d'infrastructure à un outil qui audite des chaînes
  * d'approvisionnement (migration 0016).
  */
-@Entity('session')
+@Entity('t_session')
 export class Session {
     @PrimaryColumn({ type: 'character varying', length: 64 })
     token!: string;

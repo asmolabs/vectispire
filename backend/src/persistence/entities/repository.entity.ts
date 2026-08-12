@@ -10,7 +10,7 @@ import { SshKey } from './ssh-key.entity';
  * `repository` et rien ne collisionne, mais le nom reste distinct de ceux de
  * `repositories/` pour la même raison de lisibilité.
  */
-@Entity('repository')
+@Entity('t_repository')
 export class Repository {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

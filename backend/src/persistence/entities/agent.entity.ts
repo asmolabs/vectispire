@@ -25,7 +25,7 @@ export const ONLINE_TTL_SECONDS = 120;
  * est audité à chaque envoi — condition d'existence du mode. Il est en outre refusé
  * sur un transport non chiffré.
  */
-@Entity('agent')
+@Entity('t_agent')
 export class Agent {
     @PrimaryGeneratedColumn('uuid')
     id!: string;

@@ -105,7 +105,7 @@ describe('changement de mot de passe', () => {
         const { request } = await seed();
         await controller.changePassword({ current_password: CURRENT, new_password: NEXT }, request);
 
-        const rows = await manager.query("SELECT description FROM audit_log WHERE operation_type = 'PASSWORD_CHANGED'");
+        const rows = await manager.query("SELECT description FROM t_audit_log WHERE operation_type = 'PASSWORD_CHANGED'");
         expect(rows.length).toBeGreaterThan(0);
         // Le mot de passe lui-même n'a rien à faire dans le journal.
         expect(JSON.stringify(rows)).not.toContain(NEXT);

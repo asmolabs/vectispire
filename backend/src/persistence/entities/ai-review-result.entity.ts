@@ -15,7 +15,7 @@ import { Scan } from './scan.entity';
  * ligne complète avec le texte brut, le modèle n'ayant pas rendu la forme demandée
  * n'étant pas un échec de la revue.
  */
-@Entity('ai_review_result')
+@Entity('t_ai_review_result')
 export class AiReviewResult {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

@@ -9,7 +9,7 @@ import { stringColumn } from '../columns';
  * permet d'ajouter un réglage sans migration — et ce qui impose que chaque lecteur
  * gère l'absence de la clé.
  */
-@Entity('setting')
+@Entity('t_setting')
 export class Setting {
     @PrimaryColumn({ type: 'character varying', length: 255 })
     key!: string;

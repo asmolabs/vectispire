@@ -22,7 +22,7 @@ describe("API du journal d'audit", () => {
         await runner.startTransaction();
         manager = runner.manager;
         controller = new AuditLogController(manager);
-        await manager.query('DELETE FROM audit_log');
+        await manager.query('DELETE FROM t_audit_log');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();
@@ -48,7 +48,7 @@ describe("API du journal d'audit", () => {
     it('détecte une entrée dont la description a été modifiée en base', async () => {
         for (let index = 0; index < 4; index++) await record('SETTING_UPDATED', `entrée ${index}`);
         // Exactement ce que le journal existe pour révéler : une écriture directe.
-        await manager.query("UPDATE audit_log SET description = 'réécrite' WHERE description = 'entrée 2'");
+        await manager.query("UPDATE t_audit_log SET description = 'réécrite' WHERE description = 'entrée 2'");
 
         const result = await controller.verify();
         expect(result.intact).toBe(false);
@@ -57,7 +57,7 @@ describe("API du journal d'audit", () => {
 
     it('détecte une entrée supprimée au milieu', async () => {
         for (let index = 0; index < 4; index++) await record('SETTING_UPDATED', `entrée ${index}`);
-        await manager.query("DELETE FROM audit_log WHERE description = 'entrée 2'");
+        await manager.query("DELETE FROM t_audit_log WHERE description = 'entrée 2'");
 
         expect((await controller.verify()).intact).toBe(false);
     });

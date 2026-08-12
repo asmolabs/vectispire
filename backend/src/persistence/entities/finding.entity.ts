@@ -10,7 +10,7 @@ import { Scan } from './scan.entity';
  * travers les scans et porte l'historique et la décision de triage. C'est la
  * réconciliation par empreinte qui relie les deux.
  */
-@Entity('finding')
+@Entity('t_finding')
 export class Finding {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

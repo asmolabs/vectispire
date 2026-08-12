@@ -27,7 +27,7 @@ export const TRIAGE_FIXED = 'fixed';
  *
  * `repoId` et `containerId` sont exclusifs : un problème appartient à une cible.
  */
-@Entity('issue')
+@Entity('t_issue')
 export class Issue {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

@@ -35,7 +35,7 @@ describe('journal d’audit', () => {
         };
         // La table est partagée : on repart d'un journal vide pour que la chaîne
         // vérifiée soit celle que le test vient d'écrire.
-        await manager.query('DELETE FROM audit_log');
+        await manager.query('DELETE FROM t_audit_log');
     });
 
     afterEach(async () => release());
@@ -74,14 +74,14 @@ describe('journal d’audit', () => {
 
     it('détecte une entrée modifiée après coup', async () => {
         for (let i = 0; i < 3; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
-        await manager.query("UPDATE audit_log SET description = 'réécrit' WHERE resource_id = '1'");
+        await manager.query("UPDATE t_audit_log SET description = 'réécrit' WHERE resource_id = '1'");
 
         expect((await service.verify(manager)).broken).toContain('ne correspond plus');
     });
 
     it('détecte une entrée supprimée', async () => {
         for (let i = 0; i < 3; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
-        await manager.query("DELETE FROM audit_log WHERE resource_id = '1'");
+        await manager.query("DELETE FROM t_audit_log WHERE resource_id = '1'");
 
         expect((await service.verify(manager)).broken).toContain('modifiée ou supprimée');
     });
@@ -105,7 +105,7 @@ describe('journal d’audit', () => {
             for (let i = 0; i < 4; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
             // Ce que laisse l'implémentation Python : des empreintes cohérentes entre
             // elles, et fausses pour la formule d'ici.
-            await manager.query("UPDATE audit_log SET entry_hash = 'ancienne-' || resource_id, previous_hash = NULL");
+            await manager.query("UPDATE t_audit_log SET entry_hash = 'ancienne-' || resource_id, previous_hash = NULL");
             expect((await service.verify(manager)).broken).not.toBeNull();
 
             expect(await service.rebuild(manager)).toBe(4);

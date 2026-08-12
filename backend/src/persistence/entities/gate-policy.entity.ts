@@ -15,7 +15,7 @@ import { boolColumn, intColumn, stringColumn, textColumn, timestampColumn } from
  *
  * La politique globale est stockée avec `targetId = 0`.
  */
-@Entity('gate_policy')
+@Entity('t_gate_policy')
 export class GatePolicyRow {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

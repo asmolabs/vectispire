@@ -12,7 +12,7 @@ import { stringColumn, timestampColumn } from '../columns';
  * `login:client:<jeton>` — parce que les deux compteurs se lisent de la même façon et
  * qu'une table par compteur n'apporterait rien.
  */
-@Entity('login_attempt')
+@Entity('t_login_attempt')
 export class LoginAttempt {
     @PrimaryGeneratedColumn('uuid')
     id!: string;

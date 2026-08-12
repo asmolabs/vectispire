@@ -26,7 +26,7 @@ export class TargetRepository {
      */
     async findLatestScans(manager: EntityManager, column: 'repo_id' | 'container_id'): Promise<Map<number, Scan>> {
         const rows: Scan[] = await manager.query(
-            `SELECT DISTINCT ON (${column}) * FROM scan
+            `SELECT DISTINCT ON (${column}) * FROM t_scan
              WHERE ${column} IS NOT NULL
              ORDER BY ${column}, created_at DESC, id DESC`
         );

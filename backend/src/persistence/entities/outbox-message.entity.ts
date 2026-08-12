@@ -17,7 +17,7 @@ export const OUTBOX_FAILED = 'failed';
  * marque envoyé échouer — d'où un identifiant de message dans la charge utile : le
  * récepteur est le seul endroit où cette ambiguïté peut être levée.
  */
-@Entity('outbox_message')
+@Entity('t_outbox_message')
 export class OutboxMessage {
     @PrimaryGeneratedColumn('uuid')
     id!: string;

@@ -28,8 +28,8 @@ describe('API des utilisateurs', () => {
         controller = new UsersController(manager);
         // Chaque suite part d'une table vide : les règles portent sur le *nombre*
         // d'administrateurs actifs, donc un compte laissé par une autre suite les fausse.
-        await manager.query('DELETE FROM session');
-        await manager.query('DELETE FROM app_user');
+        await manager.query('DELETE FROM t_session');
+        await manager.query('DELETE FROM t_user');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();

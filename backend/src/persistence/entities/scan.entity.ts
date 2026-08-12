@@ -25,7 +25,7 @@ export const STATUS_FAILED = 'failed';
  * provenance même si la ligne d'agent est supprimée plus tard — la propriété la plus
  * utile pour une piste d'audit.
  */
-@Entity('scan')
+@Entity('t_scan')
 export class Scan {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

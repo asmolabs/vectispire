@@ -8,19 +8,19 @@ export { ADMIN_ROLES, VALID_ROLES } from '../../domain/users/roles';
 /**
  * Un compte.
  *
- * La table s'appelle `app_user` et non `user` : ce dernier est un **mot réservé de
- * PostgreSQL**, où `FROM user` désigne la fonction courante et non la table. TypeORM
- * échappe les identifiants de lui-même, mais toute requête écrite à la main devait citer
- * `"user"` — et l'oublier produit une erreur que rien dans le code ne laisse prévoir.
- * Le nom hérité du modèle SQLAlchemy n'avait pas de raison de survivre à la reprise du
- * schéma.
+ * La table s'appelle `t_user`. Toutes les tables du schéma portent le préfixe `t_`, ce
+ * qui écarte d'un coup les collisions avec les mots réservés — `user` en est un en
+ * PostgreSQL, où `FROM user` désigne la fonction courante et non la table, mais
+ * `session`, `order` ou `group` le sont ailleurs et le problème se serait reposé.
+ * Préfixer est plus sûr que renommer au cas par cas : on ne peut pas oublier de le
+ * faire pour une table qu'on ajoutera dans deux ans.
  *
  * `password` porte une empreinte **bcrypt**, interopérable entre Python et Node : la
  * table migre telle quelle, sans réinitialisation. Attention à deux détails à
  * l'écriture — la troncature explicite à 72 **octets**, et le coût, que `bcrypt.gensalt()`
  * fixe à 12 en Python ≥ 4.0 alors que `bcryptjs.genSaltSync()` prend 10 par défaut.
  */
-@Entity('app_user')
+@Entity('t_user')
 export class User {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

@@ -12,7 +12,7 @@ import { stringColumn, timestampColumn, uuidColumn } from '../columns';
  * Le marqueur est **posé sans être commité** : c'est l'ingestion qui commite, et ce
  * commit unique rend le marqueur et le résultat atomiques.
  */
-@Entity('processed_message')
+@Entity('t_processed_message')
 export class ProcessedMessage {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

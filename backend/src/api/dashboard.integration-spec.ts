@@ -22,10 +22,10 @@ describe('tableau de bord', () => {
         await runner.startTransaction();
         manager = runner.manager;
         controller = new DashboardController(manager);
-        await manager.query('DELETE FROM issue');
-        await manager.query('DELETE FROM scan');
-        await manager.query('DELETE FROM repository');
-        await manager.query('DELETE FROM container');
+        await manager.query('DELETE FROM t_issue');
+        await manager.query('DELETE FROM t_scan');
+        await manager.query('DELETE FROM t_repository');
+        await manager.query('DELETE FROM t_container');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();

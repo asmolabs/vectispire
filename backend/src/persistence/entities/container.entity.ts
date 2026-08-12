@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { intColumn, stringColumn, timestampColumn } from '../columns';
 
 /** Une image de conteneur surveillée. */
-@Entity('container')
+@Entity('t_container')
 export class Container {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

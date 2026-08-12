@@ -26,7 +26,7 @@ describe("API des clés d'API", () => {
         await runner.startTransaction();
         manager = runner.manager;
         controller = new ApiKeysController(manager);
-        await manager.query('DELETE FROM api_key');
+        await manager.query('DELETE FROM t_api_key');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();

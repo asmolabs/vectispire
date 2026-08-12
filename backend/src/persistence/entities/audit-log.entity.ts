@@ -17,7 +17,7 @@ import { stringColumn, timestampColumn } from '../columns';
  * la microseconde compte, donc il ne doit jamais transiter par un `Date` (voir
  * `database/pg-types.ts`).
  */
-@Entity('audit_log')
+@Entity('t_audit_log')
 export class AuditLog {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
