@@ -21,6 +21,16 @@ import { GRYPE_IMAGE, SYFT_IMAGE } from './images';
 
 const SBOM_FILENAME = 'sbom.json';
 
+/**
+ * L'architecture auditée par défaut.
+ *
+ * Explicite, parce que le démon rendrait sinon celle de l'hôte : une machine de
+ * développement arm64 produirait le SBOM d'une image arm64 alors que la production
+ * déploie du linux/amd64, et les vulnérabilités trouvées ne seraient pas celles qui
+ * comptent.
+ */
+export const DEFAULT_PLATFORM = process.env.ZANSHIN_IMAGE_SCAN_PLATFORM ?? 'linux/amd64';
+
 /** Le SBOM tel que Syft le rend. Traité comme opaque : il est stocké et réexporté tel quel. */
 export type Sbom = Record<string, unknown>;
 
@@ -70,6 +80,41 @@ export class DependencyScanner {
             binds: [{ source: workspace.root, target: '/src', readOnly: true }],
             label,
             network: false,
+            asRoot: true
+        });
+
+        return parseScannerJson<Sbom>(result, label);
+    }
+
+    /**
+     * Dresse l'inventaire d'une **image de conteneur**.
+     *
+     * **C'est la seule étape qui monte la socket Docker, et elle équivaut à root sur
+     * l'hôte.** Rien dans le durcissement du conteneur ne change cela : qui parle à la
+     * socket peut démarrer un conteneur privilégié. Le prix est assumé pour scanner des
+     * images, et c'est la raison pour laquelle il existe un backend qui retire la socket
+     * entièrement.
+     *
+     * `docker:` et non `registry:` : le client de registre de Syft tronque les
+     * téléchargements de couches multi-architecture — « unable to populate layer cache …
+     * unexpected EOF » — ce qui faisait échouer chaque scan de conteneur sur un hôte arm64
+     * auditant une image linux/amd64. Passer par le démon corrige cela et réutilise
+     * l'image déjà présente localement au lieu de la retélécharger à chaque scan.
+     *
+     * `--platform` reste **obligatoire** : sans lui le démon rend l'architecture de
+     * l'*hôte*, produisant en silence le SBOM d'une variante que personne n'a demandé
+     * d'auditer.
+     */
+    async generateSbomForImage(reference: string, platform = DEFAULT_PLATFORM): Promise<Sbom | null> {
+        const label = `syft (SBOM de l'image ${reference})`;
+        const result = await this.runner.run({
+            image: SYFT_IMAGE,
+            command: [`docker:${reference}`, '--platform', platform, '-o', 'json'],
+            binds: [],
+            label,
+            // Tire par le démon, et peut atteindre le registre.
+            network: true,
+            dockerSocket: true,
             asRoot: true
         });
 
