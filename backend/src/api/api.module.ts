@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { PersistenceModule } from '../persistence/persistence.module';
 import { IssueRepository } from '../repositories/issue.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
+import { ScanDispatcherService } from '../services/scan-dispatcher.service';
+import { ScanIngestorService } from '../services/scan-ingestor.service';
+import { ScanWorkerService } from '../services/scan-worker.service';
+import { ScanRepository } from '../repositories/scan.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
 import { IssueTriageService } from '../services/issue-triage.service';
@@ -47,6 +52,16 @@ import { RepositoriesController } from './repositories.controller';
         IssueRepository,
         TargetRepository,
         AuditLogRepository,
+        ScanRepository,
+        // Construits par fabrique : leurs constructeurs prennent des collaborateurs avec
+        // des valeurs par défaut, que l'injection prendrait pour des dépendances à
+        // résoudre — et pour lesquelles il n'existe aucun fournisseur.
+        { provide: ScanIngestorService, useFactory: () => new ScanIngestorService() },
+
+        // Le distributeur reçoit la source de données : il ouvre ses propres transactions,
+        // courtes pour la réclamation et absentes pendant l'exécution.
+        { provide: ScanDispatcherService, useFactory: (dataSource: DataSource) => new ScanDispatcherService(dataSource), inject: [DataSource] },
+        ScanWorkerService,
         { provide: APP_GUARD, useClass: AuthGuard }
     ]
 })

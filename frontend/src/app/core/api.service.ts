@@ -85,6 +85,10 @@ export class ApiService {
         return this.http.post<MonitoredRepository>('/api/v1/repositories', repository);
     }
 
+    triggerRepositoryScan(id: number): Observable<{ id: number; status: string }> {
+        return this.http.post<{ id: number; status: string }>(`/api/v1/repositories/${id}/scan`, {});
+    }
+
     deleteRepository(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/repositories/${id}`);
     }

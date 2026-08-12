@@ -1,21 +1,16 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
+import { now } from '../domain/common/timestamp';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { validateRepositoryUrl } from '../domain/targets/git-url';
-import { Repository as GitRepository, Issue, STATE_OPEN } from '../persistence/entities';
+import { Repository as GitRepository, Issue, Scan, STATE_OPEN, STATUS_QUEUED } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 import { repositoryDisplayName } from '../domain/targets/display-name';
 
-/**
- * Les dépôts surveillés.
- *
- * **Il n'y a pas d'endpoint pour déclencher un scan**, et c'est délibéré : la file de
- * scans n'est pas encore portée (lot 4). Offrir un bouton qui n'aboutirait pas serait
- * pire que ne rien offrir — l'écran dit donc ce qui manque plutôt que de le simuler.
- */
+/** Les dépôts surveillés, et le déclenchement de leurs scans. */
 @Controller('api/v1/repositories')
 export class RepositoriesController {
     constructor(
@@ -73,6 +68,51 @@ export class RepositoriesController {
             ipAddress: request.ip ?? null
         });
         return saved;
+    }
+
+    /**
+     * Met un scan en file pour ce dépôt.
+     *
+     * **Mettre en file, et non lancer.** L'appel rend la main immédiatement ; c'est un
+     * travailleur — intégré ou agent distant — qui réclamera la ligne. Exécuter ici
+     * ferait attendre l'appelant plusieurs minutes derrière une requête HTTP, et un
+     * rechargement de page relancerait le scan.
+     *
+     * Réservé aux administrateurs : un scan consomme du temps machine et du réseau, et
+     * la file est partagée.
+     */
+    @AdminOnly()
+    @Post(':id/scan')
+    async triggerScan(@Param('id', ParseIntPipe) id: number, @Req() request: AuthenticatedRequest) {
+        const repository = await this.manager.findOneBy(GitRepository, { id });
+        if (!repository) throw new NotFoundException('Dépôt introuvable.');
+
+        const pending = await this.manager.countBy(Scan, { repoId: id, status: STATUS_QUEUED });
+        if (pending > 0) {
+            // Refusé plutôt qu'empilé : dix clics sur le bouton donneraient dix scans
+            // identiques à la suite, dont neuf sans objet.
+            throw new BadRequestException('Un scan de ce dépôt est déjà en file.');
+        }
+
+        const scan = await this.manager.save(
+            Scan,
+            Object.assign(new Scan(), {
+                repoId: repository.id,
+                branch: repository.branch,
+                subPath: repository.subPath,
+                status: STATUS_QUEUED,
+                createdAt: now()
+            })
+        );
+
+        await this.audit.record(this.manager, {
+            operationType: 'SCAN_TRIGGERED',
+            resourceId: String(scan.id),
+            description: `Scan demandé : ${repository.url}`,
+            userId: request.user?.username ?? null,
+            ipAddress: request.ip ?? null
+        });
+        return { id: scan.id, status: scan.status };
     }
 
     @AdminOnly()

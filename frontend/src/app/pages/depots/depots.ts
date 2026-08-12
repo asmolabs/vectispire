@@ -28,14 +28,11 @@ import { LastScanTag } from '../../shared/last-scan';
             }
         </div>
 
-        <!-- Dit franchement ce qui manque plutôt que d'offrir un bouton sans effet. -->
-        <p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
-            Le déclenchement d'un scan depuis l'interface n'est pas encore disponible : la file de scans
-            n'est pas portée. Les scans planifiés et ceux lancés par un agent continuent de fonctionner.
-        </p-message>
-
         @if (error(); as message) {
             <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+        }
+        @if (notice(); as message) {
+            <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
         }
 
         <p-card>
@@ -67,7 +64,10 @@ import { LastScanTag } from '../../shared/last-scan';
                             }
                         </td>
                         @if (isAdmin()) {
-                            <td class="text-right">
+                            <td class="text-right whitespace-nowrap">
+                                <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Lancer un scan de ' + repository.url"
+                                          [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
                                           [ariaLabel]="'Supprimer ' + repository.url" (onClick)="askDelete(repository)" />
                             </td>
@@ -131,6 +131,9 @@ export class Depots {
     readonly formVisible = signal(false);
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<MonitoredRepository | null>(null);
+    /** La ligne dont le scan est en cours de mise en file. */
+    readonly busy = signal<number | null>(null);
+    readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
     form = { url: '', branch: 'main', name: '' };
@@ -150,6 +153,29 @@ export class Depots {
             error: () => {
                 this.error.set('Impossible de charger la liste des dépôts.');
                 this.loading.set(false);
+            }
+        });
+    }
+
+    /**
+     * Met un scan en file. **Ne l'exécute pas** : un travailleur le réclamera.
+     *
+     * L'écran le dit, parce que l'attente qui suit n'est pas celle d'un bouton ordinaire —
+     * sans cette phrase, l'absence de changement immédiat se lit comme un échec.
+     */
+    triggerScan(repository: MonitoredRepository): void {
+        this.busy.set(repository.id);
+        this.notice.set(null);
+        this.api.triggerRepositoryScan(repository.id).subscribe({
+            next: () => {
+                this.busy.set(null);
+                this.notice.set(`Scan mis en file pour ${repository.displayName}. Il démarrera dès qu'un travailleur sera disponible.`);
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                // Le serveur sait pourquoi — « un scan est déjà en file », le plus souvent.
+                this.error.set(response?.error?.message ?? 'Impossible de mettre ce scan en file.');
             }
         });
     }

@@ -10,10 +10,19 @@ import type { LastScan } from '../core/api.models';
  * **« jamais scanné » n'est pas « aucun problème »**, c'est une absence d'observation. Un
  * écran qui affiche une case vide dans ce cas ment par omission.
  */
+/**
+ * Les clés sont celles de la base, pas celles qu'on attendrait.
+ *
+ * `pending` et `scanning` — et non `queued` et `running` — parce que ce sont les valeurs
+ * que la colonne contient. La première version employait les noms attendus, et l'écran
+ * affichait « pending » en brut : la table fermée avait bien fait son travail en montrant
+ * la valeur inconnue plutôt qu'en la masquant derrière un libellé rassurant, mais elle n'a
+ * rien traduit. Vu à l'écran, pas à la relecture.
+ */
 const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
+    pending: { label: 'En file', severity: 'info' },
+    scanning: { label: 'En cours', severity: 'info' },
     completed: { label: 'Terminé', severity: 'success' },
-    running: { label: 'En cours', severity: 'info' },
-    queued: { label: 'En file', severity: 'info' },
     failed: { label: 'Échoué', severity: 'danger' },
     cancelled: { label: 'Annulé', severity: 'warn' }
 };

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ApiModule } from './api/api.module';
 import { PersistenceModule } from './persistence/persistence.module';
 
@@ -11,6 +12,6 @@ import { PersistenceModule } from './persistence/persistence.module';
  * les couches, donc dans aucune.
  */
 @Module({
-    imports: [ConfigModule.forRoot({ isGlobal: true }), PersistenceModule, ApiModule]
+    imports: [ConfigModule.forRoot({ isGlobal: true }), ScheduleModule.forRoot(), PersistenceModule, ApiModule]
 })
 export class AppModule {}
