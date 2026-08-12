@@ -89,8 +89,21 @@ export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({
  * un `number`. C'est correct et il ne faut pas le « corriger » : la valeur dépasserait
  * `Number.MAX_SAFE_INTEGER` sans prévenir.
  */
+/**
+ * Un entier large, **rendu comme un nombre et non comme une chaîne**.
+ *
+ * node-postgres rend les `bigint` en chaîne, parce qu'un entier 64 bits ne tient pas dans
+ * un `number` JavaScript sans perte au-delà de 2^53. C'est prudent en général et faux
+ * ici : une durée en millisecondes atteindrait 2^53 après deux cent quatre-vingt mille
+ * ans. Sans ce transformateur, l'API sérialisait `"59358"` là où l'écran attend un nombre
+ * — trouvé par un test de bout en bout, invisible à la lecture.
+ */
 export const bigIntColumn = (options: ColumnOptions = {}): ColumnOptions => ({
     type: 'bigint',
+    transformer: {
+        to: (value: number | null) => value,
+        from: (value: string | number | null) => (value === null || value === undefined ? null : Number(value))
+    },
     ...options
 });
 

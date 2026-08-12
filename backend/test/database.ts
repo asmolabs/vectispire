@@ -87,7 +87,17 @@ export async function connectToTestDatabase(): Promise<DataSource> {
         );
     }
 
-    connection = new DataSource({ type: 'postgres', url, entities: ENTITIES, synchronize: false });
+    connection = new DataSource({
+        type: 'postgres',
+        url,
+        entities: ENTITIES,
+        synchronize: false,
+        // **Plus large que le défaut de dix.** Le test de concurrence de la file ouvre dix
+        // transactions simultanées pour vérifier que `SKIP LOCKED` les laisse avancer ; au
+        // défaut, la dixième attend une connexion libre et le test expire — un échec qui
+        // ressemble à un blocage de la base alors que c'est le pool du client qui manque.
+        extra: { max: 30 }
+    });
     await connection.initialize();
     return connection;
 }
