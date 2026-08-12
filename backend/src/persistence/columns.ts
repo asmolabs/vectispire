@@ -55,6 +55,14 @@ export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnO
  * (« type "binary" does not exist ») dès la première table de la première migration ;
  * avec PostgreSQL seul, c'est un `uuid` ordinaire.
  */
+/**
+ * Une clé étrangère vers une table à clé UUID.
+ *
+ * `uuid` et non `char(36)` : TypeORM traduit ce type selon le dialecte — `uuid` natif en
+ * PostgreSQL, `varchar(36)` en MySQL qui n'en a pas. Écrire `char(36)` à la main donnerait
+ * un type incompatible avec la clé primaire référencée, que
+ * `@PrimaryGeneratedColumn('uuid')` laisse justement TypeORM choisir.
+ */
 export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions => ({
     type: 'uuid',
     ...options

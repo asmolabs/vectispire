@@ -18,6 +18,7 @@
         "start:frontend": "npm run start --workspace @zanshin/frontend"
     },
     "devDependencies": {
+        "@testcontainers/postgresql": "^12.1.0",
         "jsdom": "^26.1.0",
         "vitest": "^3.2.7"
     }

@@ -3,11 +3,10 @@ import { InvalidTriageError } from '../domain/issues/triage';
 import { ENTITIES, Issue, Repository, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
 import { IssueTriageService } from './issue-triage.service';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
-describeWithPostgres('triage et backlog', () => {
+describe('triage et backlog', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
@@ -15,13 +14,8 @@ describeWithPostgres('triage et backlog', () => {
     const issues = new IssueRepository();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();

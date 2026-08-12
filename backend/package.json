@@ -14,9 +14,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "//test:integration": "--runInBand : les suites partagent une base ; en parallele, une suite qui vide audit_logs voit les lignes d une autre",
-    "test:integration": "jest --runInBand --testRegex '.*\\.integration-spec\\.ts$'",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "//test:integration": "testcontainers demarre la base ; --runInBand car les suites la partagent",
+    "test:integration": "jest --runInBand --config jest.integration.config.js",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:integration:mysql": "ZANSHIN_TEST_DIALECT=mysql npm run test:integration",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/persistence/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/persistence/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

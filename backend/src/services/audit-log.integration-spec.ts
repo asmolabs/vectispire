@@ -2,6 +2,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { computeEntryHash } from '../domain/audit/audit-hash';
 import { ENTITIES } from '../persistence/entities';
 import { AuditLogService } from './audit-log.service';
+import { connectToTestDatabase } from '../../test/database';
 
 /**
  * Le journal d'audit contre une vraie base.
@@ -12,23 +13,16 @@ import { AuditLogService } from './audit-log.service';
  * décale de l'offset local, ce qui ferait échouer chaque entrée à sa propre
  * vérification sur toute machine qui n'est pas en UTC.
  */
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
-describeWithPostgres('journal d’audit', () => {
+describe('journal d’audit', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     const service = new AuditLogService();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();
@@ -41,7 +35,7 @@ describeWithPostgres('journal d’audit', () => {
         };
         // La table est partagée : on repart d'un journal vide pour que la chaîne
         // vérifiée soit celle que le test vient d'écrire.
-        await manager.query('DELETE FROM audit_logs');
+        await manager.query('DELETE FROM audit_log');
     });
 
     afterEach(async () => release());
@@ -80,14 +74,14 @@ describeWithPostgres('journal d’audit', () => {
 
     it('détecte une entrée modifiée après coup', async () => {
         for (let i = 0; i < 3; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
-        await manager.query("UPDATE audit_logs SET description = 'réécrit' WHERE resource_id = '1'");
+        await manager.query("UPDATE audit_log SET description = 'réécrit' WHERE resource_id = '1'");
 
         expect((await service.verify(manager)).broken).toContain('ne correspond plus');
     });
 
     it('détecte une entrée supprimée', async () => {
         for (let i = 0; i < 3; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
-        await manager.query("DELETE FROM audit_logs WHERE resource_id = '1'");
+        await manager.query("DELETE FROM audit_log WHERE resource_id = '1'");
 
         expect((await service.verify(manager)).broken).toContain('modifiée ou supprimée');
     });
@@ -111,7 +105,7 @@ describeWithPostgres('journal d’audit', () => {
             for (let i = 0; i < 4; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
             // Ce que laisse l'implémentation Python : des empreintes cohérentes entre
             // elles, et fausses pour la formule d'ici.
-            await manager.query("UPDATE audit_logs SET entry_hash = 'ancienne-' || resource_id, previous_hash = NULL");
+            await manager.query("UPDATE audit_log SET entry_hash = 'ancienne-' || resource_id, previous_hash = NULL");
             expect((await service.verify(manager)).broken).not.toBeNull();
 
             expect(await service.rebuild(manager)).toBe(4);

@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { stringColumn, timestampColumn } from '../columns';
 
 /**
@@ -17,9 +17,9 @@ import { stringColumn, timestampColumn } from '../columns';
  * la microseconde compte, donc il ne doit jamais transiter par un `Date` (voir
  * `database/pg-types.ts`).
  */
-@Entity('audit_logs')
+@Entity('audit_log')
 export class AuditLog {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column(stringColumn())

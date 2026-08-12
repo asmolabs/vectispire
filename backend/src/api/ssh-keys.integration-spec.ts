@@ -6,16 +6,15 @@ import { ENTITIES, Repository as GitRepository, SshKey } from '../persistence/en
 import { EncryptionService } from '../services/encryption.service';
 import { SshKeysController } from './ssh-keys.controller';
 import type { AuthenticatedRequest } from './auth.guard';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
 const CURRENT = 'cle-courante-de-test-32-octets!!!';
 const PREVIOUS = 'ancienne-cle-de-test';
 const PRIVATE = '-----BEGIN OPENSSH PRIVATE KEY-----\nfaux\n-----END OPENSSH PRIVATE KEY-----\n';
 const asRequest = { user: { username: 'admin', role: 'ADMIN' }, ip: '127.0.0.1' } as unknown as AuthenticatedRequest;
 
-describeWithPostgres('API des clés SSH', () => {
+describe('API des clés SSH', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
@@ -23,13 +22,8 @@ describeWithPostgres('API des clés SSH', () => {
     const encryption = new EncryptionService(CURRENT, [PREVIOUS]);
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();

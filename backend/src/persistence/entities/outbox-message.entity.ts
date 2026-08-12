@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { intColumn, jsonColumn, stringColumn, textColumn, timestampColumn } from '../columns';
 
 export const OUTBOX_PENDING = 'pending';
@@ -19,7 +19,7 @@ export const OUTBOX_FAILED = 'failed';
  */
 @Entity('outbox_message')
 export class OutboxMessage {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column({ ...stringColumn(50), name: 'message_type' })

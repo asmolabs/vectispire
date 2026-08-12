@@ -6,6 +6,7 @@ import { ENTITIES, LoginAttempt, Session, User } from '../persistence/entities';
 import { AuthService } from './auth.service';
 import { SessionCleanupService } from './session-cleanup.service';
 import { hashPassword } from './password.service';
+import { connectToTestDatabase } from '../../test/database';
 
 /**
  * L'authentification contre une vraie base.
@@ -14,23 +15,16 @@ import { hashPassword } from './password.service';
  * sa révocation, un compteur qui ne se vide pas après une connexion réussie — ne se voit
  * que dans les lignes qui restent.
  */
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
-describeWithPostgres('authentification', () => {
+describe('authentification', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     const service = new AuthService();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();
@@ -204,7 +198,7 @@ describeWithPostgres('authentification', () => {
     });
 });
 
-describeWithPostgres('purge des tables d’authentification', () => {
+describe('purge des tables d’authentification', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
@@ -212,13 +206,8 @@ describeWithPostgres('purge des tables d’authentification', () => {
     const auth = new AuthService();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();

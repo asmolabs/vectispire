@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { intColumn, stringColumn, timestampColumn } from '../columns';
+import { User } from './user.entity';
 
 /**
  * Une session ouverte.
@@ -41,4 +42,11 @@ export class Session {
 
     @Column({ ...stringColumn(64, { nullable: true }), name: 'ip_address' })
     ipAddress!: string | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `userId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => User, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'user_id' })
+    userIdRelation?: User | null;
 }

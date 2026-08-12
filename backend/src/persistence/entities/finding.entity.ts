@@ -1,5 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { boolColumn, floatColumn, intColumn, stringColumn, textColumn, timestampColumn } from '../columns';
+import { Issue } from './issue.entity';
+import { Scan } from './scan.entity';
 
 /**
  * Un constat brut, tel qu'un scanner l'a produit, rattaché à son scan.
@@ -77,4 +79,18 @@ export class Finding {
 
     @Column(textColumn({ nullable: true }))
     description!: string | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `issueId` reste la valeur
+     *  que le code lit. `ON DELETE SET NULL` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Issue, { onDelete: 'SET NULL', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'issue_id' })
+    issueIdRelation?: Issue | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `scanId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Scan, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'scan_id' })
+    scanIdRelation?: Scan | null;
 }

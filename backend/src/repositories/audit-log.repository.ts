@@ -1,53 +1,46 @@
 import { EntityManager } from 'typeorm';
 import { AuditEntryForVerification } from '../domain/audit/audit-hash';
+import { AuditLog } from '../persistence/entities';
 
 /**
- * Accès au journal d'audit, **en SQL brut et non par une entité**.
+ * Accès au journal d'audit.
  *
- * Ce n'est pas une préférence de style, c'est une contrainte mesurée. TypeORM
- * ré-hydrate les colonnes de date pour son compte : il construit un `Date` en
- * interprétant le texte naïf de la base comme une heure *locale*. Sur une machine en
- * UTC+2, une entrée relue à travers une entité revient décalée de deux heures — et
- * comme l'empreinte de la chaîne d'intégrité couvre l'horodatage, chaque entrée
- * échouerait à sa propre vérification. Le journal se déclarerait falsifié alors que
- * rien ne l'aurait été.
+ * **Ce fichier écrivait du SQL brut, et n'a plus à le faire.** La raison était mesurée :
+ * TypeORM ré-hydratait les colonnes de date en interprétant un texte naïf comme une heure
+ * locale, si bien qu'une entrée relue à travers une entité revenait décalée — et comme
+ * l'empreinte de la chaîne d'intégrité couvre l'horodatage, chaque entrée échouait à sa
+ * propre vérification. Le journal se déclarait falsifié alors que rien ne l'avait été.
  *
- * Une requête brute contourne cette hydratation : le parseur de `pg`
- * (`persistence/pg-types.ts`) rend le texte exact que la base contient, et c'est ce
- * texte qui entre dans le hachage.
+ * La cause était le type de colonne, pas l'ORM : en `timestamptz`, le pilote rend un
+ * instant absolu et l'hydratation est fidèle. Le SQL brut disparaît donc, et avec lui les
+ * marqueurs `$1` propres à PostgreSQL, `ILIKE` qui n'existe que là, et les noms de table
+ * écrits en dur — ce qui rend ce chemin portable à MySQL sans rien y ajouter.
  *
- * `pg-types.integration-spec.ts` vérifie la première moitié de cette chaîne (le pilote
- * rend du texte), `audit-log.integration-spec.ts` la seconde (une entrée écrite puis
- * relue se vérifie).
+ * `audit-log.integration-spec.ts` vérifie ce qui compte : une entrée écrite puis relue se
+ * vérifie, et une entrée modifiée en base ne se vérifie plus.
  */
 
 export interface AuditRow extends AuditEntryForVerification {
     id: string;
 }
 
-/** Les colonnes, dans l'ordre où le hachage les consomme. */
-const COLUMNS = `id,
-    previous_hash AS "previousHash",
-    entry_hash AS "entryHash",
-    timestamp,
-    operation_type AS "operationType",
-    resource_id AS "resourceId",
-    user_id AS "userId",
-    ip_address AS "ipAddress",
-    user_agent AS "userAgent",
-    description`;
+export interface AuditFilters {
+    operationType?: string | null;
+    userId?: string | null;
+    /** Recherche libre sur la description. */
+    search?: string | null;
+}
 
 export class AuditLogRepository {
     /**
      * La dernière entrée écrite — celle dont l'empreinte devient le maillon suivant.
      *
-     * **La queue de la liste chaînée, et non le maximum d'un tri.** Trier par
-     * horodatage puis par identifiant paraît suffisant et ne l'est pas : deux entrées
-     * écrites dans la même milliseconde se départagent alors par un UUID aléatoire, si
-     * bien que l'ordre dans lequel la chaîne est *construite* peut différer de celui
-     * dans lequel elle est *relue*. La vérification échoue alors sur un journal
-     * parfaitement intact — c'est ce qu'un test a montré, sur cinq entrées écrites en
-     * boucle serrée.
+     * **La queue de la liste chaînée, et non le maximum d'un tri.** Trier par horodatage
+     * puis par identifiant paraît suffisant et ne l'est pas : deux entrées écrites dans la
+     * même milliseconde se départagent alors par un UUID aléatoire, si bien que l'ordre
+     * dans lequel la chaîne est *construite* peut différer de celui dans lequel elle est
+     * *relue*. La vérification échoue alors sur un journal parfaitement intact — c'est ce
+     * qu'un test a montré, sur cinq entrées écrites en boucle serrée.
      *
      * La chaîne définit son propre ordre : c'est elle qu'on suit.
      */
@@ -57,24 +50,20 @@ export class AuditLogRepository {
     }
 
     async insert(manager: EntityManager, row: AuditRow): Promise<void> {
-        await manager.query(
-            `INSERT INTO audit_logs (id, description, operation_type, resource_id, timestamp, user_id, ip_address, user_agent, previous_hash, entry_hash)
-             VALUES ($1, $2, $3, $4, $5::timestamptz, $6, $7, $8, $9, $10)`,
-            [row.id, row.description, row.operationType, row.resourceId, row.timestamp, row.userId, row.ipAddress, row.userAgent, row.previousHash, row.entryHash]
-        );
+        await manager.save(AuditLog, Object.assign(new AuditLog(), row));
     }
 
     /** Les plus récentes d'abord : ce que l'écran affiche. */
     async findRecent(manager: EntityManager, limit = 200): Promise<AuditRow[]> {
-        return manager.query(`SELECT ${COLUMNS} FROM audit_logs ORDER BY timestamp DESC, id DESC LIMIT $1`, [limit]);
+        return manager.find(AuditLog, { order: { timestamp: 'DESC', id: 'DESC' }, take: limit });
     }
 
     /**
      * Une page du journal, filtrée.
      *
-     * Les clauses sont assemblées à partir d'un vocabulaire fermé et les valeurs passent
-     * toujours par des paramètres — ce fichier écrit du SQL à la main, donc la seule
-     * discipline qui tienne est de ne jamais interpoler ce qui vient de l'appelant.
+     * Le constructeur de requêtes plutôt qu'une concaténation : les valeurs passent par
+     * des paramètres nommés, et la comparaison insensible à la casse s'écrit avec `LOWER`
+     * de part et d'autre — `ILIKE` n'existe qu'en PostgreSQL.
      */
     async findFiltered(
         manager: EntityManager,
@@ -82,24 +71,38 @@ export class AuditLogRepository {
         limit: number,
         offset: number
     ): Promise<{ rows: AuditRow[]; total: number }> {
-        const { clause, parameters } = buildWhere(filters);
-        const [rows, counted] = await Promise.all([
-            manager.query(
-                `SELECT ${COLUMNS} FROM audit_logs ${clause} ORDER BY timestamp DESC, id DESC LIMIT $${parameters.length + 1} OFFSET $${parameters.length + 2}`,
-                [...parameters, limit, offset]
-            ),
-            manager.query(`SELECT COUNT(*) AS total FROM audit_logs ${clause}`, parameters)
-        ]);
-        return { rows, total: Number(counted[0].total) };
+        const query = manager.createQueryBuilder(AuditLog, 'entry');
+
+        if (filters.operationType) query.andWhere('entry.operation_type = :operationType', { operationType: filters.operationType });
+        if (filters.userId) query.andWhere('entry.user_id = :userId', { userId: filters.userId });
+        if (filters.search) {
+            // `%` et `_` échappés : sans cela une recherche contenant « % » rendrait tout,
+            // ce qui se lit comme un filtre qui ne marche pas.
+            const escaped = filters.search.replace(/[\\%_]/g, (match) => `\\${match}`);
+            query.andWhere('LOWER(entry.description) LIKE LOWER(:search)', { search: `%${escaped}%` });
+        }
+
+        const [rows, total] = await query
+            .orderBy('entry.timestamp', 'DESC')
+            .addOrderBy('entry.id', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getManyAndCount();
+        return { rows, total };
     }
 
     /** Les types d'opération réellement présents, pour que le filtre ne propose pas des
      *  valeurs qui ne rendraient rien. */
     async distinctOperationTypes(manager: EntityManager): Promise<string[]> {
-        const rows: { operationType: string | null }[] = await manager.query(
-            'SELECT DISTINCT operation_type AS "operationType" FROM audit_logs WHERE operation_type IS NOT NULL ORDER BY 1'
-        );
-        return rows.map((row) => row.operationType!).filter(Boolean);
+        const rows: { operationType: string | null }[] = await manager
+            .createQueryBuilder(AuditLog, 'entry')
+            .select('DISTINCT entry.operation_type', 'operationType')
+            .where('entry.operation_type IS NOT NULL')
+            .getRawMany();
+        return rows
+            .map((row) => row.operationType)
+            .filter((value): value is string => Boolean(value))
+            .sort();
     }
 
     /**
@@ -109,12 +112,12 @@ export class AuditLogRepository {
      * et ainsi de suite — et non par un tri, pour la raison exposée sur `findLatest`.
      *
      * Les entrées qu'aucun maillon n'atteint sont ajoutées à la fin, triées par
-     * horodatage. C'est délibéré : elles sont soit antérieures au chaînage, soit le
-     * signe d'une rupture, et dans les deux cas c'est `verifyChain` qui doit le dire —
-     * les taire ici masquerait précisément ce que le journal existe pour révéler.
+     * horodatage. C'est délibéré : elles sont soit antérieures au chaînage, soit le signe
+     * d'une rupture, et dans les deux cas c'est `verifyChain` qui doit le dire — les taire
+     * ici masquerait précisément ce que le journal existe pour révéler.
      */
     async findAllOldestFirst(manager: EntityManager): Promise<AuditRow[]> {
-        const rows: AuditRow[] = await manager.query(`SELECT ${COLUMNS} FROM audit_logs ORDER BY timestamp ASC, id ASC`);
+        const rows = await manager.find(AuditLog, { order: { timestamp: 'ASC', id: 'ASC' } });
         if (rows.length === 0) return rows;
 
         const byPrevious = new Map<string, AuditRow>();
@@ -136,35 +139,6 @@ export class AuditLogRepository {
     }
 
     async updateHashes(manager: EntityManager, id: string, previousHash: string | null, entryHash: string): Promise<void> {
-        await manager.query('UPDATE audit_logs SET previous_hash = $1, entry_hash = $2 WHERE id = $3', [previousHash, entryHash, id]);
+        await manager.update(AuditLog, { id }, { previousHash, entryHash });
     }
-}
-
-export interface AuditFilters {
-    operationType?: string | null;
-    userId?: string | null;
-    /** Recherche libre sur la description. */
-    search?: string | null;
-}
-
-function buildWhere(filters: AuditFilters): { clause: string; parameters: unknown[] } {
-    const conditions: string[] = [];
-    const parameters: unknown[] = [];
-
-    if (filters.operationType) {
-        parameters.push(filters.operationType);
-        conditions.push(`operation_type = $${parameters.length}`);
-    }
-    if (filters.userId) {
-        parameters.push(filters.userId);
-        conditions.push(`user_id = $${parameters.length}`);
-    }
-    if (filters.search) {
-        // `%` et `_` échappés : sans cela une recherche sur « 100_% » rendrait tout, ce
-        // qui se lit comme un filtre qui ne marche pas.
-        parameters.push(`%${filters.search.replace(/[\\%_]/g, (match) => `\\${match}`)}%`);
-        conditions.push(`description ILIKE $${parameters.length}`);
-    }
-
-    return { clause: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', parameters };
 }

@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { intColumn, stringColumn, textColumn, timestampColumn } from '../columns';
+import { Scan } from './scan.entity';
 
 /**
  * Le résultat d'une revue de code par modèle local, au plus un par scan.
@@ -39,4 +40,11 @@ export class AiReviewResult {
 
     @Column({ ...timestampColumn(), name: 'created_at' })
     createdAt!: Date;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `scanId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Scan, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'scan_id' })
+    scanIdRelation?: Scan | null;
 }

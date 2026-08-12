@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { intColumn, stringColumn, timestampColumn, uuidColumn } from '../columns';
+import { SshKey } from './ssh-key.entity';
 
 /**
  * Un dépôt git surveillé.
@@ -42,4 +43,11 @@ export class Repository {
 
     @Column({ ...uuidColumn({ nullable: true }), name: 'ssh_key_id' })
     sshKeyId!: string | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `sshKeyId` reste la valeur
+     *  que le code lit. `ON DELETE SET NULL` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => SshKey, { onDelete: 'SET NULL', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'ssh_key_id' })
+    sshKeyIdRelation?: SshKey | null;
 }

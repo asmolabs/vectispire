@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { stringColumn, textColumn, timestampColumn } from '../columns';
 
 /**
@@ -15,7 +15,7 @@ import { stringColumn, textColumn, timestampColumn } from '../columns';
  */
 @Entity('ssh_key')
 export class SshKey {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column(stringColumn())

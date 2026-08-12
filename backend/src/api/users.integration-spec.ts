@@ -5,26 +5,20 @@ import { ENTITIES, Session, User } from '../persistence/entities';
 import { verifyPassword } from '../services/password.service';
 import { UsersController } from './users.controller';
 import type { AuthenticatedRequest } from './auth.guard';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
 const PASSWORD = 'correct-cheval-batterie';
 
-describeWithPostgres('API des utilisateurs', () => {
+describe('API des utilisateurs', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     let controller: UsersController;
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();
@@ -35,7 +29,7 @@ describeWithPostgres('API des utilisateurs', () => {
         // Chaque suite part d'une table vide : les règles portent sur le *nombre*
         // d'administrateurs actifs, donc un compte laissé par une autre suite les fausse.
         await manager.query('DELETE FROM session');
-        await manager.query('DELETE FROM "user"');
+        await manager.query('DELETE FROM app_user');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();

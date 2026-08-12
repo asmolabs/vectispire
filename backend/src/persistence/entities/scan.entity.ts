@@ -1,5 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { bigIntColumn, intColumn, jsonColumn, stringColumn, textColumn, timestampColumn } from '../columns';
+import { Container } from './container.entity';
+import { Repository } from './repository.entity';
 
 /** En file d'attente. */
 export const STATUS_QUEUED = 'pending';
@@ -55,7 +57,7 @@ export class Scan {
     @Column({ ...bigIntColumn({ nullable: true }), name: 'duration_ms' })
     durationMs!: string | null;
 
-    @Column({ ...intColumn(), name: 'findings_count' })
+    @Column({ ...intColumn({ default: 0 }), name: 'findings_count' })
     findingsCount!: number;
 
     /**
@@ -63,10 +65,13 @@ export class Scan {
      * qu'une liste de scans puisse montrer « ce qui a changé » sans ouvrir chaque
      * historique de problème.
      */
-    @Column({ ...intColumn(), name: 'new_issues_count' })
+    // `default: 0` déclaré ici et non seulement en base : le schéma Alembic le portait,
+    // les entités non, et le code marchait par accident du schéma. Un compteur commence à
+    // zéro — l'omettre à l'écriture ne doit pas être une erreur.
+    @Column({ ...intColumn({ default: 0 }), name: 'new_issues_count' })
     newIssuesCount!: number;
 
-    @Column({ ...intColumn(), name: 'resolved_issues_count' })
+    @Column({ ...intColumn({ default: 0 }), name: 'resolved_issues_count' })
     resolvedIssuesCount!: number;
 
     /**
@@ -109,6 +114,20 @@ export class Scan {
      * Incrémenté à chaque réclamation, pour qu'un scan repris et abandonné en boucle
      * finisse par échouer visiblement au lieu de cycler indéfiniment.
      */
-    @Column(intColumn())
+    @Column(intColumn({ default: 0 }))
     attempts!: number;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `containerId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Container, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'container_id' })
+    containerIdRelation?: Container | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `repoId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Repository, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'repo_id' })
+    repoIdRelation?: Repository | null;
 }

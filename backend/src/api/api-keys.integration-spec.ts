@@ -5,26 +5,20 @@ import { ApiKey, Container, ENTITIES, Repository as GitRepository } from '../per
 import { verifyPassword } from '../services/password.service';
 import { ApiKeysController } from './api-keys.controller';
 import type { AuthenticatedRequest } from './auth.guard';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
 const asRequest = { user: { username: 'admin', role: 'ADMIN' }, ip: '127.0.0.1' } as unknown as AuthenticatedRequest;
 
-describeWithPostgres("API des clés d'API", () => {
+describe("API des clés d'API", () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     let controller: ApiKeysController;
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();

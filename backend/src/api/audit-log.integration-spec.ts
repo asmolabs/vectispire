@@ -2,11 +2,10 @@ import { DataSource, EntityManager } from 'typeorm';
 import { ENTITIES } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuditLogController } from './audit-log.controller';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
-describeWithPostgres("API du journal d'audit", () => {
+describe("API du journal d'audit", () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
@@ -14,13 +13,8 @@ describeWithPostgres("API du journal d'audit", () => {
     const audit = new AuditLogService();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();
@@ -28,7 +22,7 @@ describeWithPostgres("API du journal d'audit", () => {
         await runner.startTransaction();
         manager = runner.manager;
         controller = new AuditLogController(manager);
-        await manager.query('DELETE FROM audit_logs');
+        await manager.query('DELETE FROM audit_log');
         release = async () => {
             await runner.rollbackTransaction();
             await runner.release();
@@ -54,7 +48,7 @@ describeWithPostgres("API du journal d'audit", () => {
     it('détecte une entrée dont la description a été modifiée en base', async () => {
         for (let index = 0; index < 4; index++) await record('SETTING_UPDATED', `entrée ${index}`);
         // Exactement ce que le journal existe pour révéler : une écriture directe.
-        await manager.query("UPDATE audit_logs SET description = 'réécrite' WHERE description = 'entrée 2'");
+        await manager.query("UPDATE audit_log SET description = 'réécrite' WHERE description = 'entrée 2'");
 
         const result = await controller.verify();
         expect(result.intact).toBe(false);
@@ -63,7 +57,7 @@ describeWithPostgres("API du journal d'audit", () => {
 
     it('détecte une entrée supprimée au milieu', async () => {
         for (let index = 0; index < 4; index++) await record('SETTING_UPDATED', `entrée ${index}`);
-        await manager.query("DELETE FROM audit_logs WHERE description = 'entrée 2'");
+        await manager.query("DELETE FROM audit_log WHERE description = 'entrée 2'");
 
         expect((await controller.verify()).intact).toBe(false);
     });

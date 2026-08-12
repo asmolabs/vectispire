@@ -7,27 +7,21 @@ import { AuthService } from '../services/auth.service';
 import { hashPassword, verifyPassword } from '../services/password.service';
 import { AuthController } from './auth.controller';
 import type { AuthenticatedRequest } from './auth.guard';
+import { connectToTestDatabase } from '../../test/database';
 
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
 const CURRENT = 'mot-de-passe-actuel';
 const NEXT = 'nouveau-mot-de-passe-long';
 
-describeWithPostgres('changement de mot de passe', () => {
+describe('changement de mot de passe', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     let controller: AuthController;
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();
@@ -111,7 +105,7 @@ describeWithPostgres('changement de mot de passe', () => {
         const { request } = await seed();
         await controller.changePassword({ current_password: CURRENT, new_password: NEXT }, request);
 
-        const rows = await manager.query("SELECT description FROM audit_logs WHERE operation_type = 'PASSWORD_CHANGED'");
+        const rows = await manager.query("SELECT description FROM audit_log WHERE operation_type = 'PASSWORD_CHANGED'");
         expect(rows.length).toBeGreaterThan(0);
         // Le mot de passe lui-même n'a rien à faire dans le journal.
         expect(JSON.stringify(rows)).not.toContain(NEXT);

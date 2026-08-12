@@ -1,9 +1,10 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { intColumn, stringColumn, timestampColumn } from '../columns';
 
 // Réexportés depuis le domaine : le vocabulaire des portées est une règle métier, pas
 // une colonne, et la règle de couches interdit l'inverse.
 export { ALL_SCOPES, DEFAULT_SCOPES, SCOPE_AGENT, SCOPE_EXPORT, SCOPE_READ, SCOPE_SCAN } from '../../domain/api-keys/scopes';
+import { DEFAULT_SCOPES } from '../../domain/api-keys/scopes';
 
 /**
  * Une clé d'API.
@@ -20,7 +21,7 @@ export { ALL_SCOPES, DEFAULT_SCOPES, SCOPE_AGENT, SCOPE_EXPORT, SCOPE_READ, SCOP
  */
 @Entity('api_key')
 export class ApiKey {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column(stringColumn())
@@ -38,8 +39,9 @@ export class ApiKey {
     @Column({ ...timestampColumn({ nullable: true }), name: 'last_used_at' })
     lastUsedAt!: Date | null;
 
-    /** Liste séparée par des virgules. */
-    @Column(stringColumn())
+    /** Liste séparée par des virgules. Le défaut n'accorde pas « agent » : ce périmètre
+     *  donne le droit d'exécuter des scans et ne doit jamais être implicite. */
+    @Column(stringColumn(255, { default: DEFAULT_SCOPES.join(',') }))
     scopes!: string;
 
     @Column({ ...stringColumn(20, { nullable: true }), name: 'target_kind' })

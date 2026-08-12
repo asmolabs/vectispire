@@ -8,18 +8,19 @@ export { ADMIN_ROLES, VALID_ROLES } from '../../domain/users/roles';
 /**
  * Un compte.
  *
- * La table s'appelle `user`, qui est un **mot réservé de PostgreSQL** : `FROM user`
- * y désigne la fonction courante et non la table. C'est l'un des défauts de
- * portabilité que la suite multi-backends a trouvés côté Python, et il ne se voit ni
- * sur SQLite ni à la lecture. TypeORM échappe les identifiants de lui-même, mais
- * toute requête écrite à la main dans ce projet doit citer `"user"`.
+ * La table s'appelle `app_user` et non `user` : ce dernier est un **mot réservé de
+ * PostgreSQL**, où `FROM user` désigne la fonction courante et non la table. TypeORM
+ * échappe les identifiants de lui-même, mais toute requête écrite à la main devait citer
+ * `"user"` — et l'oublier produit une erreur que rien dans le code ne laisse prévoir.
+ * Le nom hérité du modèle SQLAlchemy n'avait pas de raison de survivre à la reprise du
+ * schéma.
  *
  * `password` porte une empreinte **bcrypt**, interopérable entre Python et Node : la
  * table migre telle quelle, sans réinitialisation. Attention à deux détails à
  * l'écriture — la troncature explicite à 72 **octets**, et le coût, que `bcrypt.gensalt()`
  * fixe à 12 en Python ≥ 4.0 alors que `bcryptjs.genSaltSync()` prend 10 par défaut.
  */
-@Entity('user')
+@Entity('app_user')
 export class User {
     @PrimaryGeneratedColumn({ type: 'integer' })
     id!: number;

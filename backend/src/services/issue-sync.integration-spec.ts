@@ -2,6 +2,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { ENTITIES, Finding, Issue, Repository, STATE_OPEN, STATE_RESOLVED, Scan, TRIAGE_FIXED, TRIAGE_NOT_AFFECTED, TRIAGE_UNDER_REVIEW } from '../persistence/entities';
 import { IssueSyncService } from './issue-sync.service';
+import { connectToTestDatabase } from '../../test/database';
 
 /**
  * Le cycle de vie des problèmes, contre une vraie base.
@@ -14,23 +15,16 @@ import { IssueSyncService } from './issue-sync.service';
  * Chaque test tourne dans une transaction annulée à la fin : les cas ne se voient pas
  * entre eux, et la base reste propre pour le test de parité de schéma.
  */
-const connectionString = process.env.ZANSHIN_TEST_DATABASE_URL;
-const describeWithPostgres = connectionString ? describe : describe.skip;
 
-describeWithPostgres('réconciliation des problèmes depuis un scan', () => {
+describe('réconciliation des problèmes depuis un scan', () => {
     let dataSource: DataSource;
     let manager: EntityManager;
     let release: () => Promise<void>;
     const service = new IssueSyncService();
 
     beforeAll(async () => {
-        dataSource = new DataSource({ type: 'postgres', url: connectionString, entities: ENTITIES, synchronize: false });
-        await dataSource.initialize();
+        dataSource = await connectToTestDatabase();
     }, 30_000);
-
-    afterAll(async () => {
-        if (dataSource?.isInitialized) await dataSource.destroy();
-    });
 
     beforeEach(async () => {
         const runner = dataSource.createQueryRunner();

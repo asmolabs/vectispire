@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { stringColumn, timestampColumn } from '../columns';
 
 /**
@@ -14,7 +14,7 @@ import { stringColumn, timestampColumn } from '../columns';
  */
 @Entity('login_attempt')
 export class LoginAttempt {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column({ ...stringColumn(), name: 'counter_key' })

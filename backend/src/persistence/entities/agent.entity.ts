@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { boolColumn, intColumn, jsonColumn, stringColumn, timestampColumn, uuidColumn } from '../columns';
+import { ApiKey } from './api-key.entity';
 
 /** L'agent intégré au processus qui sert l'interface. */
 export const KIND_BUILTIN = 'builtin';
@@ -26,7 +27,7 @@ export const ONLINE_TTL_SECONDS = 120;
  */
 @Entity('agent')
 export class Agent {
-    @PrimaryColumn({ type: 'uuid' })
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @Column(stringColumn())
@@ -79,4 +80,11 @@ export class Agent {
 
     @Column({ ...timestampColumn(), name: 'created_at' })
     createdAt!: Date;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `apiKeyId` reste la valeur
+     *  que le code lit. `ON DELETE SET NULL` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => ApiKey, { onDelete: 'SET NULL', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'api_key_id' })
+    apiKeyIdRelation?: ApiKey | null;
 }

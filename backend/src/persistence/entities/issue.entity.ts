@@ -1,5 +1,8 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { boolColumn, floatColumn, intColumn, stringColumn, textColumn, timestampColumn } from '../columns';
+import { Container } from './container.entity';
+import { Repository } from './repository.entity';
+import { Scan } from './scan.entity';
 
 export const STATE_OPEN = 'open';
 export const STATE_RESOLVED = 'resolved';
@@ -69,7 +72,7 @@ export class Issue {
 
     /** Catalogue CISA KEV. Une « moyenne » exploitée dans la nature l'emporte sur une
      *  « critique » qui ne l'a jamais été, d'où une règle de gate à part entière. */
-    @Column({ ...boolColumn(), name: 'is_kev' })
+    @Column({ ...boolColumn({ default: false }), name: 'is_kev' })
     isKev!: boolean;
 
     @Column({ ...floatColumn({ nullable: true }), name: 'cvss_score' })
@@ -92,7 +95,7 @@ export class Issue {
 
     // --- Cycle de vie ---
 
-    @Column(stringColumn(20))
+    @Column(stringColumn(20, { default: STATE_OPEN }))
     state!: string;
 
     @Column({ ...timestampColumn(), name: 'first_seen_at' })
@@ -110,12 +113,14 @@ export class Issue {
     @Column({ ...intColumn({ nullable: true }), name: 'last_seen_scan_id' })
     lastSeenScanId!: number | null;
 
-    @Column({ ...intColumn(), name: 'times_seen' })
+    // Un problème vu pour la première fois l'a été une fois. Le schéma le disait,
+    // l'entité non — et le code marchait par accident du schéma.
+    @Column({ ...intColumn({ default: 1 }), name: 'times_seen' })
     timesSeen!: number;
 
     // --- Triage ---
 
-    @Column({ ...stringColumn(30), name: 'triage_status' })
+    @Column({ ...stringColumn(30, { default: TRIAGE_UNDER_REVIEW }), name: 'triage_status' })
     triageStatus!: string;
 
     /** Exigée par la spécification VEX pour `not_affected`, et garantie présente à
@@ -155,4 +160,32 @@ export class Issue {
 
     @Column({ ...stringColumn(500, { nullable: true }), name: 'ticket_url' })
     ticketUrl!: string | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `containerId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Container, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'container_id' })
+    containerIdRelation?: Container | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `firstSeenScanId` reste la valeur
+     *  que le code lit. `ON DELETE SET NULL` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Scan, { onDelete: 'SET NULL', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'first_seen_scan_id' })
+    firstSeenScanIdRelation?: Scan | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `lastSeenScanId` reste la valeur
+     *  que le code lit. `ON DELETE SET NULL` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Scan, { onDelete: 'SET NULL', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'last_seen_scan_id' })
+    lastSeenScanIdRelation?: Scan | null;
+
+    /** Déclarée pour la contrainte, pas pour être parcourue : `repoId` reste la valeur
+     *  que le code lit. `ON DELETE CASCADE` — la règle vivait dans le schéma Alembic et
+     *  n'était écrite nulle part dans le modèle. */
+    @ManyToOne(() => Repository, { onDelete: 'CASCADE', createForeignKeyConstraints: true })
+    @JoinColumn({ name: 'repo_id' })
+    repoIdRelation?: Repository | null;
 }
