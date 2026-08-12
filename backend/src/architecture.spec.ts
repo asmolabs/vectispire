@@ -37,7 +37,7 @@ import { join, relative } from 'node:path';
 const SOURCE_ROOT = __dirname;
 
 /** Les couches, de la plus basse à la plus haute. L'indice **est** le niveau. */
-const LAYERS = ['domain', 'persistence', 'repositories', 'services', 'api'] as const;
+const LAYERS = ['domain', 'scanning', 'persistence', 'repositories', 'services', 'api'] as const;
 type Layer = (typeof LAYERS)[number];
 
 /**
@@ -48,10 +48,17 @@ type Layer = (typeof LAYERS)[number];
  */
 const ALLOWED: Record<Layer, readonly Layer[]> = {
     domain: [],
+    /**
+     * L'exécution d'un scan : disque, processus, conteneurs. Elle ne connaît que le
+     * domaine — **ni base ni entités**, délibérément. C'est ce qui permet à un agent
+     * distant, qui n'a qu'une socket Docker et un répertoire temporaire, de faire tourner
+     * exactement ce code : s'il touchait à la persistance, il serait inexécutable là-bas.
+     */
+    scanning: ['domain'],
     persistence: ['domain'],
     repositories: ['persistence', 'domain'],
-    services: ['repositories', 'persistence', 'domain'],
-    api: ['services', 'repositories', 'persistence', 'domain']
+    services: ['scanning', 'repositories', 'persistence', 'domain'],
+    api: ['services', 'scanning', 'repositories', 'persistence', 'domain']
 };
 
 /** Les paquets qu'une couche n'a pas le droit de connaître. */
