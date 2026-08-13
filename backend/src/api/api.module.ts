@@ -29,6 +29,9 @@ import { ApiKeysController } from './api-keys.controller';
 import { UsersController } from './users.controller';
 import { SshKeysController } from './ssh-keys.controller';
 import { EncryptionService } from '../services/encryption.service';
+import { EnrichmentService } from '../services/enrichment.service';
+import { EolService } from '../services/eol.service';
+import { SettingsService } from '../services/settings.service';
 import { QualityController } from './quality.controller';
 import { RepositoriesController } from './repositories.controller';
 
@@ -61,7 +64,18 @@ import { RepositoriesController } from './repositories.controller';
         // Construits par fabrique : leurs constructeurs prennent des collaborateurs avec
         // des valeurs par défaut, que l'injection prendrait pour des dépendances à
         // résoudre — et pour lesquelles il n'existe aucun fournisseur.
-        { provide: ScanIngestorService, useFactory: () => new ScanIngestorService() },
+        SettingsService,
+        // Par fabrique : le second paramètre est une fonction, que l'injection prendrait
+        // pour un fournisseur à résoudre — le même piège que pour `EncryptionService`.
+        { provide: EnrichmentService, useFactory: (settings: SettingsService) => new EnrichmentService(settings), inject: [SettingsService] },
+        // L'ingesteur reçoit l'enrichissement ici, et nulle part ailleurs : c'est le seul
+        // chemin où un scan doit appeler le réseau.
+        { provide: EolService, useFactory: (settings: SettingsService) => new EolService(settings), inject: [SettingsService] },
+        {
+            provide: ScanIngestorService,
+            useFactory: (enrichment: EnrichmentService, eol: EolService) => new ScanIngestorService(undefined, enrichment, eol),
+            inject: [EnrichmentService, EolService]
+        },
 
         // Le distributeur reçoit la source de données : il ouvre ses propres transactions,
         // courtes pour la réclamation et absentes pendant l'exécution.

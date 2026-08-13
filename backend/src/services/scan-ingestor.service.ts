@@ -2,9 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
-import { TYPE_IAC, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
+import { TYPE_EOL, TYPE_IAC, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
 import { Finding, Scan } from '../persistence/entities';
 import type { ScanArtifacts } from '../scanning/scan-runner';
+import { EnrichmentService } from './enrichment.service';
+import { EolService } from './eol.service';
 import { IssueSyncService } from './issue-sync.service';
 
 /**
@@ -22,7 +24,17 @@ import { IssueSyncService } from './issue-sync.service';
  */
 @Injectable()
 export class ScanIngestorService {
-    constructor(private readonly sync: IssueSyncService = new IssueSyncService()) {}
+    constructor(
+        private readonly sync: IssueSyncService = new IssueSyncService(),
+        /**
+         * Facultatif, et c'est délibéré : l'enrichissement appelle le réseau. Les tests
+         * d'ingestion qui ne l'injectent pas restent hors ligne et déterministes, au lieu
+         * de dépendre de la disponibilité de FIRST et de la CISA.
+         */
+        private readonly enrichment: EnrichmentService | null = null,
+        /** Même raison : la détection de fin de vie consulte un catalogue distant. */
+        private readonly eol: EolService | null = null
+    ) {}
 
     async ingest(manager: EntityManager, scan: Scan, artifacts: ScanArtifacts) {
         const findings: Finding[] = [];
@@ -108,6 +120,25 @@ export class ScanIngestorService {
                 );
             }
         }
+
+        // La fin de vie se lit du SBOM. **Le type n'est déclaré scanné que si la détection
+        // était activée et qu'un SBOM existait** : sans l'une ou l'autre, rien n'a été
+        // observé, et le déclarer résoudrait en silence tout l'historique de ce type —
+        // « on a cessé de regarder » n'est pas « c'est réglé ».
+        if (this.eol && artifacts.sbom && (await this.eol.isEnabled())) {
+            scannedTypes.push(TYPE_EOL);
+            const eolFindings = await this.eol.buildFindings(scan, artifacts.sbom as unknown as Record<string, unknown>);
+            for (const finding of eolFindings) {
+                if (finding.identifier) descriptions[finding.identifier] = this.eol.describe(finding);
+            }
+            findings.push(...eolFindings);
+        }
+
+        // **Avant l'écriture, et non après.** Les constats sont enregistrés par `sync` ;
+        // les enrichir ensuite demanderait une seconde écriture, hors de la transaction du
+        // scan, et laisserait une fenêtre où le gate verrait des constats sans leur
+        // drapeau KEV — c'est-à-dire un verdict vert sur une vulnérabilité exploitée.
+        if (this.enrichment) await this.enrichment.enrich(findings);
 
         return this.sync.sync(manager, scan, findings, { scannedTypes, descriptions });
     }
