@@ -143,6 +143,13 @@ export class IssueSyncService {
             for (const occurrence of occurrences) occurrence.issueId = issueId ?? null;
         }
 
+        // **Les constats eux-mêmes sont écrits ici**, et l'oubli s'est vu à l'écran : le
+        // détail d'un scan annonçait huit constats et n'en affichait aucun. Les problèmes
+        // portent l'histoire d'une cible, les constats disent ce qu'un scan précis a
+        // observé — c'est la matière du détail de scan, de l'export SARIF et de la preuve
+        // qu'un problème existait à une date donnée.
+        if (findings.length > 0) await manager.save(Finding, findings);
+
         const resolved = await this.resolveDisappeared(manager, scan, scannedTypes, new Set(byFingerprint.keys()), moment);
 
         scan.newIssuesCount = newIssues.length;

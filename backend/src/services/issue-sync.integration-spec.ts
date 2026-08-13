@@ -87,6 +87,23 @@ describe('réconciliation des problèmes depuis un scan', () => {
 
     const VULN = ['vulnerability'];
 
+    it('écrit les constats, et pas seulement les problèmes', async () => {
+        // Défaut vu à l'écran : le détail d'un scan annonçait huit constats et n'en
+        // affichait aucun. Les problèmes portent l'histoire d'une cible ; les constats
+        // disent ce qu'un scan précis a observé — matière du détail de scan, de l'export
+        // SARIF, et de la preuve qu'un problème existait à une date donnée.
+        const scan = await targetWithScan();
+        const findings = [finding(scan, { identifier: 'CVE-2026-0001' }), finding(scan, { identifier: 'CVE-2026-0002' })];
+
+        await service.sync(manager, scan, findings, { scannedTypes: ['vulnerability'] });
+
+        const stored = await manager.findBy(Finding, { scanId: scan.id });
+        expect(stored).toHaveLength(2);
+        // Rattachés à leur problème : c'est ce qui permet de remonter d'un constat au
+        // triage posé dessus.
+        expect(stored.every((row) => row.issueId !== null)).toBe(true);
+    });
+
     it('crée un problème pour un constat jamais vu', async () => {
         const scan = await targetWithScan();
         const result = await service.sync(manager, scan, [finding(scan)], { scannedTypes: VULN });

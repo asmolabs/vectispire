@@ -1,28 +1,36 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOverview, TriageRequest ,
-    MonitoredContainer,
-    MonitoredRepository,
-    NewContainer,
-    NewSshKey,
+import {
     AgentSummary,
     ApiKeySummary,
-    IssuedAgent,
-    NewAgent,
+    ApiKeyTargets,
     AuditEntry,
     AuditFilters,
     AuditVerification,
     DashboardOverview,
-    ApiKeyTargets,
+    Issue,
+    IssueFilters,
     IssuedApiKey,
+    LoginResponse,
+    MonitoredContainer,
+    MonitoredRepository,
+    NewAgent,
     NewApiKey,
+    NewContainer,
+    NewRepository,
+    NewSshKey,
     NewUser,
+    Page,
+    QualityOverview,
+    ScanDetail,
+    SecurityOverview,
     SshKeySummary,
+    TriageRequest,
     UserList,
     UserPatch,
-    UserSummary,
-    NewRepository} from './api.models';
+    UserSummary
+} from './api.models';
 
 /**
  * L'accès à l'API, en un point unique.
@@ -88,6 +96,30 @@ export class ApiService {
         return this.http.post<MonitoredRepository>('/api/v1/repositories', repository);
     }
 
+    agents(): Observable<AgentSummary[]> {
+        return this.http.get<AgentSummary[]>('/api/v1/admin/agents');
+    }
+
+    createAgent(agent: NewAgent): Observable<{ id: string; name: string; secret: string }> {
+        return this.http.post<{ id: string; name: string; secret: string }>('/api/v1/admin/agents', agent);
+    }
+
+    setAgentEnabled(id: string, enabled: boolean): Observable<{ id: string; enabled: boolean }> {
+        return this.http.patch<{ id: string; enabled: boolean }>(`/api/v1/admin/agents/${id}`, { enabled });
+    }
+
+    deleteAgent(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/admin/agents/${id}`);
+    }
+
+    scan(id: number): Observable<ScanDetail> {
+        return this.http.get<ScanDetail>(`/api/v1/scans/${id}`);
+    }
+
+    triggerContainerScan(id: number): Observable<{ id: number; status: string }> {
+        return this.http.post<{ id: number; status: string }>(`/api/v1/containers/${id}/scan`, {});
+    }
+
     triggerRepositoryScan(id: number): Observable<{ id: number; status: string }> {
         return this.http.post<{ id: number; status: string }>(`/api/v1/repositories/${id}/scan`, {});
     }
@@ -150,22 +182,6 @@ export class ApiService {
 
     deleteApiKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/api-keys/${id}`);
-    }
-
-    agents(): Observable<AgentSummary[]> {
-        return this.http.get<AgentSummary[]>('/api/v1/admin/agents');
-    }
-
-    createAgent(agent: NewAgent): Observable<IssuedAgent> {
-        return this.http.post<IssuedAgent>('/api/v1/admin/agents', agent);
-    }
-
-    setAgentEnabled(id: string, enabled: boolean): Observable<{ enabled: boolean }> {
-        return this.http.patch<{ enabled: boolean }>(`/api/v1/admin/agents/${id}`, { enabled });
-    }
-
-    deleteAgent(id: string): Observable<void> {
-        return this.http.delete<void>(`/api/v1/admin/agents/${id}`);
     }
 
     auditLog(filters: AuditFilters = {}): Observable<Page<AuditEntry>> {

@@ -1,18 +1,15 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
+import { now } from '../domain/common/timestamp';
 import { formatImageReference, validateImageReference } from '../domain/targets/image-reference';
-import { Container, Issue, STATE_OPEN } from '../persistence/entities';
+import { Container, Issue, Scan, STATE_OPEN, STATUS_QUEUED } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
-/**
- * Les images de conteneur surveillées. Même forme que `repositories.controller.ts`, et
- * même absence délibérée : pas de déclenchement de scan tant que la file n'est pas
- * portée.
- */
+/** Les images de conteneur surveillées, et le déclenchement de leurs scans. */
 @Controller('api/v1/containers')
 export class ContainersController {
     constructor(
@@ -70,6 +67,40 @@ export class ContainersController {
             ipAddress: request.ip ?? null
         });
         return { ...saved, reference: formatImageReference(saved) };
+    }
+
+    /** Met un scan en file pour cette image. Voir `repositories.controller.ts` pour le
+     *  raisonnement : mettre en file, et non lancer. */
+    @AdminOnly()
+    @Post(':id/scan')
+    async triggerScan(@Param('id', ParseIntPipe) id: number, @Req() request: AuthenticatedRequest) {
+        const container = await this.manager.findOneBy(Container, { id });
+        if (!container) throw new NotFoundException('Conteneur introuvable.');
+
+        if (await this.manager.countBy(Scan, { containerId: id, status: STATUS_QUEUED })) {
+            throw new BadRequestException('Un scan de cette image est déjà en file.');
+        }
+
+        const scan = await this.manager.save(
+            Scan,
+            Object.assign(new Scan(), {
+                containerId: container.id,
+                // Une image n'a pas de branche ; la colonne est obligatoire et cette valeur
+                // dit ce qu'il en est plutôt que de laisser une chaîne vide inexplicable.
+                branch: 'n/a',
+                status: STATUS_QUEUED,
+                createdAt: now()
+            })
+        );
+
+        await this.audit.record(this.manager, {
+            operationType: 'SCAN_TRIGGERED',
+            resourceId: String(scan.id),
+            description: `Scan demandé : ${formatImageReference(container)}`,
+            userId: request.user?.username ?? null,
+            ipAddress: request.ip ?? null
+        });
+        return { id: scan.id, status: scan.status };
     }
 
     @AdminOnly()

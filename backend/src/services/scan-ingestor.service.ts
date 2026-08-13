@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { now } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { TYPE_IAC, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
 import { Finding, Scan } from '../persistence/entities';
@@ -35,6 +36,7 @@ export class ScanIngestorService {
                 findings.push(
                     this.finding(scan, {
                         type: TYPE_VULNERABILITY,
+                        source: 'grype',
                         identifier: dependency.identifier,
                         severity: dependency.severity,
                         packageName: dependency.packageName,
@@ -53,6 +55,7 @@ export class ScanIngestorService {
                 findings.push(
                     this.finding(scan, {
                         type: TYPE_SECRET,
+                        source: 'gitleaks',
                         identifier: secret.rule,
                         // Un secret codé en dur est toujours grave : il n'y a pas de
                         // sévérité à graduer, seulement une clé à révoquer.
@@ -71,6 +74,7 @@ export class ScanIngestorService {
                 findings.push(
                     this.finding(scan, {
                         type: TYPE_IAC,
+                        source: 'checkov',
                         identifier: check.checkId,
                         severity: 'medium',
                         filePath: check.file,
@@ -94,6 +98,7 @@ export class ScanIngestorService {
                         // `security` au backlog de sécurité, le reste à la qualité, qui ne
                         // fait jamais échouer une compilation.
                         type: result.category === 'security' ? TYPE_SAST : TYPE_QUALITY,
+                        source: 'semgrep',
                         identifier: result.ruleId,
                         severity: this.downgradeLowConfidence(result.severity, result.confidence),
                         filePath: result.file,
@@ -120,9 +125,13 @@ export class ScanIngestorService {
         return lower[severity] ?? severity;
     }
 
-    private finding(scan: Scan, values: Partial<Finding> & { type: string; identifier: string; severity: string }): Finding {
+    private finding(scan: Scan, values: Partial<Finding> & { type: string; identifier: string; severity: string; source: string }): Finding {
         const finding = Object.assign(new Finding(), {
             scanId: scan.id,
+            // `createdAt` posé ici : la colonne est obligatoire et un défaut de base
+            // s'appliquerait *après* l'insertion, donc trop tard pour l'entité en mémoire.
+            createdAt: now(),
+            isKev: false,
             ...values,
             // L'empreinte est l'identité d'un problème à travers les scans : c'est elle
             // qui fait qu'un CVE revu la semaine suivante incrémente un compteur au lieu

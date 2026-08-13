@@ -54,7 +54,11 @@ import { LastScanTag } from '../../shared/last-scan';
                         </td>
                         <td>{{ repository.branch }}</td>
                         <td>
-                            <app-last-scan [scan]="repository.lastScan" />
+                            @if (repository.lastScan; as scan) {
+                                <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                            } @else {
+                                <app-last-scan [scan]="null" />
+                            }
                         </td>
                         <td class="text-right">
                             @if (repository.openIssues > 0) {

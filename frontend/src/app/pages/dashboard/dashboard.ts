@@ -139,7 +139,9 @@ const SEVERITIES = [
                     </ng-template>
                     <ng-template #body let-scan>
                         <tr>
-                            <td>{{ scan.repoId ? 'Dépôt ' + scan.repoId : 'Conteneur ' + scan.containerId }}</td>
+                            <td>
+                                <a [routerLink]="['/scans', scan.id]">{{ scan.repoId ? 'Dépôt ' + scan.repoId : 'Conteneur ' + scan.containerId }}</a>
+                            </td>
                             <td><app-last-scan [scan]="scan" /></td>
                             <td class="text-right">{{ scan.findingsCount ?? '—' }}</td>
                         </tr>

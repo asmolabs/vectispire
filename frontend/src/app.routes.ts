@@ -24,6 +24,7 @@ export const appRoutes: Routes = [
             { path: 'api-keys', loadComponent: () => import('./app/pages/api-keys/api-keys').then((m) => m.ApiKeys) },
             { path: 'audit-log', loadComponent: () => import('./app/pages/audit-log/audit-log').then((m) => m.AuditLog) },
             { path: 'agents', loadComponent: () => import('./app/pages/agents/agents').then((m) => m.Agents) },
+            { path: 'scans/:id', loadComponent: () => import('./app/pages/scans/scan-detail').then((m) => m.ScanDetailPage) },
             { path: 'securite', loadComponent: () => import('./app/pages/securite/securite').then((m) => m.Securite) },
             { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) },
             { path: 'qualite', loadComponent: () => import('./app/pages/qualite/qualite').then((m) => m.Qualite) }

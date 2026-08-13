@@ -387,3 +387,46 @@ export interface IssuedAgent {
     /** La seule occurrence de la clé en clair. */
     secret: string;
 }
+
+/** Un agent, tel que l'administration le montre. */
+
+
+export interface ScanSummary {
+    id: number;
+    status: string;
+    branch: string;
+    createdAt: string | null;
+    durationMs: number | null;
+    findingsCount: number;
+    newIssuesCount: number;
+    resolvedIssuesCount: number;
+    error: string | null;
+    claimedBy: string | null;
+    attempts: number;
+    targetKind: string;
+    targetId: number | null;
+    targetName: string;
+}
+
+export interface ScanFinding {
+    id: number;
+    type: string;
+    severity: string | null;
+    identifier: string | null;
+    packageName: string | null;
+    packageVersion: string | null;
+    fixVersions: string | null;
+    filePath: string | null;
+    line: number | null;
+    description: string | null;
+    link: string | null;
+}
+
+export interface ScanDetail extends ScanSummary {
+    subPath: string | null;
+    hasSbom: boolean;
+    findings: ScanFinding[];
+    findingsTotal: number;
+    /** La liste est-elle tronquée ? Le dire évite de croire le scan plus léger qu'il n'est. */
+    findingsTruncated: boolean;
+}
