@@ -354,3 +354,36 @@ export interface DashboardOverview {
         createdAt: string | null;
     }[];
 }
+
+/** Un agent, tel que l'administration le voit. */
+export interface AgentSummary {
+    id: string;
+    name: string;
+    description: string | null;
+    kind: string;
+    enabled: boolean;
+    credentialsMode: string;
+    maxConcurrent: number | null;
+    hostname: string | null;
+    platform: string | null;
+    version: string | null;
+    contractVersion: string | null;
+    lastSeenAt: string | null;
+    /** Vu récemment — et non « activé ». Un agent activé mais muet est le cas qui compte. */
+    online: boolean;
+    runningScans: number;
+}
+
+export interface NewAgent {
+    name: string;
+    description?: string;
+    credentials_mode: string;
+    max_concurrent?: number;
+}
+
+export interface IssuedAgent {
+    id: string;
+    name: string;
+    /** La seule occurrence de la clé en clair. */
+    secret: string;
+}

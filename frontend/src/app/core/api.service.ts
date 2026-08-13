@@ -6,7 +6,10 @@ import { Issue, IssueFilters, LoginResponse, Page, QualityOverview, SecurityOver
     MonitoredRepository,
     NewContainer,
     NewSshKey,
+    AgentSummary,
     ApiKeySummary,
+    IssuedAgent,
+    NewAgent,
     AuditEntry,
     AuditFilters,
     AuditVerification,
@@ -147,6 +150,22 @@ export class ApiService {
 
     deleteApiKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/api-keys/${id}`);
+    }
+
+    agents(): Observable<AgentSummary[]> {
+        return this.http.get<AgentSummary[]>('/api/v1/admin/agents');
+    }
+
+    createAgent(agent: NewAgent): Observable<IssuedAgent> {
+        return this.http.post<IssuedAgent>('/api/v1/admin/agents', agent);
+    }
+
+    setAgentEnabled(id: string, enabled: boolean): Observable<{ enabled: boolean }> {
+        return this.http.patch<{ enabled: boolean }>(`/api/v1/admin/agents/${id}`, { enabled });
+    }
+
+    deleteAgent(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/admin/agents/${id}`);
     }
 
     auditLog(filters: AuditFilters = {}): Observable<Page<AuditEntry>> {
