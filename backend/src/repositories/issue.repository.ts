@@ -25,7 +25,7 @@ export type GroupableColumn = keyof typeof GROUPABLE;
  * domaine, et `unknown` se classe sous `low` pour la même raison qu'ailleurs — le
  * backend OSV le renvoie dès qu'un avis n'a pas de sévérité normalisée.
  */
-const SEVERITY_RANK = `CASE issue.severity
+export const SEVERITY_RANK = `CASE issue.severity
     WHEN 'critical' THEN 0
     WHEN 'high' THEN 1
     WHEN 'medium' THEN 2

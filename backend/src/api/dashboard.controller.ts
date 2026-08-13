@@ -7,7 +7,8 @@ import { now } from '../domain/common/timestamp';
 import { Scan, STATE_OPEN } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
 import { TargetRepository } from '../repositories/target.repository';
-import { toLatest, toStoredPolicy } from './gate.controller';
+import { toStoredPolicy } from '../repositories/policy-index';
+import { toLatest } from './gate.controller';
 import type { GateIssue } from '../domain/gate/policy-gate';
 import { containerDisplayName, repositoryDisplayName } from '../domain/targets/display-name';
 

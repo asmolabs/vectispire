@@ -3,7 +3,8 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { GateIssue, evaluate } from '../domain/gate/policy-gate';
 import { RequestedPolicy } from '../domain/gate/policy-gate';
-import { StoredPolicy, describeSource, resolvePolicy } from '../domain/gate/policy-resolution';
+import { describeSource, resolvePolicy } from '../domain/gate/policy-resolution';
+import { indexPolicies, toStoredPolicy } from '../repositories/policy-index';
 import { TARGET_CONTAINER, TARGET_REPOSITORY, buildOverview } from '../domain/gate/security-overview';
 import { GatePolicyRow } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
@@ -89,22 +90,6 @@ export class GateController {
     }
 }
 
-function indexPolicies(rows: GatePolicyRow[]): Map<string, StoredPolicy> {
-    const byScope = new Map<string, StoredPolicy>();
-    for (const row of rows) byScope.set(`${row.targetKind}:${row.targetId}`, toStoredPolicy(row));
-    return byScope;
-}
-
-export function toStoredPolicy(row: GatePolicyRow): StoredPolicy {
-    return {
-        failOnSeverity: row.failOnSeverity,
-        failOnKev: row.failOnKev,
-        fixableOnly: row.fixableOnly,
-        includeTriaged: row.includeTriaged,
-        includeAiReview: row.includeAiReview,
-        version: row.version
-    };
-}
 
 /**
  * Ce que l'appelant a **réellement envoyé**.

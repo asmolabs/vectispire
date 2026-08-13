@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 /**
@@ -123,9 +124,6 @@ export async function unsafeReason(url: string, options: UrlGuardOptions): Promi
 async function resolveHostname(hostname: string): Promise<string[]> {
     if (isIP(hostname)) return [hostname];
 
-    // Importé ici plutôt qu'en tête : le module de résolution n'a rien à faire dans un
-    // arbre de dépendances chargé par des tests qui injectent leur propre résolution.
-    const { lookup } = await import('node:dns/promises');
     try {
         const results = await lookup(hostname, { all: true });
         return results.map((entry) => entry.address);

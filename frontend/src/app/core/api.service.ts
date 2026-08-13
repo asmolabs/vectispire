@@ -25,6 +25,7 @@ import {
     QualityOverview,
     ScanDetail,
     SecurityOverview,
+    SettingDefinition,
     SshKeySummary,
     TriageRequest,
     UserList,
@@ -94,6 +95,22 @@ export class ApiService {
 
     createRepository(repository: NewRepository): Observable<MonitoredRepository> {
         return this.http.post<MonitoredRepository>('/api/v1/repositories', repository);
+    }
+
+    settings(): Observable<{ settings: SettingDefinition[] }> {
+        return this.http.get<{ settings: SettingDefinition[] }>('/api/v1/settings');
+    }
+
+    updateSettings(values: Record<string, string>): Observable<{ updated: number }> {
+        return this.http.put<{ updated: number }>('/api/v1/settings', values);
+    }
+
+    ticketTokenState(): Observable<{ configured: boolean }> {
+        return this.http.get<{ configured: boolean }>('/api/v1/settings/ticket-token');
+    }
+
+    setTicketToken(token: string): Observable<{ configured: boolean }> {
+        return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-token', { token });
     }
 
     agents(): Observable<AgentSummary[]> {

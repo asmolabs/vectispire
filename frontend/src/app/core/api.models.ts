@@ -430,3 +430,22 @@ export interface ScanDetail extends ScanSummary {
     /** La liste est-elle tronquée ? Le dire évite de croire le scan plus léger qu'il n'est. */
     findingsTruncated: boolean;
 }
+
+/**
+ * Un réglage, tel que le serveur le décrit.
+ *
+ * Le type et l'explication viennent du serveur plutôt que d'être codés ici : ajouter un
+ * réglage ne doit demander aucune modification de l'interface, et surtout l'écran ne doit
+ * pas pouvoir proposer une clé qu'aucun service ne lit.
+ */
+export interface SettingDefinition {
+    key: string;
+    type: 'boolean' | 'integer' | 'text' | 'severity';
+    section: string;
+    label: string;
+    help: string;
+    default: string;
+    value: string;
+    /** A-t-elle été réglée, ou n'est-ce que le défaut ? Les deux ne se disent pas pareil. */
+    configured: boolean;
+}

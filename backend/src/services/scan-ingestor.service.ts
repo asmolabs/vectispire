@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
-import { TYPE_EOL, TYPE_IAC, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
+import { TYPE_EOL, TYPE_IAC, TYPE_LICENSE, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
 import { Container, Finding, Issue, Repository, Scan } from '../persistence/entities';
 import { containerDisplayName, repositoryDisplayName } from '../domain/targets/display-name';
 import type { NotifiableIssue } from '../domain/notifications/payload';
@@ -10,6 +10,7 @@ import type { ScanArtifacts } from '../scanning/scan-runner';
 import { EnrichmentService } from './enrichment.service';
 import { EolService } from './eol.service';
 import { IssueSyncService, type SyncResult } from './issue-sync.service';
+import { LicenseService } from './license.service';
 import { NotificationService } from './notification.service';
 import { OutboxService } from './outbox.service';
 
@@ -44,7 +45,10 @@ export class ScanIngestorService {
          * de vie indépendants de la configuration d'un webhook.
          */
         private readonly notifications: NotificationService | null = null,
-        private readonly outbox: OutboxService | null = null
+        private readonly outbox: OutboxService | null = null,
+        /** Pure évaluation de règle : ni réseau ni conteneur, donc pas de raison de
+         *  le rendre facultatif pour la vitesse — seulement pour la clarté du câblage. */
+        private readonly licenses: LicenseService | null = null
     ) {}
 
     /**
@@ -172,6 +176,16 @@ export class ScanIngestorService {
                 if (finding.identifier) descriptions[finding.identifier] = this.eol.describe(finding);
             }
             findings.push(...eolFindings);
+        }
+
+        // Les licences se lisent du même SBOM, sans appel réseau ni outil supplémentaire.
+        // Le type est déclaré scanné dès qu'un SBOM existe : contrairement à la fin de vie,
+        // il n'y a pas de service distant à joindre, donc « pas de constat » veut bien dire
+        // « aucune licence interdite » — y compris quand la liste est vide, auquel cas les
+        // anciens constats doivent effectivement se résoudre.
+        if (this.licenses && artifacts.sbom) {
+            scannedTypes.push(TYPE_LICENSE);
+            findings.push(...(await this.licenses.buildFindings(scan, artifacts.sbom as unknown as Record<string, unknown>)));
         }
 
         // **Avant l'écriture, et non après.** Les constats sont enregistrés par `sync` ;

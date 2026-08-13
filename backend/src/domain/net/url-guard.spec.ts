@@ -88,6 +88,26 @@ describe('validateOutboundUrl', () => {
     });
 });
 
+describe('résolution réelle', () => {
+    // **Sans `resolve` injecté**, donc en passant par `node:dns`. Ce cas existe parce que
+    // tous les autres tests de ce fichier — et ceux de la notification et des tickets —
+    // contournent la résolution : le jour où l'appel réel a cessé de fonctionner, aucun
+    // d'eux ne s'en est aperçu. Un garde qui lève au lieu de valider refuse *toutes* les
+    // destinations, ce qui se lit en exploitation comme « le webhook ne part jamais ».
+    it('valide une adresse littérale sans lever', async () => {
+        await expect(validateOutboundUrl('http://127.0.0.1:8000/', { allowPrivate: true })).resolves.toContain('127.0.0.1');
+        await expect(validateOutboundUrl('https://93.184.216.34/', { allowPrivate: false })).resolves.toContain('93.184.216.34');
+    });
+
+    it('traverse la résolution DNS pour un nom', async () => {
+        // Le nom n'a pas besoin d'exister : ce qui compte est que l'appel aboutisse à une
+        // décision au lieu d'exploser.
+        await expect(
+            validateOutboundUrl('https://hote-inexistant.invalid/hook', { allowPrivate: false })
+        ).resolves.toBe('https://hote-inexistant.invalid/hook');
+    });
+});
+
 describe('unsafeReason', () => {
     it('rend la raison au lieu de lever', async () => {
         expect(await unsafeReason('https://exemple.test/', { allowPrivate: false, resolve: PUBLIC })).toBeNull();

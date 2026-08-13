@@ -8,10 +8,12 @@ import {
 } from '../domain/enrichment/catalogs';
 import { TYPE_VULNERABILITY } from '../domain/issues/types';
 import { Finding } from '../persistence/entities';
+import { SETTING_ENRICHMENT_ENABLED } from '../domain/settings/keys';
 import { SettingsService } from './settings.service';
 
-/** La clé de réglage. Activé par défaut : les deux sources sont publiques et gratuites. */
-export const SETTING_ENRICHMENT_ENABLED = 'enrichment_enabled';
+/** La clé vit dans le domaine, avec le catalogue qui l'expose ; réexportée ici pour les
+ *  appelants qui ne connaissent que ce service. */
+export { SETTING_ENRICHMENT_ENABLED } from '../domain/settings/keys';
 
 /** Le catalogue KEV change au plus une fois par jour ; le relire à chaque scan serait du gâchis. */
 const KEV_CACHE_TTL_MS = 24 * 60 * 60 * 1000;

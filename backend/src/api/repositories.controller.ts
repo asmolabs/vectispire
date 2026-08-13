@@ -1,3 +1,4 @@
+import { InvalidCronExpression, validateExpression } from '../domain/scheduling/due';
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import { now } from '../domain/common/timestamp';
 import { InjectEntityManager } from '@nestjs/typeorm';
@@ -54,7 +55,9 @@ export class RepositoriesController {
             name: asOptional(body.name),
             subPath: asOptional(body.sub_path),
             scanIntervalMinutes: body.scan_interval_minutes == null ? null : Number(body.scan_interval_minutes),
-            scanCron: asOptional(body.scan_cron),
+            // Validée ici, au point de saisie : découvrir qu'une expression a été rejetée
+            // en regardant des scans *ne pas* se produire est la manière chère.
+            scanCron: cronOrThrow(body.scan_cron),
             lastScheduledScanAt: null,
             sshKeyId: asOptional(body.ssh_key_id)
         });
@@ -145,6 +148,21 @@ export class RepositoriesController {
             .groupBy('issue.repo_id')
             .getRawMany();
         return new Map(rows.map((row) => [Number(row.repoId), Number(row.count)]));
+    }
+}
+
+/**
+ * Une expression cron valide, `null`, ou un 400 que l'opérateur peut lire.
+ *
+ * Un 400 et non un 500 : l'expression vient de l'utilisateur, et le message porte le
+ * format attendu avec deux exemples.
+ */
+function cronOrThrow(value: unknown): string | null {
+    try {
+        return validateExpression(typeof value === 'string' ? value : null);
+    } catch (error) {
+        if (error instanceof InvalidCronExpression) throw new BadRequestException(error.message);
+        throw error;
     }
 }
 

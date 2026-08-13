@@ -6,8 +6,10 @@ import { capacity } from '../domain/scans/queue-rules';
 import { Agent, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
 import { ScanRepository } from '../repositories/scan.repository';
 import { ScanRunner, type ScanArtifacts } from '../scanning/scan-runner';
+import { SETTING_SAST_ENABLED } from '../domain/settings/keys';
 import { EncryptionService } from './encryption.service';
 import { ScanIngestorService } from './scan-ingestor.service';
+import { SettingsService } from './settings.service';
 
 /** Levée quand une clé de déploiement partirait en clair. Sa propre classe, pour que
  *  l'API la traduise en 412 et non en 500. */
@@ -42,7 +44,10 @@ export class ScanDispatcherService {
         private readonly scans: ScanRepository = new ScanRepository(),
         private readonly runner: ScanRunner = new ScanRunner(),
         private readonly ingestor: ScanIngestorService = new ScanIngestorService(),
-        private readonly encryption: EncryptionService = new EncryptionService()
+        private readonly encryption: EncryptionService = new EncryptionService(),
+        /** Facultatif : les tests de file n'ont pas de réglages, et sans lui le SAST reste
+         *  désactivé — le comportement le plus prudent des deux. */
+        private readonly settings: SettingsService | null = null
     ) {}
 
     /**
@@ -270,7 +275,11 @@ export class ScanDispatcherService {
             runDependencies: true,
             runSecrets: true,
             runIac: true,
-            runSast: false
+            // **Lu ici et posé sur la tâche**, jamais lu par le travailleur : un agent
+            // distant n'a pas de base. Codé en dur à `false` jusqu'ici, ce qui rendait
+            // toute la chaîne SAST — scanner, règles, ingestion, écran Qualité —
+            // inatteignable sans qu'aucun test ne s'en aperçoive.
+            runSast: this.settings ? await this.settings.isEnabled(SETTING_SAST_ENABLED, false) : false
         };
     }
 }

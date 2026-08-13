@@ -83,6 +83,21 @@ const VEX_JUSTIFICATIONS = [
                         <td>
                             <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
                             @if (issue.triagedBy) { <div class="text-muted-color text-sm">par {{ issue.triagedBy }}</div> }
+                            <!--
+                                Le ticket est affiché ici parce que sans lui, ouvrir un
+                                ticket serait invisible depuis Zanshin : quelqu'un
+                                rouvrirait le même à la main, et personne ne saurait que
+                                le travail est déjà planifié.
+                            -->
+                            @if (issue.ticketRef) {
+                                <div class="text-sm mt-1">
+                                    @if (issue.ticketUrl) {
+                                        <a [href]="issue.ticketUrl" target="_blank" rel="noopener noreferrer">{{ issue.ticketRef }}</a>
+                                    } @else {
+                                        <span class="text-muted-color">{{ issue.ticketRef }}</span>
+                                    }
+                                </div>
+                            }
                         </td>
                         <td><p-button label="Trier" size="small" [text]="true" (onClick)="openTriage(issue)" /></td>
                     </tr>

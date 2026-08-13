@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 import { OutboxService } from './outbox.service';
 import { RetentionService } from './retention.service';
+import { TicketSweepService } from './ticket-sweep.service';
 
 /**
  * Les travaux d'entretien périodiques.
@@ -24,7 +25,8 @@ export class MaintenanceService {
 
     constructor(
         private readonly retention: RetentionService,
-        private readonly outbox: OutboxService
+        private readonly outbox: OutboxService,
+        private readonly tickets: TicketSweepService
     ) {}
 
     /**
@@ -62,6 +64,11 @@ export class MaintenanceService {
             // le nettoyage n'a aucune raison de tourner à la minute.
             const pruned = await this.outbox.pruneSent();
             if (pruned > 0) this.logger.log(`Entretien : ${pruned} notification(s) livrée(s) purgée(s).`);
+
+            // Le balayage des tickets tourne ici et non à la minute : il est idempotent —
+            // la référence posée sur le problème est sa clé de déduplication — donc un
+            // gestionnaire en maintenance sera simplement retenté au tour suivant.
+            await this.tickets.sweep();
         } catch (error) {
             // Journalisé et avalé : un échec d'entretien ne doit pas faire tomber le
             // processus qui sert les requêtes.
