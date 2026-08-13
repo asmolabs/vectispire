@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron, CronExpression, Interval } from '@nestjs/schedule';
+import { OutboxService } from './outbox.service';
 import { RetentionService } from './retention.service';
 
 /**
@@ -19,8 +20,32 @@ import { RetentionService } from './retention.service';
 export class MaintenanceService {
     private readonly logger = new Logger(MaintenanceService.name);
     private busy = false;
+    private relaying = false;
 
-    constructor(private readonly retention: RetentionService) {}
+    constructor(
+        private readonly retention: RetentionService,
+        private readonly outbox: OutboxService
+    ) {}
+
+    /**
+     * Le relais des notifications, plus fréquent que la purge.
+     *
+     * Une minute : c'est le délai de reprise le plus court de la politique de recul, donc
+     * un tour plus lent ferait attendre un message dû plus longtemps que prévu, et un tour
+     * plus rapide ne trouverait rien à faire.
+     */
+    @Interval(60_000)
+    async relayNotifications(): Promise<void> {
+        if (this.relaying) return;
+        this.relaying = true;
+        try {
+            await this.outbox.relay();
+        } catch (error) {
+            this.logger.error(`Relais de notifications échoué : ${(error as Error).message}`);
+        } finally {
+            this.relaying = false;
+        }
+    }
 
     @Cron(CronExpression.EVERY_HOUR)
     async pruneRawPayloads(): Promise<void> {
@@ -32,6 +57,11 @@ export class MaintenanceService {
         try {
             const result = await this.retention.prune();
             if (result.scansPruned > 0) this.logger.log(`Entretien : ${result.scansPruned} scan(s) allégé(s).`);
+
+            // Purgée ici et non dans le relais : la table est écrite à chaque scan, mais
+            // le nettoyage n'a aucune raison de tourner à la minute.
+            const pruned = await this.outbox.pruneSent();
+            if (pruned > 0) this.logger.log(`Entretien : ${pruned} notification(s) livrée(s) purgée(s).`);
         } catch (error) {
             // Journalisé et avalé : un échec d'entretien ne doit pas faire tomber le
             // processus qui sert les requêtes.

@@ -3,11 +3,15 @@ import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { TYPE_EOL, TYPE_IAC, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
-import { Finding, Scan } from '../persistence/entities';
+import { Container, Finding, Issue, Repository, Scan } from '../persistence/entities';
+import { containerDisplayName, repositoryDisplayName } from '../domain/targets/display-name';
+import type { NotifiableIssue } from '../domain/notifications/payload';
 import type { ScanArtifacts } from '../scanning/scan-runner';
 import { EnrichmentService } from './enrichment.service';
 import { EolService } from './eol.service';
-import { IssueSyncService } from './issue-sync.service';
+import { IssueSyncService, type SyncResult } from './issue-sync.service';
+import { NotificationService } from './notification.service';
+import { OutboxService } from './outbox.service';
 
 /**
  * La traduction des artefacts d'un scan en constats, puis en problèmes.
@@ -33,8 +37,44 @@ export class ScanIngestorService {
          */
         private readonly enrichment: EnrichmentService | null = null,
         /** Même raison : la détection de fin de vie consulte un catalogue distant. */
-        private readonly eol: EolService | null = null
+        private readonly eol: EolService | null = null,
+        /**
+         * Le couple notification/outbox. Facultatif comme les précédents : sans lui,
+         * l'ingestion reste exactement ce qu'elle était, ce qui garde les tests de cycle
+         * de vie indépendants de la configuration d'un webhook.
+         */
+        private readonly notifications: NotificationService | null = null,
+        private readonly outbox: OutboxService | null = null
     ) {}
+
+    /**
+     * Construit le message du delta et le met en file, si un webhook est configuré.
+     *
+     * Le nom de la cible est lu ici plutôt que porté par le scan : c'est un instantané —
+     * le message doit dire de quoi il parlait au moment du scan, et un dépôt renommé
+     * ensuite ne doit pas réécrire une notification déjà partie.
+     */
+    private async enqueueNotification(manager: EntityManager, scan: Scan, result: SyncResult): Promise<void> {
+        if (!this.notifications || !this.outbox) return;
+
+        const payload = await this.notifications.buildScanDelta({
+            targetName: await this.targetName(manager, scan),
+            scanId: scan.id,
+            newIssues: result.newIssues.map(toNotifiable),
+            reopenedIssues: result.reopenedIssues.map(toNotifiable),
+            resolvedCount: result.resolved
+        });
+        if (payload) await this.outbox.enqueue(manager, payload);
+    }
+
+    private async targetName(manager: EntityManager, scan: Scan): Promise<string> {
+        if (scan.repoId !== null) {
+            const repository = await manager.findOneBy(Repository, { id: scan.repoId });
+            return repository ? repositoryDisplayName(repository) : `dépôt ${scan.repoId}`;
+        }
+        const container = await manager.findOneBy(Container, { id: scan.containerId! });
+        return container ? containerDisplayName(container) : `conteneur ${scan.containerId}`;
+    }
 
     async ingest(manager: EntityManager, scan: Scan, artifacts: ScanArtifacts) {
         const findings: Finding[] = [];
@@ -140,7 +180,14 @@ export class ScanIngestorService {
         // drapeau KEV — c'est-à-dire un verdict vert sur une vulnérabilité exploitée.
         if (this.enrichment) await this.enrichment.enrich(findings);
 
-        return this.sync.sync(manager, scan, findings, { scannedTypes, descriptions });
+        return this.sync.sync(manager, scan, findings, {
+            scannedTypes,
+            descriptions,
+            // **La notification est enfilée dans la transaction du scan**, jamais après :
+            // une notification écrite une ligne plus bas serait perdue par la panne même
+            // que l'outbox existe pour couvrir.
+            beforeCommit: async (result) => this.enqueueNotification(manager, scan, result)
+        });
     }
 
     /**
@@ -179,4 +226,25 @@ export class ScanIngestorService {
         });
         return finding;
     }
+}
+
+/**
+ * Un problème réduit à ce qu'une notification en dit.
+ *
+ * Une projection explicite et non l'entité : le message part vers un système tiers, et
+ * ajouter un jour une colonne sensible à `Issue` ne doit pas l'y envoyer par inadvertance.
+ */
+function toNotifiable(issue: Issue): NotifiableIssue {
+    return {
+        id: issue.id,
+        identifier: issue.identifier,
+        type: issue.type,
+        severity: issue.severity,
+        isKev: Boolean(issue.isKev),
+        epssScore: issue.epssScore,
+        packageName: issue.packageName,
+        filePath: issue.filePath,
+        fixVersions: issue.fixVersions,
+        link: issue.link
+    };
 }

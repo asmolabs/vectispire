@@ -32,6 +32,8 @@ import { EncryptionService } from '../services/encryption.service';
 import { EnrichmentService } from '../services/enrichment.service';
 import { EolService } from '../services/eol.service';
 import { MaintenanceService } from '../services/maintenance.service';
+import { NotificationService } from '../services/notification.service';
+import { OutboxService } from '../services/outbox.service';
 import { RetentionService } from '../services/retention.service';
 import { SettingsService } from '../services/settings.service';
 import { QualityController } from './quality.controller';
@@ -73,10 +75,13 @@ import { RepositoriesController } from './repositories.controller';
         // L'ingesteur reçoit l'enrichissement ici, et nulle part ailleurs : c'est le seul
         // chemin où un scan doit appeler le réseau.
         { provide: EolService, useFactory: (settings: SettingsService) => new EolService(settings), inject: [SettingsService] },
+        { provide: NotificationService, useFactory: (settings: SettingsService) => new NotificationService(settings), inject: [SettingsService] },
+        OutboxService,
         {
             provide: ScanIngestorService,
-            useFactory: (enrichment: EnrichmentService, eol: EolService) => new ScanIngestorService(undefined, enrichment, eol),
-            inject: [EnrichmentService, EolService]
+            useFactory: (enrichment: EnrichmentService, eol: EolService, notifications: NotificationService, outbox: OutboxService) =>
+                new ScanIngestorService(undefined, enrichment, eol, notifications, outbox),
+            inject: [EnrichmentService, EolService, NotificationService, OutboxService]
         },
 
         // Le distributeur reçoit la source de données : il ouvre ses propres transactions,
