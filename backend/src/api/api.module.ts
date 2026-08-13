@@ -31,6 +31,8 @@ import { SshKeysController } from './ssh-keys.controller';
 import { EncryptionService } from '../services/encryption.service';
 import { EnrichmentService } from '../services/enrichment.service';
 import { EolService } from '../services/eol.service';
+import { MaintenanceService } from '../services/maintenance.service';
+import { RetentionService } from '../services/retention.service';
 import { SettingsService } from '../services/settings.service';
 import { QualityController } from './quality.controller';
 import { RepositoriesController } from './repositories.controller';
@@ -81,6 +83,8 @@ import { RepositoriesController } from './repositories.controller';
         // courtes pour la réclamation et absentes pendant l'exécution.
         { provide: ScanDispatcherService, useFactory: (dataSource: DataSource) => new ScanDispatcherService(dataSource), inject: [DataSource] },
         ScanWorkerService,
+        RetentionService,
+        MaintenanceService,
         { provide: APP_GUARD, useClass: AuthGuard }
     ]
 })
