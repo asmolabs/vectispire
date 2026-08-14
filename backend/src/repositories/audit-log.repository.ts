@@ -117,38 +117,21 @@ export class AuditLogRepository {
     }
 
     /**
-     * Toute la table, dans l'ordre où la chaîne a été construite.
+     * Toute la table, de la plus ancienne à la plus récente.
      *
-     * Obtenu en **suivant les maillons** — de l'entrée sans précédente vers la suivante,
-     * et ainsi de suite — et non par un tri. C'est ici que le parcours a sa place : la
-     * vérification est une opération délibérée, rare, et son travail *est* de reconstituer
-     * l'ordre dans lequel la chaîne a été construite plutôt que de le supposer.
+     * **Un tri, désormais.** Cette méthode reconstituait l'ordre de la chaîne en suivant les
+     * maillons, parce que la vérification exigeait alors une file strictement unique. Elle ne
+     * l'exige plus : deux instances web écrivant au même instant produisent des branches
+     * légitimes, et `verifyChain` les accepte sans lire l'ordre. Le parcours n'avait plus
+     * personne à servir — et sur un journal fourchu il aurait suivi une branche au hasard en
+     * reléguant l'autre en fin de liste.
      *
-     * Les entrées qu'aucun maillon n'atteint sont ajoutées à la fin, triées par
-     * horodatage. C'est délibéré : elles sont soit antérieures au chaînage, soit le signe
-     * d'une rupture, et dans les deux cas c'est `verifyChain` qui doit le dire — les taire
-     * ici masquerait précisément ce que le journal existe pour révéler.
+     * Reste `rebuild`, qui a besoin d'un ordre pour relinéariser le journal en une chaîne
+     * unique. L'horodatage est la seule base honnête pour cela : c'est l'ordre dans lequel
+     * les choses se sont produites.
      */
     async findAllOldestFirst(manager: EntityManager): Promise<AuditRow[]> {
-        const rows = await manager.find(AuditLog, { order: { timestamp: 'ASC', id: 'ASC' } });
-        if (rows.length === 0) return rows;
-
-        const byPrevious = new Map<string, AuditRow>();
-        for (const row of rows) {
-            if (row.entryHash) byPrevious.set(row.previousHash ?? '', row);
-        }
-
-        const chained: AuditRow[] = [];
-        const seen = new Set<string>();
-        let current = byPrevious.get('');
-        while (current && current.entryHash && !seen.has(current.id)) {
-            chained.push(current);
-            seen.add(current.id);
-            current = byPrevious.get(current.entryHash);
-        }
-
-        const unreachable = rows.filter((row) => !seen.has(row.id));
-        return [...chained, ...unreachable];
+        return manager.find(AuditLog, { order: { timestamp: 'ASC', id: 'ASC' } });
     }
 
     async updateHashes(manager: EntityManager, id: string, previousHash: string | null, entryHash: string): Promise<void> {

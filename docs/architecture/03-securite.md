@@ -65,6 +65,17 @@ Zanshin tire et exporte désormais l'image lui-même, et ne présente au contene
 archive en lecture seule, réseau coupé. Un test le vérifie sur ce que le scanner *demande*,
 pas sur ce qu'on lit dans le code.
 
+**La chaîne du journal d'audit est un graphe, et non une file.** Elle exigeait un chaînage
+strictement unique, si bien que deux instances web écrivant au même instant — elles lisent
+la même queue et produisent deux entrées portant la même précédente — faisaient déclarer
+rompu un journal parfaitement honnête. Une alerte fausse dans un contrôle d'intégrité finit
+par couvrir les vraies. La vérification porte donc sur ce qui ne dépend pas de l'ordre :
+chaque entrée correspond à sa propre empreinte, la précédente de chacune existe encore, et
+aucune entrée sans empreinte n'est postérieure au début du chaînage. **Ce qu'elle ne détecte
+plus** : la suppression d'une entrée dont personne ne descend — la dernière écrite, ou le
+bout d'une branche. Le prix est assumé ; refermer ce cas demanderait de sérialiser toutes
+les écritures d'audit, donc de faire attendre chaque action auditée derrière les autres.
+
 **Aucun appel sortant ne suit une redirection.** `validateOutboundUrl` ne vérifie que la
 *première* requête : Node suit les redirections par défaut, si bien qu'une destination
 validée répondant `302 Location: http://169.254.169.254/` était rejointe sans que rien ne

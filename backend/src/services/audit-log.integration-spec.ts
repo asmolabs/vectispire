@@ -83,7 +83,10 @@ describe('journal d’audit', () => {
         for (let i = 0; i < 3; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
         await manager.query("DELETE FROM t_audit_log WHERE resource_id = '1'");
 
-        expect((await service.verify(manager)).broken).toContain('modifiée ou supprimée');
+        // Le message nomme désormais ce qui est réellement constaté — la précédente d'une
+        // entrée a disparu — plutôt que « modifiée ou supprimée ». La vérification ne suit
+        // plus une file unique, donc elle ne peut plus confondre les deux causes.
+        expect((await service.verify(manager)).broken).toContain('a disparu du journal');
     });
 
     it('ne fait pas échouer l’action qu’il décrit quand il ne peut pas écrire', async () => {

@@ -68,50 +68,87 @@ export interface AuditEntryForVerification extends AuditEntryForHash {
 }
 
 /**
- * `null` si la chaîne est intacte, sinon la description de la première rupture.
+ * `null` si le journal est intact, sinon la description de la première rupture.
  *
- * Les entrées antérieures au chaînage ne portent pas d'empreinte : elles sont sautées
- * et comptées, parce que « ces lignes ne sont pas vérifiables » est une information, pas
- * une absence d'information. En revanche, une entrée sans empreinte *après* le début du
- * chaînage est une rupture : elle a été insérée.
+ * ## Un graphe, et non une file
  *
- * Attend les entrées de la plus ancienne à la plus récente.
+ * La vérification exigeait une chaîne strictement unique : chaque entrée devait pointer sur
+ * celle qui la précédait dans la liste. **Deux instances web écrivant au même instant lisent
+ * la même queue** et produisent deux entrées portant la même précédente ; la chaîne fourche,
+ * et un journal parfaitement honnête se déclarait rompu. Une alerte fausse dans un contrôle
+ * d'intégrité est pire qu'inutile — on apprend à l'ignorer, et elle couvre alors les vraies.
+ *
+ * Ce qui est vérifié ici ne dépend donc plus de l'ordre :
+ *
+ * 1. **Chaque entrée correspond à sa propre empreinte** — c'est ce qui détecte la
+ *    modification d'une ligne, la menace réaliste quand la ligne intéressante est une parmi
+ *    des milliers.
+ * 2. **La précédente de chaque entrée existe encore** — c'est ce qui détecte la suppression
+ *    d'une entrée dont quelqu'un descend.
+ * 3. **Aucune entrée sans empreinte n'est postérieure au début du chaînage** — c'est ce qui
+ *    détecte une ligne posée à la main. Les entrées antérieures au chaînage, elles, sont
+ *    comptées et non signalées : « ces lignes ne sont pas vérifiables » est une information,
+ *    pas une absence d'information.
+ *
+ * ## Ce que cela ne détecte plus, et il faut le dire
+ *
+ * **La suppression d'une entrée dont personne ne descend** — la dernière écrite, ou le bout
+ * d'une branche. Rien ne pointe vers elle, donc rien ne manque après son départ. C'est le
+ * prix payé pour ne plus crier au loup, et il est assumé : refermer ce cas demanderait de
+ * sérialiser toutes les écritures d'audit, ce qui ferait attendre chaque action auditée
+ * derrière les autres, aussi longtemps que dure leur transaction.
+ *
+ * L'ordre des entrées n'a plus d'importance pour cette fonction.
  */
 export function verifyChain(entries: AuditEntryForVerification[]): {
     broken: string | null;
     unverifiable: number;
 } {
-    let unverifiable = 0;
-    let started = false;
-    let expectedPrevious: string | null = null;
+    const chained = entries.filter((entry) => entry.entryHash);
+    const unverifiable = entries.length - chained.length;
 
+    // Toutes les empreintes présentes, pour savoir vers quoi il est légitime de pointer.
+    const known = new Set(chained.map((entry) => entry.entryHash as string));
+
+    // **Une entrée sans empreinte n'est légitime que si elle ne suit pas le chaînage.**
+    // C'est le cas des lignes écrites avant que la chaîne n'existe. Le repère est
+    // l'horodatage et non la position dans la liste : celle-ci ne veut plus rien dire depuis
+    // que les branches concurrentes sont admises.
+    //
+    // Strictement postérieure, et non « à partir de » : une ligne héritée écrite dans la
+    // même milliseconde que la première entrée chaînée — l'instant de la bascule — ne doit
+    // pas déclencher d'alerte. Ce que cela concède est mince : une entrée forgée devrait
+    // porter une date antérieure à tout le journal chaîné, donc se faire passer pour une
+    // ligne d'avant la bascule, ce qui lui interdit d'imiter une action récente.
+    const oldestChained = chained.reduce<number | null>(
+        (oldest, entry) => (entry.timestamp && (oldest === null || entry.timestamp.getTime() < oldest) ? entry.timestamp.getTime() : oldest),
+        null
+    );
     for (const entry of entries) {
-        if (!entry.entryHash) {
-            if (started) {
-                return {
-                    broken: `Entrée ${entry.id} sans empreinte alors que le chaînage avait commencé : la ligne a été insérée ou modifiée.`,
-                    unverifiable
-                };
-            }
-            unverifiable += 1;
-            continue;
-        }
-
-        if (started && entry.previousHash !== expectedPrevious) {
+        if (entry.entryHash || oldestChained === null) continue;
+        if (entry.timestamp && entry.timestamp.getTime() > oldestChained) {
             return {
-                broken: `Entrée ${entry.id} : empreinte précédente ${JSON.stringify(entry.previousHash)}, attendue ${JSON.stringify(expectedPrevious)} — une entrée antérieure a été modifiée ou supprimée.`,
+                broken: `Entrée ${entry.id} sans empreinte alors que le chaînage avait commencé : la ligne a été insérée ou modifiée.`,
                 unverifiable
             };
         }
+    }
+
+    for (const entry of chained) {
         if (entry.entryHash !== computeEntryHash(entry)) {
             return {
                 broken: `Entrée ${entry.id} : son propre contenu ne correspond plus à son empreinte.`,
                 unverifiable
             };
         }
-
-        started = true;
-        expectedPrevious = entry.entryHash;
+        // `null` est légitime : c'est une racine. Il y en a une par branche, et une branche
+        // par instance ayant écrit en même temps qu'une autre.
+        if (entry.previousHash !== null && !known.has(entry.previousHash)) {
+            return {
+                broken: `Entrée ${entry.id} : sa précédente ${JSON.stringify(entry.previousHash)} a disparu du journal — une entrée antérieure a été supprimée.`,
+                unverifiable
+            };
+        }
     }
 
     return { broken: null, unverifiable };

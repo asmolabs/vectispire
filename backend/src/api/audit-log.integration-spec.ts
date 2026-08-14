@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
-import { ENTITIES } from '../persistence/entities';
+import { computeEntryHash } from '../domain/audit/audit-hash';
+import { AuditLog, ENTITIES } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuditLogController } from './audit-log.controller';
 import { connectToTestDatabase } from '../../test/database';
@@ -74,6 +76,47 @@ describe("API du journal d'audit", () => {
         // Aucune lecture sans borne : c'est ce qui distingue un coût constant d'un coût
         // proportionnel à l'histoire de l'installation.
         expect(requests.every((options) => typeof options?.take === 'number')).toBe(true);
+    });
+
+    it('déclare intact un journal fourché, comme en produit une écriture concurrente', async () => {
+        // **La fausse alerte que ce changement supprime.** Deux instances web lisent la même
+        // queue au même instant et produisent deux entrées portant la même précédente. La
+        // vérification exigeait une file strictement unique et déclarait rompu un journal
+        // parfaitement honnête — et une alerte fausse dans un contrôle d'intégrité finit par
+        // couvrir les vraies.
+        //
+        // **La fourche est construite, et non provoquée.** Une première version lançait deux
+        // connexions réelles en parallèle : sous charge elles se sérialisaient, la seconde
+        // voyait la première, et le test passait sans jamais fourcher — il s'est mis à
+        // échouer en campagne, sur son *propre* postulat. Ce qui compte ici est que `verify`
+        // accepte cette forme contre une vraie base, pas de gagner une course.
+        await record('BASE', 'entrée commune');
+        const tail = (await manager.find(AuditLog, { order: { timestamp: 'DESC' }, take: 1 }))[0];
+
+        for (const suffix of ['a', 'b']) {
+            const row = {
+                id: randomUUID(),
+                timestamp: new Date(tail.timestamp!.getTime() + 1),
+                operationType: 'CONCURRENT',
+                resourceId: suffix,
+                description: `écrite par l'instance ${suffix}`,
+                userId: 'admin',
+                ipAddress: null,
+                userAgent: null,
+                // Les deux descendent du même maillon : c'est exactement ce que produisent
+                // deux instances ayant lu la queue avant que l'autre n'écrive.
+                previousHash: tail.entryHash,
+                entryHash: null as string | null
+            };
+            row.entryHash = computeEntryHash(row);
+            await manager.save(AuditLog, Object.assign(new AuditLog(), row));
+        }
+
+        const branches = await manager.findBy(AuditLog, { operationType: 'CONCURRENT' });
+        expect(branches.length).toBe(2);
+        expect(branches[0].previousHash).toBe(branches[1].previousHash);
+
+        expect((await audit.verify(manager)).broken).toBeNull();
     });
 
     it('détecte une entrée dont la description a été modifiée en base', async () => {

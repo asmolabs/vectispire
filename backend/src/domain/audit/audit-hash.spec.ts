@@ -120,11 +120,45 @@ describe('vérification de la chaîne', () => {
         expect(verifyChain([legacy, ...entries])).toEqual({ broken: null, unverifiable: 1 });
     });
 
-    it('refuse une entrée sans empreinte insérée après le début du chaînage', () => {
+    it('refuse une entrée sans empreinte postérieure au début du chaînage', () => {
+        // **Datée, et non simplement placée au milieu de la liste.** La vérification ne lit
+        // plus la position — elle ne veut plus rien dire depuis que deux instances écrivant
+        // au même instant produisent des branches légitimes. Ce qui distingue une ligne
+        // posée à la main d'une ligne héritée est sa date : la première est postérieure au
+        // début du chaînage, la seconde ne l'est pas.
         const entries = chained(3);
-        entries.splice(2, 0, { ...entries[0], id: 'inserée', entryHash: null });
-        expect(verifyChain(entries).broken).toContain('inserée');
-        expect(verifyChain(entries).broken).toContain('insérée ou modifiée');
+        const inseree = { ...entries[0], id: 'inserée', entryHash: null, timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, 1, 500)) };
+
+        expect(verifyChain([...entries, inseree]).broken).toContain('inserée');
+        expect(verifyChain([...entries, inseree]).broken).toContain('insérée ou modifiée');
+    });
+
+    it('accepte deux branches nées du même maillon', () => {
+        // **Ce que la vérification refusait à tort.** Deux instances web lisant la même queue
+        // au même instant produisent deux entrées portant la même précédente. Le journal est
+        // parfaitement honnête ; l'ancienne vérification le déclarait rompu, et une alerte
+        // fausse dans un contrôle d'intégrité finit par couvrir les vraies.
+        const entries = chained(2);
+        const jumelle: AuditEntryForVerification = {
+            ...entries[1],
+            id: 'concurrente',
+            resourceId: 'autre',
+            description: 'Écrite au même instant par une autre instance',
+            entryHash: null
+        };
+        jumelle.entryHash = computeEntryHash(jumelle);
+
+        expect(verifyChain([...entries, jumelle])).toEqual({ broken: null, unverifiable: 0 });
+    });
+
+    it("ne détecte pas la suppression d'un bout de branche, et c'est le prix assumé", () => {
+        // Rien ne pointe vers la dernière entrée : rien ne manque après son départ. Refermer
+        // ce cas demanderait de sérialiser toutes les écritures d'audit, donc de faire
+        // attendre chaque action auditée derrière les autres. Écrit ici pour que la limite
+        // soit une décision visible plutôt qu'un oubli.
+        const entries = chained(3);
+
+        expect(verifyChain(entries.slice(0, 2)).broken).toBeNull();
     });
 });
 
