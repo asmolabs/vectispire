@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
+import { DependencyDirectness } from '../domain/dependencies/directness';
 import { buildFingerprint } from '../domain/issues/issue-fingerprint';
 import { TYPE_EOL, TYPE_IAC, TYPE_LICENSE, TYPE_QUALITY, TYPE_SAST, TYPE_SECRET, TYPE_VULNERABILITY } from '../domain/issues/types';
 import { Container, Finding, Issue, Repository, Scan } from '../persistence/entities';
@@ -85,6 +86,12 @@ export class ScanIngestorService {
         const scannedTypes: string[] = [];
         const descriptions: Record<string, string> = {};
 
+        // **Bâti une fois par scan et interrogé par constat** : le graphe est global au
+        // SBOM, alors que les constats arrivent un paquet à la fois. Sans lui, le champ
+        // `isDirectDependency` restait `null` partout — lu par les exports, les tickets et
+        // le filtre « seulement les directes », et écrit nulle part.
+        const directness = new DependencyDirectness((artifacts.sbom as unknown as Record<string, unknown>) ?? null);
+
         if (artifacts.dependencies !== null) {
             scannedTypes.push(TYPE_VULNERABILITY);
             for (const dependency of artifacts.dependencies) {
@@ -99,7 +106,8 @@ export class ScanIngestorService {
                         packageVersion: dependency.installedVersion,
                         fixVersions: dependency.fixVersions,
                         link: dependency.referenceUrl,
-                        purl: dependency.purl
+                        purl: dependency.purl,
+                        isDirectDependency: directness.of(dependency.purl, dependency.packageName, dependency.installedVersion)
                     })
                 );
             }
@@ -185,7 +193,13 @@ export class ScanIngestorService {
         // anciens constats doivent effectivement se résoudre.
         if (this.licenses && artifacts.sbom) {
             scannedTypes.push(TYPE_LICENSE);
-            findings.push(...(await this.licenses.buildFindings(scan, artifacts.sbom as unknown as Record<string, unknown>)));
+            const licenseFindings = await this.licenses.buildFindings(scan, artifacts.sbom as unknown as Record<string, unknown>);
+            // Les constats de licence portent un purl : la même question — déclarée ou
+            // traînée — se pose pour eux, et la réponse change ce qu'on peut en faire.
+            for (const finding of licenseFindings) {
+                finding.isDirectDependency = directness.of(finding.purl, finding.packageName, finding.packageVersion);
+            }
+            findings.push(...licenseFindings);
         }
 
         // **Avant l'écriture, et non après.** Les constats sont enregistrés par `sync` ;
