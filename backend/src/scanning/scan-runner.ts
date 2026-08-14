@@ -23,8 +23,23 @@ import { withWorkspace, type Workspace } from './workspace';
  * analyser.
  */
 
-/** Ce qu'un scan doit faire. Décidé par le plan de contrôle, exécuté par le coureur. */
+/**
+ * Ce qu'un scan doit faire. Décidé par le plan de contrôle, exécuté par le coureur.
+ *
+ * **Une cible est un dépôt *ou* une image, jamais les deux.** `image` posée bascule sur le
+ * chemin conteneur, où il n'y a ni clone, ni secrets, ni IaC, ni SAST : ces quatre étapes
+ * lisent un arbre de fichiers, et une image n'en fournit pas au sens où elles l'entendent.
+ */
 export interface ScanTask {
+    /**
+     * La référence de l'image à scanner, quand la cible en est une.
+     *
+     * Mutuellement exclusive avec `url` — le coureur choisit son chemin là-dessus, et
+     * c'est la seule décision qu'il prend seul.
+     */
+    image?: string | null;
+    /** La plateforme à tirer, p. ex. `linux/amd64`. L'image scannée doit être celle qui tourne. */
+    platform?: string | null;
     url: string;
     branch: string;
     subPath?: string;
@@ -69,6 +84,8 @@ export class ScanRunner {
 
     async run(task: ScanTask): Promise<ScanArtifacts> {
         const started = Date.now();
+        if (task.image) return this.runImage(task, started);
+
         return withWorkspace(async (workspace) => {
             // Bloquant, et le seul à l'être : sans arbre il n'y a rien à analyser, et
             // continuer produirait des listes vides qui résoudraient tout le backlog.
@@ -118,6 +135,39 @@ export class ScanRunner {
             artifacts.durationMs = Date.now() - started;
             return artifacts;
         });
+    }
+
+    /**
+     * Le scan d'une image de conteneur.
+     *
+     * **Pas d'espace de travail, et deux étapes seulement.** Syft lit l'image directement
+     * depuis le registre ; il n'y a pas d'arbre à cloner ni à monter. Les secrets, l'IaC et
+     * le SAST ne s'appliquent pas — ils cherchent dans du code source, pas dans des couches
+     * d'image — et les déclarer scannés résoudrait en silence tout leur historique pour
+     * cette cible. Ils restent donc à `null` : « on n'a pas regardé », qui est la vérité.
+     *
+     * La fin de vie et les licences, elles, se lisent du SBOM produit ici — et c'est
+     * précisément sur une image que la première a le plus de valeur, puisqu'elle voit la
+     * distribution de base qu'aucune recherche par paquet ne trouverait.
+     */
+    private async runImage(task: ScanTask, started: number): Promise<ScanArtifacts> {
+        const artifacts: ScanArtifacts = {
+            sbom: null,
+            dependencies: null,
+            secrets: null,
+            iac: null,
+            sast: null,
+            failures: [],
+            durationMs: 0
+        };
+
+        await this.step(artifacts, 'dépendances', async () => {
+            artifacts.sbom = await this.dependencies.generateSbomForImage(task.image!, task.platform ?? undefined);
+            if (artifacts.sbom) artifacts.dependencies = await this.dependencies.scanSbomStandalone(artifacts.sbom);
+        });
+
+        artifacts.durationMs = Date.now() - started;
+        return artifacts;
     }
 
     /**

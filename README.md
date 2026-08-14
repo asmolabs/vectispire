@@ -106,11 +106,25 @@ ZANSHIN_AGENT_TOKEN=zsk_... \
 node dist/agent/main.js
 ```
 
+Or as a container, which is how it is meant to be deployed:
+
+```bash
+docker build -f Dockerfile.agent -t zanshin-agent .
+docker run --rm -e ZANSHIN_URL=... -e ZANSHIN_AGENT_TOKEN=zsk_... \
+  -v /var/run/docker.sock:/var/run/docker.sock zanshin-agent
+```
+
 The agent runs **the same `ScanRunner`** as the built-in worker, which is what makes a
 result produced elsewhere indistinguishable from a local one. A layering test enforces
 what it may import: `scanning/` and `domain/`, never `persistence/` — an agent with a
 database connection would also need `ENCRYPTION_KEY`, i.e. the ability to decrypt every
 deploy key Zanshin holds.
+
+**Container image scans are distributed too**, and they carry no key at all: an image is
+pulled from a registry, not cloned from git, so registry credentials belong to the Docker
+configuration of whichever machine scans. Secrets, IaC and source-code analysis do not
+apply to an image and stay `null` — declaring them scanned would silently resolve their
+whole history for that target.
 
 See [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 for the decisions and the known limits.
@@ -445,11 +459,25 @@ ZANSHIN_AGENT_TOKEN=zsk_... \
 node dist/agent/main.js
 ```
 
+Ou en conteneur, qui est la forme prévue pour un déploiement :
+
+```bash
+docker build -f Dockerfile.agent -t zanshin-agent .
+docker run --rm -e ZANSHIN_URL=... -e ZANSHIN_AGENT_TOKEN=zsk_... \
+  -v /var/run/docker.sock:/var/run/docker.sock zanshin-agent
+```
+
 L'agent exécute **le même `ScanRunner`** que le travailleur intégré, ce qui rend un
 résultat produit ailleurs indiscernable d'un résultat local. Un test de couches vérifie ce
 qu'il a le droit d'importer : `scanning/` et `domain/`, jamais `persistence/` — un agent
 qui aurait une connexion à la base aurait aussi besoin d'`ENCRYPTION_KEY`, c'est-à-dire de
 quoi déchiffrer toutes les clés de déploiement que Zanshin détient.
+
+**Les scans d'images sont distribués aussi**, et ils ne portent aucune clé : une image se
+tire d'un registre et ne se clone pas, donc les identifiants de registre relèvent de la
+configuration Docker de la machine qui scanne. Les secrets, l'IaC et l'analyse de code ne
+s'appliquent pas à une image et restent à `null` — les déclarer scannés résoudrait en
+silence tout leur historique pour cette cible.
 
 Voir [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 pour les décisions et les limites connues.

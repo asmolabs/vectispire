@@ -1,4 +1,5 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
 import { ContainerRunner, parseScannerJson } from '../container-runner';
 import { SOURCE_SUBDIR, type Workspace } from '../workspace';
@@ -149,6 +150,40 @@ export class DependencyScanner {
         const parsed = parseScannerJson<{ matches?: GrypeMatch[] }>(result, label);
         if (parsed === null) return null;
         return (parsed.matches ?? []).map(toDependencyFinding);
+    }
+
+    /**
+     * L'appariement d'un SBOM qui ne vient pas d'un arbre cloné — celui d'une image.
+     *
+     * Le SBOM est écrit dans un répertoire temporaire à lui, parce que Grype le lit depuis
+     * un montage : il n'y a pas d'espace de travail de scan à réutiliser ici, et en créer
+     * un complet pour un seul fichier reviendrait à préparer un clone qui n'aura pas lieu.
+     *
+     * Le répertoire est retiré dans tous les cas, y compris en cas d'échec : un SBOM
+     * d'image pèse plusieurs mégaoctets, et un scan qui échoue toutes les heures
+     * remplirait le disque sans que personne ne fasse le lien.
+     */
+    async scanSbomStandalone(sbom: Sbom): Promise<DependencyFinding[] | null> {
+        const directory = await mkdtemp(join(tmpdir(), 'zanshin-sbom-'));
+        try {
+            await writeFile(join(directory, SBOM_FILENAME), JSON.stringify(sbom));
+
+            const label = "grype (analyse du SBOM d'image)";
+            const result = await this.runner.run({
+                image: GRYPE_IMAGE,
+                command: ['sbom:/work/' + SBOM_FILENAME, '-o', 'json'],
+                binds: [{ source: directory, target: '/work', readOnly: true }],
+                label,
+                network: true,
+                asRoot: true
+            });
+
+            const parsed = parseScannerJson<{ matches?: GrypeMatch[] }>(result, label);
+            if (parsed === null) return null;
+            return (parsed.matches ?? []).map(toDependencyFinding);
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
     }
 }
 

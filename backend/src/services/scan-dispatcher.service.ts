@@ -3,8 +3,9 @@ import { DataSource, EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
 import { now } from '../domain/common/timestamp';
 import { capacity } from '../domain/scans/queue-rules';
-import { Agent, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
+import { Agent, Container, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
 import { ScanRepository } from '../repositories/scan.repository';
+import { formatImageReference } from '../domain/targets/image-reference';
 import { ScanRunner, type ScanArtifacts } from '../scanning/scan-runner';
 import { SETTING_SAST_ENABLED } from '../domain/settings/keys';
 import { EncryptionService } from './encryption.service';
@@ -248,10 +249,42 @@ export class ScanDispatcherService {
         return this.buildTask(manager, scan);
     }
 
-    private async buildTask(manager: EntityManager, scan: Scan) {
-        if (scan.repoId === null) {
-            throw new Error("Ce scan ne porte pas de dépôt : le scan d'image n'est pas encore distribué par ce chemin.");
+    /**
+     * La tâche d'un scan d'image.
+     *
+     * **Aucune clé n'est envoyée**, quel que soit le mode de l'agent : une image se tire
+     * d'un registre, pas d'un dépôt git, et les identifiants de registre relèvent de la
+     * configuration Docker de la machine qui scanne. C'est ce qui rend le scan d'image
+     * distribuable sans la précaution de liaison chiffrée qu'exige une clé de déploiement.
+     */
+    private async buildImageTask(manager: EntityManager, scan: Scan) {
+        if (scan.containerId === null) {
+            throw new Error('Ce scan ne porte ni dépôt ni conteneur : il ne désigne aucune cible.');
         }
+        const container = await manager.findOneByOrFail(Container, { id: scan.containerId });
+
+        return {
+            image: formatImageReference(container),
+            // Lue de l'environnement du plan de contrôle et non de l'agent : c'est une
+            // décision sur *ce qu'on veut scanner* — l'image qui tourne en production —
+            // et non sur la machine qui l'exécute.
+            platform: process.env.ZANSHIN_IMAGE_SCAN_PLATFORM ?? null,
+            // Le coureur bascule sur `image` ; ces champs ne sont pas lus sur ce chemin,
+            // mais le type les exige et les laisser vides serait moins clair qu'un aveu.
+            url: '',
+            branch: 'n/a',
+            subPath: '',
+            privateKey: null,
+            runDependencies: true,
+            runSecrets: false,
+            runIac: false,
+            runSast: false
+        };
+    }
+
+    private async buildTask(manager: EntityManager, scan: Scan) {
+        if (scan.repoId === null) return this.buildImageTask(manager, scan);
+
         const repository = await manager.findOneByOrFail(GitRepository, { id: scan.repoId });
 
         let privateKey: string | null = null;
@@ -268,6 +301,8 @@ export class ScanDispatcherService {
         }
 
         return {
+            image: null,
+            platform: null,
             url: repository.url,
             branch: scan.branch || repository.branch,
             subPath: repository.subPath ?? '',
