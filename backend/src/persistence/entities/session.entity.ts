@@ -15,7 +15,7 @@ import { User } from './user.entity';
  */
 @Entity('t_session')
 export class Session {
-    @PrimaryColumn({ type: 'character varying', length: 64 })
+    @PrimaryColumn({ ...stringColumn(64), nullable: false })
     token!: string;
 
     @Column({ ...intColumn(), name: 'user_id' })

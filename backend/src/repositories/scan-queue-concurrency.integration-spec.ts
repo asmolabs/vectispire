@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
-import { connectToTestDatabase } from '../../test/database';
+import { CAPABILITIES } from '../persistence/dialects';
+import { connectToTestDatabase, testDialect } from '../../test/database';
 import { Repository as GitRepository, Scan, STATUS_QUEUED } from '../persistence/entities';
 import { ScanRepository } from './scan.repository';
 
@@ -85,13 +86,26 @@ describe('file de scans — concurrence', () => {
 
             const results = (await Promise.all(claimants)).flat();
 
-            // Aucun doublon : c'est la propriété qui compte, et la seule qu'un test
-            // unitaire ne pourrait pas établir.
+            // **Aucun doublon.** C'est la propriété de sûreté, la seule qu'un test unitaire
+            // ne pourrait pas établir, et elle vaut sur les deux moteurs — mesuré, pas
+            // supposé.
             expect(new Set(results).size).toBe(results.length);
-            expect(results).toHaveLength(10);
 
             const remaining = await source.manager.countBy(Scan, { status: STATUS_QUEUED });
-            expect(remaining).toBe(0);
+
+            if (CAPABILITIES[testDialect()].claimsCompleteBatches) {
+                // PostgreSQL sert le lot demandé : la file part entièrement en un tour.
+                expect(results).toHaveLength(10);
+                expect(remaining).toBe(0);
+            } else {
+                // MySQL compte les lignes sautées dans le `LIMIT`, donc un lot revient
+                // court sous contention. Le reste part au tour suivant — c'est du débit,
+                // pas de la correction. Affirmer ici `toBe(0)` reviendrait à exiger du
+                // moteur une garantie qu'il ne donne pas, et le test échouerait pour la
+                // seule raison qu'il décrit mal ce qui est promis.
+                expect(results.length).toBeGreaterThan(0);
+                expect(results.length + remaining).toBe(10);
+            }
         });
         // Délai explicite : ce test n'est pas lent en soi — quelques centaines de
         // millisecondes isolément — mais la campagne complète exécute par ailleurs de

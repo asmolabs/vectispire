@@ -11,7 +11,7 @@ import { stringColumn } from '../columns';
  */
 @Entity('t_setting')
 export class Setting {
-    @PrimaryColumn({ type: 'character varying', length: 255 })
+    @PrimaryColumn({ ...stringColumn(255), nullable: false })
     key!: string;
 
     @Column(stringColumn(255, { nullable: true }))

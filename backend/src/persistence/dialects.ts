@@ -38,11 +38,21 @@ export type Dialect = (typeof SUPPORTED_DIALECTS)[number];
 
 export interface DialectCapabilities {
     /**
-     * `SELECT … FOR UPDATE SKIP LOCKED` fait ce qu'on croit : la réclamation de scans
-     * est réellement transactionnelle, donc plusieurs processus peuvent drainer la
-     * même file sans se marcher dessus.
+     * `SELECT … FOR UPDATE SKIP LOCKED` **empêche réellement qu'une ligne soit remise à
+     * deux réclamants**. C'est la propriété de sûreté, et la seule qui décide si plusieurs
+     * processus peuvent drainer la même file.
      */
     canClaimTransactionally: boolean;
+    /**
+     * Un lot réclamé revient de la taille demandée quand la file en contient assez.
+     *
+     * **Distinct de la sûreté, et la confusion coûtait cher.** MySQL compte les lignes
+     * sautées dans le `LIMIT` : un réclamant qui en demande deux peut n'en recevoir aucune
+     * alors que la file n'est pas vide. Aucune ligne n'est pour autant remise deux fois —
+     * mesuré, pas supposé. Le reste est pris au tour suivant, donc c'est une
+     * caractéristique de débit et non un défaut de correction.
+     */
+    claimsCompleteBatches: boolean;
     /**
      * Les horodatages conservent la microseconde. La chaîne d'audit en dépend
      * entièrement.
@@ -57,6 +67,7 @@ export interface DialectCapabilities {
 export const CAPABILITIES: Record<Dialect, DialectCapabilities> = {
     postgres: {
         canClaimTransactionally: true,
+        claimsCompleteBatches: true,
         preservesMicroseconds: true,
         supportsNullsLast: true,
         supportsConcurrentWriters: true
@@ -64,6 +75,7 @@ export const CAPABILITIES: Record<Dialect, DialectCapabilities> = {
     sqlite: {
         // `FOR UPDATE` est accepté puis ignoré : le pire des deux mondes.
         canClaimTransactionally: false,
+        claimsCompleteBatches: false,
         preservesMicroseconds: true,
         supportsNullsLast: true,
         // Un seul écrivain. Deux instances sur un fichier, ce n'est pas lent, c'est
@@ -71,18 +83,25 @@ export const CAPABILITIES: Record<Dialect, DialectCapabilities> = {
         supportsConcurrentWriters: false
     },
     mysql: {
-        // `SKIP LOCKED` existe depuis MySQL 8, mais compte les lignes sautées dans
-        // le `LIMIT` : la réclamation revient courte sous charge.
-        canClaimTransactionally: false,
-        // `DATETIME` sans précision tronque à la seconde. `DATETIME(6)` la conserve,
-        // ce qui est la parade — mais elle doit être posée sur *chaque* colonne, et
-        // une seule oubliée suffit à casser la chaîne d'audit.
-        preservesMicroseconds: false,
+        // **Corrigé après mesure.** Ce drapeau valait `false`, ce qui était faux : la
+        // campagne d'intégration sur MySQL 8.4 montre qu'aucune ligne n'est remise à deux
+        // réclamants. Le dire « non transactionnel » aurait écarté MySQL pour une mauvaise
+        // raison, alors que le vrai écart est ailleurs.
+        canClaimTransactionally: true,
+        // Là est l'écart : les lignes sautées comptent dans le `LIMIT`, donc un lot revient
+        // court sous contention. Le tour suivant prend le reste.
+        claimsCompleteBatches: false,
+        // `DATETIME(6)` est déclaré dans `column-types.ts`, en un seul endroit plutôt que
+        // colonne par colonne — une seule oubliée suffirait à casser la chaîne d'audit.
+        // La connexion est forcée en UTC pour la même raison.
+        preservesMicroseconds: true,
         supportsNullsLast: false,
         supportsConcurrentWriters: true
     },
     mariadb: {
+        // Non mesuré, contrairement à MySQL : hérité par prudence, pas par constat.
         canClaimTransactionally: false,
+        claimsCompleteBatches: false,
         preservesMicroseconds: false,
         supportsNullsLast: false,
         supportsConcurrentWriters: true
@@ -113,6 +132,16 @@ export function warningsFor(dialect: Dialect): DialectWarning[] {
                 'échouera à sa propre vérification, et le journal se déclarera falsifié alors ' +
                 "que rien ne l'aura été. Déclarez DATETIME(6) sur toutes les colonnes de date, " +
                 'ou utilisez PostgreSQL.'
+        });
+    }
+    if (capabilities.canClaimTransactionally && !capabilities.claimsCompleteBatches) {
+        warnings.push({
+            capability: 'claimsCompleteBatches',
+            message:
+                `${dialect} compte les lignes sautées par SKIP LOCKED dans le LIMIT : sous contention, ` +
+                "un réclamant reçoit moins de scans qu'il n'en demande, parfois aucun alors que la file n'est " +
+                'pas vide. Aucune ligne n\'est remise deux fois et le reste part au tour suivant — ' +
+                "c'est une caractéristique de débit, pas un défaut de correction."
         });
     }
     if (!capabilities.canClaimTransactionally) {

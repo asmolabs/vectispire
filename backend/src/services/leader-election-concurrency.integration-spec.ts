@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { LeaderLease } from '../persistence/entities';
 import { connectToTestDatabase } from '../../test/database';
 import { LEASE_SECONDS, LeaderElectionService } from './leader-election.service';
 
@@ -26,13 +27,23 @@ describe('élection de meneur — concurrence', () => {
         dataSource = await connectToTestDatabase();
     }, 30_000);
 
-    /** Hors transaction : c'est le sujet même de ce bloc. */
+    /**
+     * Hors transaction : c'est le sujet même de ce bloc.
+     *
+     * Le nettoyage passe par le constructeur de requêtes et non par du SQL brut : le
+     * marqueur de paramètre n'est pas le même selon le pilote — `$1` en PostgreSQL, `?` en
+     * MySQL — et une campagne qui tourne sur les deux ne peut en écrire qu'un seul en dur.
+     * Le paramètre nommé est traduit par TypeORM.
+     */
     async function withOwnLease<T>(body: () => Promise<T>): Promise<T> {
-        await dataSource.query('DELETE FROM t_leader_lease WHERE name = $1', [JOB]);
+        const clean = () =>
+            dataSource.createQueryBuilder().delete().from(LeaderLease).where('name = :name', { name: JOB }).execute();
+
+        await clean();
         try {
             return await body();
         } finally {
-            await dataSource.query('DELETE FROM t_leader_lease WHERE name = $1', [JOB]);
+            await clean();
         }
     }
 

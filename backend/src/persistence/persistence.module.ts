@@ -32,12 +32,6 @@ import { Dialect, parseDialect, warningsFor } from './dialects';
                     logger.warn(warning.message);
                 }
 
-                if (dialect === 'postgres') {
-                    // À faire avant la première connexion : sans cela, le pilote rend
-                    // un `Date` pour un `timestamp`, ce qui perd la microseconde et
-                    // applique le fuseau de la machine.
-                }
-
                 return { ...connectionFor(dialect, config), entities: ENTITIES, synchronize: false };
             }
         }),
@@ -69,10 +63,17 @@ function connectionFor(dialect: Dialect, config: ConfigService): TypeOrmModuleOp
     return {
         type: dialect,
         url,
-        // `DATETIME(6)` sur chaque colonne de date est la seule parade à la troncature
-        // à la seconde, qui casserait la chaîne d'intégrité du journal d'audit. Elle
-        // doit être portée par le schéma lui-même ; ce réglage ne fait que demander au
-        // pilote de ne pas réduire la précision qu'il reçoit.
-        dateStrings: true
+        // **UTC, explicitement — et c'est la connexion de production.**
+        //
+        // Le pilote MySQL convertit les `datetime` selon le fuseau de la machine : une
+        // valeur écrite l'été se relit décalée d'une heure, et la chaîne d'intégrité du
+        // journal d'audit — qui hache l'horodatage sérialisé — échoue alors à sa propre
+        // vérification. Le journal se déclarerait falsifié sans que rien ne l'ait été.
+        //
+        // Ce réglage doit rester identique à celui du harnais de test (`test/database.ts`) :
+        // une campagne verte contre une connexion en UTC ne dirait rien d'une production
+        // qui n'y est pas. La précision, elle, est portée par le schéma — `datetime(6)`,
+        // déclaré une seule fois dans `column-types.ts`.
+        timezone: 'Z'
     };
 }

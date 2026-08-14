@@ -1,4 +1,5 @@
 import { ColumnOptions } from 'typeorm';
+import { SPELLING, UUID_LENGTH, isMySql } from './column-types';
 
 /**
  * Types de colonnes partagés, pour que chaque entité les déclare de la même façon.
@@ -36,16 +37,16 @@ import { ColumnOptions } from 'typeorm';
  * un `Date`, et il n'y a plus rien à convertir ni à canonicaliser.
  */
 export const timestampColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'timestamp with time zone',
+    ...SPELLING.timestamp,
     ...options
-});
+} as ColumnOptions);
 
 /** `String(255)` du modèle SQLAlchemy — la longueur par défaut de tout ce schéma. */
 export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'character varying',
+    type: SPELLING.string,
     length,
     ...options
-});
+} as ColumnOptions);
 
 /**
  * L'identifiant binaire des tables qui n'ont pas de clé entière.
@@ -63,21 +64,19 @@ export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnO
  * un type incompatible avec la clé primaire référencée, que
  * `@PrimaryGeneratedColumn('uuid')` laisse justement TypeORM choisir.
  */
-export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'uuid',
-    ...options
-});
+export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions =>
+    ({
+        type: SPELLING.uuid,
+        // La longueur n'existe que là où le type l'exige : `uuid` de PostgreSQL la
+        // refuserait, `varchar` de MySQL sans elle ne compilerait pas.
+        ...(isMySql() ? { length: UUID_LENGTH } : {}),
+        ...options
+    }) as ColumnOptions;
 
 /** `Text` du modèle SQLAlchemy : sans longueur, pour ce qu'on ne veut pas tronquer. */
-export const textColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'text',
-    ...options
-});
+export const textColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.text, ...options } as ColumnOptions);
 
-export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'integer',
-    ...options
-});
+export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.int, ...options } as ColumnOptions);
 
 /**
  * `BigInteger`. Une seule colonne du schéma en a légitimement besoin : `scan.duration_ms`,
@@ -99,24 +98,18 @@ export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({
  * — trouvé par un test de bout en bout, invisible à la lecture.
  */
 export const bigIntColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'bigint',
+    type: SPELLING.bigint,
     transformer: {
         to: (value: number | null) => value,
         from: (value: string | number | null) => (value === null || value === undefined ? null : Number(value))
     },
     ...options
-});
+} as ColumnOptions);
 
-export const boolColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'boolean',
-    ...options
-});
+export const boolColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.bool, ...options } as ColumnOptions);
 
 /** `Float` du modèle SQLAlchemy — scores CVSS et EPSS. */
-export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'double precision',
-    ...options
-});
+export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.float, ...options } as ColumnOptions);
 
 /**
  * `JSON(none_as_null=True)` côté Python, et le drapeau compte : avec le défaut de
@@ -124,7 +117,4 @@ export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({
  * NULL SQL. `sbom IS NOT NULL` restait donc vrai pour une charge déjà purgée, et la
  * passe de rétention repurgeait les mêmes lignes indéfiniment.
  */
-export const jsonColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: 'json',
-    ...options
-});
+export const jsonColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.json, ...options } as ColumnOptions);

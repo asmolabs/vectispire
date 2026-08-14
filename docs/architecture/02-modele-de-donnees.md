@@ -147,14 +147,17 @@ existaient dans ce schéma, tous invisibles à la fois depuis SQLite et à la le
 type `BINARY` que PostgreSQL ne connaît pas, un `FROM user` non quoté qui y désigne une
 fonction et non une table, un `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une
 clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Tous trouvés en exécutant contre de vrais
-serveurs. D'où `pytest -m backends`
-([décision 0004](decisions/0004-sqlite-et-postgresql-seulement.md)).
+serveurs — et l'histoire s'est répétée au portage : la campagne MySQL a révélé qu'aucun
+index ne couvrait la file de scans, ce que PostgreSQL tolérait sur une table de test.
+D'où `npm run test:integration:both`, qui passe les deux moteurs
+([décision 0008](decisions/0008-postgresql-et-mysql.md)).
 
 Deux points de vigilance pour qui écrit la seizième :
 
-- **SQLite n'applique les clés étrangères que si un `PRAGMA` le demande**, par connexion.
-  Sur PostgreSQL elles sont toujours appliquées — sans elles, une suppression qui orphelinait
-  des lignes en développement levait une erreur sur un serveur.
+- **Un jeu de migrations par dialecte.** La référence PostgreSQL est du SQL brut —
+  `SERIAL`, `uuid_generate_v4()`, `TIMESTAMP WITH TIME ZONE` — que MySQL refuse, et
+  réciproquement. Aucun outil ne traduit l'un en l'autre : les deux sont générés depuis les
+  mêmes entités, contre un vrai serveur de chaque moteur.
 - **La parité entre entités et migrations est vérifiée en campagne** : une entité modifiée
   sans sa migration fait échouer les tests d'intégration, qui appliquent les migrations
   plutôt que de synthétiser le schéma. C'est le seul moyen de voir une migration incorrecte

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
 import { parseDialect } from './dialects';
+import { isMySql } from './column-types';
 
 /**
  * La source de données pour l'outillage en ligne de commande — génération et exécution
@@ -22,7 +23,12 @@ const dataSource = new DataSource({
     type: dialect as never,
     ...(dialect === 'sqlite' ? { database: url ?? 'zanshin.sqlite' } : { url }),
     entities: ENTITIES,
-    migrations: ['src/persistence/migrations/*.ts'],
+    // **Un jeu de migrations par dialecte.** La migration de référence est du SQL brut —
+    // `SERIAL`, `uuid_generate_v4()`, `TIMESTAMP WITH TIME ZONE` d'un côté, `int
+    // AUTO_INCREMENT` et `datetime(6)` de l'autre — et aucun outil ne traduit l'un en
+    // l'autre. Les mélanger ferait échouer la première montée de version sur le moteur
+    // qui n'est pas celui d'origine.
+    migrations: [`src/persistence/migrations/${isMySql(dialect) ? 'mysql' : 'postgres'}/*.ts`],
     // Jamais `true`. Le schéma appartient aux migrations : `synchronize` le ferait
     // dériver silencieusement de ce que les migrations décrivent, et la divergence
     // n'apparaîtrait qu'au déploiement suivant.

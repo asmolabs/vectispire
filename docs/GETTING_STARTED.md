@@ -14,7 +14,7 @@ This document covers everything needed to run Zanshin locally: prerequisites, in
 |---|---|
 | **Node ≥ 24** | The workspace targets the current LTS. |
 | **Docker**, running and reachable | Zanshin runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through the Docker socket. It is also what starts PostgreSQL in development and in the integration tests. |
-| **PostgreSQL** | The only supported engine — see the README for why that is a narrowing and not a preference. In development, a container is enough. |
+| **PostgreSQL or MySQL 8** | Both are supported and exercised by the integration campaign. SQLite is not — see the README for the measured reason. In development, a container is enough. |
 | **Git** | To clone this repository, and used by Zanshin itself to clone what it scans. |
 
 ### 2. Install
@@ -45,7 +45,7 @@ Three environment variables matter before the first run:
 
 ### 4. Database
 
-PostgreSQL, and only PostgreSQL. In development a container is the shortest path:
+PostgreSQL or MySQL 8. In development a container is the shortest path:
 
 ```bash
 docker run -d --name zanshin-db -p 5432:5432 \
@@ -144,7 +144,7 @@ Ce document couvre tout ce qui est nécessaire pour lancer Zanshin en local : pr
 |---|---|
 | **Node ≥ 24** | L'espace de travail vise la version LTS courante. |
 | **Docker**, démarré et joignable | Zanshin exécute Syft, Grype, gitleaks, checkov et Semgrep en conteneurs éphémères via le socket Docker. C'est aussi ce qui démarre PostgreSQL en développement et dans les tests d'intégration. |
-| **PostgreSQL** | Le seul moteur pris en charge — voir le README pour la raison, qui est un rétrécissement et non une préférence. En développement, un conteneur suffit. |
+| **PostgreSQL ou MySQL 8** | Les deux sont pris en charge et éprouvés par la campagne d'intégration. SQLite ne l'est pas — voir le README pour la raison, qui est mesurée. En développement, un conteneur suffit. |
 | **Git** | Pour cloner ce dépôt, et utilisé par Zanshin lui-même pour cloner ce qu'il scanne. |
 
 ### 2. Installation
@@ -176,7 +176,7 @@ Trois variables d'environnement comptent avant le premier démarrage :
 
 ### 4. Base de données
 
-PostgreSQL, et lui seul. En développement, un conteneur est le chemin le plus court :
+PostgreSQL ou MySQL 8. En développement, un conteneur est le chemin le plus court :
 
 ```bash
 docker run -d --name zanshin-db -p 5432:5432 \

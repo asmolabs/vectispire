@@ -115,8 +115,8 @@ scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has ex
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
 and the login throttle is counted in the database rather than in process memory. What it requires:
 
-- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). It is the only engine whose `FOR UPDATE SKIP
-  LOCKED` does what the queue assumes;
+- **PostgreSQL or MySQL** (`ZANSHIN_DATABASE_URL`, plus `ZANSHIN_DB_DIALECT=mysql` for the
+  latter). Both keep a claimed scan from reaching two workers;
 - **the migration as its own deployment step** (`npm --workspace backend run
   migration:run`), before the new instances start;
 - nothing else. Sessions live in the database, not in process memory, so a client that
@@ -236,7 +236,7 @@ Operational tuning (all optional, shown with their defaults):
 | Variable | Default | Purpose |
 |---|---|---|
 | `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | Declares the engine so the application can warn at startup about what that engine cannot do correctly (see `dialects.ts`). It does not make an unsupported engine work. |
+| `ZANSHIN_DB_DIALECT` | `postgres` | `postgres` ou `mysql`. Choisit le jeu de migrations et l'orthographe des types de colonnes, et déclare ce que le moteur ne sait pas faire (voir `dialects.ts`). |
 | `PORT` | `3000` | HTTP port of the API. |
 | `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
 | `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
@@ -259,21 +259,27 @@ The database file is not part of the repository (it holds password hashes and en
 
 #### Choosing a database
 
-PostgreSQL is the only supported engine, and that is a narrowing from the Python
-version, which defaulted to SQLite.
+PostgreSQL and MySQL are both supported, and both are **exercised by the full integration
+campaign** — `npm --workspace backend run test:integration:both` starts each engine in turn
+with testcontainers, applies its own migrations, and runs all 249 tests against it. A
+portability defect is invisible to reading and to a single engine; this is the only way it
+gets found.
 
-The reason is not preference. Three things this application does are wrong on SQLite and
-**produce no error** — they produce wrong data. `FOR UPDATE SKIP LOCKED`, which makes the
-scan queue safe for several workers, is accepted and then *silently dropped*: the claim
-looks transactional, passes every test on a developer's machine, and hands the same scan
-to two processes in production. SQLite also has a single writer, and the scheduler, the
-workers and the requests all write.
+Two engine differences are real and named rather than papered over:
 
-MySQL and MariaDB are declared in `dialects.ts` with the three defects that would follow —
-`DATETIME` truncating to the second, which makes the audit chain declare itself tampered
-with; `SKIP LOCKED` counting skipped rows against the `LIMIT`; `NULLS LAST` refused — but
-they are **not tested**, and no migration exists for them. Treat that entry as a warning,
-not as support.
+- **MySQL returns short claim batches.** Rows skipped by `SKIP LOCKED` count against the
+  `LIMIT`, so a worker asking for two scans may get none while the queue is not empty.
+  **No row is ever handed to two workers** — measured, not assumed — and the rest goes out
+  on the next tick. It is a throughput characteristic, not a correctness defect.
+- **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
+  second, which would make the audit chain fail its own verification and declare itself
+  tampered with. `datetime(6)` is declared in `column-types.ts`, in one place rather than
+  column by column, and the connection is pinned to UTC for the same reason.
+
+SQLite is **not** supported. It accepts `FOR UPDATE SKIP LOCKED` and then silently drops
+it: the claim looks transactional, passes every test on a developer's machine, and hands
+the same scan to two processes in production. It also has a single writer, and the
+scheduler, the workers and the requests all write.
 
 
 ### Tests
@@ -444,8 +450,8 @@ travail périodique a exactement un propriétaire dans la flotte, la reprise au 
 ne fait plus échouer les scans d'un autre exécutant, et le quota d'API comme
 l'anti-bourrage sont partagés via Redis. Ce que cela exige :
 
-- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). C'est le seul moteur dont le `FOR UPDATE SKIP
-  LOCKED` fait ce que la file suppose ;
+- **PostgreSQL ou MySQL** (`ZANSHIN_DATABASE_URL`, plus `ZANSHIN_DB_DIALECT=mysql` pour le
+  second). Les deux empêchent qu'un scan réclamé atteigne deux travailleurs ;
 - **la migration comme étape de déploiement propre** (`npm --workspace backend run
   migration:run`), avant le démarrage des nouvelles instances ;
 - rien d'autre. Les sessions vivent en base et non dans la mémoire d'un processus, donc un
@@ -619,7 +625,7 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | Declares the engine so the application can warn at startup about what that engine cannot do correctly (see `dialects.ts`). It does not make an unsupported engine work. |
+| `ZANSHIN_DB_DIALECT` | `postgres` | `postgres` ou `mysql`. Choisit le jeu de migrations et l'orthographe des types de colonnes, et déclare ce que le moteur ne sait pas faire (voir `dialects.ts`). |
 | `PORT` | `3000` | HTTP port of the API. |
 | `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
 | `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
@@ -641,22 +647,30 @@ Le fichier de base de données ne fait plus partie du dépôt (il contient des h
 
 #### Choisir une base de données
 
-PostgreSQL est le seul moteur pris en charge, et c'est un rétrécissement par rapport à la
-version Python, qui prenait SQLite par défaut.
+PostgreSQL et MySQL sont tous deux pris en charge, et tous deux **éprouvés par la campagne
+d'intégration complète** — `npm --workspace backend run test:integration:both` démarre
+chaque moteur à son tour avec testcontainers, applique ses propres migrations et lui passe
+les 249 tests. Un défaut de portabilité est invisible à la lecture comme à un seul moteur ;
+c'est le seul moyen de le trouver.
 
-La raison n'est pas une préférence. Trois choses que fait cette application sont fausses
-sur SQLite et **ne produisent aucune erreur** — elles produisent des données fausses.
-`FOR UPDATE SKIP LOCKED`, qui rend la file de scans sûre à plusieurs travailleurs, est
-accepté puis *silencieusement supprimé* : la réclamation ressemble à une transaction, passe
-tous les tests sur la machine d'un développeur, et remet le même scan à deux processus en
-production. SQLite n'a par ailleurs qu'un seul écrivain, et l'ordonnanceur, les
-travailleurs et les requêtes écrivent tous.
+Deux différences de moteur sont réelles, et nommées plutôt que masquées :
 
-MySQL et MariaDB sont déclarés dans `dialects.ts` avec les trois défauts qui suivraient —
-`DATETIME` tronquant à la seconde, ce qui fait que le journal d'audit se déclare falsifié ;
-`SKIP LOCKED` comptant les lignes sautées dans le `LIMIT` ; `NULLS LAST` refusé — mais ils
-ne sont **pas testés**, et aucune migration n'existe pour eux. Cette entrée est un
-avertissement, pas une prise en charge.
+- **MySQL rend des lots de réclamation courts.** Les lignes sautées par `SKIP LOCKED`
+  comptent dans le `LIMIT`, donc un travailleur qui demande deux scans peut n'en recevoir
+  aucun alors que la file n'est pas vide. **Aucune ligne n'est jamais remise à deux
+  travailleurs** — mesuré, pas supposé — et le reste part au tour suivant. C'est une
+  caractéristique de débit, pas un défaut de correction.
+- **Les horodatages exigent une précision déclarée sur MySQL.** Un `DATETIME` nu tronque à
+  la seconde, ce qui ferait échouer la chaîne d'audit à sa propre vérification et la ferait
+  se déclarer falsifiée. `datetime(6)` est déclaré dans `column-types.ts`, en un seul
+  endroit plutôt que colonne par colonne, et la connexion est fixée en UTC pour la même
+  raison.
+
+SQLite n'est **pas** pris en charge. Il accepte `FOR UPDATE SKIP LOCKED` puis le supprime
+en silence : la réclamation ressemble à une transaction, passe tous les tests sur une
+machine de développement, et remet le même scan à deux processus en production. Il n'a par
+ailleurs qu'un seul écrivain, et l'ordonnanceur, les travailleurs et les requêtes écrivent
+tous.
 
 
 ### Tests

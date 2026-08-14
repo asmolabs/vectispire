@@ -21,7 +21,7 @@
         "@testcontainers/postgresql": "^12.1.0",
         "@types/dockerode": "^4.0.1",
         "jsdom": "^26.1.0",
-        "vitest": "^3.2.7"
+        "vitest": "^4.1.10"
     },
     "dependencies": {
         "dockerode": "^5.0.1"

@@ -9,10 +9,11 @@ mal en ne connaissant pas l'alternative déjà essayée.
 | [0001](0001-couche-de-scan-pluggable.md) | La couche de scan est pluggable derrière `ScannerEngine` | 2026-07-28 | acceptée |
 | [0002](0002-la-base-porte-la-file.md) | La base porte la file, pas un broker | 2026-08-06 | acceptée |
 | [0003](0003-long-polling-pour-les-agents.md) | Les agents parlent en long-polling HTTP, jamais à la base | 2026-08-06 | acceptée |
-| [0004](0004-sqlite-et-postgresql-seulement.md) | Deux moteurs de base : SQLite et PostgreSQL | 2026-08-10 | acceptée |
+| [0004](0004-sqlite-et-postgresql-seulement.md) | Deux moteurs de base : SQLite et PostgreSQL | 2026-08-10 | **remplacée par [0008](0008-postgresql-et-mysql.md)** |
 | [0005](0005-la-qualite-ne-bloque-jamais-le-gate.md) | La qualité et la revue IA n'entrent dans aucun verdict | 2026-08-07 | acceptée |
 | [0006](0006-regles-semgrep-ecrites-ici.md) | Les règles Semgrep sont écrites ici, pas redistribuées | 2026-08-07 | acceptée |
 | [0007](0007-none-n-est-pas-une-liste-vide.md) | Un analyseur qui échoue renvoie `None`, jamais `[]` | 2026-08-07 | acceptée |
+| [0008](0008-postgresql-et-mysql.md) | Deux moteurs de base : PostgreSQL et MySQL | 2026-08-14 | acceptée |
 
 ## Les règles du registre
 

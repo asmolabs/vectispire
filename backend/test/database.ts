@@ -1,7 +1,10 @@
 import { DataSource } from 'typeorm';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { MySqlContainer } from '@testcontainers/mysql';
+import type { StartedTestContainer } from 'testcontainers';
 import { ENTITIES } from '../src/persistence/entities';
 import { Dialect, parseDialect } from '../src/persistence/dialects';
+import { isMySql } from '../src/persistence/column-types';
 
 /**
  * La base des tests d'intégration, démarrée par testcontainers.
@@ -27,8 +30,16 @@ import { Dialect, parseDialect } from '../src/persistence/dialects';
 
 const URL_VARIABLE = 'ZANSHIN_TEST_DATABASE_URL';
 
+/**
+ * Le dialecte de la campagne — **la même variable que celle des entités**.
+ *
+ * Il y en avait deux, `ZANSHIN_TEST_DIALECT` pour le harnais et `ZANSHIN_DB_DIALECT` pour
+ * les colonnes. Deux noms pour une seule décision, et la campagne MySQL démarrait un
+ * conteneur MySQL contre des entités déclarées en PostgreSQL — refusées par TypeORM avant
+ * la première requête. Une seule variable ne peut pas se contredire.
+ */
 export function testDialect(): Dialect {
-    return parseDialect(process.env.ZANSHIN_TEST_DIALECT ?? 'postgres');
+    return parseDialect(process.env.ZANSHIN_DB_DIALECT ?? 'postgres');
 }
 
 /**
@@ -37,35 +48,55 @@ export function testDialect(): Dialect {
  * Les migrations plutôt que `synchronize` : c'est le schéma que la production recevra, et
  * tester contre un schéma synthétisé laisserait passer une migration incorrecte.
  */
-export async function startDatabase(): Promise<{ url: string; version: string; container: StartedPostgreSqlContainer }> {
+export async function startDatabase(): Promise<{ url: string; version: string; container: StartedTestContainer }> {
     const dialect = testDialect();
-    if (dialect !== 'postgres') {
-        throw new Error(
-            `Le dialecte « ${dialect} » n'a pas encore de conteneur de test. Ajoutez-le ici plutôt ` +
-                'que de sauter les tests : une suite qui se saute rapporte vert sans rien vérifier.'
-        );
-    }
+    const { url, container } = isMySql(dialect) ? await startMySql() : await startPostgres();
 
+    const source = new DataSource({
+        type: (isMySql(dialect) ? 'mysql' : 'postgres') as never,
+        url,
+        entities: ENTITIES,
+        // Le jeu de migrations du dialecte, jamais les deux : la référence PostgreSQL est
+        // du SQL brut que MySQL refuse, et réciproquement.
+        migrations: [`${__dirname}/../src/persistence/migrations/${isMySql(dialect) ? 'mysql' : 'postgres'}/*.ts`],
+        synchronize: false,
+        // **UTC, explicitement.** Sans cela le pilote MySQL convertit les `datetime` selon
+        // le fuseau de la machine : une valeur écrite l'été se relit décalée d'une heure,
+        // et la chaîne d'audit — qui hache l'horodatage sérialisé — échoue à sa propre
+        // vérification. Le même piège que la pile Python avait rencontré.
+        ...(isMySql(dialect) ? { timezone: 'Z' } : {})
+    });
+    await source.initialize();
+    await source.runMigrations({ transaction: 'all' });
+    const [row] = await source.query(isMySql(dialect) ? 'SELECT VERSION() AS version' : 'SELECT version()');
+    await source.destroy();
+
+    return { url, version: String(row.version).split(',')[0], container };
+}
+
+async function startPostgres() {
     const container = await new PostgreSqlContainer('postgres:16-alpine')
         .withDatabase('zanshin')
         .withUsername('zanshin')
         .withPassword('zanshin')
         .start();
+    return { url: container.getConnectionUri(), container: container as unknown as StartedTestContainer };
+}
 
-    const url = container.getConnectionUri();
-    const source = new DataSource({
-        type: 'postgres',
-        url,
-        entities: ENTITIES,
-        migrations: [`${__dirname}/../src/persistence/migrations/*.ts`],
-        synchronize: false
-    });
-    await source.initialize();
-    await source.runMigrations({ transaction: 'all' });
-    const [{ version }] = await source.query('SELECT version()');
-    await source.destroy();
-
-    return { url, version: String(version).split(',')[0], container };
+/**
+ * MySQL 8.4, parce que `SKIP LOCKED` n'existe que depuis la 8.
+ *
+ * La réclamation de scans en dépend, et une version antérieure ne rendrait pas une erreur
+ * mais un comportement différent — exactement le genre de divergence que ce harnais existe
+ * pour rendre visible.
+ */
+async function startMySql() {
+    const container = await new MySqlContainer('mysql:8.4')
+        .withDatabase('zanshin')
+        .withUsername('zanshin')
+        .withUserPassword('zanshin')
+        .start();
+    return { url: container.getConnectionUri(), container: container as unknown as StartedTestContainer };
 }
 
 let connection: DataSource | null = null;
@@ -87,9 +118,11 @@ export async function connectToTestDatabase(): Promise<DataSource> {
         );
     }
 
+    const dialect = testDialect();
     connection = new DataSource({
-        type: 'postgres',
+        type: (isMySql(dialect) ? 'mysql' : 'postgres') as never,
         url,
+        ...(isMySql(dialect) ? { timezone: 'Z' } : {}),
         entities: ENTITIES,
         synchronize: false,
         // **Plus large que le défaut de dix.** Le test de concurrence de la file ouvre dix

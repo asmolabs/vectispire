@@ -1,6 +1,11 @@
 # 0004 — Deux moteurs de base : SQLite et PostgreSQL
 
-**Date :** 2026-08-10 · **Statut :** acceptée
+**Date :** 2026-08-10 · **Statut :** **remplacée** par [0008](0008-postgresql-et-mysql.md) le 2026-08-14
+
+> Cette décision refusait MySQL sur des divergences mesurées, et elle était juste avec ce
+> qu'on savait alors. La 0008 le rouvre après les avoir réexaminées en exécutant — et
+> retire SQLite, qui supprime `FOR UPDATE SKIP LOCKED` en silence. Le texte ci-dessous est
+> conservé tel quel : il dit ce qui était su à cette date.
 
 ## Contexte
 

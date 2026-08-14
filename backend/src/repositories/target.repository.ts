@@ -20,15 +20,22 @@ export class TargetRepository {
     /**
      * Le dernier scan de chaque cible, en **une** requête plutôt qu'une par cible.
      *
-     * `DISTINCT ON` est propre à PostgreSQL et c'est assumé : l'équivalent portable est
-     * une fenêtre `ROW_NUMBER()` dans une sous-requête, plus lente et plus difficile à
-     * lire pour un gain nul tant que PostgreSQL est le moteur de référence.
+     * **`ROW_NUMBER()` et non `DISTINCT ON`.** Le second est propre à PostgreSQL, et
+     * l'était de façon assumée tant que PostgreSQL était le seul moteur ; il ne l'est plus.
+     * La fenêtre est un peu plus verbeuse et fait exactement la même chose sur les deux
+     * moteurs — MySQL 8 et PostgreSQL la comprennent tous les deux.
+     *
+     * Le tri porte aussi sur `id` : deux scans créés dans la même milliseconde rendraient
+     * sinon un gagnant indéterminé, et « le dernier scan » changerait d'un appel à l'autre.
      */
     async findLatestScans(manager: EntityManager, column: 'repo_id' | 'container_id'): Promise<Map<number, Scan>> {
         const rows: Scan[] = await manager.query(
-            `SELECT DISTINCT ON (${column}) * FROM t_scan
-             WHERE ${column} IS NOT NULL
-             ORDER BY ${column}, created_at DESC, id DESC`
+            `SELECT * FROM (
+                 SELECT t_scan.*, ROW_NUMBER() OVER (PARTITION BY ${column} ORDER BY created_at DESC, id DESC) AS rang
+                 FROM t_scan
+                 WHERE ${column} IS NOT NULL
+             ) AS derniers
+             WHERE rang = 1`
         );
         const byTarget = new Map<number, Scan>();
         for (const row of rows) {

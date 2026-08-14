@@ -138,9 +138,17 @@ export class IssueRepository {
         // un dépôt sans graphe de dépendances.
         if (filters.onlyDirect) query.andWhere('issue.is_direct_dependency = true');
         if (filters.search) {
-            query.andWhere('(issue.identifier ILIKE :search OR issue.package_name ILIKE :search OR issue.file_path ILIKE :search)', {
-                search: `%${filters.search}%`
-            });
+            // `LOWER(...) LIKE LOWER(...)` et non `ILIKE`, qui n'existe qu'en PostgreSQL.
+            // La recherche commence déjà par un joker, donc aucun index n'était utilisable :
+            // la portabilité ne coûte rien ici, et elle rend la casse explicite plutôt que
+            // dépendante du collationnement — MySQL est insensible à la casse par défaut,
+            // PostgreSQL ne l'est pas, et une recherche qui trouve des résultats différents
+            // selon le moteur est un défaut qu'aucune erreur ne signale.
+            query.andWhere(
+                '(LOWER(issue.identifier) LIKE LOWER(:search) OR LOWER(issue.package_name) LIKE LOWER(:search) ' +
+                    'OR LOWER(issue.file_path) LIKE LOWER(:search))',
+                { search: `%${filters.search}%` }
+            );
         }
         return query;
     }

@@ -26,7 +26,7 @@ forme d'une base corrompue ou d'utilisateurs déconnectés au hasard.
 | Deuxième instance sur SQLite | **refus** | SQLite a un seul écrivain : ce n'est pas lent, c'est corrompu. Et `FOR UPDATE SKIP LOCKED` n'y existe pas, donc la réclamation ne peut pas être rendue sûre |
 | Plusieurs instances web sans `REDIS_URL` | avertissement | Reflex garde l'état d'un client sur l'instance qui a accepté sa socket ; un client qui atterrit sur l'autre est déconnecté par intermittence, sans erreur exploitable |
 | `ZANSHIN_AUTO_MIGRATE` actif sur plusieurs hôtes | avertissement | le verrou de migration est un verrou fichier : il coordonne un hôte, pas une flotte |
-| URL MySQL | **refus** | [décision 0004](decisions/0004-sqlite-et-postgresql-seulement.md) |
+| URL MySQL | **accepté** — éprouvé par la campagne complète, avec `ZANSHIN_DB_DIALECT=mysql` |
 
 **Comment une seconde instance est détectée.** Pas en demandant à l'opérateur — un drapeau
 de configuration est faux exactement quand ça compte, parce que personne ne le pose.

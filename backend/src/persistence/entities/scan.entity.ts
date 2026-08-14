@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn, JoinColumn, ManyToOne } from 'typeorm';
 import { bigIntColumn, intColumn, jsonColumn, stringColumn, textColumn, timestampColumn } from '../columns';
 import { Container } from './container.entity';
 import { Repository } from './repository.entity';
@@ -25,6 +25,19 @@ export const STATUS_FAILED = 'failed';
  * provenance même si la ligne d'agent est supprimée plus tard — la propriété la plus
  * utile pour une piste d'audit.
  */
+/**
+ * L'index de la file, et **il est structurel, pas une optimisation**.
+ *
+ * La réclamation cherche `status = 'pending'` puis trie par date. Sans index, MySQL
+ * parcourt la table entière et pose un verrou sur chaque ligne examinée — `SKIP LOCKED`
+ * saute celles déjà prises, mais les transactions concurrentes finissent par s'attendre et
+ * la réclamation échoue sur « Lock wait timeout exceeded ». PostgreSQL tolérait l'absence
+ * d'index sur de petites tables, ce qui a laissé le défaut invisible jusqu'à ce qu'un
+ * second moteur le nomme.
+ *
+ * L'ordre des colonnes suit celui de la requête : filtre d'abord, tri ensuite.
+ */
+@Index('idx_scan_file', ['status', 'createdAt', 'id'])
 @Entity('t_scan')
 export class Scan {
     @PrimaryGeneratedColumn({ type: 'integer' })

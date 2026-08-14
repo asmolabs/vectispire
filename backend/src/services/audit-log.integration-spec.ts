@@ -105,7 +105,11 @@ describe('journal d’audit', () => {
             for (let i = 0; i < 4; i += 1) await service.record(manager, entry({ resourceId: String(i) }));
             // Ce que laisse l'implémentation Python : des empreintes cohérentes entre
             // elles, et fausses pour la formule d'ici.
-            await manager.query("UPDATE t_audit_log SET entry_hash = 'ancienne-' || resource_id, previous_hash = NULL");
+            // `CONCAT` et non `||` : l'opérateur de concaténation du standard est un **OU
+            // logique** en MySQL, qui compare alors une chaîne à un nombre et rend
+            // « Truncated incorrect DOUBLE value ». Une des rares divergences qui échoue
+            // bruyamment plutôt que de produire une valeur fausse.
+            await manager.query("UPDATE t_audit_log SET entry_hash = CONCAT('ancienne-', resource_id), previous_hash = NULL");
             expect((await service.verify(manager)).broken).not.toBeNull();
 
             expect(await service.rebuild(manager)).toBe(4);

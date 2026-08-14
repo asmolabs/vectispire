@@ -12,7 +12,7 @@ import { stringColumn, timestampColumn } from '../columns';
  */
 @Entity('t_leader_lease')
 export class LeaderLease {
-    @PrimaryColumn({ type: 'character varying', length: 64 })
+    @PrimaryColumn({ ...stringColumn(64), nullable: false })
     name!: string;
 
     @Column(stringColumn(64, { nullable: true }))
