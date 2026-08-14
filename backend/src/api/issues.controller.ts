@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { InvalidTriageError } from '../domain/issues/triage';
 import { STATE_OPEN } from '../persistence/entities';
@@ -23,6 +24,7 @@ import type { AuthenticatedRequest } from './auth.guard';
 export const MAX_PAGE_SIZE = 500;
 const DEFAULT_PAGE_SIZE = 50;
 
+@ApiTags('Intégration continue')
 @Controller('api/v1/issues')
 export class IssuesController {
     constructor(
@@ -32,6 +34,14 @@ export class IssuesController {
         private readonly issues: IssueRepository = new IssueRepository()
     ) {}
 
+    @ApiOperation({
+        summary: 'Le backlog, filtré et paginé',
+        description:
+            'Filtrable par état, sévérité, type, triage, cible, et par « dépendances directes seulement ». Ce dernier ' +
+            "filtre ne porte que sur `true` : « montre aussi les transitives » est le défaut, et filtrer sur `false` " +
+            "cacherait les problèmes dont on ignore la nature — les plus nombreux sur un dépôt sans graphe de dépendances."
+    })
+    @ApiOkResponse({ description: 'Les problèmes, avec leur total avant pagination.' })
     @Get()
     async list(@Query() query: Record<string, string | undefined>) {
         const limit = boundedInt(query.limit, DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
@@ -58,6 +68,15 @@ export class IssuesController {
         return { items, total, limit, offset };
     }
 
+    @ApiOperation({
+        summary: 'Poser une décision de triage',
+        description:
+            "Vocabulaire VEX : affected, not_affected, fixed, under_review. Une suppression est une affirmation sur un " +
+            "*contexte* — « non atteignable dans notre configuration » — et les contextes changent : d'où la date de " +
+            'revue facultative, à laquelle le problème redevient `under_review` avec sa justification intacte.'
+    })
+    @ApiOkResponse({ description: 'Le problème, avec son triage à jour.' })
+    @ApiBadRequestResponse({ description: 'Statut hors vocabulaire, ou justification manquante là où elle est exigée.' })
     @Post(':id/triage')
     async triage(@Param('id', ParseIntPipe) id: number, @Body() body: Record<string, unknown>, @Req() request: AuthenticatedRequest) {
         const actor = request.user?.username ?? 'inconnu';

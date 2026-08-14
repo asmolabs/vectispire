@@ -1,5 +1,6 @@
 import { BadRequestException, Controller, Get, Header, NotFoundException, Param, Query, Res } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
@@ -16,6 +17,7 @@ import { IssueRepository } from '../repositories/issue.repository';
  * l'implémentation Python. Ce contrôleur ne fait que choisir les problèmes et poser les
  * en-têtes — c'est délibérément tout ce qu'il a le droit de faire.
  */
+@ApiTags('Intégration continue')
 @Controller('api/v1/targets/:kind/:id')
 export class ExportsController {
     constructor(
@@ -23,6 +25,14 @@ export class ExportsController {
         private readonly issues: IssueRepository = new IssueRepository()
     ) {}
 
+    @ApiOperation({
+        summary: 'Le backlog au format SARIF 2.1.0',
+        description:
+            "Ce qui sort un constat du tableau de bord pour le poser sur la demande de fusion qui l'a introduit — " +
+            'GitHub code scanning, GitLab, Azure DevOps. Les constats de qualité y portent leurs propres étiquettes : ' +
+            "les marquer « security » les ferait remonter comme des alertes de sécurité."
+    })
+    @ApiOkResponse({ description: 'Un document SARIF, en pièce jointe.' })
     @Get('issues.sarif')
     @Header('Content-Type', 'application/sarif+json')
     async sarif(@Param('kind') kind: string, @Param('id') id: string, @Res({ passthrough: true }) response: Response) {
@@ -36,6 +46,13 @@ export class ExportsController {
         });
     }
 
+    @ApiOperation({
+        summary: 'Les décisions de triage au format OpenVEX',
+        description:
+            "L'auteur, l'identifiant et l'horodatage appartiennent à qui publie le document : un VEX est une assertion " +
+            'sur qui a dit quoi, et quand. L\'appelant peut donc fournir l\'auteur.'
+    })
+    @ApiOkResponse({ description: 'Un document OpenVEX.' })
     @Get('vex')
     @Header('Content-Type', 'application/json')
     async vex(@Param('kind') kind: string, @Param('id') id: string, @Query('author') author?: string) {
@@ -52,6 +69,8 @@ export class ExportsController {
         });
     }
 
+    @ApiOperation({ summary: 'Le backlog en CSV' })
+    @ApiOkResponse({ description: 'Un fichier CSV, en pièce jointe.' })
     @Get('issues.csv')
     @Header('Content-Type', 'text/csv; charset=utf-8')
     async csv(@Param('kind') kind: string, @Param('id') id: string, @Query('state') state: string | undefined, @Res({ passthrough: true }) response: Response) {

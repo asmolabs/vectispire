@@ -2,6 +2,7 @@ import { InvalidCronExpression, validateExpression } from '../domain/scheduling/
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import { now } from '../domain/common/timestamp';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { validateRepositoryUrl } from '../domain/targets/git-url';
 import { Repository as GitRepository, Issue, Scan, STATE_OPEN, STATUS_QUEUED } from '../persistence/entities';
@@ -12,6 +13,7 @@ import type { AuthenticatedRequest } from './auth.guard';
 import { repositoryDisplayName } from '../domain/targets/display-name';
 
 /** Les dépôts surveillés, et le déclenchement de leurs scans. */
+@ApiTags('Cibles')
 @Controller('api/v1/repositories')
 export class RepositoriesController {
     constructor(

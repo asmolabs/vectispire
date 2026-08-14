@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { buildOverview } from '../domain/gate/security-overview';
 import { TYPE_QUALITY } from '../domain/issues/types';
@@ -23,6 +24,7 @@ const RECENT_SCANS = 8;
  * réimplémente ses chiffres finit par en afficher d'autres que les écrans de détail,
  * et c'est celui qu'on croit — il est en page d'accueil.
  */
+@ApiTags('Tableaux de bord')
 @Controller('api/v1/dashboard')
 export class DashboardController {
     constructor(

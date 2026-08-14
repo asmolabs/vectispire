@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Patch, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager, Not } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { isAdminRole, refuseDeletion, refuseSelfLockout, validatePassword, validateRole, validateUsername } from '../domain/users/account-rules';
@@ -26,6 +27,7 @@ function toSummary(user: User, activeSessions: number) {
 }
 
 @AdminOnly()
+@ApiTags('Administration')
 @Controller('api/v1/users')
 export class UsersController {
     constructor(

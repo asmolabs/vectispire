@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Put, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { SETTINGS_CATALOG, definitionFor, validate } from '../domain/settings/catalog';
 import { AuditLogService } from '../services/audit-log.service';
@@ -20,6 +21,7 @@ import type { AuthenticatedRequest } from './auth.guard';
  * notification de `high` à `critical` change ce que l'organisation voit, et c'est le genre
  * de décision qu'on veut pouvoir dater.
  */
+@ApiTags('Administration')
 @Controller('api/v1/settings')
 export class SettingsController {
     constructor(

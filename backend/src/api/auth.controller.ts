@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { Not } from 'typeorm';
 import { now } from '../domain/common/timestamp';
@@ -18,6 +19,7 @@ import type { AuthenticatedRequest } from './auth.guard';
  * renvoie aucun : le compte de provisionnement porte `mustChangePassword`, ce qui est
  * la façon correcte de dire « change ton mot de passe » sans écrire lequel.
  */
+@ApiTags('Authentification')
 @Controller('api/v1/auth')
 export class AuthController {
     constructor(

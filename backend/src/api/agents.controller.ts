@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { DataSource, EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { CONTRACT_VERSION, isCompatibleContract } from '../domain/agents/contract';
@@ -36,6 +37,7 @@ import type { AuthenticatedRequest } from './auth.guard';
  * `agent`. La vérification est faite ici, explicitement.
  */
 @Public()
+@ApiTags('Agents')
 @Controller('api/v1/agents')
 export class AgentsController {
     constructor(

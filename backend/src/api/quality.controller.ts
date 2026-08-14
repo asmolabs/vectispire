@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { Repository as GitRepository, STATE_OPEN } from '../persistence/entities';
 import { IssueRepository } from '../repositories/issue.repository';
@@ -17,6 +18,7 @@ import { TYPE_QUALITY } from '../domain/issues/types';
  * dépôts les plus denses. Devant un backlog de qualité à quatre chiffres, « huit règles
  * font soixante-dix pour cent de la dette » est le seul cadrage actionnable.
  */
+@ApiTags('Tableaux de bord')
 @Controller('api/v1/quality')
 export class QualityController {
     constructor(

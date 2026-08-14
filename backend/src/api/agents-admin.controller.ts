@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { generateKey, normalizeScopes } from '../domain/api-keys/api-key-rules';
@@ -19,6 +20,7 @@ import type { AuthenticatedRequest } from './auth.guard';
  * soit l'administration aux agents, soit la file à une session ordinaire.
  */
 @AdminOnly()
+@ApiTags('Agents')
 @Controller('api/v1/admin/agents')
 export class AgentsAdminController {
     constructor(

@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
@@ -14,6 +15,7 @@ import type { AuthenticatedRequest } from './auth.guard';
  *  a aucun écran où l'afficher serait utile, et beaucoup où ce serait une fuite. */
 const PRIVATE_KEY_HEADER = /^(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)/;
 
+@ApiTags('Administration')
 @Controller('api/v1/ssh-keys')
 export class SshKeysController {
     constructor(

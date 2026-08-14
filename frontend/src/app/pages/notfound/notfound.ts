@@ -30,36 +30,43 @@ import { AppFloatingConfigurator } from '../../layout/component/app.floatingconf
                 <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, color-mix(in srgb, var(--primary-color), transparent 60%) 10%, var(--surface-ground) 30%)">
                     <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20 flex flex-col items-center" style="border-radius: 53px">
                         <span class="text-primary font-bold text-3xl">404</span>
-                        <h1 class="text-surface-900 dark:text-surface-0 font-bold text-3xl lg:text-5xl mb-2">Not Found</h1>
-                        <div class="text-surface-600 dark:text-surface-200 mb-8">Requested resource is not available.</div>
-                        <a routerLink="/" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
+                        <h1 class="text-surface-900 dark:text-surface-0 font-bold text-3xl lg:text-5xl mb-2">Page introuvable</h1>
+                        <div class="text-surface-600 dark:text-surface-200 mb-8">Cette adresse ne correspond à aucun écran de Zanshin.</div>
+
+                        <!--
+                            Trois destinations qui existent réellement, et non les liens de
+                            démonstration du gabarit — dont les trois pointaient vers la
+                            racine sous du faux latin. Une page d'erreur qui propose des
+                            liens morts apprend à ne plus lire les pages d'erreur.
+                        -->
+                        <a routerLink="/securite" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
                             <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                                <i class="pi pi-fw pi-table text-2xl!"></i>
+                                <i class="pi pi-fw pi-shield text-2xl!"></i>
                             </span>
                             <span class="ml-6 flex flex-col">
-                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0 block">Frequently Asked Questions</span>
-                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Ultricies mi quis hendrerit dolor.</span>
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0 block">Sécurité</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Le verdict de chaque cible, et ce qui le fait basculer.</span>
                             </span>
                         </a>
-                        <a routerLink="/" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
+                        <a routerLink="/issues" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
                             <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                                <i class="pi pi-fw pi-question-circle text-2xl!"></i>
+                                <i class="pi pi-fw pi-exclamation-triangle text-2xl!"></i>
                             </span>
                             <span class="ml-6 flex flex-col">
-                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Solution Center</span>
-                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Phasellus faucibus scelerisque eleifend.</span>
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Problèmes</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Le backlog, filtrable par sévérité, type et triage.</span>
                             </span>
                         </a>
-                        <a routerLink="/" class="w-full flex items-center mb-8 py-8 border-surface-300 dark:border-surface-500 border-b">
+                        <a routerLink="/depots" class="w-full flex items-center mb-8 py-8 border-surface-300 dark:border-surface-500 border-b">
                             <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                                <i class="pi pi-fw pi-unlock text-2xl!"></i>
+                                <i class="pi pi-fw pi-sitemap text-2xl!"></i>
                             </span>
                             <span class="ml-6 flex flex-col">
-                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Permission Manager</span>
-                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Accumsan in nisl nisi scelerisque</span>
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Dépôts &amp; Scans</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Les cibles surveillées et l'historique de leurs scans.</span>
                             </span>
                         </a>
-                        <p-button label="Go to Dashboard" routerLink="/" />
+                        <p-button label="Retour au tableau de bord" routerLink="/" />
                     </div>
                 </div>
             </div>

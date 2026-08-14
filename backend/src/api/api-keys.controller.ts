@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import { generateKey, InvalidApiKeyError, normalizeLifetime, normalizeScopes, normalizeTarget } from '../domain/api-keys/api-key-rules';
@@ -30,6 +31,7 @@ function toSummary(key: ApiKey, asOf: Date, targetLabel: string | null) {
 }
 
 @AdminOnly()
+@ApiTags('Administration')
 @Controller('api/v1/api-keys')
 export class ApiKeysController {
     constructor(

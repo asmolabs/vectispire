@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { verifyChain } from '../domain/audit/audit-hash';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
@@ -9,6 +10,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 
 @AdminOnly()
+@ApiTags('Administration')
 @Controller('api/v1/audit-log')
 export class AuditLogController {
     constructor(

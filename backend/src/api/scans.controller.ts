@@ -1,5 +1,6 @@
 import { Controller, Get, NotFoundException, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { containerDisplayName, repositoryDisplayName } from '../domain/targets/display-name';
 import { Container, Finding, Repository as GitRepository, Scan } from '../persistence/entities';
@@ -15,11 +16,14 @@ const MAX_FINDINGS = 500;
  * jour-là. Confondre les deux ferait croire qu'un scan a « trouvé » un problème qu'il n'a
  * fait que revoir.
  */
+@ApiTags('Intégration continue')
 @Controller('api/v1/scans')
 export class ScansController {
     constructor(@InjectEntityManager() private readonly manager: EntityManager) {}
 
     /** L'historique, le plus récent d'abord. */
+    @ApiOperation({ summary: "L'historique des scans, le plus récent d'abord" })
+    @ApiOkResponse({ description: 'Les scans, filtrables par dépôt ou par conteneur.' })
     @Get()
     async list(@Query('repo_id') repoId?: string, @Query('container_id') containerId?: string, @Query('limit') limit?: string) {
         const where: Record<string, number> = {};
@@ -35,6 +39,15 @@ export class ScansController {
         return scans.map((scan) => this.toSummary(scan, names));
     }
 
+    @ApiOperation({
+        summary: "Le détail d'un scan",
+        description:
+            '**Montre les constats du scan, pas le backlog de la cible.** Les deux diffèrent : le backlog porte ' +
+            "l'histoire — un problème vu il y a trois scans et toujours ouvert en fait partie — tandis qu'un scan ne " +
+            "rend compte que de ce qu'il a observé ce jour-là. `findingsTruncated` dit quand la liste est écourtée."
+    })
+    @ApiOkResponse({ description: 'Le scan, ses compteurs et ses constats.' })
+    @ApiNotFoundResponse({ description: 'Aucun scan ne porte cet identifiant.' })
     @Get(':id')
     async detail(@Param('id', ParseIntPipe) id: number) {
         const scan = await this.manager.findOneBy(Scan, { id });

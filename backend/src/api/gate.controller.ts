@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { GateIssue, evaluate } from '../domain/gate/policy-gate';
 import { RequestedPolicy } from '../domain/gate/policy-gate';
@@ -24,6 +25,7 @@ import { containerDisplayName, repositoryDisplayName } from '../domain/targets/d
  * assouplissements refusés sont renvoyés plutôt qu'ignorés en silence — un pipeline qui
  * croit avoir désactivé une règle doit l'apprendre.
  */
+@ApiTags('Intégration continue')
 @Controller('api/v1')
 export class GateController {
     constructor(
@@ -31,6 +33,16 @@ export class GateController {
         private readonly targets: TargetRepository = new TargetRepository()
     ) {}
 
+    @ApiOperation({
+        summary: 'Ce build doit-il échouer ?',
+        description:
+            "Rend 200 même quand le verdict est rouge : la requête a abouti, c'est sa *réponse* qui est négative. " +
+            "Un 4xx ferait confondre « votre dépôt a des vulnérabilités » avec « votre appel est mal formé ». " +
+            'La politique envoyée dans le corps ne peut que **durcir** celle qui est stockée ; les assouplissements ' +
+            'refusés sont renvoyés dans `ignored_relaxations` plutôt qu\'ignorés en silence.'
+    })
+    @ApiOkResponse({ description: 'Le verdict, la politique appliquée et les violations qui la motivent.' })
+    @ApiBadRequestResponse({ description: 'Ni dépôt ni conteneur désigné, ou les deux à la fois.' })
     @Post('gate')
     @HttpCode(200)
     async evaluateGate(@Body() body: Record<string, unknown>) {
@@ -68,6 +80,14 @@ export class GateController {
     }
 
     /** La posture de toutes les cibles — ce qu'affiche l'écran Sécurité. */
+    @ApiOperation({
+        summary: 'La posture de toutes les cibles',
+        description:
+            "Calculée par le même `evaluate` que le verdict ci-dessus. C'est ce qui rend l'écran digne de confiance : " +
+            'une agrégation SQL qui recompterait « les problèmes au-dessus du seuil » divergerait au premier drapeau ' +
+            'ajouté à la politique, et personne ne le verrait avant une contradiction entre un pipeline et un écran.'
+    })
+    @ApiOkResponse({ description: 'Une ligne par cible, plus les cibles jamais scannées et celles dont le dernier scan a échoué.' })
     @Get('security/overview')
     async overview() {
         const [repositories, containers, policies, issues, scansByRepository, scansByContainer] = await Promise.all([

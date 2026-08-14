@@ -1,6 +1,7 @@
 import { InvalidCronExpression, validateExpression } from '../domain/scheduling/due';
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
+import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { formatImageReference, validateImageReference } from '../domain/targets/image-reference';
@@ -11,6 +12,7 @@ import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
 /** Les images de conteneur surveillées, et le déclenchement de leurs scans. */
+@ApiTags('Cibles')
 @Controller('api/v1/containers')
 export class ContainersController {
     constructor(
