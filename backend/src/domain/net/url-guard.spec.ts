@@ -68,6 +68,38 @@ describe('validateOutboundUrl', () => {
         ).rejects.toThrow(/n'a pas pu être résolu/);
     });
 
+    describe('IPv6 déguisée', () => {
+        /**
+         * **Le contournement venait de la comparaison de chaînes.** `new URL()` normalise
+         * une adresse IPv6 avant qu'on la lise : `::ffff:127.0.0.1` en ressort sous la forme
+         * hexadécimale `::ffff:7f00:1`, que la reconnaissance par expression régulière ne
+         * voyait pas. L'adresse était alors jugée publique et le webhook — dont le garde
+         * attend précisément une destination publique — atteignait la boucle locale.
+         *
+         * Chaque cas ci-dessous est une écriture différente de la même adresse.
+         */
+        it.each([
+            ['::ffff:127.0.0.1', 'IPv4 encapsulée, écrite en décimal pointé'],
+            ['::ffff:7f00:1', 'la même, sous la forme que rend `new URL()`'],
+            ['::ffff:169.254.169.254', 'le point de métadonnées, encapsulé'],
+            ['::ffff:10.0.0.1', 'un réseau privé, encapsulé'],
+            ['0:0:0:0:0:0:0:1', 'la boucle locale écrite en toutes lettres'],
+            ['64:ff9b::7f00:1', 'la boucle locale via le préfixe de traduction NAT64']
+        ])('refuse http://[%s] pour un webhook — %s', async (address) => {
+            await expect(validateOutboundUrl(`http://[${address}]/hook`, { allowPrivate: false })).rejects.toBeInstanceOf(UnsafeUrlError);
+        });
+
+        it("accepte une IPv6 réellement publique, pour que le refus veuille dire quelque chose", async () => {
+            await expect(validateOutboundUrl('https://[2606:4700:4700::1111]/hook', { allowPrivate: false })).resolves.toContain('2606');
+        });
+
+        it('refuse le link-local encapsulé même quand le privé est autorisé', async () => {
+            // Une annexe locale a le droit d'être privée ; elle n'a jamais le droit d'être
+            // le point de métadonnées, sous quelque écriture que ce soit.
+            await expect(validateOutboundUrl('http://[::ffff:169.254.169.254]/', { allowPrivate: true })).rejects.toThrow(/link-local/);
+        });
+    });
+
     it('refuse les schémas hors http et https', async () => {
         for (const url of ['file:///etc/passwd', 'gopher://exemple.test/', 'ftp://exemple.test/']) {
             await expect(validateOutboundUrl(url, { allowPrivate: true })).rejects.toThrow(/schéma/);
