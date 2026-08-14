@@ -8,7 +8,7 @@
 
 Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform, with a pluggable scanning layer (local Docker, local API, or cloud API depending on the analysis type).
 
-Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and SQLAlchemy/SQLite.
+Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over PostgreSQL, in a single npm workspace.
 
 ### Features
 
@@ -31,7 +31,7 @@ Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
   like any vulnerability, and *quality* ones, which are visible in the backlog and can
   never fail a CI gate. Runs with the network disabled, using rules that ship with
-  Zanshin; see [the rule directory](zanshin/services/scanners/rules/semgrep/README.md)
+  Zanshin; see [the rule directory](backend/src/scanning/rules/semgrep/)
   for how to add your own.
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
@@ -40,23 +40,34 @@ Built in Python with [Reflex](https://reflex.dev) (server-side state and UI) and
 - **Notifications**: a webhook fires when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once.
 - **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, and the stored SBOM.
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
-- **Interchangeable scan backends**: local Docker (default, nothing leaves the machine), OSV.dev (vulnerability matching via a free cloud API), or a self-hosted HTTP sidecar service (`scan-api/`) — selectable from the Settings page without changing the rest of the application.
+- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. The OSV.dev and HTTP-sidecar backends the Python version offered are **not part of this port** — the sidecar was already documented as redundant, and OSV matching bought little that a pinned Grype image does not.
 
 ### Architecture
 
-The central design choice is the `ScannerEngine` interface (`zanshin/services/scanners/base.py`), which decouples *what* to scan from *where/how* it runs. `ScanProcessor` orchestrates the steps (clone, SBOM, vulnerability scan, secrets, IaC) without ever calling Docker directly — it delegates to whichever implementation is configured:
+The pipeline is split in two along one line: **`ScanRunner` runs the scanners and never
+touches the database; `ScanIngestor` reads its results and never runs a container.** That
+split is what lets the same code execute inside the control plane or on a remote agent
+that has no database credentials.
 
-| Backend | SBOM / secrets / IaC generation | Vulnerability matching | Use case |
-|---|---|---|---|
-| `docker` (default) | Ephemeral Docker containers (Syft/gitleaks/checkov/Semgrep) | Grype (local container) | No external dependency, fully local |
-| `osv` | Delegated to the local Docker backend | OSV.dev cloud API (free) | CVE matching without maintaining Grype locally |
-| `local_api` | HTTP sidecar service (`scan-api/`), same host, shared disk | Same, via the sidecar | Removes Docker socket access from the main process |
+| Step | Tool | Image pinned by digest |
+|---|---|---|
+| SBOM | Syft | yes |
+| Vulnerability matching | Grype | yes |
+| Secrets | gitleaks | yes |
+| IaC | checkov | yes |
+| Source code (off by default) | Semgrep | yes |
+
+Every scanner runs in an ephemeral container with **the network disabled**, a read-only
+mount, `cap_drop: ALL` and `no-new-privileges`. Nothing about the scanned code leaves the
+machine. The only outbound calls a scan makes are the EPSS and CISA KEV lookups, which
+carry CVE identifiers and nothing else — and the end-of-life catalogue, which carries
+product names and versions.
 
 Results are normalized into a single `Finding` table (type, severity, identifier, package, source, EPSS/CVSS scores, KEV status, fix version), in addition to the raw JSON blobs (`Scan.sbom`, `Scan.cves`) kept for audit purposes.
 
-A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`zanshin/services/issue_service.py`](zanshin/services/issue_service.py).
+A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`backend/src/services/issue-sync.service.ts`](backend/src/services/issue-sync.service.ts).
 
-The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). The `scan-api/` sidecar has its own [README](scan-api/README.md) (deployment model, security, known limitations). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
 #### Distributed scanning: agents
 
@@ -65,7 +76,8 @@ table, listed together on the `/agents` page:
 
 - the **built-in agent** — this very web process. Created automatically at startup, no
   configuration, which is why a single-machine install works out of the box;
-- **remote agents** — separate `python -m zanshin.agent` processes on other machines.
+- **remote agents** — separate worker processes on other machines, speaking the four-route
+  agent protocol (`hello`, `jobs`, `heartbeat`, `result`).
 
 Both run the same code (`ScanRunner`), and both send back the scanners' raw output for
 the control plane to normalize (`ScanIngestor`). A result produced on another machine is
@@ -87,48 +99,53 @@ ability to decrypt every deploy key Zanshin holds.
 | `local` (default) | nothing | the agent's own machine has git access. A compromised agent yields only what that machine was granted |
 | `delegated` | the deploy key, per job | a trusted machine. Requires HTTPS (refused otherwise), the key is never written to disk beyond a `0600` temp file, and every delivery is audited |
 
-```bash
-# On the agent's machine — the key comes from /agents, shown once
-ZANSHIN_URL=https://zanshin.internal \
-ZANSHIN_AGENT_TOKEN=zsk_... \
-python -m zanshin.agent
-```
+**Known gap in this port.** The control plane serves the agent protocol in full — an agent
+is declared from `/agents`, its key is issued once, and the four routes are live and
+tested. What does *not* ship yet is a standalone agent binary: the Python `zanshin.agent`
+process was retired with the rest of the Python tree, and its TypeScript replacement is
+not written. Remote agents are therefore reachable by anything that speaks the protocol,
+but Zanshin does not hand you the client. Single-machine installs are unaffected — the
+built-in agent is what they use.
 
-See [`docker-compose.agent.yml`](docker-compose.agent.yml) for the containerized form, and
-[`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
+See [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
 scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has exactly
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
-the API quota and login throttle are shared through Redis. What it requires:
+and the login throttle is counted in the database rather than in process memory. What it requires:
 
-- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). SQLite has one writer and no `SKIP LOCKED`;
-  a second instance on it is refused at startup rather than left to corrupt the file;
-- **`REDIS_URL`**, both for Reflex's own state manager — without it a client that lands
-  on the other instance is intermittently logged out — and for the security counters;
-- **`ZANSHIN_AUTO_MIGRATE=false`**, with `alembic upgrade head` as its own deployment
-  step: the migration lock is a file lock and coordinates one host only.
+- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). It is the only engine whose `FOR UPDATE SKIP
+  LOCKED` does what the queue assumes;
+- **the migration as its own deployment step** (`npm --workspace backend run
+  migration:run`), before the new instances start;
+- nothing else. Sessions live in the database, not in process memory, so a client that
+  lands on the other instance stays signed in — the Redis that the Reflex version needed
+  for its state manager has no equivalent here.
+
+The scheduler elects a single owner across the fleet, while every instance keeps claiming
+work for its own built-in worker: a fleet whose instances only worked while holding the
+lease would idle behind whichever one holds it.
 
 Start it wrong and the application says so: it refuses, or warns, with the reason named.
 
 ### Quick start
 
-Prerequisites: Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Docker (for the default scan backend).
+Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for the database).
 
 ```bash
-uv sync
-uv run reflex run
+npm install
+npm --workspace backend run start:dev     # API on http://localhost:3000
+npm --workspace frontend start            # UI on http://localhost:4200
 ```
 
-The app starts on `http://localhost:3000` (frontend), with the backend API on Reflex's default port.
-
-The schema is managed by **Alembic**. On startup Zanshin brings the database to the latest revision by itself; a database that predates Alembic is adopted (stamped at the baseline revision) rather than rebuilt, so upgrading an existing deployment needs no manual step. Migrations can also be driven by hand:
+The schema is owned by **TypeORM migrations** — `synchronize` is off, deliberately: a
+schema synthesised from the entities is not the one production will receive, and testing
+against it would let a faulty migration through.
 
 ```bash
-uv run alembic upgrade head     # apply
-uv run alembic check            # fail if a model has no matching migration
-uv run alembic revision --autogenerate -m "what changed"
+npm --workspace backend run migration:run       # apply
+npm --workspace backend run migration:generate  # write one from the entities
 ```
 
 #### Main pages
@@ -202,7 +219,7 @@ Defaults stay wide (every scope, every target, no expiry) because that is what a
 
 ### Configuration
 
-Runtime settings (`scan_backend`, `enrichment_enabled`, `license_blocklist`, `local_api` backend URL and shared directory) are managed from the **Settings** page and stored in the database (`setting` table) rather than as environment variables.
+Runtime settings (enrichment, end-of-life, retention, notifications, licences, tracker, model review) are managed from the **Settings** page and stored in the `t_setting` table rather than as environment variables. A setting appears there only once a service actually reads it: a form that accepts a value and does nothing with it is worse than one that does not offer it.
 
 Three things are *not* runtime settings, because they have to exist before the application can be used safely:
 
@@ -218,117 +235,95 @@ Operational tuning (all optional, shown with their defaults):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ZANSHIN_DB_PATH` | `zanshin/database.sqlite` | Path to the SQLite file. The simplest way to keep the data outside the source tree; made absolute, because a relative path resolves against the working directory and that differs between `reflex run`, `alembic` and a service unit. |
-| `ZANSHIN_DATABASE_URL` | derived from `ZANSHIN_DB_PATH` | Full SQLAlchemy URL, for anything that is not a local file — e.g. `postgresql+psycopg://user:password@host/zanshin`. Takes precedence over `ZANSHIN_DB_PATH`. Requires the driver: `uv sync --extra postgres`. |
-| `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite only: how long a write waits for a concurrent writer before failing. Scan workers, the scheduler and requests all write, so contention is normal. |
-| `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Server databases only: connection pool. Ignored for SQLite, which has no pool worth tuning. |
-| `ZANSHIN_AUTO_MIGRATE` | `true` | Set to `false` for a deployment that runs `alembic upgrade head` as its own step — which is what a server database on several application hosts should do. The schema is still *checked* at startup: a database behind the code stops the application there rather than at the first query. |
-| `REDIS_URL` | — | Shares the API quota and the login throttle between instances. Without it they are counted per process, which is correct for one instance and means the quota doubles for two. Reflex reads the same variable for its own state manager, which a fleet needs anyway. |
-| `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` | `false` | Lifts the startup refusal that fires when another instance is live and the database is SQLite. Its only legitimate use is a restart under a *new* hostname within two minutes of the previous one stopping — a Kubernetes rolling restart. It does not make two instances safe on SQLite. |
-| `ZANSHIN_SCAN_WORKERS` | `5` | *Default* for the "maximum concurrent scans" setting, which is now edited from the **Settings** page and applied without a restart. Scans are queued in the order they were requested; the queue lives in the database, so a request survives a restart and its place in line is answerable (`queue_position` on `GET /api/v1/scans/{id}`). |
-| `ZANSHIN_SCAN_POOL_THREADS` | `32` | Hard ceiling on scan threads, and therefore on the setting above. The pool is a supply of threads, not the queue — a pool smaller than the configured limit would silently cap it. |
-| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it, the container is killed and the scan fails with a timeout instead of hanging. |
-| `ZANSHIN_SCHEDULER_ENABLED` | `true` | Set to `false` for a deployment that only scans on demand. |
+| `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
+| `ZANSHIN_DB_DIALECT` | `postgres` | Declares the engine so the application can warn at startup about what that engine cannot do correctly (see `dialects.ts`). It does not make an unsupported engine work. |
+| `PORT` | `3000` | HTTP port of the API. |
+| `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
+| `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
+| `ZANSHIN_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
+| `ZANSHIN_SCAN_LEASE_SECONDS` / `_MAX_ATTEMPTS` / `_CLAIM_ATTEMPTS` | `900` / `3` / `3` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
+| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it the container is killed and the scan fails with a timeout instead of hanging. |
+| `ZANSHIN_SCAN_MEMORY_LIMIT_MB` / `_PIDS_LIMIT` | `2048` / `512` | Memory and process ceilings per scanner container. |
+| `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
-| `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Age past which a scan still in flight is considered wedged and failed. |
-| `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | How often raw scanner payloads are pruned (see the **Settings** page for the thresholds themselves). |
-| `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Memory ceiling per scanner container. |
-| `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Process ceiling per scanner container. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they are Zanshin's own supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
-| `ZANSHIN_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated origins allowed to open the websocket. Reflex's default is `*`, which lets any page a user visits create server-side state. **Set this to your real hostname when deploying anywhere but localhost** — otherwise the app's own frontend is refused. |
-| `ZANSHIN_SESSION_TTL_HOURS` | `12` | A session older than this is signed out on the next page load. |
-| `ZANSHIN_API_RATE_LIMIT` / `ZANSHIN_API_RATE_WINDOW_SECONDS` | `300` / `60` | Requests per key per window, before 429 with `Retry-After`. Counted in memory, per process. |
-| `ZANSHIN_MIGRATION_LOCK` | next to the database | Lock file serialising `alembic upgrade` at startup. Reflex imports the app in several processes, and SQLite's DDL is not transactional: without this, two concurrent upgrades can leave the schema half-migrated. |
+| `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they *are* Zanshin's supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
+| `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
+| `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
+| `ZANSHIN_SQL_LOGGING` | `false` | Logs every statement. For diagnosis, never for a running deployment. |
 
-The sidecar (`scan-api/`) additionally requires `ZANSHIN_SCAN_API_TOKEN` (matched by the `local_scan_api_token` setting) and `ZANSHIN_SHARED_ROOT`. It refuses every request without the token, and refuses any path outside that root — see [`scan-api/README.md`](scan-api/README.md).
+
 
 The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
 
 #### Choosing a database
 
-SQLite is the default and is what this deployment is exercised against: one file, no
-server, and the scan pipeline's write volume is nowhere near its limits. Point it
-somewhere durable and back that up — that file is the whole installation.
+PostgreSQL is the only supported engine, and that is a narrowing from the Python
+version, which defaulted to SQLite.
 
-```bash
-ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
-```
+The reason is not preference. Three things this application does are wrong on SQLite and
+**produce no error** — they produce wrong data. `FOR UPDATE SKIP LOCKED`, which makes the
+scan queue safe for several workers, is accepted and then *silently dropped*: the claim
+looks transactional, passes every test on a developer's machine, and hands the same scan
+to two processes in production. SQLite also has a single writer, and the scheduler, the
+workers and the requests all write.
 
-PostgreSQL is the other supported backend, verified by tests that start a real server —
-`pytest -m backends` runs the whole schema and every service that owns a column against
-PostgreSQL 16 via testcontainers. They are excluded from the default run because an image
-pull has no place in the loop you run on every edit. One thing to know before choosing it.
+MySQL and MariaDB are declared in `dialects.ts` with the three defects that would follow —
+`DATETIME` truncating to the second, which makes the audit chain declare itself tampered
+with; `SKIP LOCKED` counting skipped rows against the `LIMIT`; `NULLS LAST` refused — but
+they are **not tested**, and no migration exists for them. Treat that entry as a warning,
+not as support.
 
-**MySQL was supported and was withdrawn.** It filled no role the other two did not: it is
-neither the zero-configuration option nor the deployment target, and it had its own
-behaviour in three places that matter — `DATETIME` truncated to whole seconds, so every
-audit-log entry reported itself as tampered with; `SKIP LOCKED` counted skipped rows
-against `LIMIT`, so concurrent scan claims came back empty; `NULLS LAST` was a syntax
-error. Three dialect branches in code whose subject is integrity, for no gain. A MySQL URL
-is now refused at startup with that explanation rather than half-working.
-
-```bash
-uv sync --extra postgres
-ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
-ZANSHIN_AUTO_MIGRATE=false        # run `alembic upgrade head` as a deployment step
-```
-
-- **Foreign keys are enforced there and not on SQLite**, which ignores them unless
-  asked per connection. This schema's cascades are declared ORM-side and
-  `Issue.findings` has none, so a delete that quietly orphans rows today would raise
-  on a server database. Not yet fixed — it needs `ondelete` rules and a migration.
-- **Timestamps are stored as ISO-8601 strings**, not as `timestamptz`/`DATETIME`.
-  That is what `SafeDateTime` does, and it is deliberate (it exists to read the
-  several formats the pre-Alembic schema left behind), but it means date arithmetic
-  in SQL is not available on those columns. Ordering and comparison work, because
-  ISO-8601 sorts lexicographically.
-
-Migrations run on either. `alembic` reads the same two variables as the application,
-so the command line and the running app can never disagree about which database they
-are looking at.
 
 ### Tests
 
 ```bash
-uv run pytest
+npm --workspace backend test              # unit suite
+npm --workspace backend run test:integration   # starts PostgreSQL via testcontainers
 ```
 
-~82% coverage over `zanshin/`, UI layer included. The two halves of the UI are checked by different means: page loaders and event handlers by state-level tests (see the `UIHarness` in `tests/conftest.py`, which drives a Reflex state outside the server), and the component trees by `uv run reflex compile --dry`, which fails on a mistyped attribute of a typed row model. Every test runs against an in-memory SQLite database, never against `zanshin/database.sqlite`.
+562 unit tests and 249 integration tests. **The integration suites do not skip.** They used
+to begin with `const describeWithPostgres = connectionString ? describe : describe.skip`:
+without a database URL, twelve files silently skipped themselves and the run reported green
+having verified nothing. The harness now starts the container itself, so a missing Docker
+fails loudly — which is the correct behaviour, and exactly the class of defect this project
+exists to find.
 
-```bash
-uv run pytest -m backends     # needs Docker
-```
-
-Additionally, a cross-backend suite starts a real PostgreSQL 16 server with testcontainers, applies every migration and pushes a row through each custom column type and each service that owns one. It is excluded from the default run (`addopts = -m 'not backends'`) because an image pull does not belong in the loop you run on every edit, and it skips itself when Docker is unavailable. It exists because every portability defect this schema had was invisible both to SQLite and to reading the code — a `BINARY` type PostgreSQL has no name for, `FROM user` resolving to a function instead of a table, `VARCHAR` without a length, a `BIGINT` foreign key onto an `INT` key, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six of them, all found by running.
+Migrations rather than `synchronize`, for the same reason: the schema under test is the one
+production will receive.
 
 ```bash
 uvx pyright
 ```
 
-A type check, deliberately narrow. Run with its default rules over `zanshin/`, pyright reports ~674 errors and almost none are real: the models declare columns the SQLAlchemy 1.x way (`id = Column(Integer)`) rather than `Mapped[int]`, so every attribute reads as `Column[Any]` and `if repo.name:` is an error; and Reflex event handlers are descriptors on the state class, so `State.handler(x)` reads as a bad call. A gate that failed on that would be switched off within a week, so `[tool.pyright]` in `pyproject.toml` keeps only the rules whose findings were checked one by one and were all true. That short list still earned its place immediately: `func.count` was used in `ScanRepository.count_by_queue_state` without importing `func`, a `NameError` on every call, and its only caller turns any exception into a toast — so the symptom was a Paramètres screen quietly showing defaults for every field loaded after it. 1 000 tests did not see it. Widening the list is worth doing *after* the models move to `Mapped[...]`, which is what would make a column's declared type mean something.
+The backend compiles under `strictNullChecks` and a **layering test**
+(`architecture.spec.ts`) that fails the build when an import crosses the wrong way. That
+test is not decoration: it is what keeps the domain layer — fingerprints, gate verdicts,
+schedules — free of TypeORM and HTTP, and therefore testable without a database.
+
+The lesson kept from the Python version's type checking still applies: a gate that fires on
+noise is switched off within a week. So the rules here are the ones whose findings were all
+real.
 
 ### Project structure
 
 ```
-zanshin/
-├── models/          # SQLAlchemy models
-├── repositories/     # Data access
-├── services/         # Business logic (scanning, enrichment, users, audit...)
-│   ├── scanners/      # ScannerEngine implementations (docker, osv, local_api)
-│   ├── scan_runner.py     # Runs the scanners — no database (agent side)
-│   └── scan_ingestor.py   # Normalizes results — database only (controller side)
-├── agent/             # The remote agent: `python -m zanshin.agent`
-├── ui/                # Reflex pages, state, and typed view models
-├── api/               # HTTP API (FastAPI, mounted on the Reflex app)
-├── scan_contract.py   # Task/result shapes shared by runner and ingestor
-├── schema.py          # Alembic bootstrap at startup
-├── clock.py           # The single source of "now"
-└── container.py       # Dependency injection (IoCContainer)
-migrations/            # Alembic revisions
-scan-api/              # HTTP sidecar service (local_api backend)
-tests/                 # pytest suite
+backend/src/
+├── domain/            # Pure rules: fingerprint, gate, exports, schedule, payloads
+├── scanning/          # Runs the scanners — no database (agent side)
+├── persistence/       # TypeORM entities and migrations
+├── repositories/      # Data access, no business rules
+├── services/          # Orchestration: ingestion, issues, notifications, tickets
+└── api/               # HTTP controllers
+frontend/src/app/      # Angular: 15 screens, Sakai layout over Optimus UI
 docs/architecture/     # ADR
 ```
+
+The import direction is enforced by a test (`architecture.spec.ts`):
+`domain ← scanning ← persistence ← repositories ← services ← api`. The domain layer knows
+nothing of TypeORM or HTTP, which is what makes the rules that matter — a fingerprint, a
+gate verdict, a due date — testable without a database.
 
 ---
 
@@ -336,7 +331,7 @@ docs/architecture/     # ADR
 
 Zanshin est une application de suivi des dépendances et de sécurité logicielle, basée sur l'analyse de SBOM (Software Bill of Materials). Elle scanne des dépôts Git et des images de conteneurs, détecte les vulnérabilités connues, les secrets codés en dur, les licences problématiques et les mauvaises configurations d'infrastructure (IaC), puis centralise les résultats dans un tableau de bord unique — dans l'esprit d'une plateforme ASPM (Application Security Posture Management) unifiée, avec une couche de scan pluggable (Docker local, API locale, ou API cloud selon le type d'analyse).
 
-Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côté serveur) et SQLAlchemy/SQLite.
+Construit avec [NestJS](https://nestjs.com) et [Angular](https://angular.dev) sur PostgreSQL, dans un unique espace de travail npm.
 
 ### Fonctionnalités
 
@@ -360,7 +355,7 @@ Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côt�
   qu'aucun autre scanner ne voit ici. Produit deux natures de constats : *sécurité*,
   traités comme toute vulnérabilité, et *qualité*, visibles dans le backlog mais
   incapables de faire échouer un gate CI. Tourne réseau coupé, avec des règles embarquées
-  dans Zanshin ; voir [le répertoire de règles](zanshin/services/scanners/rules/semgrep/README.md)
+  dans Zanshin ; voir [le répertoire de règles](backend/src/scanning/rules/semgrep/)
   pour en ajouter.
 - **Suivi et triage des problèmes** : chaque finding est suivi d'un scan à l'autre sous forme de *problème* — première détection, nombre de fois vu, existence d'un correctif, et décision de triage en vocabulaire VEX (affecté / non affecté / corrigé / à examiner) avec justification, et éventuellement une **date de révision**. Une suppression porte sur un contexte — « pas atteignable dans notre configuration », « pas livré en production » — et les contextes changent ; à l'échéance, le problème revient *à examiner*, justification et commentaire conservés. Chaque scan indique ce qu'il a **changé** : problèmes apparus, problèmes résolus.
 - **Rescan périodique** : chaque cible porte un intervalle de scan, honoré par un ordonnanceur intégré — l'intérêt étant que de nouvelles vulnérabilités apparaissent dans du code qui n'a pas bougé.
@@ -369,23 +364,34 @@ Construit en Python avec [Reflex](https://reflex.dev) (état et UI gérés côt�
 - **Notifications** : un webhook part quand un scan fait apparaître ou réapparaître quelque chose — pas à chaque scan, c'est ce qui garde le canal lisible. Le message est écrit dans un **outbox, dans la même transaction que les résultats du scan**, puis livré par l'ordonnanceur avec réessais espacés et plafonnés : un arrêt brutal entre la validation et l'envoi ne le perd plus en silence, et un point d'arrivée momentanément injoignable est réessayé au lieu d'être journalisé une fois.
 - **Exports** : **SARIF 2.1.0** pour GitHub code scanning / GitLab / Azure DevOps — c'est ce qui sort un problème du tableau de bord pour l'amener sur la pull request qui l'a introduit — plus un document OpenVEX construit à partir des décisions de triage, les problèmes en CSV, et le SBOM stocké.
 - **Gestion des utilisateurs** et **journal d'audit** : rôles (SUPERUSER/ADMIN/USER), garde-fous (impossible de supprimer son propre compte ou le dernier superutilisateur actif), traçabilité des actions sensibles.
-- **Backends de scan interchangeables** : Docker local (par défaut, rien ne sort de la machine), OSV.dev (matching de vulnérabilités via API cloud gratuite) ou un service HTTP sidecar auto-hébergé (`scan-api/`) — au choix depuis la page Paramètres, sans changer le reste de l'application.
+- **Un scan qui reste sur la machine** : chaque scanner tourne dans un conteneur éphémère, réseau coupé et montage en lecture seule. Les backends OSV.dev et sidecar HTTP qu'offrait la version Python **ne font pas partie de ce portage** — le sidecar était déjà documenté comme redondant, et le matching OSV apportait peu face à une image Grype épinglée.
 
 ### Architecture
 
-Le choix de conception central est l'interface `ScannerEngine` (`zanshin/services/scanners/base.py`), qui découple *quoi* scanner de *où/comment* c'est exécuté. `ScanProcessor` orchestre les étapes (clone, SBOM, scan de vulnérabilités, secrets, IaC) sans jamais appeler Docker directement — il délègue à l'implémentation configurée :
+Le pipeline est coupé en deux le long d'une seule ligne : **`ScanRunner` exécute les
+scanners et ne touche jamais la base ; `ScanIngestor` lit ses résultats et n'exécute
+jamais de conteneur.** C'est cette coupure qui permet au même code de tourner dans le plan
+de contrôle ou sur un agent distant qui n'a aucun identifiant de base.
 
-| Backend | Génération SBOM / secrets / IaC | Matching de vulnérabilités | Cas d'usage |
-|---|---|---|---|
-| `docker` (défaut) | Conteneurs Docker éphémères (Syft/gitleaks/checkov/Semgrep) | Grype (conteneur local) | Aucune dépendance externe, 100 % local |
-| `osv` | Délégué au backend Docker local | API cloud OSV.dev (gratuite) | Matching CVE sans maintenir Grype localement |
-| `local_api` | Service HTTP sidecar (`scan-api/`), même hôte, disque partagé | Idem, via le sidecar | Retire l'accès au socket Docker du processus principal |
+| Étape | Outil | Image épinglée par empreinte |
+|---|---|---|
+| SBOM | Syft | oui |
+| Vulnérabilités | Grype | oui |
+| Secrets | gitleaks | oui |
+| IaC | checkov | oui |
+| Code source (désactivé par défaut) | Semgrep | oui |
+
+Chaque scanner tourne dans un conteneur éphémère avec **le réseau coupé**, un montage en
+lecture seule, `cap_drop: ALL` et `no-new-privileges`. Rien du code scanné ne quitte la
+machine. Les seuls appels sortants d'un scan sont EPSS et le catalogue KEV, qui ne portent
+que des identifiants de CVE — et le catalogue de fin de vie, qui ne porte que des noms de
+produits et des versions.
 
 Les résultats sont normalisés dans une table `Finding` unique (type, sévérité, identifiant, package, source, scores EPSS/CVSS, statut KEV, version corrigée) en plus des blobs JSON bruts (`Scan.sbom`, `Scan.cves`) conservés pour l'audit.
 
-Un `Finding` est une *observation*, valable pour un seul scan. Au-dessus, un `Issue` suit le même problème d'un scan à l'autre — identifié par une empreinte qui ignore volontairement la version du paquet, pour qu'une dépendance restée vulnérable pendant trois versions correctives conserve un seul historique et une seule décision de triage. Deux axes sont maintenus strictement séparés : `state` (ouvert/résolu) n'est écrit que par le pipeline, d'après ce que les scanners observent ; `triage_status` (VEX) n'est écrit que par un humain. Les confondre viderait « résolu » de son sens — un finding masqué et un finding réellement corrigé ne doivent pas se ressembler. Voir [`zanshin/services/issue_service.py`](zanshin/services/issue_service.py).
+Un `Finding` est une *observation*, valable pour un seul scan. Au-dessus, un `Issue` suit le même problème d'un scan à l'autre — identifié par une empreinte qui ignore volontairement la version du paquet, pour qu'une dépendance restée vulnérable pendant trois versions correctives conserve un seul historique et une seule décision de triage. Deux axes sont maintenus strictement séparés : `state` (ouvert/résolu) n'est écrit que par le pipeline, d'après ce que les scanners observent ; `triage_status` (VEX) n'est écrit que par un humain. Les confondre viderait « résolu » de son sens — un finding masqué et un finding réellement corrigé ne doivent pas se ressembler. Voir [`backend/src/services/issue-sync.service.ts`](backend/src/services/issue-sync.service.ts).
 
-Le dossier d'architecture — vue d'ensemble, modèle de données, sécurité, déploiement, et un registre des décisions avec les alternatives écartées — est dans [`docs/architecture/`](docs/architecture/). Le service sidecar `scan-api/` a son propre [README](scan-api/README.md) (modèle de déploiement, sécurité, limites connues). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+Le dossier d'architecture — vue d'ensemble, modèle de données, sécurité, déploiement, et un registre des décisions avec les alternatives écartées — est dans [`docs/architecture/`](docs/architecture/). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
 #### Scan distribué : les agents
 
@@ -395,7 +401,8 @@ même table et apparaissent ensemble sur la page `/agents` :
 - l'**agent intégré** — ce processus web lui-même. Créé automatiquement au démarrage,
   aucune configuration : c'est ce qui fait qu'une installation sur une seule machine
   fonctionne d'emblée ;
-- les **agents distants** — des processus `python -m zanshin.agent` séparés, sur d'autres
+- les **agents distants** — des travailleurs séparés sur d'autres machines, parlant le
+  protocole d'agent à quatre routes (`hello`, `jobs`, `heartbeat`, `result`), sur d'autres
   machines.
 
 Les deux exécutent le même code (`ScanRunner`) et renvoient les sorties brutes des
@@ -420,16 +427,15 @@ Zanshin détient.
 | `local` (défaut) | rien | la machine de l'agent a son propre accès git. Un agent compromis ne donne que ce qui a été accordé à cette machine |
 | `delegated` | la clé de déploiement, par tâche | machine de confiance. Exige HTTPS (refus sinon), la clé n'est jamais écrite ailleurs que dans un fichier temporaire `0600`, et chaque remise est auditée |
 
-```bash
-# Sur la machine de l'agent — la clé vient de /agents, affichée une seule fois
-ZANSHIN_URL=https://zanshin.interne \
-ZANSHIN_AGENT_TOKEN=zsk_... \
-python -m zanshin.agent
-```
+**Lacune connue de ce portage.** Le plan de contrôle sert le protocole d'agent en entier —
+un agent se déclare depuis `/agents`, sa clé est délivrée une fois, et les quatre routes
+sont en place et testées. Ce qui ne suit **pas** encore, c'est un binaire d'agent autonome :
+le processus Python `zanshin.agent` a été retiré avec le reste de l'arbre Python, et son
+remplaçant TypeScript n'est pas écrit. Les agents distants sont donc joignables par tout ce
+qui parle le protocole, mais Zanshin ne vous fournit pas le client. Les installations sur
+une seule machine ne sont pas concernées : elles utilisent l'agent intégré.
 
-Voir [`docker-compose.agent.yml`](docker-compose.agent.yml) pour la variante
-conteneurisée, et
-[`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
+Voir [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 pour les décisions et les limites connues.
 
 **Lancer plus d'une instance web.** L'essentiel de ce qui rendait cela dangereux est
@@ -438,35 +444,38 @@ travail périodique a exactement un propriétaire dans la flotte, la reprise au 
 ne fait plus échouer les scans d'un autre exécutant, et le quota d'API comme
 l'anti-bourrage sont partagés via Redis. Ce que cela exige :
 
-- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). SQLite n'a qu'un écrivain et pas de
-  `SKIP LOCKED` ; une seconde instance dessus est refusée au démarrage plutôt que
-  laissée corrompre le fichier ;
-- **`REDIS_URL`**, à la fois pour le gestionnaire d'état de Reflex — sans lui, un client
-  qui atterrit sur l'autre instance est déconnecté par intermittence — et pour les
-  compteurs de sécurité ;
-- **`ZANSHIN_AUTO_MIGRATE=false`**, avec `alembic upgrade head` comme étape de
-  déploiement à part : le verrou de migration est un verrou de fichier et ne coordonne
-  qu'un hôte.
+- **PostgreSQL** (`ZANSHIN_DATABASE_URL`). C'est le seul moteur dont le `FOR UPDATE SKIP
+  LOCKED` fait ce que la file suppose ;
+- **la migration comme étape de déploiement propre** (`npm --workspace backend run
+  migration:run`), avant le démarrage des nouvelles instances ;
+- rien d'autre. Les sessions vivent en base et non dans la mémoire d'un processus, donc un
+  client qui atterrit sur l'autre instance reste connecté.
+
+L'ordonnanceur élit un propriétaire unique dans la flotte, tandis que chaque instance
+continue de réclamer du travail pour son propre travailleur intégré : une flotte dont les
+instances ne travailleraient qu'en détenant le bail resterait oisive derrière celle qui le
+tient.
 
 Mal démarrée, l'application le dit : elle refuse, ou avertit, en nommant la raison.
 
 ### Démarrage rapide
 
-Prérequis : Python ≥ 3.12, [uv](https://docs.astral.sh/uv/), Docker (pour le backend de scan par défaut).
+Prérequis : Node ≥ 24, Docker (pour les scanners et, en développement, pour la base).
 
 ```bash
-uv sync
-uv run reflex run
+npm install
+npm --workspace backend run start:dev     # API sur http://localhost:3000
+npm --workspace frontend start            # interface sur http://localhost:4200
 ```
 
-L'application démarre sur `http://localhost:3000` (frontend) avec l'API backend sur le port par défaut de Reflex.
 
-Le schéma est géré par **Alembic**. Au démarrage, Zanshin met la base à la dernière révision tout seul ; une base antérieure à Alembic est adoptée (marquée à la révision de référence) plutôt que reconstruite, donc la mise à jour d'un déploiement existant ne demande aucune manipulation. Les migrations se pilotent aussi à la main :
+Le schéma appartient aux **migrations TypeORM** — `synchronize` est désactivé, et c'est
+délibéré : un schéma synthétisé depuis les entités n'est pas celui que la production
+recevra, et tester contre lui laisserait passer une migration incorrecte.
 
 ```bash
-uv run alembic upgrade head     # appliquer
-uv run alembic check            # échoue si un modèle n'a pas sa migration
-uv run alembic revision --autogenerate -m "ce qui a changé"
+npm --workspace backend run migration:run       # appliquer
+npm --workspace backend run migration:generate  # en écrire une depuis les entités
 ```
 
 #### Pages principales
@@ -609,117 +618,93 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `ZANSHIN_DB_PATH` | `zanshin/database.sqlite` | Chemin du fichier SQLite. La façon la plus simple de garder les données hors de l'arborescence source ; rendu absolu, parce qu'un chemin relatif se résout par rapport au répertoire courant et que celui-ci diffère entre `reflex run`, `alembic` et une unité de service. |
-| `ZANSHIN_DATABASE_URL` | dérivée de `ZANSHIN_DB_PATH` | URL SQLAlchemy complète, pour tout ce qui n'est pas un fichier local — par exemple `postgresql+psycopg://utilisateur:motdepasse@hôte/zanshin`. Prend le pas sur `ZANSHIN_DB_PATH`. Nécessite le pilote : `uv sync --extra postgres`. |
-| `REDIS_URL` | — | Partage le quota d'API et l'anti-bourrage entre instances. Sans lui ils sont comptés par processus : correct pour une instance, et le quota double pour deux. Reflex lit la même variable pour son gestionnaire d'état, dont une flotte a de toute façon besoin. |
-| `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` | `false` | Lève le refus au démarrage déclenché quand une autre instance est vivante et que la base est SQLite. Son seul usage légitime : un redémarrage sous un *nouveau* nom d'hôte moins de deux minutes après l'arrêt du précédent — un rolling restart Kubernetes. Il ne rend pas deux instances sûres sur SQLite. |
-| `ZANSHIN_DB_TIMEOUT_SECONDS` | `30` | SQLite uniquement : combien de temps une écriture attend un autre écrivain avant d'échouer. Les workers de scan, l'ordonnanceur et les requêtes écrivent tous, donc la contention est normale. |
-| `ZANSHIN_DB_POOL_SIZE` / `_MAX_OVERFLOW` / `_POOL_RECYCLE_SECONDS` | `5` / `10` / `1800` | Bases serveur uniquement : pool de connexions. Ignoré pour SQLite, qui n'a pas de pool à régler. |
-| `ZANSHIN_AUTO_MIGRATE` | `true` | `false` pour un déploiement qui exécute `alembic upgrade head` comme étape propre — ce que devrait faire une base serveur répartie sur plusieurs hôtes applicatifs. Le schéma reste *vérifié* au démarrage : une base en retard sur le code arrête l'application là, et non à la première requête. |
-| `ZANSHIN_SCAN_WORKERS` | `5` | Valeur *par défaut* du réglage « scans simultanés maximum », qui s'édite désormais depuis la page **Paramètres** et s'applique sans redémarrage. Les scans sont mis en file dans l'ordre où ils ont été demandés ; la file vit en base, donc une demande survit à un redémarrage et sa place est connue (`queue_position` sur `GET /api/v1/scans/{id}`). |
-| `ZANSHIN_SCAN_POOL_THREADS` | `32` | Plafond dur du nombre de threads de scan, donc du réglage ci-dessus. Le pool est une réserve de threads, pas la file — un pool plus petit que la limite configurée la bornerait silencieusement. |
-| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Plafond pour un conteneur de scan ; au-delà, il est tué et le scan échoue en timeout au lieu de rester bloqué. |
-| `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` pour un déploiement qui ne scanne qu'à la demande. |
-| `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | Fréquence de recherche des cibles dues. |
-| `ZANSHIN_STALLED_SCAN_MAX_AGE_SECONDS` | `5400` | Âge au-delà duquel un scan encore en cours est considéré bloqué et mis en échec. |
-| `ZANSHIN_RETENTION_INTERVAL_SECONDS` | `21600` | Fréquence de purge des sorties brutes des scanners (les seuils eux-mêmes sont dans la page **Paramètres**). |
-| `ZANSHIN_SCAN_MEMORY_LIMIT` | `2g` | Plafond mémoire par conteneur de scan. |
-| `ZANSHIN_SCAN_PIDS_LIMIT` | `512` | Plafond de processus par conteneur de scan. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` | digests épinglés | Images des analyseurs. Épinglées par digest et non par tag : elles s'exécutent avec le socket Docker monté, donc elles constituent la chaîne d'approvisionnement de Zanshin. À mettre à jour délibérément via `docker buildx imagetools inspect <image>:latest`. |
-| `ZANSHIN_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Origines autorisées à ouvrir le websocket, séparées par des virgules. Reflex accepte `*` par défaut, ce qui permet à n'importe quelle page visitée de créer de l'état serveur. **À renseigner avec le vrai nom d'hôte pour tout déploiement hors localhost**, sinon le frontend de l'application est lui-même refusé. |
-| `ZANSHIN_SESSION_TTL_HOURS` | `12` | Une session plus ancienne est déconnectée au chargement de page suivant. |
-| `ZANSHIN_API_RATE_LIMIT` / `ZANSHIN_API_RATE_WINDOW_SECONDS` | `300` / `60` | Requêtes par clé et par fenêtre, avant un 429 avec `Retry-After`. Comptées en mémoire, par processus. |
-| `ZANSHIN_MIGRATION_LOCK` | à côté de la base | Fichier de verrou sérialisant `alembic upgrade` au démarrage. Reflex importe l'application dans plusieurs processus et le DDL de SQLite n'est pas transactionnel : sans ce verrou, deux montées de version simultanées peuvent laisser le schéma à moitié migré. |
+| `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
+| `ZANSHIN_DB_DIALECT` | `postgres` | Declares the engine so the application can warn at startup about what that engine cannot do correctly (see `dialects.ts`). It does not make an unsupported engine work. |
+| `PORT` | `3000` | HTTP port of the API. |
+| `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
+| `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
+| `ZANSHIN_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
+| `ZANSHIN_SCAN_LEASE_SECONDS` / `_MAX_ATTEMPTS` / `_CLAIM_ATTEMPTS` | `900` / `3` / `3` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
+| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it the container is killed and the scan fails with a timeout instead of hanging. |
+| `ZANSHIN_SCAN_MEMORY_LIMIT_MB` / `_PIDS_LIMIT` | `2048` / `512` | Memory and process ceilings per scanner container. |
+| `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
+| `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
+| `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they *are* Zanshin's supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
+| `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
+| `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
+| `ZANSHIN_SQL_LOGGING` | `false` | Logs every statement. For diagnosis, never for a running deployment. |
 
-Le sidecar (`scan-api/`) exige en plus `ZANSHIN_SCAN_API_TOKEN` (à reporter dans le réglage `local_scan_api_token`) et `ZANSHIN_SHARED_ROOT`. Il refuse toute requête sans jeton, et tout chemin hors de cette racine — voir [`scan-api/README.md`](scan-api/README.md).
 
 Le fichier de base de données ne fait plus partie du dépôt (il contient des hashes de mots de passe et des clés SSH chiffrées) : un déploiement neuf démarre donc sans aucun compte, d'où ces variables de bootstrap. Dès qu'un compte existe, elles sont ignorées.
 
 #### Choisir une base de données
 
-SQLite est le défaut, et c'est ce contre quoi ce déploiement est éprouvé : un fichier,
-pas de serveur, et le volume d'écriture du pipeline de scan est loin de ses limites.
-Placez-le à un endroit durable et sauvegardez-le — ce fichier *est* l'installation.
+PostgreSQL est le seul moteur pris en charge, et c'est un rétrécissement par rapport à la
+version Python, qui prenait SQLite par défaut.
 
-```bash
-ZANSHIN_DB_PATH=/var/lib/zanshin/zanshin.sqlite
-```
+La raison n'est pas une préférence. Trois choses que fait cette application sont fausses
+sur SQLite et **ne produisent aucune erreur** — elles produisent des données fausses.
+`FOR UPDATE SKIP LOCKED`, qui rend la file de scans sûre à plusieurs travailleurs, est
+accepté puis *silencieusement supprimé* : la réclamation ressemble à une transaction, passe
+tous les tests sur la machine d'un développeur, et remet le même scan à deux processus en
+production. SQLite n'a par ailleurs qu'un seul écrivain, et l'ordonnanceur, les
+travailleurs et les requêtes écrivent tous.
 
-PostgreSQL est l'autre moteur pris en charge, vérifié par des tests qui démarrent un
-vrai serveur — `pytest -m backends` passe tout le schéma et chaque service propriétaire
-d'une colonne sur PostgreSQL 16 via testcontainers. Ils sont exclus de l'exécution par
-défaut : un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque
-modification. Une chose à savoir avant de choisir.
+MySQL et MariaDB sont déclarés dans `dialects.ts` avec les trois défauts qui suivraient —
+`DATETIME` tronquant à la seconde, ce qui fait que le journal d'audit se déclare falsifié ;
+`SKIP LOCKED` comptant les lignes sautées dans le `LIMIT` ; `NULLS LAST` refusé — mais ils
+ne sont **pas testés**, et aucune migration n'existe pour eux. Cette entrée est un
+avertissement, pas une prise en charge.
 
-**MySQL a été pris en charge, puis retiré.** Il ne remplissait aucun rôle que les deux
-autres ne couvrent : il n'est ni l'option sans configuration, ni la cible de déploiement,
-et il avait son comportement propre à trois endroits qui comptent — `DATETIME` tronqué à
-la seconde entière, donc chaque entrée du journal d'audit se déclarait falsifiée ;
-`SKIP LOCKED` comptant les lignes sautées dans `LIMIT`, donc des réclamations de scan qui
-revenaient vides ; `NULLS LAST` en erreur de syntaxe. Trois branches par dialecte dans du
-code dont le sujet est l'intégrité, sans contrepartie. Une URL MySQL est désormais refusée
-au démarrage avec cette explication, plutôt que de marcher à moitié.
-
-```bash
-uv sync --extra postgres
-ZANSHIN_DATABASE_URL=postgresql+psycopg://zanshin:...@db.internal/zanshin
-ZANSHIN_AUTO_MIGRATE=false        # exécuter « alembic upgrade head » comme étape de déploiement
-```
-
-- **Les clés étrangères y sont appliquées, contrairement à SQLite**, qui les ignore
-  sauf demande explicite par connexion. Les cascades de ce schéma sont déclarées côté
-  ORM et `Issue.findings` n'en a aucune : une suppression qui laisse aujourd'hui des
-  lignes orphelines en silence lèverait une erreur sur une base serveur. Pas encore
-  corrigé — cela demande des règles `ondelete` et une migration.
-- **Les horodatages sont stockés en chaînes ISO-8601**, pas en `timestamptz` ni
-  `DATETIME`. C'est ce que fait `SafeDateTime`, et c'est délibéré (il existe pour
-  relire les différents formats laissés par le schéma antérieur à Alembic), mais cela
-  signifie qu'on ne dispose pas d'arithmétique de dates en SQL sur ces colonnes. Le
-  tri et les comparaisons fonctionnent, l'ISO-8601 se triant lexicographiquement.
-
-Les migrations tournent sur l'une comme sur l'autre. `alembic` lit les deux mêmes
-variables que l'application, donc la ligne de commande et l'application en marche ne
-peuvent pas être en désaccord sur la base qu'elles regardent.
 
 ### Tests
 
 ```bash
-uv run pytest
+npm --workspace backend test                   # suite unitaire
+npm --workspace backend run test:integration   # démarre PostgreSQL par testcontainers
 ```
 
-~82 % de couverture sur `zanshin/`, couche UI incluse. Les deux moitiés de l'UI sont vérifiées par des moyens différents : les loaders et handlers par des tests d'état (voir `UIHarness` dans `tests/conftest.py`, qui pilote un état Reflex hors serveur), et les arbres de composants par `uv run reflex compile --dry`, qui échoue sur un attribut inexistant d'une ligne typée. Chaque test s'exécute sur une base SQLite en mémoire, jamais sur `zanshin/database.sqlite`.
+562 tests unitaires et 249 tests d'intégration. **Les suites d'intégration ne se sautent
+pas.** Elles commençaient par `const describeWithPostgres = connectionString ? describe :
+describe.skip` : sans URL de base, douze fichiers se sautaient en silence et la campagne
+rapportait vert sans rien avoir vérifié. Le harnais démarre désormais le conteneur
+lui-même, donc l'absence de Docker échoue bruyamment — le comportement correct, et
+exactement le genre de défaut que ce projet existe pour trouver.
 
-```bash
-uv run pytest -m backends     # nécessite Docker
-```
-
-En complément, une suite multi-backends démarre un vrai serveur PostgreSQL 16 avec testcontainers, applique toutes les migrations et fait passer une ligne par chaque type de colonne maison et chaque service qui en possède un. Elle est exclue de l'exécution par défaut (`addopts = -m 'not backends'`), parce qu'un téléchargement d'image n'a rien à faire dans la boucle qu'on lance à chaque modification, et elle se saute d'elle-même sans Docker. Elle existe parce que tous les défauts de portabilité de ce schéma étaient invisibles à la fois pour SQLite et à la lecture : un type `BINARY` que PostgreSQL ne connaît pas, `FROM user` qui désigne une fonction au lieu d'une table, `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Six, tous trouvés en exécutant.
+Les migrations plutôt que `synchronize`, pour la même raison : le schéma testé est celui
+que la production recevra.
 
 ```bash
 uvx pyright
 ```
 
-Une vérification de types, délibérément étroite. Avec ses règles par défaut sur `zanshin/`, pyright signale ~674 erreurs dont presque aucune n'est réelle : les modèles déclarent leurs colonnes à la façon SQLAlchemy 1.x (`id = Column(Integer)`) plutôt qu'en `Mapped[int]`, donc chaque attribut se lit `Column[Any]` et `if repo.name:` devient une erreur ; et les gestionnaires d'évènements Reflex sont des descripteurs posés sur la classe d'état, donc `State.handler(x)` se lit comme un mauvais appel. Une barrière qui échouerait là-dessus serait désactivée en une semaine : `[tool.pyright]` dans `pyproject.toml` ne garde donc que les règles dont les constats ont été vérifiés un à un et étaient tous justes. Cette courte liste a payé immédiatement : `func.count` était utilisé dans `ScanRepository.count_by_queue_state` sans importer `func` — un `NameError` à chaque appel — et son unique appelant transforme toute exception en notification, si bien que le symptôme était un écran Paramètres affichant silencieusement les valeurs par défaut pour tous les champs chargés après celui-là. Mille tests ne l'avaient pas vu. Élargir la liste vaudra la peine *après* le passage des modèles à `Mapped[...]`, qui est ce qui donnerait un sens au type déclaré d'une colonne.
+Le backend compile sous `strictNullChecks` et un **test de couches**
+(`architecture.spec.ts`) qui fait échouer la compilation quand un import traverse dans le
+mauvais sens. Ce test n'est pas décoratif : c'est lui qui garde la couche domaine —
+empreintes, verdicts de gate, échéances — libre de TypeORM et de HTTP, donc testable sans
+base.
+
+La leçon retenue de la vérification de types de la version Python vaut toujours : une
+barrière qui se déclenche sur du bruit est désactivée en une semaine. Les règles gardées ici
+sont donc celles dont les constats étaient tous justes.
 
 ### Structure du projet
 
 ```
-zanshin/
-├── models/          # Modèles SQLAlchemy
-├── repositories/     # Accès aux données
-├── services/         # Logique métier (scan, enrichissement, utilisateurs, audit...)
-│   ├── scanners/      # Implémentations ScannerEngine (docker, osv, local_api)
-│   ├── scan_runner.py     # Exécute les scanners — sans base (côté agent)
-│   └── scan_ingestor.py   # Normalise les résultats — base seule (côté contrôleur)
-├── agent/             # L'agent distant : `python -m zanshin.agent`
-├── ui/                # Pages, état et view-models typés Reflex
-├── api/               # API HTTP (FastAPI, montée sur l'app Reflex)
-├── scan_contract.py   # Formes de tâche/résultat partagées entre runner et ingestor
-├── schema.py          # Amorçage Alembic au démarrage
-├── clock.py           # Source unique de « maintenant »
-└── container.py       # Injection de dépendances (IoCContainer)
-migrations/            # Révisions Alembic
-scan-api/              # Service sidecar HTTP (backend local_api)
-tests/                 # Suite pytest
+backend/src/
+├── domain/            # Règles pures : empreinte, gate, exports, échéance, charges utiles
+├── scanning/          # Exécute les scanners — sans base (côté agent)
+├── persistence/       # Entités TypeORM et migrations
+├── repositories/      # Accès aux données, aucune règle métier
+├── services/          # Orchestration : ingestion, problèmes, notifications, tickets
+└── api/               # Contrôleurs HTTP
+frontend/src/app/      # Angular : 15 écrans, mise en page Sakai sur Optimus UI
 docs/architecture/     # ADR
 ```
+
+Le sens des imports est vérifié par un test (`architecture.spec.ts`) :
+`domain ← scanning ← persistence ← repositories ← services ← api`. La couche domaine ignore
+TypeORM comme HTTP, ce qui rend testables sans base les règles qui comptent — une empreinte,
+un verdict de gate, une échéance.

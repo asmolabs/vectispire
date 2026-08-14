@@ -42,12 +42,12 @@ flowchart TB
         API["API HTTP<br/>zanshin/api/ — FastAPI monté sur la même ASGI"]
         SVC["Services<br/>zanshin/services/"]
         REPO["Dépôts de données<br/>zanshin/repositories/"]
-        SCHED["Ordonnanceur<br/>scheduler.py — tick périodique"]
+        SCHED["Ordonnanceur<br/>scheduler.service.ts — tour périodique"]
     end
 
     DB[("Base<br/>SQLite ou PostgreSQL")]
     DOCKER["Démon Docker<br/>conteneurs d'analyse éphémères"]
-    AGENT["Agent distant<br/>python -m zanshin.agent"]
+    AGENT["Agent distant<br/>protocole à quatre routes"]
     FEEDS["Flux publics<br/>EPSS, CISA KEV, endoflife.date"]
     HOOK["Webhook / traqueur de tickets"]
 
@@ -69,7 +69,7 @@ qui donne enfin un consommateur aux clés API — elles pouvaient être émises 
 l'interface et ne servaient à rien.
 
 **L'injection de dépendances est manuelle**, par `IoCContainer`
-([`zanshin/container.py`](../../zanshin/container.py)), construit par requête autour d'une
+([`backend/src/api/api.module.ts`](../../backend/src/api/api.module.ts)), construit par requête autour d'une
 session de base. Pas de framework : le graphe est explicite et lisible d'un bout à l'autre.
 
 ### Les couches, et la règle qui les tient
@@ -92,7 +92,7 @@ Deux conséquences pratiques :
   `policy_gate.evaluate` — pas parce que quelqu'un a fait attention. Une agrégation SQL
   qui réimplémenterait le verdict serait d'accord aujourd'hui et divergerait au premier
   drapeau de politique ajouté.
-- Les *view-models* de l'interface ([`zanshin/ui/view_models.py`](../../zanshin/ui/view_models.py))
+- Les *view-models* de l'interface ([`frontend/src/app/core/api.models.ts`](../../frontend/src/app/core/api.models.ts))
   sont typés et calculés côté serveur. Le navigateur reçoit des valeurs finies, pas de
   l'arithmétique.
 
@@ -147,7 +147,7 @@ Docker.
 | Fin de vie | endoflife.date | sortant, opt-in | constats `eol` |
 | Revue IA | Ollama local | local, opt-in | constats `ai_review` |
 
-Le contrat est [`ScannerEngine`](../../zanshin/services/scanners/base.py), et il a trois
+Le contrat est [`ScanRunner`](../../backend/src/scanning/scan-runner.ts), et il a trois
 implémentations : Docker (défaut), une API locale en side-car, et OSV. Une méthode que le
 moteur ne sait pas faire renvoie `None` — dire « je ne sais pas faire » est une réponse
 honnête, ajouter une méthode abstraite casserait les deux autres implémentations

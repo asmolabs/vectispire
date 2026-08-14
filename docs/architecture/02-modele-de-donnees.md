@@ -61,7 +61,7 @@ dédupliqué), `leader_lease` (qui tient le tick), `agent`.
 ## L'empreinte
 
 L'identité d'un problème à travers les scans, calculée par
-[`build_fingerprint`](../../zanshin/models/issue.py) :
+[`buildFingerprint`](../../backend/src/domain/issues/issue-fingerprint.ts) :
 
 ```
 sha256( cible, type, identifiant, purl-ou-nom-de-paquet, chemin-de-fichier )
@@ -153,12 +153,12 @@ serveurs. D'où `pytest -m backends`
 Deux points de vigilance pour qui écrit la seizième :
 
 - **SQLite n'applique les clés étrangères que si un `PRAGMA` le demande**, par connexion.
-  Il est posé (`enable_sqlite_foreign_keys`) — sans lui, une suppression qui orphelinait
+  Sur PostgreSQL elles sont toujours appliquées — sans elles, une suppression qui orphelinait
   des lignes en développement levait une erreur sur un serveur.
-- **`alembic check` est un garde-fou de CI**, et il ne l'est que parce que deux types
-  maison (`GUID`, `SafeDateTime`) sont exclus de la comparaison : ce que la réflexion
-  renvoie ne compare jamais égal au décorateur. La garantie abandonnée est reprise par
-  `tests/test_timestamp_migration_backends.py`.
+- **La parité entre entités et migrations est vérifiée en campagne** : une entité modifiée
+  sans sa migration fait échouer les tests d'intégration, qui appliquent les migrations
+  plutôt que de synthétiser le schéma. C'est le seul moyen de voir une migration incorrecte
+  avant la production.
 
 ## Reste ouvert
 

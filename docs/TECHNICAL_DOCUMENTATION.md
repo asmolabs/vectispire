@@ -234,7 +234,7 @@ Notes:
 
 - A `Scan` belongs to **either** a `Repository` **or** a `Container` (`repo_id`/`container_id` are both nullable; exactly one is set). `is_container = scan.container_id is not None` is how the code branches scan behavior.
 - `Finding` is the normalized, queryable projection of a scan's results (used by the UI, VEX triage, and enrichment). The raw `Scan.sbom`/`Scan.cves` JSON blobs are kept alongside it, unmodified, for audit purposes.
-- `Issue` is the cross-scan layer above `Finding`: a finding is an observation valid for one scan, an issue is the problem itself, followed over time. It is what makes triage possible — a decision recorded against a finding would be orphaned by the next scan. Two axes are kept strictly separate: `state` is written only by the pipeline (what the scanners observe), `triage_status` only by a human (what was decided). See [`zanshin/services/issue_service.py`](../zanshin/services/issue_service.py).
+- `Issue` is the cross-scan layer above `Finding`: a finding is an observation valid for one scan, an issue is the problem itself, followed over time. It is what makes triage possible — a decision recorded against a finding would be orphaned by the next scan. Two axes are kept strictly separate: `state` is written only by the pipeline (what the scanners observe), `triage_status` only by a human (what was decided). See [`backend/src/services/issue-sync.service.ts`](../backend/src/services/issue-sync.service.ts).
 - `VexDecision`, `Finding.status` and `Finding.vex_decision_id` were dropped in migration 0003 once `Issue` superseded them: the table was never written to in any deployment, and the column was written once as "open" and never read again. Two models for one concept is a trap for the next reader.
 - `AuditLog` maps onto `audit_logs`, a table inherited from an earlier implementation of this application. Its schema was matched exactly (via `PRAGMA table_info` against the live database) rather than redesigned, since it predates Alembic and carries live data. `user_id` is a plain string column, not an enforced foreign key.
 - `AiReviewResult` holds the optional AI code review's raw narrative output (see §4bis) — a separate table rather than a `Finding` column, since it's free-form text, not a normalized/queryable finding, and adding a `Text` column to the existing `Finding` table would need a manual migration.
@@ -376,14 +376,14 @@ no database.
 
 Every scan is claimed by an **agent**, which is a row in the `agent` table. The web
 process is one of them (`kind=builtin`, registered at startup, one per host); a
-`python -m zanshin.agent` process is another (`kind=remote`).
+worker speaking the agent protocol is another (`kind=remote`).
 
 ```mermaid
 sequenceDiagram
     participant Q as scan_queue
     participant BI as Built-in agent<br/>(this process)
     participant API as /api/v1/agents
-    participant RA as Remote agent<br/>(python -m zanshin.agent)
+    participant RA as Remote agent<br/>(agent protocol)
     participant ING as ScanIngestor
     participant DB as Database
 
@@ -467,7 +467,7 @@ Each service depends only on the repositories it needs (constructor injection), 
 
 ### 6. Testing approach
 
-The `tests/` suite (pytest) runs entirely against an in-memory SQLite database, created fresh per test — `zanshin/database.sqlite` is never touched. Services that hardcode `SessionLocal` internally (`ScanProcessor.process_scan`, `container.get_container`) are tested by monkeypatching that symbol to an isolated in-memory session factory rather than by changing production code to accept an injected session. The Reflex UI/State layer is intentionally excluded from coverage measurement (see `pyproject.toml`'s `[tool.coverage.run]`), since `rx.State` classes need Reflex's own event-handler test harness, not plain pytest. See `README.md` for how to run it.
+The unit suite runs without a database. The integration suites start a real PostgreSQL through testcontainers, apply every migration, and roll each test back in its own transaction — so the schema under test is the one production will receive, and the cases cannot see each other. They **do not skip** when Docker is missing: a run that verifies nothing must fail loudly, which is the defect this harness itself once had. See `README.md` for how to run it.
 
 ---
 
@@ -701,7 +701,7 @@ Remarques :
 
 - Un `Scan` appartient soit à un `Repository`, soit à un `Container` (`repo_id`/`container_id` sont tous deux nullable ; un seul des deux est renseigné). `is_container = scan.container_id is not None` détermine le branchement du comportement de scan.
 - `Finding` est la projection normalisée et requêtable des résultats d'un scan (utilisée par l'UI, le triage VEX et l'enrichissement). Les blobs JSON bruts `Scan.sbom`/`Scan.cves` sont conservés à côté, inchangés, à des fins d'audit.
-- `Issue` est la couche inter-scans au-dessus de `Finding` : un finding est une observation valable pour un scan, un issue est le problème lui-même, suivi dans le temps. C'est ce qui rend le triage possible — une décision enregistrée sur un finding serait orpheline au scan suivant. Deux axes strictement séparés : `state` n'est écrit que par le pipeline (ce que les scanners observent), `triage_status` que par un humain (ce qui a été décidé). Voir [`zanshin/services/issue_service.py`](../zanshin/services/issue_service.py).
+- `Issue` est la couche inter-scans au-dessus de `Finding` : un finding est une observation valable pour un scan, un issue est le problème lui-même, suivi dans le temps. C'est ce qui rend le triage possible — une décision enregistrée sur un finding serait orpheline au scan suivant. Deux axes strictement séparés : `state` n'est écrit que par le pipeline (ce que les scanners observent), `triage_status` que par un humain (ce qui a été décidé). Voir [`backend/src/services/issue-sync.service.ts`](../backend/src/services/issue-sync.service.ts).
 - `VexDecision`, `Finding.status` et `Finding.vex_decision_id` ont été supprimées par la migration 0003 dès lors que `Issue` les supersédait : la table n'a jamais été écrite dans aucun déploiement, et la colonne était écrite une fois à « open » puis jamais relue. Deux modèles pour un seul concept, c'est un piège pour le prochain lecteur.
 - `AuditLog` correspond à `audit_logs`, une table héritée d'une implémentation précédente de cette application. Son schéma a été repris à l'identique (via `PRAGMA table_info` sur la base réelle) plutôt que redessiné, la table étant antérieure à Alembic et porteuse de données réelles. `user_id` est une simple colonne texte, pas une clé étrangère contrainte.
 - `AiReviewResult` contient la sortie narrative brute de la revue de code par IA optionnelle (voir §4bis) — une table séparée plutôt qu'une colonne sur `Finding`, puisqu'il s'agit de texte libre, pas d'un finding normalisé/requêtable, et qu'ajouter une colonne `Text` à la table `finding` existante nécessiterait une migration manuelle.
@@ -787,14 +787,14 @@ machine sans base de données.
 
 Tout scan est réclamé par un **agent**, qui est une ligne de la table `agent`. Le
 processus web en est un (`kind=builtin`, enregistré au démarrage, un par hôte) ; un
-processus `python -m zanshin.agent` en est un autre (`kind=remote`).
+travailleur parlant le protocole d'agent en est un autre (`kind=remote`).
 
 ```mermaid
 sequenceDiagram
     participant Q as scan_queue
     participant BI as Agent intégré<br/>(ce processus)
     participant API as /api/v1/agents
-    participant RA as Agent distant<br/>(python -m zanshin.agent)
+    participant RA as Agent distant<br/>(protocole d'agent)
     participant ING as ScanIngestor
     participant DB as Base de données
 
@@ -880,4 +880,4 @@ Chaque service ne dépend que des repositories dont il a besoin (injection par c
 
 ### 6. Approche de test
 
-La suite `tests/` (pytest) s'exécute entièrement sur une base SQLite en mémoire, créée à neuf pour chaque test — `zanshin/database.sqlite` n'est jamais touchée. Les services qui codent en dur `SessionLocal` en interne (`ScanProcessor.process_scan`, `container.get_container`) sont testés en substituant ce symbole (monkeypatch) par une fabrique de session isolée en mémoire, plutôt qu'en modifiant le code de production pour accepter une session injectée. La couche UI/State Reflex est volontairement exclue de la mesure de couverture (voir `[tool.coverage.run]` dans `pyproject.toml`), car les classes `rx.State` nécessitent le harnais de test propre à Reflex, pas pytest classique. Voir `README.md` pour l'exécuter.
+La suite unitaire tourne sans base. Les suites d'intégration démarrent un vrai PostgreSQL par testcontainers, appliquent toutes les migrations, et annulent chaque test dans sa propre transaction — le schéma testé est donc celui que la production recevra, et les cas ne se voient pas entre eux. Elles **ne se sautent pas** quand Docker manque : une campagne qui ne vérifie rien doit échouer bruyamment, défaut que ce harnais a lui-même porté. Voir `README.md` pour l'exécuter.

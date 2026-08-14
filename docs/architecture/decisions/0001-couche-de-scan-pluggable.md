@@ -14,7 +14,7 @@ premier.
 
 ## Décision
 
-Une interface commune, [`ScannerEngine`](../../../zanshin/services/scanners/base.py), qui
+Une interface commune, [`ScanRunner`](../../../backend/src/scanning/scan-runner.ts), qui
 sépare **quoi** scanner de **comment et où** c'est exécuté. L'orchestrateur appelle
 l'implémentation configurée ; le moteur Docker reste le défaut, fonctionnellement
 inchangé.

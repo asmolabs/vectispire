@@ -4,6 +4,14 @@ Ce dossier s'adresse à **quelqu'un qui reprend le code** — pas à un évaluat
 comité. Il répond à trois questions, dans cet ordre : comment c'est fait, pourquoi c'est
 fait comme ça, et qu'est-ce qui casse si on y touche sans savoir.
 
+> **Portage NestJS/Angular.** L'implémentation décrite ici est passée de Python/Reflex à
+> NestJS + Angular sur PostgreSQL ; l'arbre Python a été retiré. **Les décisions et leurs
+> raisons restent valables** — c'est ce que ce dossier consigne — mais les chemins de
+> fichiers et les noms de modules renvoient désormais à `backend/src/` et `frontend/src/`.
+> Les écarts assumés du portage (backends OSV et sidecar non repris, agent distant sans
+> binaire client, PostgreSQL seul) sont nommés dans le [README](../../README.md).
+
+
 | Document | La question à laquelle il répond |
 |---|---|
 | [01 — Vue d'ensemble](01-vue-d-ensemble.md) | Que fait Zanshin, de quoi est-il fait, et par où passe un scan ? |

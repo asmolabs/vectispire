@@ -31,7 +31,7 @@ Autrement dit : quiconque a obtenu une copie de l'ancien `database.sqlite` déti
 clé privée en clair. Elle doit être considérée comme compromise.
 
 **Ce que le code fait désormais.** Cette constante a été retirée de
-[`zanshin/services/encryption_service.py`](../zanshin/services/encryption_service.py) :
+[`backend/src/services/encryption.service.ts`](../backend/src/services/encryption.service.ts) :
 l'application ne transporte plus la clé qui ouvre sa propre base, et la valeur ci-dessus
 n'est plus essayée au déchiffrement. La ligne `perso` apparaît donc **« Illisible »**
 sur la page *Clés SSH* — c'est le résultat attendu, et le remplacement ci-dessous est la
@@ -43,7 +43,7 @@ fournisseur la révoquer, par exemple), donnez l'ancienne clé explicitement, le
 l'opération :
 
 ```bash
-ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" uv run reflex run
+ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" npm --workspace backend run start:dev
 ```
 
 À faire, **dans cet ordre** :
@@ -60,7 +60,7 @@ ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" uv run refle
    nouvelle clé — sinon l'application refuse de chiffrer (c'est le garde-fou en place, et
    il fait exactement son travail ici) :
    ```bash
-   python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"
+   openssl rand -base64 32
    ```
    Cette valeur va dans l'environnement du service, pas dans le dépôt.
 4. **Remplacer** la clé depuis la page *Clés SSH*. L'enregistrement la chiffre avec la
@@ -116,7 +116,7 @@ de ressaisir chaque valeur à la main.
 ```bash
 ENCRYPTION_KEY="<nouvelle clé>" \
 ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<ancienne clé>" \
-uv run reflex run
+npm --workspace backend run start:dev
 ```
 
 L'ancienne clé sert **au déchiffrement uniquement** : toute écriture passe sous la

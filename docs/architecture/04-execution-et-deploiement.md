@@ -17,7 +17,7 @@ base.
 
 ## Ce qui est refusé au démarrage, et pourquoi
 
-`zanshin/startup_guard.py` vérifie au démarrage ce qui ne peut pas marcher. Refuser tôt
+`backend/src/persistence/dialects.ts` déclare, et le démarrage vérifie, ce qui ne peut pas marcher. Refuser tôt
 avec un message qui nomme la raison, plutôt que de laisser découvrir le problème sous la
 forme d'une base corrompue ou d'utilisateurs déconnectés au hasard.
 
@@ -146,7 +146,7 @@ suffit.
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | rotation : les anciennes clés restent en lecture |
 | `ZANSHIN_ALLOWED_ORIGINS` | qui peut ouvrir le websocket. **Par défaut le port 3000 seulement** — sur un autre port, l'interface se charge et rien ne fonctionne |
 | `REDIS_URL` | état Reflex et compteurs partagés. Requis dès deux instances web |
-| `ZANSHIN_AUTO_MIGRATE` | à passer à `false` en flotte, avec `alembic upgrade head` en étape de déploiement |
+| migration | `npm --workspace backend run migration:run` comme étape de déploiement, avant le démarrage des instances |
 | `ZANSHIN_*_IMAGE` | remplacer une image d'analyseur épinglée, pour la mettre à jour |
 | `ZANSHIN_SEMGREP_RULES_DIR` | règles fournies par l'opérateur, fusionnées avec celles embarquées |
 
