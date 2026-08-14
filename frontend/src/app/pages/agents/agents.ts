@@ -89,6 +89,17 @@ const CREDENTIALS = [
                         </td>
                         <td>
                             <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Déléguées' : 'Locales' }}</span>
+                            <!--
+                                Affiché seulement pour les identifiants délégués : c'est le seul cas où
+                                une clé part. Un opérateur qui croit sceller alors que son agent est
+                                d'une version antérieure n'aurait aucun autre moyen de s'en apercevoir,
+                                et la clé traverserait son proxy inverse en clair.
+                            -->
+                            @if (agent.credentialsMode === 'delegated') {
+                                <div class="text-sm" [class.text-muted-color]="agent.sealsCredentials">
+                                    {{ agent.sealsCredentials ? 'Scellées de bout en bout' : 'En clair sous TLS' }}
+                                </div>
+                            }
                         </td>
                         <td class="text-right">{{ agent.runningScans }}</td>
                         <td class="text-right whitespace-nowrap">

@@ -1,4 +1,4 @@
-import { ConflictException, PreconditionFailedException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, PreconditionFailedException, UnauthorizedException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { connectToTestDatabase } from '../../test/database';
 import { CONTRACT_VERSION } from '../domain/agents/contract';
@@ -14,6 +14,7 @@ import {
     STATUS_QUEUED
 } from '../persistence/entities';
 import { encryptWith, deriveKey, privateKeyContext } from '../domain/crypto/encryption';
+import { generateEphemeralKeyPair, isSealed, open as openEnvelope } from '../domain/crypto/sealed-envelope';
 import { EncryptionService } from '../services/encryption.service';
 import { ScanDispatcherService } from '../services/scan-dispatcher.service';
 import { AgentsController } from './agents.controller';
@@ -104,6 +105,21 @@ describe("protocole d'agent", () => {
     });
 
     describe('réclamation', () => {
+        /** Une clé de déploiement chiffrée au repos, comme en base. */
+        async function seedSshKey(): Promise<SshKey> {
+            const id = '44444444-4444-4444-4444-444444444444';
+            return dataSource.manager.save(
+                SshKey,
+                Object.assign(new SshKey(), {
+                    id,
+                    name: 'déploiement',
+                    privateKey: encryptWith(deriveKey(KEY), PRIVATE, privateKeyContext(id)),
+                    publicKey: null,
+                    createdAt: now()
+                })
+            );
+        }
+
         async function queueScan(sshKeyId: string | null = null): Promise<Scan> {
             const repository = await dataSource.manager.save(
                 GitRepository,
@@ -210,6 +226,53 @@ describe("protocole d'agent", () => {
             // Et le scan lui est bien confié : refuser la clé ne doit pas refuser le
             // travail — un agent `local` scanne avec ses propres accès git.
             expect(task!.scanId).toBe(scan.id);
+        });
+
+        it("scelle la clé de déploiement pour l'agent qui a annoncé la sienne", async () => {
+            // **Ce que TLS ne donne pas.** La plupart des déploiements terminent TLS sur un
+            // proxy inverse : la clé SSH y est en clair, dans un vidage mémoire, dans un
+            // journal de débogage, et pour qui administre ce proxy. Scellée, elle ne
+            // s'ouvre que dans le processus de l'agent.
+            const keyPair = generateEphemeralKeyPair();
+            const agent = await seedAgent(CREDENTIALS_DELEGATED);
+            await controller.hello({ contract_version: CONTRACT_VERSION, sealing_public_key: keyPair.publicKey }, asAgent(agent));
+            const key = await seedSshKey();
+            await queueScan(key.id);
+
+            // Rechargé : c'est la ligne en base que la réclamation consulte, pas l'objet
+            // que ce test tient en main depuis avant l'annonce.
+            const announced = await dataSource.manager.findOneByOrFail(Agent, { id: agent.id });
+            const task = await controller.claimJob(asAgent(announced, true), noResponse, undefined, '0');
+
+            expect(isSealed(task!.privateKey)).toBe(true);
+            expect(task!.privateKey).not.toContain('PRIVATE KEY');
+            expect(openEnvelope(keyPair, task!.privateKey!)).toBe(PRIVATE);
+        });
+
+        it('délègue une clé scellée même sur une liaison en clair', async () => {
+            // L'exigence de HTTPS protège ce qui voyage en clair. Une enveloppe scellée ne
+            // l'est pas : maintenir le refus interdirait du travail sans rien protéger.
+            const keyPair = generateEphemeralKeyPair();
+            const agent = await seedAgent(CREDENTIALS_DELEGATED);
+            await controller.hello({ contract_version: CONTRACT_VERSION, sealing_public_key: keyPair.publicKey }, asAgent(agent));
+            const key = await seedSshKey();
+            await queueScan(key.id);
+
+            const announced = await dataSource.manager.findOneByOrFail(Agent, { id: agent.id });
+            const task = await controller.claimJob(asAgent(announced, false), noResponse, undefined, '0');
+
+            expect(openEnvelope(keyPair, task!.privateKey!)).toBe(PRIVATE);
+        });
+
+        it('refuse une clé de scellement illisible plutôt que de la retenir', async () => {
+            // Retenue, elle provoquerait une exception au milieu d'une réclamation. `null`
+            // ferait retomber l'agent sur la clé en clair — silencieusement, ce qui est
+            // pire : l'opérateur croirait sceller.
+            const agent = await seedAgent(CREDENTIALS_DELEGATED);
+
+            await expect(
+                controller.hello({ contract_version: CONTRACT_VERSION, sealing_public_key: 'pas-une-cle' }, asAgent(agent))
+            ).rejects.toBeInstanceOf(BadRequestException);
         });
 
         it("confie le scan à un agent local même en clair, puisqu'aucune clé ne part", async () => {

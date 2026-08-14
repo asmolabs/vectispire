@@ -363,6 +363,8 @@ export interface AgentSummary {
     kind: string;
     enabled: boolean;
     credentialsMode: string;
+    /** A-t-il annoncé une clé publique éphémère ? Sinon, ses secrets voyagent en clair. */
+    sealsCredentials: boolean;
     maxConcurrent: number | null;
     hostname: string | null;
     platform: string | null;

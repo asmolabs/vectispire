@@ -43,6 +43,16 @@ export class AgentsAdminController {
             kind: agent.kind,
             enabled: agent.enabled,
             credentialsMode: agent.credentialsMode,
+            /**
+             * Cet agent a-t-il annoncé de quoi recevoir un secret scellé ?
+             *
+             * **La clé publique elle-même n'est pas exposée** : elle ne dit rien à
+             * l'opérateur, et une valeur opaque de plus dans un écran n'aide personne. Ce
+             * booléen, si — un opérateur qui croit sceller alors que son agent est d'une
+             * version antérieure n'aurait aucun autre moyen de s'en apercevoir, et la clé
+             * de déploiement traverserait son proxy en clair.
+             */
+            sealsCredentials: agent.sealingPublicKey !== null,
             maxConcurrent: agent.maxConcurrent,
             hostname: agent.hostname,
             platform: agent.platform,

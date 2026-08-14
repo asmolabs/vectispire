@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     ConflictException,
     Controller,
@@ -22,6 +23,7 @@ import { now } from '../domain/common/timestamp';
 import { CONTRACT_VERSION, isCompatibleContract } from '../domain/agents/contract';
 import { Agent, CREDENTIALS_DELEGATED } from '../persistence/entities';
 import { InsecureCredentialTransport, ScanDispatcherService } from '../services/scan-dispatcher.service';
+import { isUsablePublicKey } from '../domain/crypto/sealed-envelope';
 import { Public } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -66,7 +68,17 @@ export class AgentsController {
             );
         }
 
+        // **Refusée si elle n'est pas exploitable, plutôt que stockée telle quelle.** Une
+        // valeur illisible provoquerait une exception au milieu d'une réclamation ; `null`
+        // fait simplement retomber cet agent sur le comportement d'avant — clé en clair sur
+        // liaison chiffrée — ce qui est un mode dégradé, pas une panne.
+        const sealingKey = asText(body.sealing_public_key);
+        if (sealingKey !== null && !isUsablePublicKey(sealingKey)) {
+            throw new BadRequestException("La clé de scellement annoncée n'est pas une clé publique X25519 lisible.");
+        }
+
         await this.manager.update(Agent, { id: agent.id }, {
+            sealingPublicKey: sealingKey,
             hostname: asText(body.hostname),
             platform: asText(body.platform),
             version: asText(body.version),
@@ -101,14 +113,11 @@ export class AgentsController {
         const agent = await this.authenticate(request);
         const secure = isSecureTransport(request, forwardedProto);
 
-        if (agent.credentialsMode === CREDENTIALS_DELEGATED && !secure) {
-            // La clé de déploiement voyagerait en clair. Refuser bruyamment est le point :
-            // scanner sans la clé produirait un échec de clone qui ressemble à un problème
-            // de réseau, et l'opérateur chercherait du côté du pare-feu.
-            throw new PreconditionFailedException(
-                "Cet agent reçoit les clés de déploiement, ce qui exige une liaison chiffrée. La requête n'est pas arrivée en HTTPS."
-            );
-        }
+        // **Le refus n'est pas décidé ici.** Il l'était, en doublon de la même règle dans le
+        // distributeur — et les deux copies divergeaient déjà : celle-ci refusait un agent
+        // `delegated` sur une liaison en clair même quand le dépôt n'a aucune clé, et elle
+        // ignorait le scellement. Seul le distributeur sait ce que la tâche contient
+        // réellement ; il lève `InsecureCredentialTransport`, traduite plus bas en 412.
 
         let task: Awaited<ReturnType<ScanDispatcherService['claimForAgent']>>;
         try {

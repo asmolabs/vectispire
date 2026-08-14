@@ -1,5 +1,6 @@
 import { hostname, platform, release } from 'node:os';
 import { CONTRACT_VERSION } from '../domain/agents/contract';
+import { generateEphemeralKeyPair } from '../domain/crypto/sealed-envelope';
 import { ScanRunner } from '../scanning/scan-runner';
 import { runOnce } from './agent-loop';
 import { AgentProtocol, ContractMismatch, type HttpCall, Unauthorized } from './protocol';
@@ -40,12 +41,18 @@ export async function main(): Promise<void> {
     if (!baseUrl.startsWith('https://')) {
         // Averti et non refusé : un agent en mode `local` ne reçoit aucune clé, et un
         // déploiement derrière un proxy inverse voit du HTTP légitimement. Le plan de
-        // contrôle, lui, refuse de déléguer une clé sur une liaison en clair — c'est là
-        // que la décision a du sens, parce qu'il sait ce qu'il enverrait.
-        console.warn(`Liaison non chiffrée vers ${baseUrl} : le plan de contrôle refusera de déléguer une clé de déploiement.`);
+        // contrôle, lui, refuse de déléguer une clé en clair sur une liaison en clair —
+        // c'est là que la décision a du sens, parce qu'il sait ce qu'il enverrait. Une clé
+        // scellée, elle, ne voyage jamais en clair : l'exigence tombe d'elle-même.
+        console.warn(`Liaison non chiffrée vers ${baseUrl} : seules des clés scellées y seront déléguées.`);
     }
 
-    const protocol = new AgentProtocol(httpCall(baseUrl, token));
+    // **Régénérée à chaque démarrage, jamais écrite.** Un agent redémarré est un nouveau
+    // destinataire ; il n'y a aucun fichier de clé à protéger, tourner ou oublier, et rien
+    // à récupérer sur le disque d'une machine de scan compromise.
+    const keyPair = generateEphemeralKeyPair();
+
+    const protocol = new AgentProtocol(httpCall(baseUrl, token), keyPair);
     const identity = await protocol.hello({
         hostname: hostname(),
         platform: `${platform()} ${release()}`,

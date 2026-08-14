@@ -61,7 +61,7 @@ describe('recherche de secrets', () => {
             expect(found).toBeDefined();
             expect(found!.line).toBeGreaterThan(0);
             expect(found!.rule).toBeTruthy();
-        }, 300_000);
+        });
     }, 300_000);
 
     it('ne conserve jamais la valeur du secret', async () => {

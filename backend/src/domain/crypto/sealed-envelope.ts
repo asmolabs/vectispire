@@ -137,8 +137,12 @@ export function isSealed(value: string | null | undefined): boolean {
 export function isUsablePublicKey(value: string | null | undefined): boolean {
     if (typeof value !== 'string' || value === '') return false;
     try {
-        createPublicKey({ key: Buffer.from(value, 'base64'), format: 'der', type: 'spki' });
-        return true;
+        const key = createPublicKey({ key: Buffer.from(value, 'base64'), format: 'der', type: 'spki' });
+        // **Lisible ne suffit pas : il faut que ce soit une clé X25519.** Une clé RSA se
+        // décode parfaitement et ne passe l'échange Diffie-Hellman à aucun prix — sans cette
+        // ligne, le refus arrivait sous forme d'exception au milieu d'une réclamation, là où
+        // tout le propos de cette fonction est de trancher avant.
+        return key.asymmetricKeyType === 'x25519';
     } catch {
         return false;
     }

@@ -67,6 +67,18 @@ export class Agent {
     @Column({ ...stringColumn(50, { nullable: true }), name: 'scanner_engine' })
     scannerEngine!: string | null;
 
+    /**
+     * La clé publique éphémère annoncée par le processus de l'agent, s'il en annonce une.
+     *
+     * Elle sert à sceller les secrets qu'on lui envoie, de sorte qu'un proxy inverse qui
+     * termine TLS ne les voie plus jamais en clair. Sa moitié privée ne quitte jamais le
+     * processus de l'agent et n'est écrite nulle part : un agent redémarré en annonce une
+     * autre. `null` pour un agent d'une version antérieure — il reçoit alors la clé en
+     * clair sur une liaison chiffrée, comme avant.
+     */
+    @Column({ ...stringColumn(255, { nullable: true }), name: 'sealing_public_key' })
+    sealingPublicKey!: string | null;
+
     @Column(jsonColumn({ nullable: true }))
     capabilities!: unknown;
 

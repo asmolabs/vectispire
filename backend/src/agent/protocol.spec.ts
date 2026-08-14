@@ -1,11 +1,12 @@
 import { CONTRACT_VERSION } from '../domain/agents/contract';
 import type { ScanArtifacts } from '../scanning/scan-runner';
+import { generateEphemeralKeyPair, seal, type EphemeralKeyPair } from '../domain/crypto/sealed-envelope';
 import { AgentProtocol, ContractMismatch, type HttpCall, Unauthorized } from './protocol';
 
 const DESCRIPTION = { hostname: 'runner-1', platform: 'linux 6.1', version: '1', scannerEngine: 'docker' };
 
 /** Un serveur simulé qui enregistre ce qu'on lui envoie. */
-function server(responses: Record<string, { status: number; body?: unknown }>) {
+function server(responses: Record<string, { status: number; body?: unknown }>, keyPair: EphemeralKeyPair | null = null) {
     const calls: { path: string; method: string; body?: unknown }[] = [];
     const call: HttpCall = async (path, init) => {
         calls.push({ path, method: init.method, body: init.body });
@@ -13,7 +14,7 @@ function server(responses: Record<string, { status: number; body?: unknown }>) {
         const response = key ? responses[key] : { status: 404, body: { message: 'route inconnue' } };
         return { status: response.status, body: response.body ?? null };
     };
-    return { calls, protocol: new AgentProtocol(call) };
+    return { calls, protocol: new AgentProtocol(call, keyPair) };
 }
 
 describe('protocole de l’agent', () => {
@@ -27,6 +28,17 @@ describe('protocole de l’agent', () => {
 
             expect(identity.name).toBe('runner-1');
             expect((calls[0].body as { contract_version: string }).contract_version).toBe(CONTRACT_VERSION);
+        });
+
+        it('annonce sa clé publique éphémère, et null quand il n’en a pas', async () => {
+            const keyPair = generateEphemeralKeyPair();
+            const avec = server({ '/api/v1/agents/hello': { status: 200, body: {} } }, keyPair);
+            await avec.protocol.hello(DESCRIPTION);
+            expect((avec.calls[0].body as Record<string, unknown>).sealing_public_key).toBe(keyPair.publicKey);
+
+            const sans = server({ '/api/v1/agents/hello': { status: 200, body: {} } });
+            await sans.protocol.hello(DESCRIPTION);
+            expect((sans.calls[0].body as Record<string, unknown>).sealing_public_key).toBeNull();
         });
 
         it("distingue un désaccord de contrat d'une clé refusée", async () => {
@@ -64,6 +76,44 @@ describe('protocole de l’agent', () => {
 
             expect(task?.scanId).toBe(7);
             expect(calls[0].path).toContain('wait=30');
+        });
+
+        it('ouvre une clé de déploiement scellée avant de rendre la tâche', async () => {
+            // La boucle et le coureur n'ont pas à connaître le scellement : ce qui sort
+            // d'ici est une clé utilisable, ou une erreur nommée.
+            const keyPair = generateEphemeralKeyPair();
+            const PRIVEE = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n';
+            const { protocol } = server(
+                { '/api/v1/agents/jobs': { status: 200, body: { scanId: 7, url: 'git@exemple:x.git', branch: 'main', privateKey: seal(keyPair.publicKey, PRIVEE) } } },
+                keyPair
+            );
+
+            expect((await protocol.claim(5))!.privateKey).toBe(PRIVEE);
+        });
+
+        it("échoue plutôt que de rendre une enveloppe qu'il ne sait pas ouvrir", async () => {
+            // **Une enveloppe non ouverte ressemble à une clé.** Elle serait écrite dans un
+            // fichier et passée à `git clone`, et l'échec ressemblerait à un problème de
+            // dépôt ou de droits — l'opérateur chercherait du mauvais côté.
+            const keyPair = generateEphemeralKeyPair();
+            const scellee = seal(generateEphemeralKeyPair().publicKey, 'secret');
+            const { protocol } = server(
+                { '/api/v1/agents/jobs': { status: 200, body: { scanId: 7, url: 'git@exemple:x.git', branch: 'main', privateKey: scellee } } },
+                keyPair
+            );
+
+            await expect(protocol.claim(5)).rejects.toThrow(/scellée/);
+        });
+
+        it("laisse passer une clé en clair, pour un plan de contrôle qui ne scelle pas", async () => {
+            // Compatibilité descendante : le champ est optionnel des deux côtés, et un
+            // agent à jour face à un plan de contrôle plus ancien doit continuer de scanner.
+            const { protocol } = server(
+                { '/api/v1/agents/jobs': { status: 200, body: { scanId: 7, url: 'x', branch: 'main', privateKey: 'CLÉ EN CLAIR' } } },
+                generateEphemeralKeyPair()
+            );
+
+            expect((await protocol.claim(5))!.privateKey).toBe('CLÉ EN CLAIR');
         });
 
         it('nomme le refus dû à une liaison non chiffrée', async () => {

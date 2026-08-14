@@ -414,8 +414,18 @@ Consequences worth knowing:
 - **The concurrency limit is per agent.** Counting every running scan would have meant
   that adding an agent *reduced* what the host was allowed to do.
 - **A remote agent never touches the database**, and gets a deploy key only if its
-  `credentials_mode` is `delegated` *and* the transport is TLS. An import test enforces
-  the first half (`tests/test_agent_worker.py`); the API enforces the second.
+  `credentials_mode` is `delegated`. An architecture test enforces the first half
+  (`src/architecture.spec.ts` forbids `agent/` from importing TypeORM or a driver); the
+  dispatcher enforces the second, and it is the *only* place that decides — a duplicate
+  check in the controller had already drifted from it.
+- **Deploy keys travel sealed when the agent publishes a key.** At startup an agent
+  generates an ephemeral X25519 pair, announces the public half on `hello`, and the control
+  plane seals the key for it (X25519 + HKDF-SHA256 + AES-256-GCM). This is what TLS does
+  not give: most deployments terminate TLS on a reverse proxy, where the SSH key is in
+  clear — in a memory dump, in a debug log, and to whoever administers that proxy. Sealing
+  removes the proxy from the trust boundary, and the private half is never written to
+  disk, so a restarted agent is simply a new recipient. An older agent announces no key,
+  receives the key in clear, and is therefore still refused over a plaintext transport.
 - **More than one web instance is now possible**, and conditional: PostgreSQL (the claim
   uses `FOR UPDATE SKIP LOCKED`, which SQLite does not have), `REDIS_URL`
   (Reflex's own state, and the security counters), and `ZANSHIN_AUTO_MIGRATE=false`. The
@@ -826,9 +836,19 @@ Conséquences à connaître :
 - **La limite de simultanéité est par agent.** Compter tous les scans en cours aurait
   fait qu'ajouter un agent *réduisait* ce que l'hôte s'autorisait.
 - **Un agent distant ne touche jamais la base**, et ne reçoit une clé de déploiement que
-  si son `credentials_mode` vaut `delegated` **et** que le transport est TLS. Un test
-  d'imports garantit la première moitié (`tests/test_agent_worker.py`) ; l'API applique la
-  seconde.
+  si son `credentials_mode` vaut `delegated`. Un test d'architecture garantit la première
+  moitié (`src/architecture.spec.ts` interdit à `agent/` d'importer TypeORM ou un pilote) ;
+  le distributeur applique la seconde, et il est le **seul** à décider — un contrôle en
+  doublon dans le contrôleur avait déjà divergé.
+- **Les clés de déploiement voyagent scellées dès que l'agent publie une clé.** Au
+  démarrage, un agent engendre une paire X25519 éphémère, en annonce la moitié publique au
+  `hello`, et le plan de contrôle scelle pour elle (X25519 + HKDF-SHA256 + AES-256-GCM).
+  C'est ce que TLS ne donne pas : la plupart des déploiements terminent TLS sur un proxy
+  inverse, où la clé SSH est en clair — dans un vidage mémoire, dans un journal de
+  débogage, et pour qui administre ce proxy. Le scellement retire ce proxy de la frontière
+  de confiance, et la moitié privée n'est jamais écrite sur disque : un agent redémarré est
+  simplement un nouveau destinataire. Un agent d'une version antérieure n'annonce aucune
+  clé, reçoit la clé en clair, et reste donc refusé sur une liaison non chiffrée.
 - **Plus d'une instance web est désormais possible**, sous conditions : PostgreSQL (la
   réclamation utilise `FOR UPDATE SKIP LOCKED`, absent de SQLite), `REDIS_URL`
   (l'état de Reflex, et les compteurs de sécurité) et `ZANSHIN_AUTO_MIGRATE=false`. Le

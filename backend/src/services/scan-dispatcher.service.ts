@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
+import { isUsablePublicKey, seal } from '../domain/crypto/sealed-envelope';
 import { now } from '../domain/common/timestamp';
 import { capacity } from '../domain/scans/queue-rules';
 import { Agent, CREDENTIALS_DELEGATED, Container, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
@@ -97,8 +98,21 @@ export class ScanDispatcherService {
                     // Un agent `local` n'a jamais de clé à recevoir : la question du
                     // chiffrement de la liaison ne se pose donc pas pour lui.
                     const deliverCredentials = agent.credentialsMode === CREDENTIALS_DELEGATED;
-                    const task = await this.dataSource.transaction((manager) => this.buildTask(manager, scan, deliverCredentials));
-                    if (task.privateKey && !secureTransport) {
+                    const built = await this.dataSource.transaction((manager) => this.buildTask(manager, scan, deliverCredentials));
+
+                    // **Scellée pour cet agent quand il a annoncé une clé.** TLS protège la
+                    // liaison de bout en bout *à condition que personne ne la termine en
+                    // chemin* — or la plupart des déploiements ont un proxy inverse, où la
+                    // clé SSH se retrouve en clair : dans un vidage mémoire, dans un journal
+                    // de débogage, et pour qui administre ce proxy. Le scellement retire ce
+                    // proxy de la frontière de confiance.
+                    const sealed = built.privateKey !== null && isUsablePublicKey(agent.sealingPublicKey);
+                    const task = sealed ? { ...built, privateKey: seal(agent.sealingPublicKey!, built.privateKey!) } : built;
+
+                    // La liaison chiffrée reste exigée **pour ce qui voyage en clair**. Un
+                    // agent d'une version antérieure n'annonce aucune clé et retombe donc
+                    // sur cette exigence, inchangée.
+                    if (task.privateKey && !sealed && !secureTransport) {
                         // Remis en file avant de refuser : sans cela le scan resterait
                         // réclamé par un agent qui n'a rien reçu, jusqu'à expiration.
                         await this.dataSource.transaction((manager) =>

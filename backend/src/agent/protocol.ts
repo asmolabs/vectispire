@@ -1,4 +1,5 @@
 import { CONTRACT_VERSION } from '../domain/agents/contract';
+import { isSealed, open as openEnvelope, type EphemeralKeyPair } from '../domain/crypto/sealed-envelope';
 import type { ScanArtifacts, ScanTask } from '../scanning/scan-runner';
 
 /**
@@ -46,7 +47,15 @@ export type HttpCall = (
 ) => Promise<{ status: number; body: unknown }>;
 
 export class AgentProtocol {
-    constructor(private readonly call: HttpCall) {}
+    /**
+     * @param keyPair La paire éphémère de ce processus, ou `null` pour ne rien sceller.
+     *   Sa moitié privée n'est ni sérialisée ni écrite : elle meurt avec le processus, et
+     *   il n'y a donc aucun fichier de clé à protéger, tourner ou oublier.
+     */
+    constructor(
+        private readonly call: HttpCall,
+        private readonly keyPair: EphemeralKeyPair | null = null
+    ) {}
 
     /**
      * L'annonce, et **le premier diagnostic d'un opérateur**.
@@ -64,7 +73,12 @@ export class AgentProtocol {
                 hostname: description.hostname,
                 platform: description.platform,
                 version: description.version,
-                scanner_engine: description.scannerEngine
+                scanner_engine: description.scannerEngine,
+                // Annoncée à chaque démarrage, jamais persistée : le plan de contrôle
+                // scelle pour la paire vivante, pas pour une clé retenue d'une vie
+                // précédente. Un plan de contrôle plus ancien ignore ce champ, et l'agent
+                // reçoit alors la clé en clair — dégradé, mais pas cassé.
+                sealing_public_key: this.keyPair?.publicKey ?? null
             },
             timeoutMs: 30_000
         });
@@ -102,7 +116,29 @@ export class AgentProtocol {
         }
         if (status >= 400) throw new Error(messageOf(body) ?? `Réclamation refusée (HTTP ${status}).`);
 
-        return body as AssignedTask;
+        return this.unseal(body as AssignedTask);
+    }
+
+    /**
+     * Ouvre la clé de déploiement d'une tâche, si elle est arrivée scellée.
+     *
+     * **Lève plutôt que de rendre la tâche telle quelle.** Une enveloppe qu'on n'ouvre pas
+     * est une chaîne qui ressemble à une clé : elle serait écrite dans un fichier, passée à
+     * `git clone`, et l'échec ressemblerait à un problème de dépôt ou de droits. Échouer
+     * ici nomme la cause.
+     */
+    private unseal(task: AssignedTask): AssignedTask {
+        if (!isSealed(task.privateKey)) return task;
+        if (this.keyPair === null) {
+            throw new Error("Une clé scellée est arrivée alors que cet agent n'en a annoncé aucune : le plan de contrôle a scellé pour un autre destinataire.");
+        }
+
+        const plainText = openEnvelope(this.keyPair, task.privateKey!);
+        if (plainText === null) {
+            throw new Error("La clé de déploiement scellée n'a pas pu être ouverte : elle ne s'adresse pas à ce processus, ou elle a été modifiée en chemin.");
+        }
+
+        return { ...task, privateKey: plainText };
     }
 
     /**
