@@ -1,7 +1,7 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join, posix } from 'node:path';
 import { ContainerRunner, ScannerExecutionError } from '../container-runner';
-import { SOURCE_SUBDIR, type Workspace } from '../workspace';
+import { RULES_SUBDIR, SOURCE_SUBDIR, type Workspace } from '../workspace';
 import { GITLEAKS_IMAGE } from './images';
 
 /**
@@ -63,6 +63,16 @@ export class GitleaksScanner {
             command: [
                 'detect',
                 `--source=${source}`,
+                // **La configuration vient de Zanshin, jamais de la cible.**
+                //
+                // Sans `--config`, gitleaks retombe sur `<source>/.gitleaks.toml` — un
+                // fichier du dépôt scanné, donc écrit par qui on audite — et l'utilise *à
+                // la place* de son jeu de règles intégré. Un `.gitleaks.toml` vide avec une
+                // liste d'exclusion universelle éteignait la détection : sortie 0, rapport
+                // vide, `[]` rendu. Et `[]` veut dire « analysé, rien trouvé », donc la
+                // résolution en silence de tout l'historique des secrets de cette cible,
+                // triage compris. Le dépôt fermait ses propres constats.
+                `--config=${posix.join('/repo', RULES_SUBDIR, 'gitleaks', 'gitleaks.toml')}`,
                 // `--no-git` : l'arbre est cloné en profondeur 1, donc rejouer l'histoire
                 // ne trouverait presque rien tout en coûtant le temps de la parcourir.
                 '--no-git',

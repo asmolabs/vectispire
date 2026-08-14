@@ -21,7 +21,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { CONTRACT_VERSION, isCompatibleContract } from '../domain/agents/contract';
 import { Agent, CREDENTIALS_DELEGATED } from '../persistence/entities';
-import { ScanDispatcherService } from '../services/scan-dispatcher.service';
+import { InsecureCredentialTransport, ScanDispatcherService } from '../services/scan-dispatcher.service';
 import { Public } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -110,7 +110,19 @@ export class AgentsController {
             );
         }
 
-        const task = await this.dispatcher.claimForAgent(agent, secure, boundedWait(wait));
+        let task: Awaited<ReturnType<ScanDispatcherService['claimForAgent']>>;
+        try {
+            task = await this.dispatcher.claimForAgent(agent, secure, boundedWait(wait));
+        } catch (error) {
+            // **Traduite ici, et non laissée remonter.** Sa classe existe précisément pour
+            // devenir un 412 plutôt qu'un 500 : un agent qui reçoit « erreur interne » ne
+            // peut rien en faire, alors que « votre liaison n'est pas chiffrée » nomme le
+            // correctif. Le commentaire de cette classe l'annonçait ; personne ne
+            // l'attrapait.
+            if (error instanceof InsecureCredentialTransport) throw new PreconditionFailedException(error.message);
+            throw error;
+        }
+
         if (task === null) {
             response.status(204);
             return undefined;

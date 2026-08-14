@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
     ContainerRunner,
     ScannerExecutionError,
+    SCANNER_LABEL,
     ScannerTimeoutError,
     parseScannerJson
 } from './container-runner';
@@ -116,12 +117,17 @@ describe('exécution d’un conteneur de scanner', () => {
 
     it('ne laisse pas de conteneur derrière lui', async () => {
         const docker = runner['docker'];
-        const before = (await docker.listContainers({ all: true })).length;
+        // **Filtré sur l'étiquette de Zanshin, et non compté sur tout l'hôte.** Les suites
+        // d'intégration tournent en parallèle et démarrent chacune leurs conteneurs de base
+        // de test : un décompte global mesurait leur va-et-vient, pas la propreté de ce
+        // coureur — il rendait « après < avant », ce qui n'a aucun sens pour une fuite.
+        const filters = { label: [SCANNER_LABEL] };
+        const before = (await docker.listContainers({ all: true, filters })).length;
 
         await runner.run({ image: IMAGE, command: ['true'], binds: [], label: 'propre' });
         await runner.run({ image: IMAGE, command: ['sleep', '60'], binds: [], label: 'lent', timeoutMs: 1500 }).catch(() => undefined);
 
-        const after = (await docker.listContainers({ all: true })).length;
+        const after = (await docker.listContainers({ all: true, filters })).length;
         // Y compris sur le chemin d'expiration : un conteneur oublié retient son espace de
         // travail, donc le clone entier.
         expect(after).toBe(before);

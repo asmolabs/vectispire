@@ -45,6 +45,18 @@ export type SettingType = 'boolean' | 'integer' | 'text' | 'severity';
 export interface SettingDefinition {
     key: string;
     type: SettingType;
+    /**
+     * Sa **valeur** est un secret, même si sa clé ne l'est pas.
+     *
+     * Une URL de webhook Slack, Teams ou Discord n'est pas une configuration : c'est une
+     * capacité au porteur. Qui la connaît peut publier dans le canal — celui-là même où
+     * l'équipe attend les alertes de Zanshin, donc celui où un message forgé porte le
+     * plus. La lire ne demande aucun droit d'écriture, ce qui la rendait accessible à
+     * n'importe quel compte.
+     *
+     * L'écran reçoit alors `configured` sans la valeur, comme pour le jeton de tickets.
+     */
+    sensitive?: boolean;
     /** Le groupe sous lequel l'écran range le réglage. */
     section: string;
     label: string;
@@ -120,6 +132,7 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     {
         key: SETTING_WEBHOOK_URL,
         type: 'text',
+        sensitive: true,
         section: 'Notifications',
         label: 'URL du webhook',
         help:
@@ -179,6 +192,9 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     {
         key: SETTING_TICKET_BASE_URL,
         type: 'text',
+        // Pas un secret au sens du webhook, mais une carte du réseau interne qu'un compte
+        // sans droits n'a aucune raison de lire.
+        sensitive: true,
         section: 'Gestionnaire de tickets',
         label: 'URL du gestionnaire',
         help:
@@ -240,6 +256,7 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     {
         key: SETTING_AI_REVIEW_OLLAMA_URL,
         type: 'text',
+        sensitive: true,
         section: 'Revue par modèle',
         label: 'URL du service Ollama',
         help:

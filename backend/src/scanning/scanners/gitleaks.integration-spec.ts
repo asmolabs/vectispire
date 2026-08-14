@@ -1,7 +1,8 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ContainerRunner } from '../container-runner';
-import { withWorkspace } from '../workspace';
+import { placeBundledRules } from '../bundled-rules';
+import { withWorkspace, type Workspace } from '../workspace';
 import { GitleaksScanner } from './gitleaks';
 import { GITLEAKS_IMAGE } from './images';
 
@@ -21,6 +22,19 @@ describe('recherche de secrets', () => {
     const runner = new ContainerRunner();
     const scanner = new GitleaksScanner(runner);
 
+    /**
+     * Un espace de travail préparé **comme le runner le prépare** : arbre vide et règles en
+     * place. Les poser à la main dans chaque test aurait laissé ces tests diverger du
+     * chemin réel le jour où le placement change.
+     */
+    async function withPreparedWorkspace(body: (workspace: Workspace) => Promise<void>): Promise<void> {
+        await withWorkspace(async (workspace) => {
+            await mkdir(workspace.source, { recursive: true });
+            await placeBundledRules(workspace);
+            await body(workspace);
+        });
+    }
+
     beforeAll(async () => {
         if (!(await runner.isAvailable())) {
             throw new Error('Le démon Docker est injoignable : ce test exerce un vrai conteneur et ne peut pas être simulé.');
@@ -34,8 +48,7 @@ describe('recherche de secrets', () => {
     }, 300_000);
 
     it('trouve un secret codé en dur et dit où il est', async () => {
-        await withWorkspace(async (workspace) => {
-            await mkdir(workspace.source, { recursive: true });
+        await withPreparedWorkspace(async (workspace) => {
             await writeFile(
                 join(workspace.source, 'config.py'),
                 ['import boto3', '', `AWS_ACCESS_KEY_ID = "${AWS_KEY}"`, `STRIPE_KEY = "${STRIPE_KEY}"`, ''].join('\n')
@@ -52,8 +65,7 @@ describe('recherche de secrets', () => {
     }, 300_000);
 
     it('ne conserve jamais la valeur du secret', async () => {
-        await withWorkspace(async (workspace) => {
-            await mkdir(workspace.source, { recursive: true });
+        await withPreparedWorkspace(async (workspace) => {
             await writeFile(join(workspace.source, 'config.py'), `AWS_ACCESS_KEY_ID = "${AWS_KEY}"\nSTRIPE_KEY = "${STRIPE_KEY}"\n`);
 
             const findings = await scanner.scan(workspace);
@@ -68,8 +80,7 @@ describe('recherche de secrets', () => {
     }, 300_000);
 
     it('supprime le rapport dès qu’il l’a lu', async () => {
-        await withWorkspace(async (workspace) => {
-            await mkdir(workspace.source, { recursive: true });
+        await withPreparedWorkspace(async (workspace) => {
             await writeFile(join(workspace.source, 'config.py'), `AWS_ACCESS_KEY_ID = "${AWS_KEY}"\n`);
 
             await scanner.scan(workspace);
@@ -82,8 +93,7 @@ describe('recherche de secrets', () => {
     }, 300_000);
 
     it('écrit son rapport hors de l’arbre scanné', async () => {
-        await withWorkspace(async (workspace) => {
-            await mkdir(workspace.source, { recursive: true });
+        await withPreparedWorkspace(async (workspace) => {
             await writeFile(join(workspace.source, 'config.py'), `AWS_ACCESS_KEY_ID = "${AWS_KEY}"\n`);
 
             await scanner.scan(workspace);
@@ -96,8 +106,7 @@ describe('recherche de secrets', () => {
     }, 300_000);
 
     it('rend une liste vide sur un arbre sans secret', async () => {
-        await withWorkspace(async (workspace) => {
-            await mkdir(workspace.source, { recursive: true });
+        await withPreparedWorkspace(async (workspace) => {
             await writeFile(join(workspace.source, 'propre.py'), 'def bonjour():\n    return "rien à cacher"\n');
 
             // Vide et non `null` : ici gitleaks a bel et bien tourné et n'a rien trouvé,
@@ -106,8 +115,28 @@ describe('recherche de secrets', () => {
         });
     }, 300_000);
 
+    it("ignore le .gitleaks.toml du dépôt scanné", async () => {
+        await withPreparedWorkspace(async (workspace) => {
+            await writeFile(join(workspace.source, 'config.py'), `AWS_ACCESS_KEY_ID = "${AWS_KEY}"\n`);
+            // **La cible fournissait les règles de son propre audit.** Sans `--config`,
+            // gitleaks retombe sur ce fichier et l'utilise *à la place* de son jeu intégré.
+            // Celui-ci n'a aucune règle et exclut tout : l'outil sortait en 0 avec un
+            // rapport vide, donc `[]` — « analysé, rien trouvé ». Le type `secret` entrait
+            // alors dans `scannedTypes` et **tous les secrets ouverts de cette cible étaient
+            // marqués résolus, triage compris**.
+            await writeFile(
+                join(workspace.source, '.gitleaks.toml'),
+                ['title = "rien à voir"', '', '[allowlist]', 'description = "tout"', 'regexes = [".*"]', 'paths = [".*"]', ''].join('\n')
+            );
+
+            const findings = await scanner.scan(workspace);
+
+            expect(findings.some((finding) => finding.file === 'config.py')).toBe(true);
+        });
+    }, 300_000);
+
     it('ne regarde que le sous-chemin demandé', async () => {
-        await withWorkspace(async (workspace) => {
+        await withPreparedWorkspace(async (workspace) => {
             await mkdir(join(workspace.source, 'service'), { recursive: true });
             await writeFile(join(workspace.source, 'ailleurs.py'), `AWS_ACCESS_KEY_ID = "${AWS_KEY}"\n`);
             await writeFile(join(workspace.source, 'service', 'propre.py'), 'x = 1\n');

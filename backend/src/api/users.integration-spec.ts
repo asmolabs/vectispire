@@ -131,6 +131,63 @@ describe('API des utilisateurs', () => {
         expect(stored.mustChangePassword).toBe(true);
     });
 
+    it("ferme les sessions quand un administrateur réinitialise un mot de passe", async () => {
+        // **Le geste de la réponse à incident.** On signale un jeton volé, l'administrateur
+        // réinitialise le mot de passe, l'écran confirme — et le jeton volé continuait
+        // d'authentifier jusqu'à douze heures, sa fenêtre d'inactivité repoussée à chaque
+        // appel. Le mot de passe changeait, l'accès non.
+        const admin = await seed('admin', 'ADMIN');
+        const cible = await seed('cible', 'USER');
+        await manager.save(
+            Session,
+            Object.assign(new Session(), {
+                token: 'jeton-vole', userId: cible.id, createdAt: now(), lastSeenAt: now(),
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
+            })
+        );
+
+        await controller.update(cible.id, { password: 'nouveau-mot-de-passe' }, as(admin));
+
+        expect(await manager.countBy(Session, { userId: cible.id })).toBe(0);
+    });
+
+    it('ferme les sessions quand le rôle change', async () => {
+        // Une rétrogradation prend effet de toute façon — le rôle est relu à chaque
+        // requête — mais fermer la session rend la chose explicite plutôt que dépendante
+        // de ce détail d'implémentation.
+        const admin = await seed('admin', 'ADMIN');
+        const cible = await seed('cible', 'ADMIN');
+        await manager.save(
+            Session,
+            Object.assign(new Session(), {
+                token: 'jeton-retrograde', userId: cible.id, createdAt: now(), lastSeenAt: now(),
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
+            })
+        );
+
+        await controller.update(cible.id, { role: 'USER' }, as(admin));
+
+        expect(await manager.countBy(Session, { userId: cible.id })).toBe(0);
+    });
+
+    it("laisse les sessions ouvertes quand rien de sensible ne change", async () => {
+        // Fermer à chaque modification déconnecterait un utilisateur pour un changement de
+        // libellé, et l'administrateur apprendrait à éviter l'écran.
+        const admin = await seed('admin', 'ADMIN');
+        const cible = await seed('cible', 'USER');
+        await manager.save(
+            Session,
+            Object.assign(new Session(), {
+                token: 'jeton-intact', userId: cible.id, createdAt: now(), lastSeenAt: now(),
+                expiresAt: new Date('2099-01-01T00:00:00.000Z'), userAgent: null, ipAddress: null
+            })
+        );
+
+        await controller.update(cible.id, { is_active: true }, as(admin));
+
+        expect(await manager.countBy(Session, { userId: cible.id })).toBe(1);
+    });
+
     it('refuse un mot de passe trop court', async () => {
         const admin = await seed('admin', 'ADMIN');
         await expect(controller.create({ username: 'x', password: 'court' }, as(admin))).rejects.toBeInstanceOf(BadRequestException);

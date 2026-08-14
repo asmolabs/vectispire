@@ -76,6 +76,9 @@ export interface ContainerResult {
     exitCode: number;
 }
 
+/** La marque posée sur chaque conteneur lancé par Zanshin. */
+export const SCANNER_LABEL = 'dev.zanshin.scanner';
+
 export class ContainerRunner {
     constructor(private readonly docker = new Docker()) {}
 
@@ -98,6 +101,11 @@ export class ContainerRunner {
             Image: request.image,
             Cmd: request.command,
             ...(request.asRoot ? { User: '0:0' } : {}),
+            // **Étiqueté, parce que la machine qui scanne n'est pas forcément à nous.** Un
+            // agent tourne sur un hôte partagé, où d'autres conteneurs vont et viennent :
+            // sans marque, ni un opérateur ni un balayage d'orphelins ne peut distinguer
+            // ce que Zanshin a lancé du reste.
+            Labels: { [SCANNER_LABEL]: request.label },
             HostConfig: {
                 Binds: binds,
                 NetworkMode: request.network ? 'bridge' : 'none',

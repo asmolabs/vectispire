@@ -1,12 +1,27 @@
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { ContainerRunner } from '../container-runner';
-import { withWorkspace } from '../workspace';
+import { placeBundledRules } from '../bundled-rules';
+import { withWorkspace, type Workspace } from '../workspace';
 import { SEMGREP_IMAGE } from './images';
 import { SastScanner } from './sast';
 
-/** L'arbre de règles embarqué, copié dans l'espace de travail comme le fera le coureur. */
-const RULES_SOURCE = join(__dirname, '..', 'rules', 'semgrep');
+/** Un appel que les règles embarquées reconnaissent à coup sûr. */
+const DANGEREUX = 'def traite(entree):\n    return eval(entree)\n';
+
+const run = promisify(execFile);
+
+/**
+ * Fait de ce répertoire un vrai dépôt git.
+ *
+ * Une cible réelle en est toujours un — elle sort de `git clone` — et c'est cette
+ * différence qui décide de ce que semgrep accepte d'examiner.
+ */
+async function asGitRepository(directory: string): Promise<void> {
+    await run('git', ['init', '--quiet'], { cwd: directory });
+}
 
 describe('analyse du code source', () => {
     const runner = new ContainerRunner();
@@ -24,12 +39,12 @@ describe('analyse du code source', () => {
         });
     }, 900_000);
 
-    async function seed(workspace: { source: string; rules: string }, code: string): Promise<void> {
+    async function seed(workspace: Workspace, code: string): Promise<void> {
         await mkdir(workspace.source, { recursive: true });
         await writeFile(join(workspace.source, 'app.py'), code);
-        // Copiées dans l'espace de travail, comme en production : les chemins de volume
-        // sont résolus par le démon Docker, qui ne voit pas l'image de Zanshin.
-        await cp(RULES_SOURCE, workspace.rules, { recursive: true });
+        // Par la fonction de production, pas par une copie refaite ici : c'est elle qui
+        // décide de la disposition que la ligne de commande de semgrep suppose.
+        await placeBundledRules(workspace);
     }
 
     it('trouve un appel dangereux et rend le message de la règle', async () => {
@@ -79,6 +94,36 @@ describe('analyse du code source', () => {
 
             // Vide et non `null` : semgrep a tourné et n'a rien trouvé.
             expect(await scanner.scan(workspace)).toEqual([]);
+        });
+    }, 900_000);
+
+    it("analyse le code qu'un .gitignore de la cible exclut", async () => {
+        await withWorkspace(async (workspace) => {
+            await seed(workspace, DANGEREUX);
+            // **Le dépôt décidait de ce qui serait analysé.** Sur un arbre git — ce qu'est
+            // toujours une cible réelle — semgrep n'examine par défaut que les fichiers
+            // suivis. Un `.gitignore` large, ou du code simplement non commité, sortait donc
+            // du périmètre sans le dire : l'étape rendait `[]`, « analysé, rien trouvé »,
+            // et résolvait le backlog SAST de la cible.
+            await writeFile(join(workspace.source, '.gitignore'), '*\n');
+            await asGitRepository(workspace.source);
+
+            const findings = await scanner.scan(workspace);
+
+            expect(findings).not.toBeNull();
+            expect(findings!.length).toBeGreaterThan(0);
+        });
+    }, 900_000);
+
+    it("rend null quand aucun fichier n'a été examiné", async () => {
+        await withWorkspace(async (workspace) => {
+            await seed(workspace, DANGEREUX);
+            // Zéro fichier examiné n'est pas un arbre propre, c'est une analyse qui n'a pas
+            // eu lieu. Sans ce garde-fou, un `.semgrepignore` déposé par la cible suffisait
+            // à rendre `[]` — donc à faire disparaître tout son historique SAST.
+            await writeFile(join(workspace.source, '.semgrepignore'), '*\n');
+
+            expect(await scanner.scan(workspace)).toBeNull();
         });
     }, 900_000);
 

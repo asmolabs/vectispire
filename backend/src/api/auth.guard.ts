@@ -29,6 +29,15 @@ import { SCOPE_AGENT } from '../domain/api-keys/scopes';
 
 /** Marque une route comme accessible sans session. */
 export const PUBLIC = 'zanshin:public';
+
+/**
+ * Cette route reste accessible à un compte qui doit changer son mot de passe.
+ *
+ * Réservée à ce qui permet d'en sortir : lire son propre profil, changer le mot de passe,
+ * se déconnecter. Toute autre route est refusée tant que le drapeau est posé.
+ */
+export const PENDING_PASSWORD_CHANGE = 'zanshin:pending-password-change';
+export const AllowsPendingPasswordChange = () => SetMetadata(PENDING_PASSWORD_CHANGE, true);
 export const Public = () => SetMetadata(PUBLIC, true);
 
 /** Restreint une route à certains rôles. Sans elle, une session suffit. */
@@ -90,6 +99,24 @@ export class AuthGuard implements CanActivate {
 
         request.session = session;
         request.user = user;
+
+        // **Le changement de mot de passe imposé est vérifié ici, pas seulement affiché.**
+        //
+        // Le drapeau était posé à trois endroits — le compte d'amorçage, la création d'un
+        // utilisateur, la réinitialisation par un administrateur — et lu par personne côté
+        // serveur. Seul le client Angular le regardait, ce qui n'est pas un contrôle : un
+        // appel direct à l'API l'ignorait, et le mot de passe d'amorçage — qui vit dans la
+        // configuration du déploiement, les journaux d'orchestrateur et l'historique du
+        // shell — restait un identifiant SUPERUSER pleinement valable, sans expiration.
+        //
+        // La liste d'exemption est explicite plutôt que déduite : elle contient ce qu'il
+        // faut pour *sortir* de l'état, et rien d'autre.
+        if (user.mustChangePassword) {
+            const allowed = this.reflector.getAllAndOverride<boolean>(PENDING_PASSWORD_CHANGE, [context.getHandler(), context.getClass()]);
+            if (!allowed) {
+                throw new ForbiddenException('Changement de mot de passe requis avant toute autre action.');
+            }
+        }
 
         const required = this.reflector.getAllAndOverride<string[]>(ROLES, [context.getHandler(), context.getClass()]);
         if (required?.length && !required.includes(user.role)) {

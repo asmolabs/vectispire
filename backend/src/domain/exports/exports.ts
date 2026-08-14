@@ -465,13 +465,33 @@ export function buildIssuesCsv(issues: Iterable<ExportableIssue>): string {
 }
 
 /**
- * Guillemets à la manière de `QUOTE_MINIMAL` : on ne cite que si le champ contient le
- * séparateur, un guillemet, ou un caractère de fin de ligne. Les guillemets du
- * contenu sont doublés.
+ * Les caractères par lesquels un tableur décide qu'une cellule est une **formule**.
+ *
+ * Excel, LibreOffice et Google Sheets évaluent une cellule commençant par l'un d'eux. La
+ * tabulation et le retour chariot y figurent parce qu'Excel les ignore avant de reprendre
+ * son analyse : `\t=cmd|…` est évalué comme `=cmd|…`.
+ */
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+
+/**
+ * Guillemets à la manière de `QUOTE_MINIMAL`, **précédés d'une neutralisation de formule**.
+ *
+ * **Le contenu de ce fichier vient de dépôts scannés**, donc de l'extérieur de la frontière
+ * de confiance : un nom de paquet, un chemin de fichier, un identifiant de règle sont
+ * choisis par qui peut committer dans la cible. Le lecteur, lui, est un opérateur de
+ * sécurité qui ouvre le fichier dans un tableur — c'est tout l'objet de l'export CSV.
+ *
+ * Un paquet nommé `=cmd|'/c calc'!A1` s'exécute à l'ouverture ; `=HYPERLINK(...&A1&B1)`
+ * exfiltre les cellules voisines — c'est-à-dire le reste du backlog — vers un hôte choisi
+ * par l'attaquant, sans aucune invite. L'apostrophe force le mode texte.
+ *
+ * **Les guillemets ne protègent pas** : le tableur les retire avant d'évaluer. La
+ * neutralisation doit donc précéder la citation, pas s'y substituer.
  */
 function quoteCsvField(value: string): string {
-    if (!/[",\r\n]/.test(value)) return value;
-    return `"${value.replace(/"/g, '""')}"`;
+    const safe = FORMULA_PREFIX.test(value) ? `'${value}` : value;
+    if (!/[",\r\n]/.test(safe)) return safe;
+    return `"${safe.replace(/"/g, '""')}"`;
 }
 
 /**

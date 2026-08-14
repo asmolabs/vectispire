@@ -1,12 +1,11 @@
-import { cp } from 'node:fs/promises';
-import { join } from 'node:path';
 import { cloneRepository } from './git-clone';
+import { placeBundledRules } from './bundled-rules';
 import { ContainerRunner } from './container-runner';
 import { DependencyScanner, type DependencyFinding, type Sbom } from './scanners/dependencies';
 import { GitleaksScanner, type SecretFinding } from './scanners/gitleaks';
 import { IacScanner, type IacFinding } from './scanners/iac';
 import { SastScanner, type SastFinding } from './scanners/sast';
-import { withWorkspace, type Workspace } from './workspace';
+import { withWorkspace } from './workspace';
 
 /**
  * L'exécution d'un scan : cloner, lancer les scanners, rendre la sortie brute.
@@ -70,9 +69,6 @@ export interface ScanArtifacts {
     durationMs: number;
 }
 
-/** L'arbre de règles embarqué, copié dans l'espace de travail de chaque scan. */
-const BUNDLED_RULES = join(__dirname, 'rules', 'semgrep');
-
 export class ScanRunner {
     constructor(
         private readonly containers = new ContainerRunner(),
@@ -113,6 +109,11 @@ export class ScanRunner {
                 });
             }
 
+            // **Posées avant les scanners, et non dans l'étape SAST.** gitleaks en a besoin
+            // aussi : sa configuration doit venir d'ici plutôt que de l'arbre analysé, et
+            // la copier seulement pour Semgrep laissait le premier lire celle de la cible.
+            await placeBundledRules(workspace);
+
             if (task.runSecrets !== false) {
                 await this.step(artifacts, 'secrets', async () => {
                     artifacts.secrets = await this.secrets.scan(workspace, task.subPath);
@@ -127,7 +128,6 @@ export class ScanRunner {
 
             if (task.runSast) {
                 await this.step(artifacts, 'SAST', async () => {
-                    await this.placeRules(workspace);
                     artifacts.sast = await this.sast.scan(workspace, task.subPath);
                 });
             }
@@ -184,16 +184,4 @@ export class ScanRunner {
         }
     }
 
-    /**
-     * Copie l'arbre de règles dans l'espace de travail.
-     *
-     * Détour apparent — les règles existent déjà sur le disque, à côté de ce module — mais
-     * c'est le seul emplacement qui fonctionne partout : les chemins de volume sont résolus
-     * par le *démon* Docker, pas par le processus qui l'appelle. Quand Zanshin tourne
-     * lui-même dans un conteneur avec la socket montée, un répertoire de son image est
-     * invisible du conteneur frère.
-     */
-    private async placeRules(workspace: Workspace): Promise<void> {
-        await cp(BUNDLED_RULES, workspace.rules, { recursive: true });
-    }
 }

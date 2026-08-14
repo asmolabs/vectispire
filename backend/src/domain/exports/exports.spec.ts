@@ -215,3 +215,83 @@ describe('les invariants OpenVEX', () => {
         expect(affected.impact_statement).toBeUndefined();
     });
 });
+
+describe('CSV et injection de formule', () => {
+    /** Un problème dont les champs viennent d'un dépôt scanné, donc de l'extérieur. */
+    function hostile(over: Record<string, unknown> = {}) {
+        return {
+            id: 1,
+            repoId: 1,
+            containerId: null,
+            type: 'vulnerability',
+            identifier: 'CVE-2021-44228',
+            severity: 'high',
+            state: 'open',
+            triageStatus: 'under_review',
+            packageName: "=cmd|'/c calc.exe'!A1",
+            packageVersion: '1.0',
+            purl: null,
+            filePath: null,
+            source: 'grype',
+            epssScore: null,
+            isKev: false,
+            cvssScore: null,
+            cvssVector: null,
+            fixState: null,
+            fixVersions: null,
+            link: null,
+            description: null,
+            firstSeenAt: new Date('2026-01-01T00:00:00Z'),
+            lastSeenAt: new Date('2026-01-01T00:00:00Z'),
+            timesSeen: 1,
+            triageJustification: null,
+            triageComment: null,
+            triagedBy: null,
+            triagedAt: null,
+            isDirectDependency: null,
+            line: null,
+            ticketRef: null,
+            ticketUrl: null,
+            ...over
+        } as never;
+    }
+
+    it("neutralise un nom de paquet qui est une formule", () => {
+        // Le lecteur de ce fichier est un opérateur de sécurité qui l'ouvre dans un
+        // tableur — c'est l'objet même de l'export. Un paquet nommé ainsi s'exécuterait
+        // sur son poste.
+        const csv = buildIssuesCsv([hostile()]);
+
+        expect(csv).toContain("'=cmd|'/c calc.exe'!A1");
+        expect(csv).not.toMatch(/(^|,)=cmd/m);
+    });
+
+    it.each(['=1+1', '+1+1', '-1+1', '@SUM(1)', '\t=1+1', '\r=1+1'])('neutralise le préfixe %j', (payload) => {
+        const csv = buildIssuesCsv([hostile({ packageName: payload })]);
+
+        // La valeur apparaît toujours, précédée de l'apostrophe qui force le mode texte —
+        // et jamais nue. Le test porte sur la valeur produite plutôt que sur un découpage
+        // en lignes, qu'un retour chariot dans le champ rendrait faux.
+        expect(csv).toContain(`'${payload}`);
+        expect(csv.includes(`,${payload}`)).toBe(false);
+        expect(csv.includes(`,"${payload}`)).toBe(false);
+    });
+
+    it('ne neutralise pas ce qui est inoffensif', () => {
+        // Une neutralisation systématique abîmerait chaque cellule et rendrait l'export
+        // pénible à exploiter — le but est de bloquer les formules, pas de préfixer le
+        // fichier entier.
+        const csv = buildIssuesCsv([hostile({ packageName: 'log4j-core' })]);
+
+        expect(csv).toContain('log4j-core');
+        expect(csv).not.toContain("'log4j-core");
+    });
+
+    it("neutralise aussi un champ qui doit être cité, car les guillemets ne protègent pas", () => {
+        // Le tableur retire les guillemets avant d'évaluer : citer ne suffit pas, et c'est
+        // le piège qui fait croire le problème réglé.
+        const csv = buildIssuesCsv([hostile({ packageName: '=HYPERLINK("http://x","a"),b' })]);
+
+        expect(csv).toContain('"\'=HYPERLINK');
+    });
+});

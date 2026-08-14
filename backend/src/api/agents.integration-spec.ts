@@ -182,6 +182,57 @@ describe("protocole d'agent", () => {
 
             expect(task!.privateKey).toContain('PRIVATE KEY');
         });
+
+        it("ne livre aucune clé à un agent en mode local, même sur une liaison chiffrée", async () => {
+            // **Le cas qui manquait, et le seul qui vérifie la promesse faite à l'opérateur.**
+            // L'écran /agents annonce « Zanshin ne lui envoie aucune clé » pour ce mode ;
+            // c'est ce qui justifie de déporter un agent sur une machine moins protégée.
+            // Sans ce test, le mode n'était qu'un libellé : la livraison ne regardait que le
+            // transport, donc un agent `local` recevait la clé déchiffrée de chaque dépôt
+            // dont il réclamait un scan — et la file n'étant routée par aucun critère, il
+            // pouvait toutes les moissonner.
+            const agent = await seedAgent(CREDENTIALS_LOCAL);
+            const key = await dataSource.manager.save(
+                SshKey,
+                Object.assign(new SshKey(), {
+                    id: '33333333-3333-3333-3333-333333333333',
+                    name: 'déploiement',
+                    privateKey: encryptWith(deriveKey(KEY), PRIVATE, privateKeyContext('33333333-3333-3333-3333-333333333333')),
+                    publicKey: null,
+                    createdAt: now()
+                })
+            );
+            const scan = await queueScan(key.id);
+
+            const task = await controller.claimJob(asAgent(agent, true), noResponse, undefined, '0');
+
+            expect(task!.privateKey).toBeNull();
+            // Et le scan lui est bien confié : refuser la clé ne doit pas refuser le
+            // travail — un agent `local` scanne avec ses propres accès git.
+            expect(task!.scanId).toBe(scan.id);
+        });
+
+        it("confie le scan à un agent local même en clair, puisqu'aucune clé ne part", async () => {
+            // Corollaire du précédent : la vérification de transport ne concerne que la
+            // livraison d'une clé. L'appliquer à un agent qui n'en reçoit aucune refuserait
+            // du travail sans rien protéger — et le refus remontait en 500, pas en 412.
+            const agent = await seedAgent(CREDENTIALS_LOCAL);
+            const key = await dataSource.manager.save(
+                SshKey,
+                Object.assign(new SshKey(), {
+                    id: '44444444-4444-4444-4444-444444444444',
+                    name: 'déploiement',
+                    privateKey: encryptWith(deriveKey(KEY), PRIVATE, privateKeyContext('44444444-4444-4444-4444-444444444444')),
+                    publicKey: null,
+                    createdAt: now()
+                })
+            );
+            await queueScan(key.id);
+
+            const task = await controller.claimJob(asAgent(agent, false), noResponse, undefined, '0');
+
+            expect(task!.privateKey).toBeNull();
+        });
     });
 
     describe('bail', () => {

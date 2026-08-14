@@ -115,6 +115,7 @@ export class UsersController {
         if (refusal) throw new BadRequestException(refusal);
 
         const changes: string[] = [];
+        const previousRole = user.role;
         if (role !== user.role) changes.push(`rôle ${user.role} → ${role}`);
         if (isActive !== user.isActive) changes.push(isActive ? 'réactivé' : 'désactivé');
         if (password !== null) changes.push('mot de passe réinitialisé');
@@ -127,12 +128,25 @@ export class UsersController {
         });
         await this.manager.save(User, user);
 
-        // Désactiver un compte doit fermer ses sessions : sinon le compte reste dedans
-        // jusqu'à expiration, et « désactivé » ne veut plus rien dire.
-        if (!isActive) await this.manager.delete(Session, { userId: id });
+        // **Trois gestes ferment les sessions, pas un seul.**
+        //
+        // Désactiver, bien sûr : sinon le compte reste dedans jusqu'à expiration et
+        // « désactivé » ne veut plus rien dire.
+        //
+        // Mais réinitialiser un mot de passe aussi, et c'est celui qui manquait — c'est
+        // pourtant le geste de la réponse à incident. Un administrateur à qui l'on signale
+        // un jeton volé réinitialise le mot de passe, l'écran confirme, et le jeton volé
+        // continue d'authentifier jusqu'à douze heures, sa fenêtre d'inactivité repoussée
+        // à chaque appel. Le mot de passe change, l'accès non.
+        //
+        // Et changer de rôle : une session ouverte porte le rôle relu à chaque requête,
+        // donc une rétrogradation prend effet — mais fermer la session rend la chose
+        // explicite plutôt que dépendante de ce détail.
+        const revoke = !isActive || password !== null || role !== previousRole;
+        if (revoke) await this.manager.delete(Session, { userId: id });
 
         if (changes.length) await this.record(request, id, `Compte ${user.username} : ${changes.join(', ')}`);
-        return toSummary(user, isActive ? (await this.activeSessionsByUser()).get(id) ?? 0 : 0);
+        return toSummary(user, revoke ? 0 : (await this.activeSessionsByUser()).get(id) ?? 0);
     }
 
     @Delete(':id')

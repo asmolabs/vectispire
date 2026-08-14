@@ -3,6 +3,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { ApiTags } from '@nestjs/swagger';
 import { EntityManager } from 'typeorm';
 import { SETTINGS_CATALOG, definitionFor, validate } from '../domain/settings/catalog';
+import { ADMIN_ROLES } from '../domain/users/roles';
 import { AuditLogService } from '../services/audit-log.service';
 import { SettingsService } from '../services/settings.service';
 import { TicketService } from '../services/ticket.service';
@@ -38,8 +39,13 @@ export class SettingsController {
      * choisir son contrôle, et de l'explication pour dire ce que le réglage ne fait pas.
      */
     @Get()
-    async list() {
+    async list(@Req() request: AuthenticatedRequest) {
         const values = await this.settings.all();
+        // **La valeur d'un réglage sensible ne sort que pour un administrateur.**
+        // Une URL de webhook est une capacité au porteur : qui la lit peut publier dans le
+        // canal où l'équipe attend les alertes de Zanshin. Le catalogue, lui, reste
+        // lisible par tous — l'écran a besoin des libellés et des types.
+        const isAdmin = ADMIN_ROLES.includes(request.user?.role as (typeof ADMIN_ROLES)[number]);
 
         return {
             settings: SETTINGS_CATALOG.map((definition) => ({
@@ -51,7 +57,7 @@ export class SettingsController {
                 default: definition.default,
                 // La valeur effective, défaut compris : sans cela l'écran afficherait un
                 // champ vide là où le service applique pourtant une valeur.
-                value: values[definition.key] ?? definition.default,
+                value: definition.sensitive && !isAdmin ? null : (values[definition.key] ?? definition.default),
                 // Distingué explicitement, parce que « jamais réglé » et « réglé à la même
                 // valeur que le défaut » ne se disent pas pareil à un opérateur.
                 configured: definition.key in values

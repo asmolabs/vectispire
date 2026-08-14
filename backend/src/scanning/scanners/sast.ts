@@ -73,7 +73,10 @@ export class SastScanner {
     /** Rend les constats, ou `null` si l'analyse n'a pas réellement eu lieu. */
     async scan(workspace: Workspace, subPath = ''): Promise<SastFinding[] | null> {
         const target = subPath ? posix.join('/repo', SOURCE_SUBDIR, subPath) : posix.join('/repo', SOURCE_SUBDIR);
-        const rules = posix.join('/repo', RULES_SUBDIR);
+        // `rules/semgrep`, et non `rules` : l'espace de travail porte désormais aussi la
+    // configuration de gitleaks, et pointer Semgrep sur le répertoire parent lui ferait
+    // parcourir un arbre qui n'est pas le sien.
+    const rules = posix.join('/repo', RULES_SUBDIR, 'semgrep');
         const label = 'semgrep (analyse du code source)';
 
         try {
@@ -84,6 +87,11 @@ export class SastScanner {
                     'scan',
                     `--config=${rules}`,
                     '--no-rewrite-rule-ids',
+                    // **La cible ne choisit pas ce qu'on regarde.** Semgrep honore par
+                    // défaut le `.gitignore` de l'arbre analysé — qui est un clone du dépôt
+                    // scanné, donc écrit par qui on audite. Un `*` committé excluait tout,
+                    // et l'étape rendait un succès vide.
+                    '--no-git-ignore',
                     '--json',
                     '--metrics=off',
                     '--disable-version-check',
@@ -126,8 +134,18 @@ export class SastScanner {
 function mostlyFailed(payload: SemgrepPayload): boolean {
     const errors = payload.errors?.length ?? 0;
     const scanned = payload.paths?.scanned?.length ?? 0;
-    if (errors === 0) return false;
+
+    // **Zéro fichier examiné n'est pas un arbre propre, c'est une analyse qui n'a pas eu
+    // lieu** — et c'était le trou. Le test sortait sur `errors === 0` avant de regarder la
+    // couverture, si bien qu'une exécution ayant tout exclu rendait `[]`, donc « analysé,
+    // rien trouvé », donc la résolution de tout le backlog SAST et qualité de la cible.
+    //
+    // La sélection des fichiers est influençable depuis le dépôt : Semgrep honore
+    // `.semgrepignore` et, par défaut, `.gitignore` — et l'arbre est toujours un clone git.
+    // Un `*` committé suffisait à éteindre l'étape en la faisant passer pour un succès.
     if (scanned === 0) return true;
+
+    if (errors === 0) return false;
     return errors / (errors + scanned) > MAX_ERROR_RATIO;
 }
 

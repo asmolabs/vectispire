@@ -3,7 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { privateKeyContext } from '../domain/crypto/encryption';
 import { now } from '../domain/common/timestamp';
 import { capacity } from '../domain/scans/queue-rules';
-import { Agent, Container, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
+import { Agent, CREDENTIALS_DELEGATED, Container, Repository as GitRepository, Scan, SshKey, STATUS_COMPLETED, STATUS_FAILED, STATUS_QUEUED } from '../persistence/entities';
 import { ScanRepository } from '../repositories/scan.repository';
 import { formatImageReference } from '../domain/targets/image-reference';
 import { ScanRunner, type ScanArtifacts } from '../scanning/scan-runner';
@@ -93,7 +93,11 @@ export class ScanDispatcherService {
             if (claimed.length > 0) {
                 const scan = claimed[0];
                 try {
-                    const task = await this.dataSource.transaction((manager) => this.buildTask(manager, scan));
+                    // **Le mode de l'agent décide, le transport ne fait que confirmer.**
+                    // Un agent `local` n'a jamais de clé à recevoir : la question du
+                    // chiffrement de la liaison ne se pose donc pas pour lui.
+                    const deliverCredentials = agent.credentialsMode === CREDENTIALS_DELEGATED;
+                    const task = await this.dataSource.transaction((manager) => this.buildTask(manager, scan, deliverCredentials));
                     if (task.privateKey && !secureTransport) {
                         // Remis en file avant de refuser : sans cela le scan resterait
                         // réclamé par un agent qui n'a rien reçu, jusqu'à expiration.
@@ -245,8 +249,8 @@ export class ScanDispatcherService {
      * d'exécuter le même code sans jamais approcher le secret d'un autre dépôt.
      */
     /** Exposée pour le typage de `AgentTask` uniquement. */
-    async buildTaskPublic(manager: EntityManager, scan: Scan) {
-        return this.buildTask(manager, scan);
+    async buildTaskPublic(manager: EntityManager, scan: Scan, deliverCredentials = true) {
+        return this.buildTask(manager, scan, deliverCredentials);
     }
 
     /**
@@ -282,13 +286,27 @@ export class ScanDispatcherService {
         };
     }
 
-    private async buildTask(manager: EntityManager, scan: Scan) {
+    /**
+     * `deliverCredentials` est une **décision d'autorisation**, pas une commodité.
+     *
+     * Elle vaut `false` pour un agent en mode `local`, et la clé n'est alors ni lue ni
+     * déchiffrée — on ne déchiffre pas un secret qu'on n'enverra pas. Le travailleur
+     * intégré, lui, tourne dans le plan de contrôle et la reçoit toujours.
+     *
+     * **Ce paramètre manquait.** `claimForAgent` ne consultait que le transport, si bien
+     * qu'un agent déclaré `local` — celui qu'on déporte justement sur une machine moins
+     * protégée, sur la promesse écrite qu'aucune clé ne lui sera envoyée — recevait la clé
+     * de déploiement déchiffrée de chaque dépôt dont il réclamait un scan. La file n'étant
+     * routée par aucun critère, il pouvait les moissonner toutes. Le portage avait emporté
+     * avec l'arbre Python le seul test qui tenait cette promesse.
+     */
+    private async buildTask(manager: EntityManager, scan: Scan, deliverCredentials = true) {
         if (scan.repoId === null) return this.buildImageTask(manager, scan);
 
         const repository = await manager.findOneByOrFail(GitRepository, { id: scan.repoId });
 
         let privateKey: string | null = null;
-        if (repository.sshKeyId) {
+        if (repository.sshKeyId && deliverCredentials) {
             const key = await manager.findOneBy(SshKey, { id: repository.sshKeyId });
             if (!key) throw new Error(`La clé SSH du dépôt ${repository.url} a été supprimée.`);
             const secret = this.encryption.inspect(key.privateKey, privateKeyContext(key.id));

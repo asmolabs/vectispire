@@ -9,7 +9,7 @@ import { Session, User } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { hashPassword, verifyPassword } from '../services/password.service';
 import { AuthService } from '../services/auth.service';
-import { Public } from './auth.guard';
+import { AllowsPendingPasswordChange, Public } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
 /**
@@ -67,6 +67,7 @@ export class AuthController {
         };
     }
 
+    @AllowsPendingPasswordChange()
     @Delete('session')
     @HttpCode(204)
     async logout(@Req() request: AuthenticatedRequest): Promise<void> {
@@ -88,6 +89,7 @@ export class AuthController {
      * ailleurs viderait le geste de son sens. La session courante survit, sans quoi
      * l'écran renverrait à la connexion juste après avoir réussi.
      */
+    @AllowsPendingPasswordChange()
     @Post('change-password')
     async changePassword(@Body() body: Record<string, unknown>, @Req() request: AuthenticatedRequest) {
         const current = String(body.current_password ?? '');
@@ -123,6 +125,7 @@ export class AuthController {
         return { mustChangePassword: false };
     }
 
+    @AllowsPendingPasswordChange()
     @Get('me')
     me(@Req() request: AuthenticatedRequest) {
         const user = request.user!;
