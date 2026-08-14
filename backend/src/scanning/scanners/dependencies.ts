@@ -23,6 +23,14 @@ import { GRYPE_IMAGE, SYFT_IMAGE } from './images';
 const SBOM_FILENAME = 'sbom.json';
 
 /**
+ * L'image exportée, à la racine de l'espace de travail.
+ *
+ * À la racine et non dans `source/` : elle n'est pas de la matière à analyser par les
+ * autres étapes, et un scan d'image n'a de toute façon pas d'arbre source.
+ */
+const IMAGE_ARCHIVE_FILENAME = 'image.tar';
+
+/**
  * L'architecture auditée par défaut.
  *
  * Explicite, parce que le démon rendrait sinon celle de l'hôte : une machine de
@@ -102,24 +110,38 @@ export class DependencyScanner {
      * auditant une image linux/amd64. Passer par le démon corrige cela et réutilise
      * l'image déjà présente localement au lieu de la retélécharger à chaque scan.
      *
-     * `--platform` reste **obligatoire** : sans lui le démon rend l'architecture de
-     * l'*hôte*, produisant en silence le SBOM d'une variante que personne n'a demandé
-     * d'auditer.
+     * `platform` reste **obligatoire** : sans lui le démon rend l'architecture de l'*hôte*,
+     * produisant en silence le SBOM d'une variante que personne n'a demandé d'auditer. Il
+     * est appliqué à la traction, et l'archive exportée ne porte donc que celle-là.
      */
-    async generateSbomForImage(reference: string, platform = DEFAULT_PLATFORM): Promise<Sbom | null> {
+    async generateSbomForImage(workspace: Workspace, reference: string, platform = DEFAULT_PLATFORM): Promise<Sbom | null> {
         const label = `syft (SBOM de l'image ${reference})`;
-        const result = await this.runner.run({
-            image: SYFT_IMAGE,
-            command: [`docker:${reference}`, '--platform', platform, '-o', 'json'],
-            binds: [],
-            label,
-            // Tire par le démon, et peut atteindre le registre.
-            network: true,
-            dockerSocket: true,
-            asRoot: true
-        });
+        const archivePath = join(workspace.root, IMAGE_ARCHIVE_FILENAME);
 
-        return parseScannerJson<Sbom>(result, label);
+        // **Tirée par Zanshin, pas par le conteneur.** Le seul processus qui parle au démon
+        // est celui-ci ; Syft ne voit qu'un fichier. Voir `ContainerRunner.exportImage`.
+        await this.runner.exportImage(reference, platform, archivePath);
+
+        try {
+            const result = await this.runner.run({
+                image: SYFT_IMAGE,
+                command: [`docker-archive:/work/${IMAGE_ARCHIVE_FILENAME}`, '-o', 'json'],
+                binds: [{ source: workspace.root, target: '/work', readOnly: true }],
+                label,
+                // **Ni réseau ni socket.** L'image est déjà là, sous forme d'archive : Syft
+                // n'a plus rien à atteindre, et `--platform` n'a plus lieu d'être puisque
+                // l'archive ne contient que la variante demandée.
+                network: false,
+                asRoot: true
+            });
+
+            return parseScannerJson<Sbom>(result, label);
+        } finally {
+            // L'archive d'une image fait couramment plusieurs centaines de mégaoctets, et
+            // Grype n'en a pas besoin : elle disparaît dès que le SBOM est lu, sans attendre
+            // la fin du scan.
+            await rm(archivePath, { force: true });
+        }
     }
 
     /**

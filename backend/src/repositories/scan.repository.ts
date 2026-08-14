@@ -13,6 +13,12 @@ import { Scan, STATUS_FAILED, STATUS_QUEUED, STATUS_RUNNING } from '../persisten
  * ancienne. Le changement de statut et la libération du verrou ont lieu dans le même
  * commit : il n'existe aucune fenêtre où une ligne serait réclamée sans le dire.
  *
+ * **La file est routée.** Un scan peut exiger une étiquette d'agent ; le filtre vit dans
+ * la requête verrouillante elle-même, jamais après. Prendre puis rendre ce qui ne convient
+ * pas verrouillerait des lignes destinées à d'autres et les affamerait le temps de la
+ * transaction — c'est exactement le défaut décrit au paragraphe suivant, sous un autre
+ * déguisement.
+ *
  * **Demander exactement ce dont on a besoin, et réessayer.** L'idée évidente — verrouiller
  * une fenêtre plus large puis la rogner — a été essayée et faisait échouer PostgreSQL sur
  * les tests mêmes que MySQL échouait : un réclamant qui verrouille des lignes qu'il ne
@@ -35,7 +41,7 @@ export class ScanRepository {
      * jusqu'au commit ; hors transaction, chaque requête committe seule et la garantie
      * disparaît sans que rien ne le signale.
      */
-    async claim(manager: EntityManager, limit: number, worker: string | null): Promise<Scan[]> {
+    async claim(manager: EntityManager, limit: number, worker: string | null, agentLabels: string[] = []): Promise<Scan[]> {
         if (limit <= 0) return [];
 
         const claimed: Scan[] = [];
@@ -46,6 +52,16 @@ export class ScanRepository {
                 .setLock('pessimistic_write')
                 .setOnLocked('skip_locked')
                 .where('scan.status = :status', { status: STATUS_QUEUED })
+                // **Le filtre est ici, dans la requête verrouillante.** Le poser après coup
+                // — prendre puis rendre ce qui ne convient pas — verrouillerait des lignes
+                // destinées à d'autres et les affamerait le temps de la transaction, ce qui
+                // est le défaut qu'on a déjà payé une fois sur cette même requête.
+                .andWhere(
+                    agentLabels.length === 0
+                        ? 'scan.required_agent_label IS NULL'
+                        : '(scan.required_agent_label IS NULL OR scan.required_agent_label IN (:...agentLabels))',
+                    agentLabels.length === 0 ? {} : { agentLabels }
+                )
                 .orderBy('scan.created_at', 'ASC')
                 .addOrderBy('scan.id', 'ASC')
                 .limit(wanted)
@@ -65,8 +81,9 @@ export class ScanRepository {
             }
 
             if (claimed.length >= limit) break;
-            // Rien à prendre : la file est vide *ou* tout est verrouillé ailleurs. Un
-            // tour de plus le dira, et la boucle est bornée.
+            // Rien à prendre : la file est vide, *tout est verrouillé ailleurs*, ou rien
+            // n'est destiné à cet agent. Un tour de plus distingue le deuxième cas des
+            // autres, et la boucle est bornée.
             if (batch.length === 0 && (await this.countQueued(manager)) === 0) break;
         }
         return claimed;

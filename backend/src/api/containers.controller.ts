@@ -8,6 +8,7 @@ import { formatImageReference, validateImageReference } from '../domain/targets/
 import { Container, Issue, Scan, STATE_OPEN, STATUS_QUEUED } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
+import { normalizeRequiredLabel } from '../domain/agents/targeting';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -61,6 +62,7 @@ export class ContainersController {
                 // Validée ici, au point de saisie : découvrir qu'une expression a été rejetée
                 // en regardant des scans *ne pas* se produire est la manière chère.
                 scanCron: cronOrThrow(body.scan_cron),
+                requiredAgentLabel: normalizeRequiredLabel(body.required_agent_label as string | null),
                 lastScheduledScanAt: null
             })
         );
@@ -93,6 +95,7 @@ export class ContainersController {
                 // Une image n'a pas de branche ; la colonne est obligatoire et cette valeur
                 // dit ce qu'il en est plutôt que de laisser une chaîne vide inexplicable.
                 branch: 'n/a',
+                requiredAgentLabel: container.requiredAgentLabel,
                 status: STATUS_QUEUED,
                 createdAt: now()
             })

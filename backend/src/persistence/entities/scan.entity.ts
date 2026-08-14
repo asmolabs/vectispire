@@ -52,6 +52,19 @@ export class Scan {
     @Column(stringColumn())
     status!: string;
 
+    /**
+     * L'étiquette d'agent que ce scan exige, ou `null` pour « n'importe lequel ».
+     *
+     * **Recopiée depuis la cible au moment de la mise en file, et non lue par jointure.**
+     * Deux raisons. La réclamation est un `SELECT … FOR UPDATE SKIP LOCKED` sur cette seule
+     * table : y ajouter une jointure ferait verrouiller les lignes jointes, ce qui est
+     * exactement le genre de détail qui ne se voit qu'en production sous charge. Et un scan
+     * en file garde ainsi l'exigence qui valait quand on l'a demandé — changer l'étiquette
+     * d'un dépôt ne rerouté pas ce qui attend déjà.
+     */
+    @Column({ ...stringColumn(255, { nullable: true }), name: 'required_agent_label' })
+    requiredAgentLabel!: string | null;
+
     /** Sortie brute des scanners, conservée pour l'audit et purgée par la rétention. */
     @Column(jsonColumn({ nullable: true }))
     sbom!: unknown;

@@ -140,8 +140,7 @@ export class ScanRunner {
     /**
      * Le scan d'une image de conteneur.
      *
-     * **Pas d'espace de travail, et deux étapes seulement.** Syft lit l'image directement
-     * depuis le registre ; il n'y a pas d'arbre à cloner ni à monter. Les secrets, l'IaC et
+     * **Deux étapes seulement.** Il n'y a pas d'arbre à cloner. Les secrets, l'IaC et
      * le SAST ne s'appliquent pas — ils cherchent dans du code source, pas dans des couches
      * d'image — et les déclarer scannés résoudrait en silence tout leur historique pour
      * cette cible. Ils restent donc à `null` : « on n'a pas regardé », qui est la vérité.
@@ -161,9 +160,15 @@ export class ScanRunner {
             durationMs: 0
         };
 
-        await this.step(artifacts, 'dépendances', async () => {
-            artifacts.sbom = await this.dependencies.generateSbomForImage(task.image!, task.platform ?? undefined);
-            if (artifacts.sbom) artifacts.dependencies = await this.dependencies.scanSbomStandalone(artifacts.sbom);
+        // **Un espace de travail, désormais.** Il n'en fallait pas tant que Syft lisait
+        // l'image depuis le registre avec la socket Docker montée ; c'est précisément ce
+        // montage qui posait problème. L'image est maintenant exportée par Zanshin dans cet
+        // espace, et Syft n'en voit qu'un fichier en lecture seule.
+        await withWorkspace(async (workspace) => {
+            await this.step(artifacts, 'dépendances', async () => {
+                artifacts.sbom = await this.dependencies.generateSbomForImage(workspace, task.image!, task.platform ?? undefined);
+                if (artifacts.sbom) artifacts.dependencies = await this.dependencies.scanSbomStandalone(artifacts.sbom);
+            });
         });
 
         artifacts.durationMs = Date.now() - started;

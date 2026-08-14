@@ -8,6 +8,7 @@ import { validateRepositoryUrl } from '../domain/targets/git-url';
 import { Repository as GitRepository, Issue, Scan, STATE_OPEN, STATUS_QUEUED } from '../persistence/entities';
 import { TargetRepository } from '../repositories/target.repository';
 import { AuditLogService } from '../services/audit-log.service';
+import { normalizeRequiredLabel } from '../domain/agents/targeting';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 import { repositoryDisplayName } from '../domain/targets/display-name';
@@ -61,6 +62,9 @@ export class RepositoriesController {
             // en regardant des scans *ne pas* se produire est la manière chère.
             scanCron: cronOrThrow(body.scan_cron),
             lastScheduledScanAt: null,
+            // Normalisée à la saisie : sans cela, « Production » ici et « production » sur
+            // l'agent ne se rencontreraient jamais, et le scan attendrait un agent présent.
+            requiredAgentLabel: normalizeRequiredLabel(body.required_agent_label as string | null),
             sshKeyId: asOptional(body.ssh_key_id)
         });
 
@@ -105,6 +109,9 @@ export class RepositoriesController {
                 repoId: repository.id,
                 branch: repository.branch,
                 subPath: repository.subPath,
+                // Recopiée au moment de la mise en file : ce scan garde l'exigence qui
+                // valait quand on l'a demandé, même si l'étiquette du dépôt change ensuite.
+                requiredAgentLabel: repository.requiredAgentLabel,
                 status: STATUS_QUEUED,
                 createdAt: now()
             })

@@ -11,7 +11,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
-import type { AgentSummary } from '../../core/api.models';
+import type { AgentSummary, UnroutableLabel } from '../../core/api.models';
 
 const CREDENTIALS = [
     { label: 'Clés locales', value: 'local', hint: "L'agent utilise ses propres identifiants git. Zanshin ne lui envoie aucune clé." },
@@ -39,6 +39,19 @@ const CREDENTIALS = [
             <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
         }
 
+        <!--
+            **L'attente serait muette sans cela.** Une cible étiquetée « client » alors
+            qu'aucun agent activé ne porte cette étiquette met ses scans en file, où ils
+            restent indéfiniment : la page Dépôts dit « en attente », ce qui est vrai et
+            n'explique rien. Ici, la cause est nommée et le correctif est à un champ près.
+        -->
+        @for (blocked of unroutable(); track blocked.label) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+                {{ blocked.queued }} scan(s) exigent l'étiquette « {{ blocked.label }} », qu'aucun agent activé ne porte.
+                Ils attendront tant que personne ne la déclare.
+            </p-message>
+        }
+
         <p-card>
             <p-table [value]="agents()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
@@ -46,6 +59,7 @@ const CREDENTIALS = [
                         <th>Agent</th>
                         <th>État</th>
                         <th>Machine</th>
+                        <th>Étiquettes</th>
                         <th>Identifiants</th>
                         <th class="text-right">Scans</th>
                         <th class="w-1"></th>
@@ -85,6 +99,16 @@ const CREDENTIALS = [
                                 <div class="text-sm text-muted-color">{{ agent.platform }} · {{ agent.version }}</div>
                             } @else {
                                 <span class="text-muted-color">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (agent.labels) {
+                                @for (label of agent.labels.split(','); track label) {
+                                    <p-tag [value]="label" severity="info" styleClass="mr-1" />
+                                }
+                            } @else {
+                                <!-- Sans étiquette, il ne prend que les cibles qui n'en exigent aucune. -->
+                                <span class="text-muted-color text-sm">Cibles libres</span>
                             }
                         </td>
                         <td>
@@ -133,6 +157,15 @@ const CREDENTIALS = [
                     <small class="text-muted-color">{{ hintFor(form.credentialsMode) }}</small>
                 </div>
                 <div class="flex flex-col gap-2">
+                    <label for="labels" class="font-medium">Étiquettes</label>
+                    <input pInputText id="labels" [(ngModel)]="form.labels" placeholder="production, réseau-client" />
+                    <small class="text-muted-color">
+                        Ce que cet agent sait atteindre. Un dépôt ou une image peut exiger une étiquette :
+                        seuls les agents qui la portent recevront ses scans — et sa clé de déploiement.
+                        Sans étiquette, cet agent ne prend que les cibles qui n'en exigent aucune.
+                    </small>
+                </div>
+                <div class="flex flex-col gap-2">
                     <label for="concurrent" class="font-medium">Scans en parallèle</label>
                     <p-inputnumber inputId="concurrent" [(ngModel)]="form.maxConcurrent" [min]="1" [max]="16" styleClass="w-full" />
                 </div>
@@ -176,6 +209,7 @@ export class Agents {
     readonly credentials = CREDENTIALS;
 
     readonly agents = signal<AgentSummary[]>([]);
+    readonly unroutable = signal<UnroutableLabel[]>([]);
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly busy = signal<string | null>(null);
@@ -187,7 +221,7 @@ export class Agents {
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<AgentSummary | null>(null);
 
-    form = { name: '', description: '', credentialsMode: 'local', maxConcurrent: 1 };
+    form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
     constructor() {
         this.reload();
@@ -199,6 +233,14 @@ export class Agents {
 
     reload(preserveError = false): void {
         this.loading.set(true);
+        // **Rechargées ensemble, et l'échec de la seconde ne masque pas la première.** Un
+        // avertissement absent est moins grave qu'un écran vide, et la liste des agents est
+        // ce que l'opérateur vient chercher.
+        this.api.unroutableLabels().subscribe({
+            next: (blocked) => this.unroutable.set(blocked),
+            error: () => this.unroutable.set([])
+        });
+
         this.api.agents().subscribe({
             next: (agents) => {
                 this.agents.set(agents);
@@ -229,7 +271,7 @@ export class Agents {
     }
 
     openForm(): void {
-        this.form = { name: '', description: '', credentialsMode: 'local', maxConcurrent: 1 };
+        this.form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -241,6 +283,7 @@ export class Agents {
                 name: this.form.name.trim(),
                 description: this.form.description.trim() || undefined,
                 credentials_mode: this.form.credentialsMode,
+                labels: this.form.labels.trim() || undefined,
                 max_concurrent: this.form.maxConcurrent
             })
             .subscribe({

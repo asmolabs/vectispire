@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { parseAgentLabels } from '../domain/agents/targeting';
 import { privateKeyContext } from '../domain/crypto/encryption';
 import { isUsablePublicKey, seal } from '../domain/crypto/sealed-envelope';
 import { now } from '../domain/common/timestamp';
@@ -59,14 +60,14 @@ export class ScanDispatcherService {
      * sans lui, un travailleur dont le bail a expiré écraserait le travail de son
      * successeur en rendant des résultats périmés.
      */
-    async dispatch(worker: string, maxConcurrent: number): Promise<{ claimed: number; completed: number; failed: number }> {
+    async dispatch(worker: string, maxConcurrent: number, agentLabels: string[] = []): Promise<{ claimed: number; completed: number; failed: number }> {
         await this.reclaimLostLeases();
 
         const running = await this.dataSource.transaction((manager) => this.scans.countRunning(manager));
         const room = capacity(maxConcurrent, running);
         if (room === 0) return { claimed: 0, completed: 0, failed: 0 };
 
-        const claimed = await this.dataSource.transaction((manager) => this.scans.claim(manager, room, worker));
+        const claimed = await this.dataSource.transaction((manager) => this.scans.claim(manager, room, worker, agentLabels));
 
         let completed = 0;
         let failed = 0;
@@ -90,7 +91,7 @@ export class ScanDispatcherService {
         const deadline = Date.now() + waitSeconds * 1000;
 
         do {
-            const claimed = await this.dataSource.transaction((manager) => this.scans.claim(manager, 1, agent.id));
+            const claimed = await this.dataSource.transaction((manager) => this.scans.claim(manager, 1, agent.id, parseAgentLabels(agent.labels)));
             if (claimed.length > 0) {
                 const scan = claimed[0];
                 try {

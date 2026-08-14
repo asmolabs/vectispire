@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { parseAgentLabels } from '../domain/agents/targeting';
 import { ScanDispatcherService } from './scan-dispatcher.service';
 
 /**
@@ -32,6 +33,18 @@ export class ScanWorkerService implements OnModuleInit {
 
     private busy = false;
 
+    /**
+     * Les étiquettes de cet hôte, pour le ciblage des scans.
+     *
+     * **Vides par défaut, donc il ne prend que le travail sans exigence.** L'inverse — « le
+     * travailleur intégré correspond à tout » — rendrait le ciblage inopérant sur toute
+     * installation mono-instance, c'est-à-dire la plupart. Un opérateur qui veut lui confier
+     * des cibles étiquetées le déclare : `ZANSHIN_WORKER_LABELS=production,interne`.
+     */
+    private labels(): string[] {
+        return parseAgentLabels(process.env.ZANSHIN_WORKER_LABELS);
+    }
+
     constructor(private readonly dispatcher: ScanDispatcherService) {}
 
     onModuleInit(): void {
@@ -45,7 +58,7 @@ export class ScanWorkerService implements OnModuleInit {
 
         this.busy = true;
         try {
-            const result = await this.dispatcher.dispatch(this.worker, this.maxConcurrent());
+            const result = await this.dispatcher.dispatch(this.worker, this.maxConcurrent(), this.labels());
             if (result.claimed > 0) {
                 this.logger.log(`${result.claimed} scan(s) réclamé(s) — ${result.completed} terminé(s), ${result.failed} en échec.`);
             }

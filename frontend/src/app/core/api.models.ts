@@ -172,6 +172,8 @@ export interface NewRepository {
     url: string;
     branch: string;
     name?: string;
+    /** L'étiquette qu'un agent doit porter pour scanner cette cible. Vide : n'importe lequel. */
+    required_agent_label?: string;
 }
 
 /** L'état d'un dernier scan, partagé par les dépôts et les conteneurs. */
@@ -198,6 +200,8 @@ export interface NewContainer {
     registry?: string;
     image_name: string;
     tag: string;
+    /** L'étiquette qu'un agent doit porter pour scanner cette cible. Vide : n'importe lequel. */
+    required_agent_label?: string;
 }
 
 /** Où en est une clé privée vis-à-vis des clés de chiffrement configurées. */
@@ -363,6 +367,8 @@ export interface AgentSummary {
     kind: string;
     enabled: boolean;
     credentialsMode: string;
+    /** Ce que cet agent sait atteindre, séparé par des virgules. `null` : aucune cible étiquetée. */
+    labels: string | null;
     /** A-t-il annoncé une clé publique éphémère ? Sinon, ses secrets voyagent en clair. */
     sealsCredentials: boolean;
     maxConcurrent: number | null;
@@ -380,7 +386,15 @@ export interface NewAgent {
     name: string;
     description?: string;
     credentials_mode: string;
+    /** Séparées par des virgules. Ce que cet agent sait atteindre. */
+    labels?: string;
     max_concurrent?: number;
+}
+
+/** Une étiquette exigée par des cibles qu'aucun agent activé ne porte. */
+export interface UnroutableLabel {
+    label: string;
+    queued: number;
 }
 
 export interface IssuedAgent {

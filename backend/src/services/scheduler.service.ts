@@ -69,7 +69,7 @@ export class SchedulerService implements OnApplicationShutdown {
         let queued = 0;
 
         for (const repository of repositories.filter((target) => isTargetDue(target, at))) {
-            queued += await this.queue({ repoId: repository.id, branch: repository.branch, subPath: repository.subPath }, at, () =>
+            queued += await this.queue({ repoId: repository.id, branch: repository.branch, subPath: repository.subPath, requiredAgentLabel: repository.requiredAgentLabel }, at, () =>
                 this.manager.update(GitRepository, { id: repository.id }, { lastScheduledScanAt: at })
             );
         }
@@ -78,7 +78,7 @@ export class SchedulerService implements OnApplicationShutdown {
             // `n/a` et non une chaîne vide : la colonne est obligatoire, une image n'a pas
             // de branche, et c'est la valeur que pose déjà le déclenchement manuel — un
             // scan ordonnancé doit être indiscernable d'un scan manuel en aval.
-            queued += await this.queue({ containerId: container.id, branch: 'n/a', subPath: null }, at, () =>
+            queued += await this.queue({ containerId: container.id, branch: 'n/a', subPath: null, requiredAgentLabel: container.requiredAgentLabel }, at, () =>
                 this.manager.update(Container, { id: container.id }, { lastScheduledScanAt: at })
             );
         }
@@ -95,7 +95,7 @@ export class SchedulerService implements OnApplicationShutdown {
      * ferait grossir la file sans rien apprendre.
      */
     private async queue(
-        target: { repoId?: number; containerId?: number; branch: string; subPath: string | null },
+        target: { repoId?: number; containerId?: number; branch: string; subPath: string | null; requiredAgentLabel: string | null },
         at: Date,
         stamp: () => Promise<unknown>
     ): Promise<number> {
@@ -113,6 +113,10 @@ export class SchedulerService implements OnApplicationShutdown {
                     containerId: target.containerId ?? null,
                     branch: target.branch,
                     subPath: target.subPath,
+                    // Recopiée ici comme sur les deux chemins manuels : oublier ce champ sur
+                    // *un seul* des trois rendrait le ciblage vrai « sauf pour les scans
+                    // planifiés », c'est-à-dire faux et silencieux.
+                    requiredAgentLabel: target.requiredAgentLabel,
                     status: STATUS_QUEUED,
                     createdAt: at
                 })

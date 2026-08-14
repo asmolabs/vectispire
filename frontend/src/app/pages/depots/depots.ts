@@ -99,6 +99,14 @@ import { LastScanTag } from '../../shared/last-scan';
                     <label for="name" class="font-medium">Nom affiché <span class="text-muted-color font-normal">(facultatif)</span></label>
                     <input pInputText id="name" [(ngModel)]="form.name" />
                 </div>
+                <div class="flex flex-col gap-2">
+                    <label for="agent-label" class="font-medium">Agent exigé <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="réseau-client" />
+                    <small class="text-muted-color">
+                        L'étiquette qu'un agent doit porter pour scanner cette cible — et donc pour en recevoir
+                        la clé de déploiement. Laissé vide, n'importe quel agent peut la prendre.
+                    </small>
+                </div>
                 @if (formError(); as message) {
                     <p-message severity="error" [closable]="false">{{ message }}</p-message>
                 }
@@ -140,7 +148,7 @@ export class Depots {
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { url: '', branch: 'main', name: '' };
+    form = { url: '', branch: 'main', name: '', requiredAgentLabel: '' };
 
     constructor() {
         this.reload();
@@ -185,14 +193,19 @@ export class Depots {
     }
 
     openForm(): void {
-        this.form = { url: '', branch: 'main', name: '' };
+        this.form = { url: '', branch: 'main', name: '', requiredAgentLabel: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
 
     submit(): void {
         this.saving.set(true);
-        this.api.createRepository({ url: this.form.url.trim(), branch: this.form.branch.trim() || 'main', name: this.form.name.trim() || undefined }).subscribe({
+        this.api.createRepository({
+                url: this.form.url.trim(),
+                branch: this.form.branch.trim() || 'main',
+                name: this.form.name.trim() || undefined,
+                required_agent_label: this.form.requiredAgentLabel.trim() || undefined
+            }).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.formVisible.set(false);

@@ -25,6 +25,16 @@ export class Repository {
     @Column({ ...stringColumn(255, { nullable: true }), name: 'sub_path' })
     subPath!: string | null;
 
+    /**
+     * L'étiquette qu'un agent doit porter pour scanner cette cible. `null` : aucune.
+     *
+     * C'est ce qui empêche un agent posé dans un segment de moindre confiance — parce qu'il
+     * doit y atteindre un dépôt, ce qui est la raison d'exister des agents distants — de
+     * réclamer les scans de tous les autres dépôts et d'en recevoir les clés.
+     */
+    @Column({ ...stringColumn(255, { nullable: true }), name: 'required_agent_label' })
+    requiredAgentLabel!: string | null;
+
     @Column(stringColumn(255, { nullable: true }))
     name!: string | null;
 

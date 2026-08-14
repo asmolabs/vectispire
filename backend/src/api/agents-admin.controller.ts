@@ -6,9 +6,10 @@ import { EntityManager } from 'typeorm';
 import { generateKey, normalizeScopes } from '../domain/api-keys/api-key-rules';
 import { SCOPE_AGENT } from '../domain/api-keys/scopes';
 import { now } from '../domain/common/timestamp';
-import { Agent, ApiKey, CREDENTIALS_DELEGATED, CREDENTIALS_LOCAL, KIND_REMOTE, ONLINE_TTL_SECONDS, Scan, STATUS_RUNNING } from '../persistence/entities';
+import { Agent, ApiKey, CREDENTIALS_DELEGATED, CREDENTIALS_LOCAL, KIND_REMOTE, ONLINE_TTL_SECONDS, Scan, STATUS_QUEUED, STATUS_RUNNING } from '../persistence/entities';
 import { AuditLogService } from '../services/audit-log.service';
 import { hashPassword } from '../services/password.service';
+import { parseAgentLabels } from '../domain/agents/targeting';
 import { AdminOnly } from './auth.guard';
 import type { AuthenticatedRequest } from './auth.guard';
 
@@ -43,6 +44,7 @@ export class AgentsAdminController {
             kind: agent.kind,
             enabled: agent.enabled,
             credentialsMode: agent.credentialsMode,
+            labels: agent.labels,
             /**
              * Cet agent a-t-il annoncé de quoi recevoir un secret scellé ?
              *
@@ -114,6 +116,10 @@ export class AgentsAdminController {
                 description: asText(body.description),
                 kind: KIND_REMOTE,
                 credentialsMode,
+                // Normalisées à l'enregistrement, comme l'exigence portée par une cible :
+                // les deux se comparent, et deux normalisations divergentes feraient
+                // attendre un scan pour un agent pourtant présent.
+                labels: parseAgentLabels(body.labels as string | null).join(',') || null,
                 enabled: true,
                 maxConcurrent: body.max_concurrent == null ? 1 : Number(body.max_concurrent),
                 apiKeyId: keyId,
@@ -140,7 +146,25 @@ export class AgentsAdminController {
         if (!agent) throw new NotFoundException('Agent introuvable.');
 
         const enabled = body.enabled === undefined ? agent.enabled : Boolean(body.enabled);
-        await this.manager.update(Agent, { id }, { enabled, maxConcurrent: body.max_concurrent == null ? agent.maxConcurrent : Number(body.max_concurrent) });
+        const labels = body.labels === undefined ? agent.labels : parseAgentLabels(body.labels as string | null).join(',') || null;
+        await this.manager.update(Agent, { id }, {
+            enabled,
+            labels,
+            maxConcurrent: body.max_concurrent == null ? agent.maxConcurrent : Number(body.max_concurrent)
+        });
+
+        if (labels !== agent.labels) {
+            // **Tracé, parce que c'est une décision d'autorisation.** Élargir les étiquettes
+            // d'un agent lui ouvre des cibles auxquelles il n'avait pas accès — au même
+            // titre qu'un changement de rôle, et par le même geste discret.
+            await this.audit.record(this.manager, {
+                operationType: 'SETTING_UPDATED',
+                resourceId: id,
+                description: `Étiquettes de l'agent ${agent.name} : ${labels ?? 'aucune'} (auparavant ${agent.labels ?? 'aucune'})`,
+                userId: request.user?.username ?? null,
+                ipAddress: request.ip ?? null
+            });
+        }
 
         if (enabled !== agent.enabled) {
             await this.audit.record(this.manager, {
@@ -151,7 +175,7 @@ export class AgentsAdminController {
                 ipAddress: request.ip ?? null
             });
         }
-        return { id, enabled };
+        return { id, enabled, labels };
     }
 
     @Delete(':id')
@@ -179,6 +203,42 @@ export class AgentsAdminController {
             userId: request.user?.username ?? null,
             ipAddress: request.ip ?? null
         });
+    }
+
+    /**
+     * Les scans que **personne** ne peut prendre, groupés par étiquette exigée.
+     *
+     * **Sans cet écran, l'attente est muette.** Une cible étiquetée `client` alors qu'aucun
+     * agent activé ne porte cette étiquette met ses scans en file, où ils restent
+     * indéfiniment : la page Dépôts dit « en attente », ce qui est vrai et inutile, et rien
+     * ne nomme la cause. C'est exactement la forme de silence que le reste de ce dépôt passe
+     * son temps à corriger — un état qui se lit comme normal alors qu'il ne l'est pas.
+     *
+     * Calculé à la demande plutôt que tenu à jour : les agents vont et viennent, et une
+     * valeur mémorisée serait fausse dès qu'un agent s'active.
+     */
+    @Get('non-routables')
+    async unroutable() {
+        const [rows, agents] = await Promise.all([
+            this.manager
+                .createQueryBuilder(Scan, 'scan')
+                .select('scan.required_agent_label', 'label')
+                .addSelect('COUNT(*)', 'count')
+                .where('scan.status = :status', { status: STATUS_QUEUED })
+                .andWhere('scan.required_agent_label IS NOT NULL')
+                .groupBy('scan.required_agent_label')
+                .getRawMany<{ label: string; count: string }>(),
+            this.manager.findBy(Agent, { enabled: true })
+        ]);
+
+        const served = new Set(agents.flatMap((agent) => parseAgentLabels(agent.labels)));
+        // Le travailleur intégré n'est pas une ligne de la table : ses étiquettes viennent
+        // de son environnement, et les oublier ici annoncerait bloqué ce qui tourne.
+        for (const label of parseAgentLabels(process.env.ZANSHIN_WORKER_LABELS)) served.add(label);
+
+        return rows
+            .filter((row) => !served.has(row.label))
+            .map((row) => ({ label: row.label, queued: Number(row.count) }));
     }
 
     private async runningByAgent(): Promise<Map<string, number>> {

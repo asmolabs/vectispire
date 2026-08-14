@@ -418,6 +418,17 @@ Consequences worth knowing:
   (`src/architecture.spec.ts` forbids `agent/` from importing TypeORM or a driver); the
   dispatcher enforces the second, and it is the *only* place that decides — a duplicate
   check in the controller had already drifted from it.
+- **The queue is routed.** A target can require an agent label (`required_agent_label`);
+  only agents carrying it see its scans. Without this, any registered agent claimed any
+  scan — and an agent placed in a lower-trust segment, which is the whole reason remote
+  agents exist, could harvest every other repository's deploy key. The filter lives **inside
+  the locking query**: claiming then releasing what does not fit would starve other claimants
+  for the length of the transaction. The requirement is **copied onto the scan** when it is
+  queued, never read through a join — the claim stays a single-table query. A scan with no
+  requirement goes to anyone (the previous behaviour); an agent with no label takes only
+  unrestricted work. The built-in worker reads its own from `ZANSHIN_WORKER_LABELS`. The
+  Agents page reports required labels nobody carries, without which the scan would wait
+  forever under a "queued" that explains nothing.
 - **Deploy keys travel sealed when the agent publishes a key.** At startup an agent
   generates an ephemeral X25519 pair, announces the public half on `hello`, and the control
   plane seals the key for it (X25519 + HKDF-SHA256 + AES-256-GCM). This is what TLS does
@@ -840,6 +851,19 @@ Conséquences à connaître :
   moitié (`src/architecture.spec.ts` interdit à `agent/` d'importer TypeORM ou un pilote) ;
   le distributeur applique la seconde, et il est le **seul** à décider — un contrôle en
   doublon dans le contrôleur avait déjà divergé.
+- **La file est routée.** Une cible peut exiger une étiquette d'agent
+  (`required_agent_label`) ; seuls les agents qui la portent voient ses scans. Sans cela,
+  n'importe quel agent enregistré réclamait n'importe quel scan — et un agent posé dans un
+  segment de moindre confiance, ce qui est la raison d'exister des agents distants, pouvait
+  moissonner les clés de déploiement de tous les autres dépôts. Le filtre vit **dans la
+  requête verrouillante** : prendre puis rendre ce qui ne convient pas affamerait les autres
+  réclamants le temps de la transaction. L'exigence est **recopiée sur le scan** à la mise
+  en file, jamais lue par jointure — la réclamation reste une requête sur une seule table.
+  Un scan sans exigence va à n'importe qui (le comportement d'avant) ; un agent sans
+  étiquette ne prend que le travail sans exigence. Le travailleur intégré lit les siennes
+  dans `ZANSHIN_WORKER_LABELS`. La page Agents signale les étiquettes exigées que personne
+  ne porte, sans quoi le scan attendrait indéfiniment sous un « en attente » qui n'explique
+  rien.
 - **Les clés de déploiement voyagent scellées dès que l'agent publie une clé.** Au
   démarrage, un agent engendre une paire X25519 éphémère, en annonce la moitié publique au
   `hello`, et le plan de contrôle scelle pour elle (X25519 + HKDF-SHA256 + AES-256-GCM).

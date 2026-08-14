@@ -1,15 +1,21 @@
 import Docker from 'dockerode';
+import { createWriteStream } from 'node:fs';
 import { PassThrough } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 /**
  * L'exécution d'un conteneur de scanner.
  *
  * **Ces conteneurs analysent de l'entrée hostile par définition** — les métadonnées d'une
- * image que personne ne contrôle, un dépôt écrit par quelqu'un d'autre — et l'étape SBOM
- * d'image tourne avec la socket Docker montée, ce qui équivaut à root sur l'hôte. Les
- * limites ci-dessous ne suppriment pas ce risque ; elles retirent les escalades bon
- * marché : aucun nouveau privilège, aucune capacité, un plafond mémoire au lieu d'un OOM
- * sur l'hôte, un plafond de processus au lieu d'une bombe à fourche.
+ * image que personne ne contrôle, un dépôt écrit par quelqu'un d'autre. Les limites
+ * ci-dessous retirent les escalades bon marché : aucun nouveau privilège, aucune capacité,
+ * un plafond mémoire au lieu d'un OOM sur l'hôte, un plafond de processus au lieu d'une
+ * bombe à fourche.
+ *
+ * **Aucun d'eux ne voit la socket Docker.** L'étape SBOM d'image la montait, ce qui
+ * équivaut à root sur l'hôte : une faille d'analyse dans Syft devenait une évasion. Zanshin
+ * exporte maintenant l'image lui-même (`exportImage`) et ne donne au conteneur qu'un
+ * fichier en lecture seule.
  *
  * **Les deux flux sont séparés.** Une seule sortie combinée corromprait le JSON de
  * stdout, et les taire toutes deux perdrait l'explication du scanner — celle qui finit
@@ -66,7 +72,14 @@ export interface ContainerRun {
      */
     asRoot?: boolean;
     timeoutMs?: number;
-    /** Monter la socket Docker. **Équivaut à root sur l'hôte** — réservé au SBOM d'image. */
+    /**
+     * Monter la socket Docker. **Équivaut à root sur l'hôte.**
+     *
+     * Plus aucun scanner ne s'en sert : le SBOM d'image, seul usage qu'il en restait, passe
+     * désormais par une archive exportée par Zanshin lui-même. L'option survit parce que la
+     * retirer du type ne retirerait pas la capacité — et parce qu'un futur scanner qui la
+     * demanderait doit tomber sur ce commentaire.
+     */
     dockerSocket?: boolean;
 }
 
@@ -81,6 +94,32 @@ export const SCANNER_LABEL = 'dev.zanshin.scanner';
 
 export class ContainerRunner {
     constructor(private readonly docker = new Docker()) {}
+
+    /**
+     * Tire une image et l'écrit en archive locale.
+     *
+     * **C'est ce qui remplace la socket Docker montée dans le conteneur Syft.** La monter
+     * équivaut à donner root sur l'hôte : une faille d'analyse de Syft — qui lit par
+     * définition les couches d'une image que personne ne contrôle — devenait une évasion
+     * complète. Ici, le seul processus qui parle au démon est Zanshin lui-même, et Syft ne
+     * voit plus qu'un fichier, monté en lecture seule, réseau coupé.
+     *
+     * `platform` est **obligatoire à la traction** : sans lui le démon rend l'architecture
+     * de l'*hôte*, produisant en silence l'inventaire d'une variante que personne n'a
+     * demandé d'auditer. L'archive qui en sort porte donc déjà la bonne, et il n'y a plus
+     * rien à préciser en aval.
+     */
+    async exportImage(reference: string, platform: string, destination: string): Promise<void> {
+        await new Promise<void>((resolve, reject) => {
+            void this.docker.pull(reference, { platform }, (error: Error | null, stream: NodeJS.ReadableStream) => {
+                if (error) return reject(error);
+                this.docker.modem.followProgress(stream, (done: Error | null) => (done ? reject(done) : resolve()));
+            });
+        });
+
+        const archive = await this.docker.getImage(reference).get();
+        await pipeline(archive as NodeJS.ReadableStream, createWriteStream(destination));
+    }
 
     /** Le démon est-il joignable ? Vérifié avant de réclamer un scan plutôt qu'au milieu. */
     async isAvailable(): Promise<boolean> {

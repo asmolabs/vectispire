@@ -93,6 +93,14 @@ import { LastScanTag } from '../../shared/last-scan';
                     <input pInputText id="tag" [(ngModel)]="form.tag" placeholder="latest" />
                     <small class="text-muted-color">Une étiquette, ou un condensé « sha256:… » pour figer la version scannée.</small>
                 </div>
+                <div class="flex flex-col gap-2">
+                    <label for="agent-label" class="font-medium">Agent exigé <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="réseau-client" />
+                    <small class="text-muted-color">
+                        L'étiquette qu'un agent doit porter pour scanner cette cible — et donc pour en recevoir
+                        la clé de déploiement. Laissé vide, n'importe quel agent peut la prendre.
+                    </small>
+                </div>
                 @if (formError(); as message) {
                     <p-message severity="error" [closable]="false">{{ message }}</p-message>
                 }
@@ -131,7 +139,7 @@ export class Containers {
     readonly pendingDelete = signal<MonitoredContainer | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { registry: '', imageName: '', tag: 'latest' };
+    form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '' };
 
     /**
      * Abrège un condensé pour l'affichage, la valeur entière restant dans l'infobulle.
@@ -165,7 +173,7 @@ export class Containers {
     }
 
     openForm(): void {
-        this.form = { registry: '', imageName: '', tag: 'latest' };
+        this.form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -176,7 +184,8 @@ export class Containers {
             .createContainer({
                 registry: this.form.registry.trim() || undefined,
                 image_name: this.form.imageName.trim(),
-                tag: this.form.tag.trim() || 'latest'
+                tag: this.form.tag.trim() || 'latest',
+                required_agent_label: this.form.requiredAgentLabel.trim() || undefined
             })
             .subscribe({
                 next: () => {

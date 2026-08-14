@@ -16,6 +16,7 @@ import {
     MonitoredContainer,
     MonitoredRepository,
     NewAgent,
+    UnroutableLabel,
     NewApiKey,
     NewContainer,
     NewRepository,
@@ -115,6 +116,16 @@ export class ApiService {
 
     agents(): Observable<AgentSummary[]> {
         return this.http.get<AgentSummary[]>('/api/v1/admin/agents');
+    }
+
+    /**
+     * Les étiquettes exigées par des cibles qu'aucun agent activé ne porte.
+     *
+     * Sans cet appel, une cible mal étiquetée met ses scans en file où ils restent
+     * indéfiniment : l'écran dit « en attente », ce qui est vrai et n'explique rien.
+     */
+    unroutableLabels(): Observable<UnroutableLabel[]> {
+        return this.http.get<UnroutableLabel[]>('/api/v1/admin/agents/non-routables');
     }
 
     createAgent(agent: NewAgent): Observable<{ id: string; name: string; secret: string }> {

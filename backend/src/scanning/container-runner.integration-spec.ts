@@ -117,17 +117,26 @@ describe('exécution d’un conteneur de scanner', () => {
 
     it('ne laisse pas de conteneur derrière lui', async () => {
         const docker = runner['docker'];
-        // **Filtré sur l'étiquette de Zanshin, et non compté sur tout l'hôte.** Les suites
-        // d'intégration tournent en parallèle et démarrent chacune leurs conteneurs de base
-        // de test : un décompte global mesurait leur va-et-vient, pas la propreté de ce
-        // coureur — il rendait « après < avant », ce qui n'a aucun sens pour une fuite.
-        const filters = { label: [SCANNER_LABEL] };
-        const before = (await docker.listContainers({ all: true, filters })).length;
+        // **Filtré sur les étiquettes de ce test seul, et non compté sur tout l'hôte.** Un
+        // décompte global mesurait le va-et-vient des autres suites — leurs conteneurs de
+        // base de test — et rendait « après < avant », ce qui n'a aucun sens pour une fuite.
+        // Filtrer sur la seule marque Zanshin ne suffit pas non plus : deux suites de
+        // scanners tournant de front se compteraient l'une l'autre.
+        const propre = 'fuite/propre';
+        const lent = 'fuite/lent';
+        const count = async () =>
+            (
+                await Promise.all(
+                    [propre, lent].map((value) => docker.listContainers({ all: true, filters: { label: [`${SCANNER_LABEL}=${value}`] } }))
+                )
+            ).reduce((total, list) => total + list.length, 0);
 
-        await runner.run({ image: IMAGE, command: ['true'], binds: [], label: 'propre' });
-        await runner.run({ image: IMAGE, command: ['sleep', '60'], binds: [], label: 'lent', timeoutMs: 1500 }).catch(() => undefined);
+        const before = await count();
 
-        const after = (await docker.listContainers({ all: true, filters })).length;
+        await runner.run({ image: IMAGE, command: ['true'], binds: [], label: propre });
+        await runner.run({ image: IMAGE, command: ['sleep', '60'], binds: [], label: lent, timeoutMs: 1500 }).catch(() => undefined);
+
+        const after = await count();
         // Y compris sur le chemin d'expiration : un conteneur oublié retient son espace de
         // travail, donc le clone entier.
         expect(after).toBe(before);

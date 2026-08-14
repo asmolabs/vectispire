@@ -58,6 +58,28 @@ sont **épinglées par digest** : elles s'exécutent sur une machine qui a le so
 donc qui contrôle `anchore/syft:latest` contrôle la machine — et un scan doit être
 reproductible.
 
+**Aucun conteneur d'analyse ne voit le socket Docker.** L'étape SBOM d'image le montait,
+pour que Syft tire l'image lui-même : c'était donner root sur l'hôte à un processus dont
+l'entrée — les couches d'une image que personne ne contrôle — est hostile par définition.
+Zanshin tire et exporte désormais l'image lui-même, et ne présente au conteneur qu'une
+archive en lecture seule, réseau coupé. Un test le vérifie sur ce que le scanner *demande*,
+pas sur ce qu'on lit dans le code.
+
+**La file de scans est routée.** N'importe quel agent enregistré réclamait n'importe quel
+scan : un agent posé dans un segment de moindre confiance — ce pour quoi les agents distants
+existent — pouvait réclamer les scans de tous les dépôts et en recevoir les clés. Une cible
+peut désormais exiger une étiquette, et seuls les agents qui la portent la voient. Ni le
+scellement de bout en bout ni le mode `local` ne referment cela : le premier protège la clé
+en chemin et l'ouvre bien chez le demandeur, le second retire la clé mais laisse l'agent lire
+le code source.
+
+**La configuration des analyseurs vient de Zanshin, jamais de la cible.** gitleaks retombe
+sur le `.gitleaks.toml` du dépôt scanné quand aucun `--config` ne lui est donné, et
+l'utilise *à la place* de son jeu intégré ; Semgrep n'examine que les fichiers suivis par
+git. Dans les deux cas, le dépôt audité décidait de ce qui serait cherché chez lui — et un
+scan qui ne trouve rien parce qu'on lui a dit de ne rien chercher se lit « analysé, rien
+trouvé », ce qui résout tout l'historique de la cible.
+
 *Entre les résultats et l'analyste.* Ce que Zanshin affiche vient des analyseurs et des
 flux d'avis, c'est-à-dire de données qu'un attaquant influence. La CSP décide si une
 chaîne injectée est inerte ou s'exécute avec la session de l'analyste. Elle est réelle et
