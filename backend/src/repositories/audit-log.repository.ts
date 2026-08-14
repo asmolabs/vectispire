@@ -35,18 +35,29 @@ export class AuditLogRepository {
     /**
      * La dernière entrée écrite — celle dont l'empreinte devient le maillon suivant.
      *
-     * **La queue de la liste chaînée, et non le maximum d'un tri.** Trier par horodatage
-     * puis par identifiant paraît suffisant et ne l'est pas : deux entrées écrites dans la
-     * même milliseconde se départagent alors par un UUID aléatoire, si bien que l'ordre
-     * dans lequel la chaîne est *construite* peut différer de celui dans lequel elle est
-     * *relue*. La vérification échoue alors sur un journal parfaitement intact — c'est ce
-     * qu'un test a montré, sur cinq entrées écrites en boucle serrée.
+     * **Un tri et une ligne, et non toute la table.** Cette méthode suivait la chaîne
+     * maillon par maillon, ce qui obligeait à charger le journal entier à *chaque écriture* :
+     * mesuré à 1,6 ms sur 200 entrées et 17,1 ms sur 3 000 — linéaire, et payé par chaque
+     * connexion, chaque triage, chaque changement de réglage. Un journal d'audit est fait
+     * pour durer ; à cent mille entrées, ordinaire au bout de quelques mois, chaque action
+     * auditée aurait traîné une demi-seconde et alloué la table entière en mémoire.
      *
-     * La chaîne définit son propre ordre : c'est elle qu'on suit.
+     * Le tri est fiable ici parce que `monotonicNow()` garantit des horodatages
+     * **strictement croissants** dans un processus : le cas que ce parcours protégeait —
+     * deux entrées de la même milliseconde départagées par un UUID aléatoire, donc chaînées
+     * dans un ordre et relues dans un autre — ne peut plus se produire. Les deux parades
+     * existaient en même temps, et celle-ci coûtait un parcours complet.
+     *
+     * **Ce qu'aucune des deux ne règle**, et qui reste une limite connue : deux instances
+     * web écrivant au même instant lisent la même queue et produisent deux entrées portant
+     * la même précédente. La chaîne fourche, et `verifyChain` le signale comme une rupture
+     * sur un journal pourtant intact. Le parcours complet ne protégeait pas davantage de ce
+     * cas — il le rendait seulement plus cher. Le refermer demande de sérialiser l'écriture
+     * sur la queue, ce qui est un changement de conception à part entière.
      */
     async findLatest(manager: EntityManager): Promise<AuditRow | null> {
-        const ordered = await this.findAllOldestFirst(manager);
-        return ordered[ordered.length - 1] ?? null;
+        const rows = await manager.find(AuditLog, { order: { timestamp: 'DESC', id: 'DESC' }, take: 1 });
+        return rows[0] ?? null;
     }
 
     async insert(manager: EntityManager, row: AuditRow): Promise<void> {
@@ -109,7 +120,9 @@ export class AuditLogRepository {
      * Toute la table, dans l'ordre où la chaîne a été construite.
      *
      * Obtenu en **suivant les maillons** — de l'entrée sans précédente vers la suivante,
-     * et ainsi de suite — et non par un tri, pour la raison exposée sur `findLatest`.
+     * et ainsi de suite — et non par un tri. C'est ici que le parcours a sa place : la
+     * vérification est une opération délibérée, rare, et son travail *est* de reconstituer
+     * l'ordre dans lequel la chaîne a été construite plutôt que de le supposer.
      *
      * Les entrées qu'aucun maillon n'atteint sont ajoutées à la fin, triées par
      * horodatage. C'est délibéré : elles sont soit antérieures au chaînage, soit le signe

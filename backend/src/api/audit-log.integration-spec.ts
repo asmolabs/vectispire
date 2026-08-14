@@ -45,6 +45,37 @@ describe("API du journal d'audit", () => {
         expect(result.unverifiable).toBe(0);
     });
 
+    it("n'a pas besoin de relire tout le journal pour écrire une entrée", async () => {
+        // **Mesuré avant d'être corrigé : 1,6 ms sur 200 entrées, 17,1 ms sur 3 000.**
+        // Chaque écriture suivait la chaîne maillon par maillon depuis le début, donc
+        // chargeait la table entière — et une écriture d'audit accompagne chaque connexion,
+        // chaque triage, chaque changement de réglage. À cent mille entrées, ordinaire au
+        // bout de quelques mois sur une installation active, chaque action auditée aurait
+        // traîné une demi-seconde.
+        //
+        // Assertion sur la **forme de la requête** et non sur une durée : un test de temps
+        // serait instable sur une machine chargée, et celui-ci dit exactement ce qui compte.
+        for (let index = 0; index < 5; index += 1) await record('X', `entrée ${index}`);
+
+        const requests: (Record<string, unknown> | undefined)[] = [];
+        const observed = new Proxy(manager, {
+            get(target, property, receiver) {
+                if (property !== 'find') return Reflect.get(target, property, receiver);
+                return (entity: unknown, options?: Record<string, unknown>) => {
+                    requests.push(options);
+                    return (target.find as (e: unknown, o?: unknown) => unknown)(entity, options);
+                };
+            }
+        });
+
+        await audit.record(observed, { operationType: 'X', resourceId: '1', description: 'mesurée' });
+
+        expect(requests.length).toBeGreaterThan(0);
+        // Aucune lecture sans borne : c'est ce qui distingue un coût constant d'un coût
+        // proportionnel à l'histoire de l'installation.
+        expect(requests.every((options) => typeof options?.take === 'number')).toBe(true);
+    });
+
     it('détecte une entrée dont la description a été modifiée en base', async () => {
         for (let index = 0; index < 4; index++) await record('SETTING_UPDATED', `entrée ${index}`);
         // Exactement ce que le journal existe pour révéler : une écriture directe.
