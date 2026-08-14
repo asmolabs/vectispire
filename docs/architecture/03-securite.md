@@ -65,6 +65,17 @@ Zanshin tire et exporte désormais l'image lui-même, et ne présente au contene
 archive en lecture seule, réseau coupé. Un test le vérifie sur ce que le scanner *demande*,
 pas sur ce qu'on lit dans le code.
 
+**Aucun appel sortant ne suit une redirection.** `validateOutboundUrl` ne vérifie que la
+*première* requête : Node suit les redirections par défaut, si bien qu'une destination
+validée répondant `302 Location: http://169.254.169.254/` était rejointe sans que rien ne
+revérifie. Les six appels du dépôt en avaient chacun besoin ; aucun ne l'avait. Le cas le
+plus coûteux n'est pas le webhook mais la revue par modèle : son garde exige une destination
+interne précisément parce qu'elle reçoit le code source du dépôt scanné, et une redirection
+vers l'extérieur en aurait fait un canal d'exfiltration silencieux. La règle vit dans un
+seul module, et un test d'architecture empêche le septième appel de repartir directement sur
+`fetch` — un manquement qu'aucun test fonctionnel ne verrait, puisque tout marche
+parfaitement tant que personne ne redirige.
+
 **La file de scans est routée.** N'importe quel agent enregistré réclamait n'importe quel
 scan : un agent posé dans un segment de moindre confiance — ce pour quoi les agents distants
 existent — pouvait réclamer les scans de tous les dépôts et en recevoir les clés. Une cible

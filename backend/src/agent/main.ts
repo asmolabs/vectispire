@@ -115,6 +115,13 @@ function httpCall(baseUrl: string, token: string): HttpCall {
                 ...(init.body === undefined ? {} : { 'content-type': 'application/json' })
             },
             body: init.body === undefined ? undefined : JSON.stringify(init.body),
+            // **Refusées, comme partout ailleurs.** Le plan de contrôle est une adresse fixe
+            // de configuration : il n'a aucune raison de rediriger, et suivre une redirection
+            // enverrait les résultats d'un scan — voire la réclamation qui porte la clé
+            // d'API — vers un hôte que personne n'a déclaré. Un proxy qui redirige HTTP vers
+            // HTTPS fait alors échouer l'agent bruyamment, ce qui est le bon résultat : le
+            // correctif est de poser `ZANSHIN_URL` en https.
+            redirect: 'error',
             signal: AbortSignal.timeout(init.timeoutMs)
         });
 

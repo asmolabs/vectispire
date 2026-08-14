@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { outboundJson } from '../domain/net/outbound';
 import { validateOutboundUrl } from '../domain/net/url-guard';
 import {
     DEFAULT_JIRA_ISSUE_TYPE,
@@ -204,13 +205,10 @@ export class TicketService {
     }
 }
 
+// Redirections refusées — voir `outboundFetch`. Cet appel porte un en-tête d'autorisation :
+// la spécification de `fetch` le retire sur une redirection changeant d'origine, mais c'est
+// une protection contre la *fuite du jeton*, pas contre le fait d'atteindre une destination
+// que le garde d'URL a refusée.
 async function defaultPostTicket(url: string, body: unknown, headers: Record<string, string>): Promise<Record<string, unknown>> {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...headers },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(HTTP_TIMEOUT_MS)
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as Record<string, unknown>;
+    return outboundJson<Record<string, unknown>>(url, { method: 'POST', body, headers, timeoutMs: HTTP_TIMEOUT_MS });
 }

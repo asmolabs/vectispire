@@ -169,6 +169,31 @@ describe('règle de couches', () => {
         expect(modules.map((path) => relative(SOURCE_ROOT, path))).toEqual([]);
     });
 
+    it('aucun appel réseau ne contourne la politique sortante', () => {
+        // **`validateOutboundUrl` ne protège que la première requête.** Node suit les
+        // redirections par défaut : une destination validée qui répond
+        // `302 Location: http://169.254.169.254/` était suivie sans que rien ne revérifie,
+        // et tout le garde d'URL tombait. Les cinq appels du dépôt avaient chacun besoin de
+        // `redirect: 'error'` ; aucun ne l'avait.
+        //
+        // La règle vit donc dans un seul module, et ce test est ce qui empêche le sixième
+        // appel de repartir directement sur `fetch` — un manquement qu'aucun test
+        // fonctionnel ne verrait, puisque tout marche parfaitement tant que personne ne
+        // redirige.
+        const AUTORISES = ['domain/net/outbound.ts', 'agent/main.ts', 'services/eol.service.ts'];
+        const direct = files
+            .filter((path) => /(^|[^.\w])fetch\s*\(/.test(readFileSync(path, 'utf8')))
+            .map((path) => relative(SOURCE_ROOT, path))
+            .filter((path) => !path.includes('.spec.') && !AUTORISES.includes(path));
+
+        // Deux exceptions, chacune avec sa raison écrite sur place. `agent/main.ts` parle au
+        // plan de contrôle et non à une destination réglée par un utilisateur. `eol.service`
+        // a besoin de distinguer un 404 — « ce produit n'est pas au catalogue » — d'une
+        // panne, là où `outboundJson` lève sur tout statut non-ok. Les deux portent
+        // `redirect: 'error'` ; la liste est courte et chaque ajout doit se justifier ici.
+        expect(direct).toEqual([]);
+    });
+
     it('chaque fichier de src/ appartient à une couche', () => {
         // Sans quoi la règle se contourne en posant le fichier à la racine.
         const orphans = sourceFiles(SOURCE_ROOT)

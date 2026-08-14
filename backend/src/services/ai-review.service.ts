@@ -10,6 +10,7 @@ import {
     SETTING_AI_REVIEW_OLLAMA_URL,
     buildUserMessage
 } from '../domain/ai-review/prompt';
+import { outboundJson } from '../domain/net/outbound';
 import { validateOutboundUrl } from '../domain/net/url-guard';
 import { SettingsService } from './settings.service';
 
@@ -130,19 +131,14 @@ export class AiReviewService {
     }
 }
 
+// **Le cas le plus coûteux du dépôt.** Ce service reçoit le code source du dépôt scanné, et
+// son garde d'URL exige une destination interne pour cette raison précise. Une redirection
+// suivie vers l'extérieur en ferait un canal d'exfiltration silencieux et bien formé, que
+// nulle vérification anti-SSRF faite en amont ne signalerait. Voir `outboundFetch`.
 async function defaultGetJson(url: string, _body?: unknown, timeoutMs = LIST_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as Record<string, unknown>;
+    return outboundJson<Record<string, unknown>>(url, { timeoutMs });
 }
 
 async function defaultPostJson(url: string, body?: unknown, timeoutMs = REVIEW_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs)
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as Record<string, unknown>;
+    return outboundJson<Record<string, unknown>>(url, { method: 'POST', body, timeoutMs });
 }

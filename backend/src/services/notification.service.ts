@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { outboundFetch } from '../domain/net/outbound';
 import { validateOutboundUrl } from '../domain/net/url-guard';
 import {
     DEFAULT_MIN_SEVERITY,
@@ -107,14 +108,10 @@ export class NotificationService {
     }
 }
 
+// Le corps de la réponse n'est pas lu : le récepteur n'a rien à nous dire, et un proxy peut
+// rendre une page d'erreur de plusieurs kilooctets. Les redirections sont refusées — voir
+// `outboundFetch` : sans cela, un webhook validé qui répond 302 rejoint n'importe quelle
+// adresse interne.
 async function defaultPostJson(url: string, body: unknown): Promise<void> {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(HTTP_TIMEOUT_MS)
-    });
-    // Le corps de la réponse n'est pas lu : le récepteur n'a rien à nous dire, et un
-    // proxy peut rendre une page d'erreur de plusieurs kilooctets.
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await outboundFetch(url, { method: 'POST', body, timeoutMs: HTTP_TIMEOUT_MS });
 }

@@ -1,3 +1,4 @@
+import { outboundJson } from '../domain/net/outbound';
 import { Injectable, Logger } from '@nestjs/common';
 import {
     EPSS_API_URL,
@@ -130,11 +131,16 @@ export class EnrichmentService {
     }
 }
 
-/** Un GET JSON borné dans le temps. Sans délai, un serveur muet retiendrait le scan. */
+/**
+ * Un GET JSON borné dans le temps. Sans délai, un serveur muet retiendrait le scan.
+ *
+ * Les destinations sont des constantes — les flux KEV et EPSS — et non des réglages : le
+ * risque de redirection est moindre qu'ailleurs. La règle s'applique quand même, parce que
+ * ces flux n'ont aucun besoin de rediriger et qu'une exception ici serait la première à
+ * être recopiée ailleurs.
+ */
 async function defaultFetchJson(url: string): Promise<unknown> {
-    const response = await fetch(url, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
+    return outboundJson<unknown>(url, { timeoutMs: HTTP_TIMEOUT_MS });
 }
 
 /** Le type de la dépendance injectable, pour les tests et le module. */
