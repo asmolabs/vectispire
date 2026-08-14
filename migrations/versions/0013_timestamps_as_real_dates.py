@@ -136,8 +136,26 @@ def _indexes_on(inspector, table: str, column: str):
     ]
 
 
+def _drop_leftover_batch_table(bind, table: str) -> None:
+    """Remove the `_alembic_tmp_<table>` a failed batch block leaves behind.
+
+    Alembic's batch mode copies the table into `_alembic_tmp_<name>` and renames it into
+    place; a failure between the two leaves the copy, and the *next* attempt dies on
+    "table _alembic_tmp_api_key already exists" — which masks the error that caused the
+    first failure. That masking is how the real cause of this migration's failure stayed
+    hidden for several attempts, so the cleanup is here rather than in a runbook.
+    """
+    if bind.dialect.name != "sqlite":
+        return
+    leftover = f"_alembic_tmp_{table}"
+    if leftover in sa.inspect(bind).get_table_names():
+        logger.warning("0013: dropping %s left by an interrupted run", leftover)
+        op.drop_table(leftover)
+
+
 def _prepare(bind, table: str, column: str, temp: str, temp_type) -> list:
     """Add the replacement column, and return the indexes to restore afterwards."""
+    _drop_leftover_batch_table(bind, table)
     inspector = sa.inspect(bind)
     indexes = _indexes_on(inspector, table, column)
     if temp in {c["name"] for c in inspector.get_columns(table)}:
@@ -181,9 +199,19 @@ def _convert(bind, table: str, primary_key: str, column: str, nullable: bool) ->
     temp = _temp_name(column)
     logger.info("0013: converting %s.%s to a timestamp", table, column)
 
-    # The models' own type, not a bare `sa.DateTime`: it declares microsecond precision
-    # explicitly, which MySQL needs and which the audit chain depends on.
-    timestamp_type = zanshin.models.safedatetime.SafeDateTime()
+    # The *dialect-resolved* type, not the model's `SafeDateTime` itself, and this is
+    # not a detail: `TypeDecorator` inherits `SchemaEventTarget`, so Alembic's batch
+    # `alter_column` takes its Enum/Boolean branch for any decorated type and asks it
+    # for `.name` — which `TypeDecorator.__getattr__` forwards to `DateTime`, which has
+    # none. `AttributeError: 'DateTime' object has no attribute 'name'`, on the first
+    # column of the first table with text timestamps.
+    #
+    # Resolving through `load_dialect_impl` gives the concrete type the backend will
+    # actually use — `DATETIME` here, `DATETIME(fsp=6)` on MySQL — so the emitted DDL is
+    # identical while the crash disappears. The microsecond precision MySQL needs, and
+    # which the audit chain depends on, is preserved precisely because the resolution
+    # goes through the model's own type.
+    timestamp_type = zanshin.models.safedatetime.SafeDateTime().load_dialect_impl(bind.dialect)
     indexes = _prepare(bind, table, column, temp, timestamp_type)
 
     source = sa.table(
