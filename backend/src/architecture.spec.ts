@@ -37,7 +37,7 @@ import { join, relative } from 'node:path';
 const SOURCE_ROOT = __dirname;
 
 /** Les couches, de la plus basse à la plus haute. L'indice **est** le niveau. */
-const LAYERS = ['domain', 'scanning', 'persistence', 'repositories', 'services', 'api'] as const;
+const LAYERS = ['domain', 'scanning', 'agent', 'persistence', 'repositories', 'services', 'api'] as const;
 type Layer = (typeof LAYERS)[number];
 
 /**
@@ -55,6 +55,17 @@ const ALLOWED: Record<Layer, readonly Layer[]> = {
      * exactement ce code : s'il touchait à la persistance, il serait inexécutable là-bas.
      */
     scanning: ['domain'],
+    /**
+     * L'agent distant. Il ne connaît que le domaine et l'exécution — **ni base, ni
+     * entités, ni NestJS**.
+     *
+     * Ce n'est pas une contrainte de style : un agent qui aurait une connexion à la base
+     * aurait aussi besoin d'`ENCRYPTION_KEY`, c'est-à-dire de quoi déchiffrer *toutes* les
+     * clés de déploiement que Zanshin détient. La propriété de sécurité qui justifie son
+     * existence est précisément ce qu'il n'a pas, et une règle vérifiée vaut mieux qu'une
+     * intention consignée dans un README.
+     */
+    agent: ['scanning', 'domain'],
     persistence: ['domain'],
     repositories: ['persistence', 'domain'],
     services: ['scanning', 'repositories', 'persistence', 'domain'],
@@ -67,7 +78,10 @@ const FORBIDDEN_PACKAGES: Partial<Record<Layer, readonly string[]>> = {
     // qui importerait NestJS ne serait plus réutilisable hors du serveur.
     domain: ['typeorm', '@nestjs/', 'pg', 'ioredis', 'express'],
     // Une entité décrit une table ; l'injection de dépendances n'est pas son affaire.
-    persistence: ['@nestjs/common', '@nestjs/core', 'express']
+    persistence: ['@nestjs/common', '@nestjs/core', 'express'],
+    // La liste qui compte : ce sont les paquets par lesquels un accès à la base
+    // arriverait, et le point d'un agent est de ne pas en avoir.
+    agent: ['typeorm', 'pg', 'mysql2', '@nestjs/']
 };
 
 /**

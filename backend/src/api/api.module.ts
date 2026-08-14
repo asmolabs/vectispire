@@ -11,6 +11,7 @@ import { ScanWorkerService } from '../services/scan-worker.service';
 import { ScanRepository } from '../repositories/scan.repository';
 import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
+import { BootstrapService } from '../services/bootstrap.service';
 import { IssueTriageService } from '../services/issue-triage.service';
 import { SessionCleanupService } from '../services/session-cleanup.service';
 import { AuthController } from './auth.controller';
@@ -60,6 +61,7 @@ import { SettingsController } from './settings.controller';
     providers: [
         AuthService,
         AuditLogService,
+        BootstrapService,
         // Construit par fabrique et non par injection : son constructeur prend des
         // secrets, que les tests fournissent directement. Le laisser à l'injection ferait
         // chercher à Nest un fournisseur pour « string ».

@@ -99,13 +99,18 @@ ability to decrypt every deploy key Zanshin holds.
 | `local` (default) | nothing | the agent's own machine has git access. A compromised agent yields only what that machine was granted |
 | `delegated` | the deploy key, per job | a trusted machine. Requires HTTPS (refused otherwise), the key is never written to disk beyond a `0600` temp file, and every delivery is audited |
 
-**Known gap in this port.** The control plane serves the agent protocol in full — an agent
-is declared from `/agents`, its key is issued once, and the four routes are live and
-tested. What does *not* ship yet is a standalone agent binary: the Python `zanshin.agent`
-process was retired with the rest of the Python tree, and its TypeScript replacement is
-not written. Remote agents are therefore reachable by anything that speaks the protocol,
-but Zanshin does not hand you the client. Single-machine installs are unaffected — the
-built-in agent is what they use.
+```bash
+# On the agent's machine — the key comes from /agents, shown once
+ZANSHIN_URL=https://zanshin.internal \
+ZANSHIN_AGENT_TOKEN=zsk_... \
+node dist/agent/main.js
+```
+
+The agent runs **the same `ScanRunner`** as the built-in worker, which is what makes a
+result produced elsewhere indistinguishable from a local one. A layering test enforces
+what it may import: `scanning/` and `domain/`, never `persistence/` — an agent with a
+database connection would also need `ENCRYPTION_KEY`, i.e. the ability to decrypt every
+deploy key Zanshin holds.
 
 See [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 for the decisions and the known limits.
@@ -433,13 +438,18 @@ Zanshin détient.
 | `local` (défaut) | rien | la machine de l'agent a son propre accès git. Un agent compromis ne donne que ce qui a été accordé à cette machine |
 | `delegated` | la clé de déploiement, par tâche | machine de confiance. Exige HTTPS (refus sinon), la clé n'est jamais écrite ailleurs que dans un fichier temporaire `0600`, et chaque remise est auditée |
 
-**Lacune connue de ce portage.** Le plan de contrôle sert le protocole d'agent en entier —
-un agent se déclare depuis `/agents`, sa clé est délivrée une fois, et les quatre routes
-sont en place et testées. Ce qui ne suit **pas** encore, c'est un binaire d'agent autonome :
-le processus Python `zanshin.agent` a été retiré avec le reste de l'arbre Python, et son
-remplaçant TypeScript n'est pas écrit. Les agents distants sont donc joignables par tout ce
-qui parle le protocole, mais Zanshin ne vous fournit pas le client. Les installations sur
-une seule machine ne sont pas concernées : elles utilisent l'agent intégré.
+```bash
+# Sur la machine de l'agent — la clé vient de /agents, affichée une seule fois
+ZANSHIN_URL=https://zanshin.interne \
+ZANSHIN_AGENT_TOKEN=zsk_... \
+node dist/agent/main.js
+```
+
+L'agent exécute **le même `ScanRunner`** que le travailleur intégré, ce qui rend un
+résultat produit ailleurs indiscernable d'un résultat local. Un test de couches vérifie ce
+qu'il a le droit d'importer : `scanning/` et `domain/`, jamais `persistence/` — un agent
+qui aurait une connexion à la base aurait aussi besoin d'`ENCRYPTION_KEY`, c'est-à-dire de
+quoi déchiffrer toutes les clés de déploiement que Zanshin détient.
 
 Voir [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
 pour les décisions et les limites connues.
