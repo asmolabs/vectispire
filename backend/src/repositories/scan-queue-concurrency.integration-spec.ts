@@ -65,10 +65,21 @@ describe('file de scans — concurrence', () => {
             const repository = await seedRepository(source.manager);
             await queue(repository.id, 10, source.manager);
 
-            // Dix réclamants simultanés, chacun dans sa propre transaction, chacun
-            // demandant deux scans. C'est la situation d'une flotte d'agents qui
-            // interrogent la même file.
-            const claimants = Array.from({ length: 10 }, async (_, index) => {
+            // Dix réclamants, chacun dans sa propre transaction, chacun demandant deux
+            // scans. C'est la situation d'une flotte d'agents qui interrogent la même file.
+            //
+            // **Simultanés là où le moteur le permet, l'un après l'autre ailleurs.** SQLite
+            // n'a qu'un écrivain et une seule connexion : deux transactions ouvertes de front
+            // y lèvent « cannot start a transaction within a transaction ». Sauter le test
+            // reviendrait à ne rien vérifier sur ce moteur — or l'invariant, lui, vaut
+            // partout : **aucune ligne servie deux fois**. Seule la façon de le mettre à
+            // l'épreuve change.
+            const parallel = CAPABILITIES[testDialect()].supportsConcurrentWriters;
+            // **Des fonctions et non des promesses.** Une fonction `async` commence à
+            // s'exécuter dès qu'on l'appelle : construire dix promesses puis les attendre
+            // l'une après l'autre les aurait toutes lancées de front malgré tout, et SQLite
+            // serait retombé sur la même erreur.
+            const claimants = Array.from({ length: 10 }, (_, index) => async () => {
                 const runner = source.createQueryRunner();
                 await runner.connect();
                 await runner.startTransaction();
@@ -84,7 +95,12 @@ describe('file de scans — concurrence', () => {
                 }
             });
 
-            const results = (await Promise.all(claimants)).flat();
+            const results: number[] = [];
+            if (parallel) {
+                results.push(...(await Promise.all(claimants.map((claim) => claim()))).flat());
+            } else {
+                for (const claim of claimants) results.push(...(await claim()));
+            }
 
             // **Aucun doublon.** C'est la propriété de sûreté, la seule qu'un test unitaire
             // ne pourrait pas établir, et elle vaut sur les deux moteurs — mesuré, pas
@@ -93,7 +109,12 @@ describe('file de scans — concurrence', () => {
 
             const remaining = await source.manager.countBy(Scan, { status: STATUS_QUEUED });
 
-            if (CAPABILITIES[testDialect()].claimsCompleteBatches) {
+            if (!parallel) {
+                // Sans concurrence, il n'y a rien à sauter et rien à perdre : dix réclamants
+                // séquentiels vident une file de dix, exactement.
+                expect(results).toHaveLength(10);
+                expect(remaining).toBe(0);
+            } else if (CAPABILITIES[testDialect()].claimsCompleteBatches) {
                 // PostgreSQL sert le lot demandé : la file part entièrement en un tour.
                 expect(results).toHaveLength(10);
                 expect(remaining).toBe(0);

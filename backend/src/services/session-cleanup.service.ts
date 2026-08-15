@@ -43,7 +43,7 @@ export class SessionCleanupService {
             // Rien à faire : la prochaine passe reprendra.
         }
         try {
-            result.attempts = await this.attempts.deleteBefore(manager, isoMillisAgo(ATTEMPT_RETENTION_MS));
+            result.attempts = await this.attempts.deleteBefore(manager, new Date(Date.now() - ATTEMPT_RETENTION_MS));
         } catch {
             // Idem.
         }
@@ -53,12 +53,3 @@ export class SessionCleanupService {
 
 /** Combien de temps une session peut au maximum rester à purger. */
 export const MAX_SESSION_AGE_MS = SESSION_TTL_MS;
-
-function isoMillisAgo(ago: number): string {
-    const at = new Date(Date.now() - ago);
-    const pad = (value: number, width = 2) => String(value).padStart(width, '0');
-    return (
-        `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}` +
-        `T${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}.${pad(at.getUTCMilliseconds(), 3)}`
-    );
-}

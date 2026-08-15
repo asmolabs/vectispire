@@ -2,7 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ENTITIES } from './entities';
-import { Dialect, parseDialect, warningsFor } from './dialects';
+import { Dialect, driverType, parseDialect, warningsFor } from './dialects';
 
 /**
  * La connexion à la base.
@@ -44,10 +44,10 @@ export class PersistenceModule {}
 function connectionFor(dialect: Dialect, config: ConfigService): TypeOrmModuleOptions {
     if (dialect === 'sqlite') {
         return {
-            type: 'sqlite',
-            // Chemin absolu attendu : un chemin relatif donne trois bases différentes
-            // selon le répertoire d'où le processus a été lancé — le défaut que
-            // `resolve_database_url()` corrige déjà côté Python.
+            type: driverType(dialect),
+            // Chemin absolu attendu : un chemin relatif donne trois bases différentes selon
+            // le répertoire d'où le processus a été lancé, et l'opérateur découvre le
+            // problème sous la forme d'une base vide plutôt que d'une erreur.
             database: config.get<string>('ZANSHIN_DB_PATH', 'zanshin.sqlite')
         };
     }

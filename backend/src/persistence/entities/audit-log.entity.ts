@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { stringColumn, timestampColumn } from '../columns';
 
 /**
@@ -17,6 +17,17 @@ import { stringColumn, timestampColumn } from '../columns';
  * la microseconde compte, donc il ne doit jamais transiter par un `Date` (voir
  * `database/pg-types.ts`).
  */
+/**
+ * **Deux chemins parcourent cette table dans le même ordre**, et tous deux à chaud :
+ * l'écriture cherche la dernière entrée — celle dont l'empreinte devient le maillon
+ * suivant — et l'écran affiche les plus récentes. Sans index, les deux trient la table
+ * entière, et une écriture d'audit accompagne chaque connexion, chaque triage, chaque
+ * changement de réglage.
+ *
+ * Croissant et non décroissant : les deux moteurs parcourent un index à l'envers, donc une
+ * seule forme sert les deux sens.
+ */
+@Index('idx_audit_log_ordre', ['timestamp', 'id'])
 @Entity('t_audit_log')
 export class AuditLog {
     @PrimaryGeneratedColumn('uuid')

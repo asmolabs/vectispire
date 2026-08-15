@@ -67,9 +67,10 @@ export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnO
 export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions =>
     ({
         type: SPELLING.uuid,
-        // La longueur n'existe que là où le type l'exige : `uuid` de PostgreSQL la
-        // refuserait, `varchar` de MySQL sans elle ne compilerait pas.
-        ...(isMySql() ? { length: UUID_LENGTH } : {}),
+        // **La longueur appartient au type, pas au dialecte.** `varchar` sans elle ne
+        // compile pas ; `uuid` — natif sous PostgreSQL comme sous MariaDB — la refuse. La
+        // condition portait sur le nom du moteur et MariaDB tombait du mauvais côté.
+        ...(SPELLING.uuid === 'varchar' ? { length: UUID_LENGTH } : {}),
         ...options
     }) as ColumnOptions;
 

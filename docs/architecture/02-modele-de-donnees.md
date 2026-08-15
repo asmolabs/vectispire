@@ -147,17 +147,32 @@ existaient dans ce schéma, tous invisibles à la fois depuis SQLite et à la le
 type `BINARY` que PostgreSQL ne connaît pas, un `FROM user` non quoté qui y désigne une
 fonction et non une table, un `VARCHAR` sans longueur, une clé étrangère `BIGINT` vers une
 clé `INT`, `DROP INDEX IF EXISTS`, `NULLS LAST`. Tous trouvés en exécutant contre de vrais
-serveurs — et l'histoire s'est répétée au portage : la campagne MySQL a révélé qu'aucun
-index ne couvrait la file de scans, ce que PostgreSQL tolérait sur une table de test.
-D'où `npm run test:integration:both`, qui passe les deux moteurs
+serveurs — et l'histoire s'est répétée à chaque moteur ajouté. La campagne MySQL a révélé
+qu'aucun index ne couvrait la file de scans, ce que PostgreSQL tolérait sur une table de
+test. La campagne SQLite a révélé que la purge des compteurs d'anti-force-brute comparait
+une date à une **chaîne** bâtie à la main, si bien qu'elle vidait la table entière à chaque
+passage. La campagne MariaDB a révélé que ses capacités déclarées étaient fausses sur trois
+points, et que son type `uuid` natif rendait les migrations MySQL inapplicables.
+
+D'où `npm run test:integration:all`, qui passe les quatre
 ([décision 0008](decisions/0008-postgresql-et-mysql.md)).
+
+**Et d'où `schema-parity.integration-spec.ts`**, qui pose sur chaque moteur la question que
+pose `migration:generate` — « que faudrait-il changer pour que la base ressemble aux
+entités ? » — dont la bonne réponse est « rien ». Les deux avaient déjà divergé : un index
+enrichi par migration sans l'être sur l'entité, un autre créé sans être déclaré nulle part.
+Un index manquant ne change aucun résultat, seulement son coût : rien d'autre ne l'aurait vu.
 
 Deux points de vigilance pour qui écrit la seizième :
 
-- **Un jeu de migrations par dialecte.** La référence PostgreSQL est du SQL brut —
-  `SERIAL`, `uuid_generate_v4()`, `TIMESTAMP WITH TIME ZONE` — que MySQL refuse, et
-  réciproquement. Aucun outil ne traduit l'un en l'autre : les deux sont générés depuis les
-  mêmes entités, contre un vrai serveur de chaque moteur.
+- **Un jeu de migrations par dialecte, et il en faut quatre.** La référence PostgreSQL est
+  du SQL brut — `SERIAL`, `uuid_generate_v4()`, `TIMESTAMP WITH TIME ZONE` — que MySQL
+  refuse, et réciproquement. SQLite ne connaît aucun des trois. Et **MariaDB n'est pas
+  MySQL** : depuis la 10.7 il porte un type `uuid` natif que son pilote choisit seul, si
+  bien que les migrations MySQL y produisaient un schéma que le modèle voulait aussitôt
+  reconstruire — soixante-deux instructions d'écart, mesurées. Aucun outil ne traduit l'un
+  en l'autre : les quatre sont générés depuis les mêmes entités, contre un vrai serveur de
+  chaque moteur.
 - **La parité entre entités et migrations est vérifiée en campagne** : une entité modifiée
   sans sa migration fait échouer les tests d'intégration, qui appliquent les migrations
   plutôt que de synthétiser le schéma. C'est le seul moyen de voir une migration incorrecte

@@ -99,10 +99,21 @@ export const CAPABILITIES: Record<Dialect, DialectCapabilities> = {
         supportsConcurrentWriters: true
     },
     mariadb: {
-        // Non mesuré, contrairement à MySQL : hérité par prudence, pas par constat.
-        canClaimTransactionally: false,
-        claimsCompleteBatches: false,
-        preservesMicroseconds: false,
+        // **Mesuré, et meilleur que MySQL.** Ces quatre drapeaux étaient hérités de MySQL
+        // « par prudence, pas par constat » — leur propre commentaire le disait — et trois
+        // étaient faux. La prudence n'était pas neutre : `canClaimTransactionally: false`
+        // envoyait la réclamation sur le chemin sans verrou, où le deuxième réclamant
+        // attendait la transaction du premier. Le test de concurrence expirait au bout de
+        // soixante secondes, sur un moteur qui n'avait aucun problème.
+        canClaimTransactionally: true,
+        // Deux réclamants concurrents, quatre scans en file : MariaDB rend un lot complet
+        // — `[3, 4]` — là où MySQL rend une liste vide parce qu'il compte les lignes sautées
+        // dans le `LIMIT`. Sur ce point il se comporte comme PostgreSQL.
+        claimsCompleteBatches: true,
+        // `datetime(6)`, comme MySQL, déclaré une seule fois dans `column-types.ts`. La
+        // chaîne d'audit s'y vérifie, ce que la campagne établit.
+        preservesMicroseconds: true,
+        // Pas plus que MySQL : `NULLS LAST` n'existe pas dans cette famille.
         supportsNullsLast: false,
         supportsConcurrentWriters: true
     }
@@ -148,10 +159,10 @@ export function warningsFor(dialect: Dialect): DialectWarning[] {
         warnings.push({
             capability: 'canClaimTransactionally',
             message:
-                `${dialect} ne permet pas une réclamation de scans réellement transactionnelle ` +
-                "(FOR UPDATE SKIP LOCKED absent, ignoré, ou comptant les lignes sautées dans le LIMIT). " +
-                'La réclamation retombe sur un UPDATE conditionnel : correct pour plusieurs fils ' +
-                "d'un même processus, pas pour plusieurs processus."
+                `${dialect} ne permet pas une réclamation de scans réellement transactionnelle : ` +
+                'son pilote refuse FOR UPDATE. La réclamation retombe sur un UPDATE conditionnel gardé ' +
+                "par le statut — correct pour plusieurs fils d'un même processus, pas pour plusieurs " +
+                'processus.'
         });
     }
     if (!capabilities.supportsNullsLast) {
@@ -169,6 +180,35 @@ export function warningsFor(dialect: Dialect): DialectWarning[] {
         });
     }
     return warnings;
+}
+
+/**
+ * Le pilote TypeORM qui sert ce dialecte.
+ *
+ * **Le nom interne et le nom du pilote diffèrent, et c'est délibéré.** Zanshin dit
+ * « sqlite » ; le pilote s'appelle `better-sqlite3`. Écrire le second dans la configuration
+ * ferait fuir un choix d'implémentation jusque dans les variables d'environnement d'un
+ * opérateur, qui devrait alors le changer le jour où l'on change de bibliothèque.
+ */
+export function driverType(dialect: Dialect): 'postgres' | 'better-sqlite3' | 'mysql' | 'mariadb' {
+    return dialect === 'sqlite' ? 'better-sqlite3' : dialect;
+}
+
+/**
+ * Le répertoire de migrations de ce dialecte.
+ *
+ * **Un jeu par dialecte, et il en faut vraiment quatre.** SQLite ne connaît ni
+ * `uuid_generate_v4()`, ni `TIMESTAMP WITH TIME ZONE`, ni `AUTO_INCREMENT`. Et **MariaDB
+ * n'est pas MySQL** : depuis la 10.7 il porte un type `uuid` natif que son pilote choisit
+ * seul, là où MySQL retombe sur `varchar(36)`. Faire lire les migrations MySQL à MariaDB
+ * produisait un schéma que le modèle voulait aussitôt reconstruire — soixante-deux
+ * instructions d'écart, mesurées, dont la reprise de chaque clé primaire.
+ *
+ * Aucun outil ne traduit l'un en l'autre, et les mélanger ferait échouer la première montée
+ * de version sur le moteur qui n'est pas celui d'origine.
+ */
+export function migrationDirectory(dialect: Dialect): 'postgres' | 'mysql' | 'mariadb' | 'sqlite' {
+    return dialect;
 }
 
 /** Normalise ce qu'un opérateur peut avoir écrit dans la configuration. */

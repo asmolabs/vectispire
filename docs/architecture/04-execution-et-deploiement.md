@@ -2,9 +2,16 @@
 
 ## Trois formes, et une seule que presque tout le monde utilise
 
-**Une instance, un fichier.** Un processus, SQLite, le socket Docker. C'est le défaut, et
-ce n'est pas un mode dégradé : c'est ce qui fait qu'on peut essayer Zanshin en un quart
-d'heure, ce qui décide de l'adoption d'un outil libre. Tout ce qui suit est facultatif.
+**Une instance, un fichier.** Un processus, SQLite, le socket Docker. Ce n'est pas un mode
+dégradé : c'est ce qui fait qu'on peut essayer Zanshin en un quart d'heure, ce qui décide de
+l'adoption d'un outil libre. Tout ce qui suit est facultatif.
+
+À poser explicitement — `ZANSHIN_DB_DIALECT=sqlite` — car le défaut du code est PostgreSQL,
+qui est ce qu'un déploiement durable veut. Cette forme a d'ailleurs été **annoncée sans
+exister** pendant tout le portage : le dialecte figurait dans la liste des moteurs pris en
+charge, son pilote n'était pas installé, et aucune connexion n'était possible. Les quatre
+moteurs passent désormais la campagne d'intégration entière, chacun avec son propre jeu de
+migrations.
 
 **Plusieurs instances.** Possible depuis que la file, l'ordonnanceur et les compteurs ont
 cessé d'être en mémoire. Exige PostgreSQL, Redis et des migrations en étape de
@@ -24,7 +31,7 @@ forme d'une base corrompue ou d'utilisateurs déconnectés au hasard.
 | Situation | Réaction | Ce qui casserait sinon |
 |---|---|---|
 | Deuxième instance sur SQLite | **refus** | SQLite a un seul écrivain : ce n'est pas lent, c'est corrompu. Et `FOR UPDATE SKIP LOCKED` n'y existe pas, donc la réclamation ne peut pas être rendue sûre |
-| Plusieurs instances web sans `REDIS_URL` | avertissement | Reflex garde l'état d'un client sur l'instance qui a accepté sa socket ; un client qui atterrit sur l'autre est déconnecté par intermittence, sans erreur exploitable |
+| Plusieurs instances web | *rien à poser* | L'interface Angular est servie en fichiers statiques et l'API est sans état : la session vit en base, derrière un jeton. Le `REDIS_URL` qu'exigeait la pile Reflex n'a plus d'objet, et l'exiger encore serait demander une dépendance pour rien |
 | `ZANSHIN_AUTO_MIGRATE` actif sur plusieurs hôtes | avertissement | le verrou de migration est un verrou fichier : il coordonne un hôte, pas une flotte |
 | URL MySQL | **accepté** — éprouvé par la campagne complète, avec `ZANSHIN_DB_DIALECT=mysql` |
 
@@ -49,14 +56,27 @@ Sur **PostgreSQL** : `SELECT … FOR UPDATE SKIP LOCKED` puis le changement de s
 la *même* transaction. Soit une instance tient la ligne et la ligne le dit, soit ni l'un
 ni l'autre.
 
+Sur **MariaDB** : identique, et **mesuré**. Deux réclamants concurrents sur quatre scans en
+file — le second reçoit un lot complet, comme sous PostgreSQL. Ses capacités étaient
+héritées de MySQL « par prudence, pas par constat », et trois des quatre étaient fausses.
+
+Sur **MySQL** : `SKIP LOCKED` fonctionne, mais les lignes sautées comptent dans le `LIMIT`,
+si bien qu'un lot revient court sous contention — parfois vide alors que la file ne l'est
+pas. C'est du débit, pas de la correction : rien n'est servi deux fois, le reste part au
+tour suivant.
+
 Sur **SQLite** : un `UPDATE ... WHERE status = 'pending'` conditionnel dont le nombre de
-lignes touchées désigne le gagnant. Correct pour les threads d'un processus, ce qui est
+lignes touchées désigne le gagnant. Correct pour les fils d'un même processus, ce qui est
 tout ce que SQLite permet de toute façon.
 
-Le contrôle de dialecte est **explicite**, et c'est important : le dialecte SQLite de
-SQLAlchemy **laisse tomber `FOR UPDATE` en silence** au lieu de le refuser. Demander sans
-vérifier aurait produit une réclamation d'apparence transactionnelle, verte sur la machine
-du développeur, distribuant le même scan à deux processus en production.
+**Le choix se fait sur une capacité déclarée, pas sur le nom du moteur** — et cette capacité
+est enfin lue. Elle décrivait le comportement depuis l'origine sans l'obtenir : la
+réclamation posait `FOR UPDATE` inconditionnellement.
+
+Le pilote `better-sqlite3` **refuse** `FOR UPDATE` au lieu de l'ignorer, ce qui est
+préférable : la pile Python, elle, le laissait tomber en silence, produisant une réclamation
+d'apparence transactionnelle, verte sur la machine du développeur, et distribuant le même
+scan à deux processus en production.
 
 ### Le bail
 
@@ -145,7 +165,7 @@ suffit.
 | `ENCRYPTION_KEY` | sans elle, rien ne peut être chiffré. Aucune valeur par défaut |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | rotation : les anciennes clés restent en lecture |
 | `ZANSHIN_ALLOWED_ORIGINS` | qui peut ouvrir le websocket. **Par défaut le port 3000 seulement** — sur un autre port, l'interface se charge et rien ne fonctionne |
-| `REDIS_URL` | état Reflex et compteurs partagés. Requis dès deux instances web |
+| ~~`REDIS_URL`~~ | *sans objet depuis le portage* : l'API est sans état et la session vit en base |
 | migration | `npm --workspace backend run migration:run` comme étape de déploiement, avant le démarrage des instances |
 | `ZANSHIN_*_IMAGE` | remplacer une image d'analyseur épinglée, pour la mettre à jour |
 | `ZANSHIN_SEMGREP_RULES_DIR` | règles fournies par l'opérateur, fusionnées avec celles embarquées |

@@ -266,7 +266,7 @@ Operational tuning (all optional, shown with their defaults):
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
 | `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they *are* Zanshin's supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they execute on the scanning host and read input nobody controls, so they *are* Zanshin's supply chain — whoever controls `anchore/syft:latest` controls what runs there. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
 | `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
 | `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
 | `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
@@ -278,27 +278,39 @@ The database file is not part of the repository (it holds password hashes and en
 
 #### Choosing a database
 
-PostgreSQL and MySQL are both supported, and both are **exercised by the full integration
-campaign** — `npm --workspace backend run test:integration:both` starts each engine in turn
-with testcontainers, applies its own migrations, and runs all 249 tests against it. A
-portability defect is invisible to reading and to a single engine; this is the only way it
-gets found.
+Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
+exercised by the full integration campaign**, with its own migration set. Set
+`ZANSHIN_DB_DIALECT`; PostgreSQL is the default. A portability defect is invisible to
+reading and to a single engine; running all four is the only way it gets found, and it
+found several.
 
-Two engine differences are real and named rather than papered over:
+| | PostgreSQL | MariaDB | MySQL | SQLite |
+|---|---|---|---|---|
+| Transactional scan claim | yes | yes | yes | **no** |
+| Complete claim batch under contention | yes | yes | **no** | n/a |
+| Millisecond timestamps | yes | yes | yes | yes |
+| `NULLS LAST` | yes | no | no | yes |
+| Concurrent writers | yes | yes | yes | **no** |
+
+Every "no" comes from a defect found by running, and **none of them raises an error**:
 
 - **MySQL returns short claim batches.** Rows skipped by `SKIP LOCKED` count against the
-  `LIMIT`, so a worker asking for two scans may get none while the queue is not empty.
-  **No row is ever handed to two workers** — measured, not assumed — and the rest goes out
-  on the next tick. It is a throughput characteristic, not a correctness defect.
+  `LIMIT`, so a worker asking for two scans may get none while the queue is not empty. No
+  row is ever handed to two workers — measured, not assumed — and the rest goes out on the
+  next tick. It is a throughput characteristic, not a correctness defect. MariaDB, measured
+  on the same scenario, returns a complete batch like PostgreSQL.
+- **SQLite has a single writer.** A second instance on the same file would not be slow, it
+  would corrupt data. Its claim therefore falls back to a conditional `UPDATE` guarded by
+  the status column, which is correct for threads of one process. Its driver **refuses**
+  `FOR UPDATE` rather than ignoring it — the Python stack dropped it silently, producing a
+  claim that looked transactional and handed the same scan to two processes in production.
 - **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
   second, which would make the audit chain fail its own verification and declare itself
   tampered with. `datetime(6)` is declared in `column-types.ts`, in one place rather than
   column by column, and the connection is pinned to UTC for the same reason.
 
-SQLite is **not** supported. It accepts `FOR UPDATE SKIP LOCKED` and then silently drops
-it: the claim looks transactional, passes every test on a developer's machine, and hands
-the same scan to two processes in production. It also has a single writer, and the
-scheduler, the workers and the requests all write.
+PostgreSQL remains the reference engine: the one where everything is true without
+reservation, and the one the code picks by default.
 
 
 ### Tests
@@ -674,7 +686,7 @@ Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
 | `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
 | `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
 | `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they run with the Docker socket mounted, so they *are* Zanshin's supply chain. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they execute on the scanning host and read input nobody controls, so they *are* Zanshin's supply chain — whoever controls `anchore/syft:latest` controls what runs there. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
 | `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
 | `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
 | `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
@@ -685,30 +697,42 @@ Le fichier de base de données ne fait plus partie du dépôt (il contient des h
 
 #### Choisir une base de données
 
-PostgreSQL et MySQL sont tous deux pris en charge, et tous deux **éprouvés par la campagne
-d'intégration complète** — `npm --workspace backend run test:integration:both` démarre
-chaque moteur à son tour avec testcontainers, applique ses propres migrations et lui passe
-les 249 tests. Un défaut de portabilité est invisible à la lecture comme à un seul moteur ;
-c'est le seul moyen de le trouver.
+Quatre moteurs sont pris en charge — PostgreSQL, MariaDB, MySQL et SQLite — et **chacun est
+éprouvé par la campagne d'intégration complète**, avec son propre jeu de migrations. Posez
+`ZANSHIN_DB_DIALECT` ; PostgreSQL est le défaut. Un défaut de portabilité est invisible à la
+lecture comme à un seul moteur ; les passer tous les quatre est le seul moyen de le trouver,
+et cela en a trouvé plusieurs.
 
-Deux différences de moteur sont réelles, et nommées plutôt que masquées :
+| | PostgreSQL | MariaDB | MySQL | SQLite |
+|---|---|---|---|---|
+| Réclamation transactionnelle des scans | oui | oui | oui | **non** |
+| Lot de réclamation complet sous contention | oui | oui | **non** | s.o. |
+| Horodatages à la milliseconde | oui | oui | oui | oui |
+| `NULLS LAST` | oui | non | non | oui |
+| Plusieurs écrivains | oui | oui | oui | **non** |
+
+Chaque « non » vient d'un défaut trouvé en exécutant, et **aucun ne produit d'erreur** :
 
 - **MySQL rend des lots de réclamation courts.** Les lignes sautées par `SKIP LOCKED`
   comptent dans le `LIMIT`, donc un travailleur qui demande deux scans peut n'en recevoir
-  aucun alors que la file n'est pas vide. **Aucune ligne n'est jamais remise à deux
-  travailleurs** — mesuré, pas supposé — et le reste part au tour suivant. C'est une
-  caractéristique de débit, pas un défaut de correction.
+  aucun alors que la file n'est pas vide. Aucune ligne n'est jamais remise à deux
+  travailleurs — mesuré, pas supposé — et le reste part au tour suivant. C'est une
+  caractéristique de débit, pas un défaut de correction. MariaDB, mesuré sur le même
+  scénario, rend un lot complet comme PostgreSQL.
+- **SQLite n'a qu'un seul écrivain.** Une deuxième instance sur le même fichier ne serait pas
+  lente, elle corromprait les données. Sa réclamation retombe donc sur un `UPDATE`
+  conditionnel gardé par le statut, correct pour les fils d'un même processus. Son pilote
+  **refuse** `FOR UPDATE` au lieu de l'ignorer — la pile Python le laissait tomber en
+  silence, produisant une réclamation d'apparence transactionnelle qui remettait le même
+  scan à deux processus en production.
 - **Les horodatages exigent une précision déclarée sur MySQL.** Un `DATETIME` nu tronque à
   la seconde, ce qui ferait échouer la chaîne d'audit à sa propre vérification et la ferait
   se déclarer falsifiée. `datetime(6)` est déclaré dans `column-types.ts`, en un seul
   endroit plutôt que colonne par colonne, et la connexion est fixée en UTC pour la même
   raison.
 
-SQLite n'est **pas** pris en charge. Il accepte `FOR UPDATE SKIP LOCKED` puis le supprime
-en silence : la réclamation ressemble à une transaction, passe tous les tests sur une
-machine de développement, et remet le même scan à deux processus en production. Il n'a par
-ailleurs qu'un seul écrivain, et l'ordonnanceur, les travailleurs et les requêtes écrivent
-tous.
+PostgreSQL reste le moteur de référence : celui sur lequel tout est vrai sans réserve, et
+celui que le code choisit par défaut.
 
 
 ### Tests

@@ -55,13 +55,28 @@ describe('avertissements par dialecte', () => {
         expect(warning.message).toContain('débit');
     });
 
-    it("MariaDB avertit plus que MySQL, faute d'avoir été mesuré", () => {
-        // Hérité par prudence : le supposer identique à MySQL serait exactement le
-        // raisonnement que la mesure a dû corriger.
+    it('MariaDB avertit moins que MySQL, une fois mesuré', () => {
+        // **Ce test affirmait l'inverse**, et son ancien nom le disait : « faute d'avoir été
+        // mesuré ». Trois des quatre capacités de MariaDB étaient héritées de MySQL par
+        // prudence, et fausses. La prudence n'était pas neutre : `canClaimTransactionally`
+        // à `false` envoyait la réclamation sur le chemin sans verrou, où le deuxième
+        // réclamant attendait la transaction du premier jusqu'à expiration.
+        //
+        // Mesuré sur deux réclamants concurrents et quatre scans en file, MariaDB rend un
+        // lot complet — comme PostgreSQL, et mieux que MySQL. Il ne lui reste que l'absence
+        // de `NULLS LAST`, qu'il partage avec sa famille.
         const mariadb = warningsFor('mariadb').map((item) => item.capability);
-        expect(mariadb).toContain('preservesMicroseconds');
-        expect(mariadb).toContain('canClaimTransactionally');
-        expect(mariadb.length).toBeGreaterThan(warningsFor('mysql').length);
+        expect(mariadb).toEqual(['supportsNullsLast']);
+        expect(mariadb.length).toBeLessThan(warningsFor('mysql').length);
+    });
+
+    it('SQLite avertit sur ce qu’il ne peut structurellement pas faire', () => {
+        // Un seul écrivain, et une réclamation qui ne peut pas être transactionnelle : les
+        // deux sont des propriétés du moteur, pas des défauts à corriger. Ce qui compte est
+        // qu'elles soient dites au démarrage plutôt que découvertes par une base corrompue.
+        const sqlite = warningsFor('sqlite').map((item) => item.capability);
+        expect(sqlite).toContain('canClaimTransactionally');
+        expect(sqlite).toContain('supportsConcurrentWriters');
     });
 
     it.each(SUPPORTED_DIALECTS)('%s : chaque avertissement nomme le dialecte et une conséquence', (dialect: Dialect) => {

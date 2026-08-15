@@ -1,4 +1,4 @@
-import { EntityManager, LessThan } from 'typeorm';
+import { EntityManager, LessThan, MoreThanOrEqual } from 'typeorm';
 import { LoginAttempt, Session } from '../persistence/entities';
 
 /**
@@ -49,14 +49,24 @@ export class SessionRepository {
  * de réinitialisation, qui offrirait un pic gratuit au changement de fenêtre.
  */
 export class LoginAttemptRepository {
-    /** Les instants des échecs encore dans la fenêtre, pour une clé. */
+    /**
+     * Les instants des échecs encore dans la fenêtre, pour une clé.
+     *
+     * **Par l'entité et non par `getRawMany`.** Une lecture brute court-circuite
+     * l'hydratation, si bien que la valeur rendue est celle du pilote : un `Date` sous
+     * PostgreSQL et MySQL, une **chaîne** sous SQLite. L'annotation `Promise<Date[]>` était
+     * alors un mensonge que le compilateur ne pouvait pas contredire, et l'appelant tombait
+     * sur « `at.getTime` is not a function » — au milieu du chemin de connexion, c'est-à-dire
+     * au pire endroit.
+     *
+     * Même défaut, même correctif que le journal d'audit : laisser l'ORM hydrater, et la
+     * portabilité vient avec.
+     */
     async since(manager: EntityManager, counterKey: string, since: Date): Promise<Date[]> {
-        const rows = await manager
-            .createQueryBuilder(LoginAttempt, 'attempt')
-            .select('attempt.occurred_at', 'occurredAt')
-            .where('attempt.counter_key = :counterKey', { counterKey })
-            .andWhere('attempt.occurred_at >= :since', { since })
-            .getRawMany<{ occurredAt: Date }>();
+        const rows = await manager.find(LoginAttempt, {
+            where: { counterKey, occurredAt: MoreThanOrEqual(since) },
+            select: { occurredAt: true }
+        });
         return rows.map((row) => row.occurredAt);
     }
 
@@ -69,7 +79,21 @@ export class LoginAttemptRepository {
         await manager.delete(LoginAttempt, { counterKey });
     }
 
-    async deleteBefore(manager: EntityManager, cutoff: string): Promise<number> {
+    /**
+     * Efface les tentatives antérieures à la coupure.
+     *
+     * **Un `Date`, jamais une chaîne bâtie à la main.** La coupure était un ISO composé
+     * caractère par caractère, sans fuseau — et la comparaison devenait alors lexicographique
+     * contre ce que le moteur avait stocké. PostgreSQL et MySQL rendent
+     * `2026-08-15T10:00:00.000Z`, SQLite `2026-08-15 10:00:00.000` : l'espace vaut moins que
+     * le « T », donc **toutes** les lignes passaient pour antérieures à la coupure et la
+     * purge vidait la table entière.
+     *
+     * Ce n'était pas un défaut cosmétique : cette table porte les compteurs d'anti-force-brute,
+     * et les effacer à chaque passage d'entretien rouvre la fenêtre à qui essaie des mots de
+     * passe — exactement ce que la rétention doublée, un peu plus haut, existe pour éviter.
+     */
+    async deleteBefore(manager: EntityManager, cutoff: Date): Promise<number> {
         const result = await manager.delete(LoginAttempt, { occurredAt: LessThan(cutoff) });
         return result.affected ?? 0;
     }

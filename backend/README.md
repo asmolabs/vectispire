@@ -70,27 +70,34 @@ et pour chacune le type, la nullabilité et la longueur.
 limites de chacun sont **annoncées au démarrage** plutôt que découvertes en production
 — voir `persistence/dialects.ts`, dont chaque avertissement nomme la conséquence.
 
-| | PostgreSQL | SQLite | MySQL / MariaDB |
-|---|---|---|---|
-| Réclamation transactionnelle des scans | oui | non | non |
-| Horodatages à la microseconde | oui | oui | **non** |
-| `NULLS LAST` | oui | oui | non |
-| Plusieurs écrivains | oui | **non** | oui |
+**Les quatre passent la campagne d'intégration entière**, chacun avec son propre jeu de
+migrations. Le tableau ci-dessous est mesuré, ligne par ligne, et non déduit.
 
-Ces quatre lignes ne sont pas des préférences. Chacune vient d'un défaut trouvé en
-exécutant, du temps où la pile Python prenait MySQL en charge, et aucun ne produit
-d'erreur :
+| | PostgreSQL | MariaDB | MySQL | SQLite |
+|---|---|---|---|---|
+| Réclamation transactionnelle des scans | oui | oui | oui | **non** |
+| Lot de réclamation complet sous contention | oui | oui | **non** | s.o. |
+| Horodatages à la milliseconde | oui | oui | oui | oui |
+| `NULLS LAST` | oui | non | non | oui |
+| Plusieurs écrivains | oui | oui | oui | **non** |
 
-- **MySQL tronque `DATETIME` à la seconde.** La chaîne d'intégrité du journal d'audit
-  couvre l'horodatage : chaque entrée échoue alors à sa propre vérification et le
-  journal se déclare falsifié, sans que rien ne l'ait été. `DATETIME(6)` sur *toutes*
-  les colonnes de date est la parade ; une seule oubliée suffit à casser la chaîne.
-- **`SKIP LOCKED` de MySQL compte les lignes sautées dans le `LIMIT`.** La réclamation
-  d'un lot de scans revient courte sous charge, et la concurrence réelle s'effondre en
-  silence.
-- **SQLite ignore `FOR UPDATE`** au lieu de le refuser. La réclamation ressemble à une
-  transaction, passe tous les tests sur une machine de développement, et remet le même
-  scan à deux processus en production. D'où l'écrivain unique : un fichier, un
-  processus.
+Chaque « non » vient d'un défaut trouvé en exécutant, et **aucun ne produit d'erreur** :
 
-PostgreSQL reste le moteur de référence, et le seul sur lequel tout est vrai.
+- **`SKIP LOCKED` de MySQL compte les lignes sautées dans le `LIMIT`.** Deux réclamants,
+  quatre scans en file : le second repart les mains vides alors que la file n'est pas vide.
+  Rien n'est servi deux fois et le reste part au tour suivant — c'est du débit, pas de la
+  correction. MariaDB, mesuré sur le même scénario, rend un lot complet comme PostgreSQL.
+- **SQLite n'a qu'un écrivain.** Une deuxième instance sur le même fichier ne serait pas
+  lente, elle corromprait les données. Sa réclamation retombe donc sur un `UPDATE`
+  conditionnel gardé par le statut, ce qui est correct pour les fils d'un même processus.
+  Son pilote **refuse** `FOR UPDATE` au lieu de l'ignorer — la pile Python le laissait
+  tomber en silence, produisant une réclamation d'apparence transactionnelle qui remettait
+  le même scan à deux processus en production.
+- **`DATETIME` tronqué à la seconde** était le défaut qui avait coûté MySQL à la pile
+  Python : la chaîne d'audit couvre l'horodatage, donc chaque entrée échouait à sa propre
+  vérification et le journal se déclarait falsifié sans que rien ne l'ait été. `datetime(6)`
+  est déclaré en un seul endroit — `column-types.ts` — plutôt que colonne par colonne, où
+  une seule oubliée suffirait.
+
+PostgreSQL reste le moteur de référence : c'est celui sur lequel tout est vrai sans réserve,
+et celui que le code choisit par défaut.

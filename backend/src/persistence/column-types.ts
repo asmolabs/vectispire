@@ -72,7 +72,50 @@ const MYSQL: ColumnSpelling = {
     json: 'json'
 };
 
-export const SPELLING: ColumnSpelling = isMySql() ? MYSQL : POSTGRES;
+/**
+ * SQLite ne connaît que cinq classes de stockage, et déduit la sienne du **nom** du type.
+ *
+ * Les orthographes ci-dessous sont donc choisies pour tomber dans la bonne classe :
+ * `varchar` et `text` en TEXT, `integer` en INTEGER, `real` en REAL. Rien n'est vérifié à
+ * l'écriture — SQLite accepte n'importe quelle valeur dans n'importe quelle colonne — ce
+ * qui déplace la rigueur vers les entités et les migrations.
+ *
+ * **`datetime` est du texte, et c'est ce qui sauve la chaîne d'audit.** Le pilote sérialise
+ * un `Date` en ISO à la milliseconde, exactement la précision que l'empreinte du journal
+ * couvre. C'est le piège qui avait coûté MySQL à la pile Python — un `DATETIME` tronqué à
+ * la seconde y faisait échouer chaque entrée à sa propre vérification — et il ne se pose
+ * pas ici, à condition de ne jamais laisser TypeORM choisir un entier.
+ */
+const SQLITE: ColumnSpelling = {
+    timestamp: { type: 'datetime' },
+    string: 'varchar',
+    // Pas de type `uuid` : la forme canonique tient dans du texte, comme sous MySQL.
+    uuid: 'varchar',
+    text: 'text',
+    int: 'integer',
+    // SQLite n'a qu'un entier 64 bits ; `bigint` et `integer` y désignent le même stockage.
+    bigint: 'bigint',
+    bool: 'boolean',
+    float: 'real',
+    // Stocké en texte. TypeORM sérialise et relit, ce que la colonne `json` attend.
+    json: 'json'
+};
+
+/**
+ * **MariaDB n'est pas MySQL**, et le seul écart tient dans une ligne.
+ *
+ * Depuis la 10.7 il porte un type `uuid` natif, que son pilote choisit de lui-même pour une
+ * clé engendrée. Déclarer `varchar` ici serait donc écrire une chose et en obtenir une
+ * autre : TypeORM corrigeait en silence, et le schéma issu des migrations MySQL réclamait
+ * aussitôt soixante-deux instructions de reprise — chaque clé primaire comprise.
+ *
+ * Le type natif est en outre le bon choix : seize octets au lieu de trente-six, et un ordre
+ * de tri qui a un sens.
+ */
+const MARIADB: ColumnSpelling = { ...MYSQL, uuid: 'uuid' };
+
+export const SPELLING: ColumnSpelling =
+    DIALECT === 'sqlite' ? SQLITE : DIALECT === 'mariadb' ? MARIADB : isMySql() ? MYSQL : POSTGRES;
 
 /** La longueur d'un UUID en forme canonique, quand le dialecte exige une longueur. */
 export const UUID_LENGTH = 36;

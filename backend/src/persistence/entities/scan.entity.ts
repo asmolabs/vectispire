@@ -35,9 +35,17 @@ export const STATUS_FAILED = 'failed';
  * d'index sur de petites tables, ce qui a laissé le défaut invisible jusqu'à ce qu'un
  * second moteur le nomme.
  *
- * L'ordre des colonnes suit celui de la requête : filtre d'abord, tri ensuite.
+ * L'ordre des colonnes suit celui de la requête : filtre d'abord, tri ensuite —
+ * `requiredAgentLabel` entre au milieu parce que la réclamation d'un agent étiqueté y
+ * filtre aussi, et qu'un agent sans étiquette n'y cherche que la valeur nulle.
+ *
+ * **Déclaré ici *et* créé par les migrations, et les deux doivent s'accorder.** Ils ont
+ * divergé une fois : la migration du ciblage a ajouté une colonne à l'index sans la
+ * déclarer sur l'entité, si bien qu'une génération de migration aurait voulu revenir en
+ * arrière — et qu'un dialecte dont le schéma est engendré depuis les entités aurait reçu
+ * l'index d'avant, sans que rien ne le signale.
  */
-@Index('idx_scan_file', ['status', 'createdAt', 'id'])
+@Index('idx_scan_file', ['status', 'requiredAgentLabel', 'createdAt', 'id'])
 @Entity('t_scan')
 export class Scan {
     @PrimaryGeneratedColumn({ type: 'integer' })

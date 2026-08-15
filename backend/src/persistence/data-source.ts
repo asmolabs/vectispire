@@ -1,8 +1,7 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
-import { parseDialect } from './dialects';
-import { isMySql } from './column-types';
+import { driverType, migrationDirectory, parseDialect } from './dialects';
 
 /**
  * La source de données pour l'outillage en ligne de commande — génération et exécution
@@ -17,18 +16,14 @@ const dialect = parseDialect(process.env.ZANSHIN_DB_DIALECT ?? 'postgres');
 const url = process.env.ZANSHIN_DATABASE_URL;
 
 const dataSource = new DataSource({
-    // `as never` : l'union des dialectes ne se réduit pas au littéral que TypeORM attend
-    // dans ses surcharges. Le dialecte est validé par `parseDialect`, qui est la
-    // vérification qui compte.
-    type: dialect as never,
+    // `as never` : l'union des pilotes ne se réduit pas au littéral que TypeORM attend dans
+    // ses surcharges. Le dialecte est validé par `parseDialect`, qui est la vérification qui
+    // compte.
+    type: driverType(dialect) as never,
     ...(dialect === 'sqlite' ? { database: url ?? 'zanshin.sqlite' } : { url }),
     entities: ENTITIES,
-    // **Un jeu de migrations par dialecte.** La migration de référence est du SQL brut —
-    // `SERIAL`, `uuid_generate_v4()`, `TIMESTAMP WITH TIME ZONE` d'un côté, `int
-    // AUTO_INCREMENT` et `datetime(6)` de l'autre — et aucun outil ne traduit l'un en
-    // l'autre. Les mélanger ferait échouer la première montée de version sur le moteur
-    // qui n'est pas celui d'origine.
-    migrations: [`src/persistence/migrations/${isMySql(dialect) ? 'mysql' : 'postgres'}/*.ts`],
+    // **Un jeu de migrations par famille de moteur** — voir `migrationDirectory`.
+    migrations: [`src/persistence/migrations/${migrationDirectory(dialect)}/*.ts`],
     // Jamais `true`. Le schéma appartient aux migrations : `synchronize` le ferait
     // dériver silencieusement de ce que les migrations décrivent, et la divergence
     // n'apparaîtrait qu'au déploiement suivant.
