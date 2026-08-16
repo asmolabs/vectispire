@@ -25,3 +25,6 @@ dist/
 coverage/
 *.tsbuildinfo
 frontend/openapi.json
+
+# macOS
+.DS_Store
