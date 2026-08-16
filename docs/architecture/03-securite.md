@@ -193,3 +193,17 @@ correcte.
   `local_api` et les agents distants le retirent du processus exposé sur le réseau.
 - **Un agent compromis peut fausser un verdict** en remontant des résultats mensongers.
   Les remontées sont auditées ; elles ne sont pas prouvées.
+- **`npm audit` signale `js-yaml` (GHSA-pm4m-ph32-ghv5), et c'est accepté.**
+  `@nestjs/swagger` l'épingle à `5.2.1` exactement — la dernière version portant l'avis —
+  et le seul YAML que ce chemin produit est le document OpenAPI que Zanshin engendre
+  lui-même : l'analyse coûteuse en temps exponentiel demande une *entrée* hostile, il n'y en
+  a pas.
+
+  **La correction évidente est pire que le défaut, et a été essayée.** Une surcharge npm
+  restreinte à Swagger fait disparaître l'avis — et laisse Swagger charger le `js-yaml 4.x`
+  hoisté à la racine, soit une version majeure en arrière, silencieusement. Vérifié : c'est
+  bien 4.3.1 qui est résolu, pas la 5.2.2 demandée. Un avis qui s'éteint en substituant une
+  dépendance à l'insu de qui la déclare n'est pas un correctif.
+
+  Ce qui changerait la décision : que `@nestjs/swagger` desserre son épinglage, ou qu'un
+  chemin de Zanshin se mette à analyser du YAML venu d'ailleurs.
