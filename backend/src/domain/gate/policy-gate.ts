@@ -1,42 +1,39 @@
 /**
- * Verdict passé/échoué du backlog d'une cible face à une politique.
+ * Pass/fail verdict of a target's backlog against a policy.
  *
- * C'est ce qui rend Zanshin utilisable depuis un pipeline plutôt que seulement
- * depuis un navigateur : un job CI demande « au vu de ce que vous savez de cette
- * cible, cette compilation doit-elle échouer ? » et reçoit un verdict motivé.
+ * This is what makes Zanshin usable from a pipeline rather than only from a browser: a
+ * CI job asks "given what you know about this target, should this build fail?" and gets
+ * back a reasoned verdict.
  *
- * Fonctions pures sur une liste de problèmes — pas de HTTP, pas de session — pour que
- * la sémantique soit testable exhaustivement, et que la même évaluation serve
- * l'endpoint `POST /api/v1/gate`, le badge de l'écran Sécurité et le seuil des
- * notifications. Réimplémenter la règle en SQL pour l'un des trois la ferait diverger
- * au premier drapeau ajouté.
+ * Pure functions over a list of issues — no HTTP, no session — so that the semantics can
+ * be tested exhaustively, and so that the same evaluation serves the `POST /api/v1/gate`
+ * endpoint, the Security screen's badge and the notification threshold. Reimplementing
+ * the rule in SQL for one of the three would make it diverge the first time a flag was
+ * added.
  *
- * Décisions qui méritent d'être énoncées, reprises telles quelles de l'implémentation
- * Python :
+ * Decisions worth stating, carried over unchanged from the Python implementation:
  *
- * - **Un problème trié ne fait pas échouer une compilation par défaut.** Un jugement
- *   `not_affected` argumenté est la raison d'être du triage ; un gate qui l'ignore
- *   renvoie les équipes à désactiver le gate. `includeTriaged` existe pour le cas
- *   d'audit où l'on veut l'image brute.
- * - **« Corrigeable uniquement » est proposé, et n'est pas le défaut.** N'échouer que
- *   sur ce qui a un correctif publié est le réglage pragmatique, mais en défaut il
- *   tolérerait en silence une vulnérabilité activement exploitée sans correctif —
- *   c'est-à-dire exactement la situation qui demande une décision humaine.
- * - **KEV s'évalue indépendamment de la sévérité.** Une « moyenne » exploitée dans la
- *   nature l'emporte sur une « critique » qui ne l'a jamais été.
- * - **Les constats de la revue IA sont exclus par défaut.** Ils viennent d'un modèle
- *   local à qui l'on a donné le code source du dépôt : un dépôt hostile peut les
- *   orienter, et une « critique » inventée ferait échouer la compilation de
- *   quelqu'un.
- * - **Les constats de qualité ne font jamais échouer une compilation**, et
- *   contrairement à la revue IA, sans option pour revenir dessus. Un backlog de
- *   qualité est volumineux par nature, et un gate qui rougit le jour où quelqu'un
- *   active un linter est un gate qu'on désactive. L'absence de drapeau est
- *   délibérée : une option ferait de « la qualité ne bloque jamais » une phrase à
- *   astérisque.
+ * - **A triaged issue does not fail a build by default.** An argued `not_affected`
+ *   judgement is the whole point of triage; a gate that ignores it sends teams back to
+ *   disabling the gate. `includeTriaged` exists for the audit case where the raw picture
+ *   is wanted.
+ * - **"Fixable only" is offered, and is not the default.** Failing only on what has a
+ *   published fix is the pragmatic setting, but as a default it would silently tolerate
+ *   an actively exploited vulnerability with no fix — that is, exactly the situation that
+ *   calls for a human decision.
+ * - **KEV is evaluated independently of severity.** A "medium" exploited in the wild
+ *   outranks a "critical" that never has been.
+ * - **AI review findings are excluded by default.** They come from a local model that was
+ *   handed the repository's source code: a hostile repository can steer them, and an
+ *   invented "critical" would fail somebody's build.
+ * - **Quality findings never fail a build**, and unlike AI review, with no option to go
+ *   back on it. A quality backlog is voluminous by nature, and a gate that turns red the
+ *   day someone switches on a linter is a gate that gets switched off. The absence of a
+ *   flag is deliberate: an option would make "quality never blocks" a sentence with an
+ *   asterisk.
  */
 
-/** Du pire au moins grave ; l'indice **est** le rang de comparaison. */
+/** Worst to least severe; the index **is** the comparison rank. */
 export const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'] as const;
 
 export const DEFAULT_FAIL_ON_SEVERITY = 'high';
@@ -48,23 +45,23 @@ export const TRIAGE_AFFECTED = 'affected';
 export const AI_REVIEW_TYPE = 'ai_review';
 
 /**
- * Les types qui décrivent *comment* le code est écrit plutôt que s'il est sûr.
- * Exclus de tout verdict, inconditionnellement.
+ * The types that describe *how* the code is written rather than whether it is safe.
+ * Excluded from every verdict, unconditionally.
  */
 export const QUALITY_TYPES: readonly string[] = ['quality'];
 
-/** Ce que l'appelant considère comme inacceptable. */
+/** What the caller considers unacceptable. */
 export interface GatePolicy {
-    /** Échouer dès qu'un problème ouvert atteint cette sévérité. `null` désactive
-     *  entièrement la règle de sévérité — utile pour ne barrer que sur KEV. */
+    /** Fail as soon as an open issue reaches this severity. `null` disables the
+     *  severity rule entirely — useful for blocking on KEV alone. */
     failOnSeverity: string | null;
-    /** Échouer sur tout problème ouvert au catalogue CISA KEV, quelle que soit sa sévérité. */
+    /** Fail on any open issue in the CISA KEV catalog, whatever its severity. */
     failOnKev: boolean;
-    /** N'échouer que sur les problèmes ayant un correctif publié. */
+    /** Fail only on issues that have a published fix. */
     fixableOnly: boolean;
-    /** Compter aussi les problèmes déjà tranchés par un triage. */
+    /** Also count issues already settled by a triage decision. */
     includeTriaged: boolean;
-    /** Laisser les constats de la revue IA peser sur le verdict. */
+    /** Let AI review findings weigh on the verdict. */
     includeAiReview: boolean;
 }
 
@@ -76,7 +73,7 @@ export const BUILT_IN_POLICY: GatePolicy = Object.freeze({
     includeAiReview: false
 });
 
-/** Le sous-ensemble d'un problème que l'évaluation regarde — une dizaine de champs. */
+/** The subset of an issue the evaluation looks at — about ten fields. */
 export interface GateIssue {
     id: number;
     state: string | null;
@@ -107,11 +104,11 @@ export interface GateVerdict {
 }
 
 /**
- * Position dans `SEVERITY_ORDER` ; une valeur inconnue se classe en dernier.
+ * Position in `SEVERITY_ORDER`; an unknown value ranks last.
  *
- * `unknown` se classe volontairement **sous** `low` : le backend OSV le renvoie dès
- * qu'un avis n'a pas de sévérité normalisée, et le traiter en pire cas ferait échouer
- * toutes les compilations sur ce backend.
+ * `unknown` deliberately ranks **below** `low`: the OSV back end returns it whenever an
+ * advisory has no normalized severity, and treating it as the worst case would fail every
+ * build on that back end.
  */
 export function severityRank(severity: string | null | undefined): number {
     const index = SEVERITY_ORDER.indexOf((severity || 'unknown').toLowerCase() as (typeof SEVERITY_ORDER)[number]);
@@ -129,8 +126,8 @@ function isConsidered(issue: GateIssue, policy: GatePolicy): boolean {
     if (!policy.includeTriaged && issue.triageStatus !== TRIAGE_UNDER_REVIEW && issue.triageStatus !== TRIAGE_AFFECTED) {
         return false;
     }
-    // `not policy.fixable_only or issue.fix_versions` : une chaîne vide compte comme
-    // absente, comme en Python.
+    // `not policy.fixable_only or issue.fix_versions`: an empty string counts as
+    // absent, as in Python.
     if (policy.fixableOnly && !issue.fixVersions) return false;
     return true;
 }
@@ -147,7 +144,7 @@ function violation(issue: GateIssue, rule: 'kev' | 'severity', reason: string): 
     };
 }
 
-/** Applique `policy` aux problèmes d'une cible et explique le résultat. */
+/** Applies `policy` to a target's issues and explains the result. */
 export function evaluate(issues: Iterable<GateIssue>, policy: GatePolicy): GateVerdict {
     const considered = [...issues].filter((issue) => isConsidered(issue, policy));
 
@@ -160,14 +157,14 @@ export function evaluate(issues: Iterable<GateIssue>, policy: GatePolicy): GateV
     const violations: Violation[] = [];
     for (const issue of considered) {
         if (policy.failOnKev && issue.isKev) {
-            violations.push(violation(issue, 'kev', 'vulnérabilité activement exploitée (catalogue CISA KEV)'));
-            // Une violation par problème suffit à faire échouer la compilation.
-            // Ne signaler que la règle KEV, et pas aussi la sévérité, garde la sortie
-            // actionnable plutôt que dupliquée.
+            violations.push(violation(issue, 'kev', 'actively exploited vulnerability (CISA KEV catalog)'));
+            // One violation per issue is enough to fail the build. Reporting only the
+            // KEV rule, and not the severity one as well, keeps the output actionable
+            // rather than duplicated.
             continue;
         }
         if (policy.failOnSeverity && isAtLeast(issue.severity, policy.failOnSeverity)) {
-            violations.push(violation(issue, 'severity', `sévérité ${issue.severity || 'unknown'} ≥ seuil ${policy.failOnSeverity}`));
+            violations.push(violation(issue, 'severity', `severity ${issue.severity || 'unknown'} >= threshold ${policy.failOnSeverity}`));
         }
     }
 
@@ -180,13 +177,12 @@ export function evaluate(issues: Iterable<GateIssue>, policy: GatePolicy): GateV
 }
 
 /**
- * Une politique demandée par un appelant ne peut que **durcir** celle qui est stockée.
+ * A policy requested by a caller can only **tighten** the stored one.
  *
- * C'est un contrôle de sécurité, pas une commodité : sans lui, n'importe quel pipeline
- * pourrait passer `failOnSeverity: null` dans le corps de sa requête et rendre vert
- * tout ce qu'il veut. Les tentatives d'assouplissement sont renvoyées à l'appelant
- * plutôt qu'ignorées en silence — un pipeline qui croit avoir désactivé une règle doit
- * l'apprendre.
+ * This is a security control, not a convenience: without it, any pipeline could pass
+ * `failOnSeverity: null` in its request body and turn anything it likes green. Attempted
+ * relaxations are reported back to the caller rather than ignored silently — a pipeline
+ * that believes it has disabled a rule needs to find out.
  */
 export function harden(base: GatePolicy, requested: RequestedPolicy): { policy: GatePolicy; ignoredRelaxations: string[] } {
     const policy: GatePolicy = { ...base };
@@ -195,24 +191,23 @@ export function harden(base: GatePolicy, requested: RequestedPolicy): { policy: 
     if ('failOnSeverity' in requested) {
         const wanted = requested.failOnSeverity;
         if (wanted === null) {
-            // Retirer explicitement la règle de sévérité est un assouplissement — sauf
-            // s'il n'y avait pas de règle au départ.
+            // Explicitly removing the severity rule is a relaxation — unless there was
+            // no rule to begin with.
             if (base.failOnSeverity !== null) ignoredRelaxations.push('fail_on_severity');
         } else if (wanted !== undefined) {
             if (base.failOnSeverity === null) {
-                // Ajouter une règle là où il n'y en avait pas est un durcissement.
+                // Adding a rule where there was none is a tightening.
                 policy.failOnSeverity = wanted.toLowerCase();
             } else {
-                // `SEVERITY_ORDER` va du pire au moins grave, donc un rang *plus grand*
-                // est un seuil *plus bas*, qui échoue sur davantage de problèmes —
-                // c'est-à-dire plus strict. Inverser cette comparaison livrerait
-                // l'exact contraire de la fonctionnalité : un pipeline libre de
-                // remonter son seuil jusqu'à `critical`.
+                // `SEVERITY_ORDER` runs worst to least severe, so a *larger* rank is a
+                // *lower* threshold, which fails on more issues — that is, stricter.
+                // Inverting this comparison would deliver the exact opposite of the
+                // feature: a pipeline free to raise its threshold up to `critical`.
                 const wantedRank = severityRank(wanted);
                 const baseRank = severityRank(base.failOnSeverity);
                 if (wantedRank > baseRank) policy.failOnSeverity = wanted.toLowerCase();
                 else if (wantedRank < baseRank) ignoredRelaxations.push('fail_on_severity');
-                // Rangs égaux : ni durcissement ni assouplissement, rien à signaler.
+                // Equal ranks: neither tightening nor relaxation, nothing to report.
             }
         }
     }
@@ -229,19 +224,18 @@ export function harden(base: GatePolicy, requested: RequestedPolicy): { policy: 
 }
 
 /**
- * Ce que l'appelant a réellement envoyé.
+ * What the caller actually sent.
  *
- * La présence d'une clé compte, pas sa valeur : sans cette distinction, tout appelant
- * qui omet `failOnSeverity` semblerait demander le défaut du schéma et s'entendrait
- * répondre que sa requête a été refusée, à chaque appel. C'est l'équivalent du
- * `model_dump(exclude_unset=True)` de Pydantic.
+ * The presence of a key matters, not its value: without that distinction, any caller
+ * omitting `failOnSeverity` would appear to be asking for the schema default and would be
+ * told its request was refused, on every call. This is the equivalent of Pydantic's
+ * `model_dump(exclude_unset=True)`.
  */
 export type RequestedPolicy = Partial<GatePolicy>;
 
 /**
- * Pour chaque drapeau, la valeur qui *durcit*. « Plus strict » ne veut pas dire
- * « vrai » : `fixableOnly` à vrai réduit l'ensemble évalué, donc c'est `false` qui
- * durcit.
+ * For each flag, the value that *tightens*. "Stricter" does not mean "true":
+ * `fixableOnly` set to true shrinks the evaluated set, so `false` is what tightens.
  */
 const STRICT_FLAG_VALUE: readonly [keyof GatePolicy & ('failOnKev' | 'includeTriaged' | 'includeAiReview' | 'fixableOnly'), boolean][] = [
     ['failOnKev', true],
@@ -250,7 +244,7 @@ const STRICT_FLAG_VALUE: readonly [keyof GatePolicy & ('failOnKev' | 'includeTri
     ['fixableOnly', false]
 ];
 
-/** Les noms rendus à l'appelant restent ceux de l'API, en snake_case. */
+/** The names returned to the caller stay the API's, in snake_case. */
 const SNAKE_CASE: Record<string, string> = {
     failOnKev: 'fail_on_kev',
     includeTriaged: 'include_triaged',

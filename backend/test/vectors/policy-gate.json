@@ -1,7 +1,7 @@
 {
   "verdicts": [
     {
-      "label": "backlog vide",
+      "label": "empty backlog",
       "issues": [],
       "policy": {
         "failOnSeverity": "high",
@@ -18,7 +18,7 @@
       }
     },
     {
-      "label": "une high sous le seuil high par défaut",
+      "label": "a high under the default high threshold",
       "issues": [
         {
           "id": 1,
@@ -53,13 +53,13 @@
             "severity": "high",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité high ≥ seuil high"
+            "reason": "severity high >= threshold high"
           }
         ]
       }
     },
     {
-      "label": "une medium sous le seuil high",
+      "label": "a medium under the high threshold",
       "issues": [
         {
           "id": 1,
@@ -90,7 +90,7 @@
       }
     },
     {
-      "label": "une medium sous un seuil medium",
+      "label": "a medium under a medium threshold",
       "issues": [
         {
           "id": 1,
@@ -125,13 +125,13 @@
             "severity": "medium",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité medium ≥ seuil medium"
+            "reason": "severity medium >= threshold medium"
           }
         ]
       }
     },
     {
-      "label": "unknown se classe sous low et ne déclenche rien",
+      "label": "unknown ranks below low and triggers nothing",
       "issues": [
         {
           "id": 1,
@@ -162,7 +162,7 @@
       }
     },
     {
-      "label": "une sévérité hors vocabulaire se classe en dernier",
+      "label": "a severity outside the vocabulary ranks last",
       "issues": [
         {
           "id": 1,
@@ -193,7 +193,7 @@
       }
     },
     {
-      "label": "un problème résolu n'est pas évalué",
+      "label": "a resolved issue is not evaluated",
       "issues": [
         {
           "id": 1,
@@ -222,7 +222,7 @@
       }
     },
     {
-      "label": "un KEV medium échoue quand même",
+      "label": "a medium KEV fails all the same",
       "issues": [
         {
           "id": 1,
@@ -257,13 +257,13 @@
             "severity": "medium",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+            "reason": "actively exploited vulnerability (CISA KEV catalog)"
           }
         ]
       }
     },
     {
-      "label": "KEV désactivé : la sévérité seule décide",
+      "label": "KEV disabled: severity alone decides",
       "issues": [
         {
           "id": 1,
@@ -294,7 +294,7 @@
       }
     },
     {
-      "label": "un KEV ne produit qu'une violation, la règle KEV",
+      "label": "a KEV produces only one violation, the KEV rule",
       "issues": [
         {
           "id": 1,
@@ -329,13 +329,13 @@
             "severity": "critical",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+            "reason": "actively exploited vulnerability (CISA KEV catalog)"
           }
         ]
       }
     },
     {
-      "label": "la qualité ne vote jamais, même en critique",
+      "label": "quality never votes, even at critical",
       "issues": [
         {
           "id": 1,
@@ -364,7 +364,7 @@
       }
     },
     {
-      "label": "la qualité reste exclue même avec include_ai_review",
+      "label": "quality stays excluded even with include_ai_review",
       "issues": [
         {
           "id": 1,
@@ -393,7 +393,7 @@
       }
     },
     {
-      "label": "la revue IA est exclue par défaut",
+      "label": "AI review is excluded by default",
       "issues": [
         {
           "id": 1,
@@ -422,7 +422,7 @@
       }
     },
     {
-      "label": "la revue IA vote si on le demande",
+      "label": "AI review votes if asked",
       "issues": [
         {
           "id": 1,
@@ -457,13 +457,13 @@
             "severity": "critical",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité critical ≥ seuil high"
+            "reason": "severity critical >= threshold high"
           }
         ]
       }
     },
     {
-      "label": "un problème trié not_affected est écarté",
+      "label": "an issue triaged not_affected is discarded",
       "issues": [
         {
           "id": 1,
@@ -492,7 +492,7 @@
       }
     },
     {
-      "label": "include_triaged le fait revenir",
+      "label": "include_triaged brings it back",
       "issues": [
         {
           "id": 1,
@@ -527,13 +527,13 @@
             "severity": "critical",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité critical ≥ seuil high"
+            "reason": "severity critical >= threshold high"
           }
         ]
       }
     },
     {
-      "label": "fixable_only écarte ce qui n'a pas de correctif",
+      "label": "fixable_only discards what has no fix",
       "issues": [
         {
           "id": 1,
@@ -562,7 +562,7 @@
       }
     },
     {
-      "label": "fixable_only laisse passer un KEV sans correctif — le cas qui demande un humain",
+      "label": "fixable_only lets a KEV with no fix through — the case that calls for a human",
       "issues": [
         {
           "id": 1,
@@ -591,7 +591,7 @@
       }
     },
     {
-      "label": "sans règle de sévérité, seul KEV décide",
+      "label": "with no severity rule, KEV alone decides",
       "issues": [
         {
           "id": 1,
@@ -637,13 +637,13 @@
             "severity": "critical",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "vulnérabilité activement exploitée (catalogue CISA KEV)"
+            "reason": "actively exploited vulnerability (CISA KEV catalog)"
           }
         ]
       }
     },
     {
-      "label": "comptage par sévérité sur un backlog mêlé",
+      "label": "per-severity counting on a mixed backlog",
       "issues": [
         {
           "id": 1,
@@ -747,7 +747,7 @@
             "severity": "critical",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité critical ≥ seuil high"
+            "reason": "severity critical >= threshold high"
           },
           {
             "rule": "severity",
@@ -756,7 +756,7 @@
             "severity": "high",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité high ≥ seuil high"
+            "reason": "severity high >= threshold high"
           },
           {
             "rule": "severity",
@@ -765,7 +765,7 @@
             "severity": "high",
             "package": "requests",
             "fixVersions": "2.32.0",
-            "reason": "sévérité high ≥ seuil high"
+            "reason": "severity high >= threshold high"
           }
         ]
       }
@@ -773,7 +773,7 @@
   ],
   "hardenings": [
     {
-      "label": "rien de demandé",
+      "label": "nothing requested",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -794,7 +794,7 @@
       }
     },
     {
-      "label": "un seuil plus bas (low) fait échouer davantage : durcissement",
+      "label": "a lower threshold (low) fails on more: a tightening",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -817,7 +817,7 @@
       }
     },
     {
-      "label": "un seuil plus haut (critical) fait échouer moins : refusé",
+      "label": "a higher threshold (critical) fails on less: refused",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -842,7 +842,7 @@
       }
     },
     {
-      "label": "retirer la règle de sévérité est refusé",
+      "label": "removing the severity rule is refused",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -867,7 +867,7 @@
       }
     },
     {
-      "label": "retirer une règle qui n'existe pas ne refuse rien",
+      "label": "removing a rule that does not exist refuses nothing",
       "base": {
         "failOnSeverity": null,
         "failOnKev": true,
@@ -890,7 +890,7 @@
       }
     },
     {
-      "label": "ajouter une règle là où il n'y en avait pas est un durcissement",
+      "label": "adding a rule where there was none is a tightening",
       "base": {
         "failOnSeverity": null,
         "failOnKev": true,
@@ -913,7 +913,7 @@
       }
     },
     {
-      "label": "un seuil identique ne signale rien",
+      "label": "an identical threshold reports nothing",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -936,7 +936,7 @@
       }
     },
     {
-      "label": "désactiver KEV est refusé",
+      "label": "disabling KEV is refused",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -961,7 +961,7 @@
       }
     },
     {
-      "label": "activer KEV quand il l'est déjà ne signale rien",
+      "label": "enabling KEV when it already is reports nothing",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -984,7 +984,7 @@
       }
     },
     {
-      "label": "inclure les triés est un durcissement",
+      "label": "including triaged issues is a tightening",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -1007,7 +1007,7 @@
       }
     },
     {
-      "label": "exclure les triés quand ils l'étaient déjà ne signale rien",
+      "label": "excluding triaged issues when they already were reports nothing",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -1030,7 +1030,7 @@
       }
     },
     {
-      "label": "repasser fixable_only à faux est un durcissement",
+      "label": "setting fixable_only back to false is a tightening",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -1053,7 +1053,7 @@
       }
     },
     {
-      "label": "activer fixable_only est refusé",
+      "label": "enabling fixable_only is refused",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,
@@ -1078,7 +1078,7 @@
       }
     },
     {
-      "label": "plusieurs refus à la fois",
+      "label": "several refusals at once",
       "base": {
         "failOnSeverity": "high",
         "failOnKev": true,

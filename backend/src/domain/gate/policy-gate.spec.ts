@@ -18,80 +18,80 @@ interface HardenVector {
 
 const vectors: { verdicts: VerdictVector[]; hardenings: HardenVector[] } = JSON.parse(readFileSync(join(__dirname, '../../../test/vectors/policy-gate.json'), 'utf8'));
 
-describe('verdict du gate', () => {
-    it('dispose de vecteurs générés depuis le code Python', () => {
+describe('gate verdict', () => {
+    it('has vectors generated from the Python code', () => {
         expect(vectors.verdicts.length).toBeGreaterThan(0);
         expect(vectors.hardenings.length).toBeGreaterThan(0);
     });
 
-    // Le verdict est ce qui fait échouer ou passer la compilation de quelqu'un.
-    // Chaque cas vient de l'exécution réelle de `zanshin.services.policy_gate`.
+    // The verdict is what fails or passes somebody's build. Each case comes from a real
+    // run of `zanshin.services.policy_gate`.
     describe.each(vectors.verdicts)('$label', (vector) => {
-        it('rend exactement le verdict de Python', () => {
+        it('returns exactly the verdict Python returned', () => {
             expect(evaluate(vector.issues, vector.policy)).toEqual(vector.expected);
         });
     });
 
-    describe('la politique intégrée est celle de Python', () => {
-        it('a les mêmes défauts', () => {
-            // Un défaut qui diverge changerait le verdict de toutes les cibles sans
-            // politique propre, c'est-à-dire de la plupart.
-            const fromVectors = vectors.verdicts.find((vector) => vector.label === 'backlog vide');
+    describe('the built-in policy is the one from Python', () => {
+        it('has the same defaults', () => {
+            // A default that diverges would change the verdict of every target with no
+            // policy of its own, which is most of them.
+            const fromVectors = vectors.verdicts.find((vector) => vector.label === 'empty backlog');
             expect(fromVectors?.policy).toEqual(BUILT_IN_POLICY);
         });
     });
 });
 
-describe('classement des sévérités', () => {
-    it('va du pire au moins grave', () => {
+describe('severity ranking', () => {
+    it('runs worst to least severe', () => {
         expect(severityRank('critical')).toBeLessThan(severityRank('high'));
         expect(severityRank('high')).toBeLessThan(severityRank('medium'));
         expect(severityRank('medium')).toBeLessThan(severityRank('low'));
     });
 
-    it("classe « unknown » SOUS « low », et non en pire cas", () => {
-        // Le backend OSV renvoie « unknown » dès qu'un avis n'a pas de sévérité
-        // normalisée. En pire cas, il ferait échouer toutes les compilations sur ce
-        // backend — l'inversion la plus coûteuse possible dans ce fichier.
+    it("ranks unknown BELOW low, and not as the worst case", () => {
+        // The OSV back end returns "unknown" whenever an advisory has no normalized
+        // severity. As the worst case, it would fail every build on that back end — the
+        // most expensive inversion possible in this file.
         expect(severityRank('unknown')).toBeGreaterThan(severityRank('low'));
         expect(isAtLeast('unknown', 'low')).toBe(false);
     });
 
-    it('range une valeur hors vocabulaire en dernier', () => {
-        expect(severityRank('catastrophique')).toBeGreaterThan(severityRank('unknown'));
+    it('places a value outside the vocabulary last', () => {
+        expect(severityRank('catastrophic')).toBeGreaterThan(severityRank('unknown'));
     });
 
-    it('est insensible à la casse et traite null comme unknown', () => {
+    it('is case-insensitive and treats null as unknown', () => {
         expect(severityRank('CRITICAL')).toBe(severityRank('critical'));
         expect(severityRank(null)).toBe(severityRank('unknown'));
         expect(severityRank(undefined)).toBe(severityRank('unknown'));
     });
 });
 
-describe('durcissement d’une politique demandée', () => {
+describe('tightening of a requested policy', () => {
     describe.each(vectors.hardenings)('$label', (vector) => {
-        it('rend exactement ce que rend Python', () => {
+        it('returns exactly what Python returns', () => {
             expect(harden(vector.base, vector.requested)).toEqual(vector.expected);
         });
     });
 
-    it("distingue « champ absent » de « champ à null »", () => {
-        // Sans cette distinction, tout appelant omettant `failOnSeverity` s'entendrait
-        // répondre que sa requête a été refusée, à chaque appel. C'est l'équivalent du
-        // `model_dump(exclude_unset=True)` de Pydantic, et il ne survit pas à un
-        // `Partial<T>` naïvement rempli de undefined.
+    it("tells an absent field from a field set to null", () => {
+        // Without that distinction, any caller omitting `failOnSeverity` would be told
+        // its request was refused, on every call. This is the equivalent of Pydantic's
+        // `model_dump(exclude_unset=True)`, and it does not survive a `Partial<T>`
+        // naively filled with undefined.
         expect(harden(BUILT_IN_POLICY, {}).ignoredRelaxations).toEqual([]);
         expect(harden(BUILT_IN_POLICY, { failOnSeverity: null }).ignoredRelaxations).toEqual(['fail_on_severity']);
     });
 
-    it('ne modifie pas la politique de base', () => {
+    it('does not modify the base policy', () => {
         const base: GatePolicy = { ...BUILT_IN_POLICY };
         harden(base, { failOnSeverity: 'low', failOnKev: false });
         expect(base).toEqual(BUILT_IN_POLICY);
     });
 });
 
-describe('les invariants qu’un portage doit préserver', () => {
+describe('the invariants a port must preserve', () => {
     const issue = (overrides: Partial<GateIssue> = {}): GateIssue => ({
         id: 1,
         state: 'open',
@@ -105,10 +105,10 @@ describe('les invariants qu’un portage doit préserver', () => {
         ...overrides
     });
 
-    it('aucune politique ne peut faire voter la qualité', () => {
-        // Il n'y a délibérément pas de drapeau : une option ferait de « la qualité ne
-        // bloque jamais » une phrase à astérisque. Ce test est ce qui le vérifie face
-        // à *toutes* les combinaisons, et pas seulement celles des vecteurs.
+    it('no policy can make quality vote', () => {
+        // There is deliberately no flag: an option would make "quality never blocks" a
+        // sentence with an asterisk. This test is what checks it against *every*
+        // combination, not just the ones in the vectors.
         const quality = issue({ type: 'quality', isKev: true });
         for (const failOnSeverity of [null, 'critical', 'high', 'medium', 'low', 'unknown']) {
             for (const flags of [0, 1, 2, 3, 4, 5, 6, 7]) {
@@ -126,23 +126,23 @@ describe('les invariants qu’un portage doit préserver', () => {
         }
     });
 
-    it('un KEV ne produit jamais deux violations pour le même problème', () => {
+    it('a KEV never produces two violations for the same issue', () => {
         const verdict = evaluate([issue({ isKev: true, severity: 'critical' })], BUILT_IN_POLICY);
         expect(verdict.violations).toHaveLength(1);
         expect(verdict.violations[0].rule).toBe('kev');
     });
 
-    it('un backlog entièrement trié passe, et le même backlog audité échoue', () => {
+    it('a fully triaged backlog passes, and the same backlog audited fails', () => {
         const triaged = [issue({ triageStatus: 'not_affected' }), issue({ id: 2, triageStatus: 'fixed' })];
         expect(evaluate(triaged, BUILT_IN_POLICY).passed).toBe(true);
         expect(evaluate(triaged, { ...BUILT_IN_POLICY, includeTriaged: true }).passed).toBe(false);
     });
 
-    it('fixable_only ne fait pas passer un KEV sans correctif en silence', () => {
-        // C'est la situation qui demande une décision humaine, pas une compilation
-        // verte — mais le code Python l'écarte quand même, parce que le filtre
-        // s'applique avant les règles. Test de constat, pas de souhait : si quelqu'un
-        // décide de corriger ce comportement, il faudra le corriger des deux côtés.
+    it('fixable_only does not silently pass a KEV with no fix', () => {
+        // This is the situation that calls for a human decision, not a green build — but
+        // the Python code discards it anyway, because the filter applies before the
+        // rules. A test of what is, not of what should be: if someone decides to fix this
+        // behaviour, it will have to be fixed on both sides.
         const verdict = evaluate([issue({ severity: 'medium', fixVersions: null, isKev: true })], { ...BUILT_IN_POLICY, fixableOnly: true });
         expect(verdict.evaluated).toBe(0);
         expect(verdict.passed).toBe(true);
