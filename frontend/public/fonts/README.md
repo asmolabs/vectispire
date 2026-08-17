@@ -37,7 +37,7 @@ four files):
 | `inter-latin-ext.woff2` | latin extended | 85 KB |
 
 The second covers the characters the first does not; the browser downloads only the one it
-needs, thanks to the `unicode-range` declarations in `assets/theme.css`. The other upstream
+needs, thanks to the `unicode-range` declarations in `frontend/src/assets/styles.scss`. The other upstream
 subsets (Cyrillic, Greek, Vietnamese) are not bundled.
 
 Source: `https://fonts.gstatic.com/s/inter/v20/`, the subsets Google Fonts serves for
