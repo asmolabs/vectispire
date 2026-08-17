@@ -1,28 +1,28 @@
 /**
- * Le nom sous lequel une cible s'affiche — **une seule définition**.
+ * The name a target is displayed under — **one single definition**.
  *
- * L'écran Dépôts abrégeait l'URL côté client tandis que le tableau de bord affichait
- * l'URL entière : le même dépôt portait deux noms selon la page, et rien ne dit à
- * l'utilisateur qu'il s'agit du même. Le nom appartient donc au serveur, qui le rend
- * identique à tous ses appelants.
+ * The Repositories screen shortened the URL client-side while the dashboard showed the whole
+ * URL: the same repository carried two names depending on the page, and nothing told the
+ * user they were the same. The name therefore belongs to the server, which returns it
+ * identically to all its callers.
  */
 
-/** `org/projet` à partir d'une URL git, quelle qu'en soit la forme. */
+/** `org/project` from a git URL, whatever its form. */
 export function shortRepositoryName(url: string): string {
     const withoutSuffix = url.replace(/\.git$/, '').replace(/\/+$/, '');
     const segments = withoutSuffix.split(/[/:]/).filter(Boolean);
-    // Les deux derniers segments : `org/projet`, y compris sur une forme SCP
-    // (`git@hote:equipe/sous-groupe/projet`) où le premier « : » n'est pas un port.
+    // The last two segments: `org/project`, including on an SCP form
+    // (`git@host:team/subgroup/project`) where the first ":" is not a port.
     return segments.slice(-2).join('/') || withoutSuffix;
 }
 
-/** Le nom choisi par l'opérateur s'il en a donné un, sinon la forme courte. */
+/** The name the operator chose if they gave one, otherwise the short form. */
 export function repositoryDisplayName(repository: { name: string | null; url: string }): string {
     return repository.name?.trim() || shortRepositoryName(repository.url);
 }
 
 export function containerDisplayName(container: { imageName: string; tag: string }): string {
-    // Sans abréger le condensé ici : ce nom sert aussi de clé de recherche et de libellé
-    // d'export, où la valeur entière compte. L'abrègement est une affaire d'affichage.
+    // The digest is not shortened here: this name also serves as a search key and an export
+    // label, where the whole value matters. Shortening is a display concern.
     return `${container.imageName}:${container.tag}`;
 }

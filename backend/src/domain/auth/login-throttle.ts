@@ -1,50 +1,47 @@
 /**
- * Limitation des tentatives de connexion.
+ * Throttling of login attempts.
  *
- * **Deux compteurs indépendants, et les deux doivent passer.** Ce n'est pas une
- * redondance : chacun seul a une faille que l'autre ferme.
+ * **Two independent counters, and both have to pass.** This is not redundancy: each one
+ * alone has a hole the other closes.
  *
- * - Ne compter que par **utilisateur**, et n'importe qui verrouille le compte d'un
- *   collègue dont il connaît l'identifiant — un déni de service à un tiers du coût
- *   d'une attaque.
- * - Ne compter que par **client**, et un attaquant réparti sur plusieurs machines
- *   essaie autant de mots de passe qu'il veut sur un même compte.
+ * - Count per **user** only, and anybody can lock a colleague's account whose username
+ *   they know — a denial of service at a third of the cost of an attack.
+ * - Count per **client** only, and an attacker spread across several machines tries as
+ *   many passwords as they like against one account.
  *
- * D'où deux seuils différents : cinq tentatives pour un utilisateur, vingt pour un
- * client. Un poste partagé peut légitimement voir plusieurs personnes se tromper ; un
- * compte, non.
+ * Hence two different thresholds: five attempts for a user, twenty for a client. A shared
+ * workstation can legitimately see several people mistype; an account cannot.
  *
- * **La fenêtre est glissante et non fixe.** Une fenêtre fixe se réinitialise à heure
- * ronde, ce qui offre à un attaquant un pic gratuit au changement de fenêtre.
+ * **The window slides rather than being fixed.** A fixed window resets on the hour, which
+ * hands an attacker a free burst at the boundary.
  *
- * La vérification a lieu **avant** toute comparaison de mot de passe : un compte
- * verrouillé ne doit coûter aucun tour de bcrypt, sans quoi le limiteur devient
- * lui-même le levier d'un déni de service.
+ * The check happens **before** any password comparison: a locked account must cost no
+ * bcrypt rounds, otherwise the throttle itself becomes the lever for a denial of service.
  */
 
 export const MAX_ATTEMPTS_PER_USER = 5;
 export const MAX_ATTEMPTS_PER_CLIENT = 20;
-/** 15 minutes, en millisecondes. */
+/** 15 minutes, in milliseconds. */
 export const WINDOW_MS = 15 * 60 * 1000;
 
 export interface ThrottleDecision {
     allowed: boolean;
-    /** Secondes à attendre avant une nouvelle tentative ; 0 quand c'est autorisé. */
+    /** Seconds to wait before another attempt; 0 when allowed. */
     retryAfterSeconds: number;
 }
 
 export interface AttemptCounts {
-    /** Les instants (en millisecondes epoch) des échecs de cet utilisateur dans la fenêtre. */
+    /** The instants (epoch milliseconds) of this user's failures inside the window. */
     user: number[];
-    /** Idem pour ce client. */
+    /** Likewise for this client. */
     client: number[];
 }
 
 /**
- * L'identifiant sous lequel compter les échecs d'un utilisateur.
+ * The key under which a user's failures are counted.
  *
- * Normalisé, sinon « Alice », « alice » et « alice  » seraient trois compteurs et le
- * seuil vaudrait trois fois plus pour qui prend la peine de varier la casse.
+ * Normalized, otherwise "Alice", "alice" and "alice  " would be three counters and the
+ * threshold would be worth three times as much to anyone bothering to vary the case.
  */
 export function userKey(username: string): string {
     return `login:user:${username.trim().toLowerCase()}`;
@@ -55,10 +52,10 @@ export function clientKey(clientId: string): string {
 }
 
 /**
- * Décide si une tentative est permise, et sinon pour combien de temps encore.
+ * Decides whether an attempt is allowed, and if not for how much longer.
  *
- * Le délai est calculé depuis l'échec **le plus ancien encore dans la fenêtre** : c'est
- * l'instant où le compteur redescendra sous le seuil.
+ * The delay is computed from the **oldest failure still inside the window**: that is the
+ * instant the counter drops back below the threshold.
  */
 export function decide(counts: AttemptCounts, now: number): ThrottleDecision {
     const waits = [waitFor(counts.user, MAX_ATTEMPTS_PER_USER, now), waitFor(counts.client, MAX_ATTEMPTS_PER_CLIENT, now)];
@@ -71,12 +68,12 @@ function waitFor(attempts: number[], limit: number, now: number): number {
     if (inWindow.length < limit) return 0;
 
     const earliest = Math.min(...inWindow);
-    // Arrondi au supérieur : annoncer « 0 seconde » alors qu'il en reste une fraction
-    // ferait retenter aussitôt et échouer à nouveau.
+    // Rounded up: announcing "0 seconds" while a fraction remains would make the caller
+    // retry at once and fail again.
     return Math.max(1, Math.ceil((earliest + WINDOW_MS - now) / 1000));
 }
 
-/** Ne garde que les tentatives encore dans la fenêtre. */
+/** Keeps only the attempts still inside the window. */
 export function withinWindow(attempts: number[], now: number): number[] {
     return attempts.filter((at) => now - at < WINDOW_MS);
 }

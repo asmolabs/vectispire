@@ -1,12 +1,12 @@
 /**
- * L'appariement d'une version à son cycle de vie, et le verdict qui en découle.
+ * Matching a version to its life cycle, and the verdict that follows.
  *
- * Fonctions pures : tout ce qui peut réellement se tromper ici — un préfixe de version
- * mal comparé, une date lue de travers, un purl portant son architecture — se teste sans
- * réseau. Le service qui les appelle ne fait que chercher les documents et les cacher.
+ * Pure functions: everything that can genuinely go wrong here — a version prefix compared
+ * wrongly, a date read askew, a purl carrying its architecture — is testable with no
+ * network. The service calling them only fetches the documents and caches them.
  */
 
-/** Une version d'un produit, telle que la publie endoflife.date. */
+/** A product release, as endoflife.date publishes it. */
 export interface Release {
     name?: string;
     eolFrom?: string | null;
@@ -20,15 +20,15 @@ export interface Product {
     releases?: Release[];
 }
 
-/** La fenêtre d'avertissement par défaut, en jours. */
+/** The default warning window, in days. */
 export const DEFAULT_WARN_DAYS = 180;
 
 /**
- * `pkg:type/namespace/nom`, sans version ni qualificatifs.
+ * `pkg:type/namespace/name`, with no version and no qualifiers.
  *
- * Un purl de SBOM porte les deux (`pkg:rpm/redhat/openssl@3.5.1?arch=x86_64`) là où les
- * identifiants du catalogue n'en portent aucun : les deux côtés sont donc réduits à ce qui
- * désigne le **produit** et non la construction.
+ * A SBOM purl carries both (`pkg:rpm/redhat/openssl@3.5.1?arch=x86_64`) where the catalog's
+ * identifiers carry neither: both sides are therefore reduced to what names the **product**
+ * rather than the build.
  */
 export function normalizePurl(purl: string): string {
     let value = (purl ?? '').trim();
@@ -39,11 +39,11 @@ export function normalizePurl(purl: string): string {
 }
 
 /**
- * Les composantes numériques d'une version, arrêtées à la première qui ne l'est pas.
+ * A version's numeric components, stopping at the first one that is not numeric.
  *
- * `« 9.7 (Plow) »` devient `['9','7']` et `« 3.12.1-rc1 »` devient `['3','12','1']` : ni la
- * version décorée d'une distribution ni le suffixe de construction d'un paquet ne doivent
- * empêcher de reconnaître le cycle.
+ * `"9.7 (Plow)"` becomes `['9','7']` and `"3.12.1-rc1"` becomes `['3','12','1']`: neither a
+ * distribution's decorated version nor a package's build suffix must stop the cycle from
+ * being recognized.
  */
 export function versionParts(version: string): string[] {
     const cleaned = (version ?? '').trim().split(' ')[0];
@@ -58,12 +58,12 @@ export function versionParts(version: string): string[] {
 }
 
 /**
- * Le cycle auquel appartient une version.
+ * The cycle a version belongs to.
  *
- * **Comparé composante par composante, jamais par préfixe de chaîne** : « 3.14 » commence
- * par « 3.1 », donc un `startsWith` rangerait Python 3.14 dans le cycle 3.1 et annoncerait
- * une fin de support passée depuis des années. Le cycle le plus long qui correspond
- * l'emporte, pour qu'un produit publiant à la fois « 8 » et « 8.1 » se résolve bien.
+ * **Compared component by component, never by string prefix**: "3.14" starts with "3.1", so
+ * a `startsWith` would file Python 3.14 under the 3.1 cycle and announce a support window
+ * that closed years ago. The longest matching cycle wins, so that a product publishing both
+ * "8" and "8.1" resolves correctly.
  */
 export function matchRelease(product: Product, version: string): Release | null {
     const wanted = versionParts(version);
@@ -81,21 +81,22 @@ export function matchRelease(product: Product, version: string): Release | null 
     return best;
 }
 
-/** Le verdict sur un cycle : sa sévérité, ou `null` s'il est confortablement supporté. */
+/** The verdict on a cycle: its severity, or `null` if it is comfortably supported. */
 export interface Verdict {
     severity: 'high' | 'medium';
     eolDate: Date | null;
 }
 
 /**
- * Évalue un cycle à une date donnée.
+ * Assesses a cycle at a given date.
  *
- * **Un cycle déjà échu est `high`** — non parce que quelque chose est cassé aujourd'hui,
- * mais parce que rien ne sera corrigé demain, ce qui n'est pas un « moyen » pour un
- * composant qu'on livre. Une échéance à venir est `medium` : un délai, pas un incident.
+ * **A cycle already past its end is `high`** — not because something is broken today, but
+ * because nothing will be fixed tomorrow, which is not a "medium" for a component you ship.
+ * An end date still ahead is `medium`: a deadline, not an incident.
  *
- * Au-delà de la fenêtre, rien n'est rapporté : tout a une fin de vie un jour, et signaler
- * une version supportée encore trois ans apprendrait aux gens à filtrer ce type.
+ * Beyond the window, nothing is reported: everything reaches end of life one day, and
+ * flagging a version supported for another three years would teach people to filter this
+ * type out.
  */
 export function assess(release: Release, today: Date, warnDays: number = DEFAULT_WARN_DAYS): Verdict | null {
     const eolDate = parseDate(release.eolFrom);
@@ -107,17 +108,17 @@ export function assess(release: Release, today: Date, warnDays: number = DEFAULT
         if (daysLeft >= 0 && daysLeft <= warnDays) return { severity: 'medium', eolDate };
     }
 
-    // `isMaintained: false` sans date : le cas des produits abandonnés.
+    // `isMaintained: false` with no date: the abandoned-product case.
     if (release.isMaintained === false && !eolDate) return { severity: 'high', eolDate: null };
 
     return null;
 }
 
 /**
- * La version maintenue la plus récente — c'est-à-dire ce que « corriger » veut dire ici.
+ * The most recent maintained release — that is, what "fix this" means here.
  *
- * Posée sur `fixVersions` pour qu'un constat de fin de vie se lise comme tous les autres
- * constats actionnables, à l'écran comme dans les exports.
+ * Placed on `fixVersions` so an end-of-life finding reads like every other actionable
+ * finding, on screen as in the exports.
  */
 export function recommendedVersion(product: Product): string | null {
     for (const release of product.releases ?? []) {
@@ -126,14 +127,14 @@ export function recommendedVersion(product: Product): string | null {
     return null;
 }
 
-/** Une date ISO du catalogue, ou `null`. Rendue en UTC pour rester comparable. */
+/** An ISO date from the catalog, or `null`. Returned in UTC to stay comparable. */
 export function parseDate(value: unknown): Date | null {
     if (typeof value !== 'string' || value.length < 10) return null;
     const parsed = new Date(`${value.slice(0, 10)}T00:00:00Z`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** L'index purl → produit, lu de la réponse du catalogue. */
+/** The purl → product index, read from the catalog's response. */
 export function parseIdentifierIndex(payload: unknown): Map<string, string> {
     const index = new Map<string, string>();
     const result = (payload as { result?: unknown })?.result;
@@ -149,7 +150,7 @@ export function parseIdentifierIndex(payload: unknown): Map<string, string> {
     return index;
 }
 
-/** Ce qu'un SBOM propose à la recherche : produit, version, étiquette, purl. */
+/** What a SBOM offers the lookup: product, version, label, purl. */
 export interface Candidate {
     product: string;
     version: string;
@@ -158,12 +159,11 @@ export interface Candidate {
 }
 
 /**
- * Les paquets d'un SBOM qui correspondent à un produit du catalogue.
+ * The SBOM packages that match a product in the catalog.
  *
- * La distribution est traitée à part par le service : un SBOM Syft ne porte **aucun purl
- * pour le système d'exploitation lui-même**, alors que c'est la réponse la plus utile
- * pour une image de conteneur — celle qu'aucune recherche au niveau des paquets ne
- * trouverait.
+ * The distribution is handled separately by the service: a Syft SBOM carries **no purl for
+ * the operating system itself**, even though that is the most useful answer for a container
+ * image — the one no package-level lookup would find.
  */
 export function packageCandidates(sbom: Record<string, unknown>, index: Map<string, string>): Candidate[] {
     const artifacts = sbom.artifacts;
@@ -183,7 +183,7 @@ export function packageCandidates(sbom: Record<string, unknown>, index: Map<stri
     return candidates;
 }
 
-/** La distribution d'une image, lue du bloc `distro` du SBOM. */
+/** An image's distribution, read from the SBOM's `distro` block. */
 export function distroCandidate(sbom: Record<string, unknown>): { id: string; version: string; label: string } | null {
     const distro = (sbom.distro ?? {}) as Record<string, unknown>;
     const id = String(distro.id ?? '').trim().toLowerCase();

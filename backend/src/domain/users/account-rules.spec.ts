@@ -13,15 +13,15 @@ describe('règles de compte', () => {
     describe('mot de passe', () => {
         it('exige une longueur, et rien de plus', () => {
             expect(validatePassword('correct-cheval-batterie-agrafe')).toBeNull();
-            expect(validatePassword('court')).toMatch(/12 caractères/);
+            expect(validatePassword('court')).toMatch(/12 characters/);
         });
 
         it('refuse au-delà de 72 octets plutôt que de laisser croire qu’ils protègent', () => {
             // bcrypt ignore la suite : accepter en silence donnerait un faux sentiment.
-            expect(validatePassword('a'.repeat(73))).toMatch(/72 octets/);
+            expect(validatePassword('a'.repeat(73))).toMatch(/72 bytes/);
             // La limite est en octets : 24 caractères accentués font 48 octets, donc passent.
             expect(validatePassword('é'.repeat(24))).toBeNull();
-            expect(validatePassword('é'.repeat(37))).toMatch(/72 octets/);
+            expect(validatePassword('é'.repeat(37))).toMatch(/72 bytes/);
         });
     });
 

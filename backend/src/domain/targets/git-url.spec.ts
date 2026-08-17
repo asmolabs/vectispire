@@ -17,7 +17,7 @@ describe('URL de dépôt', () => {
 
     it('refuse un schéma qui donnerait accès au disque de l’agent', () => {
         // `file://` clonerait un chemin local de la machine qui scanne.
-        expect(validateRepositoryUrl('file:///etc/passwd')).toMatch(/non autorisé/);
+        expect(validateRepositoryUrl('file:///etc/passwd')).toMatch(/is not allowed/);
     });
 
     it('refuse un schéma qui ferait exécuter une commande par git', () => {

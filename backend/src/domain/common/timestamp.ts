@@ -1,29 +1,28 @@
 /**
- * Ce qu'il reste de la manipulation d'horodatages : presque rien, et c'est le but.
+ * What is left of timestamp handling: almost nothing, and that is the point.
  *
- * Les colonnes sont en `timestamptz` et les entités portent des `Date`. Il n'y a donc
- * plus ni parsing, ni canonicalisation, ni conversion vers du texte — les trois
- * fonctions qui vivaient ici existaient uniquement parce que la base stockait des
- * horodatages sans fuseau, héritage du schéma SQLAlchemy.
+ * The columns are `timestamptz` and the entities carry `Date`s. There is therefore no more
+ * parsing, no canonicalization, no conversion to text — the three functions that used to
+ * live here existed only because the database stored timezone-less timestamps, inherited
+ * from the SQLAlchemy schema.
  *
- * Une seule règle subsiste : **quand un instant doit être comparé octet pour octet** —
- * dans une empreinte, dans un export — il s'écrit en ISO 8601 UTC à la milliseconde, par
- * `canonical()`. C'est `Date.prototype.toISOString`, nommé pour que l'intention soit
- * lisible à l'appel.
+ * One rule remains: **when an instant has to be compared byte for byte** — in a fingerprint,
+ * in an export — it is written as ISO 8601 UTC to the millisecond, by `canonical()`. That is
+ * `Date.prototype.toISOString`, named so the intent is readable at the call site.
  */
 
-/** L'instant présent. Nommé plutôt qu'écrit `new Date()` partout, pour que les tests
- *  aient un seul endroit à remplacer le jour où ils en auront besoin. */
+/** The present instant. Named rather than written `new Date()` everywhere, so the tests
+ *  have a single place to replace the day they need to. */
 export function now(): Date {
     return new Date();
 }
 
 /**
- * La forme comparable d'un instant : `YYYY-MM-DDTHH:MM:SS.sssZ`.
+ * An instant's comparable form: `YYYY-MM-DDTHH:MM:SS.sssZ`.
  *
- * Toujours en UTC et toujours à la milliseconde, quel que soit le fuseau de la machine.
- * Deux processus dans deux fuseaux doivent produire la même chaîne pour le même instant,
- * sans quoi une empreinte calculée ici ne se vérifie pas là.
+ * Always UTC and always to the millisecond, whatever the machine's timezone. Two processes
+ * in two timezones must produce the same string for the same instant, otherwise a
+ * fingerprint computed here does not verify there.
  */
 export function canonical(value: Date): string {
     return value.toISOString();

@@ -44,7 +44,7 @@ describe('règles de clé d’API', () => {
         });
 
         it('refuse une liste qui ne contient que du vide', () => {
-            expect(() => normalizeScopes(['  ', ''])).toThrow(/rien faire/);
+            expect(() => normalizeScopes(['  ', ''])).toThrow(/could do nothing/);
         });
     });
 

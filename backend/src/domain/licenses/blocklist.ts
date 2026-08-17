@@ -1,16 +1,16 @@
 /**
- * Les licences interdites, lues du SBOM que Syft produit déjà.
+ * The forbidden licenses, read from the SBOM Syft already produces.
  *
- * **Aucun nouvel outil n'est nécessaire** : Syft enregistre les licences de chaque
- * composant dans le SBOM de tout scan, image ou répertoire. Ceci n'est donc que
- * l'évaluation d'une règle sur une donnée déjà collectée.
+ * **No new tool is needed**: Syft records every component's licenses in the SBOM of any
+ * scan, image or directory. This is therefore only the evaluation of a rule over data
+ * already collected.
  *
- * **Rien n'est signalé tant qu'aucune liste n'est configurée.** Quelles licences sont
- * interdites est une décision d'organisation, pas une décision technique : un défaut
- * imposerait un jugement juridique à la place de l'opérateur.
+ * **Nothing is reported until a list is configured.** Which licenses are forbidden is an
+ * organizational decision, not a technical one: a default would impose a legal judgement in
+ * the operator's place.
  */
 
-/** Un composant du SBOM, réduit à ce que la règle regarde. */
+/** A SBOM component, reduced to what the rule looks at. */
 export interface SbomArtifact {
     name?: string;
     version?: string;
@@ -25,7 +25,7 @@ export interface LicenseViolation {
     purl: string | null;
 }
 
-/** La liste, normalisée en majuscules pour une comparaison insensible à la casse. */
+/** The list, upper-cased for a case-insensitive comparison. */
 export function parseBlocklist(raw: string): Set<string> {
     return new Set(
         (raw ?? '')
@@ -36,12 +36,12 @@ export function parseBlocklist(raw: string): Set<string> {
 }
 
 /**
- * Les licences d'un composant.
+ * A component's licenses.
  *
- * Syft a représenté les licences **à la fois comme des chaînes et, dans les versions plus
- * récentes de son schéma, comme des objets** (`{"value": "MIT", "spdxExpression": "MIT"}`).
- * Les deux sont traitées : ne gérer qu'une forme ferait taire la règle à la prochaine
- * montée de version de Syft — sans erreur, et sans que personne ne s'en aperçoive.
+ * Syft has represented licenses **both as strings and, in more recent versions of its
+ * schema, as objects** (`{"value": "MIT", "spdxExpression": "MIT"}`). Both are handled:
+ * supporting only one shape would silence the rule at Syft's next version bump — with no
+ * error, and with nobody noticing.
  */
 export function extractLicenses(artifact: SbomArtifact): string[] {
     const entries = artifact.licenses;
@@ -60,7 +60,7 @@ export function extractLicenses(artifact: SbomArtifact): string[] {
     return values;
 }
 
-/** Les composants dont une licence figure sur la liste. */
+/** The components one of whose licenses is on the list. */
 export function findViolations(sbom: Record<string, unknown>, blocklist: Set<string>): LicenseViolation[] {
     if (blocklist.size === 0) return [];
 

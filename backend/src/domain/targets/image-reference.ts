@@ -1,13 +1,13 @@
 /**
- * Validation d'une référence d'image de conteneur.
+ * Validation of a container image reference.
  *
- * Même nature que `git-url.ts` : la référence est passée à un scanner qui la tire depuis
- * un registre. Une valeur non contrôlée y fait tirer une image arbitraire — ou, si elle
- * contient un espace, décale les arguments de la ligne de commande du conteneur.
+ * The same nature as `git-url.ts`: the reference is handed to a scanner that pulls it from a
+ * registry. An uncontrolled value there pulls an arbitrary image — or, if it contains a
+ * space, shifts the container command line's arguments.
  *
- * La grammaire d'OCI est plus permissive que ce qui suit ; on refuse ici tout ce qui
- * n'est pas manifestement une image, quitte à écarter des formes exotiques légitimes.
- * Le coût d'un refus est un message ; le coût d'une acceptation de trop ne l'est pas.
+ * OCI's grammar is more permissive than what follows; anything that is not obviously an
+ * image is refused here, at the price of turning away legitimate exotic forms. The cost of a
+ * refusal is a message; the cost of one acceptance too many is not.
  */
 
 const REGISTRY = /^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:\d{1,5})?$/;
@@ -21,30 +21,30 @@ export interface ImageReference {
     tag: string;
 }
 
-/** `null` si la référence est acceptable, sinon le message à montrer. */
+/** `null` if the reference is acceptable, otherwise the message to show. */
 export function validateImageReference(reference: ImageReference): string | null {
     const { registry, imageName, tag } = reference;
 
     if (registry !== null && registry !== '' && !REGISTRY.test(registry)) {
-        return `Registre « ${registry} » invalide. Attendu un hôte, éventuellement suivi de « :port ».`;
+        return `Invalid registry "${registry}". Expected a host, optionally followed by ":port".`;
     }
-    if (!imageName) return "Le nom de l'image est requis.";
+    if (!imageName) return 'The image name is required.';
     if (!IMAGE_NAME.test(imageName)) {
-        // Les majuscules sont refusées par le registre lui-même, pas par nous : autant le
-        // dire à la saisie plutôt qu'au premier scan.
-        return `Nom d'image « ${imageName} » invalide. Minuscules, chiffres, « . _ - » et « / ».`;
+        // Upper case is refused by the registry itself, not by us: better to say so at
+        // entry than at the first scan.
+        return `Invalid image name "${imageName}". Lower case, digits, ". _ -" and "/".`;
     }
-    if (!tag) return "L'étiquette est requise (« latest » à défaut).";
+    if (!tag) return 'The tag is required ("latest" if nothing else).';
     if (!TAG.test(tag) && !DIGEST.test(tag)) {
-        return `Étiquette « ${tag} » invalide. Attendu une étiquette ou un condensé « sha256:… ».`;
+        return `Invalid tag "${tag}". Expected a tag or a "sha256:…" digest.`;
     }
     return null;
 }
 
-/** La référence telle qu'un registre l'attend — ce qu'on affiche et ce qu'on scanne. */
+/** The reference as a registry expects it — what is displayed and what is scanned. */
 export function formatImageReference(reference: ImageReference): string {
     const base = reference.registry ? `${reference.registry}/${reference.imageName}` : reference.imageName;
-    // Un condensé se colle avec « @ », une étiquette avec « : ». Se tromper ici produit
-    // une référence que le registre rejette.
+    // A digest joins with "@", a tag with ":". Getting this wrong produces a reference the
+    // registry rejects.
     return reference.tag.startsWith('sha256:') ? `${base}@${reference.tag}` : `${base}:${reference.tag}`;
 }

@@ -13,7 +13,7 @@ describe('référence d’image', () => {
     });
 
     it("refuse un nom en majuscules, que le registre refuserait au premier scan", () => {
-        expect(validateImageReference(ref('Equipe/Service'))).toMatch(/Minuscules/);
+        expect(validateImageReference(ref('Equipe/Service'))).toMatch(/Lower case/);
     });
 
     it('refuse une référence qui décalerait les arguments du conteneur', () => {

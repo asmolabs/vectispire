@@ -1,11 +1,11 @@
 import { ADMIN_ROLES, VALID_ROLES } from './roles';
 
 /**
- * Les règles qui empêchent un administrateur de se verrouiller dehors.
+ * The rules that stop an administrator from locking themselves out.
  *
- * Elles vivent ici, pures, parce que ce sont des règles et non des requêtes : chacune
- * décrit une situation où l'interface accepterait volontiers une action dont personne ne
- * pourrait revenir. Il n'existe pas d'écran de secours dans Zanshin — plus aucun
+ * They live here, pure, because they are rules and not queries: each describes a situation
+ * where the UI would happily accept an action nobody could come back from. There is no
+ * rescue screen in Zanshin — no remaining
  * administrateur actif, et il faut une session psql.
  */
 
@@ -17,11 +17,11 @@ export function isAdminRole(role: string): boolean {
     return (ADMIN_ROLES as readonly string[]).includes(role);
 }
 
-/** `null` si le nom est acceptable, sinon le message à montrer. */
+/** `null` if the name is acceptable, otherwise the message to show. */
 export function validateUsername(username: string): string | null {
     if (!username) return "L'identifiant est requis.";
     if (!USERNAME.test(username)) {
-        return "Identifiant invalide : 2 à 64 caractères, lettres, chiffres, « . _ - ».";
+        return 'Invalid username: 2 to 64 characters, letters, digits, ". _ -".';
     }
     return null;
 }
@@ -29,19 +29,19 @@ export function validateUsername(username: string): string | null {
 /**
  * `null` si le mot de passe est acceptable.
  *
- * Une longueur minimale et rien d'autre — pas de règle de composition. Les exigences de
- * classes de caractères produisent `Motdepasse1!` et poussent à la réutilisation ; la
- * longueur est la seule contrainte dont l'effet sur l'entropie soit réel.
+ * A minimum length and nothing else — no composition rule. Character-class requirements
+ * produce `Password1!` and encourage reuse; length is the only constraint whose effect on
+ * entropy is real.
  */
 export function validatePassword(password: string): string | null {
     if (!password) return 'Le mot de passe est requis.';
     if (password.length < MINIMUM_PASSWORD_LENGTH) {
-        return `Le mot de passe doit faire au moins ${MINIMUM_PASSWORD_LENGTH} caractères.`;
+        return `The password must be at least ${MINIMUM_PASSWORD_LENGTH} characters.`;
     }
-    // bcrypt tronque à 72 octets : au-delà, les caractères supplémentaires ne
-    // protègent rien, et le laisser croire serait pire que de le refuser.
+    // bcrypt truncates at 72 bytes: past that, the extra characters protect nothing, and
+    // letting someone believe otherwise would be worse than refusing.
     if (Buffer.byteLength(password, 'utf8') > 72) {
-        return 'Le mot de passe dépasse 72 octets, au-delà desquels bcrypt ignore la suite.';
+        return 'The password exceeds 72 bytes, past which bcrypt ignores the rest.';
     }
     return null;
 }
@@ -49,15 +49,15 @@ export function validatePassword(password: string): string | null {
 export function validateRole(role: string): string | null {
     return (VALID_ROLES as readonly string[]).includes(role)
         ? null
-        : `Rôle « ${role} » inconnu. Attendu ${VALID_ROLES.join(', ')}.`;
+        : `Unknown role "${role}". Expected ${VALID_ROLES.join(', ')}.`;
 }
 
 /**
- * `null` si la modification est permise, sinon pourquoi elle est refusée.
+ * `null` if the change is allowed, otherwise why it is refused.
  *
  * `remainingActiveAdmins` compte les administrateurs actifs **autres que celui-ci**.
- * Refuser au niveau du compte plutôt qu'à celui de l'écran : trois onglets ouverts sur
- * deux comptes suffiraient sinon à vider la liste des administrateurs.
+ * Refused at the account level rather than the screen's: three tabs open on two accounts
+ * would otherwise be enough to empty the administrator list.
  */
 export function refuseSelfLockout(options: {
     isSelf: boolean;
@@ -68,8 +68,8 @@ export function refuseSelfLockout(options: {
 }): string | null {
     const { isSelf, wasAdmin, willBeAdmin, willBeActive, remainingActiveAdmins } = options;
 
-    if (isSelf && !willBeActive) return 'Vous ne pouvez pas désactiver votre propre compte.';
-    if (isSelf && wasAdmin && !willBeAdmin) return 'Vous ne pouvez pas retirer votre propre rôle administrateur.';
+    if (isSelf && !willBeActive) return 'You cannot deactivate your own account.';
+    if (isSelf && wasAdmin && !willBeAdmin) return 'You cannot remove your own administrator role.';
 
     const losesAdmin = wasAdmin && (!willBeAdmin || !willBeActive);
     if (losesAdmin && remainingActiveAdmins === 0) {
@@ -78,7 +78,7 @@ export function refuseSelfLockout(options: {
     return null;
 }
 
-/** Idem pour la suppression, dont les conséquences sont les mêmes en pire. */
+/** Likewise for deletion, whose consequences are the same but worse. */
 export function refuseDeletion(options: { isSelf: boolean; isAdmin: boolean; remainingActiveAdmins: number }): string | null {
     if (options.isSelf) return 'Vous ne pouvez pas supprimer votre propre compte.';
     if (options.isAdmin && options.remainingActiveAdmins === 0) {
