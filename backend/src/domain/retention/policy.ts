@@ -1,38 +1,37 @@
 /**
- * La politique de rétention des charges brutes de scanner.
+ * The retention policy for raw scanner payloads.
  *
- * `Scan.sbom` et `Scan.cves` portent la sortie non retouchée des outils. Un scan de
- * conteneur sur une image JRE pèse environ 2,5 Mo de SBOM, et rien ne supprimait jamais
- * rien : la base grossit indéfiniment tant que l'ordonnanceur tourne.
+ * `Scan.sbom` and `Scan.cves` carry the tools' untouched output. A container scan of a JRE
+ * image weighs around 2.5 MB of SBOM, and nothing ever deleted anything: the database
+ * grows indefinitely for as long as the scheduler runs.
  *
- * **Ce qui est purgé et ce qui est gardé est tout le sujet.**
+ * **What is purged and what is kept is the whole subject.**
  *
- * - *Purgé* : `sbom` et `cves`, les blocs bruts. Ils existent pour l'audit — « qu'a
- *   exactement rapporté Syft ce jour-là » — et cette valeur décroît vite.
- * - *Gardé, toujours* : `summary` et `findingsCount` (les chiffres qu'affiche
- *   l'historique), chaque constat, chaque problème. **La projection normalisée *est* le
- *   registre durable** — c'était l'objet de sa construction — donc purger un bloc ne
- *   coûte ni historique, ni triage, ni delta.
+ * - *Purged*: `sbom` and `cves`, the raw blobs. They exist for audit — "what exactly did
+ *   Syft report that day" — and that value decays quickly.
+ * - *Kept, always*: `summary` and `findingsCount` (the numbers the history displays),
+ *   every finding, every issue. **The normalized projection *is* the durable record** —
+ *   which is what it was built for — so purging a blob costs no history, no triage, no
+ *   delta.
  *
- * Les deux règles se conjuguent, elles ne s'additionnent pas : un scan n'est purgeable
- * que s'il est **à la fois** hors de la fenêtre « les N derniers de cette cible » **et**
- * plus vieux que la limite d'âge. Exiger les deux fait qu'une cible scannée deux fois par
- * an garde ses charges, et qu'une cible scannée toutes les heures reste bornée — aucune
- * des deux règles seule n'obtient cela.
+ * The two rules combine, they do not add up: a scan is purgeable only if it is **both**
+ * outside the "last N of this target" window **and** older than the age limit. Requiring
+ * both means a target scanned twice a year keeps its payloads, and a target scanned every
+ * hour stays bounded — neither rule alone achieves that.
  */
 
 export const SETTING_RETENTION_KEEP_PER_TARGET = 'retention_keep_per_target';
 export const SETTING_RETENTION_MAX_AGE_DAYS = 'retention_max_age_days';
 
 /**
- * Garder la sortie brute des dix derniers scans de chaque cible, et de tout ce qui date de
- * moins de quatre-vingt-dix jours. Défauts généreux : l'objet est de borner la croissance,
- * pas d'être avare, et un opérateur qui enquête sur une régression regarde des scans récents.
+ * Keep the raw output of each target's last ten scans, and of anything less than ninety
+ * days old. Generous defaults: the goal is to bound growth, not to be stingy, and an
+ * operator investigating a regression looks at recent scans.
  */
 export const DEFAULT_KEEP_PER_TARGET = 10;
 export const DEFAULT_MAX_AGE_DAYS = 90;
 
-/** Zéro sur un axe veut dire « pas de limite sur cet axe » ; zéro sur les deux désactive. */
+/** Zero on one axis means "no limit on that axis"; zero on both disables purging. */
 export const UNLIMITED = 0;
 
 export interface RetentionPolicy {
@@ -40,23 +39,23 @@ export interface RetentionPolicy {
     maxAgeDays: number;
 }
 
-/** Une politique désactivée ne purge rien du tout. */
+/** A disabled policy purges nothing at all. */
 export function isEnabled(policy: RetentionPolicy): boolean {
     return policy.keepPerTarget !== UNLIMITED || policy.maxAgeDays !== UNLIMITED;
 }
 
 /**
- * Un réglage entier, ou son défaut.
+ * An integer setting, or its default.
  *
- * Une valeur illisible retombe sur le défaut plutôt que sur zéro : zéro veut dire « aucune
- * limite », donc une faute de frappe dans les réglages désactiverait la rétention en
- * silence et la base recommencerait à grossir sans que rien ne le dise.
+ * An unreadable value falls back to the default rather than to zero: zero means "no
+ * limit", so a typo in the settings would silently disable retention and the database
+ * would start growing again with nothing saying so.
  */
 export function intSetting(raw: string, fallback: number): number {
-    // La chaîne vide est écartée avant la conversion, et c'est le point : `Number('')`
-    // vaut **0**, qui veut dire ici « aucune limite ». Un réglage absent désactiverait
-    // donc la rétention au lieu d'appliquer son défaut, et la base recommencerait à
-    // grossir sans que rien ne le dise.
+    // The empty string is discarded before the conversion, and that is the point:
+    // `Number('')` is **0**, which here means "no limit". An absent setting would
+    // therefore disable retention instead of applying its default, and the database would
+    // start growing again with nothing saying so.
     if (raw.trim() === '') return fallback;
 
     const value = Number(raw);
@@ -64,13 +63,13 @@ export function intSetting(raw: string, fallback: number): number {
     return value;
 }
 
-/** La date avant laquelle un scan est assez vieux pour être purgé, ou `null` si sans limite. */
+/** The date before which a scan is old enough to be purged, or `null` if unlimited. */
 export function cutoffDate(policy: RetentionPolicy, now: Date): Date | null {
     if (policy.maxAgeDays === UNLIMITED) return null;
     return new Date(now.getTime() - policy.maxAgeDays * 86_400_000);
 }
 
-/** Un scan candidat, réduit à ce que la décision demande. */
+/** A candidate scan, reduced to what the decision needs. */
 export interface Candidate {
     id: number;
     repoId: number | null;
@@ -79,11 +78,11 @@ export interface Candidate {
 }
 
 /**
- * Les scans dont les charges brutes peuvent être abandonnées.
+ * The scans whose raw payloads can be dropped.
  *
- * Les candidats doivent arriver **du plus récent au plus ancien**, cible par cible : c'est
- * cet ordre qui donne son sens au rang, et un tri différent purgerait les scans les plus
- * récents — précisément ceux pour lesquels les charges existent.
+ * Candidates must arrive **newest to oldest**, target by target: that order is what gives
+ * the rank its meaning, and a different sort would purge the most recent scans —
+ * precisely the ones the payloads exist for.
  */
 export function prunable(candidates: Candidate[], policy: RetentionPolicy, now: Date): number[] {
     if (!isEnabled(policy)) return [];

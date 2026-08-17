@@ -1,13 +1,12 @@
 /**
- * Les règles d'une décision de triage — validation et échéance.
+ * The rules of a triage decision — validation and expiry.
  *
- * Dans le domaine, et donc sans base : ce sont des règles de vocabulaire et
- * d'arithmétique de dates, elles se testent exhaustivement. Le service applique
- * ensuite le résultat à une ligne.
+ * In the domain, hence with no database: these are vocabulary rules and date arithmetic,
+ * and they can be tested exhaustively. The service then applies the result to a row.
  *
- * Le vocabulaire est déclaré **ici** et non repris des entités : la règle de couches
- * interdit au domaine de connaître la persistance, et c'est le bon sens de la
- * dépendance — le vocabulaire VEX existe indépendamment de la table qui le stocke.
+ * The vocabulary is declared **here** rather than taken from the entities: the layering
+ * rule forbids the domain from knowing about persistence, and that is the right direction
+ * for the dependency — the VEX vocabulary exists independently of the table storing it.
  */
 
 export const TRIAGE_UNDER_REVIEW = 'under_review';
@@ -28,10 +27,10 @@ export interface TriageRequest {
     justification?: string | null;
     comment?: string | null;
     /**
-     * Une date de révision, **proposée et non imposée** : décider qu'un composant
-     * n'est simplement pas présent n'a pas besoin d'être réexaminé à échéance, alors
-     * que « pas atteignable dans notre configuration » en a grand besoin — et seule
-     * la personne qui décide sait laquelle des deux elle vient d'enregistrer.
+     * A review date, **offered and not imposed**: deciding that a component is simply not
+     * present needs no scheduled re-examination, whereas "not reachable in our
+     * configuration" badly does — and only the person deciding knows which of the two
+     * they have just recorded.
      */
     expiresInDays?: number | null;
 }
@@ -46,28 +45,27 @@ export interface TriageDecision {
 }
 
 /**
- * Valide une demande de triage et calcule ce qu'il faut écrire.
+ * Validates a triage request and computes what has to be written.
  *
- * Lève `InvalidTriageError` sur tout ce qui est invalide, avec un message destiné à
- * être montré tel quel : c'est la personne qui triait qui a besoin de savoir pourquoi
- * sa décision est refusée.
+ * Throws `InvalidTriageError` on anything invalid, with a message meant to be shown as
+ * is: it is the person doing the triage who needs to know why their decision is refused.
  *
- * @param now L'instant de la décision, au format `datetime.isoformat()`.
+ * @param asOf The instant of the decision.
  */
 export function decideTriage(request: TriageRequest, asOf: Date): TriageDecision {
     if (!VALID_TRIAGE_STATUSES.includes(request.status)) {
-        throw new InvalidTriageError(`Statut de triage invalide : ${request.status}`);
+        throw new InvalidTriageError(`Invalid triage status: ${request.status}`);
     }
 
     const justification = (request.justification ?? '').trim() || null;
     if (justification && !VEX_JUSTIFICATIONS.includes(justification)) {
-        throw new InvalidTriageError(`Justification VEX inconnue : ${justification}`);
+        throw new InvalidTriageError(`Unknown VEX justification: ${justification}`);
     }
-    // VEX **exige** une justification pour « not_affected » : sans elle, la
-    // déclaration ne porte aucune information, et un document VEX exporté la
-    // contenant serait invalide.
+    // VEX **requires** a justification for "not_affected": without one the statement
+    // carries no information, and an exported VEX document containing it would be
+    // invalid.
     if (request.status === TRIAGE_NOT_AFFECTED && !justification) {
-        throw new InvalidTriageError('Une justification est requise pour le statut « non affecté » (exigence VEX).');
+        throw new InvalidTriageError('A justification is required for the "not affected" status (VEX requirement).');
     }
 
     return {
@@ -81,30 +79,30 @@ export function decideTriage(request: TriageRequest, asOf: Date): TriageDecision
 }
 
 /**
- * Une date de révision, ou `null`.
+ * A review date, or `null`.
  *
- * Un retour à `under_review` efface toute échéance : le problème est déjà dans la
- * file, et une date pour l'y ramener ne déclencherait sur rien.
+ * Returning to `under_review` clears any expiry: the issue is already in the queue, and a
+ * date to bring it back there would fire on nothing.
  */
 export function expiryFrom(status: string, expiresInDays: number | null, asOf: Date): Date | null {
     if (status === TRIAGE_UNDER_REVIEW || expiresInDays === null || expiresInDays === undefined) return null;
 
-    // `null` veut dire « pas de date de révision » ; zéro ou un nombre négatif veut
-    // dire que l'appelant s'est trompé dans son calcul, et le traiter en silence
-    // comme « jamais » masquerait l'erreur.
+    // `null` means "no review date"; zero or a negative number means the caller got
+    // their arithmetic wrong, and silently treating it as "never" would hide the
+    // mistake.
     const days = Math.trunc(expiresInDays);
-    if (days <= 0) throw new InvalidTriageError("Le délai de révision doit être d'au moins un jour.");
+    if (days <= 0) throw new InvalidTriageError('The review delay must be at least one day.');
 
     return addDays(asOf, days);
 }
 
 /**
- * Une décision est-elle passée sa date de révision ?
+ * Is a decision past its review date?
  *
- * Une suppression est un énoncé sur un contexte, et les contextes changent. Sans
- * cette expiration, un `not_affected` posé en janvier restait autoritaire en décembre
- * — dans le document VEX remis à un client autant que sur le tableau de bord. C'est
- * ainsi que pourrissent les suppressions VEX.
+ * A suppression is a statement about a context, and contexts change. Without this expiry,
+ * a `not_affected` placed in January stayed authoritative in December — in the VEX
+ * document handed to a customer as much as on the dashboard. That is how VEX suppressions
+ * rot.
  */
 export function isTriageExpired(issue: { triageStatus: string | null; triageExpiresAt: Date | null }, asOf: Date): boolean {
     if (!issue.triageExpiresAt || issue.triageStatus === TRIAGE_UNDER_REVIEW) return false;
@@ -112,16 +110,15 @@ export function isTriageExpired(issue: { triageStatus: string | null; triageExpi
 }
 
 /**
- * Ce qu'une expiration change sur un problème — et surtout ce qu'elle **ne change
- * pas**.
+ * What an expiry changes on an issue — and above all what it does **not**.
  *
- * La justification et le commentaire sont *conservés*. La décision avait une raison,
- * et qui la réexamine a besoin de la voir : effacer le texte transformerait un
- * réexamen programmé en enquête repartie de zéro, ce qui est la façon dont une date de
- * révision devient une chose que les gens cessent de renseigner.
+ * The justification and the comment are *kept*. The decision had a reason, and whoever
+ * re-examines it needs to see it: erasing the text would turn a scheduled review into an
+ * investigation started from scratch, which is how a review date becomes something people
+ * stop filling in.
  *
- * `triagedBy` et `triagedAt` sont gardés pour la même raison, et parce qu'ils sont la
- * trace de qui a dit quoi : les écraser effacerait une preuve.
+ * `triagedBy` and `triagedAt` are kept for the same reason, and because they are the
+ * record of who said what: overwriting them would erase evidence.
  */
 export function expireTriage<T extends { triageStatus: string | null; triageExpiresAt: Date | null }>(issue: T): T {
     issue.triageStatus = TRIAGE_UNDER_REVIEW;
@@ -138,12 +135,12 @@ function addDays(from: Date, days: number): Date {
 export const VALID_TRIAGE_STATUSES: readonly string[] = [TRIAGE_UNDER_REVIEW, TRIAGE_AFFECTED, TRIAGE_NOT_AFFECTED, TRIAGE_FIXED];
 
 /**
- * Les justifications VEX d'une déclaration `not_affected`, selon le vocabulaire
- * OpenVEX / CSAF.
+ * The VEX justifications for a `not_affected` statement, per the OpenVEX / CSAF
+ * vocabulary.
  *
- * Gardées comme liste canonique pour qu'un document VEX puisse être produit depuis ces
- * lignes sans re-traduire du texte libre. C'est toute la raison pour laquelle le
- * triage est stocké dans le vocabulaire de la norme.
+ * Kept as the canonical list so that a VEX document can be produced from these rows
+ * without re-translating free text. That is the whole reason triage is stored in the
+ * standard's vocabulary.
  */
 export const VEX_JUSTIFICATIONS: readonly string[] = [
     'component_not_present',

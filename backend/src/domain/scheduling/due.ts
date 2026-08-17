@@ -1,37 +1,35 @@
 import { CronTime } from 'cron';
 
 /**
- * Quand une cible doit être rescannée.
+ * When a target is due for a rescan.
  *
- * `scanIntervalMinutes`, `scanCron` et `lastScheduledScanAt` existent sur les dépôts et les
- * conteneurs depuis le début, et l'écran collecte un intervalle pour chaque cible ajoutée.
- * **Rien ne les lisait**, donc chaque scan était manuel — dans un outil dont la prémisse
- * entière est que *de nouvelles vulnérabilités apparaissent dans du code inchangé*. Un scan
- * manuel hebdomadaire n'est pas de la gestion de posture.
+ * `scanIntervalMinutes`, `scanCron` and `lastScheduledScanAt` have existed on repositories
+ * and containers from the start, and the screen collects an interval for every target
+ * added. **Nothing read them**, so every scan was manual — in a tool whose entire premise
+ * is that *new vulnerabilities appear in code that has not changed*. A weekly manual scan
+ * is not posture management.
  *
- * **L'expression cron l'emporte sur l'intervalle.** Elle est la plus spécifique des deux, et
- * un intervalle ne sait pas dire « toutes les nuits à deux heures » : il dérive un peu à
- * chaque tour, parce que le prochain se compte depuis le dernier, si bien qu'un scan réglé
- * pour les heures creuses finit par tourner en pleine journée. Pour un travail qui démarre
- * des conteneurs et tire des registres entiers, l'heure n'est pas un détail. Effacer
- * l'expression ramène la cible à son intervalle.
+ * **The cron expression wins over the interval.** It is the more specific of the two, and
+ * an interval cannot say "every night at two": it drifts a little each round, because the
+ * next one is counted from the last, so a scan set for the quiet hours ends up running in
+ * the middle of the day. For a job that starts containers and pulls whole registries, the
+ * hour is not a detail. Clearing the expression returns the target to its interval.
  *
- * Fonctions pures : la politique se teste sans base ni horloge réelle.
+ * Pure functions: the policy is tested with no database and no real clock.
  */
 
-/** L'expression n'est pas quelque chose sur quoi on peut ordonnancer. */
+/** The expression is not something one can schedule on. */
 export class InvalidCronExpression extends Error {}
 
 /**
- * Normalise une expression, ou lève avec un message sur lequel un opérateur peut agir.
+ * Normalizes an expression, or throws with a message an operator can act on.
  *
- * Appelée à l'enregistrement d'une cible, pour la même raison que la validation d'URL :
- * **le point d'entrée est là où une erreur coûte peu à corriger**. Découvrir qu'une
- * expression a été rejetée en regardant des scans *ne pas* se produire est la manière
- * chère.
+ * Called when a target is saved, for the same reason as URL validation: **the point of
+ * entry is where a mistake is cheap to fix**. Discovering that an expression was rejected
+ * by watching scans *not* happen is the expensive way.
  *
- * Vide veut dire « pas de cron », qui est un état valide : c'est ainsi qu'un opérateur
- * revient à l'ordonnancement par intervalle.
+ * Empty means "no cron", which is a valid state: that is how an operator returns to
+ * interval scheduling.
  */
 export function validateExpression(expression: string | null | undefined): string | null {
     const value = (expression ?? '').trim();
@@ -41,20 +39,20 @@ export function validateExpression(expression: string | null | undefined): strin
         new CronTime(value);
     } catch {
         throw new InvalidCronExpression(
-            `Expression cron invalide : « ${value} ». Format attendu : minute heure jour mois jour-de-semaine — ` +
-                'par exemple « 0 2 * * * » (toutes les nuits à 2 h) ou « 0 3 * * 1 » (tous les lundis à 3 h).'
+            `Invalid cron expression: "${value}". Expected format: minute hour day month day-of-week — ` +
+                'for example "0 2 * * *" (every night at 2 am) or "0 3 * * 1" (every Monday at 3 am).'
         );
     }
     return value;
 }
 
 /**
- * L'intervalle d'une cible s'est-il écoulé ?
+ * Has a target's interval elapsed?
  *
- * Une cible sans intervalle n'est jamais ordonnancée (manuelle seulement). Une cible jamais
- * scannée automatiquement est **due immédiatement** — sinon activer l'ordonnanceur la
- * laisserait attendre un intervalle entier avant son premier tour, soit une journée de
- * silence avec le défaut de 1440 minutes.
+ * A target with no interval is never scheduled (manual only). A target never scanned
+ * automatically is **due immediately** — otherwise enabling the scheduler would leave it
+ * waiting a whole interval before its first round, which is a day of silence with the
+ * 1440-minute default.
  */
 export function intervalDue(intervalMinutes: number | null, lastScheduledAt: Date | null, now: Date): boolean {
     if (!intervalMinutes || intervalMinutes <= 0) return false;
@@ -63,11 +61,11 @@ export function intervalDue(intervalMinutes: number | null, lastScheduledAt: Dat
 }
 
 /**
- * Une occurrence est-elle passée depuis le dernier tour ordonnancé ?
+ * Has an occurrence passed since the last scheduled round?
  *
- * **Calculée depuis `lastScheduledAt` et non depuis `now`** : un tour qui s'exécute en
- * retard — un redémarrage, une passe lente — rattrape ainsi l'occurrence qu'il a manquée au
- * lieu de sauter à la suivante.
+ * **Computed from `lastScheduledAt` and not from `now`**: a round running late — a
+ * restart, a slow pass — therefore catches up the occurrence it missed instead of skipping
+ * to the next one.
  */
 export function cronDue(expression: string, lastScheduledAt: Date | null, now: Date): boolean {
     if (!expression) return false;
@@ -76,9 +74,9 @@ export function cronDue(expression: string, lastScheduledAt: Date | null, now: D
     try {
         time = new CronTime(expression);
     } catch {
-        // Vérifié **avant** le raccourci « jamais ordonnancée », et cet ordre compte : une
-        // expression inutilisable partirait sinon une fois — le seul envoi que personne
-        // n'a demandé, venant de la seule cible dont la configuration est cassée.
+        // Checked **before** the "never scheduled" shortcut, and that order matters: an
+        // unusable expression would otherwise fire once — the one run nobody asked for,
+        // from the one target whose configuration is broken.
         return false;
     }
 
@@ -87,14 +85,14 @@ export function cronDue(expression: string, lastScheduledAt: Date | null, now: D
     return time.getNextDateFrom(lastScheduledAt).toJSDate() <= now;
 }
 
-/** Ce dont l'échéance a besoin. Volontairement plus étroit que les entités. */
+/** What the due check needs. Deliberately narrower than the entities. */
 export interface Schedulable {
     scanCron: string | null;
     scanIntervalMinutes: number | null;
     lastScheduledScanAt: Date | null;
 }
 
-/** Cette cible est-elle due, selon l'horaire qu'elle porte ? */
+/** Is this target due, according to the schedule it carries? */
 export function isTargetDue(target: Schedulable, now: Date): boolean {
     if (target.scanCron) return cronDue(target.scanCron, target.lastScheduledScanAt, now);
     return intervalDue(target.scanIntervalMinutes, target.lastScheduledScanAt, now);
