@@ -13,6 +13,7 @@ import { AuditLogService } from '../services/audit-log.service';
 import { AuthService } from '../services/auth.service';
 import { BootstrapService } from '../services/bootstrap.service';
 import { IssueTriageService } from '../services/issue-triage.service';
+import { RuleSetService } from '../services/rule-set.service';
 import { SessionCleanupService } from '../services/session-cleanup.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
@@ -44,6 +45,7 @@ import { TicketService } from '../services/ticket.service';
 import { TicketSweepService } from '../services/ticket-sweep.service';
 import { QualityController } from './quality.controller';
 import { RepositoriesController } from './repositories.controller';
+import { RuleSetsController } from './rule-sets.controller';
 import { SettingsController } from './settings.controller';
 
 /**
@@ -57,7 +59,7 @@ import { SettingsController } from './settings.controller';
  */
 @Module({
     imports: [PersistenceModule],
-    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController, DashboardController, AgentsController, AgentsAdminController, ScansController, SettingsController],
+    controllers: [AuthController, IssuesController, GateController, ExportsController, QualityController, RepositoriesController, ContainersController, SshKeysController, UsersController, ApiKeysController, AuditLogController, DashboardController, AgentsController, AgentsAdminController, ScansController, SettingsController, RuleSetsController],
     providers: [
         AuthService,
         AuditLogService,
@@ -67,6 +69,7 @@ import { SettingsController } from './settings.controller';
         // chercher à Nest un fournisseur pour « string ».
         { provide: EncryptionService, useFactory: () => new EncryptionService() },
         IssueTriageService,
+        RuleSetService,
         SessionCleanupService,
         IssueRepository,
         TargetRepository,

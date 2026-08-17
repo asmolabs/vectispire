@@ -91,6 +91,14 @@ export const AuditOperation = {
     /** Une clé de déploiement a quitté le plan de contrôle (mode délégué). */
     AGENT_CREDENTIAL_SENT: 'AGENT_CREDENTIAL_SENT',
     AGENT_RESULT_SUBMITTED: 'AGENT_RESULT_SUBMITTED',
+    /**
+     * Un jeu de règles Semgrep a été activé : cela change ce que le scanner cherche, et
+     * les règles qui disparaissent emportent leurs problèmes ouverts avec leur triage.
+     * L'entrée porte ce que l'opérateur avait sous les yeux en validant.
+     */
+    RULE_SET_UPLOADED: 'RULE_SET_UPLOADED',
+    RULE_SET_ACTIVATED: 'RULE_SET_ACTIVATED',
+    RULE_SET_DEACTIVATED: 'RULE_SET_DEACTIVATED',
     AGENT_CREATED: 'AGENT_CREATED',
     AGENT_UPDATED: 'AGENT_UPDATED',
     AGENT_DELETED: 'AGENT_DELETED'
