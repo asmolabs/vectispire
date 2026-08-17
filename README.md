@@ -1,16 +1,10 @@
 # Zanshin
 
-**[English](#english)** | **[Français](#français)**
-
----
-
-## English
-
 Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform, with a pluggable scanning layer (local Docker, local API, or cloud API depending on the analysis type).
 
 Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over PostgreSQL, in a single npm workspace.
 
-### Features
+## Features
 
 - **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype or OSV.dev), with severity, CVE, and affected component.
 - **EPSS / CISA KEV enrichment**: every vulnerability is enriched with its exploitation probability (EPSS) and "actively exploited" status (KEV catalog), to prioritize beyond the raw CVSS score.
@@ -42,7 +36,7 @@ Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over 
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
 - **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. The OSV.dev and HTTP-sidecar backends the Python version offered are **not part of this port** — the sidecar was already documented as redundant, and OSV matching bought little that a pinned Grype image does not.
 
-### Architecture
+## Architecture
 
 The pipeline is split in two along one line: **`ScanRunner` runs the scanners and never
 touches the database; `ScanIngestor` reads its results and never runs a container.** That
@@ -69,7 +63,7 @@ A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks
 
 The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
-#### Distributed scanning: agents
+### Distributed scanning: agents
 
 A scan is executed by an **agent**. There are two kinds, and both are rows in the same
 table, listed together on the `/agents` page:
@@ -148,7 +142,7 @@ lease would idle behind whichever one holds it.
 
 Start it wrong and the application says so: it refuses, or warns, with the reason named.
 
-### Quick start
+## Quick start
 
 Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for the database).
 
@@ -167,7 +161,7 @@ npm --workspace backend run migration:run       # apply
 npm --workspace backend run migration:generate  # write one from the entities
 ```
 
-#### Main pages
+### Main pages
 
 | Route | Description |
 |---|---|
@@ -183,7 +177,7 @@ npm --workspace backend run migration:generate  # write one from the entities
 | `/audit-log` | Audit log of sensitive actions (admin only) |
 | `/api/v1/docs` | Interactive API reference (OpenAPI) |
 
-### API and CI integration
+## API and CI integration
 
 The API is served from the same process and port as the UI, under `/api/v1`, and authenticates with a key created on the **API keys** page:
 
@@ -236,7 +230,7 @@ A key can be narrowed when it is created, and a CI key normally should be:
 
 Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
 
-### Configuration
+## Configuration
 
 Runtime settings (enrichment, end-of-life, retention, notifications, licences, tracker, model review) are managed from the **Settings** page and stored in the `t_setting` table rather than as environment variables. A setting appears there only once a service actually reads it: a form that accepts a value and does nothing with it is worse than one that does not offer it.
 
@@ -245,7 +239,7 @@ Three things are *not* runtime settings, because they have to exist before the a
 | Variable | Required | Purpose |
 |---|---|---|
 | `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. |
-| `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. Zanshin only carries its own: the public Semgrep rule sets are not redistributable, so `scripts/fetch_semgrep_rules.py` installs the set you choose on your own machine. Run once at install time — the scan itself stays offline. |
+| `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. Zanshin only carries its own: the public Semgrep rule sets are not redistributable, so you install the set you choose on your own machine and point this variable at it. Fetch it once at install time — the scan itself stays offline. The Python port shipped a `fetch_semgrep_rules` helper for this; it has **not** been ported, so the download is currently manual. |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
@@ -255,7 +249,7 @@ Operational tuning (all optional, shown with their defaults):
 | Variable | Default | Purpose |
 |---|---|---|
 | `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | `postgres` ou `mysql`. Choisit le jeu de migrations et l'orthographe des types de colonnes, et déclare ce que le moteur ne sait pas faire (voir `dialects.ts`). |
+| `ZANSHIN_DB_DIALECT` | `postgres` | One of `postgres`, `mysql`, `mariadb`, `sqlite`. Selects the migration set and the spelling of the column types, and declares at startup what the engine cannot do (see `dialects.ts`). |
 | `PORT` | `3000` | HTTP port of the API. |
 | `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
 | `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
@@ -276,7 +270,7 @@ Operational tuning (all optional, shown with their defaults):
 
 The database file is not part of the repository (it holds password hashes and encrypted SSH keys), so a fresh deployment starts with no accounts — hence the bootstrap variables. Once an account exists, they are ignored.
 
-#### Choosing a database
+### Choosing a database
 
 Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
 exercised by the full integration campaign**, with its own migration set. Set
@@ -313,7 +307,7 @@ PostgreSQL remains the reference engine: the one where everything is true withou
 reservation, and the one the code picks by default.
 
 
-### Tests
+## Tests
 
 ```bash
 npm --workspace backend test              # unit suite
@@ -343,7 +337,7 @@ The lesson kept from the Python version's type checking still applies: a gate th
 noise is switched off within a week. So the rules here are the ones whose findings were all
 real.
 
-### Project structure
+## Project structure
 
 ```
 backend/src/
@@ -362,425 +356,3 @@ The import direction is enforced by a test (`architecture.spec.ts`):
 nothing of TypeORM or HTTP, which is what makes the rules that matter — a fingerprint, a
 gate verdict, a due date — testable without a database.
 
----
-
-## Français
-
-Zanshin est une application de suivi des dépendances et de sécurité logicielle, basée sur l'analyse de SBOM (Software Bill of Materials). Elle scanne des dépôts Git et des images de conteneurs, détecte les vulnérabilités connues, les secrets codés en dur, les licences problématiques et les mauvaises configurations d'infrastructure (IaC), puis centralise les résultats dans un tableau de bord unique — dans l'esprit d'une plateforme ASPM (Application Security Posture Management) unifiée, avec une couche de scan pluggable (Docker local, API locale, ou API cloud selon le type d'analyse).
-
-Construit avec [NestJS](https://nestjs.com) et [Angular](https://angular.dev) sur PostgreSQL, dans un unique espace de travail npm.
-
-### Fonctionnalités
-
-- **Analyse SCA (dépendances)** : génération de SBOM (Syft) et détection de vulnérabilités connues (Grype ou OSV.dev), avec sévérité, CVE et composant concerné.
-- **Enrichissement EPSS / CISA KEV** : chaque vulnérabilité est complétée par sa probabilité d'exploitation (EPSS) et son statut "activement exploitée" (catalogue KEV), pour prioriser au-delà du seul score CVSS.
-- **Dépendances directes ou transitives** : chaque problème indique si le projet a déclaré le paquet lui-même ou si autre chose l'a tiré, d'après le graphe de dépendances du SBOM. Un CVE critique dans une dépendance déclarée se corrige cet après-midi ; le même quatre niveaux plus bas attend une publication amont. Classés à l'identique, ils produisent un backlog que personne ne termine — la liste peut donc être restreinte à ce qui est corrigeable aujourd'hui. Inconnu quand le SBOM ne porte aucun graphe : une réponse absente plutôt qu'une réponse par défaut.
-- **Détection de secrets** (gitleaks) : recherche de clés API, tokens et identifiants codés en dur dans les dépôts scannés.
-- **Conformité des licences** : évaluation d'une liste noire de licences configurable, à partir des données déjà présentes dans le SBOM.
-- **Détection de fin de vie** (endoflife.date) : signale les plateformes et exécutions dont le support de sécurité est terminé — la distribution du conteneur en premier lieu. Toute une classe de risque sans CVE : aucun correctif ne sera publié pour la *prochaine* faille, quelle qu'elle soit. La couverture porte volontairement sur des produits (langages, exécutions, frameworks, distributions), pas sur chaque bibliothèque.
-- **Scan IaC** (checkov) : détection de mauvaises configurations Terraform/Kubernetes dans les dépôts.
-- **Rubriques Sécurité et Qualité.** La navigation est regroupée : *Sécurité* réunit une
-  vue d'ensemble qui affiche enfin le verdict du gate par cible — calculé depuis
-  l'apparition des politiques et montré nulle part jusqu'ici — avec le backlog, les dépôts
-  et les conteneurs. *Qualité* classe les constats de qualité par règle, par fichier et par
-  dépôt, et dit clairement qu'aucun ne peut faire échouer une compilation. La vue
-  d'ensemble nomme aussi les deux états qu'aucun écran ne montrait : une cible jamais
-  scannée, et une cible dont le dernier scan a échoué — toutes deux ont un backlog vide, et
-  un backlog vide satisfait toutes les politiques.
-- **Analyse du code source** (Semgrep, désactivée par défaut) : lit le code lui-même —
-  requête SQL concaténée, commande passée au shell, certificat TLS non vérifié — ce
-  qu'aucun autre scanner ne voit ici. Produit deux natures de constats : *sécurité*,
-  traités comme toute vulnérabilité, et *qualité*, visibles dans le backlog mais
-  incapables de faire échouer un gate CI. Tourne réseau coupé, avec des règles embarquées
-  dans Zanshin ; voir [le répertoire de règles](backend/src/scanning/rules/semgrep/)
-  pour en ajouter.
-- **Suivi et triage des problèmes** : chaque finding est suivi d'un scan à l'autre sous forme de *problème* — première détection, nombre de fois vu, existence d'un correctif, et décision de triage en vocabulaire VEX (affecté / non affecté / corrigé / à examiner) avec justification, et éventuellement une **date de révision**. Une suppression porte sur un contexte — « pas atteignable dans notre configuration », « pas livré en production » — et les contextes changent ; à l'échéance, le problème revient *à examiner*, justification et commentaire conservés. Chaque scan indique ce qu'il a **changé** : problèmes apparus, problèmes résolus.
-- **Rescan périodique** : chaque cible porte un intervalle de scan, honoré par un ordonnanceur intégré — l'intérêt étant que de nouvelles vulnérabilités apparaissent dans du code qui n'a pas bougé.
-- **API HTTP et *policy gate* CI** : déclencher un scan, lire les problèmes, et demander « ce build doit-il échouer ? » selon une **politique stockée et versionnée** — globale, ou par cible. Ces règles arrivaient auparavant dans le corps de la requête, donc chaque projet décidait du seuil qu'on lui appliquait ; une requête peut désormais seulement *durcir* la politique stockée, jamais l'assouplir, et le verdict indique laquelle a été appliquée. Authentifiée par les clés API émises depuis l'UI.
-- **Tickets** (GitLab, Jira) : ouvre un ticket par problème qui ferait échouer un build, selon la même politique — un seul seuil, défini une seule fois. La référence est conservée sur le problème, donc une panne du gestionnaire est réessayée sans jamais dupliquer.
-- **Notifications** : un webhook part quand un scan fait apparaître ou réapparaître quelque chose — pas à chaque scan, c'est ce qui garde le canal lisible. Le message est écrit dans un **outbox, dans la même transaction que les résultats du scan**, puis livré par l'ordonnanceur avec réessais espacés et plafonnés : un arrêt brutal entre la validation et l'envoi ne le perd plus en silence, et un point d'arrivée momentanément injoignable est réessayé au lieu d'être journalisé une fois.
-- **Exports** : **SARIF 2.1.0** pour GitHub code scanning / GitLab / Azure DevOps — c'est ce qui sort un problème du tableau de bord pour l'amener sur la pull request qui l'a introduit — plus un document OpenVEX construit à partir des décisions de triage, les problèmes en CSV, et le SBOM stocké.
-- **Gestion des utilisateurs** et **journal d'audit** : rôles (SUPERUSER/ADMIN/USER), garde-fous (impossible de supprimer son propre compte ou le dernier superutilisateur actif), traçabilité des actions sensibles.
-- **Un scan qui reste sur la machine** : chaque scanner tourne dans un conteneur éphémère, réseau coupé et montage en lecture seule. Les backends OSV.dev et sidecar HTTP qu'offrait la version Python **ne font pas partie de ce portage** — le sidecar était déjà documenté comme redondant, et le matching OSV apportait peu face à une image Grype épinglée.
-
-### Architecture
-
-Le pipeline est coupé en deux le long d'une seule ligne : **`ScanRunner` exécute les
-scanners et ne touche jamais la base ; `ScanIngestor` lit ses résultats et n'exécute
-jamais de conteneur.** C'est cette coupure qui permet au même code de tourner dans le plan
-de contrôle ou sur un agent distant qui n'a aucun identifiant de base.
-
-| Étape | Outil | Image épinglée par empreinte |
-|---|---|---|
-| SBOM | Syft | oui |
-| Vulnérabilités | Grype | oui |
-| Secrets | gitleaks | oui |
-| IaC | checkov | oui |
-| Code source (désactivé par défaut) | Semgrep | oui |
-
-Chaque scanner tourne dans un conteneur éphémère avec **le réseau coupé**, un montage en
-lecture seule, `cap_drop: ALL` et `no-new-privileges`. Rien du code scanné ne quitte la
-machine. Les seuls appels sortants d'un scan sont EPSS et le catalogue KEV, qui ne portent
-que des identifiants de CVE — et le catalogue de fin de vie, qui ne porte que des noms de
-produits et des versions.
-
-Les résultats sont normalisés dans une table `Finding` unique (type, sévérité, identifiant, package, source, scores EPSS/CVSS, statut KEV, version corrigée) en plus des blobs JSON bruts (`Scan.sbom`, `Scan.cves`) conservés pour l'audit.
-
-Un `Finding` est une *observation*, valable pour un seul scan. Au-dessus, un `Issue` suit le même problème d'un scan à l'autre — identifié par une empreinte qui ignore volontairement la version du paquet, pour qu'une dépendance restée vulnérable pendant trois versions correctives conserve un seul historique et une seule décision de triage. Deux axes sont maintenus strictement séparés : `state` (ouvert/résolu) n'est écrit que par le pipeline, d'après ce que les scanners observent ; `triage_status` (VEX) n'est écrit que par un humain. Les confondre viderait « résolu » de son sens — un finding masqué et un finding réellement corrigé ne doivent pas se ressembler. Voir [`backend/src/services/issue-sync.service.ts`](backend/src/services/issue-sync.service.ts).
-
-Le dossier d'architecture — vue d'ensemble, modèle de données, sécurité, déploiement, et un registre des décisions avec les alternatives écartées — est dans [`docs/architecture/`](docs/architecture/). Pour les diagrammes de l'architecture en couches, le schéma complet de la base de données et le déroulé du pipeline de scan, voir [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
-
-#### Scan distribué : les agents
-
-Un scan est exécuté par un **agent**. Il y en a deux sortes, qui sont des lignes de la
-même table et apparaissent ensemble sur la page `/agents` :
-
-- l'**agent intégré** — ce processus web lui-même. Créé automatiquement au démarrage,
-  aucune configuration : c'est ce qui fait qu'une installation sur une seule machine
-  fonctionne d'emblée ;
-- les **agents distants** — des travailleurs séparés sur d'autres machines, parlant le
-  protocole d'agent à quatre routes (`hello`, `jobs`, `heartbeat`, `result`), sur d'autres
-  machines.
-
-Les deux exécutent le même code (`ScanRunner`) et renvoient les sorties brutes des
-outils, que le plan de contrôle normalise (`ScanIngestor`). Un résultat produit sur une
-autre machine est donc indiscernable d'un résultat local : mêmes `Finding`, même
-enrichissement EPSS/KEV, même politique de licences, même rapprochement des problèmes.
-
-Raisons d'ajouter un agent distant : retirer le socket Docker de la machine qui sert
-l'UI, atteindre un dépôt ou un registre joignable seulement depuis un autre segment
-réseau, ou ajouter de la capacité. **Désactiver l'agent intégré** est la façon de dire
-« n'exécute rien ici » : les scans en file attendent alors un agent distant au lieu
-d'utiliser discrètement l'instance web.
-
-Un agent distant interroge le contrôleur en HTTP avec une clé API à portée `agent` : il
-n'a besoin d'aucun port entrant ni **d'aucun accès à la base**. Ce dernier point est une
-propriété de sécurité, pas un détail : un agent ayant accès à la base aurait aussi besoin
-d'`ENCRYPTION_KEY`, c'est-à-dire de quoi déchiffrer *toutes* les clés de déploiement que
-Zanshin détient.
-
-| Mode d'identifiants | Ce que le contrôleur envoie | Quand l'utiliser |
-|---|---|---|
-| `local` (défaut) | rien | la machine de l'agent a son propre accès git. Un agent compromis ne donne que ce qui a été accordé à cette machine |
-| `delegated` | la clé de déploiement, par tâche | machine de confiance. Exige HTTPS (refus sinon), la clé n'est jamais écrite ailleurs que dans un fichier temporaire `0600`, et chaque remise est auditée |
-
-```bash
-# Sur la machine de l'agent — la clé vient de /agents, affichée une seule fois
-ZANSHIN_URL=https://zanshin.interne \
-ZANSHIN_AGENT_TOKEN=zsk_... \
-node dist/agent/main.js
-```
-
-Ou en conteneur, qui est la forme prévue pour un déploiement :
-
-```bash
-docker build -f Dockerfile.agent -t zanshin-agent .
-docker run --rm -e ZANSHIN_URL=... -e ZANSHIN_AGENT_TOKEN=zsk_... \
-  -v /var/run/docker.sock:/var/run/docker.sock zanshin-agent
-```
-
-L'agent exécute **le même `ScanRunner`** que le travailleur intégré, ce qui rend un
-résultat produit ailleurs indiscernable d'un résultat local. Un test de couches vérifie ce
-qu'il a le droit d'importer : `scanning/` et `domain/`, jamais `persistence/` — un agent
-qui aurait une connexion à la base aurait aussi besoin d'`ENCRYPTION_KEY`, c'est-à-dire de
-quoi déchiffrer toutes les clés de déploiement que Zanshin détient.
-
-**Les scans d'images sont distribués aussi**, et ils ne portent aucune clé : une image se
-tire d'un registre et ne se clone pas, donc les identifiants de registre relèvent de la
-configuration Docker de la machine qui scanne. Les secrets, l'IaC et l'analyse de code ne
-s'appliquent pas à une image et restent à `null` — les déclarer scannés résoudrait en
-silence tout leur historique pour cette cible.
-
-Voir [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
-pour les décisions et les limites connues.
-
-**Lancer plus d'une instance web.** L'essentiel de ce qui rendait cela dangereux est
-corrigé : la réclamation des scans est transactionnelle (`FOR UPDATE SKIP LOCKED`), le
-travail périodique a exactement un propriétaire dans la flotte, la reprise au démarrage
-ne fait plus échouer les scans d'un autre exécutant, et le quota d'API comme
-l'anti-bourrage sont partagés via Redis. Ce que cela exige :
-
-- **PostgreSQL ou MySQL** (`ZANSHIN_DATABASE_URL`, plus `ZANSHIN_DB_DIALECT=mysql` pour le
-  second). Les deux empêchent qu'un scan réclamé atteigne deux travailleurs ;
-- **la migration comme étape de déploiement propre** (`npm --workspace backend run
-  migration:run`), avant le démarrage des nouvelles instances ;
-- rien d'autre. Les sessions vivent en base et non dans la mémoire d'un processus, donc un
-  client qui atterrit sur l'autre instance reste connecté.
-
-L'ordonnanceur élit un propriétaire unique dans la flotte, tandis que chaque instance
-continue de réclamer du travail pour son propre travailleur intégré : une flotte dont les
-instances ne travailleraient qu'en détenant le bail resterait oisive derrière celle qui le
-tient.
-
-Mal démarrée, l'application le dit : elle refuse, ou avertit, en nommant la raison.
-
-### Démarrage rapide
-
-Prérequis : Node ≥ 24, Docker (pour les scanners et, en développement, pour la base).
-
-```bash
-npm install
-npm --workspace backend run start:dev     # API sur http://localhost:3000
-npm --workspace frontend start            # interface sur http://localhost:4200
-```
-
-
-Le schéma appartient aux **migrations TypeORM** — `synchronize` est désactivé, et c'est
-délibéré : un schéma synthétisé depuis les entités n'est pas celui que la production
-recevra, et tester contre lui laisserait passer une migration incorrecte.
-
-```bash
-npm --workspace backend run migration:run       # appliquer
-npm --workspace backend run migration:generate  # en écrire une depuis les entités
-```
-
-#### Pages principales
-
-| Route | Description |
-|---|---|
-| `/dashboard` | Vue d'ensemble |
-| `/depots` | Dépôts Git suivis, historique des scans, détail des findings |
-| `/issues` | Backlog des problèmes suivis d'un scan à l'autre, avec triage (VEX) |
-| `/containers` | Images de conteneurs suivies |
-| `/ssh-keys` | Clés SSH (chiffrées) pour cloner des dépôts privés |
-| `/api-keys` | Clés API programmatiques (hash bcrypt, secret affiché une seule fois) |
-| `/agents` | Agents de scan (intégré et distants), file d'attente et baux (admin) |
-| `/settings` | Choix du backend de scan, activation de l'enrichissement, liste noire de licences |
-| `/users` | Gestion des utilisateurs (admin) |
-| `/audit-log` | Journal d'audit des actions sensibles (admin) |
-| `/api/v1/docs` | Référence interactive de l'API (OpenAPI) |
-
-### API and CI integration
-
-The API is served from the same process and port as the UI, under `/api/v1`, and authenticates with a key created on the **API keys** page:
-
-```bash
-export ZANSHIN=http://localhost:3000
-export ZANSHIN_KEY=zsk_...
-
-# What can I scan?
-curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/targets
-
-# Scan, then poll
-curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1}' $ZANSHIN/api/v1/scans
-curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/scans/42
-
-# Should this build fail?
-curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1, "policy": {"fail_on_severity": "high", "fail_on_kev": true}}' \
-     $ZANSHIN/api/v1/gate
-```
-
-The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
-
-The policy itself lives in the database, edited from the **Settings** page: a global default plus optional per-target overrides, each change stored as a new version with its author and an optional note. `GET /api/v1/gate/policies` lists what is in force and `.../history` every version of one scope — "which policy failed that build in March" has an answer.
-
-A `policy` object in the request body is still accepted and can only make the rules **stricter**. Every field's strict direction is defined per field, since it does not mean "greater": a *lower* severity threshold is stricter; `fail_on_kev` and `include_triaged` are stricter when `true`; `fixable_only` is stricter when **`false`**, because `true` excludes issues with no published fix — which is exactly the case that needs a human decision, not a green build. Anything refused comes back in `policy.ignored_relaxations`, alongside the `source` and `version` actually applied.
-
-Exports: `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced).
-
-SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
-
-```bash
-curl -H "Authorization: Bearer $ZANSHIN_KEY" \
-     -o zanshin.sarif "$ZANSHIN/api/v1/targets/repository/1/issues.sarif"
-gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
-     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
-```
-
-Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Zanshin's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
-
-A key can be narrowed when it is created, and a CI key normally should be:
-
-| Restriction | Effect |
-|---|---|
-| Scopes `read` / `scan` / `export` | What the key may do. A key that only publishes results needs `read`; one that queues scans needs `scan`. Missing scope → 403. |
-| Target `repository:{id}` or `container:{id}` | What the key may reach — including the `/issues` listing and the exports, which are narrowed to that target. Another target → 403 (not 404: the caller already knows the id it asked for). |
-| Expiry in days | After it, the key is refused as invalid. The row stays, so the listing still shows that the key existed. |
-
-`GET /api/v1/issues` accepts `only_direct=true` to return just the packages the project declared itself — the subset a version bump fixes today, without waiting on an upstream release. Issues whose directness is unknown are excluded: a missing answer is not a positive one.
-
-Defaults stay wide (every scope, every target, no expiry) because that is what a key granted before these existed, and because a form whose defaults break the pipeline teaches people to tick every box.
-
-### API et intégration CI
-
-L'API est servie par le même processus et le même port que l'UI, sous `/api/v1`, et s'authentifie avec une clé créée sur la page **Clés API** :
-
-```bash
-export ZANSHIN=http://localhost:3000
-export ZANSHIN_KEY=zsk_...
-
-# Que puis-je scanner ?
-curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/targets
-
-# Scanner, puis interroger
-curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1}' $ZANSHIN/api/v1/scans
-curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/scans/42
-
-# Ce build doit-il échouer ?
-curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1, "policy": {"fail_on_severity": "high", "fail_on_kev": true}}' \
-     $ZANSHIN/api/v1/gate
-```
-
-Le gate répond HTTP 200 avec `{"passed": false, "violations": [...]}` quand la politique est violée — une politique violée est une réponse, pas une erreur de transport, et les pipelines traitent les deux différemment. Les problèmes déjà triés en *non affecté* ou *corrigé* ne font pas échouer un build, sauf demande explicite via `include_triaged`.
-
-La politique elle-même vit en base, éditée depuis la page **Paramètres** : un défaut global plus des surcharges optionnelles par cible, chaque modification étant stockée comme une nouvelle version avec son auteur et un motif facultatif. `GET /api/v1/gate/policies` liste ce qui est en vigueur et `.../history` toutes les versions d'une portée — « quelle politique a fait échouer ce build en mars » a une réponse.
-
-Un objet `policy` dans le corps de la requête reste accepté et ne peut que **durcir** les règles. Le sens « strict » est défini champ par champ, parce qu'il ne veut pas dire « plus grand » : un seuil de sévérité *plus bas* est plus strict ; `fail_on_kev` et `include_triaged` sont plus stricts à `true` ; `fixable_only` est plus strict à **`false`**, parce que `true` exclut les problèmes sans correctif publié — précisément le cas qui demande une décision humaine, pas un build vert. Tout refus revient dans `policy.ignored_relaxations`, à côté du `source` et de la `version` réellement appliqués.
-
-Exports : `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, et `GET /api/v1/scans/{id}/sbom` (le SBOM Syft tel que produit).
-
-SARIF est celui qui met un problème sous les yeux du développeur qui l'a introduit, annoté sur la ligne, dans la pull request :
-
-```bash
-curl -H "Authorization: Bearer $ZANSHIN_KEY" \
-     -o zanshin.sarif "$ZANSHIN/api/v1/targets/repository/1/issues.sarif"
-gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
-     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
-```
-
-Les problèmes triés partent en *suppressions* SARIF et non à la poubelle : les retirer ferait qu'à l'envoi suivant la plateforme les redéclare comme nouveaux, annulant le travail de triage — et la suppression porte la justification. L'empreinte d'identité Zanshin voyage en `partialFingerprint`, pour qu'un problème reste reconnu après un déplacement de fichier ou un décalage de ligne. Référence complète sur `/api/v1/docs` — qui exige une clé, comme toutes les autres routes : une carte anonyme des routes et des charges utiles est une étape de reconnaissance offerte.
-
-Une clé peut être restreinte à sa création, et une clé de CI devrait normalement l'être :
-
-| Restriction | Effet |
-|---|---|
-| Portées `read` / `scan` / `export` | Ce que la clé peut faire. Une clé qui ne fait que publier des résultats a besoin de `read` ; une qui déclenche des scans, de `scan`. Portée absente → 403. |
-| Cible `repository:{id}` ou `container:{id}` | Ce que la clé peut atteindre — y compris la liste `/issues` et les exports, restreints à cette cible. Une autre cible → 403 (et non 404 : l'appelant connaît déjà l'identifiant qu'il a demandé). |
-| Expiration en jours | Passée cette date, la clé est refusée comme invalide. La ligne subsiste : la liste montre encore que la clé a existé. |
-
-`GET /api/v1/issues` accepte `only_direct=true` pour ne renvoyer que les paquets déclarés par le projet — ce qu'un changement de version corrige aujourd'hui, sans attendre un amont. Les problèmes dont la directivité est inconnue sont exclus : une réponse absente n'est pas une réponse positive.
-
-Les valeurs par défaut restent larges (toutes les portées, toutes les cibles, sans expiration) : c'est ce qu'accordait une clé avant l'existence de ces restrictions, et un formulaire dont les défauts cassent le pipeline apprend surtout à cocher toutes les cases.
-
-### Configuration
-
-Les réglages runtime (`scan_backend`, `enrichment_enabled`, `license_blocklist`, URL et répertoire partagé du backend `local_api`) se gèrent depuis la page **Paramètres**, et sont stockés en base (table `setting`) plutôt que par variables d'environnement.
-
-Trois éléments ne sont *pas* des réglages runtime, parce qu'ils doivent exister avant que l'application puisse être utilisée sans risque :
-
-| Variable | Requise | Rôle |
-|---|---|---|
-| `ENCRYPTION_KEY` | Pour stocker des clés SSH | Clé de 32 octets utilisée pour chiffrer les clés SSH privées et les jetons (AES-GCM). Sans elle, l'enregistrement d'un secret est refusé, au lieu de l'écrire sous quelque chose qui ne le protège pas. L'application ne transporte plus de clé par défaut : elle en publiait une dans son propre code, si bien qu'une copie du fichier de base suffisait à lire toutes les clés privées stockées. |
-| `ZANSHIN_SEMGREP_RULES_DIR` | Pour élargir la couverture de Semgrep | Un répertoire de règles Semgrep supplémentaires, fusionné avec celles que Zanshin embarque. Zanshin ne transporte que les siennes : les jeux de règles publics de Semgrep ne sont pas redistribuables, donc `scripts/fetch_semgrep_rules.py` installe sur votre machine celui que vous choisissez. À lancer une fois, à l'installation — le scan lui-même reste hors ligne. |
-| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | Pour faire tourner `ENCRYPTION_KEY` | Anciennes clés séparées par des virgules, essayées **au déchiffrement uniquement**. Les valeurs basculent sur la clé courante au fil des réenregistrements, et la page *Clés SSH* signale les lignes qui dépendent encore d'une ancienne — la variable se retire quand il n'en reste plus. C'est aussi par là qu'une valeur chiffrée avec l'ancienne clé par défaut publiée se relit une dernière fois ; voir [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
-| `ZANSHIN_BOOTSTRAP_USERNAME` | Premier démarrage | Nom du SUPERUSER initial, créé au démarrage quand la table `user` est vide. |
-| `ZANSHIN_BOOTSTRAP_PASSWORD` | Premier démarrage | Son mot de passe (8 caractères minimum). |
-
-Réglages d'exploitation (tous optionnels, valeurs par défaut indiquées) :
-
-| Variable | Défaut | Rôle |
-|---|---|---|
-| `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | `postgres` ou `mysql`. Choisit le jeu de migrations et l'orthographe des types de colonnes, et déclare ce que le moteur ne sait pas faire (voir `dialects.ts`). |
-| `PORT` | `3000` | HTTP port of the API. |
-| `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
-| `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
-| `ZANSHIN_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
-| `ZANSHIN_SCAN_LEASE_SECONDS` / `_MAX_ATTEMPTS` / `_CLAIM_ATTEMPTS` | `900` / `3` / `3` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
-| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it the container is killed and the scan fails with a timeout instead of hanging. |
-| `ZANSHIN_SCAN_MEMORY_LIMIT_MB` / `_PIDS_LIMIT` | `2048` / `512` | Memory and process ceilings per scanner container. |
-| `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
-| `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
-| `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they execute on the scanning host and read input nobody controls, so they *are* Zanshin's supply chain — whoever controls `anchore/syft:latest` controls what runs there. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
-| `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
-| `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
-| `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
-| `ZANSHIN_SQL_LOGGING` | `false` | Logs every statement. For diagnosis, never for a running deployment. |
-
-
-Le fichier de base de données ne fait plus partie du dépôt (il contient des hashes de mots de passe et des clés SSH chiffrées) : un déploiement neuf démarre donc sans aucun compte, d'où ces variables de bootstrap. Dès qu'un compte existe, elles sont ignorées.
-
-#### Choisir une base de données
-
-Quatre moteurs sont pris en charge — PostgreSQL, MariaDB, MySQL et SQLite — et **chacun est
-éprouvé par la campagne d'intégration complète**, avec son propre jeu de migrations. Posez
-`ZANSHIN_DB_DIALECT` ; PostgreSQL est le défaut. Un défaut de portabilité est invisible à la
-lecture comme à un seul moteur ; les passer tous les quatre est le seul moyen de le trouver,
-et cela en a trouvé plusieurs.
-
-| | PostgreSQL | MariaDB | MySQL | SQLite |
-|---|---|---|---|---|
-| Réclamation transactionnelle des scans | oui | oui | oui | **non** |
-| Lot de réclamation complet sous contention | oui | oui | **non** | s.o. |
-| Horodatages à la milliseconde | oui | oui | oui | oui |
-| `NULLS LAST` | oui | non | non | oui |
-| Plusieurs écrivains | oui | oui | oui | **non** |
-
-Chaque « non » vient d'un défaut trouvé en exécutant, et **aucun ne produit d'erreur** :
-
-- **MySQL rend des lots de réclamation courts.** Les lignes sautées par `SKIP LOCKED`
-  comptent dans le `LIMIT`, donc un travailleur qui demande deux scans peut n'en recevoir
-  aucun alors que la file n'est pas vide. Aucune ligne n'est jamais remise à deux
-  travailleurs — mesuré, pas supposé — et le reste part au tour suivant. C'est une
-  caractéristique de débit, pas un défaut de correction. MariaDB, mesuré sur le même
-  scénario, rend un lot complet comme PostgreSQL.
-- **SQLite n'a qu'un seul écrivain.** Une deuxième instance sur le même fichier ne serait pas
-  lente, elle corromprait les données. Sa réclamation retombe donc sur un `UPDATE`
-  conditionnel gardé par le statut, correct pour les fils d'un même processus. Son pilote
-  **refuse** `FOR UPDATE` au lieu de l'ignorer — la pile Python le laissait tomber en
-  silence, produisant une réclamation d'apparence transactionnelle qui remettait le même
-  scan à deux processus en production.
-- **Les horodatages exigent une précision déclarée sur MySQL.** Un `DATETIME` nu tronque à
-  la seconde, ce qui ferait échouer la chaîne d'audit à sa propre vérification et la ferait
-  se déclarer falsifiée. `datetime(6)` est déclaré dans `column-types.ts`, en un seul
-  endroit plutôt que colonne par colonne, et la connexion est fixée en UTC pour la même
-  raison.
-
-PostgreSQL reste le moteur de référence : celui sur lequel tout est vrai sans réserve, et
-celui que le code choisit par défaut.
-
-
-### Tests
-
-```bash
-npm --workspace backend test                   # suite unitaire
-npm --workspace backend run test:integration   # démarre PostgreSQL par testcontainers
-```
-
-562 tests unitaires et 249 tests d'intégration. **Les suites d'intégration ne se sautent
-pas.** Elles commençaient par `const describeWithPostgres = connectionString ? describe :
-describe.skip` : sans URL de base, douze fichiers se sautaient en silence et la campagne
-rapportait vert sans rien avoir vérifié. Le harnais démarre désormais le conteneur
-lui-même, donc l'absence de Docker échoue bruyamment — le comportement correct, et
-exactement le genre de défaut que ce projet existe pour trouver.
-
-Les migrations plutôt que `synchronize`, pour la même raison : le schéma testé est celui
-que la production recevra.
-
-```bash
-uvx pyright
-```
-
-Le backend compile sous `strictNullChecks` et un **test de couches**
-(`architecture.spec.ts`) qui fait échouer la compilation quand un import traverse dans le
-mauvais sens. Ce test n'est pas décoratif : c'est lui qui garde la couche domaine —
-empreintes, verdicts de gate, échéances — libre de TypeORM et de HTTP, donc testable sans
-base.
-
-La leçon retenue de la vérification de types de la version Python vaut toujours : une
-barrière qui se déclenche sur du bruit est désactivée en une semaine. Les règles gardées ici
-sont donc celles dont les constats étaient tous justes.
-
-### Structure du projet
-
-```
-backend/src/
-├── domain/            # Règles pures : empreinte, gate, exports, échéance, charges utiles
-├── scanning/          # Exécute les scanners — sans base (côté agent)
-├── persistence/       # Entités TypeORM et migrations
-├── repositories/      # Accès aux données, aucune règle métier
-├── services/          # Orchestration : ingestion, problèmes, notifications, tickets
-└── api/               # Contrôleurs HTTP
-frontend/src/app/      # Angular : 15 écrans, mise en page Sakai sur Optimus UI
-docs/architecture/     # ADR
-```
-
-Le sens des imports est vérifié par un test (`architecture.spec.ts`) :
-`domain ← scanning ← persistence ← repositories ← services ← api`. La couche domaine ignore
-TypeORM comme HTTP, ce qui rend testables sans base les règles qui comptent — une empreinte,
-un verdict de gate, une échéance.

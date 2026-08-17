@@ -1,14 +1,20 @@
 # Zanshin — plan de contrôle NestJS
 
-Le backend en cours de portage depuis Python. Voir
-[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour le plan
-d'ensemble.
+Le backend, porté depuis Python. Voir
+[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour ce que le
+portage a retenu, écarté et corrigé au passage.
 
 ```bash
 npm run start:backend                      # depuis la racine, écoute sur :3000
 npm test --workspace @zanshin/backend      # suite unitaire
-npm run test:integration --workspace @zanshin/backend   # exige un PostgreSQL réel
+npm run test:integration --workspace @zanshin/backend       # PostgreSQL, exige Docker
+npm run test:integration:all --workspace @zanshin/backend   # les quatre moteurs
 ```
+
+Les tests d'intégration n'exigent aucune base installée : `test/jest-global-setup.ts`
+démarre un conteneur par testcontainers et applique les migrations, une fois pour la
+campagne. Il n'y a pas de garde « sauter si la base est absente » — une suite qui se
+saute rapporte vert sans rien vérifier.
 
 ## Les couches, et la règle qui les tient
 
@@ -34,9 +40,8 @@ api/ ──► services/ ──► repositories/ ──► persistence/ ──�
 `src/architecture.spec.ts` **vérifie cette règle** en lisant le graphe d'imports : une
 couche qui importe au-dessus d'elle, ou un fichier du domaine qui importe un framework,
 fait échouer la suite. Une règle d'architecture écrite dans un document n'est pas une
-règle — elle est vraie le jour où on l'écrit et fausse six mois plus tard. Le projet
-Python fait déjà cela pour l'agent, dont l'invariant d'import est une propriété de
-sécurité.
+règle — elle est vraie le jour où on l'écrit et fausse six mois plus tard. La pile Python
+faisait déjà cela pour l'agent, dont l'invariant d'import est une propriété de sécurité.
 
 ### Pourquoi `domain/` est pur
 
@@ -52,17 +57,24 @@ Une seule exemption dans le test : un `*.module.ts` est du câblage, c'est *le* 
 dont le rôle est de connaître NestJS. `domain/` n'y a pas droit, parce qu'il n'a rien à
 injecter.
 
-## Le schéma appartient à Alembic
+## Le schéma appartient aux migrations
 
-`synchronize` est à `false`, et ce n'est pas négociable tant que les deux plans de
-contrôle coexistent : les quinze révisions Alembic restent l'unique source du schéma,
-et les entités le *décrivent*. Laisser TypeORM le modifier ferait diverger les deux
-applications sur la base qu'elles partagent.
+`synchronize` est à `false`. Les migrations de `persistence/migrations/<dialecte>/` sont
+l'unique source du schéma, et les entités le *décrivent* — chaque moteur a son propre jeu,
+parce qu'une même intention s'écrit différemment sur chacun.
 
-`persistence/schema-parity.integration-spec.ts` est l'équivalent d'`alembic check` : il
-construit la base avec `alembic upgrade head`, interroge `information_schema`, et
-confronte pour chaque entité la table, la liste exacte des colonnes dans les deux sens,
-et pour chacune le type, la nullabilité et la longueur.
+Ce n'est pas une précaution héritée de la période où Alembic tenait le schéma : c'est
+`synchronize: true` qui est le danger. Il modifie la base à partir des entités, au
+démarrage, sans trace ni revue — une colonne renommée dans le code s'y traduit par une
+colonne détruite en production.
+
+`persistence/schema-parity.integration-spec.ts` tient l'accord entre les deux. Il pose la
+question de `migration:generate` — « que faudrait-il changer pour que la base ressemble
+aux entités ? » — dont la bonne réponse est « rien ». Il tourne sur le moteur de la
+campagne en cours, donc les quatre sont couverts tour à tour, et c'est le seul endroit du
+dépôt qui vérifie cet accord. Les deux divergences qu'il a déjà rattrapées — un index
+déclaré côté migration mais pas côté entité, et l'inverse — ne changeaient aucun résultat,
+seulement leur coût : rien d'autre ne les aurait vues.
 
 ## Bases prises en charge
 

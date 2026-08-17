@@ -3,8 +3,8 @@
 ## Pourquoi le fichier est ici plutôt qu'une URL
 
 La feuille précédente était chargée depuis `fonts.googleapis.com`, et **le CSP de Zanshin
-la refusait** : `style-src 'self' 'unsafe-inline'` (voir
-`zanshin/api/security_headers.py`) n'autorise aucune feuille tierce. La police n'a donc
+la refusait** : `style-src 'self'` (voir le bloc `helmet` de
+`backend/src/main.ts`) n'autorise aucune feuille tierce. La police n'a donc
 jamais été appliquée en production — l'interface tournait sur le repli système, avec la
 géométrie voulue et la typographie d'un autre.
 

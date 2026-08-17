@@ -1,8 +1,8 @@
 # Zanshin — interface Angular
 
-L'interface de Zanshin, en cours de portage depuis Reflex. Voir
-[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour le plan
-d'ensemble et l'état d'avancement.
+L'interface de Zanshin, portée depuis Reflex. Voir
+[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour ce que le
+portage a retenu, écarté et corrigé au passage.
 
 ```bash
 npm run start:frontend    # depuis la racine, sert sur http://localhost:4200
