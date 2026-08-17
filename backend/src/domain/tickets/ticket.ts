@@ -1,22 +1,21 @@
 /**
- * Ce qu'un ticket dit, et à qui il s'adresse.
+ * What a ticket says, and who it is for.
  *
- * SARIF ferme la boucle vers le développeur : un constat apparaît sur la demande de fusion
- * qui l'a introduit. Ceci la ferme vers l'organisation — un problème que personne ne
- * corrigera cet après-midi doit exister là où les gens planifient leur travail, pas
- * seulement dans un tableau de bord que rien n'oblige à ouvrir.
+ * SARIF closes the loop towards the developer: a finding appears on the merge request that
+ * introduced it. This closes it towards the organization — an issue nobody will fix this
+ * afternoon has to exist where people plan their work, not only in a dashboard nothing
+ * obliges them to open.
  *
- * **Piloté par la politique de gate, pas par un second seuil.** « Ouvrir un ticket pour ce
- * qui ferait échouer une compilation » est une règle sur laquelle un opérateur sait déjà
- * raisonner, et cela laisse **un seul endroit** où « assez sérieux pour agir » est défini.
- * Inventer un `ticket_min_severity` créerait deux vocabulaires qui divergeraient, et le
- * premier rapport de bogue serait « pourquoi a-t-il ouvert un ticket là-dessus sans faire
- * échouer la compilation ».
+ * **Driven by the gate policy, not by a second threshold.** "Open a ticket for what would
+ * fail a build" is a rule an operator already knows how to reason about, and it leaves
+ * **one single place** where "serious enough to act on" is defined. Inventing a
+ * `ticket_min_severity` would create two vocabularies that would diverge, and the first bug
+ * report would be "why did it open a ticket for that without failing the build".
  *
- * Fonctions pures : la mise en forme se teste sans gestionnaire de tickets.
+ * Pure functions: the formatting is tested with no ticket tracker.
  */
 
-/** Ce que la mise en forme lit d'un problème. Plus étroit que l'entité, à dessein. */
+/** What the formatting reads from an issue. Narrower than the entity, by design. */
 export interface TicketableIssue {
     id: number;
     type: string;
@@ -45,14 +44,14 @@ export const DEFAULT_JIRA_ISSUE_TYPE = 'Bug';
 export const DEFAULT_LABELS = 'zanshin,security';
 
 /**
- * Plafond par balayage.
+ * Cap per sweep.
  *
- * Un premier passage sur un backlog mature ouvrirait sinon plusieurs centaines de tickets
- * d'un coup — un problème de limitation de débit, et surtout un problème social.
+ * A first pass over a mature backlog would otherwise open several hundred tickets at once
+ * — a rate-limiting problem, and above all a social one.
  */
 export const MAX_TICKETS_PER_SWEEP = 20;
 
-/** Assez court pour une liste de tickets, assez précis pour être recherchable. */
+/** Short enough for a ticket list, precise enough to be searchable. */
 export function buildTitle(issue: TicketableIssue, targetName: string): string {
     const subject = issue.identifier || issue.type;
     const packageName = issue.packageName ? ` — ${issue.packageName}` : '';
@@ -61,49 +60,48 @@ export function buildTitle(issue: TicketableIssue, targetName: string): string {
 }
 
 /**
- * Le corps du ticket, écrit pour qui le prend sans contexte.
+ * The ticket body, written for whoever picks it up with no context.
  *
- * **La version corrigée vient en tête des détails**, parce que c'est elle qui fait la
- * différence entre un ticket qu'on ferme aujourd'hui et un ticket qu'on traîne sur trois
- * itérations.
+ * **The fixed version comes first among the details**, because it is what makes the
+ * difference between a ticket closed today and a ticket dragged across three iterations.
  */
 export function buildBody(issue: TicketableIssue, targetName: string): string {
     const lines = [
-        `Détecté par Zanshin sur **${targetName}**.`,
+        `Detected by Zanshin on **${targetName}**.`,
         '',
-        `- Type : ${issue.type}`,
-        `- Identifiant : ${issue.identifier || '—'}`,
-        `- Sévérité : ${issue.severity ?? 'unknown'}`
+        `- Type: ${issue.type}`,
+        `- Identifier: ${issue.identifier || '—'}`,
+        `- Severity: ${issue.severity ?? 'unknown'}`
     ];
 
-    if (issue.fixVersions) lines.push(`- **Corrigé dans : ${issue.fixVersions}**`);
-    else if (issue.fixState === 'not-fixed' || issue.fixState === 'wont-fix') lines.push('- Aucun correctif publié à ce jour');
+    if (issue.fixVersions) lines.push(`- **Fixed in: ${issue.fixVersions}**`);
+    else if (issue.fixState === 'not-fixed' || issue.fixState === 'wont-fix') lines.push('- No published fix to date');
 
     if (issue.packageName) {
-        lines.push(`- Composant : ${issue.packageName}${issue.packageVersion ? ` ${issue.packageVersion}` : ''}`);
+        lines.push(`- Component: ${issue.packageName}${issue.packageVersion ? ` ${issue.packageVersion}` : ''}`);
     }
     if (issue.isDirectDependency !== null) {
-        lines.push(`- Dépendance : ${issue.isDirectDependency ? 'directe (déclarée par le projet)' : 'transitive'}`);
+        lines.push(`- Dependency: ${issue.isDirectDependency ? 'direct (declared by the project)' : 'transitive'}`);
     }
-    if (issue.filePath) lines.push(`- Emplacement : ${issue.filePath}${issue.line ? `:${issue.line}` : ''}`);
-    if (issue.isKev) lines.push('- ⚠️ Exploitation active connue (catalogue CISA KEV)');
-    if (issue.epssScore !== null) lines.push(`- Probabilité d'exploitation (EPSS) : ${(issue.epssScore * 100).toFixed(1)} %`);
-    if (issue.link) lines.push(`- Référence : ${issue.link}`);
+    if (issue.filePath) lines.push(`- Location: ${issue.filePath}${issue.line ? `:${issue.line}` : ''}`);
+    if (issue.isKev) lines.push('- ⚠️ Known active exploitation (CISA KEV catalog)');
+    if (issue.epssScore !== null) lines.push(`- Exploitation probability (EPSS): ${(issue.epssScore * 100).toFixed(1)}%`);
+    if (issue.link) lines.push(`- Reference: ${issue.link}`);
 
-    // Tronquée : une description de CVE peut faire plusieurs kilooctets, et un ticket
-    // qu'on doit dérouler pour trouver la conclusion n'est pas lu.
+    // Truncated: a CVE description can run to several kilobytes, and a ticket you have to
+    // scroll through to find the conclusion does not get read.
     if (issue.description) lines.push('', issue.description.slice(0, 1000));
 
     lines.push(
         '',
-        `Problème Zanshin #${issue.id} — empreinte \`${issue.fingerprint}\`.`,
-        'Ce ticket a été ouvert parce que ce problème ferait échouer une compilation selon la politique de gate en ' +
-            'vigueur pour cette cible.'
+        `Zanshin issue #${issue.id} — fingerprint \`${issue.fingerprint}\`.`,
+        'This ticket was opened because this issue would fail a build under the gate policy in force for this ' +
+            'target.'
     );
     return lines.join('\n');
 }
 
-/** Les étiquettes, lues du réglage. Une liste vide est un état valide. */
+/** The labels, read from the setting. An empty list is a valid state. */
 export function parseLabels(raw: string): string[] {
     return raw
         .split(',')
@@ -111,7 +109,7 @@ export function parseLabels(raw: string): string[] {
         .filter((label) => label !== '');
 }
 
-/** Le fournisseur, normalisé. Tout ce qui sort du vocabulaire vaut « aucun ». */
+/** The provider, normalized. Anything outside the vocabulary counts as "none". */
 export function parseProvider(raw: string): string {
     const value = (raw ?? '').trim().toLowerCase();
     return (VALID_PROVIDERS as readonly string[]).includes(value) ? value : PROVIDER_NONE;

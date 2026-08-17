@@ -2,45 +2,44 @@ import { isAtLeast } from '../gate/policy-gate';
 import { TYPE_QUALITY } from '../issues/types';
 
 /**
- * Ce qu'un scan a changé, mis en forme pour un webhook.
+ * What a scan changed, formatted for a webhook.
  *
- * **Un webhook générique, pas une intégration Slack.** Un POST HTTP avec un corps JSON
- * documenté atteint Slack, Teams (par un flux), Discord, Mattermost, un bus interne ou un
- * script de trois lignes. Une charge propre à un fournisseur achèterait une mise en forme
- * plus jolie à un endroit au prix de tous les autres — d'où un champ `text` en tête, pour
- * que les récepteurs de discussion affichent quelque chose de lisible quand même.
+ * **A generic webhook, not a Slack integration.** An HTTP POST with a documented JSON body
+ * reaches Slack, Teams (through a flow), Discord, Mattermost, an internal bus or a
+ * three-line script. A vendor-specific payload would buy prettier formatting in one place
+ * at the cost of every other — hence a `text` field first, so chat receivers display
+ * something readable anyway.
  *
- * **Seulement au changement, et seulement au-dessus d'un seuil.** Une notification par
- * scan apprend aux gens à filtrer le canal.
+ * **Only on change, and only above a threshold.** One notification per scan teaches people
+ * to filter the channel.
  *
- * Ces fonctions sont pures et le message est un **instantané** : il dit ce que le scan a
- * trouvé, pas à quoi ressemblent les problèmes une fois que quelqu'un en a trié la moitié.
+ * These functions are pure and the message is a **snapshot**: it says what the scan found,
+ * not what the issues look like once somebody has triaged half of them.
  */
 
 export const SETTING_WEBHOOK_URL = 'notification_webhook_url';
 export const SETTING_MIN_SEVERITY = 'notification_min_severity';
 export const SETTING_NOTIFY_ON_KEV = 'notification_always_on_kev';
-/** Échappatoire pour un bus interne. Désactivée par défaut : une URL de webhook qui
- *  résout vers une adresse privée est bien plus souvent une tentative de SSRF qu'un
- *  point de terminaison d'intranet. */
+/** Escape hatch for an internal bus. Off by default: a webhook URL resolving to a private
+ *  address is far more often an SSRF attempt than an intranet endpoint. */
 export const SETTING_ALLOW_PRIVATE_URL = 'notification_allow_private_url';
 
 export const DEFAULT_MIN_SEVERITY = 'high';
 
 /**
- * Combien de problèmes sont nommés dans la charge. Le reste est compté : un corps de
- * webhook à quatre cents entrées est un déni de service contre son lecteur, et l'API est
- * là pour la liste complète.
+ * How many issues are named in the payload. The rest are counted: a webhook body with four
+ * hundred entries is a denial of service against its reader, and the API is there for the
+ * full list.
  */
 export const MAX_DETAILED_ISSUES = 10;
 
-/** Ce qu'un problème apporte au message. Volontairement plus étroit que l'entité. */
+/** What an issue contributes to the message. Deliberately narrower than the entity. */
 export interface NotifiableIssue {
     id: number;
     identifier: string | null;
     type: string;
-    /** Nullable comme sur l'entité : un constat peut arriver sans sévérité, et
-     *  `isAtLeast` traite l'absence comme la valeur la plus basse. */
+    /** Nullable as on the entity: a finding can arrive with no severity, and `isAtLeast`
+     *  treats absence as the lowest value. */
     severity: string | null;
     isKev: boolean;
     epssScore: number | null;
@@ -56,18 +55,17 @@ export interface SelectionOptions {
 }
 
 /**
- * Lesquels des problèmes nouveaux ou réapparus méritent un message.
+ * Which of the new or reappeared issues deserve a message.
  *
- * Une vulnérabilité activement exploitée passe **quelle que soit sa sévérité** quand
- * `alwaysOnKev` est posé — c'est tout l'intérêt du signal KEV, et la sévérité seule
- * écarterait un « moyen » exploité aujourd'hui.
+ * An actively exploited vulnerability passes **whatever its severity** when `alwaysOnKev`
+ * is set — that is the whole point of the KEV signal, and severity alone would discard a
+ * "medium" being exploited today.
  *
- * **Les constats de qualité ne qualifient jamais**, quelle que soit leur sévérité.
- * Semgrep traduit son niveau `ERROR` en `high`, qui franchit le seuil par défaut : le
- * premier scan d'un dépôt avec l'étape SAST activée déclencherait donc un webhook
- * annonçant plusieurs centaines de problèmes. Exclure le type est la correction honnête ;
- * abaisser leur sévérité pour les faire taire serait un mensonge sur la sévérité, et
- * changerait aussi leur place dans le tri du backlog.
+ * **Quality findings never qualify**, whatever their severity. Semgrep maps its `ERROR`
+ * level to `high`, which clears the default threshold: the first scan of a repository with
+ * the SAST step enabled would therefore fire a webhook announcing several hundred issues.
+ * Excluding the type is the honest fix; lowering their severity to silence them would be a
+ * lie about severity, and would also change their place in the backlog's ordering.
  */
 export function selectNotable(issues: NotifiableIssue[], options: SelectionOptions): NotifiableIssue[] {
     return issues.filter((issue) => {
@@ -86,20 +84,20 @@ export interface DeltaInput {
     minSeverity: string;
 }
 
-/** Le corps du webhook. `text` en tête, pour les récepteurs qui ne lisent que ce champ. */
+/** The webhook body. `text` first, for receivers that read only that field. */
 export function buildPayload(input: DeltaInput): Record<string, unknown> {
     const { targetName, scanId, newIssues, reopenedIssues, resolvedCount, minSeverity } = input;
 
     const parts: string[] = [];
-    if (newIssues.length > 0) parts.push(`${newIssues.length} nouveau(x) problème(s)`);
-    if (reopenedIssues.length > 0) parts.push(`${reopenedIssues.length} réapparu(s)`);
+    if (newIssues.length > 0) parts.push(`${newIssues.length} new issue(s)`);
+    if (reopenedIssues.length > 0) parts.push(`${reopenedIssues.length} reappeared`);
 
     const all = [...newIssues, ...reopenedIssues];
     const kevCount = all.filter((issue) => issue.isKev).length;
-    if (kevCount > 0) parts.push(`${kevCount} activement exploité(s)`);
+    if (kevCount > 0) parts.push(`${kevCount} actively exploited`);
 
-    let text = `Zanshin — ${targetName} : ${parts.join(', ')}`;
-    if (resolvedCount > 0) text += ` (${resolvedCount} résolu(s))`;
+    let text = `Zanshin — ${targetName}: ${parts.join(', ')}`;
+    if (resolvedCount > 0) text += ` (${resolvedCount} resolved)`;
 
     return {
         text,
@@ -125,7 +123,7 @@ function issuePayload(issue: NotifiableIssue): Record<string, unknown> {
         epss_score: issue.epssScore,
         package: issue.packageName,
         file_path: issue.filePath,
-        // Le champ le plus utile pour qui lit l'alerte.
+        // The most useful field for whoever reads the alert.
         fix_versions: issue.fixVersions,
         link: issue.link
     };

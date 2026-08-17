@@ -23,7 +23,7 @@ function issue(values: Partial<TicketableIssue> = {}): TicketableIssue {
 }
 
 describe('buildTitle', () => {
-    it('reste court et recherchable', () => {
+    it('stays short and searchable', () => {
         expect(buildTitle(issue(), 'org/projet')).toBe('[Zanshin][CRITICAL] CVE-2021-44228 — log4j-core (org/projet)');
     });
 
@@ -35,55 +35,55 @@ describe('buildTitle', () => {
 });
 
 describe('buildBody', () => {
-    it('met la version corrigée en tête des détails', () => {
-        // C'est elle qui fait la différence entre un ticket fermé aujourd'hui et un ticket
-        // traîné sur trois itérations.
+    it('puts the fixed version first among the details', () => {
+        // It is what makes the difference between a ticket closed today and a ticket
+        // dragged across three iterations.
         const body = buildBody(issue({ fixVersions: '2.17.1' }), 'org/projet');
 
-        expect(body).toContain('**Corrigé dans : 2.17.1**');
-        expect(body.indexOf('Corrigé dans')).toBeLessThan(body.indexOf('Composant'));
+        expect(body).toContain('**Fixed in: 2.17.1**');
+        expect(body.indexOf('Fixed in')).toBeLessThan(body.indexOf('Component'));
     });
 
-    it("dit explicitement qu'aucun correctif n'existe", () => {
-        // Le silence se lirait « on n'a pas regardé », alors que c'est une information :
-        // il n'y a rien à mettre à jour, il faut atténuer autrement.
-        expect(buildBody(issue({ fixState: 'not-fixed' }), 'org/projet')).toContain('Aucun correctif publié');
+    it('says explicitly that no fix exists', () => {
+        // Silence would read as "we did not look", when this is information: there is
+        // nothing to upgrade to, and mitigation has to come from somewhere else.
+        expect(buildBody(issue({ fixState: 'not-fixed' }), 'org/projet')).toContain('No published fix');
     });
 
-    it("signale l'exploitation active et le score EPSS", () => {
+    it('reports active exploitation and the EPSS score', () => {
         const body = buildBody(issue({ isKev: true, epssScore: 0.97512 }), 'org/projet');
 
-        expect(body).toContain('Exploitation active connue');
-        expect(body).toContain('97.5 %');
+        expect(body).toContain('Known active exploitation');
+        expect(body).toContain('97.5%');
     });
 
-    it('distingue une dépendance directe d\'une transitive', () => {
-        expect(buildBody(issue({ isDirectDependency: true }), 'org/projet')).toContain('directe (déclarée par le projet)');
+    it('tells a direct dependency from a transitive one', () => {
+        expect(buildBody(issue({ isDirectDependency: true }), 'org/projet')).toContain('direct (declared by the project)');
         expect(buildBody(issue({ isDirectDependency: false }), 'org/projet')).toContain('transitive');
         // `null` veut dire « on ne sait pas » : ne rien dire vaut mieux que deviner.
-        expect(buildBody(issue(), 'org/projet')).not.toContain('Dépendance :');
+        expect(buildBody(issue(), 'org/projet')).not.toContain('Dependency:');
     });
 
     it('tronque une description bavarde', () => {
-        // Un ticket qu'on doit dérouler pour trouver la conclusion n'est pas lu.
+        // A ticket you have to scroll through to find the conclusion does not get read.
         const body = buildBody(issue({ description: 'x'.repeat(5000) }), 'org/projet');
 
         expect(body).toContain('x'.repeat(1000));
         expect(body).not.toContain('x'.repeat(1001));
     });
 
-    it("porte l'empreinte et la raison de son ouverture", () => {
-        // L'empreinte permet de retrouver le problème depuis le ticket ; la raison évite
-        // la question « pourquoi celui-là et pas l'autre ».
+    it('carries the fingerprint and the reason it was opened', () => {
+        // The fingerprint makes the issue findable from the ticket; the reason heads off
+        // the question "why this one and not that one".
         const body = buildBody(issue(), 'org/projet');
 
-        expect(body).toContain('empreinte `abc123`');
-        expect(body).toContain('ferait échouer une compilation');
+        expect(body).toContain('fingerprint `abc123`');
+        expect(body).toContain('would fail a build');
     });
 });
 
 describe('parseLabels', () => {
-    it('découpe et nettoie', () => {
+    it('splits and cleans', () => {
         expect(parseLabels('zanshin, security ,')).toEqual(['zanshin', 'security']);
         expect(parseLabels('')).toEqual([]);
     });

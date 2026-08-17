@@ -19,29 +19,29 @@ function issue(values: Partial<NotifiableIssue>): NotifiableIssue {
 describe('selectNotable', () => {
     const options = { minSeverity: 'high', alwaysOnKev: true };
 
-    it('retient ce qui atteint le seuil', () => {
+    it('keeps what reaches the threshold', () => {
         const selected = selectNotable([issue({ severity: 'critical' }), issue({ severity: 'low' })], options);
 
         expect(selected).toHaveLength(1);
         expect(selected[0].severity).toBe('critical');
     });
 
-    it('retient une vulnérabilité exploitée sous le seuil', () => {
-        // Tout l'intérêt du signal KEV : la sévérité seule écarterait un « moyen »
-        // exploité aujourd'hui.
+    it('keeps an exploited vulnerability under the threshold', () => {
+        // The whole point of the KEV signal: severity alone would discard a "medium"
+        // being exploited today.
         const selected = selectNotable([issue({ severity: 'medium', isKev: true })], options);
 
         expect(selected).toHaveLength(1);
     });
 
-    it('respecte le réglage quand KEV ne prime pas', () => {
+    it('respects the setting when KEV does not take precedence', () => {
         expect(selectNotable([issue({ severity: 'medium', isKev: true })], { minSeverity: 'high', alwaysOnKev: false })).toEqual([]);
     });
 
-    it("n'envoie jamais de constat de qualité, même au-dessus du seuil", () => {
+    it("never sends a quality finding, even above the threshold", () => {
         // Semgrep traduit `ERROR` en `high` : sans cette exclusion, le premier scan d'un
-        // dépôt avec le SAST activé déclencherait un webhook annonçant des centaines de
-        // problèmes, et le canal serait filtré dès le lendemain.
+        // repository with SAST enabled would fire a webhook announcing hundreds of
+        // issues, and the channel would be filtered out the next day.
         const selected = selectNotable([issue({ type: 'quality', severity: 'critical' }), issue({ type: 'quality', isKev: true })], options);
 
         expect(selected).toEqual([]);
@@ -51,7 +51,7 @@ describe('selectNotable', () => {
 describe('buildPayload', () => {
     const base = { targetName: 'org/projet', scanId: 42, resolvedCount: 0, minSeverity: 'high' };
 
-    it("met en tête une phrase lisible pour les récepteurs qui n'en lisent qu'une", () => {
+    it('puts a readable sentence first, for receivers that read only that', () => {
         const payload = buildPayload({
             ...base,
             newIssues: [issue({}), issue({ id: 2, isKev: true })],
@@ -59,15 +59,15 @@ describe('buildPayload', () => {
             resolvedCount: 4
         });
 
-        expect(payload.text).toBe('Zanshin — org/projet : 2 nouveau(x) problème(s), 1 réapparu(s), 1 activement exploité(s) (4 résolu(s))');
+        expect(payload.text).toBe('Zanshin — org/projet: 2 new issue(s), 1 reappeared, 1 actively exploited (4 resolved)');
         expect(payload.kev_count).toBe(1);
         expect(payload.new_count).toBe(2);
         expect(payload.reopened_count).toBe(1);
         expect(payload.resolved_count).toBe(4);
     });
 
-    it('borne le détail et annonce combien manquent', () => {
-        // Un corps à quatre cents entrées est un déni de service contre son lecteur.
+    it('bounds the detail and says how many are missing', () => {
+        // A body with four hundred entries is a denial of service against its reader.
         const many = Array.from({ length: 25 }, (_, index) => issue({ id: index }));
         const payload = buildPayload({ ...base, newIssues: many, reopenedIssues: [] });
 
@@ -75,9 +75,9 @@ describe('buildPayload', () => {
         expect(payload.truncated).toBe(15);
     });
 
-    it("n'expose que les champs prévus d'un problème", () => {
-        // La charge part vers un système tiers : la projection est explicite pour qu'une
-        // colonne ajoutée un jour à `Issue` n'y arrive pas par inadvertance.
+    it("exposes only an issue's intended fields", () => {
+        // The payload leaves for a third-party system: the projection is explicit so that
+        // a column added to `Issue` one day does not reach it by accident.
         const payload = buildPayload({ ...base, newIssues: [issue({ fixVersions: '2.17.1' })], reopenedIssues: [] });
 
         expect(Object.keys((payload.issues as unknown[])[0] as object).sort()).toEqual([
