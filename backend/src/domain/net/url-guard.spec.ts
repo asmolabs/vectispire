@@ -1,148 +1,146 @@
 import { UnsafeUrlError, unsafeReason, validateOutboundUrl } from './url-guard';
 
-/** Une résolution DNS simulée : les tests ne doivent pas dépendre du réseau. */
+/** A simulated DNS resolution: the tests must not depend on the network. */
 function resolving(map: Record<string, string[]>) {
     return async (hostname: string) => map[hostname] ?? [];
 }
 
-const PUBLIC = resolving({ 'exemple.test': ['93.184.216.34'] });
+const PUBLIC = resolving({ 'example.test': ['93.184.216.34'] });
 
 describe('validateOutboundUrl', () => {
-    it('accepte une destination publique pour un webhook', async () => {
-        await expect(validateOutboundUrl('https://exemple.test/hook', { allowPrivate: false, resolve: PUBLIC })).resolves.toBe(
-            'https://exemple.test/hook'
+    it('accepts a public destination for a webhook', async () => {
+        await expect(validateOutboundUrl('https://example.test/hook', { allowPrivate: false, resolve: PUBLIC })).resolves.toBe(
+            'https://example.test/hook'
         );
     });
 
-    it('refuse le point de métadonnées, même quand le privé est autorisé', async () => {
-        // La cible classique : elle remet les identifiants de l'instance à qui les
-        // demande. Rien de légitime ne vit dans cette plage.
+    it('refuses the metadata endpoint, even when private is allowed', async () => {
+        // The classic target: it hands the instance's credentials to whoever asks.
+        // Nothing legitimate lives in that range.
+        await expect(validateOutboundUrl('http://169.254.169.254/latest/meta-data/', { allowPrivate: true })).rejects.toThrow(/link-local/);
+    });
+
+    it('refuses a name that resolves to link-local', async () => {
+        // The obvious bypass: hide the address behind a name.
         await expect(
-            validateOutboundUrl('http://169.254.169.254/latest/meta-data/', { allowPrivate: true })
+            validateOutboundUrl('http://metadata.internal/', { allowPrivate: true, resolve: resolving({ 'metadata.internal': ['169.254.169.254'] }) })
         ).rejects.toThrow(/link-local/);
     });
 
-    it('refuse un nom qui résout vers le link-local', async () => {
-        // Le contournement évident : cacher l'adresse derrière un nom.
-        await expect(
-            validateOutboundUrl('http://metadata.interne/', { allowPrivate: true, resolve: resolving({ 'metadata.interne': ['169.254.169.254'] }) })
-        ).rejects.toThrow(/link-local/);
-    });
-
-    it("refuse une adresse privée quand une destination publique est attendue", async () => {
+    it('refuses a private address when a public destination is expected', async () => {
         for (const address of ['10.0.0.5', '172.16.3.1', '192.168.1.10', '127.0.0.1', '100.64.0.1']) {
             await expect(
-                validateOutboundUrl(`http://hote.interne/`, { allowPrivate: false, resolve: resolving({ 'hote.interne': [address] }) })
-            ).rejects.toThrow(/privée ou locale/);
+                validateOutboundUrl(`http://host.internal/`, { allowPrivate: false, resolve: resolving({ 'host.internal': [address] }) })
+            ).rejects.toThrow(/private or local/);
         }
     });
 
-    it('refuse un nom dont une seule des adresses est privée', async () => {
-        // Toutes les adresses sont vérifiées, pas la première : n'en vérifier qu'une
-        // laisserait passer l'autre.
+    it('refuses a name where only one of the addresses is private', async () => {
+        // Every address is checked, not the first: checking only one would let the other
+        // through.
         await expect(
             validateOutboundUrl('https://double.test/', {
                 allowPrivate: false,
                 resolve: resolving({ 'double.test': ['93.184.216.34', '10.0.0.5'] })
             })
-        ).rejects.toThrow(/privée ou locale/);
+        ).rejects.toThrow(/private or local/);
     });
 
-    it('accepte le privé pour une annexe locale', async () => {
+    it('accepts private for a local side-car', async () => {
         await expect(validateOutboundUrl('http://127.0.0.1:8000/scan', { allowPrivate: true })).resolves.toContain('127.0.0.1');
     });
 
-    it('refuse une destination publique quand une destination interne est exigée', async () => {
-        // Ollama reçoit le code source : le risque n'est pas l'interne, c'est l'externe.
-        // Une URL publique bien formée est exactement ce à quoi ressemble une exfiltration.
+    it('refuses a public destination when an internal one is required', async () => {
+        // Ollama receives the source code: the risk is not internal, it is external. A
+        // well-formed public URL is exactly what exfiltration looks like.
         await expect(
-            validateOutboundUrl('https://exemple.test/api', { allowPrivate: true, requirePrivate: true, resolve: PUBLIC })
-        ).rejects.toThrow(/reçoit du code source/);
+            validateOutboundUrl('https://example.test/api', { allowPrivate: true, requirePrivate: true, resolve: PUBLIC })
+        ).rejects.toThrow(/receives source code/);
     });
 
-    it("refuse un nom irrésoluble quand une destination interne est exigée", async () => {
-        // Échouer ouvert est défendable pour « est-ce privé ? », pas pour « ceci doit
-        // l'être » : un nom irrésoluble ne prouve rien.
+    it('refuses an unresolvable name when an internal destination is required', async () => {
+        // Failing open is defensible for "is this private?", not for "this must be": an
+        // unresolvable name proves nothing.
         await expect(
-            validateOutboundUrl('https://inconnu.test/', { allowPrivate: true, requirePrivate: true, resolve: resolving({}) })
-        ).rejects.toThrow(/n'a pas pu être résolu/);
+            validateOutboundUrl('https://unknown.test/', { allowPrivate: true, requirePrivate: true, resolve: resolving({}) })
+        ).rejects.toThrow(/could not be resolved/);
     });
 
-    describe('IPv6 déguisée', () => {
+    describe('disguised IPv6', () => {
         /**
-         * **Le contournement venait de la comparaison de chaînes.** `new URL()` normalise
-         * une adresse IPv6 avant qu'on la lise : `::ffff:127.0.0.1` en ressort sous la forme
-         * hexadécimale `::ffff:7f00:1`, que la reconnaissance par expression régulière ne
-         * voyait pas. L'adresse était alors jugée publique et le webhook — dont le garde
-         * attend précisément une destination publique — atteignait la boucle locale.
+         * **The bypass came from comparing strings.** `new URL()` normalizes an IPv6
+         * address before we read it: `::ffff:127.0.0.1` comes back in the hexadecimal form
+         * `::ffff:7f00:1`, which the regular expression matching did not see. The address
+         * was then judged public and the webhook — whose guard expects precisely a public
+         * destination — reached loopback.
          *
-         * Chaque cas ci-dessous est une écriture différente de la même adresse.
+         * Each case below is a different spelling of the same address.
          */
         it.each([
-            ['::ffff:127.0.0.1', 'IPv4 encapsulée, écrite en décimal pointé'],
-            ['::ffff:7f00:1', 'la même, sous la forme que rend `new URL()`'],
-            ['::ffff:169.254.169.254', 'le point de métadonnées, encapsulé'],
-            ['::ffff:10.0.0.1', 'un réseau privé, encapsulé'],
-            ['0:0:0:0:0:0:0:1', 'la boucle locale écrite en toutes lettres'],
-            ['64:ff9b::7f00:1', 'la boucle locale via le préfixe de traduction NAT64']
-        ])('refuse http://[%s] pour un webhook — %s', async (address) => {
+            ['::ffff:127.0.0.1', 'wrapped IPv4, written in dotted decimal'],
+            ['::ffff:7f00:1', 'the same, in the form `new URL()` returns'],
+            ['::ffff:169.254.169.254', 'the metadata endpoint, wrapped'],
+            ['::ffff:10.0.0.1', 'a private network, wrapped'],
+            ['0:0:0:0:0:0:0:1', 'loopback written out in full'],
+            ['64:ff9b::7f00:1', 'loopback through the NAT64 translation prefix']
+        ])('refuses http://[%s] for a webhook — %s', async (address) => {
             await expect(validateOutboundUrl(`http://[${address}]/hook`, { allowPrivate: false })).rejects.toBeInstanceOf(UnsafeUrlError);
         });
 
-        it("accepte une IPv6 réellement publique, pour que le refus veuille dire quelque chose", async () => {
+        it('accepts a genuinely public IPv6, so that the refusal means something', async () => {
             await expect(validateOutboundUrl('https://[2606:4700:4700::1111]/hook', { allowPrivate: false })).resolves.toContain('2606');
         });
 
-        it('refuse le link-local encapsulé même quand le privé est autorisé', async () => {
-            // Une annexe locale a le droit d'être privée ; elle n'a jamais le droit d'être
-            // le point de métadonnées, sous quelque écriture que ce soit.
+        it('refuses wrapped link-local even when private is allowed', async () => {
+            // A local side-car is allowed to be private; it is never allowed to be the
+            // metadata endpoint, under any spelling.
             await expect(validateOutboundUrl('http://[::ffff:169.254.169.254]/', { allowPrivate: true })).rejects.toThrow(/link-local/);
         });
     });
 
-    it('refuse les schémas hors http et https', async () => {
-        for (const url of ['file:///etc/passwd', 'gopher://exemple.test/', 'ftp://exemple.test/']) {
-            await expect(validateOutboundUrl(url, { allowPrivate: true })).rejects.toThrow(/schéma/);
+    it('refuses schemes other than http and https', async () => {
+        for (const url of ['file:///etc/passwd', 'gopher://example.test/', 'ftp://example.test/']) {
+            await expect(validateOutboundUrl(url, { allowPrivate: true })).rejects.toThrow(/scheme/);
         }
     });
 
-    it('refuse une valeur vide ou illisible', async () => {
+    it('refuses an empty or unreadable value', async () => {
         await expect(validateOutboundUrl('', { allowPrivate: true })).rejects.toThrow(UnsafeUrlError);
-        await expect(validateOutboundUrl('pas une url', { allowPrivate: true })).rejects.toThrow(UnsafeUrlError);
+        await expect(validateOutboundUrl('not a url', { allowPrivate: true })).rejects.toThrow(UnsafeUrlError);
     });
 
-    it('accepte un nom irrésoluble pour un webhook', async () => {
-        // Un hoquet DNS ne doit pas rendre l'écran des réglages inutilisable, et la
-        // requête elle-même échouerait de toute façon.
-        await expect(
-            validateOutboundUrl('https://inconnu.test/hook', { allowPrivate: false, resolve: resolving({}) })
-        ).resolves.toBe('https://inconnu.test/hook');
+    it('accepts an unresolvable name for a webhook', async () => {
+        // A DNS hiccup must not make the settings screen unusable, and the request itself
+        // would fail anyway.
+        await expect(validateOutboundUrl('https://unknown.test/hook', { allowPrivate: false, resolve: resolving({}) })).resolves.toBe(
+            'https://unknown.test/hook'
+        );
     });
 });
 
-describe('résolution réelle', () => {
-    // **Sans `resolve` injecté**, donc en passant par `node:dns`. Ce cas existe parce que
-    // tous les autres tests de ce fichier — et ceux de la notification et des tickets —
-    // contournent la résolution : le jour où l'appel réel a cessé de fonctionner, aucun
-    // d'eux ne s'en est aperçu. Un garde qui lève au lieu de valider refuse *toutes* les
-    // destinations, ce qui se lit en exploitation comme « le webhook ne part jamais ».
-    it('valide une adresse littérale sans lever', async () => {
+describe('real resolution', () => {
+    // **Without an injected `resolve`**, so going through `node:dns`. This case exists
+    // because every other test in this file — and those of the notification and the
+    // tickets — bypasses resolution: the day the real call stopped working, not one of
+    // them noticed. A guard that throws instead of validating refuses *every*
+    // destination, which reads in operation as "the webhook never fires".
+    it('validates a literal address without throwing', async () => {
         await expect(validateOutboundUrl('http://127.0.0.1:8000/', { allowPrivate: true })).resolves.toContain('127.0.0.1');
         await expect(validateOutboundUrl('https://93.184.216.34/', { allowPrivate: false })).resolves.toContain('93.184.216.34');
     });
 
-    it('traverse la résolution DNS pour un nom', async () => {
-        // Le nom n'a pas besoin d'exister : ce qui compte est que l'appel aboutisse à une
-        // décision au lieu d'exploser.
-        await expect(
-            validateOutboundUrl('https://hote-inexistant.invalid/hook', { allowPrivate: false })
-        ).resolves.toBe('https://hote-inexistant.invalid/hook');
+    it('goes through DNS resolution for a name', async () => {
+        // The name does not need to exist: what matters is that the call reaches a
+        // decision instead of blowing up.
+        await expect(validateOutboundUrl('https://nonexistent-host.invalid/hook', { allowPrivate: false })).resolves.toBe(
+            'https://nonexistent-host.invalid/hook'
+        );
     });
 });
 
 describe('unsafeReason', () => {
-    it('rend la raison au lieu de lever', async () => {
-        expect(await unsafeReason('https://exemple.test/', { allowPrivate: false, resolve: PUBLIC })).toBeNull();
-        expect(await unsafeReason('http://10.0.0.1/', { allowPrivate: false })).toMatch(/privée ou locale/);
+    it('returns the reason instead of throwing', async () => {
+        expect(await unsafeReason('https://example.test/', { allowPrivate: false, resolve: PUBLIC })).toBeNull();
+        expect(await unsafeReason('http://10.0.0.1/', { allowPrivate: false })).toMatch(/private or local/);
     });
 });

@@ -32,7 +32,7 @@ describe('AiReviewService', () => {
         const { calls, http } = ollama({});
         const service = new AiReviewService(settings({ ai_review_ollama_url: 'https://ollama-public.example.com' }), http, http);
 
-        await expect(service.reviewCode('print(1)')).rejects.toThrow(/code source/);
+        await expect(service.reviewCode('print(1)')).rejects.toThrow(/source code/);
         expect(calls).toEqual([]);
     });
 
@@ -92,8 +92,8 @@ describe('AiReviewService', () => {
         const { http } = ollama({});
         const service = new AiReviewService(settings(), http, http);
 
-        await expect(service.setOllamaUrl('')).rejects.toThrow(/vide/);
-        await expect(service.setOllamaUrl('https://ollama-public.example.com')).rejects.toThrow(/code source/);
+        await expect(service.setOllamaUrl('')).rejects.toThrow(/empty value/);
+        await expect(service.setOllamaUrl('https://ollama-public.example.com')).rejects.toThrow(/source code/);
         await expect(service.setOllamaUrl('http://127.0.0.1:11434')).resolves.toBeUndefined();
     });
 

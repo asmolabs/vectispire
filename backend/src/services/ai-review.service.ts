@@ -75,7 +75,7 @@ export class AiReviewService {
 
     /** Enregistre l'URL après validation — le point de saisie est là où l'erreur coûte peu. */
     async setOllamaUrl(url: string): Promise<void> {
-        if (!url?.trim()) throw new Error("L'URL du service Ollama ne peut pas être vide.");
+        if (!url?.trim()) throw new Error('The Ollama service URL cannot be an empty value.');
 
         await validateOutboundUrl(url, {
             allowPrivate: true,
