@@ -1,10 +1,10 @@
 import { validateRepositoryUrl } from './git-url';
 
 /**
- * Ce n'est pas une validation de saisie : l'URL atterrit dans un `git clone` exécuté par
+ * This is not input validation: the URL lands in a `git clone` run by
  * un agent. Les cas de refus comptent donc davantage que les cas d'acceptation.
  */
-describe('URL de dépôt', () => {
+describe('repository URL', () => {
     it.each([
         ['https://github.com/org/projet.git'],
         ['ssh://git@github.com/org/projet.git'],
@@ -15,13 +15,13 @@ describe('URL de dépôt', () => {
         expect(validateRepositoryUrl(url)).toBeNull();
     });
 
-    it('refuse un schéma qui donnerait accès au disque de l’agent', () => {
+    it("refuses a scheme that would give access to the agent's disk", () => {
         // `file://` clonerait un chemin local de la machine qui scanne.
         expect(validateRepositoryUrl('file:///etc/passwd')).toMatch(/is not allowed/);
     });
 
-    it('refuse un schéma qui ferait exécuter une commande par git', () => {
-        // `ext::` fait exécuter une commande arbitraire par git lui-même.
+    it('refuses a scheme that would make git run a command', () => {
+        // `ext::` makes git itself run an arbitrary command.
         expect(validateRepositoryUrl('ext::sh -c whoami')).not.toBeNull();
     });
 
@@ -29,7 +29,7 @@ describe('URL de dépôt', () => {
         expect(validateRepositoryUrl(url)).not.toBeNull();
     });
 
-    it('donne un message qui dit quoi écrire', () => {
+    it('gives a message that says what to write', () => {
         expect(validateRepositoryUrl('nawak')).toMatch(/https|ssh|git@/);
     });
 });

@@ -1,6 +1,6 @@
 import { formatImageReference, validateImageReference } from './image-reference';
 
-describe('référence d’image', () => {
+describe('image reference', () => {
     const ref = (imageName: string, tag = 'latest', registry: string | null = null) => ({ registry, imageName, tag });
 
     it.each([
@@ -16,16 +16,16 @@ describe('référence d’image', () => {
         expect(validateImageReference(ref('Equipe/Service'))).toMatch(/Lower case/);
     });
 
-    it('refuse une référence qui décalerait les arguments du conteneur', () => {
+    it("refuses a reference that would shift the container's arguments", () => {
         expect(validateImageReference(ref('nginx --privileged'))).not.toBeNull();
         expect(validateImageReference(ref('nginx', 'latest ; rm -rf /'))).not.toBeNull();
     });
 
-    it.each([[ref('')], [ref('nginx', '')], [ref('nginx', 'latest', 'pas un hôte/du tout')]])('refuse %o', (value) => {
+    it.each([[ref('')], [ref('nginx', '')], [ref('nginx', 'latest', 'not a host/at all')]])('refuses %o', (value) => {
         expect(validateImageReference(value)).not.toBeNull();
     });
 
-    it('colle un condensé avec « @ » et une étiquette avec « : »', () => {
+    it('joins a digest with @ and a tag with :', () => {
         const digest = 'sha256:' + 'b'.repeat(64);
         expect(formatImageReference(ref('nginx', digest, 'ghcr.io'))).toBe(`ghcr.io/nginx@${digest}`);
         expect(formatImageReference(ref('nginx', '1.27'))).toBe('nginx:1.27');

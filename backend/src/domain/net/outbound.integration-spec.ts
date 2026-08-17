@@ -4,23 +4,23 @@ import { outboundFetch, outboundJson } from './outbound';
 /**
  * Le refus des redirections, contre de vrais serveurs.
  *
- * **Ce comportement ne se simule pas.** Il est décidé par le client HTTP de Node, pas par du
- * code de ce dépôt : un faux `fetch` prouverait seulement que le faux fait ce qu'on lui a
+ * **This behaviour cannot be simulated.** It is decided by Node's HTTP client, not by any
+ * code in this repository: a fake `fetch` would only prove the fake does what it was
  * dit. Deux serveurs suffisent — l'un redirige, l'autre joue la destination interne que le
- * garde d'URL aurait refusée.
+ * URL guard would have refused.
  *
- * Ce que ces tests protègent : `validateOutboundUrl` ne vérifie que la **première** requête.
- * Node suit les redirections par défaut, si bien qu'une destination validée répondant
- * `302 Location: http://169.254.169.254/` était suivie sans que rien ne revérifie. Le cas le
- * plus coûteux est la revue par modèle, dont le garde exige une destination interne
- * précisément parce qu'elle reçoit le code source du dépôt scanné.
+ * What these tests protect: `validateOutboundUrl` only checks the **first** request. Node
+ * follows redirects by default, so a validated destination answering
+ * `302 Location: http://169.254.169.254/` was followed with nothing re-checking. The
+ * costliest case is the model review, whose guard demands an internal destination precisely
+ * because it receives the scanned repository's source code.
  */
 describe('appel sortant', () => {
     let interne: Server;
     let redirecteur: Server;
     let atteint = false;
 
-    /** Démarre un serveur sur un port libre et rend ce port. */
+    /** Starts a server on a free port and returns that port. */
     function listen(server: Server): Promise<number> {
         return new Promise((resolve) => server.listen(0, () => resolve((server.address() as { port: number }).port)));
     }
@@ -59,7 +59,7 @@ describe('appel sortant', () => {
         await expect(outboundFetch(url('/redirige'), { method: 'POST', body: {}, timeoutMs: 5_000 })).rejects.toThrow();
 
         // **L'assertion qui compte.** Une exception seule ne prouverait pas grand-chose : ce
-        // qui importe est que la destination interne n'ait rien reçu.
+        // what matters is that the internal destination received nothing.
         expect(atteint).toBe(false);
     });
 
@@ -69,12 +69,12 @@ describe('appel sortant', () => {
         expect(atteint).toBe(false);
     });
 
-    it('laisse passer une réponse directe, pour que le refus veuille dire quelque chose', async () => {
+    it('lets a direct response through, so the refusal means something', async () => {
         expect(await outboundJson<{ ok: boolean }>(url('/direct'), { timeoutMs: 5_000 })).toEqual({ ok: true });
     });
 
-    it('lève sur un statut d’erreur plutôt que de rendre une réponse vide', async () => {
-        // Sans cela, un webhook refusé en 500 se lirait comme livré, et l'outbox ne le
+    it('throws on an error status rather than returning an empty response', async () => {
+        // Without this, a webhook refused with a 500 would read as delivered, and the outbox
         // reprendrait jamais.
         const refusant = createServer((_request, response) => {
             response.writeHead(503);

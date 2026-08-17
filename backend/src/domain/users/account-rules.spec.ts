@@ -1,6 +1,6 @@
 import { refuseDeletion, refuseSelfLockout, validatePassword, validateRole, validateUsername } from './account-rules';
 
-describe('règles de compte', () => {
+describe('account rules', () => {
     describe('identifiant', () => {
         it.each([['admin'], ['jean.dupont'], ['ci-bot_01']])('accepte %s', (value) => {
             expect(validateUsername(value)).toBeNull();
@@ -16,16 +16,17 @@ describe('règles de compte', () => {
             expect(validatePassword('court')).toMatch(/12 characters/);
         });
 
-        it('refuse au-delà de 72 octets plutôt que de laisser croire qu’ils protègent', () => {
+        it('refuses past 72 bytes rather than letting anyone believe they protect', () => {
             // bcrypt ignore la suite : accepter en silence donnerait un faux sentiment.
             expect(validatePassword('a'.repeat(73))).toMatch(/72 bytes/);
-            // La limite est en octets : 24 caractères accentués font 48 octets, donc passent.
+            // The limit is in bytes: 24 accented characters are 48 bytes, so they pass.
+            // The accents are load-bearing here — with ASCII this test would prove nothing.
             expect(validatePassword('é'.repeat(24))).toBeNull();
             expect(validatePassword('é'.repeat(37))).toMatch(/72 bytes/);
         });
     });
 
-    it('refuse un rôle hors vocabulaire', () => {
+    it('refuses a role outside the vocabulary', () => {
         expect(validateRole('ADMIN')).toBeNull();
         expect(validateRole('admin')).not.toBeNull();
         expect(validateRole('ROOT')).not.toBeNull();
@@ -38,20 +39,20 @@ describe('règles de compte', () => {
             expect(refuseSelfLockout(base)).toBeNull();
         });
 
-        it('refuse de se désactiver soi-même', () => {
+        it('refuses to deactivate yourself', () => {
             expect(refuseSelfLockout({ ...base, isSelf: true, willBeActive: false })).not.toBeNull();
         });
 
-        it('refuse de retirer son propre rôle administrateur', () => {
+        it('refuses to remove your own administrator role', () => {
             expect(refuseSelfLockout({ ...base, isSelf: true, willBeAdmin: false })).not.toBeNull();
         });
 
-        it("refuse de retirer le dernier administrateur actif, même sur le compte d'un autre", () => {
+        it("refuses to remove the last active administrator, even on somebody else's account", () => {
             expect(refuseSelfLockout({ ...base, willBeAdmin: false, remainingActiveAdmins: 0 })).toMatch(/dernier administrateur/);
             expect(refuseSelfLockout({ ...base, willBeActive: false, remainingActiveAdmins: 0 })).toMatch(/dernier administrateur/);
         });
 
-        it("n'a rien à dire quand un autre administrateur reste", () => {
+        it("has nothing to say while another administrator remains", () => {
             expect(refuseSelfLockout({ ...base, willBeAdmin: false, remainingActiveAdmins: 1 })).toBeNull();
         });
 

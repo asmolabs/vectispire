@@ -9,59 +9,59 @@ describe('limitation des tentatives', () => {
     });
 
     it('bloque au seuil utilisateur', () => {
-        // Sans ce compteur, un attaquant réparti sur plusieurs machines essaierait
-        // autant de mots de passe qu'il veut sur un même compte.
+        // Without this counter, an attacker spread across several machines would try as
+        // many passwords as they liked against one account.
         const decision = decide({ user: attempts(MAX_ATTEMPTS_PER_USER), client: [] }, NOW);
         expect(decision.allowed).toBe(false);
         expect(decision.retryAfterSeconds).toBe(WINDOW_MS / 1000);
     });
 
     it('bloque au seuil client', () => {
-        // Sans ce compteur-là, un attaquant essaierait cinq mots de passe par compte
+        // Without that counter, an attacker would try five passwords per account
         // sur toute la liste des utilisateurs.
         expect(decide({ user: [], client: attempts(MAX_ATTEMPTS_PER_CLIENT) }, NOW).allowed).toBe(false);
     });
 
-    it('a un seuil client plus élevé, parce qu’un poste peut être partagé', () => {
+    it('has a higher client threshold, because a workstation can be shared', () => {
         expect(MAX_ATTEMPTS_PER_CLIENT).toBeGreaterThan(MAX_ATTEMPTS_PER_USER);
     });
 
-    it('annonce le délai du compteur le plus contraignant', () => {
+    it('announces the delay of the most constraining counter', () => {
         const decision = decide({ user: attempts(MAX_ATTEMPTS_PER_USER, NOW - 60_000), client: attempts(MAX_ATTEMPTS_PER_CLIENT, NOW) }, NOW);
         expect(decision.retryAfterSeconds).toBe(WINDOW_MS / 1000);
     });
 });
 
-describe('fenêtre glissante', () => {
-    it('oublie les tentatives sorties de la fenêtre', () => {
+describe('sliding window', () => {
+    it('forgets attempts that have left the window', () => {
         const old = attempts(MAX_ATTEMPTS_PER_USER, NOW - WINDOW_MS - 1);
         expect(decide({ user: old, client: [] }, NOW).allowed).toBe(true);
     });
 
-    it('libère progressivement, sans pic au changement de fenêtre', () => {
-        // Une fenêtre fixe offrirait à un attaquant un pic gratuit à heure ronde.
+    it('releases gradually, with no burst at a window boundary', () => {
+        // A fixed window would hand an attacker a free burst on the hour.
         const staggered = [NOW - WINDOW_MS - 1, NOW - 10_000, NOW - 9_000, NOW - 8_000, NOW - 7_000];
         expect(decide({ user: staggered, client: [] }, NOW).allowed).toBe(true);
     });
 
-    it('calcule le délai depuis l’échec le plus ancien encore compté', () => {
+    it('computes the delay from the oldest failure still counted', () => {
         const decision = decide({ user: attempts(MAX_ATTEMPTS_PER_USER, NOW - WINDOW_MS + 30_000), client: [] }, NOW);
         expect(decision.retryAfterSeconds).toBe(30);
     });
 
-    it('n’annonce jamais zéro seconde à un appelant bloqué', () => {
-        // Annoncer « 0 » ferait retenter aussitôt et échouer à nouveau.
+    it('never announces zero seconds to a blocked caller', () => {
+        // Announcing "0" would make the caller retry at once and fail again.
         const decision = decide({ user: attempts(MAX_ATTEMPTS_PER_USER, NOW - WINDOW_MS + 100), client: [] }, NOW);
         expect(decision.allowed).toBe(false);
         expect(decision.retryAfterSeconds).toBeGreaterThan(0);
     });
 
-    it('filtre les tentatives à conserver', () => {
+    it('filters the attempts worth keeping', () => {
         expect(withinWindow([NOW - WINDOW_MS - 1, NOW - 1000, NOW], NOW)).toEqual([NOW - 1000, NOW]);
     });
 });
 
-describe('clés de comptage', () => {
+describe('counter keys', () => {
     it('normalise l’identifiant utilisateur', () => {
         // Sinon « Alice », « alice » et « alice  » seraient trois compteurs, et le seuil
         // vaudrait trois fois plus pour qui varie la casse.
@@ -69,7 +69,7 @@ describe('clés de comptage', () => {
         expect(userKey('ALICE')).toBe('login:user:alice');
     });
 
-    it('sépare les deux espaces de noms', () => {
+    it('keeps the two namespaces apart', () => {
         expect(userKey('x')).not.toBe(clientKey('x'));
     });
 });

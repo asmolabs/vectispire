@@ -1,6 +1,6 @@
 import { DependencyDirectness } from './directness';
 
-/** Un SBOM minimal : `lib-a` est déclarée, `lib-b` est tirée par elle. */
+/** A minimal SBOM: `lib-a` is declared, `lib-b` is pulled in by it. */
 const SBOM = {
     artifacts: [
         { id: 'a1', name: 'lib-a', version: '1.0', purl: 'pkg:npm/lib-a@1.0' },
@@ -10,17 +10,17 @@ const SBOM = {
 };
 
 describe('DependencyDirectness', () => {
-    it('distingue une racine du graphe de ce qui est tiré par autre chose', () => {
+    it('tells a root of the graph from what something else pulls in', () => {
         const graph = new DependencyDirectness(SBOM);
 
         expect(graph.of('pkg:npm/lib-a@1.0')).toBe(true);
         expect(graph.of('pkg:npm/lib-b@2.0')).toBe(false);
     });
 
-    it("rend tout inconnu quand le SBOM ne porte aucune arête", () => {
-        // Le point important : sans arêtes, *tout* paquet ressemble à une racine, ce qui
-        // étiquetterait une image entière « dépendances directes ». Une réponse fausse et
-        // assurée sur le champ qui décide quoi corriger en premier est pire que le silence.
+    it("returns unknown for everything when the SBOM carries no edge", () => {
+        // The important part: with no edges, *every* package looks like a root, which
+        // would label a whole image "direct dependencies". A confident wrong answer on the
+        // field that decides what to fix first is worse than silence.
         const graph = new DependencyDirectness({ artifacts: SBOM.artifacts });
 
         expect(graph.available).toBe(false);
@@ -44,8 +44,8 @@ describe('DependencyDirectness', () => {
     });
 
     it("n'apparie jamais sur le nom seul", () => {
-        // Deux versions d'un même paquet peuvent tomber de part et d'autre : l'une
-        // déclarée, l'autre traînée par une dépendance.
+        // Two versions of the same package can fall on either side: one declared, the
+        // other dragged in by a dependency.
         const graph = new DependencyDirectness({
             artifacts: [{ id: 'a1', name: 'lib', version: '1.0' }, { id: 'a2', name: 'lib', version: '2.0' }],
             artifactRelationships: [{ type: 'dependency-of', parent: 'a2', child: 'a1' }]
@@ -53,7 +53,7 @@ describe('DependencyDirectness', () => {
 
         expect(graph.of(null, 'lib', '1.0')).toBe(true);
         expect(graph.of(null, 'lib', '2.0')).toBe(false);
-        // Sans version, aucune réponse plutôt qu'un tirage au sort.
+        // With no version, no answer rather than a coin toss.
         expect(graph.of(null, 'lib')).toBeNull();
     });
 

@@ -1,34 +1,34 @@
 import { agentAccepts, normalizeRequiredLabel, parseAgentLabels } from './targeting';
 
 describe("ciblage d'un scan vers un agent", () => {
-    describe('étiquettes annoncées par un agent', () => {
-        it('sépare, élague et abaisse la casse', () => {
-            // « Production » et « production », saisis à six mois d'intervalle sur deux
-            // écrans, doivent désigner la même chose : sinon un scan attend indéfiniment un
-            // agent qui est là, et rien à l'écran n'explique pourquoi.
-            expect(parseAgentLabels(' Production , réseau-client ')).toEqual(['production', 'réseau-client']);
+    describe('labels announced by an agent', () => {
+        it('splits, trims and lowers the case', () => {
+            // "Production" and "production", typed six months apart on two screens, must
+            // mean the same thing: otherwise a scan waits indefinitely for an agent that is
+            // right there, and nothing on screen explains why.
+            expect(parseAgentLabels(' Production , customer-network ')).toEqual(['production', 'customer-network']);
         });
 
-        it('ne rend aucune étiquette pour un agent qui n’en déclare pas', () => {
+        it('returns no label for an agent that declares none', () => {
             expect(parseAgentLabels(null)).toEqual([]);
             expect(parseAgentLabels('')).toEqual([]);
-            // Des virgules seules ne sont pas des étiquettes : sans ce filtre, la chaîne
+            // Commas alone are not labels: without this filter, the string
             // vide entrerait dans la liste et satisferait une exigence vide.
             expect(parseAgentLabels(' , , ')).toEqual([]);
         });
 
-        it('ne compte pas deux fois la même étiquette', () => {
+        it('does not count the same label twice', () => {
             expect(parseAgentLabels('prod,PROD, prod ')).toEqual(['prod']);
         });
     });
 
-    describe("exigence portée par une cible", () => {
-        it('normalise comme les étiquettes, pour que la comparaison ait un sens', () => {
-            expect(normalizeRequiredLabel('  Réseau-Client ')).toBe('réseau-client');
+    describe("the requirement a target carries", () => {
+        it('normalizes like the labels, so the comparison means something', () => {
+            expect(normalizeRequiredLabel('  Customer-Network ')).toBe('customer-network');
         });
 
-        it('traite un champ vidé comme « plus d’exigence »', () => {
-            // **Le cas qui bloquerait une file en silence.** Stocker la chaîne vide donnerait
+        it('treats a cleared field as no requirement any more', () => {
+            // **The case that would silently jam a queue.** Storing the empty string would give
             // une exigence qu'aucun agent ne satisfait jamais, et le scan attendrait sans
             // que rien ne le dise.
             expect(normalizeRequiredLabel('')).toBeNull();
@@ -37,23 +37,23 @@ describe("ciblage d'un scan vers un agent", () => {
         });
     });
 
-    describe('décision', () => {
-        it('laisse un scan sans exigence à qui le demande', () => {
-            // Le comportement d'avant. Exiger rétroactivement une étiquette arrêterait
-            // toutes les files existantes au premier déploiement.
+    describe('the decision', () => {
+        it('leaves a scan with no requirement to whoever asks', () => {
+            // The previous behaviour. Requiring a label retroactively would stop every
+            // existing queue on the first deployment.
             expect(agentAccepts([], null)).toBe(true);
             expect(agentAccepts(['prod'], null)).toBe(true);
         });
 
-        it('réserve un scan exigeant à l’agent qui porte l’étiquette', () => {
+        it('reserves a demanding scan for the agent carrying the label', () => {
             expect(agentAccepts(['prod', 'client'], 'client')).toBe(true);
             expect(agentAccepts(['prod'], 'client')).toBe(false);
         });
 
-        it('ne laisse pas un agent sans étiquette correspondre à tout', () => {
-            // **Fermé par défaut du côté de l'agent.** L'inverse — « aucune étiquette veut
-            // dire toutes » — est la lecture séduisante, et elle rendrait l'exigence
-            // inopérante au premier agent qu'on enregistre sans y penser.
+        it('does not let an agent with no label match everything', () => {
+            // **Closed by default on the agent's side.** The reverse — "no label means all
+            // of them" — is the seductive reading, and it would make the requirement
+            // inoperative at the first agent registered without thinking about it.
             expect(agentAccepts([], 'client')).toBe(false);
         });
     });

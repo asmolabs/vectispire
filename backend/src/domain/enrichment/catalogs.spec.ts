@@ -1,15 +1,15 @@
 import { batches, parseEpssResponse, parseKevCatalog } from './catalogs';
 
 describe('parseEpssResponse', () => {
-    it('lit les scores rendus en chaîne, comme le fait réellement l\'API', () => {
-        // Le piège central : FIRST rend « 0.00042 » et non 0.00042. Le prendre tel quel
-        // stockerait du texte dans une colonne numérique.
+    it('reads the scores returned as strings, as the API actually does', () => {
+        // The central trap: FIRST returns "0.00042" and not 0.00042. Taking it as is would
+        // store text in a numeric column.
         const scores = parseEpssResponse({ data: [{ cve: 'CVE-2021-44228', epss: '0.97512', percentile: '0.99' }] });
 
         expect(scores.get('CVE-2021-44228')).toBe(0.97512);
     });
 
-    it('écarte les entrées inexploitables sans perdre les autres', () => {
+    it('discards unusable entries without losing the others', () => {
         const scores = parseEpssResponse({
             data: [{ cve: 'CVE-1', epss: 'pas-un-nombre' }, { epss: '0.5' }, { cve: 'CVE-2', epss: null }, { cve: 'CVE-3', epss: '0.25' }]
         });
@@ -17,23 +17,23 @@ describe('parseEpssResponse', () => {
         expect([...scores]).toEqual([['CVE-3', 0.25]]);
     });
 
-    it('ne convertit pas une valeur absente en score de zéro', () => {
-        // `Number(null)` et `Number('')` valent 0, qui est un score EPSS légitime : sans
-        // garde, un champ absent se lirait « probabilité d'exploitation nulle ».
+    it('does not convert an absent value into a score of zero', () => {
+        // `Number(null)` and `Number('')` are 0, which is a legitimate EPSS score: without
+        // a guard, an absent field would read as "zero probability of exploitation".
         const scores = parseEpssResponse({ data: [{ cve: 'CVE-1', epss: null }, { cve: 'CVE-2', epss: '' }, { cve: 'CVE-3', epss: '0' }] });
 
         expect(scores.has('CVE-1')).toBe(false);
         expect(scores.has('CVE-2')).toBe(false);
-        // Un zéro réellement publié, lui, est retenu.
+        // A genuinely published zero, on the other hand, is kept.
         expect(scores.get('CVE-3')).toBe(0);
     });
 
-    it('rend une carte vide sur une charge illisible plutôt que de lever', () => {
-        // L'enrichissement est facultatif : une exception ici ferait échouer un scan qui
-        // a par ailleurs produit de vrais résultats.
+    it('returns an empty map for an unreadable payload rather than throwing', () => {
+        // Enrichment is optional: an exception here would fail a scan that otherwise
+        // produced real results.
         expect(parseEpssResponse(null).size).toBe(0);
         expect(parseEpssResponse({ data: 'inattendu' }).size).toBe(0);
-        expect(parseEpssResponse({ erreur: 'quota dépassé' }).size).toBe(0);
+        expect(parseEpssResponse({ error: 'quota exceeded' }).size).toBe(0);
     });
 });
 
@@ -53,7 +53,7 @@ describe('parseKevCatalog', () => {
 });
 
 describe('batches', () => {
-    it('découpe sans rien perdre ni dupliquer', () => {
+    it('splits without losing or duplicating anything', () => {
         const items = Array.from({ length: 205 }, (_, index) => `CVE-${index}`);
         const lots = batches(items);
 
@@ -61,7 +61,7 @@ describe('batches', () => {
         expect(lots.flat()).toEqual(items);
     });
 
-    it('rend une liste vide pour une entrée vide', () => {
+    it('returns an empty list for an empty input', () => {
         expect(batches([])).toEqual([]);
     });
 });

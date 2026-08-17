@@ -4,59 +4,59 @@ describe('parseFindings', () => {
     it('lit un tableau conforme', () => {
         const findings = parseFindings(
             JSON.stringify([
-                { severity: 'HIGH', title: 'Injection SQL', file_path: 'src/db.py', description: 'requête concaténée', recommendation: 'paramétrer' }
+                { severity: 'HIGH', title: 'SQL injection', file_path: 'src/db.py', description: 'concatenated query', recommendation: 'parameterize it' }
             ])
         );
 
         expect(findings).toEqual([
-            { severity: 'high', title: 'Injection SQL', filePath: 'src/db.py', description: 'requête concaténée', recommendation: 'paramétrer' }
+            { severity: 'high', title: 'SQL injection', filePath: 'src/db.py', description: 'concatenated query', recommendation: 'parameterize it' }
         ]);
     });
 
-    it('retire une clôture Markdown que le modèle a ajoutée malgré la consigne', () => {
+    it('strips a markdown fence the model added despite the instruction', () => {
         const findings = parseFindings('```json\n[{"severity":"low","title":"Verbeux"}]\n```');
 
         expect(findings).toHaveLength(1);
         expect(findings[0].title).toBe('Verbeux');
     });
 
-    it('accepte les trois noms de titre que les modèles emploient', () => {
-        // Écarter un constat parce qu'il s'appelle « issue » plutôt que « title »
+    it('accepts the three title names models use', () => {
+        // Discarding a finding because it is called "issue" rather than "title"
         // perdrait une observation valable.
         const findings = parseFindings(JSON.stringify([{ title: 'A' }, { issue: 'B' }, { summary: 'C' }]));
 
         expect(findings.map((finding) => finding.title)).toEqual(['A', 'B', 'C']);
     });
 
-    it('normalise une sévérité hors vocabulaire', () => {
-        // Une valeur libre se propagerait en silence jusqu'au tri, au résumé et au gate.
+    it('normalizes a severity outside the vocabulary', () => {
+        // A free-form value would propagate silently into the ordering, the summary and the gate.
         const findings = parseFindings(JSON.stringify([{ title: 'X', severity: 'catastrophique' }, { title: 'Y' }]));
 
         expect(findings.map((finding) => finding.severity)).toEqual(['unknown', 'unknown']);
     });
 
-    it('rend une liste vide sur une réponse illisible plutôt que de lever', () => {
-        // La sortie d'un modèle n'est garantie ni JSON ni tableau ; le texte brut est
-        // conservé à part par l'appelant, donc rien n'est perdu.
+    it('returns an empty list for an unreadable response rather than throwing', () => {
+        // A model's output is guaranteed neither to be JSON nor an array; the raw text is
+        // kept separately by the caller, so nothing is lost.
         expect(parseFindings('Voici mon analyse : le code semble correct.')).toEqual([]);
         expect(parseFindings('{"severity":"high"}')).toEqual([]);
         expect(parseFindings('')).toEqual([]);
         expect(parseFindings('[')).toEqual([]);
     });
 
-    it('écarte les éléments sans titre', () => {
+    it('discards items with no title', () => {
         expect(parseFindings(JSON.stringify([{ severity: 'high' }, 'texte', null]))).toEqual([]);
     });
 
-    it('tronque un titre démesuré', () => {
+    it('truncates an oversized title', () => {
         expect(parseFindings(JSON.stringify([{ title: 'x'.repeat(1000) }]))[0].title).toHaveLength(255);
     });
 });
 
 describe('buildUserMessage', () => {
-    it('délimite le code et le désigne comme donnée', () => {
+    it('delimits the code and labels it as data', () => {
         // Cela ne rend pas l'injection d'invite impossible — aucune invite ne le fait —
-        // mais supprime la version facile, où un commentaire est lu comme une consigne.
+        // but removes the easy version, where a comment is read as an instruction.
         const message = buildUserMessage('print("bonjour")');
 
         expect(message.startsWith(CODE_DELIMITER)).toBe(true);

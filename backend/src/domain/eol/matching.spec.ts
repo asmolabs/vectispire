@@ -3,9 +3,9 @@ import { assess, distroCandidate, matchRelease, normalizePurl, packageCandidates
 const TODAY = new Date('2026-08-13T00:00:00Z');
 
 describe('versionParts', () => {
-    it('ignore la version décorée d\'une distribution', () => {
+    it("ignores a distribution's decorated version", () => {
         // Red Hat publie « 9.7 (Plow) » : sans ce nettoyage, le cycle 9.7 ne serait
-        // jamais reconnu et l'image la plus intéressante à signaler passerait au travers.
+        // never recognized and the image most worth flagging would slip through.
         expect(versionParts('9.7 (Plow)')).toEqual(['9', '7']);
     });
 
@@ -24,9 +24,8 @@ describe('matchRelease', () => {
     const python = { releases: [{ name: '3.1' }, { name: '3.9' }, { name: '3.14' }] };
 
     it('ne range pas 3.14 dans le cycle 3.1', () => {
-        // Le piège central : « 3.14 » commence par « 3.1 » en tant que chaîne. Un
-        // `startsWith` annoncerait une fin de support passée depuis des années sur une
-        // version parfaitement supportée.
+        // The central trap: "3.14" starts with "3.1" as a string. A `startsWith` would
+        // announce a support window closed years ago on a perfectly supported version.
         expect(matchRelease(python, '3.14.0')?.name).toBe('3.14');
     });
 
@@ -44,37 +43,37 @@ describe('matchRelease', () => {
 });
 
 describe('assess', () => {
-    it('classe un cycle échu en high', () => {
-        // Non parce que quelque chose est cassé aujourd'hui, mais parce que rien ne sera
-        // corrigé demain.
+    it('classes an expired cycle as high', () => {
+        // Not because something is broken today, but because nothing will be fixed
+        // tomorrow.
         expect(assess({ name: '3.8', eolFrom: '2024-10-07' }, TODAY)?.severity).toBe('high');
         expect(assess({ name: '3.8', isEol: true }, TODAY)?.severity).toBe('high');
     });
 
-    it('classe une échéance proche en medium', () => {
+    it('classes an approaching end date as medium', () => {
         expect(assess({ name: '3.9', eolFrom: '2026-10-01' }, TODAY)?.severity).toBe('medium');
     });
 
-    it('ne signale rien pour un cycle confortablement supporté', () => {
-        // Tout a une fin de vie un jour : signaler une version supportée encore trois ans
-        // apprendrait aux gens à filtrer ce type entièrement.
+    it('reports nothing for a comfortably supported cycle', () => {
+        // Everything reaches end of life one day: flagging a version supported for another
+        // three years would teach people to filter this type out entirely.
         expect(assess({ name: '3.13', eolFrom: '2029-10-01' }, TODAY)).toBeNull();
     });
 
-    it('honore la fenêtre d\'avertissement', () => {
+    it('honours the warning window', () => {
         const release = { name: '3.9', eolFrom: '2026-12-01' };
 
         expect(assess(release, TODAY, 30)).toBeNull();
         expect(assess(release, TODAY, 365)?.severity).toBe('medium');
     });
 
-    it('signale un produit abandonné sans date', () => {
+    it('reports an abandoned product with no date', () => {
         expect(assess({ name: '1.0', isMaintained: false }, TODAY)?.severity).toBe('high');
     });
 });
 
 describe('recommendedVersion', () => {
-    it('rend la version maintenue la plus récente', () => {
+    it('returns the most recent maintained release', () => {
         const product = {
             releases: [
                 { name: '3.14', isMaintained: true, isEol: false, latest: { name: '3.14.1' } },
@@ -92,13 +91,13 @@ describe('recommendedVersion', () => {
 
 describe('normalizePurl', () => {
     it('retire la version et les qualificatifs', () => {
-        // Les deux côtés doivent se réduire à ce qui désigne le produit : un purl de SBOM
+        // Both sides must reduce to what names the product: a SBOM purl
         // porte l'architecture, l'identifiant du catalogue n'en porte pas.
         expect(normalizePurl('pkg:rpm/redhat/openssl@3.5.1?arch=x86_64')).toBe('pkg:rpm/redhat/openssl');
         expect(normalizePurl('pkg:generic/python@3.9.18')).toBe('pkg:generic/python');
     });
 
-    it('laisse intact un purl déjà réduit', () => {
+    it('leaves an already-reduced purl untouched', () => {
         expect(normalizePurl('pkg:generic/python')).toBe('pkg:generic/python');
     });
 });
@@ -108,7 +107,7 @@ describe('packageCandidates', () => {
         result: [{ identifier: 'pkg:generic/python', product: { name: 'python' } }]
     });
 
-    it('apparie un paquet du SBOM à son produit', () => {
+    it('matches a SBOM package to its product', () => {
         const candidates = packageCandidates(
             { artifacts: [{ purl: 'pkg:generic/python@3.9.18', version: '3.9.18', name: 'python' }] },
             index
@@ -117,7 +116,7 @@ describe('packageCandidates', () => {
         expect(candidates).toEqual([{ product: 'python', version: '3.9.18', label: 'python', purl: 'pkg:generic/python@3.9.18' }]);
     });
 
-    it('écarte les paquets sans purl ni version, et ceux hors catalogue', () => {
+    it('discards packages with no purl or version, and those outside the catalog', () => {
         const candidates = packageCandidates(
             {
                 artifacts: [
@@ -135,8 +134,8 @@ describe('packageCandidates', () => {
 
 describe('distroCandidate', () => {
     it('lit la distribution du SBOM', () => {
-        // La réponse la plus utile pour une image, et celle qu'aucune recherche par paquet
-        // ne trouverait : un SBOM Syft ne porte aucun purl pour le système lui-même.
+        // The most useful answer for an image, and the one no package lookup would find: a
+        // Syft SBOM carries no purl for the operating system itself.
         expect(distroCandidate({ distro: { id: 'Debian', versionID: '11', name: 'Debian GNU/Linux' } })).toEqual({
             id: 'debian',
             version: '11',

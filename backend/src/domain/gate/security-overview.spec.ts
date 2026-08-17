@@ -44,7 +44,7 @@ describe('vue de posture', () => {
         expect(overview.targets[0].passed).toBe(false);
     });
 
-    it('mêle dépôts et conteneurs', () => {
+    it('mixes repositories and containers', () => {
         const overview = buildOverview(
             input({
                 containers: [{ id: 5, name: 'nginx:1.25' }],
@@ -55,9 +55,9 @@ describe('vue de posture', () => {
         expect(overview.targets.map((target) => target.kind)).toEqual([TARGET_REPOSITORY, TARGET_CONTAINER]);
     });
 
-    it("n'attribue pas les problèmes d'un dépôt à un conteneur du même identifiant", () => {
-        // `repoId` et `containerId` sont exclusifs : les confondre ferait échouer une
-        // cible pour les problèmes d'une autre.
+    it("does not attribute a repository's issues to a container of the same id", () => {
+        // `repoId` and `containerId` are mutually exclusive: confusing them would fail one
+        // target for another's issues.
         const overview = buildOverview(
             input({
                 containers: [{ id: 1, name: 'nginx:1.25' }],
@@ -72,10 +72,10 @@ describe('vue de posture', () => {
     });
 
     describe('le verdict est celui de l’API, pas un second qui lui ressemble', () => {
-        it('coïncide avec un appel direct à evaluate', () => {
-            // C'est la propriété qui rend l'écran digne de confiance : une agrégation SQL
-            // qui recompterait « les problèmes au-dessus du seuil » serait d'accord
-            // aujourd'hui et divergerait au premier drapeau ajouté.
+        it('agrees with a direct call to evaluate', () => {
+            // This is the property that makes the screen trustworthy: a SQL aggregate
+            // recounting "issues above the threshold" would agree today and diverge the
+            // first time a flag was added.
             const issues = [issue({ id: 1, severity: 'high' }), issue({ id: 2, severity: 'medium', isKev: true }), issue({ id: 3, type: 'quality', severity: 'critical' })];
 
             const overview = buildOverview(input({ openIssues: issues }));
@@ -84,7 +84,7 @@ describe('vue de posture', () => {
         });
     });
 
-    describe('résolution de politique, en mémoire', () => {
+    describe('policy resolution, in memory', () => {
         const targetPolicy: StoredPolicy = { ...BUILT_IN_POLICY, failOnSeverity: 'low', version: 7 };
         const globalPolicy: StoredPolicy = { ...BUILT_IN_POLICY, failOnSeverity: 'medium', version: 3 };
 
@@ -99,11 +99,11 @@ describe('vue de posture', () => {
             expect(overview.targets[0].policy.source).toBe(SOURCE_GLOBAL);
         });
 
-        it('retombe sur l’intégrée', () => {
+        it('falls back to the built-in one', () => {
             expect(buildOverview(input()).targets[0].policy.source).toBe(SOURCE_BUILT_IN);
         });
 
-        it('n’applique pas la politique d’une cible à une autre', () => {
+        it("does not apply one target's policy to another", () => {
             const overview = buildOverview(
                 input({
                     repositories: [
@@ -123,10 +123,10 @@ describe('vue de posture', () => {
         });
     });
 
-    describe('une cible non observée n’est pas une cible qui passe', () => {
-        it('signale une cible jamais scannée', () => {
+    describe('an unobserved target is not a target that passes', () => {
+        it('flags a target never scanned', () => {
             // Un backlog vide passe toutes les politiques. Le dire sans ce qualificatif
-            // serait la chose la plus trompeuse que cet écran puisse faire.
+            // would be the most misleading thing this screen could do.
             const overview = buildOverview(input({ latestScanByRepository: new Map() }));
 
             expect(overview.targets[0].passed).toBe(true);
@@ -135,7 +135,7 @@ describe('vue de posture', () => {
             expect(overview.neverScannedCount).toBe(1);
         });
 
-        it('signale un dernier scan en échec', () => {
+        it('flags a last scan that failed', () => {
             const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'failed', createdAt: new Date('2026-08-10T08:00:00Z') }]]) }));
 
             expect(overview.targets[0].observed).toBe(false);
@@ -143,13 +143,13 @@ describe('vue de posture', () => {
             expect(overview.lastScanFailedCount).toBe(1);
         });
 
-        it('considère observée une cible dont le dernier scan a réussi', () => {
+        it('treats a target whose last scan succeeded as observed', () => {
             const overview = buildOverview(input());
             expect(overview.targets[0].observation).toBe(OBSERVATION_OK);
             expect(overview.targets[0].observed).toBe(true);
         });
 
-        it('ne compte pas un scan en cours comme un échec', () => {
+        it('does not count a scan in progress as a failure', () => {
             const overview = buildOverview(input({ latestScanByRepository: new Map([[1, { id: 10, status: 'scanning', createdAt: new Date('2026-08-10T08:00:00Z') }]]) }));
             expect(overview.lastScanFailedCount).toBe(0);
             expect(overview.neverScannedCount).toBe(0);
@@ -158,20 +158,20 @@ describe('vue de posture', () => {
     });
 
     describe('compteur de KEV', () => {
-        it('compte les KEV qui pèsent réellement sur un verdict', () => {
+        it('counts the KEVs that actually weigh on a verdict', () => {
             const overview = buildOverview(input({ openIssues: [issue({ id: 1, isKev: true }), issue({ id: 2, isKev: true }), issue({ id: 3 })] }));
             expect(overview.kevCount).toBe(2);
         });
 
-        it('ne compte pas un KEV écarté par un triage', () => {
-            // Il ne pèse pas sur le verdict ; l'afficher dans le même bandeau ferait lire
-            // un chiffre qui ne correspond à rien de ce que la page montre.
+        it('does not count a KEV discarded by a triage', () => {
+            // It does not weigh on the verdict; showing it in the same banner would present
+            // a number matching nothing the page displays.
             const overview = buildOverview(input({ openIssues: [issue({ isKev: true, triageStatus: 'not_affected' })] }));
             expect(overview.kevCount).toBe(0);
         });
     });
 
-    it('reste cohérente sur un inventaire vide', () => {
+    it('stays coherent on an empty inventory', () => {
         const overview = buildOverview(input({ repositories: [], latestScanByRepository: new Map() }));
         expect(overview).toMatchObject({ totalCount: 0, failingCount: 0, kevCount: 0, neverScannedCount: 0, lastScanFailedCount: 0 });
     });

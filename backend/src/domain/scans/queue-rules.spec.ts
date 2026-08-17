@@ -1,15 +1,15 @@
 import { afterLapse, capacity, leaseHasLapsed, leaseUntil, LEASE_MS, MAX_ATTEMPTS } from './queue-rules';
 
-describe('règles de la file de scans', () => {
-    describe('capacité', () => {
+describe('scan queue rules', () => {
+    describe('capacity', () => {
         it('est ce qui reste sous la limite', () => {
             expect(capacity(5, 2)).toBe(3);
             expect(capacity(5, 5)).toBe(0);
         });
 
-        it('ne devient jamais négative', () => {
-            // Un opérateur qui abaisse la limite pendant que des scans tournent ne doit
-            // pas obtenir une capacité négative, qui deviendrait une limite inversée.
+        it('never goes negative', () => {
+            // An operator lowering the limit while scans are running must not end up with
+            // a negative capacity, which would become an inverted limit.
             expect(capacity(2, 5)).toBe(0);
         });
     });
@@ -17,32 +17,32 @@ describe('règles de la file de scans', () => {
     describe('bail', () => {
         const asOf = new Date('2026-08-12T10:00:00Z');
 
-        it('a lapsé quand sa date est passée', () => {
+        it('has lapsed once its date has passed', () => {
             expect(leaseHasLapsed(new Date('2026-08-12T09:59:59Z'), asOf)).toBe(true);
             expect(leaseHasLapsed(new Date('2026-08-12T10:00:01Z'), asOf)).toBe(false);
         });
 
-        it('considère lapsé un bail absent', () => {
-            // Un scan « en cours » sans bail est un scan dont personne ne répond : c'est
-            // l'état qu'on trouve après un redémarrage brutal, et le laisser passer pour
-            // vivant le rendrait irréclamable pour toujours.
+        it('treats an absent lease as lapsed', () => {
+            // A "scanning" scan with no lease is a scan nobody answers for: that is the
+            // state found after an abrupt restart, and letting it pass for alive would make
+            // it unclaimable forever.
             expect(leaseHasLapsed(null, asOf)).toBe(true);
         });
 
-        it('court à partir de la réclamation', () => {
+        it('runs from the moment of the claim', () => {
             expect(leaseUntil(asOf).getTime() - asOf.getTime()).toBe(LEASE_MS);
         });
     });
 
-    describe('après expiration', () => {
+    describe('after expiry', () => {
         it('remet en file tant qu’il reste des tentatives', () => {
             expect(afterLapse(0)).toBe('requeue');
             expect(afterLapse(MAX_ATTEMPTS - 1)).toBe('requeue');
         });
 
-        it('échoue une fois les tentatives épuisées', () => {
-            // Sinon une cible qui bloque son travailleur à tous les coups circulerait
-            // d'un agent à l'autre indéfiniment.
+        it('fails once the attempts are exhausted', () => {
+            // Otherwise a target that jams its worker every time would circulate from agent
+            // to agent indefinitely.
             expect(afterLapse(MAX_ATTEMPTS)).toBe('fail');
             expect(afterLapse(MAX_ATTEMPTS + 10)).toBe('fail');
         });

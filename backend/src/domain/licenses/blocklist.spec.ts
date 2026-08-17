@@ -11,16 +11,16 @@ describe('parseBlocklist', () => {
 });
 
 describe('extractLicenses', () => {
-    it('accepte les deux formes que Syft a employées', () => {
-        // Syft a représenté les licences comme des chaînes, puis comme des objets. Ne gérer
-        // qu'une forme ferait taire la règle à la prochaine montée de version — sans
-        // erreur, et sans que personne ne s'en aperçoive.
+    it('accepts both shapes Syft has used', () => {
+        // Syft has represented licenses as strings, then as objects. Supporting only one
+        // shape would silence the rule at the next version bump — with no error, and with
+        // nobody noticing.
         expect(extractLicenses({ licenses: ['MIT'] })).toEqual(['MIT']);
         expect(extractLicenses({ licenses: [{ value: 'MIT', spdxExpression: 'MIT' }] })).toEqual(['MIT']);
         expect(extractLicenses({ licenses: [{ spdxExpression: 'Apache-2.0' }] })).toEqual(['Apache-2.0']);
     });
 
-    it('écarte ce qui ne porte aucune valeur', () => {
+    it('discards anything carrying no value', () => {
         expect(extractLicenses({ licenses: [{}, '', null, 42] as unknown[] })).toEqual([]);
         expect(extractLicenses({})).toEqual([]);
     });
@@ -46,9 +46,9 @@ describe('findViolations', () => {
         expect(findViolations(sbom, parseBlocklist('gpl-3.0-ONLY'))).toHaveLength(1);
     });
 
-    it('ne signale rien tant qu\'aucune liste n\'est configurée', () => {
-        // Quelles licences sont interdites est une décision d'organisation : un défaut
-        // imposerait un jugement juridique à la place de l'opérateur.
+    it('reports nothing while no list is configured', () => {
+        // Which licenses are forbidden is an organizational decision: a default would impose
+        // a legal judgement in the operator's place.
         expect(findViolations(sbom, new Set())).toEqual([]);
     });
 

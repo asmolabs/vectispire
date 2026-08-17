@@ -20,40 +20,40 @@ const base: FingerprintInput = {
     filePath: 'requirements.txt'
 };
 
-describe('empreinte d’un problème', () => {
-    it('dispose de vecteurs générés depuis le code Python', () => {
+describe("an issue's fingerprint", () => {
+    it('has vectors generated from the Python code', () => {
         expect(vectors.length).toBeGreaterThan(0);
     });
 
     describe.each(vectors)('$label', (vector) => {
-        it("reproduit l'empreinte calculée par Python", () => {
+        it("reproduces the fingerprint Python computed", () => {
             expect(buildFingerprint(vector.input)).toBe(vector.expected);
         });
     });
 
     describe('ce qui NE doit PAS changer l’empreinte', () => {
-        // C'est la moitié du contrat, et la moitié qu'un portage rate : ajouter un
-        // champ à l'empreinte ne casse aucun test « l'empreinte est stable », mais
-        // détruit le triage à la première montée de version d'une dépendance.
+        // This is half the contract, and the half a port gets wrong: adding a field to the
+        // fingerprint breaks no "the fingerprint is stable" test, but destroys the triage at
+        // the first dependency version bump.
 
-        it('la version du paquet, portée par le purl, en fait partie et change donc l’empreinte', () => {
-            // Nuance importante : la version est exclue en tant que *champ séparé*
+        it('the package version, carried by the purl, is part of it and so changes the fingerprint', () => {
+            // An important nuance: the version is excluded as a *separate field*
             // (`Issue.package_version`), mais le purl la contient. Deux purls de
-            // versions différentes donnent donc deux empreintes — et c'est bien ce que
-            // fait Python. Ce test verrouille le comportement réel, pas celui que la
+            // different versions therefore give two fingerprints — and that is indeed what
+            // Python does. This test locks the real behaviour, not the one the
             // docstring pourrait laisser croire.
             const older = buildFingerprint({ ...base, purl: 'pkg:pypi/requests@2.31.0' });
             const newer = buildFingerprint({ ...base, purl: 'pkg:pypi/requests@2.32.0' });
             expect(older).not.toBe(newer);
         });
 
-        it("le nom de paquet est ignoré quand un purl est présent", () => {
+        it("the package name is ignored when a purl is present", () => {
             expect(buildFingerprint({ ...base, packageName: 'tout-autre-chose' })).toBe(buildFingerprint(base));
         });
 
-        it('les champs absents du calcul ne peuvent pas être passés', () => {
-            // Le numéro de ligne et le caractère direct/transitif n'appartiennent pas
-            // à `FingerprintInput` : le typage est ce qui empêche de les y glisser.
+        it('the fields absent from the calculation cannot be passed', () => {
+            // The line number and the direct/transitive flag do not belong to
+            // `FingerprintInput`: the typing is what stops anyone slipping them in.
             const keys = Object.keys(base).sort();
             expect(keys).toEqual(['containerId', 'filePath', 'findingType', 'identifier', 'packageName', 'purl', 'repoId']);
         });
@@ -70,7 +70,7 @@ describe('empreinte d’un problème', () => {
             expect(buildFingerprint({ ...base, ...override })).not.toBe(buildFingerprint(base));
         });
 
-        it('un même identifiant sur un dépôt et sur un conteneur sont deux problèmes', () => {
+        it('the same identifier on a repository and on a container are two issues', () => {
             const onRepo = buildFingerprint({ ...base, repoId: 3, containerId: null });
             const onContainer = buildFingerprint({ ...base, repoId: null, containerId: 3 });
             expect(onRepo).not.toBe(onContainer);
@@ -78,25 +78,26 @@ describe('empreinte d’un problème', () => {
     });
 
     describe('valeurs limites', () => {
-        it('traite null et chaîne vide comme équivalents, comme Python', () => {
+        it('treats null and the empty string as equivalent, as Python does', () => {
             expect(buildFingerprint({ ...base, filePath: null })).toBe(buildFingerprint({ ...base, filePath: '' }));
             expect(buildFingerprint({ ...base, purl: null, packageName: 'x' })).toBe(buildFingerprint({ ...base, purl: '', packageName: 'x' }));
         });
 
-        it("le dépôt 0 est un dépôt, pas une absence de dépôt", () => {
-            // `repo_id is not None` en Python. Un test de vérité rangerait le dépôt 0
-            // du côté conteneur et lui donnerait l'empreinte d'une autre cible.
+        it("repository 0 is a repository, not the absence of one", () => {
+            // `repo_id is not None` in Python. A truthiness test would file repository 0 on
+            // the container side and give it another target's fingerprint.
             expect(buildFingerprint({ ...base, repoId: 0, containerId: 9 })).toBe(buildFingerprint({ ...base, repoId: 0, containerId: null }));
         });
 
-        it('reste stable sur les caractères non ASCII', () => {
+        it('stays stable on non-ASCII characters', () => {
+            // The accented path is kept on purpose: it is the input this test exists for.
             const accented = buildFingerprint({ ...base, filePath: 'app/données/traitement.py' });
             expect(accented).toHaveLength(64);
             expect(accented).not.toBe(buildFingerprint({ ...base, filePath: 'app/donnees/traitement.py' }));
         });
     });
 
-    it('rend toujours 64 caractères hexadécimaux', () => {
+    it('always returns 64 hexadecimal characters', () => {
         for (const vector of vectors) {
             expect(vector.expected).toMatch(/^[0-9a-f]{64}$/);
         }

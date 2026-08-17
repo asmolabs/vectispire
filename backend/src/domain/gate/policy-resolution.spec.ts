@@ -6,7 +6,7 @@ const targetPolicy: StoredPolicy = { ...BUILT_IN_POLICY, failOnSeverity: 'low', 
 
 const lookup = (over: Partial<PolicyLookup> = {}): PolicyLookup => ({ forTarget: null, global: null, ...over });
 
-describe('résolution de la politique applicable', () => {
+describe('resolution of the applicable policy', () => {
     it('prend celle de la cible quand elle existe', () => {
         const resolved = resolvePolicy(lookup({ forTarget: targetPolicy, global: globalPolicy }));
 
@@ -15,9 +15,9 @@ describe('résolution de la politique applicable', () => {
         expect(resolved.policy.failOnSeverity).toBe('low');
     });
 
-    it('remplace entièrement la globale, sans fusionner', () => {
-        // Une politique à moitié héritée est impossible à raisonner quand une
-        // compilation échoue ; « les règles de ce dépôt » doit se lire à un seul endroit.
+    it('replaces the global one entirely, without merging', () => {
+        // A half-inherited policy is impossible to reason about when a build fails; "this
+        // repository's rules" must be readable in one single place.
         const resolved = resolvePolicy(lookup({ forTarget: targetPolicy, global: { ...globalPolicy, failOnKev: false, includeTriaged: true } }));
 
         expect(resolved.policy.failOnKev).toBe(targetPolicy.failOnKev);
@@ -32,7 +32,7 @@ describe('résolution de la politique applicable', () => {
         expect(resolved.policy.failOnSeverity).toBe('medium');
     });
 
-    it('retombe sur la politique intégrée quand rien n’est stocké', () => {
+    it('falls back to the built-in policy when nothing is stored', () => {
         const resolved = resolvePolicy(lookup());
 
         expect(resolved.source).toBe(SOURCE_BUILT_IN);
@@ -40,9 +40,9 @@ describe('résolution de la politique applicable', () => {
         expect(resolved.policy).toEqual(BUILT_IN_POLICY);
     });
 
-    it('ne va pas chercher une politique de cible sur la portée globale', () => {
-        // Interroger la portée globale doit rendre la globale, même si une cible en a
-        // une plus stricte — sans quoi l'écran des politiques mentirait sur le défaut.
+    it('does not go looking for a target policy on the global scope', () => {
+        // Querying the global scope must return the global one, even if a target has a
+        // stricter one — otherwise the policies screen would lie about the default.
         const resolved = resolvePolicy(lookup({ forTarget: targetPolicy, global: globalPolicy }), undefined, false);
 
         expect(resolved.source).toBe(SOURCE_GLOBAL);
@@ -55,8 +55,8 @@ describe('résolution de la politique applicable', () => {
     });
 });
 
-describe('durcissement par la requête', () => {
-    it('applique un durcissement demandé', () => {
+describe('tightening by the request', () => {
+    it('applies a requested tightening', () => {
         const resolved = resolvePolicy(lookup({ global: globalPolicy }), { failOnSeverity: 'low' });
 
         expect(resolved.policy.failOnSeverity).toBe('low');
@@ -64,9 +64,9 @@ describe('durcissement par la requête', () => {
     });
 
     it('refuse un assouplissement et le dit', () => {
-        // C'est un contrôle de sécurité : sans lui, n'importe quel pipeline rendrait
-        // vert ce qu'il veut depuis le corps de sa requête. Le refus est renvoyé plutôt
-        // qu'appliqué en silence — un pipeline qui croit avoir désactivé une règle doit
+        // This is a security control: without it, any pipeline would turn whatever it
+        // liked green from its own request body. The refusal is reported rather than
+        // applied silently — a pipeline that believes it has disabled a rule needs to
         // l'apprendre.
         const resolved = resolvePolicy(lookup({ global: globalPolicy }), { failOnSeverity: null, failOnKev: false });
 
@@ -75,16 +75,16 @@ describe('durcissement par la requête', () => {
         expect(resolved.ignoredRelaxations).toEqual(['fail_on_severity', 'fail_on_kev']);
     });
 
-    it('conserve la provenance après durcissement', () => {
-        // Le pipeline doit savoir contre quoi il a été évalué, pas seulement ce qu'on
-        // lui a refusé.
+    it('keeps the provenance after tightening', () => {
+        // The pipeline needs to know what it was evaluated against, not only what was
+        // refused to it.
         const resolved = resolvePolicy(lookup({ forTarget: targetPolicy }), { failOnSeverity: 'critical' });
 
         expect(resolved.source).toBe(SOURCE_TARGET);
         expect(resolved.version).toBe(7);
     });
 
-    it('durcit aussi la politique intégrée', () => {
+    it('tightens the built-in policy too', () => {
         const resolved = resolvePolicy(lookup(), { includeTriaged: true });
         expect(resolved.policy.includeTriaged).toBe(true);
         expect(resolved.source).toBe(SOURCE_BUILT_IN);
@@ -92,12 +92,12 @@ describe('durcissement par la requête', () => {
 });
 
 describe('description de la provenance', () => {
-    it('nomme la portée et la version', () => {
+    it('names the scope and the version', () => {
         expect(describeSource({ source: SOURCE_TARGET, version: 7 })).toBe("the target's policy v7");
         expect(describeSource({ source: SOURCE_GLOBAL, version: 3 })).toBe('the global policy v3');
     });
 
-    it('ne prétend pas qu’une politique intégrée a une version', () => {
+    it('does not pretend a built-in policy has a version', () => {
         expect(describeSource({ source: SOURCE_BUILT_IN, version: null })).toBe("the application's default policy");
     });
 });
