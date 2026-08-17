@@ -4,21 +4,8 @@
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
-.states
-.web
-*.py[cod]
-assets/external/
-__pycache__/
 *.log
-.coverage
-.pytest_cache/
 
-# Startup migration lock (see zanshin/schema.py). Placed next to the database, so
-# the pattern has to match wherever that is.
-.migration.lock
-*.migration.lock
-
-# --- Pile TypeScript (migration vers NestJS + Angular) ---
 node_modules/
 dist/
 .angular/
@@ -28,3 +15,9 @@ frontend/openapi.json
 
 # macOS
 .DS_Store
+
+# Reflex build residue, from before the NestJS/Angular port. Nothing produces these any
+# more; the entry stays only so that a working copy predating the port does not report
+# 32,000 untracked files. Safe to delete `.web/` and drop these two lines with it.
+.web
+.states

@@ -16,9 +16,11 @@ import { join, relative } from 'node:path';
  * (`docs/architecture/01`), reprise telle quelle, avec une couche de plus : `domain/`.
  *
  * Ce test existe parce qu'une règle d'architecture écrite dans un document n'est pas
- * une règle : elle est vraie le jour où on l'écrit, et fausse six mois plus tard. Le
- * projet Python fait déjà exactement cela pour l'agent, dont l'invariant d'import est
- * une propriété de sécurité — `tests/test_agent_worker.py` assert le graphe.
+ * une règle : elle est vraie le jour où on l'écrit, et fausse six mois plus tard. La
+ * pile Python faisait déjà exactement cela pour l'agent, dont l'invariant d'import est
+ * une propriété de sécurité ; ce fichier-ci a repris cette charge, et son test
+ * `agent/` en est l'héritier direct — `tests/test_agent_worker.py` a disparu avec
+ * l'arbre Python.
  *
  * ## Pourquoi `domain/` est pur
  *
