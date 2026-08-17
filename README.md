@@ -6,7 +6,7 @@ Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over 
 
 ## Features
 
-- **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype or OSV.dev), with severity, CVE, and affected component.
+- **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype), with severity, CVE, and affected component.
 - **EPSS / CISA KEV enrichment**: every vulnerability is enriched with its exploitation probability (EPSS) and "actively exploited" status (KEV catalog), to prioritize beyond the raw CVSS score.
 - **Direct versus transitive dependencies**: each issue records whether the project declared the package itself or something else pulled it in, read from the SBOM's dependency graph. A critical CVE in a declared dependency is a version bump this afternoon; the same CVE four levels down waits on an upstream release. Ranked identically they produce a backlog nobody finishes, so the listing can be narrowed to what is fixable today. Unknown when the SBOM carries no dependency graph — a missing answer rather than a default one.
 - **Secret detection** (gitleaks): finds hardcoded API keys, tokens, and credentials in scanned repositories.
@@ -24,9 +24,10 @@ Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over 
   concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
   like any vulnerability, and *quality* ones, which are visible in the backlog and can
-  never fail a CI gate. Runs with the network disabled, using rules that ship with
-  Zanshin; see [the rule directory](backend/src/scanning/rules/semgrep/)
-  for how to add your own.
+  never fail a CI gate. Runs with the network disabled. **Zanshin bundles a single rule**
+  — the public rule sets are not redistributable, which is a licensing constraint rather
+  than an oversight — so real coverage comes from a rule set you install yourself; see
+  [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
 - **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?" against a **stored, versioned policy** — global, or per target. The rules used to arrive in the request body, which meant each project decided its own bar; a request can now only *tighten* the stored policy, never loosen it, and the verdict says which policy it applied. Authenticated with the API keys the UI issues.
@@ -239,7 +240,7 @@ Three things are *not* runtime settings, because they have to exist before the a
 | Variable | Required | Purpose |
 |---|---|---|
 | `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. |
-| `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. Zanshin only carries its own: the public Semgrep rule sets are not redistributable, so you install the set you choose on your own machine and point this variable at it. Fetch it once at install time — the scan itself stays offline. The Python port shipped a `fetch_semgrep_rules` helper for this; it has **not** been ported, so the download is currently manual. |
+| `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. **Zanshin bundles a single rule**, so in practice this is where your coverage comes from — see [Installing a Semgrep rule set](#installing-a-semgrep-rule-set). If the directory is set and cannot be read, the SAST step fails rather than quietly scanning with the bundled rule alone. |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_AND_PURGE.md`](docs/ROTATION_AND_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
@@ -306,6 +307,50 @@ Every "no" comes from a defect found by running, and **none of them raises an er
 PostgreSQL remains the reference engine: the one where everything is true without
 reservation, and the one the code picks by default.
 
+
+## Installing a Semgrep rule set
+
+Zanshin bundles one Semgrep rule. That is a licensing constraint, not an oversight:
+`semgrep/semgrep-rules` was relicensed under terms that forbid redistributing the rules,
+and the `opengrep-rules` fork carries a Commons Clause that would take Zanshin out of open
+source and bind everyone who takes it up
+([decision 0006](docs/architecture/decisions/0006-semgrep-rules-written-here.md)). So the
+rules are fetched by you, from their author, and never redistributed here.
+
+The Python version shipped a helper script for this. It was not ported, and the steps are
+short enough not to warrant a second tool:
+
+```bash
+# 1. Pick a tag and stay on it. A moving target makes scans irreproducible, and a rule
+#    recategorized upstream destroys an issue's history — the rule id enters the
+#    fingerprint.
+TAG=v1.0.0
+curl -fsSL "https://github.com/opengrep/opengrep-rules/archive/refs/tags/${TAG}.tar.gz" \
+  | tar -xz -C /opt/zanshin
+
+# 2. Read the licence before using it. LGPL-2.1 plus a Commons Clause: fine to run,
+#    fine to build into your own agent image, NOT fine to publish that image.
+less /opt/zanshin/opengrep-rules-${TAG}/LICENSE
+
+# 3. Record what you installed, so a mass movement in the backlog has an explanation.
+echo "opengrep-rules ${TAG} installed $(date -u +%FT%TZ)" > /opt/zanshin/rules-manifest.txt
+
+# 4. Point Zanshin at it.
+export ZANSHIN_SEMGREP_RULES_DIR=/opt/zanshin/opengrep-rules-${TAG}
+```
+
+Run once, at install time — **the scan itself stays offline**, which is the property that
+makes it reproducible and deployable on an isolated network.
+
+Two things to know:
+
+- **The directory is merged, not substituted.** Your rules land beside the bundled one, in
+  their own subtree, so a filename collision cannot silently replace a rule Zanshin ships.
+- **A directory that cannot be read fails the SAST step**, leaving the previous findings
+  untouched. It does not fall back to the bundled rule: Semgrep would exit cleanly with a
+  shorter list, which reads as "analyzed, those issues are gone" and would resolve
+  everything your rules had found — silently, on every target, the first time a volume is
+  forgotten in a deployment.
 
 ## Tests
 

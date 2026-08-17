@@ -1,34 +1,89 @@
-import { cp } from 'node:fs/promises';
+import { cp, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Workspace } from './workspace';
 
 /**
- * Les règles que Zanshin embarque, posées dans l'espace de travail d'un scan.
+ * The rules Zanshin places into a scan's workspace.
  *
- * **Pourquoi copier plutôt que monter le répertoire d'origine.** Les chemins de volume
- * sont résolus par le *démon* Docker, pas par le processus qui l'appelle : quand Zanshin
- * tourne lui-même en conteneur avec la socket montée, un répertoire de son image est
- * invisible du conteneur frère. L'espace de travail est le seul chemin que les deux côtés
- * voient, en local comme sur un agent distant.
+ * **Why copy rather than mount the original directory.** Volume paths are resolved by the
+ * Docker *daemon*, not by the process calling it: when Zanshin itself runs in a container
+ * with the socket mounted, a directory from its image is invisible to the sibling
+ * container. The workspace is the only path both sides see, locally as on a remote agent.
  *
- * **Pourquoi c'est un module à part et non une méthode privée du runner.** Deux scanners
- * en dépendent — Semgrep pour ses règles, gitleaks pour sa configuration — et les tests
- * d'intégration les exercent un par un, sans passer par le runner. Une méthode privée
- * aurait laissé les tests reconstruire ce placement à la main, donc diverger du chemin réel
- * le jour où il change.
+ * **Why this is a module of its own and not a private method of the runner.** Two scanners
+ * depend on it — Semgrep for its rules, gitleaks for its configuration — and the
+ * integration tests exercise them one at a time, without going through the runner. A
+ * private method would have left the tests rebuilding this placement by hand, hence
+ * diverging from the real path the day it changes.
  */
 
-/** L'arbre embarqué, à côté de ce module — `semgrep/` et `gitleaks/`. */
+/** The bundled tree, next to this module — `semgrep/` and `gitleaks/`. */
 const BUNDLED_RULES = join(__dirname, 'rules');
 
+/** Where the operator's rules land inside the workspace. */
+const OPERATOR_SUBDIR = 'operator';
+
+/** The operator declared a rules directory and it cannot be used. */
+export class OperatorRulesUnavailable extends Error {}
+
 /**
- * Copie l'arbre embarqué dans `workspace.rules`.
+ * Copies the bundled tree into `workspace.rules`.
  *
- * Appelée **avant tout scanner**, et non depuis l'étape qui en a l'usage le plus évident :
- * la configuration de gitleaks doit être en place même quand le SAST est désactivé, faute
- * de quoi l'outil retombe sur le `.gitleaks.toml` du dépôt analysé — c'est-à-dire que la
- * cible fournit les règles de son propre audit.
+ * Called **before any scanner**, and not from the step with the most obvious use for it:
+ * gitleaks' configuration has to be in place even when SAST is off, otherwise the tool
+ * falls back to the scanned repository's `.gitleaks.toml` — that is, the target supplies
+ * the rules of its own audit.
  */
 export async function placeBundledRules(workspace: Workspace): Promise<void> {
     await cp(BUNDLED_RULES, workspace.rules, { recursive: true });
+}
+
+/**
+ * Merges the operator's rule directory into the workspace, if one is configured.
+ *
+ * `ZANSHIN_SEMGREP_RULES_DIR` is the second of the three sources decision 0006 describes,
+ * and the one the whole licensing argument rests on: Zanshin ships only rules it wrote,
+ * so an operator's own coverage can only arrive this way. It was documented in the README
+ * and in the settings table, and **read nowhere** — a scan ran with the bundled rules
+ * alone, and nothing said so.
+ *
+ * ## Placed in a subdirectory, not merged file by file
+ *
+ * Semgrep is pointed at the `semgrep/` directory and walks it, so a subtree is enough for
+ * the rules to be loaded. Keeping them apart means an operator file can never silently
+ * overwrite a bundled one by sharing its name.
+ *
+ * Placement is free here **only because `--no-rewrite-rule-ids` is passed**: without it,
+ * Semgrep would prefix every `check_id` with the rule file's relative path, so moving
+ * rules between directories would rename every identifier — and the identifier enters an
+ * issue's fingerprint, which would resolve the entire SAST backlog and recreate it as new,
+ * triage lost. If that flag is ever dropped, this subdirectory becomes a data migration.
+ *
+ * ## Failing is the point
+ *
+ * A configured directory that cannot be read **throws**, rather than letting the scan run
+ * with the bundled rules alone. The caller places this inside the SAST step, so the
+ * failure leaves `sast` at `null` — "did not run" — and the backlog is left intact.
+ *
+ * Running anyway would be the dangerous outcome: Semgrep would exit cleanly with fewer
+ * findings, which reads as "analyzed, those issues are gone" and **resolves every finding
+ * the operator's rules had produced**. Silently, on every target, the first time a volume
+ * is forgotten in a deployment.
+ */
+export async function placeOperatorRules(workspace: Workspace, directory = process.env.ZANSHIN_SEMGREP_RULES_DIR): Promise<boolean> {
+    const configured = (directory ?? '').trim();
+    if (!configured) return false;
+
+    try {
+        const entry = await stat(configured);
+        if (!entry.isDirectory()) {
+            throw new OperatorRulesUnavailable(`ZANSHIN_SEMGREP_RULES_DIR points at ${configured}, which is not a directory.`);
+        }
+    } catch (error) {
+        if (error instanceof OperatorRulesUnavailable) throw error;
+        throw new OperatorRulesUnavailable(`ZANSHIN_SEMGREP_RULES_DIR points at ${configured}, which cannot be read: ${(error as Error).message}`);
+    }
+
+    await cp(configured, join(workspace.rules, 'semgrep', OPERATOR_SUBDIR), { recursive: true });
+    return true;
 }

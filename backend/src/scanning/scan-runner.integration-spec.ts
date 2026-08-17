@@ -123,4 +123,31 @@ describe('scan complet', () => {
         // …et les autres étapes ont bien tourné.
         expect(artifacts.secrets).not.toBeNull();
     }, 900_000);
+
+    it("laisse le SAST à null quand le répertoire de règles de l'opérateur est introuvable", async () => {
+        // `ZANSHIN_SEMGREP_RULES_DIR` a été documenté et jamais lu. Maintenant qu'il l'est,
+        // le cas qui compte est le volume oublié dans un déploiement : Semgrep tournerait
+        // avec les seules règles embarquées, sortirait en 0 avec une liste plus courte, et
+        // **résoudrait tout ce que les règles de l'opérateur avaient trouvé**.
+        //
+        // L'échec doit donc porter sur le SAST seul, et laisser l'artefact à `null` —
+        // « on n'a pas regardé » plutôt que « il n'y a plus rien ».
+        const previous = process.env.ZANSHIN_SEMGREP_RULES_DIR;
+        process.env.ZANSHIN_SEMGREP_RULES_DIR = '/zanshin-nexiste-pas/rules';
+        try {
+            const artifacts = await runner.run({ url: origin, branch: 'main', runIac: false, runSast: true });
+
+            expect(artifacts.sast).toBeNull();
+            expect(artifacts.failures).toHaveLength(1);
+            expect(artifacts.failures[0].step).toBe('SAST');
+            expect(artifacts.failures[0].reason).toContain('ZANSHIN_SEMGREP_RULES_DIR');
+            // Les autres étapes ne sont pas emportées : c'est tout l'intérêt de placer la
+            // fusion dans l'étape SAST plutôt qu'avant les scanners.
+            expect(artifacts.sbom).not.toBeNull();
+            expect(artifacts.secrets).not.toBeNull();
+        } finally {
+            if (previous === undefined) delete process.env.ZANSHIN_SEMGREP_RULES_DIR;
+            else process.env.ZANSHIN_SEMGREP_RULES_DIR = previous;
+        }
+    }, 900_000);
 });

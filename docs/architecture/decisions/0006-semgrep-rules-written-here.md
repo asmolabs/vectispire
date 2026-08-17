@@ -66,6 +66,18 @@ living inside Zanshin's image is invisible to the sibling Semgrep container.
 
 ---
 
-> **Note added 2026-08-16, outside the decision text.** The NestJS port did not carry over
-> the fetch script, and `scripts/` is empty. The first two sources still work; installing
-> an upstream set is a manual step for now.
+> **Note added 2026-08-17, outside the decision text.** An earlier note here claimed the
+> first two sources still worked. That was wrong, and the audit that followed found all
+> three broken by the port:
+>
+> - **Zanshin's own rules**: one rule, not "about forty, Python / JS-TS / Java".
+> - **`ZANSHIN_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
+>   and read nowhere in the code. Implemented on 2026-08-17 in
+>   `scanning/bundled-rules.ts`, with a directory that cannot be read now failing SAST
+>   rather than letting the scan run with the bundled rules alone.
+> - **The fetch script**: not ported. The manual procedure is in the README; a wrapper
+>   around a pinned download did not earn a second tool to maintain.
+>
+> The decision itself is untouched: its licensing and offline-reproducibility argument is
+> as sound as the day it was written. What was missing was the code, which is why this is
+> a note and not a superseding page.

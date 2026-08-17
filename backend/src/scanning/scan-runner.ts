@@ -1,5 +1,5 @@
 import { cloneRepository } from './git-clone';
-import { placeBundledRules } from './bundled-rules';
+import { placeBundledRules, placeOperatorRules } from './bundled-rules';
 import { ContainerRunner } from './container-runner';
 import { DependencyScanner, type DependencyFinding, type Sbom } from './scanners/dependencies';
 import { GitleaksScanner, type SecretFinding } from './scanners/gitleaks';
@@ -128,6 +128,11 @@ export class ScanRunner {
 
             if (task.runSast) {
                 await this.step(artifacts, 'SAST', async () => {
+                    // **Inside the step, and before the scan.** A configured rules
+                    // directory that cannot be read must fail SAST alone — not the SBOM,
+                    // not the secrets — and must leave `sast` at `null` rather than let
+                    // Semgrep run with the bundled rules and report a clean, shorter list.
+                    await placeOperatorRules(workspace);
                     artifacts.sast = await this.sast.scan(workspace, task.subPath);
                 });
             }
