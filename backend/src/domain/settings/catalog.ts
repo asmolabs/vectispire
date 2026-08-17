@@ -25,19 +25,18 @@ import { DEFAULT_JIRA_ISSUE_TYPE, DEFAULT_LABELS, PROVIDER_NONE } from '../ticke
 import { DEFAULT_AI_REVIEW_MODEL, DEFAULT_OLLAMA_URL, SETTING_AI_REVIEW_ALLOW_REMOTE, SETTING_AI_REVIEW_ENABLED, SETTING_AI_REVIEW_MODEL, SETTING_AI_REVIEW_OLLAMA_URL } from '../ai-review/prompt';
 
 /**
- * Les réglages que l'application expose, et **seulement ceux qu'un service lit vraiment**.
+ * The settings the application exposes, and **only those a service actually reads**.
  *
- * C'est la règle qui gouverne ce fichier : un formulaire qui accepte une valeur et n'en
- * fait rien est pire qu'un formulaire qui ne l'offre pas. L'opérateur croit avoir
- * configuré quelque chose, et le comportement ne change pas — il conclut que l'outil est
- * cassé, ou pire, ne le remarque jamais.
+ * That is the rule governing this file: a form that accepts a value and does nothing with
+ * it is worse than a form that does not offer it. The operator believes they have
+ * configured something, the behaviour does not change — and they conclude the tool is
+ * broken, or worse, never notice.
  *
- * Un réglage n'entre donc dans ce catalogue **qu'une fois son lecteur porté**. Les clés
- * des services encore absents — tickets, revue par modèle, licences — n'y sont pas, et
- * c'est délibéré, pas un oubli.
+ * A setting therefore enters this catalog **only once its reader has been ported**. The
+ * keys of services still missing are not here, and that is deliberate, not an oversight.
  *
- * Le catalogue porte aussi le type et le libellé, pour que l'écran se rende
- * génériquement : ajouter un réglage ne doit pas demander de toucher à l'interface.
+ * The catalog also carries the type and the label, so the screen can render generically:
+ * adding a setting must not require touching the UI.
  */
 
 export type SettingType = 'boolean' | 'integer' | 'text' | 'severity';
@@ -46,21 +45,21 @@ export interface SettingDefinition {
     key: string;
     type: SettingType;
     /**
-     * Sa **valeur** est un secret, même si sa clé ne l'est pas.
+     * Its **value** is a secret, even though its key is not.
      *
-     * Une URL de webhook Slack, Teams ou Discord n'est pas une configuration : c'est une
-     * capacité au porteur. Qui la connaît peut publier dans le canal — celui-là même où
-     * l'équipe attend les alertes de Zanshin, donc celui où un message forgé porte le
-     * plus. La lire ne demande aucun droit d'écriture, ce qui la rendait accessible à
-     * n'importe quel compte.
+     * A Slack, Teams or Discord webhook URL is not configuration: it is a bearer
+     * capability. Whoever knows it can post in the channel — the very channel where the
+     * team awaits Zanshin's alerts, hence the one where a forged message carries most
+     * weight. Reading it requires no write permission, which made it reachable by any
+     * account.
      *
-     * L'écran reçoit alors `configured` sans la valeur, comme pour le jeton de tickets.
+     * The screen then receives `configured` without the value, as for the ticket token.
      */
     sensitive?: boolean;
-    /** Le groupe sous lequel l'écran range le réglage. */
+    /** The group the screen files the setting under. */
     section: string;
     label: string;
-    /** Ce que change ce réglage, et surtout ce qu'il ne change pas. */
+    /** What this setting changes, and above all what it does not. */
     help: string;
     default: string;
 }
@@ -69,64 +68,65 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     {
         key: SETTING_ENRICHMENT_ENABLED,
         type: 'boolean',
-        section: 'Enrichissement',
-        label: 'Interroger EPSS et le catalogue KEV',
+        section: 'Enrichment',
+        label: 'Query EPSS and the KEV catalog',
         help:
-            "Seuls des identifiants de CVE quittent la machine — jamais de code ni de SBOM. Désactivé, le compteur " +
-            "« activement exploitées » restera à zéro, ce qui veut alors dire « on n'a pas demandé » et non « il n'y en a pas ».",
+            'Only CVE identifiers leave the machine — never code, never a SBOM. Switched off, the "actively exploited" ' +
+            'counter stays at zero, which then means "we did not ask" and not "there are none".',
         default: 'true'
     },
     {
         key: SETTING_EOL_ENABLED,
         type: 'boolean',
-        section: 'Fin de vie',
-        label: 'Détecter les plateformes en fin de support',
+        section: 'End of life',
+        label: 'Detect platforms past their support window',
         help:
-            "Une classe de risque sans CVE : un environnement échu ne recevra pas de correctif pour la prochaine " +
-            "vulnérabilité, quelle qu'elle soit. Désactiver laisse les constats existants **ouverts** plutôt que de les " +
-            "résoudre — « on a cessé de regarder » n'est pas « c'est réglé ».",
+            'A class of risk with no CVE attached: an expired environment will receive no fix for the next ' +
+            'vulnerability, whatever it turns out to be. Switching this off leaves existing findings **open** rather ' +
+            'than resolving them — "we stopped looking" is not "it is fixed".',
         default: 'true'
     },
     {
         key: SETTING_EOL_WARN_DAYS,
         type: 'integer',
-        section: 'Fin de vie',
-        label: "Fenêtre d'avertissement (jours)",
+        section: 'End of life',
+        label: 'Warning window (days)',
         help:
-            "Un cycle dont la fin tombe dans cette fenêtre est signalé en sévérité moyenne. Au-delà, rien : tout a une fin " +
-            "de vie un jour, et signaler une version supportée encore trois ans apprendrait à filtrer ce type.",
+            'A cycle whose end falls inside this window is reported at medium severity. Beyond it, nothing: everything ' +
+            'reaches end of life one day, and flagging a version supported for another three years would teach people ' +
+            'to filter this type out.',
         default: String(DEFAULT_WARN_DAYS)
     },
     {
         key: SETTING_SAST_ENABLED,
         type: 'boolean',
-        section: 'Analyse du code source',
-        label: 'Analyser le code avec Semgrep',
+        section: 'Source code analysis',
+        label: 'Analyze the code with Semgrep',
         help:
-            "Désactivé par défaut, et c'est une décision d'exploitation : le premier scan d'un dépôt ordinaire fait passer " +
-            "son backlog de quelques dizaines de vulnérabilités à quelques milliers de constats. Les constats de qualité " +
-            "ne font jamais échouer une compilation et ne déclenchent jamais de notification. Désactiver laisse les " +
-            "constats existants ouverts plutôt que de les résoudre.",
+            'Off by default, and that is an operational decision: the first scan of an ordinary repository takes its ' +
+            'backlog from a few dozen vulnerabilities to a few thousand findings. Quality findings never fail a build ' +
+            'and never trigger a notification. Switching this off leaves existing findings open rather than resolving ' +
+            'them.',
         default: 'false'
     },
     {
         key: SETTING_RETENTION_KEEP_PER_TARGET,
         type: 'integer',
-        section: 'Rétention',
-        label: 'Charges brutes gardées par cible',
+        section: 'Retention',
+        label: 'Raw payloads kept per target',
         help:
-            "Les SBOM et sorties de scanner des N derniers scans de chaque cible sont conservés quel que soit leur âge. " +
-            "Zéro veut dire « aucune limite sur cet axe ». Les constats, les problèmes et les résumés ne sont jamais purgés.",
+            'The SBOMs and scanner output of each target\'s last N scans are kept whatever their age. Zero means "no ' +
+            'limit on this axis". Findings, issues and summaries are never purged.',
         default: String(DEFAULT_KEEP_PER_TARGET)
     },
     {
         key: SETTING_RETENTION_MAX_AGE_DAYS,
         type: 'integer',
-        section: 'Rétention',
-        label: 'Âge maximal des charges brutes (jours)',
+        section: 'Retention',
+        label: 'Maximum age of raw payloads (days)',
         help:
-            "Les deux règles se conjuguent : une charge n'est purgée que si elle est **à la fois** hors de la fenêtre " +
-            "ci-dessus et plus vieille que cet âge. Les deux à zéro désactivent la purge.",
+            'The two rules combine: a payload is purged only if it is **both** outside the window above and older ' +
+            'than this age. Both at zero disables purging.',
         default: String(DEFAULT_MAX_AGE_DAYS)
     },
     {
@@ -134,186 +134,188 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
         type: 'text',
         sensitive: true,
         section: 'Notifications',
-        label: 'URL du webhook',
+        label: 'Webhook URL',
         help:
-            "Un POST JSON générique, qui atteint Slack, Teams, Discord, Mattermost ou un script. Vide désactive les " +
-            "notifications. L'URL est validée à chaque envoi : une destination privée est refusée sauf réglage explicite.",
+            'A generic JSON POST, which reaches Slack, Teams, Discord, Mattermost or a script. Empty disables ' +
+            'notifications. The URL is validated on every send: a private destination is refused unless explicitly ' +
+            'allowed.',
         default: ''
     },
     {
         key: SETTING_MIN_SEVERITY,
         type: 'severity',
         section: 'Notifications',
-        label: 'Sévérité minimale notifiée',
-        help: "Rien de nouveau au-dessus de ce seuil, aucun message. Une notification par scan apprend à filtrer le canal.",
+        label: 'Minimum severity notified',
+        help: 'Nothing new above this threshold, no message. One notification per scan teaches people to filter the channel.',
         default: DEFAULT_MIN_SEVERITY
     },
     {
         key: SETTING_NOTIFY_ON_KEV,
         type: 'boolean',
         section: 'Notifications',
-        label: 'Notifier toute vulnérabilité activement exploitée',
-        help: "Quelle que soit sa sévérité : le seuil seul écarterait un « moyen » exploité aujourd'hui.",
+        label: 'Notify any actively exploited vulnerability',
+        help: 'Whatever its severity: the threshold alone would discard a "medium" being exploited today.',
         default: 'true'
     },
     {
         key: SETTING_ALLOW_PRIVATE_URL,
         type: 'boolean',
         section: 'Notifications',
-        label: 'Autoriser une URL de webhook privée',
+        label: 'Allow a private webhook URL',
         help:
-            "Pour un bus interne. Désactivé par défaut : une URL de webhook qui résout vers une adresse privée est bien " +
-            "plus souvent une tentative de falsification de requête côté serveur qu'un point de terminaison d'intranet. " +
-            "Le point d'accès de métadonnées d'instance reste refusé dans tous les cas.",
+            'For an internal bus. Off by default: a webhook URL resolving to a private address is far more often a ' +
+            'server-side request forgery attempt than an intranet endpoint. The instance metadata endpoint stays ' +
+            'refused in every case.',
         default: 'false'
     },
     {
         key: SETTING_LICENSE_BLOCKLIST,
         type: 'text',
-        section: 'Licences',
-        label: 'Licences interdites',
+        section: 'Licenses',
+        label: 'Forbidden licenses',
         help:
-            "Identifiants SPDX séparés par des virgules, par exemple « GPL-3.0-only,AGPL-3.0-only ». Vide, rien n'est " +
-            "signalé : quelles licences sont interdites est une décision d'organisation, pas une décision technique. " +
-            "Lu du SBOM déjà produit — aucun outil supplémentaire n'est nécessaire.",
+            'Comma-separated SPDX identifiers, for example "GPL-3.0-only,AGPL-3.0-only". Empty, nothing is reported: ' +
+            'which licenses are forbidden is an organizational decision, not a technical one. Read from the SBOM ' +
+            'already produced — no extra tool is needed.',
         default: ''
     },
     {
         key: SETTING_TICKET_PROVIDER,
         type: 'text',
-        section: 'Gestionnaire de tickets',
-        label: 'Fournisseur',
+        section: 'Ticket tracker',
+        label: 'Provider',
         help:
-            "« gitlab », « jira », ou « none » pour désactiver. Un ticket est ouvert pour tout problème qui ferait " +
-            "échouer une compilation selon la politique de gate — il n'y a pas de second seuil, pour qu'un seul endroit " +
-            "définisse « assez sérieux pour agir ».",
+            '"gitlab", "jira", or "none" to disable. A ticket is opened for any issue that would fail a build under ' +
+            'the gate policy — there is no second threshold, so that one single place defines "serious enough to act ' +
+            'on".',
         default: PROVIDER_NONE
     },
     {
         key: SETTING_TICKET_BASE_URL,
         type: 'text',
-        // Pas un secret au sens du webhook, mais une carte du réseau interne qu'un compte
-        // sans droits n'a aucune raison de lire.
+        // Not a secret in the webhook's sense, but a map of the internal network that an
+        // unprivileged account has no reason to read.
         sensitive: true,
-        section: 'Gestionnaire de tickets',
-        label: 'URL du gestionnaire',
+        section: 'Ticket tracker',
+        label: 'Tracker URL',
         help:
-            "Une destination interne est acceptée ici, contrairement au webhook : un GitLab ou un Jira auto-hébergé vit " +
-            "couramment sur un réseau interne. Le point d'accès de métadonnées d'instance reste refusé.",
+            'An internal destination is accepted here, unlike the webhook: a self-hosted GitLab or Jira commonly ' +
+            'lives on an internal network. The instance metadata endpoint stays refused.',
         default: ''
     },
     {
         key: SETTING_TICKET_PROJECT,
         type: 'text',
-        section: 'Gestionnaire de tickets',
-        label: 'Projet',
-        help: "Le chemin GitLab (« groupe/projet ») ou la clé de projet Jira (« SEC »).",
+        section: 'Ticket tracker',
+        label: 'Project',
+        help: 'The GitLab path ("group/project") or the Jira project key ("SEC").',
         default: ''
     },
     {
         key: SETTING_TICKET_USER,
         type: 'text',
-        section: 'Gestionnaire de tickets',
-        label: 'Compte Jira',
-        help: "L'adresse du compte, exigée par Jira à côté du jeton pour l'authentification de base. GitLab ne s'en sert pas.",
+        section: 'Ticket tracker',
+        label: 'Jira account',
+        help: 'The account address, required by Jira alongside the token for basic authentication. GitLab does not use it.',
         default: ''
     },
     {
         key: SETTING_TICKET_ISSUE_TYPE,
         type: 'text',
-        section: 'Gestionnaire de tickets',
-        label: 'Type de ticket Jira',
-        help: "Le nom du type dans le projet visé. GitLab ne s'en sert pas.",
+        section: 'Ticket tracker',
+        label: 'Jira issue type',
+        help: 'The type name in the target project. GitLab does not use it.',
         default: DEFAULT_JIRA_ISSUE_TYPE
     },
     {
         key: SETTING_TICKET_LABELS,
         type: 'text',
-        section: 'Gestionnaire de tickets',
-        label: 'Étiquettes',
-        help: 'Séparées par des virgules, posées sur chaque ticket ouvert.',
+        section: 'Ticket tracker',
+        label: 'Labels',
+        help: 'Comma-separated, applied to every ticket opened.',
         default: DEFAULT_LABELS
     },
     {
         key: SETTING_TICKET_ALLOW_PRIVATE_URL,
         type: 'boolean',
-        section: 'Gestionnaire de tickets',
-        label: 'Autoriser une URL interne',
-        help: "Activé par défaut. Décochez-le pour un déploiement qui n'utilise qu'un gestionnaire hébergé.",
+        section: 'Ticket tracker',
+        label: 'Allow an internal URL',
+        help: 'On by default. Clear it for a deployment that only uses a hosted tracker.',
         default: 'true'
     },
     {
         key: SETTING_AI_REVIEW_ENABLED,
         type: 'boolean',
-        section: 'Revue par modèle',
-        label: 'Relire le code avec un modèle local',
+        section: 'Model review',
+        label: 'Review the code with a local model',
         help:
-            "Un complément léger aux scanners, pas un moteur SAST : une seule invite, sans reproductibilité garantie. " +
-            "Ses constats sont étiquetés comme venant d'un modèle et exclus du gate par défaut — c'est l'atténuation " +
-            "structurelle contre l'injection d'invite, le code analysé étant une entrée contrôlée par un tiers.",
+            'A light complement to the scanners, not a SAST engine: a single prompt, with no guaranteed ' +
+            'reproducibility. Its findings are tagged as coming from a model and excluded from the gate by default — ' +
+            'that is the structural mitigation against prompt injection, the analyzed code being an input controlled ' +
+            'by a third party.',
         default: 'false'
     },
     {
         key: SETTING_AI_REVIEW_OLLAMA_URL,
         type: 'text',
         sensitive: true,
-        section: 'Revue par modèle',
-        label: 'URL du service Ollama',
+        section: 'Model review',
+        label: 'Ollama service URL',
         help:
-            "**Ce point de terminaison reçoit le code source du dépôt scanné.** Le risque n'est donc pas qu'il pointe " +
-            "vers l'interne, mais vers l'externe : une URL publique bien formée est exactement ce à quoi ressemble un " +
-            "canal d'exfiltration. Une destination publique est refusée sauf aveu explicite ci-dessous.",
+            '**This endpoint receives the scanned repository\'s source code.** The risk is therefore not that it ' +
+            'points inward, but outward: a well-formed public URL is exactly what an exfiltration channel looks like. ' +
+            'A public destination is refused unless explicitly acknowledged below.',
         default: DEFAULT_OLLAMA_URL
     },
     {
         key: SETTING_AI_REVIEW_MODEL,
         type: 'text',
-        section: 'Revue par modèle',
-        label: 'Modèle',
-        help: "Le nom tel qu'Ollama le connaît. Il n'a pas besoin d'être déjà installé pour être enregistré ici.",
+        section: 'Model review',
+        label: 'Model',
+        help: 'The name as Ollama knows it. It does not have to be installed already to be saved here.',
         default: DEFAULT_AI_REVIEW_MODEL
     },
     {
         key: SETTING_AI_REVIEW_ALLOW_REMOTE,
         type: 'boolean',
-        section: 'Revue par modèle',
-        label: 'Autoriser un Ollama distant',
+        section: 'Model review',
+        label: 'Allow a remote Ollama',
         help:
-            "Désactivé par défaut, et c'est le réglage le plus lourd de conséquences de cet écran : l'activer permet " +
-            "d'envoyer le code source vers un hôte public.",
+            'Off by default, and it is the most consequential setting on this screen: turning it on allows source ' +
+            'code to be sent to a public host.',
         default: 'false'
     }
 ];
 
-/** Les défauts du catalogue, pour que l'écran sache ce qu'une clé absente vaut. */
+/** The catalog's defaults, so the screen knows what an absent key is worth. */
 export function catalogDefaults(): Record<string, string> {
     return Object.fromEntries(SETTINGS_CATALOG.map((definition) => [definition.key, definition.default]));
 }
 
-/** La définition d'une clé, ou `undefined` si elle n'est pas exposée. */
+/** A key's definition, or `undefined` if it is not exposed. */
 export function definitionFor(key: string): SettingDefinition | undefined {
     return SETTINGS_CATALOG.find((definition) => definition.key === key);
 }
 
 /**
- * Une valeur acceptable pour ce réglage, ou un message disant pourquoi elle ne l'est pas.
+ * An acceptable value for this setting, or a message saying why it is not.
  *
- * Validée au point de saisie plutôt qu'à la lecture : un entier illisible se lirait
- * silencieusement comme son défaut, et l'opérateur n'apprendrait jamais que sa valeur a
- * été ignorée.
+ * Validated at the point of entry rather than on read: an unreadable integer would
+ * silently read as its default, and the operator would never learn their value was
+ * ignored.
  */
 export function validate(definition: SettingDefinition, value: string): string | null {
     switch (definition.type) {
         case 'boolean':
-            return value === 'true' || value === 'false' ? null : 'Valeur attendue : « true » ou « false ».';
+            return value === 'true' || value === 'false' ? null : 'Expected value: "true" or "false".';
         case 'integer': {
             const parsed = Number(value);
-            return value.trim() !== '' && Number.isInteger(parsed) && parsed >= 0 ? null : 'Valeur attendue : un entier positif ou nul.';
+            return value.trim() !== '' && Number.isInteger(parsed) && parsed >= 0 ? null : 'Expected value: a positive integer or zero.';
         }
         case 'severity':
             return ['critical', 'high', 'medium', 'low'].includes(value)
                 ? null
-                : 'Valeur attendue : critical, high, medium ou low.';
+                : 'Expected value: critical, high, medium or low.';
         default:
             return null;
     }
