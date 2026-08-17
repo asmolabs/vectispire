@@ -11,9 +11,9 @@ interface ExportVector {
 }
 
 /**
- * JSON ne porte pas de type date : les instants du fichier de vecteurs sont des chaînes et
- * doivent redevenir des `Date`, comme la base les rend. Sans cette étape, le test
- * n'exercerait pas le même code que la production.
+ * JSON carries no date type: the instants in the vector file are strings and have to
+ * become `Date`s again, as the database returns them. Without this step, the test would
+ * not exercise the same code as production.
  */
 const INSTANT_FIELDS = ['firstSeenAt', 'lastSeenAt', 'triagedAt', 'triageExpiresAt'] as const;
 
@@ -31,137 +31,136 @@ const raw: { cases: (Omit<ExportVector, 'issues'> & { issues: Record<string, unk
 );
 const vectors = { ...raw, cases: raw.cases.map((vector) => ({ ...vector, issues: vector.issues.map(reviveInstants) })) };
 
-const SARIF_OPTIONS = { targetName: 'org/exemple', toolVersion: '1.2.3', informationUri: 'https://zanshin.interne' };
+const SARIF_OPTIONS = { targetName: 'org/example', toolVersion: '1.2.3', informationUri: 'https://zanshin.internal' };
 const VEX_OPTIONS = {
-    author: 'Zanshin <security@exemple.be>',
-    productId: 'pkg:github/org/exemple',
-    documentId: 'https://zanshin.interne/vex/1',
+    author: 'Zanshin <security@example.com>',
+    productId: 'pkg:github/org/example',
+    documentId: 'https://zanshin.internal/vex/1',
     timestamp: new Date('2026-08-10T08:00:00Z'),
     version: 3
 };
 
 describe('exports', () => {
-    // Les vecteurs venaient du code Python ; ils sont désormais régénérés depuis cette
-    // implémentation et servent de garde-fou contre une régression de format, non de
-    // preuve d'équivalence avec un autre langage.
-    it('dispose de vecteurs à comparer', () => {
+    // The vectors came from the Python code; they are now regenerated from this
+    // implementation and serve as a guard against a format regression, not as proof of
+    // equivalence with another language.
+    it('has vectors to compare against', () => {
         expect(vectors.cases.length).toBeGreaterThan(0);
     });
 
     describe.each(vectors.cases)('$label', (vector) => {
-        it('rend le même document SARIF', () => {
+        it('returns the same SARIF document', () => {
             expect(buildSarifDocument(vector.issues, SARIF_OPTIONS)).toEqual(vector.sarif);
         });
 
-        it('rend le même document OpenVEX', () => {
+        it('returns the same OpenVEX document', () => {
             expect(buildOpenVexDocument(vector.issues, VEX_OPTIONS)).toEqual(vector.openvex);
         });
 
-        it('rend le même CSV, octet pour octet', () => {
+        it('returns the same CSV, byte for byte', () => {
             expect(buildIssuesCsv(vector.issues)).toBe(vector.csv);
         });
     });
 
-    it("omet informationUri plutôt que de l'écrire nulle", () => {
-        // `**({...} if x else {})` en Python : la clé est absente, pas nulle. Un
-        // consommateur strict du schéma refuse `"informationUri": null`.
-        const document = buildSarifDocument([vectors.cases[1].issues[0]], { targetName: 'org/exemple', toolVersion: '1.2.3' });
+    it("omits informationUri rather than writing it null", () => {
+        // `**({...} if x else {})` in Python: the key is absent, not null. A strict
+        // consumer of the schema refuses `"informationUri": null`.
+        const document = buildSarifDocument([vectors.cases[1].issues[0]], { targetName: 'org/example', toolVersion: '1.2.3' });
         expect(document).toEqual(vectors.sarifWithoutInformationUri);
         const driver = (document.runs as { tool: { driver: Record<string, unknown> } }[])[0].tool.driver;
         expect('informationUri' in driver).toBe(false);
     });
 });
 
-describe('les détails de format qu’un portage rate', () => {
+describe('the format details a port gets wrong', () => {
     const issue = vectors.cases[1].issues[0];
 
-    it('termine les lignes CSV en CRLF, y compris la dernière', () => {
+    it('terminates CSV rows with CRLF, including the last one', () => {
         const csv = buildIssuesCsv([issue]);
         expect(csv.endsWith('\r\n')).toBe(true);
         expect(csv.split('\r\n').filter(Boolean)).toHaveLength(2);
-        // Aucun \n isolé : ce serait un fichier que la plupart des outils liraient
-        // quand même, donc un écart que personne ne remarquerait avant qu'un
-        // consommateur strict ne le refuse.
+        // No lone \n: that would be a file most tools would read anyway, hence a
+        // divergence nobody would notice until a strict consumer refused it.
         expect(csv.replace(/\r\n/g, '')).not.toContain('\n');
     });
 
-    it("écrit les scores entiers avec leur décimale, comme str(float) en Python", () => {
+    it("writes whole scores with their decimal, like str(float) in Python", () => {
         const row = buildIssuesCsv([{ ...issue, cvssScore: 9, epssScore: 1 }]).split('\r\n')[1].split(',');
         expect(row[4]).toBe('9.0');
         expect(row[5]).toBe('1.0');
     });
 
-    it('distingue un score nul d’un score absent', () => {
+    it('tells a zero score from an absent one', () => {
         const withZero = buildIssuesCsv([{ ...issue, cvssScore: 0, epssScore: 0 }]).split('\r\n')[1].split(',');
         expect(withZero[4]).toBe('0.0');
         const withNull = buildIssuesCsv([{ ...issue, cvssScore: null, epssScore: null }]).split('\r\n')[1].split(',');
         expect(withNull[4]).toBe('');
     });
 
-    it('cite un champ contenant une virgule, un guillemet ou un saut de ligne', () => {
+    it('quotes a field containing a comma, a quote or a newline', () => {
         const csv = buildIssuesCsv([{ ...issue, triageComment: null, link: 'a,b' }]);
         expect(csv).toContain('"a,b"');
         expect(buildIssuesCsv([{ ...issue, link: 'a"b' }])).toContain('"a""b"');
         expect(buildIssuesCsv([{ ...issue, link: 'a\nb' }])).toContain('"a\nb"');
     });
 
-    it('ne cite pas ce qui n’en a pas besoin', () => {
+    it('does not quote what does not need it', () => {
         expect(buildIssuesCsv([{ ...issue, link: 'simple' }])).toContain(',simple');
     });
 
-    it('a exactement les 25 colonnes de Python, dans l’ordre', () => {
+    it('has exactly Python\'s 25 columns, in order', () => {
         expect(CSV_COLUMNS).toHaveLength(25);
         expect(buildIssuesCsv([]).trim()).toBe(CSV_COLUMNS.join(','));
     });
 });
 
-describe('les invariants SARIF, qui décident de ce que GitHub affiche', () => {
+describe('the SARIF invariants, which decide what GitHub displays', () => {
     const issue = vectors.cases[1].issues[0];
     const runs = (document: Record<string, unknown>) => (document.runs as { results: Record<string, unknown>[]; tool: { driver: { rules: Record<string, unknown>[] } } }[])[0];
 
-    it('donne une location à chaque résultat, même sans fichier', () => {
-        // GitHub jette silencieusement les résultats sans location. Une location
-        // « honnêtement vide » ferait disparaître l'essentiel des vulnérabilités.
+    it('gives every result a location, even with no file', () => {
+        // GitHub silently discards results with no location. An "honestly empty"
+        // location would make most of the vulnerabilities disappear.
         const document = buildSarifDocument([{ ...issue, filePath: null, line: null }], SARIF_OPTIONS);
         const locations = runs(document).results[0].locations as { physicalLocation: { artifactLocation: { uri: string } } }[];
         expect(locations).toHaveLength(1);
         expect(locations[0].physicalLocation.artifactLocation.uri).toBe('.');
     });
 
-    it('supprime les problèmes triés au lieu de les omettre', () => {
-        // Les retirer ferait qu'une plateforme les re-signale comme neufs au
-        // téléversement suivant, défaisant le travail de triage.
+    it('suppresses triaged issues instead of omitting them', () => {
+        // Removing them would make a platform report them as new on the next upload,
+        // undoing the triage work.
         const triaged = { ...issue, triageStatus: 'not_affected', triageJustification: 'component_not_present' };
         const results = runs(buildSarifDocument([triaged], SARIF_OPTIONS)).results;
         expect(results).toHaveLength(1);
         expect(results[0].suppressions).toBeDefined();
     });
 
-    it('ne supprime pas un « affected » : décider qu’un problème est réel doit rester visible', () => {
+    it('does not suppress an affected: deciding an issue is real must stay visible', () => {
         const results = runs(buildSarifDocument([{ ...issue, triageStatus: 'affected' }], SARIF_OPTIONS)).results;
         expect(results[0].suppressions).toBeUndefined();
     });
 
-    it('étiquette la qualité « quality » et non « security »', () => {
-        // Sans cela, chaque constat de qualité remonterait dans GitHub code scanning
-        // comme une alerte de sécurité.
+    it('tags quality as quality and not as security', () => {
+        // Without this, every quality finding would be reported into GitHub code
+        // scanning as a security alert.
         const rules = runs(buildSarifDocument([{ ...issue, type: 'quality' }], SARIF_OPTIONS)).tool.driver.rules;
         expect((rules[0].properties as { tags: string[] }).tags).toEqual(['quality', 'quality']);
     });
 
-    it('porte security-severity, sur laquelle GitHub classe réellement', () => {
+    it('carries security-severity, which is what GitHub actually sorts on', () => {
         const rules = runs(buildSarifDocument([{ ...issue, severity: 'critical' }], SARIF_OPTIONS)).tool.driver.rules;
         expect((rules[0].properties as Record<string, unknown>)['security-severity']).toBe('9.5');
     });
 
-    it('n’invente pas de security-severity pour une sévérité hors vocabulaire', () => {
-        const rules = runs(buildSarifDocument([{ ...issue, severity: 'catastrophique' }], SARIF_OPTIONS)).tool.driver.rules;
+    it('does not invent a security-severity for a severity outside the vocabulary', () => {
+        const rules = runs(buildSarifDocument([{ ...issue, severity: 'catastrophic' }], SARIF_OPTIONS)).tool.driver.rules;
         expect((rules[0].properties as Record<string, unknown>)['security-severity']).toBeUndefined();
     });
 
-    it('numérote les règles dans leur ordre d’apparition', () => {
-        // `ruleIndex` pointe dans le tableau `rules` : une désynchronisation ferait
-        // afficher la mauvaise règle sous chaque résultat.
+    it('numbers the rules in their order of appearance', () => {
+        // `ruleIndex` points into the `rules` array: a desynchronization would display
+        // the wrong rule under each result.
         const document = buildSarifDocument(
             [
                 { ...issue, id: 1, identifier: 'CVE-A' },
@@ -179,45 +178,45 @@ describe('les invariants SARIF, qui décident de ce que GitHub affiche', () => {
     });
 });
 
-describe('les invariants OpenVEX', () => {
+describe('the OpenVEX invariants', () => {
     const issue = vectors.cases[1].issues[0];
     const statements = (document: Record<string, unknown>) => document.statements as Record<string, unknown>[];
 
-    it('n’émet une déclaration que pour une vulnérabilité identifiée', () => {
+    it('emits a statement only for an identified vulnerability', () => {
         expect(statements(buildOpenVexDocument([{ ...issue, type: 'secret' }], VEX_OPTIONS))).toHaveLength(0);
         expect(statements(buildOpenVexDocument([{ ...issue, identifier: null }], VEX_OPTIONS))).toHaveLength(0);
     });
 
-    it('déclare « fixed » un problème résolu jamais trié', () => {
-        // Dire « sous investigation » de quelque chose que le scanner ne voit plus
-        // serait trompeur dans un document fait pour répondre exactement à ça.
+    it('declares a resolved, never-triaged issue as fixed', () => {
+        // Saying "under investigation" about something the scanner no longer sees would
+        // be misleading in a document made to answer exactly that.
         const [statement] = statements(buildOpenVexDocument([{ ...issue, state: 'resolved', triageStatus: 'under_review' }], VEX_OPTIONS));
         expect(statement.status).toBe('fixed');
     });
 
-    it('traduit under_review en under_investigation, le seul écart de vocabulaire', () => {
+    it('maps under_review to under_investigation, the only vocabulary difference', () => {
         const [statement] = statements(buildOpenVexDocument([issue], VEX_OPTIONS));
         expect(statement.status).toBe('under_investigation');
     });
 
-    it('porte la justification requise par la spécification pour not_affected', () => {
+    it('carries the justification the specification requires for not_affected', () => {
         const [statement] = statements(buildOpenVexDocument([{ ...issue, triageStatus: 'not_affected', triageJustification: 'component_not_present' }], VEX_OPTIONS));
         expect(statement.justification).toBe('component_not_present');
     });
 
-    it('range le texte libre dans impact_statement ou action_statement selon le statut', () => {
-        const notAffected = statements(buildOpenVexDocument([{ ...issue, triageStatus: 'not_affected', triageJustification: 'j', triageComment: 'texte' }], VEX_OPTIONS))[0];
-        expect(notAffected.impact_statement).toBe('texte');
+    it('files the free text under impact_statement or action_statement depending on status', () => {
+        const notAffected = statements(buildOpenVexDocument([{ ...issue, triageStatus: 'not_affected', triageJustification: 'j', triageComment: 'text' }], VEX_OPTIONS))[0];
+        expect(notAffected.impact_statement).toBe('text');
         expect(notAffected.action_statement).toBeUndefined();
 
-        const affected = statements(buildOpenVexDocument([{ ...issue, triageStatus: 'affected', triageComment: 'texte' }], VEX_OPTIONS))[0];
-        expect(affected.action_statement).toBe('texte');
+        const affected = statements(buildOpenVexDocument([{ ...issue, triageStatus: 'affected', triageComment: 'text' }], VEX_OPTIONS))[0];
+        expect(affected.action_statement).toBe('text');
         expect(affected.impact_statement).toBeUndefined();
     });
 });
 
-describe('CSV et injection de formule', () => {
-    /** Un problème dont les champs viennent d'un dépôt scanné, donc de l'extérieur. */
+describe('CSV and formula injection', () => {
+    /** An issue whose fields come from a scanned repository, hence from outside. */
     function hostile(over: Record<string, unknown> = {}) {
         return {
             id: 1,
@@ -256,40 +255,39 @@ describe('CSV et injection de formule', () => {
         } as never;
     }
 
-    it("neutralise un nom de paquet qui est une formule", () => {
-        // Le lecteur de ce fichier est un opérateur de sécurité qui l'ouvre dans un
-        // tableur — c'est l'objet même de l'export. Un paquet nommé ainsi s'exécuterait
-        // sur son poste.
+    it("neutralizes a package name that is a formula", () => {
+        // The reader of this file is a security operator opening it in a spreadsheet —
+        // which is the very point of the export. A package named this way would execute
+        // on their machine.
         const csv = buildIssuesCsv([hostile()]);
 
         expect(csv).toContain("'=cmd|'/c calc.exe'!A1");
         expect(csv).not.toMatch(/(^|,)=cmd/m);
     });
 
-    it.each(['=1+1', '+1+1', '-1+1', '@SUM(1)', '\t=1+1', '\r=1+1'])('neutralise le préfixe %j', (payload) => {
+    it.each(['=1+1', '+1+1', '-1+1', '@SUM(1)', '\t=1+1', '\r=1+1'])('neutralizes the %j prefix', (payload) => {
         const csv = buildIssuesCsv([hostile({ packageName: payload })]);
 
-        // La valeur apparaît toujours, précédée de l'apostrophe qui force le mode texte —
-        // et jamais nue. Le test porte sur la valeur produite plutôt que sur un découpage
-        // en lignes, qu'un retour chariot dans le champ rendrait faux.
+        // The value still appears, preceded by the apostrophe that forces text mode — and
+        // never bare. The test looks at the produced value rather than at a split into
+        // rows, which a carriage return inside the field would make wrong.
         expect(csv).toContain(`'${payload}`);
         expect(csv.includes(`,${payload}`)).toBe(false);
         expect(csv.includes(`,"${payload}`)).toBe(false);
     });
 
-    it('ne neutralise pas ce qui est inoffensif', () => {
-        // Une neutralisation systématique abîmerait chaque cellule et rendrait l'export
-        // pénible à exploiter — le but est de bloquer les formules, pas de préfixer le
-        // fichier entier.
+    it('does not neutralize what is harmless', () => {
+        // Blanket neutralization would damage every cell and make the export tiresome to
+        // use — the goal is to block formulas, not to prefix the whole file.
         const csv = buildIssuesCsv([hostile({ packageName: 'log4j-core' })]);
 
         expect(csv).toContain('log4j-core');
         expect(csv).not.toContain("'log4j-core");
     });
 
-    it("neutralise aussi un champ qui doit être cité, car les guillemets ne protègent pas", () => {
-        // Le tableur retire les guillemets avant d'évaluer : citer ne suffit pas, et c'est
-        // le piège qui fait croire le problème réglé.
+    it("also neutralizes a field that must be quoted, since quoting does not protect", () => {
+        // The spreadsheet strips the quotes before evaluating: quoting is not enough, and
+        // that is the trap that makes the problem look solved.
         const csv = buildIssuesCsv([hostile({ packageName: '=HYPERLINK("http://x","a"),b' })]);
 
         expect(csv).toContain('"\'=HYPERLINK');

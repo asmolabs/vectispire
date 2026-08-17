@@ -2,24 +2,24 @@ import { QUALITY_TYPES } from '../gate/policy-gate';
 import { canonical } from '../common/timestamp';
 
 /**
- * Formats d'export des problèmes : SARIF, OpenVEX et CSV.
+ * Issue export formats: SARIF, OpenVEX and CSV.
  *
- * VEX est la raison pour laquelle les décisions de triage sont stockées dans le
- * vocabulaire de la norme plutôt qu'en texte libre — c'est donc une sérialisation, pas
- * une traduction. Chaque champ dont une déclaration OpenVEX a besoin est déjà sur le
- * problème ; rien ici n'a à déduire ou à inventer, et c'est ce qui rend le document
- * assez fiable pour être remis à un client ou à un auditeur.
+ * VEX is the reason triage decisions are stored in the standard's vocabulary rather than
+ * as free text — this is therefore a serialization, not a translation. Every field an
+ * OpenVEX statement needs is already on the issue; nothing here has to infer or invent,
+ * and that is what makes the document trustworthy enough to hand to a customer or an
+ * auditor.
  *
- * SARIF a un autre but : OpenVEX et CSV s'adressent à des gens hors du pipeline,
- * SARIF existe pour qu'un constat cesse de vivre uniquement dans Zanshin. C'est ce
- * qu'ingèrent nativement GitHub code scanning, GitLab et Azure DevOps, et donc ce qui
- * met un problème devant la personne qui l'a introduit, annoté sur la ligne, dans la
- * demande de fusion — au lieu d'un tableau de bord qu'elle n'a aucune raison d'ouvrir.
+ * SARIF has another purpose: OpenVEX and CSV address people outside the pipeline, SARIF
+ * exists so that a finding stops living only inside Zanshin. It is what GitHub code
+ * scanning, GitLab and Azure DevOps ingest natively, and therefore what puts an issue in
+ * front of the person who introduced it, annotated on the line, in the merge request —
+ * instead of a dashboard they have no reason to open.
  *
- * Fonctions pures : la couche HTTP décide comment les livrer, et un bouton de
- * téléchargement dans l'interface les réutilise sans modification.
+ * Pure functions: the HTTP layer decides how to deliver them, and a download button in
+ * the UI reuses them unchanged.
  *
- * Vérifié contre `test/vectors/exports.json`, produit par le vrai module Python.
+ * Checked against `test/vectors/exports.json`, produced by the real Python module.
  */
 
 export const OPENVEX_CONTEXT = 'https://openvex.dev/ns/v0.2.0';
@@ -33,8 +33,8 @@ const TRIAGE_NOT_AFFECTED = 'not_affected';
 const TRIAGE_FIXED = 'fixed';
 
 /**
- * Le vocabulaire de triage de Zanshin est déjà celui d'OpenVEX, à une exception près :
- * `under_review` s'écrit `under_investigation` dans la spécification.
+ * Zanshin's triage vocabulary is already OpenVEX's, with one exception: `under_review` is
+ * spelled `under_investigation` in the specification.
  */
 const VEX_STATUS: Record<string, string> = {
     [TRIAGE_UNDER_REVIEW]: 'under_investigation',
@@ -44,9 +44,9 @@ const VEX_STATUS: Record<string, string> = {
 };
 
 /**
- * SARIF a quatre niveaux et aucune notion de « critique ». Tout ce qu'un outil de
- * sécurité appellerait critique ou élevé doit atterrir sur `error`, parce que
- * `warning` est ce qu'un relecteur fait défiler sans lire.
+ * SARIF has four levels and no notion of "critical". Anything a security tool would call
+ * critical or high has to land on `error`, because `warning` is what a reviewer scrolls
+ * past without reading.
  */
 const SARIF_LEVEL: Record<string, string> = {
     critical: 'error',
@@ -58,9 +58,9 @@ const SARIF_LEVEL: Record<string, string> = {
 };
 
 /**
- * GitHub classe et filtre sur cette propriété, **pas** sur `level` : c'est elle qui
- * garde une critique distinguable d'une élevée une fois que les deux sont `error`.
- * Les valeurs suivent les tranches CVSS que GitHub documente.
+ * GitHub sorts and filters on this property, **not** on `level`: it is what keeps a
+ * critical distinguishable from a high once both are `error`. The values follow the CVSS
+ * bands GitHub documents.
  */
 const SECURITY_SEVERITY: Record<string, string> = {
     critical: '9.5',
@@ -71,14 +71,14 @@ const SECURITY_SEVERITY: Record<string, string> = {
 };
 
 const ISSUE_TYPE_LABEL: Record<string, string> = {
-    vulnerability: 'Vulnérabilité',
-    secret: 'Secret exposé',
-    iac: "Configuration d'infrastructure",
-    license: 'Licence',
-    eol: 'Fin de vie',
-    ai_review: 'Revue IA',
-    sast: 'Code vulnérable',
-    quality: 'Qualité du code'
+    vulnerability: 'Vulnerability',
+    secret: 'Exposed secret',
+    iac: 'Infrastructure configuration',
+    license: 'License',
+    eol: 'End of life',
+    ai_review: 'AI review',
+    sast: 'Vulnerable code',
+    quality: 'Code quality'
 };
 
 export const CSV_COLUMNS = [
@@ -110,10 +110,10 @@ export const CSV_COLUMNS = [
 ] as const;
 
 /**
- * Un problème tel que les exports le lisent.
+ * An issue as the exports read it.
  *
- * Les horodatages sont des **chaînes** au format `datetime.isoformat()` — jamais des
- * `Date`, qui perdent la microseconde et appliquent un fuseau (voir
+ * Timestamps are canonicalized on the way out — never rendered by the driver's own
+ * formatting, which loses the microsecond and applies a timezone (see
  * `common/timestamp.ts`).
  */
 export interface ExportableIssue {
@@ -153,19 +153,19 @@ export interface OpenVexOptions {
     author: string;
     productId: string;
     documentId: string;
-    /** Fourni par l'appelant : un document VEX est une assertion sur qui a dit quoi
-     *  et quand, ce qui appartient à celui qui le publie, pas à une fonction utilitaire. */
+    /** Supplied by the caller: a VEX document is an assertion about who said what and
+     *  when, which belongs to whoever publishes it, not to a utility function. */
     timestamp: Date;
     version?: number;
 }
 
 /**
- * Un document OpenVEX pour un produit, à partir de ses problèmes de vulnérabilité.
+ * An OpenVEX document for a product, from its vulnerability issues.
  *
- * Seuls les problèmes de type `vulnerability` sont inclus : VEX est défini sur des
- * identifiants de vulnérabilité, et un secret codé en dur ou un contrôle IaC en échec
- * n'a pas de CVE à propos de quoi se prononcer. Les problèmes sans identifiant sont
- * écartés pour la même raison — une déclaration anonyme n'en est pas une.
+ * Only `vulnerability` issues are included: VEX is defined over vulnerability
+ * identifiers, and a hardcoded secret or a failed IaC check has no CVE to make a
+ * statement about. Issues with no identifier are discarded for the same reason — an
+ * anonymous statement is not one.
  */
 export function buildOpenVexDocument(issues: Iterable<ExportableIssue>, options: OpenVexOptions): Record<string, unknown> {
     const statements: Record<string, unknown>[] = [];
@@ -174,9 +174,9 @@ export function buildOpenVexDocument(issues: Iterable<ExportableIssue>, options:
         if (issue.type !== 'vulnerability' || !issue.identifier) continue;
 
         let status = VEX_STATUS[issue.triageStatus ?? ''] ?? 'under_investigation';
-        // Un problème résolu et jamais trié est factuellement corrigé : le scanner a
-        // cessé de le voir. Dire « sous investigation » de quelque chose qui a disparu
-        // serait trompeur dans un document fait pour répondre exactement à ça.
+        // An issue that is resolved and was never triaged is factually fixed: the
+        // scanner stopped seeing it. Saying "under investigation" about something that has
+        // gone would be misleading in a document made to answer exactly that.
         if (issue.state === STATE_RESOLVED && issue.triageStatus === TRIAGE_UNDER_REVIEW) {
             status = 'fixed';
         }
@@ -188,21 +188,21 @@ export function buildOpenVexDocument(issues: Iterable<ExportableIssue>, options:
         };
 
         if (status === 'not_affected') {
-            // Exigée par la spécification pour ce statut, et garantie présente par
-            // `IssueService.triage`.
+            // Required by the specification for this status, and guaranteed present by
+            // the triage service.
             statement.justification = issue.triageJustification;
             if (issue.triageComment) statement.impact_statement = issue.triageComment;
         } else if (status === 'affected' && issue.triageComment) {
-            // Pour « affected », le texte libre appartient à l'énoncé d'action.
+            // For "affected", the free text belongs to the action statement.
             statement.action_statement = issue.triageComment;
         }
 
         if (issue.purl) {
             statement.products = [{ '@id': options.productId, identifiers: { purl: issue.purl } }];
         }
-        // RFC 3339, comme la spécification OpenVEX l'exige. Le document précédent portait
-        // « 2026-08-10T08:00:00 » sans fuseau, ce qui n'est pas un instant valide au
-        // regard de cette norme : un consommateur strict avait le droit de le refuser.
+        // RFC 3339, as the OpenVEX specification requires. The previous document carried
+        // "2026-08-10T08:00:00" with no timezone, which is not a valid instant under that
+        // standard: a strict consumer was entitled to refuse it.
         if (issue.triagedAt) statement.timestamp = canonical(issue.triagedAt);
         else if (issue.lastSeenAt) statement.timestamp = canonical(issue.lastSeenAt);
 
@@ -229,36 +229,33 @@ export interface SarifOptions {
 }
 
 /**
- * Un journal SARIF 2.1.0 pour les problèmes d'une cible.
+ * A SARIF 2.1.0 log for a target's issues.
  *
- * Décisions qui méritent d'être énoncées, parce que SARIF est assez permissif pour
- * qu'un document techniquement valide reste inutile dans une interface de code
- * scanning :
+ * Decisions worth stating, because SARIF is permissive enough that a technically valid
+ * document can still be useless in a code scanning interface:
  *
- * - **Les problèmes triés sont des `suppressions`, pas des omissions.** Les retirer
- *   ferait qu'une plateforme les re-signale comme neufs au téléversement suivant,
- *   défaisant le travail de triage ; et une suppression porte sa justification, donc
- *   le relecteur voit *pourquoi* c'est écarté. `not_affected` et `fixed` sont
- *   supprimés, `affected` ne l'est pas — décider qu'un problème est réel doit rester
- *   visible.
- * - **Les problèmes résolus sont exclus.** Ils ont disparu ; le rôle de SARIF est
- *   l'état actuel de la branche qu'on compile.
- * - **`partialFingerprints` porte l'empreinte de Zanshin**, ce qui permet à la
- *   plateforme d'apparier un problème d'un téléversement à l'autre même si le fichier
- *   bouge ou si la ligne se décale.
- * - **Chaque résultat a une location**, avec repli sur la racine du dépôt quand un
- *   problème de dépendance n'a pas de fichier. GitHub jette silencieusement les
- *   résultats sans location, donc une location « honnêtement vide » ferait
- *   disparaître les constats de vulnérabilité — c'est-à-dire l'essentiel d'entre eux.
+ * - **Triaged issues are `suppressions`, not omissions.** Removing them would make a
+ *   platform report them as new on the next upload, undoing the triage work; and a
+ *   suppression carries its justification, so the reviewer sees *why* it is set aside.
+ *   `not_affected` and `fixed` are suppressed, `affected` is not — deciding that an issue
+ *   is real must stay visible.
+ * - **Resolved issues are excluded.** They are gone; SARIF's job is the current state of
+ *   the branch being built.
+ * - **`partialFingerprints` carries Zanshin's fingerprint**, which lets the platform
+ *   match an issue from one upload to the next even if the file moves or the line shifts.
+ * - **Every result has a location**, falling back to the repository root when a
+ *   dependency issue has no file. GitHub silently discards results with no location, so
+ *   an "honestly empty" location would make the vulnerability findings disappear — that
+ *   is, most of them.
  *
- * Les règles sont émises par identifiant distinct plutôt que par problème : c'est ce
- * que le modèle SARIF entend par règle, et ce qui permet à une plateforme de grouper.
+ * Rules are emitted per distinct identifier rather than per issue: that is what the SARIF
+ * model means by a rule, and what lets a platform group them.
  */
 export function buildSarifDocument(issues: Iterable<ExportableIssue>, options: SarifOptions): Record<string, unknown> {
     const current = [...issues].filter((issue) => issue.state !== STATE_RESOLVED);
 
-    // `Map` et non un objet : l'ordre d'insertion des règles détermine `ruleIndex`,
-    // et un objet réordonnerait les clés qui ressemblent à des entiers.
+    // A `Map` and not an object: the rules' insertion order determines `ruleIndex`, and
+    // an object would reorder keys that look like integers.
     const rules = new Map<string, Record<string, unknown>>();
     const ruleIndex = new Map<string, number>();
     const results: Record<string, unknown>[] = [];
@@ -293,8 +290,8 @@ export function buildSarifDocument(issues: Iterable<ExportableIssue>, options: S
         if (isSuppressed(issue)) {
             result.suppressions = [
                 {
-                    // « external » : la décision a été prise dans Zanshin, pas dans une
-                    // annotation du source, ce que documente ce genre de suppression.
+                    // "external": the decision was taken in Zanshin, not in a source
+                    // annotation, which is what this kind of suppression documents.
                     kind: 'external',
                     justification: suppressionJustification(issue)
                 }
@@ -307,7 +304,7 @@ export function buildSarifDocument(issues: Iterable<ExportableIssue>, options: S
         name: 'Zanshin',
         version: options.toolVersion ?? '1.0.0'
     };
-    // Absente et non nulle quand elle n'est pas fournie : `**({...} if x else {})`.
+    // Absent rather than null when not supplied: `**({...} if x else {})`.
     if (options.informationUri) driver.informationUri = options.informationUri;
     driver.rules = [...rules.values()];
 
@@ -324,18 +321,17 @@ export function buildSarifDocument(issues: Iterable<ExportableIssue>, options: S
     };
 }
 
-/** `security` seulement pour ce qui est réellement un constat de sécurité. */
+/** `security` only for what is genuinely a security finding. */
 function sarifTags(issue: ExportableIssue): string[] {
     if (issue.type != null && QUALITY_TYPES.includes(issue.type)) return ['quality', issue.type];
     return ['security', issue.type as string];
 }
 
 /**
- * Stable, et cloisonné par type.
+ * Stable, and partitioned by type.
  *
- * Une règle gitleaks et un contrôle checkov peuvent entrer en collision sur un
- * identifiant, et une plateforme indexée sur `ruleId` fondrait alors deux classes de
- * problèmes sans rapport sous un même titre.
+ * A gitleaks rule and a checkov check can collide on an identifier, and a platform
+ * indexed on `ruleId` would then merge two unrelated classes of issue under one title.
  */
 function sarifRuleId(issue: ExportableIssue): string {
     return `zanshin/${issue.type}/${issue.identifier || 'unspecified'}`;
@@ -348,7 +344,7 @@ function sarifRule(issue: ExportableIssue, ruleId: string): Record<string, unkno
     const rule: Record<string, unknown> = {
         id: ruleId,
         name: (issue.identifier || issue.type || '').replace(/ /g, ''),
-        shortDescription: { text: `${label} : ${issue.identifier || 'non identifié'}` },
+        shortDescription: { text: `${label}: ${issue.identifier || 'unidentified'}` },
         properties
     };
 
@@ -362,10 +358,10 @@ function sarifRule(issue: ExportableIssue, ruleId: string): Record<string, unkno
 }
 
 /**
- * Ce que le développeur lit dans la demande de fusion, donc ce qui dit quoi faire.
+ * What the developer reads in the merge request, hence what says what to do.
  *
- * La version corrigée est la chose la plus utile à mettre devant quelqu'un qui a
- * trente secondes : elle transforme « il y a une CVE » en « change cette ligne ».
+ * The fixed version is the most useful thing to put in front of someone who has thirty
+ * seconds: it turns "there is a CVE" into "change this line".
  */
 function sarifMessage(issue: ExportableIssue): string {
     const parts: string[] = [];
@@ -375,17 +371,17 @@ function sarifMessage(issue: ExportableIssue): string {
     parts.push(issue.identifier || (issue.type != null ? ISSUE_TYPE_LABEL[issue.type] : undefined) || (issue.type as string));
 
     let message = parts.join(' — ');
-    if (issue.fixVersions) message += ` — corrigé dans ${issue.fixVersions}`;
-    else if (issue.fixState === 'not-fixed') message += ' — aucun correctif publié';
-    if (issue.isKev) message += ' — exploitation active connue (CISA KEV)';
-    if (issue.isDirectDependency === false) message += ' — dépendance transitive';
+    if (issue.fixVersions) message += ` — fixed in ${issue.fixVersions}`;
+    else if (issue.fixState === 'not-fixed') message += ' — no published fix';
+    if (issue.isKev) message += ' — known active exploitation (CISA KEV)';
+    if (issue.isDirectDependency === false) message += ' — transitive dependency';
     return message;
 }
 
 function sarifLocation(issue: ExportableIssue): Record<string, unknown> {
     const physicalLocation: Record<string, unknown> = {
-        // Une URI relative, comme SARIF l'exige pour du source que le consommateur
-        // résout contre le dépôt qu'il vient d'extraire.
+        // A relative URI, as SARIF requires for source the consumer resolves against the
+        // repository it has just checked out.
         artifactLocation: { uri: issue.filePath || '.' }
     };
     if (issue.line) physicalLocation.region = { startLine: Math.trunc(issue.line) };
@@ -403,20 +399,20 @@ function suppressionJustification(issue: ExportableIssue): string {
     const parts: string[] = [issue.triageStatus as string];
     if (issue.triageJustification) parts.push(issue.triageJustification);
     if (issue.triageComment) parts.push(issue.triageComment);
-    if (issue.triagedBy) parts.push(`décidé par ${issue.triagedBy}`);
-    // `.date().isoformat()` en Python : la partie date seule, donc les dix premiers
-    // caractères d'un isoformat.
-    if (issue.triageExpiresAt) parts.push(`à revoir le ${issue.triageExpiresAt.toISOString().slice(0, 10)}`);
+    if (issue.triagedBy) parts.push(`decided by ${issue.triagedBy}`);
+    // `.date().isoformat()` in Python: the date part alone, hence the first ten
+    // characters of an isoformat.
+    if (issue.triageExpiresAt) parts.push(`to review on ${issue.triageExpiresAt.toISOString().slice(0, 10)}`);
     return parts.join(' — ');
 }
 
 // ------------------------------------------------------------------------------- CSV
 
 /**
- * CSV plat des problèmes, une ligne chacun, pour le reporting et les tableurs.
+ * Flat CSV of the issues, one row each, for reporting and spreadsheets.
  *
- * Délibérément une colonne par champ stocké plutôt qu'un sous-ensemble choisi : les
- * gens qui demandent du CSV sont ceux qui veulent croiser eux-mêmes.
+ * Deliberately one column per stored field rather than a chosen subset: the people who
+ * ask for CSV are the ones who want to cross-reference it themselves.
  */
 export function buildIssuesCsv(issues: Iterable<ExportableIssue>): string {
     const rows: string[] = [CSV_COLUMNS.join(',')];
@@ -443,8 +439,8 @@ export function buildIssuesCsv(issues: Iterable<ExportableIssue>): string {
                 issue.triageStatus ?? '',
                 issue.triageJustification || '',
                 issue.triagedBy || '',
-                // Canonicalisés comme partout ailleurs : un CSV comparé octet pour octet
-                // ne doit pas dépendre du fuseau de la machine qui l'a produit.
+                // Canonicalized as everywhere else: a CSV compared byte for byte must not
+                // depend on the timezone of the machine that produced it.
                 issue.triagedAt ? canonical(issue.triagedAt) : '',
                 issue.triageExpiresAt ? canonical(issue.triageExpiresAt) : '',
                 issue.firstSeenAt ? canonical(issue.firstSeenAt) : '',
@@ -457,36 +453,36 @@ export function buildIssuesCsv(issues: Iterable<ExportableIssue>): string {
         );
     }
 
-    // `csv.writer` de Python termine ses lignes en CRLF (dialecte « excel »), y
-    // compris la dernière. Utiliser `\n` produirait un fichier que la plupart des
-    // outils liraient quand même — donc un écart que personne ne remarquerait avant
-    // qu'un consommateur strict ne le refuse.
+    // Python's `csv.writer` terminates its rows with CRLF (the "excel" dialect),
+    // including the last one. Using `\n` would produce a file most tools would read
+    // anyway — hence a divergence nobody would notice until a strict consumer refused
+    // it.
     return rows.map((row) => `${row}\r\n`).join('');
 }
 
 /**
- * Les caractères par lesquels un tableur décide qu'une cellule est une **formule**.
+ * The characters by which a spreadsheet decides a cell is a **formula**.
  *
- * Excel, LibreOffice et Google Sheets évaluent une cellule commençant par l'un d'eux. La
- * tabulation et le retour chariot y figurent parce qu'Excel les ignore avant de reprendre
- * son analyse : `\t=cmd|…` est évalué comme `=cmd|…`.
+ * Excel, LibreOffice and Google Sheets evaluate a cell starting with any of them. Tab and
+ * carriage return are in the list because Excel skips them before resuming its parse:
+ * `\t=cmd|…` is evaluated as `=cmd|…`.
  */
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
 
 /**
- * Guillemets à la manière de `QUOTE_MINIMAL`, **précédés d'une neutralisation de formule**.
+ * Quoting in the manner of `QUOTE_MINIMAL`, **preceded by formula neutralization**.
  *
- * **Le contenu de ce fichier vient de dépôts scannés**, donc de l'extérieur de la frontière
- * de confiance : un nom de paquet, un chemin de fichier, un identifiant de règle sont
- * choisis par qui peut committer dans la cible. Le lecteur, lui, est un opérateur de
- * sécurité qui ouvre le fichier dans un tableur — c'est tout l'objet de l'export CSV.
+ * **This file's content comes from scanned repositories**, hence from outside the trust
+ * boundary: a package name, a file path, a rule identifier are chosen by whoever can
+ * commit to the target. The reader, meanwhile, is a security operator opening the file in
+ * a spreadsheet — which is the whole point of the CSV export.
  *
- * Un paquet nommé `=cmd|'/c calc'!A1` s'exécute à l'ouverture ; `=HYPERLINK(...&A1&B1)`
- * exfiltre les cellules voisines — c'est-à-dire le reste du backlog — vers un hôte choisi
- * par l'attaquant, sans aucune invite. L'apostrophe force le mode texte.
+ * A package named `=cmd|'/c calc'!A1` executes on open; `=HYPERLINK(...&A1&B1)` exfiltrates
+ * the neighbouring cells — that is, the rest of the backlog — to a host of the attacker's
+ * choosing, with no prompt at all. The apostrophe forces text mode.
  *
- * **Les guillemets ne protègent pas** : le tableur les retire avant d'évaluer. La
- * neutralisation doit donc précéder la citation, pas s'y substituer.
+ * **Quoting does not protect**: the spreadsheet strips the quotes before evaluating.
+ * Neutralization must therefore precede quoting, not stand in for it.
  */
 function quoteCsvField(value: string): string {
     const safe = FORMULA_PREFIX.test(value) ? `'${value}` : value;
@@ -495,8 +491,8 @@ function quoteCsvField(value: string): string {
 }
 
 /**
- * Vide plutôt qu'« unknown » : une colonne remplie du mot « unknown » se lit comme un
- * constat sur la dépendance, alors que l'énoncé honnête est qu'on n'a rien à en dire.
+ * Empty rather than "unknown": a column filled with the word "unknown" reads as a finding
+ * about the dependency, when the honest statement is that we have nothing to say about it.
  */
 function dependencyLabel(isDirect: boolean | null | undefined): string {
     if (isDirect === null || isDirect === undefined) return '';
@@ -504,11 +500,11 @@ function dependencyLabel(isDirect: boolean | null | undefined): string {
 }
 
 /**
- * `str(float)` de Python, qui garde la décimale des valeurs entières : `str(9.0)`
- * rend « 9.0 », là où `String(9)` rend « 9 » en JavaScript.
+ * Python's `str(float)`, which keeps the decimal on whole values: `str(9.0)` returns
+ * "9.0", where `String(9)` returns "9" in JavaScript.
  *
- * Sur une colonne de score CVSS, la moitié des valeurs sont entières — l'écart
- * toucherait donc une ligne sur deux d'un export remis à un auditeur.
+ * On a CVSS score column, half the values are whole numbers — the divergence would
+ * therefore touch every other row of an export handed to an auditor.
  */
 function pythonNumber(value: number | null | undefined): string {
     if (value === null || value === undefined) return '';

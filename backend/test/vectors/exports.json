@@ -1,7 +1,7 @@
 {
   "cases": [
     {
-      "label": "backlog vide",
+      "label": "empty backlog",
       "issues": [],
       "sarif": {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
@@ -12,21 +12,21 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": []
               }
             },
             "results": [],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -35,7 +35,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n"
     },
     {
-      "label": "une vulnérabilité ordinaire",
+      "label": "an ordinary vulnerability",
       "issues": [
         {
           "id": 1,
@@ -55,7 +55,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -77,13 +77,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -93,7 +93,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -106,7 +106,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -139,15 +139,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -158,7 +158,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -172,7 +172,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un problème résolu est exclu de SARIF, et déclaré fixed en VEX",
+      "label": "a resolved issue is excluded from SARIF, and declared fixed in VEX",
       "issues": [
         {
           "id": 1,
@@ -192,7 +192,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "resolved",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -214,21 +214,21 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": []
               }
             },
             "results": [],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -239,7 +239,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -253,7 +253,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,resolved,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un not_affected devient une suppression SARIF et porte sa justification",
+      "label": "a not_affected becomes a SARIF suppression and carries its justification",
       "issues": [
         {
           "id": 1,
@@ -273,11 +273,11 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "not_affected",
           "triageJustification": "vulnerable_code_not_in_execute_path",
-          "triageComment": "Le module n'est pas chargé en production.",
+          "triageComment": "The module is not loaded in production.",
           "triagedBy": "alice",
           "triagedAt": "2026-06-01T10:00:00",
           "triageExpiresAt": "2026-12-01T10:00:00",
@@ -295,13 +295,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -311,7 +311,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -324,7 +324,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -357,21 +357,21 @@
                 "suppressions": [
                   {
                     "kind": "external",
-                    "justification": "not_affected — vulnerable_code_not_in_execute_path — Le module n'est pas chargé en production. — décidé par alice — à revoir le 2026-12-01"
+                    "justification": "not_affected — vulnerable_code_not_in_execute_path — The module is not loaded in production. — decided by alice — to review on 2026-12-01"
                   }
                 ]
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -382,7 +382,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -390,7 +390,7 @@
             ],
             "status": "not_affected",
             "justification": "vulnerable_code_not_in_execute_path",
-            "impact_statement": "Le module n'est pas chargé en production.",
+            "impact_statement": "The module is not loaded in production.",
             "timestamp": "2026-06-01T10:00:00.000Z"
           }
         ]
@@ -398,7 +398,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,not_affected,vulnerable_code_not_in_execute_path,alice,2026-06-01T10:00:00.000Z,2026-12-01T10:00:00.000Z,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un affected reste visible et porte un action_statement",
+      "label": "an affected stays visible and carries an action_statement",
       "issues": [
         {
           "id": 1,
@@ -418,11 +418,11 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "affected",
           "triageJustification": null,
-          "triageComment": "Correctif planifié en sprint 12.",
+          "triageComment": "Fix planned for sprint 12.",
           "triagedBy": null,
           "triagedAt": null,
           "triageExpiresAt": null,
@@ -440,13 +440,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -456,7 +456,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -469,7 +469,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -502,15 +502,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -521,14 +521,14 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
               }
             ],
             "status": "affected",
-            "action_statement": "Correctif planifié en sprint 12.",
+            "action_statement": "Fix planned for sprint 12.",
             "timestamp": "2026-08-01T14:00:00.500Z"
           }
         ]
@@ -536,7 +536,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,affected,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un fixed est supprimé dans SARIF",
+      "label": "a fixed is suppressed in SARIF",
       "issues": [
         {
           "id": 1,
@@ -556,7 +556,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "fixed",
           "triageJustification": null,
@@ -578,13 +578,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -594,7 +594,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -607,7 +607,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -646,15 +646,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -665,7 +665,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -679,7 +679,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,fixed,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un constat de qualité est étiqueté quality, pas security",
+      "label": "a quality finding is tagged quality, not security",
       "issues": [
         {
           "id": 1,
@@ -699,7 +699,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -721,13 +721,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/quality/zanshin-python-bare-except",
                     "name": "zanshin-python-bare-except",
                     "shortDescription": {
-                      "text": "Qualité du code : zanshin-python-bare-except"
+                      "text": "Code quality: zanshin-python-bare-except"
                     },
                     "properties": {
                       "tags": [
@@ -737,7 +737,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -750,7 +750,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "zanshin-python-bare-except — corrigé dans 2.32.0"
+                  "text": "zanshin-python-bare-except — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -777,15 +777,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -794,7 +794,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,quality,zanshin-python-bare-except,high,7.5,0.42,false,,,,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un secret, sans paquet ni purl",
+      "label": "a secret, with no package and no purl",
       "issues": [
         {
           "id": 1,
@@ -814,7 +814,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -836,13 +836,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/secret/aws-access-token",
                     "name": "aws-access-token",
                     "shortDescription": {
-                      "text": "Secret exposé : aws-access-token"
+                      "text": "Exposed secret: aws-access-token"
                     },
                     "properties": {
                       "tags": [
@@ -852,7 +852,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -865,7 +865,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "aws-access-token — corrigé dans 2.32.0"
+                  "text": "aws-access-token — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -892,15 +892,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -909,7 +909,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,aws-access-token,high,7.5,0.42,false,,,,direct,config/settings.py,3,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un constat sans fichier retombe sur la racine du dépôt",
+      "label": "a finding with no file falls back to the repository root",
       "issues": [
         {
           "id": 1,
@@ -929,7 +929,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -951,13 +951,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -967,7 +967,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -980,7 +980,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1010,15 +1010,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1029,7 +1029,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1043,7 +1043,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un KEV sans correctif, message complet",
+      "label": "a KEV with no fix, full message",
       "issues": [
         {
           "id": 1,
@@ -1063,7 +1063,7 @@
           "fixState": "not-fixed",
           "fixVersions": null,
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1085,13 +1085,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1101,7 +1101,7 @@
                       "security-severity": "9.5"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1114,7 +1114,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — aucun correctif publié — exploitation active connue (CISA KEV)"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — no published fix — known active exploitation (CISA KEV)"
                 },
                 "locations": [
                   {
@@ -1147,15 +1147,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1166,7 +1166,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1180,7 +1180,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,critical,7.5,0.42,true,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,not-fixed,,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "une dépendance transitive le dit dans le message",
+      "label": "a transitive dependency says so in the message",
       "issues": [
         {
           "id": 1,
@@ -1200,7 +1200,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1222,13 +1222,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1238,7 +1238,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1251,7 +1251,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0 — dépendance transitive"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0 — transitive dependency"
                 },
                 "locations": [
                   {
@@ -1284,15 +1284,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1303,7 +1303,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1317,7 +1317,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,transitive,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "l'absence d'information sur la dépendance ne s'invente pas",
+      "label": "missing dependency information is not invented",
       "issues": [
         {
           "id": 1,
@@ -1337,7 +1337,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1359,13 +1359,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1375,7 +1375,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1388,7 +1388,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1420,15 +1420,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1439,7 +1439,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1453,7 +1453,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "deux problèmes partageant un identifiant ne produisent qu'une règle",
+      "label": "two issues sharing an identifier produce only one rule",
       "issues": [
         {
           "id": 1,
@@ -1473,7 +1473,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1503,7 +1503,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1525,13 +1525,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1541,7 +1541,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1554,7 +1554,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1590,7 +1590,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1623,15 +1623,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1642,7 +1642,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1657,7 +1657,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -1671,7 +1671,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,a.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,vulnerability,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,b.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "même identifiant, types différents : deux règles distinctes",
+      "label": "same identifier, different types: two distinct rules",
       "issues": [
         {
           "id": 1,
@@ -1691,7 +1691,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1721,7 +1721,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1743,13 +1743,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/secret/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Secret exposé : CVE-2024-1234"
+                      "text": "Exposed secret: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1759,7 +1759,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   },
@@ -1767,7 +1767,7 @@
                     "id": "zanshin/iac/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Configuration d'infrastructure : CVE-2024-1234"
+                      "text": "Infrastructure configuration: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -1777,7 +1777,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1790,7 +1790,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1826,7 +1826,7 @@
                 "ruleIndex": 1,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1859,15 +1859,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1876,7 +1876,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,secret,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n2,iac,CVE-2024-1234,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un problème sans identifiant",
+      "label": "an issue with no identifier",
       "issues": [
         {
           "id": 1,
@@ -1896,7 +1896,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -1918,13 +1918,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/eol/unspecified",
                     "name": "eol",
                     "shortDescription": {
-                      "text": "Fin de vie : non identifié"
+                      "text": "End of life: unidentified"
                     },
                     "properties": {
                       "tags": [
@@ -1934,7 +1934,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -1947,7 +1947,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — Fin de vie — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — End of life — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -1980,15 +1980,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -1997,14 +1997,14 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,eol,,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "une sévérité hors vocabulaire retombe sur warning et n'a pas de security-severity",
+      "label": "a severity outside the vocabulary falls back to warning and has no security-severity",
       "issues": [
         {
           "id": 1,
           "fingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "type": "vulnerability",
           "identifier": "CVE-2024-1234",
-          "severity": "catastrophique",
+          "severity": "catastrophic",
           "cvssScore": 7.5,
           "epssScore": 0.42,
           "isKev": false,
@@ -2017,7 +2017,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2039,13 +2039,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -2054,7 +2054,7 @@
                       ]
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2067,7 +2067,7 @@
                 "ruleIndex": 0,
                 "level": "warning",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2100,15 +2100,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2119,7 +2119,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -2130,10 +2130,10 @@
           }
         ]
       },
-      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,catastrophique,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
+      "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,catastrophic,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "un type non vulnérable est écarté de VEX",
+      "label": "a non-vulnerability type is discarded from VEX",
       "issues": [
         {
           "id": 1,
@@ -2153,7 +2153,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2175,13 +2175,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/iac/CKV_AWS_1",
                     "name": "CKV_AWS_1",
                     "shortDescription": {
-                      "text": "Configuration d'infrastructure : CKV_AWS_1"
+                      "text": "Infrastructure configuration: CKV_AWS_1"
                     },
                     "properties": {
                       "tags": [
@@ -2191,7 +2191,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2204,7 +2204,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CKV_AWS_1 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CKV_AWS_1 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2237,15 +2237,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2254,7 +2254,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,iac,CKV_AWS_1,high,7.5,0.42,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "une vulnérabilité sans identifiant est écartée de VEX",
+      "label": "a vulnerability with no identifier is discarded from VEX",
       "issues": [
         {
           "id": 1,
@@ -2274,7 +2274,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2296,13 +2296,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/unspecified",
                     "name": "vulnerability",
                     "shortDescription": {
-                      "text": "Vulnérabilité : non identifié"
+                      "text": "Vulnerability: unidentified"
                     },
                     "properties": {
                       "tags": [
@@ -2312,7 +2312,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2325,7 +2325,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — Vulnérabilité — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — Vulnerability — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2358,15 +2358,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2417,13 +2417,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -2446,7 +2446,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2479,21 +2479,21 @@
                 "suppressions": [
                   {
                     "kind": "external",
-                    "justification": "not_affected — component_not_present — Commentaire, avec \"citation\"\net retour. — décidé par bob"
+                    "justification": "not_affected — component_not_present — Commentaire, avec \"citation\"\net retour. — decided by bob"
                   }
                 ]
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2504,7 +2504,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -2540,7 +2540,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2562,13 +2562,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -2577,7 +2577,7 @@
                       ]
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2590,7 +2590,7 @@
                 "ruleIndex": 0,
                 "level": "warning",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2620,15 +2620,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2639,7 +2639,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -2653,7 +2653,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,,,,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,1,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "scores entiers, rendus avec leur décimale",
+      "label": "whole scores, rendered with their decimal",
       "issues": [
         {
           "id": 1,
@@ -2673,7 +2673,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2695,13 +2695,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -2711,7 +2711,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2724,7 +2724,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2757,15 +2757,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2776,7 +2776,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -2790,7 +2790,7 @@
       "csv": "id,type,identifier,severity,cvss_score,epss_score,is_kev,package_name,package_version,purl,dependency,file_path,line,fix_state,fix_versions,state,triage_status,triage_justification,triaged_by,triaged_at,triage_expires_at,first_seen_at,last_seen_at,times_seen,link\r\n1,vulnerability,CVE-2024-1234,high,9.0,1.0,false,requests,2.31.0,pkg:pypi/requests@2.31.0,direct,requirements.txt,12,fixed,2.32.0,open,under_review,,,,,2026-01-05T09:30:00.000Z,2026-08-01T14:00:00.500Z,4,https://nvd.nist.gov/vuln/detail/CVE-2024-1234\r\n"
     },
     {
-      "label": "score à zéro, qui n'est pas une absence de score",
+      "label": "a zero score, which is not an absence of score",
       "issues": [
         {
           "id": 1,
@@ -2810,7 +2810,7 @@
           "fixState": "fixed",
           "fixVersions": "2.32.0",
           "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234",
-          "description": "Une description de la vulnérabilité.",
+          "description": "A description of the vulnerability.",
           "state": "open",
           "triageStatus": "under_review",
           "triageJustification": null,
@@ -2832,13 +2832,13 @@
               "driver": {
                 "name": "Zanshin",
                 "version": "1.2.3",
-                "informationUri": "https://zanshin.interne",
+                "informationUri": "https://zanshin.internal",
                 "rules": [
                   {
                     "id": "zanshin/vulnerability/CVE-2024-1234",
                     "name": "CVE-2024-1234",
                     "shortDescription": {
-                      "text": "Vulnérabilité : CVE-2024-1234"
+                      "text": "Vulnerability: CVE-2024-1234"
                     },
                     "properties": {
                       "tags": [
@@ -2848,7 +2848,7 @@
                       "security-severity": "8.0"
                     },
                     "fullDescription": {
-                      "text": "Une description de la vulnérabilité."
+                      "text": "A description of the vulnerability."
                     },
                     "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
                   }
@@ -2861,7 +2861,7 @@
                 "ruleIndex": 0,
                 "level": "error",
                 "message": {
-                  "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+                  "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
                 },
                 "locations": [
                   {
@@ -2894,15 +2894,15 @@
               }
             ],
             "properties": {
-              "target": "org/exemple"
+              "target": "org/example"
             }
           }
         ]
       },
       "openvex": {
         "@context": "https://openvex.dev/ns/v0.2.0",
-        "@id": "https://zanshin.interne/vex/1",
-        "author": "Zanshin <security@exemple.be>",
+        "@id": "https://zanshin.internal/vex/1",
+        "author": "Zanshin <security@example.com>",
         "timestamp": "2026-08-10T08:00:00.000Z",
         "version": 3,
         "tooling": "Zanshin",
@@ -2913,7 +2913,7 @@
             },
             "products": [
               {
-                "@id": "pkg:github/org/exemple",
+                "@id": "pkg:github/org/example",
                 "identifiers": {
                   "purl": "pkg:pypi/requests@2.31.0"
                 }
@@ -2941,7 +2941,7 @@
                 "id": "zanshin/vulnerability/CVE-2024-1234",
                 "name": "CVE-2024-1234",
                 "shortDescription": {
-                  "text": "Vulnérabilité : CVE-2024-1234"
+                  "text": "Vulnerability: CVE-2024-1234"
                 },
                 "properties": {
                   "tags": [
@@ -2951,7 +2951,7 @@
                   "security-severity": "8.0"
                 },
                 "fullDescription": {
-                  "text": "Une description de la vulnérabilité."
+                  "text": "A description of the vulnerability."
                 },
                 "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2024-1234"
               }
@@ -2964,7 +2964,7 @@
             "ruleIndex": 0,
             "level": "error",
             "message": {
-              "text": "requests 2.31.0 — CVE-2024-1234 — corrigé dans 2.32.0"
+              "text": "requests 2.31.0 — CVE-2024-1234 — fixed in 2.32.0"
             },
             "locations": [
               {
@@ -2997,7 +2997,7 @@
           }
         ],
         "properties": {
-          "target": "org/exemple"
+          "target": "org/example"
         }
       }
     ]
