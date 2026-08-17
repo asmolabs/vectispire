@@ -153,12 +153,13 @@ supply chain, and they run on a machine that has the Docker socket.
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
 
-[`ScanRunner`](../../backend/src/scanning/scan-runner.ts) is a single concrete class here.
-The Python stack had it as a `ScannerEngine` interface with three implementations —
-Docker, a local side-car API, and OSV
+[`ScanRunner`](../../backend/src/scanning/scan-runner.ts) is a single concrete class, and
+deliberately so. The Python stack had it as a `ScannerEngine` interface with three
+implementations — Docker, a local side-car API, and OSV
 ([decision 0001](decisions/0001-pluggable-scan-layer.md)); the port carried over only the
-Docker one, so the seam exists in the decision register but not in the code. See
-[04](04-runtime-and-deployment.md) for what that costs.
+Docker one, and [decision 0010](decisions/0010-one-scan-runner.md) abandons the seam rather
+than rebuilding it around a single implementation. **Moving execution elsewhere is done by
+running an agent elsewhere**, not by substituting an engine.
 
 ## The periodic tick
 
@@ -179,10 +180,11 @@ until when. A `pg_advisory_lock` answers no question after the fact.
 - **No per-team partitioning at the account level.** An API key can be restricted to one
   target; a *user* sees everything. This is the most visible limit for anyone wanting to
   deploy Zanshin across several teams.
-- **The pluggable scan layer is a decision without an implementation.** Only the Docker
-  runner was ported, and the contract test that kept the implementations honest was lost
-  with the Python tree. [Decision 0001](decisions/0001-pluggable-scan-layer.md) has not
-  been superseded, so the register and the code disagree.
+- **The Docker socket requirement is unconditional** for whichever process runs scans,
+  which is what the abandoned seam had been meant to avoid
+  ([0010](decisions/0010-one-scan-runner.md)). The mitigation is to move execution onto an
+  agent so the network-exposed process does not hold the socket — see the `ZANSHIN_ROLE`
+  item in [04](04-runtime-and-deployment.md).
 - **No reachability analysis** (call graph, taint). A vulnerability in a dependency that
   is never called is counted like any other. That is heavy work, deliberately out of
   scope.

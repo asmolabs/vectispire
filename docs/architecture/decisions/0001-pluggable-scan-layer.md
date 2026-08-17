@@ -1,6 +1,6 @@
 # 0001 — The scan layer is pluggable behind `ScannerEngine`
 
-**Date:** 2026-07-28 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-07-28 · **Status:** **superseded** by [0010](0010-one-scan-runner.md) on 2026-08-17 · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -49,8 +49,9 @@ three implementations answer the same way. Without it, the engines would have dr
 
 ---
 
-> **Note added 2026-08-16, outside the decision text.** The NestJS port carried over only
-> the Docker implementation, and the contract test named above was removed with the Python
-> tree. `ScanRunner` is a single concrete class today. This decision has not been
-> superseded, so the register and the code disagree; see the "still open" section of
-> [01 — Overview](../01-overview.md).
+> **Superseded on 2026-08-17 by [0010](0010-one-scan-runner.md).** The NestJS port carried
+> over only the Docker implementation, and the contract test named above went with the
+> Python tree. Rather than rebuild the seam, 0010 abandons it and records the remote agent
+> as the extension point that survived. The text above is kept as it was: it says what was
+> decided at that date, and its argument about `null` rather than an abstract method would
+> still apply if a second execution mode were ever needed.
