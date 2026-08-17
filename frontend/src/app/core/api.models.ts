@@ -465,3 +465,31 @@ export interface SettingDefinition {
     /** A-t-elle été réglée, ou n'est-ce que le défaut ? Les deux ne se disent pas pareil. */
     configured: boolean;
 }
+
+/** A stored Semgrep rule set, as the listing returns it — without its files. */
+export interface RuleSetSummary {
+    id: number;
+    name: string;
+    contentHash: string;
+    ruleCount: number;
+    fileCount: number;
+    sizeBytes: string;
+    isActive: boolean | null;
+    uploadedBy: string | null;
+    uploadedAt: string;
+    activationNote: string | null;
+}
+
+/**
+ * What activating a rule set would cost.
+ *
+ * `losingIssues` names the rules that currently have open issues and are absent from the
+ * candidate: activating resolves those issues on the next scan, with their triage
+ * decisions. This is what the screen must show before offering the button.
+ */
+export interface RuleSetImpact {
+    losingIssues: string[];
+    affectedIssues: number;
+    addedRules: number;
+    removedRules: number;
+}

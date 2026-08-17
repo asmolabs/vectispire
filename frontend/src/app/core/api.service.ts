@@ -10,6 +10,8 @@ import {
     AuditVerification,
     DashboardOverview,
     Issue,
+    RuleSetImpact,
+    RuleSetSummary,
     IssueFilters,
     IssuedApiKey,
     LoginResponse,
@@ -112,6 +114,26 @@ export class ApiService {
 
     setTicketToken(token: string): Observable<{ configured: boolean }> {
         return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-token', { token });
+    }
+
+    ruleSets() {
+        return this.http.get<{ ruleSets: RuleSetSummary[] }>('/api/v1/rule-sets');
+    }
+
+    uploadRuleSet(name: string, files: { name: string; content: string }[]) {
+        return this.http.post<{ id: number; contentHash: string; ruleCount: number; fileCount: number }>('/api/v1/rule-sets', { name, files });
+    }
+
+    ruleSetImpact(id: number) {
+        return this.http.get<RuleSetImpact>(`/api/v1/rule-sets/${id}/impact`);
+    }
+
+    activateRuleSet(id: number, note: string | null) {
+        return this.http.post<{ id: number; contentHash: string }>(`/api/v1/rule-sets/${id}/activate`, { note });
+    }
+
+    deactivateRuleSets() {
+        return this.http.post<{ active: null }>('/api/v1/rule-sets/deactivate', {});
     }
 
     agents(): Observable<AgentSummary[]> {

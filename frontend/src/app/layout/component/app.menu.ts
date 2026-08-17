@@ -64,6 +64,7 @@ export class AppMenu {
                     { label: 'Agents', icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
                     { label: 'Utilisateurs', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
                     { label: "Journal d'audit", icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
+                    { label: 'Règles Semgrep', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
                     { label: 'Paramètres', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
                 ]
             });
