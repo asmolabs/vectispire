@@ -18,6 +18,7 @@ import { generateEphemeralKeyPair, isSealed, open as openEnvelope } from '../dom
 import { EncryptionService } from '../services/encryption.service';
 import { ScanDispatcherService } from '../services/scan-dispatcher.service';
 import { AgentsController } from './agents.controller';
+import { RuleSetService } from '../services/rule-set.service';
 import type { AuthenticatedRequest } from './auth.guard';
 
 const KEY = 'cle-de-chiffrement-de-test-32oct';
@@ -38,7 +39,7 @@ describe("protocole d'agent", () => {
     beforeAll(async () => {
         dataSource = await connectToTestDatabase();
         dispatcher = new ScanDispatcherService(dataSource, undefined, undefined, undefined, new EncryptionService(KEY, []));
-        controller = new AgentsController(dataSource.manager, dataSource, dispatcher);
+        controller = new AgentsController(dataSource.manager, dataSource, dispatcher, new RuleSetService(dataSource));
     }, 30_000);
 
     beforeEach(async () => {

@@ -12,6 +12,7 @@ import { ScanRunner, type ScanArtifacts } from '../scanning/scan-runner';
 import { SETTING_SAST_ENABLED } from '../domain/settings/keys';
 import { EncryptionService } from './encryption.service';
 import { ScanIngestorService } from './scan-ingestor.service';
+import { RuleSetService } from './rule-set.service';
 import { SettingsService } from './settings.service';
 
 /** Levée quand une clé de déploiement partirait en clair. Sa propre classe, pour que
@@ -50,7 +51,10 @@ export class ScanDispatcherService {
         private readonly encryption: EncryptionService = new EncryptionService(),
         /** Facultatif : les tests de file n'ont pas de réglages, et sans lui le SAST reste
          *  désactivé — le comportement le plus prudent des deux. */
-        private readonly settings: SettingsService | null = null
+        private readonly settings: SettingsService | null = null,
+        /** Facultatif de la même façon : sans lui, aucun jeu téléversé ne voyage, et les
+         *  scans retombent sur les règles embarquées et le répertoire de l'opérateur. */
+        private readonly ruleSets: RuleSetService | null = null
     ) {}
 
     /**
@@ -347,7 +351,12 @@ export class ScanDispatcherService {
             // distant n'a pas de base. Codé en dur à `false` jusqu'ici, ce qui rendait
             // toute la chaîne SAST — scanner, règles, ingestion, écran Qualité —
             // inatteignable sans qu'aucun test ne s'en aperçoive.
-            runSast: this.settings ? await this.settings.isEnabled(SETTING_SAST_ENABLED, false) : false
+            runSast: this.settings ? await this.settings.isEnabled(SETTING_SAST_ENABLED, false) : false,
+            // **Posée par le plan de contrôle, jamais lue par l'exécutant.** C'est ce qui
+            // rend tous les exécutants identiques : un agent qui demanderait lui-même « le
+            // jeu actif » scannerait avec ce qu'il a trouvé au moment de sa question, et
+            // deux agents pourraient diverger sur la même cible.
+            rulesHash: this.ruleSets ? ((await this.ruleSets.active())?.contentHash ?? null) : null
         };
     }
 }

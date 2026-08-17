@@ -1,5 +1,5 @@
 import { cloneRepository } from './git-clone';
-import { placeBundledRules, placeOperatorRules } from './bundled-rules';
+import { placeBundledRules, placeRuleSet, type RuleSetProvider } from './bundled-rules';
 import { ContainerRunner } from './container-runner';
 import { DependencyScanner, type DependencyFinding, type Sbom } from './scanners/dependencies';
 import { GitleaksScanner, type SecretFinding } from './scanners/gitleaks';
@@ -44,6 +44,15 @@ export interface ScanTask {
     subPath?: string;
     /** La clé privée déchiffrée, ou `null` pour un dépôt public. */
     privateKey?: string | null;
+    /**
+     * L'empreinte du jeu de règles Semgrep téléversé qui doit servir, ou `null` pour les
+     * seules règles embarquées et le répertoire de l'opérateur.
+     *
+     * Portée par la tâche plutôt que lue par l'exécutant : c'est ce qui rend tous les
+     * exécutants identiques. Un agent qui lirait lui-même « le jeu actif » scannerait avec
+     * ce qu'il a trouvé au moment où il a demandé, et deux agents pourraient diverger.
+     */
+    rulesHash?: string | null;
     /** Chaque étape est optionnelle : un opérateur peut n'en vouloir qu'une partie. */
     runDependencies?: boolean;
     runSecrets?: boolean;
@@ -75,7 +84,16 @@ export class ScanRunner {
         private readonly dependencies = new DependencyScanner(containers),
         private readonly secrets = new GitleaksScanner(containers),
         private readonly iac = new IacScanner(containers),
-        private readonly sast = new SastScanner(containers)
+        private readonly sast = new SastScanner(containers),
+        /**
+         * Comment cet exécutant obtient un jeu de règles téléversé.
+         *
+         * Injecté plutôt que construit : le travailleur intégré le lit en base, un agent
+         * distant le récupère par HTTP. `scanning/` ne peut connaître ni l'un ni l'autre —
+         * `architecture.spec.ts` lui interdit d'importer `typeorm`, et c'est cette
+         * interdiction qui fait que le même `ScanRunner` sert des deux côtés.
+         */
+        private readonly ruleSets: RuleSetProvider | null = null
     ) {}
 
     async run(task: ScanTask): Promise<ScanArtifacts> {
@@ -128,11 +146,12 @@ export class ScanRunner {
 
             if (task.runSast) {
                 await this.step(artifacts, 'SAST', async () => {
-                    // **Inside the step, and before the scan.** A configured rules
-                    // directory that cannot be read must fail SAST alone — not the SBOM,
-                    // not the secrets — and must leave `sast` at `null` rather than let
-                    // Semgrep run with the bundled rules and report a clean, shorter list.
-                    await placeOperatorRules(workspace);
+                    // **Inside the step, and before the scan.** A rule set that cannot be
+                    // obtained, or a configured directory that cannot be read, must fail
+                    // SAST alone — not the SBOM, not the secrets — and must leave `sast` at
+                    // `null` rather than let Semgrep run with the bundled rules and report a
+                    // clean, shorter list.
+                    await placeRuleSet(workspace, task.rulesHash, this.ruleSets);
                     artifacts.sast = await this.sast.scan(workspace, task.subPath);
                 });
             }

@@ -6,6 +6,7 @@ import {
     Get,
     Headers,
     HttpCode,
+    NotFoundException,
     Param,
     ParseIntPipe,
     Post,
@@ -18,6 +19,7 @@ import {
 import type { Response } from 'express';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { ApiTags } from '@nestjs/swagger';
+import { RuleSetService } from '../services/rule-set.service';
 import { DataSource, EntityManager } from 'typeorm';
 import { now } from '../domain/common/timestamp';
 import { CONTRACT_VERSION, isCompatibleContract } from '../domain/agents/contract';
@@ -45,7 +47,8 @@ export class AgentsController {
     constructor(
         @InjectEntityManager() private readonly manager: EntityManager,
         private readonly dataSource: DataSource,
-        private readonly dispatcher: ScanDispatcherService
+        private readonly dispatcher: ScanDispatcherService,
+        private readonly ruleSets: RuleSetService
     ) {}
 
     /**
@@ -95,6 +98,30 @@ export class AgentsController {
             maxConcurrent: agent.maxConcurrent ?? 1,
             credentialsMode: agent.credentialsMode
         };
+    }
+
+    /**
+     * Le contenu d'un jeu de règles, par son empreinte.
+     *
+     * **Récupéré par empreinte et non « le jeu actif »**, et c'est la moitié du propos : un
+     * agent qui demanderait le jeu actif recevrait ce qui l'est *à cet instant*, alors que
+     * sa tâche a été construite plus tôt. Deux agents pourraient scanner la même cible avec
+     * des règles différentes, ce qui est précisément la divergence que le téléversement
+     * supprime. L'empreinte vient de la tâche, donc un scan est reproductible même si un
+     * administrateur active autre chose pendant qu'il tourne.
+     *
+     * Immuable par construction : une empreinte désigne un contenu, jamais un état. Un agent
+     * peut donc la mettre en cache sans invalidation.
+     */
+    @Get('rules/:hash')
+    async ruleSet(@Param('hash') hash: string) {
+        const found = await this.ruleSets.byHash(hash);
+        // 404 plutôt qu'un jeu vide : l'agent doit échouer son étape SAST, pas scanner avec
+        // les seules règles embarquées et rendre une liste plus courte qui se lirait
+        // « analysé, ces problèmes ont disparu ».
+        if (!found) throw new NotFoundException(`No rule set with hash ${hash}.`);
+
+        return { contentHash: found.contentHash, files: found.files };
     }
 
     /**
