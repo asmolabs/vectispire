@@ -1,31 +1,30 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
- * Les règles d'une session.
+ * A session's rules.
  *
- * **Ce que la version Reflex ne pouvait pas faire.** L'état d'authentification y vivait
- * dans l'état serveur, indexé par un jeton que le navigateur gardait en `localStorage` :
- * ce jeton n'expirait jamais de lui-même, et `logout()` ne pouvait pas l'invalider — il
- * se contentait de vider des variables côté serveur. Il n'existait aucune session
- * révocable, donc aucun moyen de déconnecter quelqu'un.
+ * **What the Reflex version could not do.** Authentication state lived in the server
+ * state there, indexed by a token the browser kept in `localStorage`: that token never
+ * expired on its own, and `logout()` could not invalidate it — it merely cleared
+ * server-side variables. There was no revocable session, hence no way to log anybody out.
  *
- * Trois propriétés, chacune absente auparavant :
+ * Three properties, each of them previously absent:
  *
- * 1. **Révocable.** Une session est une entrée dans un magasin ; la supprimer déconnecte
- *    réellement, y compris depuis un autre appareil.
- * 2. **Expirante.** Une durée absolue, et une durée d'inactivité. L'absolue borne ce
- *    qu'un jeton volé permet ; celle d'inactivité ferme les sessions oubliées.
- * 3. **Opaque.** Le jeton ne porte aucune information — pas de JWT, donc rien à
- *    déchiffrer, rien qui périme mal, et la révocation ne demande pas de liste noire.
+ * 1. **Revocable.** A session is an entry in a store; deleting it really does log the user
+ *    out, including from another device.
+ * 2. **Expiring.** An absolute lifetime, and an idle lifetime. The absolute one bounds
+ *    what a stolen token allows; the idle one closes forgotten sessions.
+ * 3. **Opaque.** The token carries no information — no JWT, so nothing to decode, nothing
+ *    that ages badly, and revocation needs no blocklist.
  */
 
-/** Durée de vie absolue, quoi qu'il arrive. */
+/** Absolute lifetime, whatever happens. */
 export const SESSION_TTL_MS = Number(process.env.ZANSHIN_SESSION_TTL_HOURS ?? 12) * 60 * 60 * 1000;
 
-/** Au-delà de ce silence, la session se ferme même si sa durée absolue court encore. */
+/** Past this much silence, the session closes even if its absolute lifetime still runs. */
 export const SESSION_IDLE_MS = Number(process.env.ZANSHIN_SESSION_IDLE_MINUTES ?? 60) * 60 * 1000;
 
-/** 32 octets d'entropie : 43 caractères en base64url, rien à échapper. */
+/** 32 bytes of entropy: 43 characters in base64url, nothing to escape. */
 const TOKEN_BYTES = 32;
 
 export interface Session {
@@ -33,10 +32,10 @@ export interface Session {
     userId: number;
     username: string;
     role: string;
-    /** Millisecondes epoch. */
+    /** Epoch milliseconds. */
     createdAt: number;
     lastSeenAt: number;
-    /** Le compte doit changer son mot de passe avant d'accéder au reste. */
+    /** The account must change its password before reaching anything else. */
     mustChangePassword: boolean;
 }
 
@@ -47,10 +46,10 @@ export function newSessionToken(): string {
 export type SessionState = 'active' | 'expired' | 'idle';
 
 /**
- * L'état d'une session à un instant donné.
+ * A session's state at a given instant.
  *
- * Les deux causes de fermeture sont distinguées parce que l'opérateur qui règle les
- * durées a besoin de savoir laquelle ferme réellement les sessions de ses utilisateurs.
+ * The two causes of closure are told apart because the operator tuning the durations needs
+ * to know which one is actually closing their users' sessions.
  */
 export function stateOf(session: Pick<Session, 'createdAt' | 'lastSeenAt'>, now: number): SessionState {
     if (now - session.createdAt >= SESSION_TTL_MS) return 'expired';
@@ -63,27 +62,27 @@ export function isActive(session: Pick<Session, 'createdAt' | 'lastSeenAt'>, now
 }
 
 /**
- * Compare deux jetons en temps constant.
+ * Compares two tokens in constant time.
  *
- * Une comparaison ordinaire s'arrête au premier octet qui diffère, et sa durée renseigne
- * sur le nombre d'octets déjà corrects. Peu exploitable sur un réseau, et fermer la
- * porte ne coûte rien.
+ * An ordinary comparison stops at the first differing byte, and its duration reveals how
+ * many bytes were already correct. Hardly exploitable over a network, and closing the door
+ * costs nothing.
  */
 export function tokensMatch(candidate: string, expected: string): boolean {
     const a = Buffer.from(candidate);
     const b = Buffer.from(expected);
-    // `timingSafeEqual` exige des longueurs égales ; une longueur différente est de
-    // toute façon un refus, et la révéler n'apprend rien d'utile.
+    // `timingSafeEqual` requires equal lengths; a different length is a refusal anyway,
+    // and revealing it teaches nothing useful.
     if (a.length !== b.length) return false;
     return timingSafeEqual(a, b);
 }
 
 /**
- * Extrait le jeton d'un en-tête `Authorization`.
+ * Extracts the token from an `Authorization` header.
  *
- * Rend `null` sur tout ce qui n'est pas exactement `Bearer <jeton>` : distinguer
- * « absent », « mal formé » et « inconnu » renseignerait quelqu'un qui sonde, sans aider
- * personne d'autre.
+ * Returns `null` for anything that is not exactly `Bearer <token>`: telling "absent",
+ * "malformed" and "unknown" apart would inform someone probing, without helping anybody
+ * else.
  */
 export function bearerToken(header: string | null | undefined): string | null {
     if (!header) return null;

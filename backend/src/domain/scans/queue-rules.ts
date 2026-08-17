@@ -1,76 +1,74 @@
 /**
- * Les règles de la file de scans — pures, sans requête.
+ * The scan queue's rules — pure, no queries.
  *
- * La file vit en base et non dans un pool de fils d'exécution. Trois raisons, chacune
- * constatée : un pool rend la file **invisible** (douze scans déclenchés, aucun moyen de
- * savoir lequel tournera quand) ; **un redémarrage la perd** (les lignes survivent, les
- * futures non, et ces scans restent en attente pour toujours) ; et la limite de
- * parallélisme devient une propriété du processus au lieu d'un réglage.
+ * The queue lives in the database and not in a thread pool. Three reasons, each observed:
+ * a pool makes the queue **invisible** (twelve scans triggered, no way to know which will
+ * run when); **a restart loses it** (the rows survive, the futures do not, and those scans
+ * stay pending forever); and the concurrency limit becomes a property of the process
+ * instead of a setting.
  *
- * L'ordre est celui de création, sans priorité. Une colonne de priorité serait facile à
- * ajouter et manque délibérément : « dans l'ordre où on les a demandés » est une règle
- * qu'un opérateur peut prédire, et la première chose que coûte un schéma de priorité est
- * cette prévisibilité.
+ * The order is creation order, with no priority. A priority column would be easy to add
+ * and is deliberately missing: "in the order they were asked for" is a rule an operator
+ * can predict, and the first thing a priority scheme costs is that predictability.
  */
 
-/** Durée d'un bail. Au-delà, un scan est considéré abandonné et redevient réclamable. */
+/** A lease's duration. Past it, a scan is considered abandoned and becomes claimable again. */
 export const LEASE_MS = Number(process.env.ZANSHIN_SCAN_LEASE_SECONDS ?? 1200) * 1000;
 
 /**
- * Nombre de reprises avant l'échec définitif.
+ * How many takeovers before definitive failure.
  *
- * Sans plafond, une cible qui bloque son travailleur à tous les coups circulerait d'un
- * agent à l'autre indéfiniment, consommant la capacité de toute la flotte — et
- * l'opérateur verrait un scan éternellement « sur le point de démarrer ».
+ * With no cap, a target that jams its worker every time would circulate from agent to
+ * agent indefinitely, consuming the whole fleet's capacity — and the operator would see a
+ * scan forever "about to start".
  */
 export const MAX_ATTEMPTS = Number(process.env.ZANSHIN_SCAN_MAX_ATTEMPTS ?? 3);
 
 /**
- * Tentatives de réclamation avant d'abandonner un tour.
+ * Claim attempts before giving up on a round.
  *
- * **Existe pour MySQL**, qui compte les lignes sautées dans son `LIMIT` : avec
- * `LIMIT 1`, dix réclamants concurrents sur une file de vingt scans en laissaient six
- * les mains vides. Rien n'était jamais réclamé deux fois — c'était un problème de débit,
- * dont la forme en production est un agent qui interroge pendant trente secondes pendant
- * que du travail attend.
+ * **Exists for MySQL**, which counts skipped rows against its `LIMIT`: with `LIMIT 1`, ten
+ * concurrent claimants against a queue of twenty scans left six of them empty-handed.
+ * Nothing was ever claimed twice — it was a throughput problem, whose production shape is
+ * an agent polling for thirty seconds while work waits.
  *
- * PostgreSQL ne se comporte pas ainsi : il continue de parcourir jusqu'à obtenir `LIMIT`
- * lignes non verrouillées. La boucle sort dès que la limite est atteinte ou la file vide,
- * donc elle ne coûte rien là où elle ne sert pas.
+ * PostgreSQL does not behave this way: it keeps scanning until it has `LIMIT` unlocked
+ * rows. The loop exits as soon as the limit is reached or the queue is empty, so it costs
+ * nothing where it is not needed.
  */
 export const CLAIM_ATTEMPTS = Number(process.env.ZANSHIN_SCAN_CLAIM_ATTEMPTS ?? 12);
 
 export const LEASE_EXHAUSTED_MESSAGE =
-    "Le scan a été repris trop de fois sans aboutir : son travailleur cesse de répondre avant la fin. " +
-    'Vérifiez les journaux de l’agent, puis relancez le scan.';
+    'The scan was taken over too many times without completing: its worker stops responding before the end. ' +
+    "Check the agent's logs, then run the scan again.";
 
 /**
- * Combien de scans peuvent encore démarrer.
+ * How many scans can still start.
  *
- * Calculée à chaque distribution plutôt que fixée au démarrage : c'est ce qui rend la
- * limite modifiable sans redémarrer l'application.
+ * Computed on every dispatch rather than fixed at startup: that is what makes the limit
+ * changeable without restarting the application.
  */
 export function capacity(maxConcurrent: number, running: number): number {
     return Math.max(0, maxConcurrent - running);
 }
 
-/** Un bail qui n'expire jamais n'est pas un bail : l'absence de date vaut expiration. */
+/** A lease that never expires is not a lease: an absent date counts as expired. */
 export function leaseHasLapsed(leaseExpiresAt: Date | null, asOf: Date): boolean {
     return leaseExpiresAt === null || leaseExpiresAt < asOf;
 }
 
 /**
- * Ce qu'il advient d'un scan dont le bail a expiré.
+ * What becomes of a scan whose lease has lapsed.
  *
- * Rien n'est *arrêté* ici : le travail tourne peut-être encore ailleurs, et rien dans ce
- * processus ne peut tuer un fil sur une autre machine. La ligne redevient réclamable, et
- * c'est `stillOwned` qui refusera ensuite les résultats du travailleur déchu.
+ * Nothing is *stopped* here: the work may still be running elsewhere, and nothing in this
+ * process can kill a thread on another machine. The row becomes claimable again, and it is
+ * `stillOwned` that will later refuse the deposed worker's results.
  */
 export function afterLapse(attempts: number): 'requeue' | 'fail' {
     return attempts >= MAX_ATTEMPTS ? 'fail' : 'requeue';
 }
 
-/** Le bail à poser au moment d'une réclamation. */
+/** The lease to set at the moment of a claim. */
 export function leaseUntil(claimedAt: Date): Date {
     return new Date(claimedAt.getTime() + LEASE_MS);
 }

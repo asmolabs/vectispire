@@ -2,38 +2,36 @@ import { GateIssue, GateVerdict, evaluate } from './policy-gate';
 import { PolicyLookup, ResolvedPolicy, StoredPolicy, resolvePolicy } from './policy-resolution';
 
 /**
- * Où en est chaque cible, en une image.
+ * Where each target stands, in one picture.
  *
- * **Le verdict du gate a toujours été calculé et jamais montré.** Il servait
- * `POST /api/v1/gate`, et une équipe ne pouvait apprendre si son dépôt passait qu'en
- * lançant une compilation contre lui — l'application connaissait la réponse et la
- * gardait pour elle.
+ * **The gate verdict was always computed and never shown.** It served
+ * `POST /api/v1/gate`, and a team could only learn whether its repository passed by
+ * running a build against it — the application knew the answer and kept it to itself.
  *
- * ## Deux règles façonnent cette implémentation
+ * ## Two rules shape this implementation
  *
- * **Le verdict d'ici doit être celui que rend l'API.** Ce module ne calcule donc pas de
- * passé/échoué : il appelle `evaluate` avec la même résolution de politique que
- * l'endpoint, sur les mêmes problèmes. Une agrégation SQL qui recompterait « les
- * problèmes ouverts au-dessus du seuil » serait d'accord aujourd'hui et divergerait au
- * premier drapeau ajouté à `GatePolicy` — et personne ne le verrait avant qu'un pipeline
- * et un écran ne se contredisent sur le même dépôt.
+ * **The verdict here must be the one the API returns.** This module therefore computes no
+ * pass/fail of its own: it calls `evaluate` with the same policy resolution as the
+ * endpoint, over the same issues. A SQL aggregate recounting "open issues above the
+ * threshold" would agree today and diverge the first time a flag was added to
+ * `GatePolicy` — and nobody would see it until a pipeline and a screen contradicted each
+ * other about the same repository.
  *
- * **Un écran listant N cibles ne doit pas coûter N requêtes.** Les deux pièges sont
- * réels : résoudre une politique par cible coûte une ou deux requêtes chacune, charger
- * les problèmes d'une cible en coûte une autre. Tout est donc lu une fois et apparié en
- * mémoire ici — d'où une fonction pure sur des données déjà chargées, plutôt qu'un
- * service tenant une session.
+ * **A screen listing N targets must not cost N queries.** Both traps are real: resolving
+ * a policy per target costs one or two queries each, loading a target's issues costs
+ * another. Everything is therefore read once and matched up in memory here — hence a pure
+ * function over already-loaded data, rather than a service holding a session.
  *
- * **Une cible jamais scannée, ou dont le dernier scan a échoué, n'est pas une cible qui
- * passe.** C'est une cible que personne n'a regardée — la pire posture qui soit, et
- * celle qu'aucun écran ne nommait. Un backlog vide passe toutes les politiques : le dire
- * sans ce qualificatif serait la chose la plus trompeuse que cet écran puisse faire.
+ * **A target never scanned, or whose last scan failed, is not a target that passes.** It
+ * is a target nobody has looked at — the worst posture there is, and the one no screen
+ * named. An empty backlog passes every policy: saying so without that qualifier would be
+ * the most misleading thing this screen could do.
  */
 
 export const TARGET_REPOSITORY = 'repository';
 export const TARGET_CONTAINER = 'container';
 
-/** Ce que le dernier scan dit de la confiance qu'on peut accorder au verdict. */
+/** What the last scan says about how much the verdict can be trusted. */
 export const OBSERVATION_OK = 'ok';
 export const OBSERVATION_NEVER_SCANNED = 'never_scanned';
 export const OBSERVATION_LAST_SCAN_FAILED = 'last_scan_failed';
@@ -45,7 +43,7 @@ const IN_FLIGHT_STATUSES = ['pending', 'scanning'];
 
 export interface OverviewTarget {
     id: number;
-    /** Le nom lisible ; pour un dépôt, son nom ou à défaut son URL. */
+    /** The readable name; for a repository, its name or failing that its URL. */
     name: string;
 }
 
@@ -66,10 +64,10 @@ export interface TargetPosture {
     lastScanId: number | null;
     passed: boolean;
     /**
-     * Le verdict repose-t-il sur une observation réelle ?
+     * Does the verdict rest on a real observation?
      *
-     * Une cible que personne n'a scannée avec succès produit un backlog vide, et un
-     * backlog vide passe toutes les politiques.
+     * A target nobody has successfully scanned produces an empty backlog, and an empty
+     * backlog passes every policy.
      */
     observed: boolean;
 }
@@ -86,15 +84,15 @@ export interface SecurityOverview {
 export interface OverviewInput {
     repositories: OverviewTarget[];
     containers: OverviewTarget[];
-    /** Toutes les politiques actives, lues en une fois. */
+    /** Every active policy, read in one go. */
     policies: { targetKind: string; targetId: number; policy: StoredPolicy }[];
-    /** Tous les problèmes ouverts, lus en une fois. */
+    /** Every open issue, read in one go. */
     openIssues: (GateIssue & { repoId: number | null; containerId: number | null })[];
     latestScanByRepository: Map<number, LatestScan>;
     latestScanByContainer: Map<number, LatestScan>;
 }
 
-/** Assemble la vue à partir de données déjà lues. Aucune requête ici, par construction. */
+/** Assembles the view from already-read data. No queries here, by construction. */
 export function buildOverview(input: OverviewInput): SecurityOverview {
     const byScope = new Map<string, StoredPolicy>();
     for (const entry of input.policies) byScope.set(scopeKey(entry.targetKind, entry.targetId), entry.policy);
@@ -116,9 +114,9 @@ export function buildOverview(input: OverviewInput): SecurityOverview {
         targets,
         failingCount: targets.filter((target) => !target.passed).length,
         totalCount: targets.length,
-        // Compté sur les problèmes évalués, et non sur tout le backlog : un KEV écarté
-        // par un triage ou par `fixableOnly` ne pèse pas sur le verdict, et l'afficher
-        // dans le même bandeau ferait lire un chiffre qui ne correspond à rien.
+        // Counted over the evaluated issues, not over the whole backlog: a KEV discarded
+        // by a triage or by `fixableOnly` does not weigh on the verdict, and showing it in
+        // the same banner would present a number that corresponds to nothing.
         kevCount: targets.reduce((total, target) => total + target.verdict.violations.filter((violation) => violation.rule === 'kev').length, 0),
         neverScannedCount: targets.filter((target) => target.observation === OBSERVATION_NEVER_SCANNED).length,
         lastScanFailedCount: targets.filter((target) => target.observation === OBSERVATION_LAST_SCAN_FAILED).length
@@ -132,9 +130,8 @@ function posture(
     issuesByTarget: Map<string, GateIssue[]>,
     latestScan: LatestScan | undefined
 ): TargetPosture {
-    // La même précédence que `resolvePolicy`, appliquée sur des politiques lues une
-    // seule fois : l'appeler par cible est exactement ce qui ferait de cet écran 2N
-    // requêtes.
+    // The same precedence as `resolvePolicy`, applied to policies read only once: calling
+    // it per target is exactly what would make this screen 2N queries.
     const lookup: PolicyLookup = {
         forTarget: byScope.get(scopeKey(kind, target.id)) ?? null,
         global: byScope.get(GLOBAL_KEY) ?? null
@@ -165,7 +162,7 @@ function observationOf(latestScan: LatestScan | undefined): Observation {
     return OBSERVATION_OK;
 }
 
-/** La politique globale est stockée avec la portée `global` et l'identifiant 0. */
+/** The global policy is stored with the `global` scope and identifier 0. */
 const GLOBAL_KEY = 'global:0';
 
 function scopeKey(kind: string, id: number): string {
