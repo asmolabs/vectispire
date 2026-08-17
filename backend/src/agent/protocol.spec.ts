@@ -185,3 +185,55 @@ describe('protocole de l’agent', () => {
         });
     });
 });
+
+describe('rule set fetching', () => {
+    function protocolWith(responses: { status: number; body: unknown }[]) {
+        const calls: string[] = [];
+        let index = 0;
+        const client = new AgentProtocol(async (path) => {
+            calls.push(path);
+            return responses[Math.min(index++, responses.length - 1)];
+        }, null);
+        return { client, calls };
+    }
+
+    it('fetches by hash and caches, so a second scan costs nothing', async () => {
+        // **The cache needs no invalidation**, and that is the only reason to fetch by hash
+        // rather than "the active set": a hash names a content, never a state.
+        const files = [{ path: 'rule-0001.yaml', content: 'rules: []\n' }];
+        const { client, calls } = protocolWith([{ status: 200, body: { contentHash: 'abc', files } }]);
+
+        expect(await client.ruleSet('abc')).toEqual(files);
+        expect(await client.ruleSet('abc')).toEqual(files);
+        expect(calls).toEqual(['/api/v1/agents/rules/abc']);
+    });
+
+    it('asks again for a different hash', async () => {
+        const { client, calls } = protocolWith([{ status: 200, body: { files: [] } }]);
+
+        await client.ruleSet('abc');
+        await client.ruleSet('def');
+        expect(calls).toEqual(['/api/v1/agents/rules/abc', '/api/v1/agents/rules/def']);
+    });
+
+    it('throws rather than falling back to fewer rules', async () => {
+        // The caller places this inside the SAST step, whose failure leaves the artifact at
+        // `null`. Returning an empty list instead would let Semgrep run with the bundled
+        // rule and report a shorter list — which reads as "analyzed, those issues are gone"
+        // and resolves everything the operator's rules had found.
+        const { client } = protocolWith([{ status: 404, body: null }]);
+
+        await expect(client.ruleSet('missing')).rejects.toThrow(/HTTP 404/);
+    });
+
+    it('does not cache a failure', async () => {
+        const { client, calls } = protocolWith([
+            { status: 503, body: null },
+            { status: 200, body: { files: [{ path: 'rule-0001.yaml', content: 'rules: []\n' }] } }
+        ]);
+
+        await expect(client.ruleSet('abc')).rejects.toThrow();
+        expect((await client.ruleSet('abc')).length).toBe(1);
+        expect(calls).toHaveLength(2);
+    });
+});

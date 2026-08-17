@@ -62,7 +62,11 @@ export async function main(): Promise<void> {
 
     console.log(`Agent « ${identity.name} » annoncé — contrat ${identity.contractVersion}, identifiants ${identity.credentialsMode}.`);
 
-    const runner = new ScanRunner();
+    // **Le fournisseur de règles, branché sur le protocole.** Sans lui, un agent recevant
+    // une tâche qui nomme un jeu téléversé échouerait son étape SAST — bruyamment et
+    // correctement, mais sans jamais pouvoir scanner. `ScanRunner` ne peut pas parler HTTP
+    // lui-même : il est partagé avec le travailleur intégré, qui lit la base.
+    const runner = new ScanRunner(undefined, undefined, undefined, undefined, undefined, (hash) => protocol.ruleSet(hash));
     const options = {
         waitSeconds: boundedInt(process.env.ZANSHIN_AGENT_WAIT_SECONDS, DEFAULT_WAIT_SECONDS, 1, 300),
         retryDelayMs: boundedInt(process.env.ZANSHIN_AGENT_RETRY_MS, DEFAULT_RETRY_MS, 1_000, 300_000),

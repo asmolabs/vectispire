@@ -52,6 +52,9 @@ export class AgentProtocol {
      *   Sa moitié privée n'est ni sérialisée ni écrite : elle meurt avec le processus, et
      *   il n'y a donc aucun fichier de clé à protéger, tourner ou oublier.
      */
+    /** Par empreinte, donc jamais à invalider — voir `ruleSet`. */
+    private readonly ruleSetCache = new Map<string, { path: string; content: string }[]>();
+
     constructor(
         private readonly call: HttpCall,
         private readonly keyPair: EphemeralKeyPair | null = null
@@ -139,6 +142,33 @@ export class AgentProtocol {
         }
 
         return { ...task, privateKey: plainText };
+    }
+
+    /**
+     * Le contenu d'un jeu de règles Semgrep, mis en cache par empreinte.
+     *
+     * **Le cache n'a pas besoin d'invalidation**, et c'est le seul intérêt de récupérer par
+     * empreinte plutôt que « le jeu actif » : une empreinte désigne un contenu, jamais un
+     * état. Ce que l'agent a téléchargé une fois reste juste pour toujours, et un
+     * changement de jeu produit simplement une empreinte qu'il n'a pas.
+     *
+     * En mémoire et non sur disque : un agent redémarré retélécharge quelques mégaoctets
+     * une fois, ce qui est moins cher qu'un cache sur disque à purger, à verrouiller entre
+     * scans concurrents, et à protéger contre une écriture partielle.
+     */
+    async ruleSet(contentHash: string): Promise<{ path: string; content: string }[]> {
+        const cached = this.ruleSetCache.get(contentHash);
+        if (cached) return cached;
+
+        const { status, body } = await this.call(`/api/v1/agents/rules/${contentHash}`, { method: 'GET', timeoutMs: 120_000 });
+        // Pas de repli sur les règles embarquées : l'appelant place ceci dans l'étape SAST,
+        // dont l'échec laisse l'artefact à `null`. Scanner avec moins de règles rendrait une
+        // liste plus courte, qui se lit « analysé, ces problèmes ont disparu ».
+        if (status >= 400) throw new Error(`Jeu de règles ${contentHash} refusé (HTTP ${status}).`);
+
+        const files = (body as { files?: { path: string; content: string }[] })?.files ?? [];
+        this.ruleSetCache.set(contentHash, files);
+        return files;
     }
 
     /**
