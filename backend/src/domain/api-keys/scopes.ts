@@ -1,8 +1,8 @@
 /**
- * Le vocabulaire des portées d'une clé d'API.
+ * The vocabulary of an API key's scopes.
  *
- * Défini dans le domaine et réexporté par l'entité, pour la même raison que les rôles :
- * c'est une règle métier, pas une colonne.
+ * Defined in the domain and re-exported by the entity, for the same reason as the roles: it
+ * is a business rule, not a column.
  */
 export const SCOPE_READ = 'read';
 export const SCOPE_SCAN = 'scan';
@@ -11,5 +11,5 @@ export const SCOPE_AGENT = 'agent';
 
 export const ALL_SCOPES = [SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT, SCOPE_AGENT] as const;
 
-/** `agent` n'est **jamais** implicite : ce périmètre donne le droit d'exécuter des scans. */
+/** `agent` is **never** implicit: that scope grants the right to run scans. */
 export const DEFAULT_SCOPES = [SCOPE_READ, SCOPE_SCAN, SCOPE_EXPORT] as const;

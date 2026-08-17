@@ -93,11 +93,11 @@ describe('durcissement par la requête', () => {
 
 describe('description de la provenance', () => {
     it('nomme la portée et la version', () => {
-        expect(describeSource({ source: SOURCE_TARGET, version: 7 })).toBe('politique de la cible v7');
-        expect(describeSource({ source: SOURCE_GLOBAL, version: 3 })).toBe('politique globale v3');
+        expect(describeSource({ source: SOURCE_TARGET, version: 7 })).toBe("the target's policy v7");
+        expect(describeSource({ source: SOURCE_GLOBAL, version: 3 })).toBe('the global policy v3');
     });
 
     it('ne prétend pas qu’une politique intégrée a une version', () => {
-        expect(describeSource({ source: SOURCE_BUILT_IN, version: null })).toBe("politique par défaut de l'application");
+        expect(describeSource({ source: SOURCE_BUILT_IN, version: null })).toBe("the application's default policy");
     });
 });

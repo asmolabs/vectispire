@@ -1,24 +1,23 @@
 /**
- * La version du contrat entre Zanshin et ses agents.
+ * The version of the contract between Zanshin and its agents.
  *
- * **Un agent d'une version antérieure doit pouvoir refuser proprement.** Sans ce numéro,
- * un agent parlant l'ancien protocole recevrait une tâche qu'il interprète de travers et
- * rendrait un résultat plausible mais faux — un scan qui déclare un dépôt propre parce
- * qu'il n'a pas compris ce qu'on lui demandait de chercher.
+ * **An agent on an older version must be able to refuse cleanly.** Without this number, an
+ * agent speaking the old protocol would receive a task it misreads and return a plausible
+ * but wrong result — a scan declaring a repository clean because it did not understand what
+ * it was asked to look for.
  *
- * Le numéro ne change **que** lorsque l'ancien comportement devient incorrect : ajouter un
- * champ optionnel n'est pas une rupture, puisqu'un agent qui l'ignore fait exactement ce
- * qu'il faisait avant.
+ * The number changes **only** when the old behaviour becomes incorrect: adding an optional
+ * field is not a break, since an agent that ignores it does exactly what it did before.
  */
 export const CONTRACT_VERSION = '1';
 
 /**
- * Ce contrat est-il compatible avec le nôtre ?
+ * Is this contract compatible with ours?
  *
- * Égalité stricte, délibérément. Une comparaison plus souple — « majeure identique » —
- * paraît accueillante et déplace la question : il faudrait alors décider, pour chaque
- * champ ajouté, si l'agent qui l'ignore reste correct. Le refus est bruyant, le correctif
- * est un déploiement, et l'opérateur sait quoi faire.
+ * Strict equality, deliberately. A looser comparison — "same major" — looks welcoming and
+ * moves the question elsewhere: it would then be necessary to decide, for every field
+ * added, whether an agent that ignores it is still correct. The refusal is loud, the fix is
+ * a deployment, and the operator knows what to do.
  */
 export function isCompatibleContract(announced: string): boolean {
     return announced.trim() === CONTRACT_VERSION;

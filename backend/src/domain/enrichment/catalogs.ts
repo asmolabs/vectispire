@@ -1,31 +1,30 @@
 /**
- * La lecture des deux catalogues publics d'exploitation : EPSS et CISA KEV.
+ * The reading of the two public exploitation catalogs: EPSS and CISA KEV.
  *
- * Fonctions pures, séparées du service qui appelle le réseau — c'est ce qui permet de
- * tester la partie qui peut réellement se tromper (un champ renommé, un score en chaîne,
- * une entrée sans identifiant) sans dépendre d'une API distante.
+ * Pure functions, kept apart from the service that calls the network — that is what makes
+ * the part which can genuinely go wrong (a renamed field, a score as a string, an entry with
+ * no identifier) testable without depending on a remote API.
  *
- * **Une charge illisible rend un résultat vide, jamais une exception.** L'enrichissement
- * est facultatif : un scan qui a produit de vrais résultats ne doit pas être marqué en
- * échec parce que FIRST a changé la forme de sa réponse.
+ * **An unreadable payload returns an empty result, never an exception.** Enrichment is
+ * optional: a scan that produced real results must not be marked failed because FIRST
+ * changed the shape of its response.
  */
 
-/** L'URL de l'API EPSS. Métadonnée seule : seuls des identifiants de CVE y sont envoyés. */
+/** The EPSS API URL. Metadata only: nothing but CVE identifiers is sent there. */
 export const EPSS_API_URL = 'https://api.first.org/data/v1/epss';
 
-/** Le catalogue des vulnérabilités activement exploitées, publié par la CISA. */
+/** The catalog of actively exploited vulnerabilities, published by CISA. */
 export const KEV_CATALOG_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
 
 /**
- * La taille d'un lot d'interrogation EPSS.
+ * The size of an EPSS query batch.
  *
- * Sous la limite documentée par l'API : un lot trop grand se solde par un refus qui, ici,
- * serait avalé — donc par un enrichissement silencieusement absent plutôt que par une
- * erreur visible.
+ * Under the limit the API documents: too large a batch ends in a refusal which, here, would
+ * be swallowed — hence in enrichment silently absent rather than a visible error.
  */
 export const EPSS_BATCH_SIZE = 90;
 
-/** Les scores EPSS d'une réponse, indexés par CVE. */
+/** A response's EPSS scores, indexed by CVE. */
 export function parseEpssResponse(payload: unknown): Map<string, number> {
     const scores = new Map<string, number>();
     const data = (payload as { data?: unknown })?.data;
@@ -36,13 +35,13 @@ export function parseEpssResponse(payload: unknown): Map<string, number> {
         const epss = (entry as { epss?: unknown })?.epss;
         if (typeof cve !== 'string' || cve === '') continue;
 
-        // L'API rend le score en **chaîne** (« 0.00042 »), pas en nombre. Le prendre tel
-        // quel le stockerait en texte dans une colonne numérique, ou le rendrait `NaN`.
+        // The API returns the score as a **string** ("0.00042"), not a number. Taking it as
+        // is would store text in a numeric column, or yield `NaN`.
         //
-        // Le filtre sur le type précède la conversion, et ce n'est pas de la prudence
-        // décorative : `Number(null)` et `Number('')` valent **0**, qui est un score EPSS
-        // parfaitement légitime. Sans ce garde, un champ absent se lirait « probabilité
-        // d'exploitation nulle » — l'absence déguisée en bonne nouvelle.
+        // The type filter comes before the conversion, and that is not decorative caution:
+        // `Number(null)` and `Number('')` are **0**, which is a perfectly legitimate EPSS
+        // score. Without this guard, an absent field would read as "zero probability of
+        // exploitation" — absence disguised as good news.
         if (typeof epss !== 'number' && (typeof epss !== 'string' || epss.trim() === '')) continue;
         const value = Number(epss);
         if (!Number.isFinite(value)) continue;
@@ -51,7 +50,7 @@ export function parseEpssResponse(payload: unknown): Map<string, number> {
     return scores;
 }
 
-/** Les identifiants du catalogue KEV. */
+/** The KEV catalog's identifiers. */
 export function parseKevCatalog(payload: unknown): Set<string> {
     const vulnerabilities = (payload as { vulnerabilities?: unknown })?.vulnerabilities;
     if (!Array.isArray(vulnerabilities)) return new Set();
@@ -63,7 +62,7 @@ export function parseKevCatalog(payload: unknown): Set<string> {
     );
 }
 
-/** Découpe une liste de CVE en lots interrogeables. */
+/** Splits a list of CVEs into queryable batches. */
 export function batches<T>(items: T[], size: number = EPSS_BATCH_SIZE): T[][] {
     const result: T[][] = [];
     for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));

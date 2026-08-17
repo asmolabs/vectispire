@@ -1,12 +1,12 @@
 import { BUILT_IN_POLICY, GatePolicy, RequestedPolicy, harden } from './policy-gate';
 
 /**
- * Quelle politique s'applique à une cible, et **d'où elle vient**.
+ * Which policy applies to a target, and **where it comes from**.
  *
- * La provenance fait partie de la réponse, ce n'est pas une information de mise au
- * point : un pipeline qui échoue a besoin de savoir si ce sont ses propres règles,
- * celles de sa cible, ou le défaut de l'organisation — sans quoi le premier réflexe est
- * d'élargir ses propres réglages, ce qui ne change alors rien.
+ * The provenance is part of the answer, not debugging information: a pipeline that fails
+ * needs to know whether these are its own rules, its target's, or the organization's
+ * default — otherwise the first reflex is to loosen its own settings, which then changes
+ * nothing.
  */
 
 export const SOURCE_TARGET = 'target';
@@ -15,7 +15,7 @@ export const SOURCE_BUILT_IN = 'built-in';
 
 export type PolicySource = typeof SOURCE_TARGET | typeof SOURCE_GLOBAL | typeof SOURCE_BUILT_IN;
 
-/** Une politique telle qu'elle est stockée, réduite à ce que la résolution regarde. */
+/** A policy as it is stored, reduced to what the resolution looks at. */
 export interface StoredPolicy extends GatePolicy {
     version: number;
 }
@@ -24,34 +24,34 @@ export interface ResolvedPolicy {
     policy: GatePolicy;
     source: PolicySource;
     version: number | null;
-    /** Les champs que la requête a demandé d'assouplir et n'a pas obtenus. */
+    /** The fields the request asked to loosen and did not get. */
     ignoredRelaxations: string[];
 }
 
 export interface PolicyLookup {
-    /** La politique active de la cible, ou `null`. */
+    /** The target's active policy, or `null`. */
     forTarget: StoredPolicy | null;
-    /** La politique active globale, ou `null`. */
+    /** The active global policy, or `null`. */
     global: StoredPolicy | null;
 }
 
 /**
- * Cible, puis globale, puis intégrée.
+ * Target, then global, then built-in.
  *
- * **Une politique de cible remplace entièrement la globale**, elle ne fusionne pas avec
- * elle. Une politique à moitié héritée est impossible à raisonner quand une compilation
- * échoue, et « les règles de ce dépôt » doit se lire à un seul endroit.
+ * **A target's policy replaces the global one entirely**, it does not merge with it. A
+ * half-inherited policy is impossible to reason about when a build fails, and "this
+ * repository's rules" must be readable in one single place.
  *
- * `requested` porte ce que l'appelant a réellement envoyé, et ne peut que **durcir** :
- * sans cela, n'importe quel pipeline rendrait vert ce qu'il veut depuis le corps de sa
- * requête. Les assouplissements refusés lui sont renvoyés plutôt qu'ignorés en silence.
+ * `requested` carries what the caller actually sent, and can only **tighten**: without
+ * that, any pipeline would turn whatever it liked green from its own request body. Refused
+ * relaxations are reported back rather than ignored silently.
  */
 export function resolvePolicy(lookup: PolicyLookup, requested?: RequestedPolicy, scoped = true): ResolvedPolicy {
     let stored: StoredPolicy | null = null;
     let source: PolicySource;
 
     if (scoped) {
-        // Demande pour une cible : la sienne d'abord, la globale ensuite.
+        // A request for a target: its own first, the global one next.
         stored = lookup.forTarget;
         source = SOURCE_TARGET;
         if (stored === null) {
@@ -59,7 +59,7 @@ export function resolvePolicy(lookup: PolicyLookup, requested?: RequestedPolicy,
             source = SOURCE_GLOBAL;
         }
     } else {
-        // Demande sur la portée globale : sa politique, et rien d'autre.
+        // A request on the global scope: that policy, and nothing else.
         stored = lookup.global;
         source = SOURCE_GLOBAL;
     }
@@ -81,9 +81,9 @@ export function resolvePolicy(lookup: PolicyLookup, requested?: RequestedPolicy,
     return { policy, source, version, ignoredRelaxations };
 }
 
-/** Ce qu'un pipeline lit quand son verdict le surprend. */
+/** What a pipeline reads when its verdict surprises it. */
 export function describeSource(resolved: Pick<ResolvedPolicy, 'source' | 'version'>): string {
-    if (resolved.source === SOURCE_BUILT_IN) return "politique par défaut de l'application";
-    const scope = resolved.source === SOURCE_TARGET ? 'de la cible' : 'globale';
-    return `politique ${scope} v${resolved.version}`;
+    if (resolved.source === SOURCE_BUILT_IN) return "the application's default policy";
+    const scope = resolved.source === SOURCE_TARGET ? "the target's" : 'the global';
+    return `${scope} policy v${resolved.version}`;
 }

@@ -1,26 +1,25 @@
 /**
- * L'appel sortant de Zanshin, avec la politique qui va avec.
+ * Zanshin's outbound call, with the policy that goes with it.
  *
- * **`validateOutboundUrl` ne protège que la première requête.** Node suit les redirections
- * par défaut : une destination validée qui répond `302 Location: http://169.254.169.254/`
- * est suivie sans que rien ne revérifie quoi que ce soit, et tout le garde d'URL tombe.
- * Vérifié en montant deux serveurs locaux — la requête atteignait bien la cible interne.
+ * **`validateOutboundUrl` only protects the first request.** Node follows redirects by
+ * default: a validated destination answering `302 Location: http://169.254.169.254/` is
+ * followed with nothing re-checking anything, and the whole URL guard falls. Verified by
+ * standing up two local servers — the request did reach the internal target.
  *
- * Le cas le plus coûteux n'est pas le webhook mais **la revue par modèle** : son garde exige
- * une destination interne précisément parce qu'elle reçoit le code source du dépôt scanné.
- * Une redirection vers l'extérieur en ferait un canal d'exfiltration parfaitement silencieux,
- * bien formé, et invisible pour toute vérification anti-SSRF faite en amont.
+ * The costliest case is not the webhook but **the model review**: its guard demands an
+ * internal destination precisely because it receives the scanned repository's source code. A
+ * redirect outward would make it a perfectly silent exfiltration channel, well formed, and
+ * invisible to any anti-SSRF check done upstream.
  *
- * **Une seule définition, pour que le sixième appel hérite de la règle.** Elle était absente
- * des cinq appels existants — chacun l'aurait fallu, aucun ne l'avait — et la recopier cinq
- * fois aurait garanti qu'elle manque au suivant.
+ * **One single definition, so the sixth call inherits the rule.** It was missing from all
+ * five existing calls — every one of them needed it, none had it — and copying it five times
+ * would have guaranteed the next one goes without.
  *
- * Refuser plutôt que réémettre vers la nouvelle adresse : un point de terminaison qui
- * redirige est mal configuré, et l'erreur nomme le problème là où un suivi silencieux le
- * cacherait.
+ * Refusing rather than re-issuing to the new address: an endpoint that redirects is
+ * misconfigured, and the error names the problem where silently following would hide it.
  */
 
-/** Ce que toute requête sortante de Zanshin porte, quelle que soit sa destination. */
+/** What every outbound Zanshin request carries, whatever its destination. */
 export interface OutboundRequest {
     method?: string;
     body?: unknown;
@@ -29,8 +28,8 @@ export interface OutboundRequest {
 }
 
 /**
- * Émet la requête et rend la réponse. **Lève sur une redirection comme sur un statut
- * d'erreur** — l'appelant décide si c'est fatal.
+ * Issues the request and returns the response. **Throws on a redirect as on an error
+ * status** — the caller decides whether that is fatal.
  */
 export async function outboundFetch(url: string, request: OutboundRequest): Promise<Response> {
     const { method = 'GET', body, headers = {}, timeoutMs } = request;
@@ -39,7 +38,7 @@ export async function outboundFetch(url: string, request: OutboundRequest): Prom
         method,
         headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
         body: body === undefined ? undefined : JSON.stringify(body),
-        // La ligne qui porte tout le propos de ce module.
+        // The line that carries this module's entire point.
         redirect: 'error',
         signal: AbortSignal.timeout(timeoutMs)
     });
@@ -48,7 +47,7 @@ export async function outboundFetch(url: string, request: OutboundRequest): Prom
     return response;
 }
 
-/** La même, quand la réponse est du JSON qu'on veut lire. */
+/** The same, when the response is JSON we want to read. */
 export async function outboundJson<T>(url: string, request: OutboundRequest): Promise<T> {
     return (await outboundFetch(url, request)).json() as Promise<T>;
 }
