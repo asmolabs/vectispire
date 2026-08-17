@@ -1,69 +1,67 @@
-# Architecture de Zanshin
+# Zanshin architecture
 
-Ce dossier s'adresse à **quelqu'un qui reprend le code** — pas à un évaluateur, pas à un
-comité. Il répond à trois questions, dans cet ordre : comment c'est fait, pourquoi c'est
-fait comme ça, et qu'est-ce qui casse si on y touche sans savoir.
+This folder is written for **someone picking up the code** — not for a reviewer, not for
+a committee. It answers three questions, in this order: how it is built, why it is built
+that way, and what breaks if you change it without knowing.
 
-> **Portage NestJS/Angular.** L'implémentation décrite ici est passée de Python/Reflex à
-> NestJS + Angular sur PostgreSQL ; l'arbre Python a été retiré. **Les décisions et leurs
-> raisons restent valables** — c'est ce que ce dossier consigne — mais les chemins de
-> fichiers et les noms de modules renvoient désormais à `backend/src/` et `frontend/src/`.
-> Les écarts assumés du portage (backends OSV et sidecar non repris, agent distant sans
-> binaire client, PostgreSQL seul) sont nommés dans le [README](../../README.md).
+> **NestJS/Angular port.** The implementation described here moved from Python/Reflex to
+> NestJS + Angular; the Python tree has been removed. **The decisions and their reasons
+> still hold** — that is what this folder records — but file paths and module names now
+> point into `backend/src/` and `frontend/src/`. The port's deliberate omissions (OSV and
+> sidecar backends not carried over, remote agent without a client binary) are named in
+> the [README](../../README.md).
 
-
-| Document | La question à laquelle il répond |
+| Document | The question it answers |
 |---|---|
-| [01 — Vue d'ensemble](01-vue-d-ensemble.md) | Que fait Zanshin, de quoi est-il fait, et par où passe un scan ? |
-| [02 — Modèle de données](02-modele-de-donnees.md) | Qu'est-ce qui est stocké, et pourquoi un *constat* n'est pas un *problème* ? |
-| [03 — Sécurité](03-securite.md) | Quelles sont les frontières de confiance, ce qui les garde, et ce qui reste ouvert ? |
-| [04 — Exécution et déploiement](04-execution-et-deploiement.md) | Une instance, plusieurs, des agents distants : qu'est-ce qui est permis et qu'est-ce qui est refusé ? |
-| [Registre des décisions](decisions/) | Une page par décision structurante, avec l'alternative écartée. |
+| [01 — Overview](01-overview.md) | What does Zanshin do, what is it made of, and what path does a scan take? |
+| [02 — Data model](02-data-model.md) | What is stored, and why is a *finding* not an *issue*? |
+| [03 — Security](03-security.md) | What are the trust boundaries, what guards them, and what is still open? |
+| [04 — Runtime and deployment](04-runtime-and-deployment.md) | One instance, several, remote agents: what is allowed and what is refused? |
+| [Decision register](decisions/) | One page per structural decision, with the alternative that was rejected. |
 
-## Ce que ce dossier remplace
+## What this folder replaces
 
-Deux fichiers nommés `ADR-001` et `ADR-002` qui avaient atteint 957 et 825 lignes. Ce
-n'étaient plus des décisions mais des journaux de bord : sections `9bis`, `9ter`,
-`9quater`… jusqu'à `9undecies`, chacune ajoutée après une vague de travail, aucune ne
-remplaçant la précédente. Personne n'y aurait trouvé l'état courant du système sans lire
-les 1 800 lignes et arbitrer soi-même entre ce qui restait vrai et ce qui avait été
-dépassé.
+Two files named `ADR-001` and `ADR-002` that had reached 957 and 825 lines. They were no
+longer decisions but logbooks: sections `9bis`, `9ter`, `9quater`, … up to `9undecies`,
+each added after a wave of work, none superseding the previous one. Nobody could have
+found the system's current state in them without reading all 1,800 lines and deciding
+for themselves what was still true and what had been overtaken.
 
-La distinction que ce dossier tient, et que les deux fichiers avaient perdue :
+The distinction this folder keeps, and that the two files had lost:
 
-- **La description est au présent.** Les documents 01 à 04 décrivent le système tel qu'il
-  est. Ils sont réécrits quand il change, pas complétés.
-- **Les décisions sont datées et immuables.** Une décision qui ne tient plus est
-  *remplacée* par une autre qui la cite, jamais modifiée. C'est tout l'intérêt d'un ADR,
-  et c'est exactement ce que les anciens fichiers ne faisaient pas.
+- **Description is in the present tense.** Documents 01 to 04 describe the system as it
+  is. They are rewritten when it changes, not appended to.
+- **Decisions are dated and immutable.** A decision that no longer holds is *superseded*
+  by another that cites it, never edited. That is the whole point of an ADR, and exactly
+  what the old files failed to do.
 
-Le contenu des deux fichiers a été repris avant leur suppression : les décisions dans le
-registre, les leçons durement acquises — les six défauts de portabilité, les pièges de
-concurrence mesurés, les impasses essayées — dans les documents et dans les commentaires
-du code. `git log docs/architecture/` retrouve les originaux.
+The content of both files was carried over before they were deleted: the decisions into
+the register, the hard-won lessons — the six portability defects, the measured
+concurrency traps, the dead ends tried — into these documents and into the code
+comments. `git log docs/architecture/` finds the originals.
 
-## Comment le garder honnête
+## How to keep it honest
 
-Ce dossier ne vaut que s'il est vrai, et un document d'architecture faux est pire que pas
-de document : il est cru. Trois règles suivies ici.
+This folder is worth nothing unless it is true, and a false architecture document is
+worse than none: it gets believed. Three rules are followed here.
 
-**Ce qui est vérifié par un test le dit et le référence.** Un dossier qui affirme
-« l'agent ne touche jamais la base » sans dire que `tests/test_agent_worker.py` l'impose à
-l'import énonce un vœu.
+**Whatever a test enforces says so and cites it.** A folder that claims "the agent never
+touches the database" without saying that `backend/src/architecture.spec.ts` enforces it
+on the import graph is stating a wish.
 
-**Les limites connues sont écrites au même endroit que les garanties.** Une section
-« reste ouvert » à la fin de chaque document, pas dans un fichier séparé que personne
-n'ouvre. Un lecteur qui découvre une limite ailleurs cesse de croire le reste.
+**Known limits are written in the same place as the guarantees.** A "still open" section
+at the end of each document, not in a separate file nobody opens. A reader who discovers
+a limit elsewhere stops believing the rest.
 
-**Le détail d'implémentation reste dans le code.** Ce dossier explique *pourquoi* et
-*comment les pièces s'agencent* ; le « comment exactement » est dans les docstrings, qui
-sont au même endroit que ce qu'elles décrivent et vieillissent donc moins vite. Quand ce
-dossier et un module se contredisent, **le module a raison** et ce dossier a un bug.
+**Implementation detail stays in the code.** This folder explains *why* and *how the
+pieces fit*; the "how exactly" lives in the doc comments, which sit next to what they
+describe and therefore age more slowly. When this folder and a module contradict each
+other, **the module is right** and this folder has a bug.
 
-## Ailleurs dans la documentation
+## Elsewhere in the documentation
 
-- [`docs/GETTING_STARTED.md`](../GETTING_STARTED.md) — installer et lancer.
-- [`docs/TECHNICAL_DOCUMENTATION.md`](../TECHNICAL_DOCUMENTATION.md) — référence des
-  modules, des réglages et des variables d'environnement.
-- [`docs/ROTATION_ET_PURGE.md`](../ROTATION_ET_PURGE.md) — rotation de la clé de
-  chiffrement et purge des données brutes.
+- [`docs/GETTING_STARTED.md`](../GETTING_STARTED.md) — install and run.
+- [`docs/TECHNICAL_DOCUMENTATION.md`](../TECHNICAL_DOCUMENTATION.md) — reference for the
+  modules, the settings and the environment variables.
+- [`docs/ROTATION_AND_PURGE.md`](../ROTATION_AND_PURGE.md) — encryption key rotation and
+  purging of raw data.

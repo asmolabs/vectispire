@@ -1,60 +1,60 @@
-# Zanshin — interface Angular
+# Zanshin — Angular UI
 
-L'interface de Zanshin, portée depuis Reflex. Voir
-[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour ce que le
-portage a retenu, écarté et corrigé au passage.
+Zanshin's user interface, ported from Reflex. See
+[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) for what the
+port kept, dropped, and fixed along the way.
 
 ```bash
-npm run start:frontend    # depuis la racine, sert sur http://localhost:4200
-npm run build             # les deux workspaces
-npm test                  # vérification des ressources + suite Vitest
+npm run start:frontend    # from the root, serves on http://localhost:4200
+npm run build             # both workspaces
+npm test                  # asset check + Vitest suite
 ```
 
-Le serveur de développement relaie `/api` vers `http://localhost:3000` (voir
-`proxy.conf.json`), où écoute le backend NestJS.
+The dev server proxies `/api` to `http://localhost:3000` (see `proxy.conf.json`), where
+the NestJS backend listens.
 
-## La pile, et pourquoi
+## The stack, and why
 
-**Angular 21.** Imposé par Optimus UI, dont les dépendances de pair sont en `^21.0.0`.
+**Angular 21.** Required by Optimus UI, whose peer dependencies are on `^21.0.0`.
 
-**Optimus UI** (`@openng/optimus-ui`) plutôt que PrimeNG. PrimeTek a archivé le dépôt
-PrimeNG et basculé la v22 en licence commerciale ; Optimus est le fork communautaire de
-la v21, la dernière version MIT. Les sous-chemins d'import sont identiques
-(`@openng/optimus-ui/table` là où l'on écrivait `primeng/table`), ce qui rend la
-documentation PrimeNG v21 directement utilisable.
+**Optimus UI** (`@openng/optimus-ui`) rather than PrimeNG. PrimeTek archived the PrimeNG
+repository and moved v22 to a commercial license; Optimus is the community fork of v21,
+the last MIT release. The import subpaths are identical (`@openng/optimus-ui/table`
+where you would have written `primeng/table`), which makes the PrimeNG v21 documentation
+directly usable.
 
-Deux renommages à connaître, hérités de ce fork :
+Two renames to know about, inherited from that fork:
 
 | PrimeNG | Optimus |
 |---|---|
-| `PrimeNG` (service de configuration) | `Optimus` |
+| `PrimeNG` (configuration service) | `Optimus` |
 | `providePrimeNG()` | `provideOptimus()` |
 
-**Sakai** (MIT, PrimeTek) pour la coquille : barre supérieure, barre latérale, thème
-sombre, configurateur d'apparence. `LICENSE.md` est celle du template et doit y rester.
+**Sakai** (MIT, PrimeTek) for the shell: top bar, sidebar, dark theme, appearance
+configurator. `LICENSE.md` is the template's own and must stay there.
 
-Deux choses à savoir si vous reprenez le template à la source :
+Two things to know if you pull the template from source:
 
-- `src/assets` est un **sous-module git** (`cetincakiroglu/sakai-assets`). Un clone
-  superficiel ne le récupère pas, et l'on croit alors le dépôt cassé — `angular.json`
-  référence des feuilles de style absentes. Ici les assets sont copiés en dur, pas
-  montés en sous-module.
-- Les pages de démonstration (`uikit`, `crud`, `landing`, `documentation`…) ont été
-  supprimées. Seuls la coquille, l'authentification et les pages d'erreur sont conservés.
+- `src/assets` is a **git submodule** (`cetincakiroglu/sakai-assets`). A shallow clone
+  does not fetch it, and you then believe the repository is broken — `angular.json`
+  references stylesheets that aren't there. Here the assets are copied in directly, not
+  mounted as a submodule.
+- The demo pages (`uikit`, `crud`, `landing`, `documentation`, …) have been removed. Only
+  the shell, authentication and the error pages are kept.
 
-**`primeicons` est épinglé en `7.0.0`**, exactement. La 8.0.0 a suivi PrimeNG sous
-licence propriétaire — c'est-à-dire précisément ce que le passage à Optimus visait à
-éviter. La contrainte est un `=` déguisé : ne la relâchez pas sans lire la licence.
+**`primeicons` is pinned to `7.0.0`**, exactly. 8.0.0 followed PrimeNG under a
+proprietary license — which is precisely what moving to Optimus was meant to avoid. The
+constraint is a disguised `=`: do not loosen it without reading the license.
 
-## Vérification des ressources
+## Asset checking
 
-`npm test` commence par `scripts/check-assets.mjs`, qui refuse toute référence à un
-domaine tiers dans `index.html` et `styles.scss`, et vérifie que les polices déclarées
-existent réellement et sont de vrais `woff2`.
+`npm test` starts with `scripts/check-assets.mjs`, which rejects any reference to a
+third-party domain in `index.html` and `styles.scss`, and verifies that the declared
+fonts actually exist and are real `woff2` files.
 
-Ce n'est pas du zèle. La politique de sécurité de contenu de Zanshin refuse les
-feuilles de style tierces, et Sakai chargeait Lato depuis un CDN. Une telle référence
-ne casse rien de visible : la requête est bloquée, la page retombe sur la police
-système, et rien ne le signale. C'est ce qui est arrivé à la version Reflex, dont la
-typographie n'a jamais atteint la production — il a fallu mesurer dans le navigateur
-pour le découvrir. Inter est donc servi depuis `public/fonts/`, licence OFL comprise.
+This is not zeal. Zanshin's content security policy refuses third-party stylesheets, and
+Sakai loaded Lato from a CDN. Such a reference breaks nothing visible: the request is
+blocked, the page falls back to the system font, and nothing reports it. That is what
+happened to the Reflex version, whose typography never reached production — it took
+measuring in the browser to find out. Inter is therefore served from `public/fonts/`,
+OFL license included.

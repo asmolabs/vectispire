@@ -1,115 +1,114 @@
-# Zanshin — plan de contrôle NestJS
+# Zanshin — NestJS control plane
 
-Le backend, porté depuis Python. Voir
-[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) pour ce que le
-portage a retenu, écarté et corrigé au passage.
+The backend, ported from Python. See
+[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) for what the
+port kept, dropped, and fixed along the way.
 
 ```bash
-npm run start:backend                      # depuis la racine, écoute sur :3000
-npm test --workspace @zanshin/backend      # suite unitaire
-npm run test:integration --workspace @zanshin/backend       # PostgreSQL, exige Docker
-npm run test:integration:all --workspace @zanshin/backend   # les quatre moteurs
+npm run start:backend                      # from the root, listens on :3000
+npm test --workspace @zanshin/backend      # unit suite
+npm run test:integration --workspace @zanshin/backend       # PostgreSQL, needs Docker
+npm run test:integration:all --workspace @zanshin/backend   # all four engines
 ```
 
-Les tests d'intégration n'exigent aucune base installée : `test/jest-global-setup.ts`
-démarre un conteneur par testcontainers et applique les migrations, une fois pour la
-campagne. Il n'y a pas de garde « sauter si la base est absente » — une suite qui se
-saute rapporte vert sans rien vérifier.
+The integration tests need no database installed: `test/jest-global-setup.ts` starts a
+container through testcontainers and applies the migrations, once for the whole run.
+There is no "skip if the database is missing" guard — a suite that skips itself reports
+green without checking anything.
 
-## Les couches, et la règle qui les tient
+## The layers, and the rule that holds them
 
 ```
-api/ ──► services/ ──► repositories/ ──► persistence/ ──► base
+api/ ──► services/ ──► repositories/ ──► persistence/ ──► database
            │                                  │
            └──────────────┬───────────────────┘
                           ▼
-                       domain/          (pur, ne dépend de rien)
+                       domain/          (pure, depends on nothing)
 ```
 
-**Une couche ne connaît que celle du dessous.** C'est la règle de la pile Python
-(`docs/architecture/01`), reprise telle quelle, avec une couche de plus.
+**A layer only knows the one below it.** This is the rule from the Python stack
+(`docs/architecture/01`), carried over unchanged, with one layer more.
 
-| Couche | Contenu | Ne connaît pas |
+| Layer | Holds | Doesn't know about |
 |---|---|---|
-| `domain/` | Les calculs qui décident : empreinte, verdict du gate, chaîne d'audit, exports | Tout le reste — ni TypeORM, ni NestJS, ni `pg` |
-| `persistence/` | Entités TypeORM, dialectes, décodage des types du pilote | Les dépôts, les services, l'API |
-| `repositories/` | Accès aux données. Aucune règle métier | Les services, l'API |
-| `services/` | Orchestration, transactions. Aucune requête SQL écrite ici | L'API |
-| `api/` | Contrôleurs, DTO, gardes | — |
+| `domain/` | The calculations that decide: fingerprint, gate verdict, audit chain, exports | Everything else — not TypeORM, not NestJS, not `pg` |
+| `persistence/` | TypeORM entities, dialects, decoding of the driver's types | The repositories, the services, the API |
+| `repositories/` | Data access. No business rules | The services, the API |
+| `services/` | Orchestration, transactions. No SQL written here | The API |
+| `api/` | Controllers, DTOs, guards | — |
 
-`src/architecture.spec.ts` **vérifie cette règle** en lisant le graphe d'imports : une
-couche qui importe au-dessus d'elle, ou un fichier du domaine qui importe un framework,
-fait échouer la suite. Une règle d'architecture écrite dans un document n'est pas une
-règle — elle est vraie le jour où on l'écrit et fausse six mois plus tard. La pile Python
-faisait déjà cela pour l'agent, dont l'invariant d'import est une propriété de sécurité.
+`src/architecture.spec.ts` **enforces this rule** by reading the import graph: a layer
+that imports from above it, or a domain file that imports a framework, fails the suite.
+An architecture rule written in a document is not a rule — it is true the day it is
+written and false six months later. The Python stack already did this for the agent,
+whose import invariant is a security property.
 
-### Pourquoi `domain/` est pur
+### Why `domain/` is pure
 
-Il porte les calculs dont une erreur ne lève aucune exception mais détruit des données :
-l'empreinte d'un problème (une divergence d'un octet efface tout le triage), la chaîne
-d'intégrité du journal d'audit, le verdict qui fait échouer une compilation. Trois
-conséquences : ils se testent exhaustivement sans base ; le même calcul sert l'API,
-l'ordonnanceur et l'interface, donc le verdict affiché *est* celui du gate ; et ils
-survivraient à un changement d'ORM ou de framework — l'évènement que ce projet vient
-précisément de traverser.
+It carries the calculations where a mistake raises no exception but destroys data: an
+issue's fingerprint (a one-byte divergence wipes out all triage), the audit log's
+integrity chain, the verdict that fails a build. Three consequences: they can be tested
+exhaustively without a database; the same calculation serves the API, the scheduler and
+the UI, so the verdict displayed *is* the gate's; and they would survive a change of ORM
+or framework — precisely the event this project has just been through.
 
-Une seule exemption dans le test : un `*.module.ts` est du câblage, c'est *le* fichier
-dont le rôle est de connaître NestJS. `domain/` n'y a pas droit, parce qu'il n'a rien à
-injecter.
+One exemption in the test: a `*.module.ts` is wiring, it is *the* file whose job is to
+know NestJS. `domain/` gets no such exemption, because it has nothing to inject.
 
-## Le schéma appartient aux migrations
+## The schema belongs to the migrations
 
-`synchronize` est à `false`. Les migrations de `persistence/migrations/<dialecte>/` sont
-l'unique source du schéma, et les entités le *décrivent* — chaque moteur a son propre jeu,
-parce qu'une même intention s'écrit différemment sur chacun.
+`synchronize` is `false`. The migrations under `persistence/migrations/<dialect>/` are
+the single source of the schema, and the entities *describe* it — each engine has its own
+set, because the same intent is spelled differently on each.
 
-Ce n'est pas une précaution héritée de la période où Alembic tenait le schéma : c'est
-`synchronize: true` qui est le danger. Il modifie la base à partir des entités, au
-démarrage, sans trace ni revue — une colonne renommée dans le code s'y traduit par une
-colonne détruite en production.
+This is not a precaution inherited from the period when Alembic held the schema: the
+danger is `synchronize: true` itself. It modifies the database from the entities, at
+startup, with no trace and no review — a column renamed in the code becomes a column
+destroyed in production.
 
-`persistence/schema-parity.integration-spec.ts` tient l'accord entre les deux. Il pose la
-question de `migration:generate` — « que faudrait-il changer pour que la base ressemble
-aux entités ? » — dont la bonne réponse est « rien ». Il tourne sur le moteur de la
-campagne en cours, donc les quatre sont couverts tour à tour, et c'est le seul endroit du
-dépôt qui vérifie cet accord. Les deux divergences qu'il a déjà rattrapées — un index
-déclaré côté migration mais pas côté entité, et l'inverse — ne changeaient aucun résultat,
-seulement leur coût : rien d'autre ne les aurait vues.
+`persistence/schema-parity.integration-spec.ts` holds the two in agreement. It asks the
+question `migration:generate` asks — "what would have to change for the database to look
+like the entities?" — whose right answer is "nothing". It runs on whichever engine the
+current campaign uses, so all four are covered in turn, and it is the only place in the
+repository that checks this agreement. The two divergences it has already caught — an
+index declared on the migration side but not the entity side, and the reverse — changed
+no result, only its cost: nothing else would have seen them.
 
-## Bases prises en charge
+## Supported databases
 
-`ZANSHIN_DB_DIALECT` accepte `postgres` (défaut), `sqlite`, `mysql` et `mariadb`. Les
-limites de chacun sont **annoncées au démarrage** plutôt que découvertes en production
-— voir `persistence/dialects.ts`, dont chaque avertissement nomme la conséquence.
+`ZANSHIN_DB_DIALECT` accepts `postgres` (default), `sqlite`, `mysql` and `mariadb`. Each
+one's limits are **announced at startup** rather than discovered in production — see
+`persistence/dialects.ts`, where every warning names the consequence.
 
-**Les quatre passent la campagne d'intégration entière**, chacun avec son propre jeu de
-migrations. Le tableau ci-dessous est mesuré, ligne par ligne, et non déduit.
+**All four pass the entire integration campaign**, each with its own set of migrations.
+The table below is measured, row by row, not inferred.
 
 | | PostgreSQL | MariaDB | MySQL | SQLite |
 |---|---|---|---|---|
-| Réclamation transactionnelle des scans | oui | oui | oui | **non** |
-| Lot de réclamation complet sous contention | oui | oui | **non** | s.o. |
-| Horodatages à la milliseconde | oui | oui | oui | oui |
-| `NULLS LAST` | oui | non | non | oui |
-| Plusieurs écrivains | oui | oui | oui | **non** |
+| Transactional scan claiming | yes | yes | yes | **no** |
+| Full claim batch under contention | yes | yes | **no** | n/a |
+| Millisecond timestamps | yes | yes | yes | yes |
+| `NULLS LAST` | yes | no | no | yes |
+| Multiple writers | yes | yes | yes | **no** |
 
-Chaque « non » vient d'un défaut trouvé en exécutant, et **aucun ne produit d'erreur** :
+Every "no" comes from a defect found by running, and **none of them raises an error**:
 
-- **`SKIP LOCKED` de MySQL compte les lignes sautées dans le `LIMIT`.** Deux réclamants,
-  quatre scans en file : le second repart les mains vides alors que la file n'est pas vide.
-  Rien n'est servi deux fois et le reste part au tour suivant — c'est du débit, pas de la
-  correction. MariaDB, mesuré sur le même scénario, rend un lot complet comme PostgreSQL.
-- **SQLite n'a qu'un écrivain.** Une deuxième instance sur le même fichier ne serait pas
-  lente, elle corromprait les données. Sa réclamation retombe donc sur un `UPDATE`
-  conditionnel gardé par le statut, ce qui est correct pour les fils d'un même processus.
-  Son pilote **refuse** `FOR UPDATE` au lieu de l'ignorer — la pile Python le laissait
-  tomber en silence, produisant une réclamation d'apparence transactionnelle qui remettait
-  le même scan à deux processus en production.
-- **`DATETIME` tronqué à la seconde** était le défaut qui avait coûté MySQL à la pile
-  Python : la chaîne d'audit couvre l'horodatage, donc chaque entrée échouait à sa propre
-  vérification et le journal se déclarait falsifié sans que rien ne l'ait été. `datetime(6)`
-  est déclaré en un seul endroit — `column-types.ts` — plutôt que colonne par colonne, où
-  une seule oubliée suffirait.
+- **MySQL's `SKIP LOCKED` counts the skipped rows against the `LIMIT`.** Two claimants,
+  four scans queued: the second walks away empty-handed while the queue is not empty.
+  Nothing is served twice and the rest goes out on the next round — this is throughput,
+  not correctness. MariaDB, measured on the same scenario, returns a full batch like
+  PostgreSQL.
+- **SQLite has a single writer.** A second instance on the same file would not be slow,
+  it would corrupt the data. Its claiming therefore falls back to a conditional `UPDATE`
+  guarded by the status, which is correct for threads within one process. Its driver
+  **refuses** `FOR UPDATE` instead of ignoring it — the Python stack dropped it silently,
+  producing a claim that looked transactional while handing the same scan to two
+  processes in production.
+- **`DATETIME` truncated to the second** was the defect that cost the Python stack MySQL:
+  the audit chain covers the timestamp, so every entry failed its own verification and
+  the log declared itself tampered with when nothing had been. `datetime(6)` is declared
+  in a single place — `column-types.ts` — rather than column by column, where one missed
+  column would be enough.
 
-PostgreSQL reste le moteur de référence : c'est celui sur lequel tout est vrai sans réserve,
-et celui que le code choisit par défaut.
+PostgreSQL remains the reference engine: it is the one on which everything is true
+without reservation, and the one the code picks by default.
