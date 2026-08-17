@@ -2,50 +2,49 @@ import { createCipheriv, createDecipheriv, createHash, createPrivateKey, createP
 import type { KeyObject } from 'node:crypto';
 
 /**
- * Une enveloppe scellée : un secret chiffré **pour un destinataire précis**.
+ * A sealed envelope: a secret encrypted **for one specific recipient**.
  *
- * **Ce que TLS ne donne pas.** La clé de déploiement d'un dépôt voyage du plan de contrôle
- * vers un agent distant. TLS la protège de bout en bout *à condition que personne ne
- * termine TLS en chemin* — or la plupart des déploiements ont un proxy inverse. À cet
- * endroit, la clé SSH est en clair : dans un vidage mémoire, dans un journal de débogage,
- * et pour qui administre le proxy.
+ * **What TLS does not give.** A repository's deployment key travels from the control
+ * plane to a remote agent. TLS protects it end to end *provided nobody terminates TLS on
+ * the way* — and most deployments have a reverse proxy. At that point the SSH key is in
+ * the clear: in a memory dump, in a debug log, and to whoever administers the proxy.
  *
- * Une enveloppe scellée retire ce proxy de la frontière de confiance. L'agent publie une
- * clé publique éphémère à chaque réclamation, le plan de contrôle scelle pour elle, et la
- * moitié privée ne quitte jamais le processus de l'agent — **rien n'est écrit au repos**.
+ * A sealed envelope takes that proxy out of the trust boundary. The agent publishes an
+ * ephemeral public key on every claim, the control plane seals for it, and the private
+ * half never leaves the agent's process — **nothing is written at rest**.
  *
- * **X25519 puis AES-256-GCM.** Un échange Diffie-Hellman avec une paire éphémère côté
- * expéditeur donne un secret partagé ; HKDF en tire une clé de session ; AES-GCM chiffre
- * et authentifie. C'est la construction d'une « boîte scellée », écrite avec les primitives
- * de Node — aucune dépendance ajoutée pour du code qui manipule des secrets.
+ * **X25519 then AES-256-GCM.** A Diffie-Hellman exchange with an ephemeral pair on the
+ * sender's side gives a shared secret; HKDF derives a session key from it; AES-GCM
+ * encrypts and authenticates. This is the "sealed box" construction, written with Node's
+ * primitives — no dependency added for code that handles secrets.
  *
- * **La clé publique de l'expéditeur est couverte par l'authentification.** Elle est incluse
- * dans les données associées : une enveloppe dont on remplacerait la clé éphémère ne se
- * déchiffrerait pas, au lieu de se déchiffrer en autre chose.
+ * **The sender's public key is covered by the authentication.** It is included in the
+ * associated data: an envelope whose ephemeral key was replaced would not decrypt, rather
+ * than decrypting into something else.
  */
 
 const KEY_LENGTH_BYTES = 32;
 const IV_LENGTH_BYTES = 12;
 const TAG_LENGTH_BYTES = 16;
 
-/** Distingue cette dérivation de toute autre usant du même échange. */
+/** Distinguishes this derivation from any other using the same exchange. */
 const HKDF_INFO = 'zanshin:sealed-envelope:v1';
 
-/** Le préfixe d'une enveloppe. Sa présence dit à l'agent qu'il doit déceler. */
+/** An envelope's prefix. Its presence tells the agent it has to unseal. */
 export const ENVELOPE_PREFIX = 'sealed:v1:';
 
 export interface EphemeralKeyPair {
-    /** À publier : elle ne vaut rien seule. */
+    /** To be published: it is worth nothing on its own. */
     publicKey: string;
-    /** À ne jamais sérialiser. Vit dans le processus, meurt avec lui. */
+    /** Never to be serialized. Lives in the process, dies with it. */
     privateKey: KeyObject;
 }
 
 /**
- * Une paire éphémère, pour un processus d'agent.
+ * An ephemeral pair, for one agent process.
  *
- * Régénérée à chaque démarrage et jamais écrite : un agent redémarré est un nouveau
- * destinataire, et il n'y a aucun fichier de clé à protéger, tourner ou oublier.
+ * Regenerated on every start and never written: a restarted agent is a new recipient, and
+ * there is no key file to protect, rotate or forget.
  */
 export function generateEphemeralKeyPair(): EphemeralKeyPair {
     const { publicKey, privateKey } = generateKeyPairSync('x25519');
@@ -56,11 +55,11 @@ export function generateEphemeralKeyPair(): EphemeralKeyPair {
 }
 
 /**
- * Scelle un secret pour le porteur de cette clé publique.
+ * Seals a secret for the holder of this public key.
  *
- * Rend une chaîne préfixée, sûre à transporter en JSON. Lève si la clé publique est
- * illisible — **refuser est le comportement correct** : rendre le secret en clair « parce
- * que le scellement a échoué » annulerait silencieusement toute la protection.
+ * Returns a prefixed string, safe to carry in JSON. Throws if the public key is
+ * unreadable — **refusing is the correct behaviour**: returning the secret in the clear
+ * "because sealing failed" would silently cancel the whole protection.
  */
 export function seal(recipientPublicKey: string, plainText: string): string {
     const recipient = createPublicKey({
@@ -69,8 +68,8 @@ export function seal(recipientPublicKey: string, plainText: string): string {
         type: 'spki'
     });
 
-    // Paire éphémère par enveloppe : deux scellements pour le même destinataire ne
-    // partagent aucun matériel, donc compromettre l'un n'ouvre pas l'autre.
+    // One ephemeral pair per envelope: two seals for the same recipient share no key
+    // material, so compromising one does not open the other.
     const ephemeral = generateKeyPairSync('x25519');
     const ephemeralPublic = ephemeral.publicKey.export({ type: 'spki', format: 'der' });
 
@@ -79,8 +78,8 @@ export function seal(recipientPublicKey: string, plainText: string): string {
 
     const iv = randomBytes(IV_LENGTH_BYTES);
     const cipher = createCipheriv('aes-256-gcm', sessionKey, iv);
-    // La clé éphémère en données associées : la remplacer casse l'authentification au lieu
-    // de produire un autre déchiffrement.
+    // The ephemeral key as associated data: replacing it breaks authentication instead of
+    // producing a different decryption.
     cipher.setAAD(ephemeralPublic);
 
     const cipherText = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
@@ -89,11 +88,11 @@ export function seal(recipientPublicKey: string, plainText: string): string {
 }
 
 /**
- * Ouvre une enveloppe avec la moitié privée qui lui correspond.
+ * Opens an envelope with the private half that matches it.
  *
- * Rend `null` sur toute enveloppe qui n'est pas exactement celle attendue — mauvais
- * destinataire, contenu modifié, format inconnu. Pas d'exception : l'appelant traite
- * l'échec comme « je n'ai pas reçu la clé », qui est la seule conclusion utile.
+ * Returns `null` for any envelope that is not exactly the expected one — wrong recipient,
+ * modified content, unknown format. No exception: the caller treats failure as "I did not
+ * receive the key", which is the only useful conclusion.
  */
 export function open(keyPair: EphemeralKeyPair, envelope: string): string | null {
     if (!isSealed(envelope)) return null;
@@ -123,25 +122,25 @@ export function open(keyPair: EphemeralKeyPair, envelope: string): string | null
     }
 }
 
-/** Cette valeur est-elle une enveloppe scellée plutôt qu'un secret en clair ? */
+/** Is this value a sealed envelope rather than a secret in the clear? */
 export function isSealed(value: string | null | undefined): boolean {
     return typeof value === 'string' && value.startsWith(ENVELOPE_PREFIX);
 }
 
 /**
- * Une clé publique lisible ?
+ * A readable public key?
  *
- * Vérifié avant de sceller, pour que l'appelant puisse refuser proprement plutôt que de
- * découvrir le problème dans une exception au milieu d'une réclamation.
+ * Checked before sealing, so the caller can refuse cleanly rather than discovering the
+ * problem in an exception in the middle of a claim.
  */
 export function isUsablePublicKey(value: string | null | undefined): boolean {
     if (typeof value !== 'string' || value === '') return false;
     try {
         const key = createPublicKey({ key: Buffer.from(value, 'base64'), format: 'der', type: 'spki' });
-        // **Lisible ne suffit pas : il faut que ce soit une clé X25519.** Une clé RSA se
-        // décode parfaitement et ne passe l'échange Diffie-Hellman à aucun prix — sans cette
-        // ligne, le refus arrivait sous forme d'exception au milieu d'une réclamation, là où
-        // tout le propos de cette fonction est de trancher avant.
+        // **Readable is not enough: it has to be an X25519 key.** An RSA key decodes
+        // perfectly and will not pass the Diffie-Hellman exchange at any price — without
+        // this line the refusal arrived as an exception in the middle of a claim, where
+        // the whole point of this function is to decide beforehand.
         return key.asymmetricKeyType === 'x25519';
     } catch {
         return false;
@@ -149,22 +148,22 @@ export function isUsablePublicKey(value: string | null | undefined): boolean {
 }
 
 /**
- * La clé de session, liée aux **deux** clés publiques de l'échange.
+ * The session key, bound to **both** public keys of the exchange.
  *
- * Les inclure dans le sel est ce qui empêche de rejouer une enveloppe vers un autre
- * destinataire : le secret partagé serait le même, la clé dérivée non.
+ * Including them in the salt is what stops an envelope being replayed to another
+ * recipient: the shared secret would be the same, the derived key would not.
  */
 function deriveSessionKey(shared: Buffer, ephemeralPublic: Buffer, recipientPublic: Buffer): Buffer {
     const salt = createHash('sha256').update(ephemeralPublic).update(recipientPublic).digest();
     return Buffer.from(hkdfSync('sha256', shared, salt, HKDF_INFO, KEY_LENGTH_BYTES));
 }
 
-/** Rendu pour les tests, qui ont besoin de fabriquer un destinataire. */
+/** Exposed for the tests, which need to build a recipient. */
 export function publicKeyOf(keyPair: EphemeralKeyPair): string {
     return keyPair.publicKey;
 }
 
-/** Reconstruit une paire depuis une clé privée exportée. Réservé aux tests. */
+/** Rebuilds a pair from an exported private key. Tests only. */
 export function keyPairFromPrivate(privateKeyDer: Buffer): EphemeralKeyPair {
     const privateKey = createPrivateKey({ key: privateKeyDer, format: 'der', type: 'pkcs8' });
     return {

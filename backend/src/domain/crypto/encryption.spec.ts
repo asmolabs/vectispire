@@ -1,117 +1,131 @@
 import { decryptWith, decryptWithAny, deriveKey, encryptWith, equalsSecret, generateEncryptionKey, privateKeyContext } from './encryption';
 
-describe('chiffrement au repos', () => {
+describe('encryption at rest', () => {
     const PASSPHRASE = 'une phrase de passe choisie par un humain';
     const key = deriveKey(PASSPHRASE);
-    const previous = deriveKey('la phrase précédente');
+    const previous = deriveKey('the previous passphrase');
     const keys = [key, previous];
 
-    describe('dérivation', () => {
-        it('accepte une clé de 32 octets en base64 telle quelle', () => {
+    describe('derivation', () => {
+        it('accepts a 32-byte base64 key as is', () => {
             const generated = generateEncryptionKey();
             expect(Buffer.from(generated, 'base64')).toHaveLength(32);
             expect(deriveKey(generated).equals(Buffer.from(generated, 'base64'))).toBe(true);
         });
 
-        it('étire une phrase de passe plutôt que de la tronquer', () => {
-            // L'implémentation précédente rendait « abc » suivi de 29 octets nuls : la
-            // clé valait l'entropie des trois caractères. C'est le défaut corrigé.
+        it('stretches a passphrase rather than truncating it', () => {
+            // The previous implementation returned "abc" followed by 29 null bytes: the
+            // key was worth the entropy of the three characters. That is the fixed defect.
             const derived = deriveKey('abc');
             expect(derived).toHaveLength(32);
             expect(derived.subarray(3).some((byte) => byte !== 0)).toBe(true);
         });
 
-        it('est déterministe, sans quoi rien ne se relirait après un redémarrage', () => {
+        it('is deterministic, without which nothing would read back after a restart', () => {
             expect(deriveKey(PASSPHRASE).equals(deriveKey(PASSPHRASE))).toBe(true);
         });
 
-        it('donne des clés distinctes pour des phrases voisines', () => {
+        it('gives distinct keys for neighbouring passphrases', () => {
             expect(deriveKey('phrase-a').equals(deriveKey('phrase-b'))).toBe(false);
         });
 
-        it("normalise l'unicode, pour qu'un même mot saisi autrement ouvre la même serrure", () => {
-            // « é » composé et décomposé sont visuellement identiques et différents en
-            // octets : sans normalisation, l'opérateur qui recopie sa phrase depuis un
-            // autre système se retrouve devant des secrets illisibles.
-            expect(deriveKey('clé-de-chiffrement').equals(deriveKey('clé-de-chiffrement'))).toBe(true);
+        it("normalizes unicode, so the same word typed differently opens the same lock", () => {
+            // Composed and decomposed "é" are visually identical and differ in bytes:
+            // without normalization, the operator who retypes their passphrase from
+            // another system ends up facing unreadable secrets.
+            //
+            // **The two literals below are not the same bytes**, however identical they
+            // look in an editor: the first is U+00E9, the second "e" followed by the
+            // combining acute U+0301. They are written with escapes rather than as raw
+            // characters because the difference is invisible on screen, and a
+            // well-meaning cleanup that collapsed them would leave a test passing
+            // without any normalization at all.
+            const composed = 'cl\u00e9-de-chiffrement';
+            const decomposed = 'cle\u0301-de-chiffrement';
+            expect(composed).not.toBe(decomposed);
+            expect(deriveKey(composed).equals(deriveKey(decomposed))).toBe(true);
         });
 
-        it("ne prend pas pour une clé une chaîne de la bonne longueur qui n'est pas du base64", () => {
-            // Sinon `Buffer.from` la tronque en silence et la clé est plus faible qu'elle
-            // n'en a l'air.
+        it("does not take a right-length string that is not base64 for a key", () => {
+            // Otherwise `Buffer.from` truncates it silently and the key is weaker than it
+            // looks.
             const notBase64 = '!'.repeat(44);
             expect(deriveKey(notBase64).equals(Buffer.from(notBase64, 'base64'))).toBe(false);
         });
     });
 
-    describe('aller-retour', () => {
-        it('relit ce qu’il a écrit, contexte compris', () => {
+    describe('round trip', () => {
+        it('reads back what it wrote, context included', () => {
             const context = privateKeyContext('11111111-1111-1111-1111-111111111111');
-            const encrypted = encryptWith(key, 'clé privée', context);
+            const encrypted = encryptWith(key, 'private key', context);
             expect(encrypted.startsWith('v2:')).toBe(true);
-            expect(decryptWith(key, encrypted, context)).toBe('clé privée');
+            expect(decryptWith(key, encrypted, context)).toBe('private key');
         });
 
-        it('préserve les accents et les caractères non latins', () => {
-            const encrypted = encryptWith(key, 'clé privée é à ü 漢字', null);
-            expect(decryptWith(key, encrypted, null)).toBe('clé privée é à ü 漢字');
+        it('preserves accents and non-Latin characters', () => {
+            // Kept non-ASCII on purpose: this test exists to prove the round trip is
+            // byte-exact through UTF-8, so translating the sample away would delete what
+            // it checks. An SSH key comment or a passphrase can hold any of these.
+            const sample = 'private key é à ü 漢字';
+            const encrypted = encryptWith(key, sample, null);
+            expect(decryptWith(key, encrypted, null)).toBe(sample);
         });
 
-        it('ne répète pas un chiffré pour un même clair', () => {
-            // L'IV est tiré à chaque appel : deux chiffrés identiques révéleraient que
-            // deux lignes portent le même secret.
-            expect(encryptWith(key, 'même clair', null)).not.toBe(encryptWith(key, 'même clair', null));
+        it('does not repeat a ciphertext for the same plaintext', () => {
+            // The IV is drawn on every call: two identical ciphertexts would reveal that
+            // two rows carry the same secret.
+            expect(encryptWith(key, 'same plaintext', null)).not.toBe(encryptWith(key, 'same plaintext', null));
         });
 
-        it('laisse une chaîne vide telle quelle', () => {
+        it('leaves an empty string as is', () => {
             expect(encryptWith(key, '', null)).toBe('');
         });
     });
 
-    describe('liaison à la ligne', () => {
-        it("refuse un chiffré déplacé d'une ligne à l'autre", () => {
-            const encrypted = encryptWith(key, 'clé privée de A', privateKeyContext('aaaaaaaa-0000-0000-0000-000000000000'));
+    describe('binding to the row', () => {
+        it("refuses a ciphertext moved from one row to another", () => {
+            const encrypted = encryptWith(key, "A's private key", privateKeyContext('aaaaaaaa-0000-0000-0000-000000000000'));
             const elsewhere = privateKeyContext('bbbbbbbb-0000-0000-0000-000000000000');
             expect(decryptWith(key, encrypted, elsewhere)).toBeNull();
             expect(decryptWithAny(keys, encrypted, elsewhere).state).toBe('unreadable');
         });
 
-        it('ne se rabat pas sur l’absence de donnée associée', () => {
-            // Ce repli existait pour les lignes antérieures aux contextes ; il n'en reste
-            // aucune, et le retirer supprime une façon d'accepter un chiffré déplacé.
-            const encrypted = encryptWith(key, 'lié', privateKeyContext('cccccccc-0000-0000-0000-000000000000'));
+        it('does not fall back to the absence of associated data', () => {
+            // That fallback existed for rows predating contexts; none remain, and
+            // removing it removes one way of accepting a relocated ciphertext.
+            const encrypted = encryptWith(key, 'bound', privateKeyContext('cccccccc-0000-0000-0000-000000000000'));
             expect(decryptWith(key, encrypted, null)).toBeNull();
         });
     });
 
     describe('rotation', () => {
-        it('déclare « current » ce qui est écrit avec la clé courante', () => {
+        it('declares current what is written with the current key', () => {
             expect(decryptWithAny(keys, encryptWith(key, 'x', null), null).state).toBe('current');
         });
 
-        it('déclare « previous_key » ce qui n’a pas encore été réenregistré', () => {
+        it('declares previous_key what has not yet been re-saved', () => {
             expect(decryptWithAny(keys, encryptWith(previous, 'x', null), null)).toEqual({ plainText: 'x', state: 'previous_key' });
         });
 
-        it('rend « unreadable » plutôt que de lever, quand aucune clé ne lit', () => {
-            const foreign = encryptWith(deriveKey('une clé que personne n’a'), 'x', null);
+        it('returns unreadable rather than throwing, when no key reads', () => {
+            const foreign = encryptWith(deriveKey('a key nobody has'), 'x', null);
             expect(decryptWithAny(keys, foreign, null)).toEqual({ plainText: '', state: 'unreadable' });
         });
     });
 
-    describe('valeurs mal formées', () => {
-        it.each([[''], ['pas du base64 !!'], ['v2:AAAA'], ['v2:'], ['sans-prefixe'], ['v1:AAAA']])('rend « unreadable » sur %p', (value) => {
+    describe('malformed values', () => {
+        it.each([[''], ['not base64 !!'], ['v2:AAAA'], ['v2:'], ['no-prefix'], ['v1:AAAA']])('returns unreadable for %p', (value) => {
             expect(decryptWithAny(keys, value, null).state).toBe('unreadable');
         });
 
-        it('détecte une altération du tag', () => {
+        it('detects tampering with the tag', () => {
             const encrypted = encryptWith(key, 'intact', null);
             const tampered = encrypted.slice(0, -4) + (encrypted.endsWith('AAAA') ? 'BBBB' : 'AAAA');
             expect(decryptWith(key, tampered, null)).toBeNull();
         });
     });
 
-    it('compare deux secrets à temps constant', () => {
+    it('compares two secrets in constant time', () => {
         expect(equalsSecret('secret', 'secret')).toBe(true);
         expect(equalsSecret('secret', 'secrez')).toBe(false);
         expect(equalsSecret('secret', 'secret-plus-long')).toBe(false);

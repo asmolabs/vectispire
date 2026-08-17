@@ -1,30 +1,30 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 /**
- * Chiffrement au repos des secrets que Zanshin stocke (clés SSH privées, jetons).
+ * Encryption at rest for the secrets Zanshin stores (private SSH keys, tokens).
  *
- * **La dérivation de clé est un vrai KDF.** L'implémentation précédente tronquait le
- * secret configuré à 32 octets ou le complétait avec des NUL — ce n'est pas une
- * dérivation, et une phrase de passe courte y valait exactement l'entropie de ses
- * caractères. Elle avait été reproduite à l'identique de Python pour que les valeurs
- * déjà chiffrées restent lisibles ; cette contrainte a été levée, et le défaut avec elle.
+ * **Key derivation is a real KDF.** The previous implementation truncated the configured
+ * secret to 32 bytes or padded it with NULs — that is not a derivation, and a short
+ * passphrase was worth exactly the entropy of its characters there. It had been
+ * reproduced identically from Python so that already-encrypted values stayed readable;
+ * that constraint has been lifted, and the defect with it.
  *
- * Deux formes de secret sont acceptées, dans cet ordre :
+ * Two forms of secret are accepted, in this order:
  *
- * 1. **32 octets aléatoires en base64** — la forme recommandée, utilisée telle quelle.
- *    Rien à étirer : l'entropie est déjà là.
- * 2. **une phrase de passe** — étirée par scrypt. Le sel est fixe et propre à
- *    l'application : c'est un compromis assumé, un sel par déploiement demanderait de le
- *    stocker quelque part, et le coût de scrypt suffit à rendre une attaque par
- *    dictionnaire coûteuse. Sans ce compromis, la seule alternative honnête serait de
- *    refuser les phrases de passe — hostile pour un outil auto-hébergé.
+ * 1. **32 random bytes in base64** — the recommended form, used as is. Nothing to
+ *    stretch: the entropy is already there.
+ * 2. **a passphrase** — stretched by scrypt. The salt is fixed and specific to the
+ *    application: that is an accepted trade-off, a per-deployment salt would have to be
+ *    stored somewhere, and scrypt's cost is enough to make a dictionary attack
+ *    expensive. Without that trade-off, the only honest alternative would be to refuse
+ *    passphrases — hostile for a self-hosted tool.
  *
- * Le format porte un numéro de version : `v2:base64(iv‖chiffré‖tag)`. Il n'y a plus de
- * `v1` à lire, mais la prochaine évolution du format n'aura pas à deviner.
+ * The format carries a version number: `v2:base64(iv‖ciphertext‖tag)`. There is no `v1`
+ * left to read, but the next format change will not have to guess.
  *
- * **La donnée associée lie un chiffré à sa ligne.** Sans elle, quelqu'un pouvant écrire
- * en base recopierait le chiffré de la clé A dans la ligne B : il se déchiffrerait
- * proprement, et le dépôt A serait cloné avec la clé de B, en silence.
+ * **The associated data binds a ciphertext to its row.** Without it, someone able to
+ * write to the database would copy key A's ciphertext into row B: it would decrypt
+ * cleanly, and repository A would be cloned with B's key, silently.
  */
 
 const KEY_LENGTH_BYTES = 32;
@@ -33,22 +33,22 @@ const TAG_LENGTH_BYTES = 16;
 const FORMAT_PREFIX = 'v2:';
 
 /**
- * Paramètres de scrypt. `N = 2^15` tient sous les 64 Mio par défaut de Node et coûte
- * ~100 ms — imperceptible puisque la dérivation n'a lieu **qu'une fois**, au démarrage.
+ * scrypt parameters. `N = 2^15` stays under Node's default 64 MiB and costs ~100 ms —
+ * imperceptible since the derivation happens **only once**, at startup.
  */
 const SCRYPT = { N: 32_768, r: 8, p: 1, maxmem: 96 * 1024 * 1024 } as const;
 
-/** Sel fixe, propre à l'application. Ce n'est pas un secret ; voir l'en-tête. */
+/** Fixed salt, specific to the application. It is not a secret; see the header. */
 const SCRYPT_SALT = Buffer.from('zanshin.encryption.v2', 'utf8');
 
-/** L'état d'un chiffré vis-à-vis des clés configurées. */
+/** A ciphertext's state with respect to the configured keys. */
 export type SecretState = 'current' | 'previous_key' | 'unreadable';
 
 /**
- * Dérive une clé de 32 octets à partir du secret configuré.
+ * Derives a 32-byte key from the configured secret.
  *
- * Coûteuse par construction : à appeler une fois et à conserver, jamais par valeur
- * chiffrée. `EncryptionService` s'en charge.
+ * Expensive by construction: call it once and keep the result, never once per encrypted
+ * value. `EncryptionService` takes care of that.
  */
 export function deriveKey(secret: string): Buffer {
     const provided = decodeExactKey(secret);
@@ -57,11 +57,11 @@ export function deriveKey(secret: string): Buffer {
 }
 
 /**
- * `null` si le secret n'est pas exactement 32 octets encodés en base64.
+ * `null` if the secret is not exactly 32 bytes encoded in base64.
  *
- * La longueur est vérifiée **après** décodage : une chaîne de 44 caractères qui n'est pas
- * du base64 valide ne doit pas être prise pour une clé, sinon `Buffer.from` la tronque en
- * silence et la clé obtenue est plus faible qu'elle n'en a l'air.
+ * The length is checked **after** decoding: a 44-character string that is not valid
+ * base64 must not be taken for a key, otherwise `Buffer.from` truncates it silently and
+ * the resulting key is weaker than it looks.
  */
 function decodeExactKey(secret: string): Buffer | null {
     const trimmed = secret.trim();
@@ -70,7 +70,7 @@ function decodeExactKey(secret: string): Buffer | null {
     return decoded.length === KEY_LENGTH_BYTES ? decoded : null;
 }
 
-/** Une clé prête à être posée dans `ENCRYPTION_KEY`. */
+/** A key ready to be placed in `ENCRYPTION_KEY`. */
 export function generateEncryptionKey(): string {
     return randomBytes(KEY_LENGTH_BYTES).toString('base64');
 }
@@ -84,8 +84,8 @@ export function encryptWith(key: Buffer, plainText: string, context?: string | n
     return FORMAT_PREFIX + Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64');
 }
 
-/** `null` si cette clé ne lit pas cette valeur — jamais une exception : l'appelant en
- *  essaie plusieurs, et une exception par échec ferait du cas normal une anomalie. */
+/** `null` if this key does not read this value — never an exception: the caller tries
+ *  several, and one exception per failure would make the normal case look like a fault. */
 export function decryptWith(key: Buffer, encrypted: string, context?: string | null): string | null {
     if (!encrypted.startsWith(FORMAT_PREFIX)) return null;
     const combined = Buffer.from(encrypted.slice(FORMAT_PREFIX.length), 'base64');
@@ -100,19 +100,19 @@ export function decryptWith(key: Buffer, encrypted: string, context?: string | n
         decipher.setAuthTag(tag);
         return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
     } catch {
-        // Le tag GCM n'a pas vérifié : mauvaise clé, mauvaise donnée associée, ou valeur
-        // altérée. Les trois se ressemblent, et c'est voulu.
+        // The GCM tag did not verify: wrong key, wrong associated data, or an altered
+        // value. All three look alike, and that is intended.
         return null;
     }
 }
 
 /**
- * Essaie les clés dans l'ordre — la courante d'abord, pour qu'une valeur déjà tournée ne
- * se déclare jamais ancienne.
+ * Tries the keys in order — the current one first, so that an already-rotated value never
+ * declares itself old.
  *
- * Contrairement à la version précédente, **il n'y a pas de repli sans donnée associée** :
- * ce repli n'existait que pour les lignes écrites avant l'existence des contextes, et il
- * n'en reste aucune. Le retirer supprime une façon d'accepter un chiffré déplacé.
+ * Unlike the previous version, **there is no fallback without associated data**: that
+ * fallback existed only for rows written before contexts did, and none remain. Removing
+ * it removes one way of accepting a relocated ciphertext.
  */
 export function decryptWithAny(
     keys: readonly Buffer[],
@@ -128,13 +128,13 @@ export function decryptWithAny(
     return { plainText: '', state: 'unreadable' };
 }
 
-/** L'identifiant de l'endroit où vit une clé privée. Une seule définition, parce que
- *  chiffrer avec un contexte et déchiffrer avec un autre rend la valeur illisible. */
+/** The identifier of where a private key lives. A single definition, because encrypting
+ *  with one context and decrypting with another makes the value unreadable. */
 export function privateKeyContext(keyId: string): string {
     return `ssh_key:${keyId}:private_key`;
 }
 
-/** Comparaison à temps constant, pour les cas où la valeur comparée est un secret. */
+/** Constant-time comparison, for the cases where the compared value is a secret. */
 export function equalsSecret(left: string, right: string): boolean {
     const a = Buffer.from(left, 'utf8');
     const b = Buffer.from(right, 'utf8');
