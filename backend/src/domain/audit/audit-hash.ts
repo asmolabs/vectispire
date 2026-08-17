@@ -2,31 +2,29 @@ import { createHash } from 'node:crypto';
 import { canonical } from '../common/timestamp';
 
 /**
- * La chaîne d'intégrité du journal d'audit.
+ * The audit log's integrity chain.
  *
- * Chaque entrée porte l'empreinte de la précédente. Modifier ou supprimer une ligne
- * passée casse toutes les empreintes qui suivent. Cela ne rend pas le journal
- * inaltérable — qui peut écrire dans la table peut réécrire toute la chaîne — mais
- * cela rend détectable la modification *sélective*, qui est la menace réaliste quand la
- * ligne intéressante est une parmi des milliers.
+ * Each entry carries the previous one's hash. Modifying or deleting a past row breaks
+ * every hash that follows. This does not make the log immutable — whoever can write to
+ * the table can rewrite the whole chain — but it makes *selective* modification
+ * detectable, which is the realistic threat when the interesting row is one among
+ * thousands.
  *
- * ## L'horodatage entre sous une forme canonique
+ * ## The timestamp goes in canonically
  *
- * `canonical()`, soit ISO 8601 UTC à la milliseconde. Un contrôle de sécurité ne doit pas
- * dépendre de la façon dont un moteur rend ses dates : `.123000` et `.123` désignent le
- * même instant et donneraient deux empreintes. Deux processus dans deux fuseaux
- * produisent ainsi la même chaîne pour le même instant.
+ * `canonical()`, that is ISO 8601 UTC to the millisecond. A security control must not
+ * depend on how an engine renders its dates: `.123000` and `.123` denote the same instant
+ * and would give two hashes. Two processes in two timezones therefore produce the same
+ * string for the same instant.
  *
- * Le séparateur de champs est l'octet NUL, qui ne peut apparaître dans aucune des valeurs
- * hachées — sans quoi deux entrées différentes pourraient produire la même
- * concaténation.
+ * The field separator is the NUL byte, which cannot appear in any of the hashed values —
+ * without which two different entries could produce the same concatenation.
  */
 
-/** Les champs d'une entrée qui entrent dans son empreinte, dans cet ordre. */
+/** The fields of an entry that go into its hash, in this order. */
 export interface AuditEntryForHash {
     previousHash: string | null;
-    /**
-     * L'instant tel que la base le rend. Canonicalisé ici, pas par l'appelant. */
+    /** The instant as the database returns it. Canonicalized here, not by the caller. */
     timestamp: Date | null;
     operationType: string | null;
     resourceId: string | null;
@@ -39,13 +37,13 @@ export interface AuditEntryForHash {
 /**
  * `H(previous | timestamp | operation | resource | user | ip | user_agent | description)`.
  *
- * L'ordre des champs est fixe, et le séparateur est un octet **NUL** : aucun contenu ne
- * peut alors imiter une frontière de champ. Sans cela, une description se terminant par
- * les bons caractères pourrait déplacer le sens du champ suivant.
+ * The field order is fixed, and the separator is a **NUL** byte: no content can then
+ * imitate a field boundary. Without that, a description ending in the right characters
+ * could shift the meaning of the next field.
  *
- * `null` et chaîne vide sont indistinguables ici, délibérément : les deux signifient
- * « ce champ n'a pas de valeur », et les distinguer ferait dépendre l'empreinte de la
- * façon dont un pilote rend une colonne vide.
+ * `null` and the empty string are indistinguishable here, deliberately: both mean "this
+ * field has no value", and telling them apart would make the hash depend on how a driver
+ * renders an empty column.
  */
 export function computeEntryHash(entry: AuditEntryForHash): string {
     const parts = [
@@ -61,44 +59,42 @@ export function computeEntryHash(entry: AuditEntryForHash): string {
     return createHash('sha256').update(parts.join('\0'), 'utf8').digest('hex');
 }
 
-/** Une entrée telle qu'elle est relue pour vérification. */
+/** An entry as it is read back for verification. */
 export interface AuditEntryForVerification extends AuditEntryForHash {
     id: string;
     entryHash: string | null;
 }
 
 /**
- * `null` si le journal est intact, sinon la description de la première rupture.
+ * `null` if the log is intact, otherwise a description of the first break.
  *
- * ## Un graphe, et non une file
+ * ## A graph, not a queue
  *
- * La vérification exigeait une chaîne strictement unique : chaque entrée devait pointer sur
- * celle qui la précédait dans la liste. **Deux instances web écrivant au même instant lisent
- * la même queue** et produisent deux entrées portant la même précédente ; la chaîne fourche,
- * et un journal parfaitement honnête se déclarait rompu. Une alerte fausse dans un contrôle
- * d'intégrité est pire qu'inutile — on apprend à l'ignorer, et elle couvre alors les vraies.
+ * Verification used to require a strictly unique chain: each entry had to point at the one
+ * preceding it in the list. **Two web instances writing at the same instant read the same
+ * tail** and produce two entries carrying the same predecessor; the chain forks, and a
+ * perfectly honest log declared itself broken. A false alarm in an integrity check is worse
+ * than useless — you learn to ignore it, and it then covers the real ones.
  *
- * Ce qui est vérifié ici ne dépend donc plus de l'ordre :
+ * What is checked here therefore no longer depends on order:
  *
- * 1. **Chaque entrée correspond à sa propre empreinte** — c'est ce qui détecte la
- *    modification d'une ligne, la menace réaliste quand la ligne intéressante est une parmi
- *    des milliers.
- * 2. **La précédente de chaque entrée existe encore** — c'est ce qui détecte la suppression
- *    d'une entrée dont quelqu'un descend.
- * 3. **Aucune entrée sans empreinte n'est postérieure au début du chaînage** — c'est ce qui
- *    détecte une ligne posée à la main. Les entrées antérieures au chaînage, elles, sont
- *    comptées et non signalées : « ces lignes ne sont pas vérifiables » est une information,
- *    pas une absence d'information.
+ * 1. **Each entry matches its own hash** — this is what detects a row being modified, the
+ *    realistic threat when the interesting row is one among thousands.
+ * 2. **Each entry's predecessor still exists** — this is what detects the deletion of an
+ *    entry somebody descends from.
+ * 3. **No entry without a hash is later than the start of the chaining** — this is what
+ *    detects a row placed by hand. Entries predating the chaining are counted rather than
+ *    reported: "these rows are not verifiable" is information, not an absence of it.
  *
- * ## Ce que cela ne détecte plus, et il faut le dire
+ * ## What this no longer detects, and it has to be said
  *
- * **La suppression d'une entrée dont personne ne descend** — la dernière écrite, ou le bout
- * d'une branche. Rien ne pointe vers elle, donc rien ne manque après son départ. C'est le
- * prix payé pour ne plus crier au loup, et il est assumé : refermer ce cas demanderait de
- * sérialiser toutes les écritures d'audit, ce qui ferait attendre chaque action auditée
- * derrière les autres, aussi longtemps que dure leur transaction.
+ * **The deletion of an entry nobody descends from** — the last one written, or the tip of a
+ * branch. Nothing points at it, so nothing is missing once it is gone. That is the price
+ * paid for no longer crying wolf, and it is accepted: closing that case would mean
+ * serializing every audit write, which would make each audited action wait behind the
+ * others for as long as their transaction lasts.
  *
- * L'ordre des entrées n'a plus d'importance pour cette fonction.
+ * The order of the entries no longer matters to this function.
  */
 export function verifyChain(entries: AuditEntryForVerification[]): {
     broken: string | null;
@@ -107,19 +103,19 @@ export function verifyChain(entries: AuditEntryForVerification[]): {
     const chained = entries.filter((entry) => entry.entryHash);
     const unverifiable = entries.length - chained.length;
 
-    // Toutes les empreintes présentes, pour savoir vers quoi il est légitime de pointer.
+    // Every hash present, so we know what it is legitimate to point at.
     const known = new Set(chained.map((entry) => entry.entryHash as string));
 
-    // **Une entrée sans empreinte n'est légitime que si elle ne suit pas le chaînage.**
-    // C'est le cas des lignes écrites avant que la chaîne n'existe. Le repère est
-    // l'horodatage et non la position dans la liste : celle-ci ne veut plus rien dire depuis
-    // que les branches concurrentes sont admises.
+    // **An entry without a hash is only legitimate if it does not follow the chaining.**
+    // That is the case for rows written before the chain existed. The marker is the
+    // timestamp and not the position in the list: the latter means nothing any more now
+    // that concurrent branches are admitted.
     //
-    // Strictement postérieure, et non « à partir de » : une ligne héritée écrite dans la
-    // même milliseconde que la première entrée chaînée — l'instant de la bascule — ne doit
-    // pas déclencher d'alerte. Ce que cela concède est mince : une entrée forgée devrait
-    // porter une date antérieure à tout le journal chaîné, donc se faire passer pour une
-    // ligne d'avant la bascule, ce qui lui interdit d'imiter une action récente.
+    // Strictly later, and not "from onwards": an inherited row written in the same
+    // millisecond as the first chained entry — the instant of the switchover — must not
+    // raise an alarm. What that concedes is thin: a forged entry would have to carry a date
+    // earlier than the whole chained log, hence pass itself off as a pre-switchover row,
+    // which stops it from imitating a recent action.
     const oldestChained = chained.reduce<number | null>(
         (oldest, entry) => (entry.timestamp && (oldest === null || entry.timestamp.getTime() < oldest) ? entry.timestamp.getTime() : oldest),
         null
@@ -128,7 +124,7 @@ export function verifyChain(entries: AuditEntryForVerification[]): {
         if (entry.entryHash || oldestChained === null) continue;
         if (entry.timestamp && entry.timestamp.getTime() > oldestChained) {
             return {
-                broken: `Entrée ${entry.id} sans empreinte alors que le chaînage avait commencé : la ligne a été insérée ou modifiée.`,
+                broken: `Entry ${entry.id} has no hash although the chaining had started: the row was inserted or modified.`,
                 unverifiable
             };
         }
@@ -137,15 +133,15 @@ export function verifyChain(entries: AuditEntryForVerification[]): {
     for (const entry of chained) {
         if (entry.entryHash !== computeEntryHash(entry)) {
             return {
-                broken: `Entrée ${entry.id} : son propre contenu ne correspond plus à son empreinte.`,
+                broken: `Entry ${entry.id}: its own content no longer matches its hash.`,
                 unverifiable
             };
         }
-        // `null` est légitime : c'est une racine. Il y en a une par branche, et une branche
-        // par instance ayant écrit en même temps qu'une autre.
+        // `null` is legitimate: it is a root. There is one per branch, and one branch per
+        // instance that wrote at the same time as another.
         if (entry.previousHash !== null && !known.has(entry.previousHash)) {
             return {
-                broken: `Entrée ${entry.id} : sa précédente ${JSON.stringify(entry.previousHash)} a disparu du journal — une entrée antérieure a été supprimée.`,
+                broken: `Entry ${entry.id}: its predecessor ${JSON.stringify(entry.previousHash)} has vanished from the log — an earlier entry was deleted.`,
                 unverifiable
             };
         }
@@ -155,16 +151,16 @@ export function verifyChain(entries: AuditEntryForVerification[]): {
 }
 
 /**
- * Recalcule toute la chaîne, de la plus ancienne à la plus récente.
+ * Recomputes the whole chain, oldest to newest.
  *
- * C'est l'opération de bascule : les entrées écrites par l'implémentation Python
- * portent des empreintes calculées sur l'ancienne formule et ne se vérifient plus.
+ * This is the switchover operation: entries written by the Python implementation carry
+ * hashes computed on the old formula and no longer verify.
  *
- * **Une opération à exécuter une fois, sous les yeux de quelqu'un.** Réécrire un journal
- * d'intégrité est précisément ce que ce journal existe pour rendre détectable : elle ne
- * doit jamais être déclenchée automatiquement, ni au démarrage, ni par une route.
+ * **An operation to run once, with somebody watching.** Rewriting an integrity log is
+ * precisely what that log exists to make detectable: it must never be triggered
+ * automatically, not at startup, not by a route.
  *
- * Ne modifie pas le contenu des entrées — seulement `previousHash` et `entryHash`.
+ * Does not modify entry content — only `previousHash` and `entryHash`.
  */
 export function rebuildChain<T extends AuditEntryForVerification>(entries: T[]): T[] {
     let previousHash: string | null = null;

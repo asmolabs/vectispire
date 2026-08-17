@@ -1,51 +1,50 @@
 import { createHash } from 'node:crypto';
 
 /**
- * L'identité d'un problème à travers les scans.
+ * An issue's identity across scans.
  *
- * **Le contrat de données le plus critique du système.** Deux scans successifs
- * produisent des constats bruts sans identité ; c'est cette empreinte qui décide si
- * ce que le scanner vient de voir est *le même problème qu'hier* — avec son
- * historique, son nombre d'occurrences et surtout sa décision de triage — ou un
- * problème neuf.
+ * **The most critical data contract in the system.** Two successive scans produce raw
+ * findings with no identity; it is this fingerprint that decides whether what the
+ * scanner just saw is *the same issue as yesterday* — with its history, its occurrence
+ * count and above all its triage decision — or a new one.
  *
- * Une divergence d'un seul octet avec l'implémentation Python n'échoue nulle part :
- * elle fait qu'aucune empreinte calculée ici ne correspond à celles déjà en base. Au
- * premier scan après la bascule, tout le backlog existant serait résolu (« ces
- * problèmes ne sont plus vus ») et recréé à neuf, **triage perdu** — chaque décision
- * `not_affected` argumentée, chaque justification VEX, chaque échéance de réexamen.
- * Sans erreur, sans journal, avec un tableau de bord d'apparence normale.
+ * A one-byte divergence from the Python implementation fails nowhere: it simply means
+ * no fingerprint computed here matches the ones already in the database. On the first
+ * scan after the switchover, the whole existing backlog would be resolved ("these
+ * issues are no longer seen") and recreated from scratch, **triage lost** — every
+ * argued `not_affected` decision, every VEX justification, every review date. With no
+ * error, no log entry, and a dashboard that looks normal.
  *
- * D'où `test/vectors/issue-fingerprint.json`, généré depuis le code Python.
+ * Hence `test/vectors/issue-fingerprint.json`, generated from the Python code.
  *
- * ## Ce qui entre, et ce qui n'entre pas
+ * ## What goes in, and what does not
  *
- * `SHA-256("repo:{id}|{type}|{identifier}|{purl ou nom}|{chemin}")`
+ * `SHA-256("repo:{id}|{type}|{identifier}|{purl or name}|{path}")`
  *
- * Sont **délibérément exclus** :
+ * **Deliberately excluded**:
  *
- * - **la version du paquet.** Une dépendance obsolète qui le reste à travers trois
- *   montées de version est un problème avec un historique, pas trois problèmes
- *   distincts — et une décision de triage s'évaporerait à chaque correctif ;
- * - **le caractère direct ou transitif** de la dépendance : une dépendance qui passe
- *   de directe à transitive reste le même problème vu autrement ;
- * - **le numéro de ligne** : un secret qui descend de trois lignes reste le même secret.
+ * - **the package version.** An outdated dependency that stays outdated across three
+ *   version bumps is one issue with a history, not three separate issues — and a triage
+ *   decision would evaporate on every patch release;
+ * - **whether the dependency is direct or transitive**: a dependency that goes from
+ *   direct to transitive is the same issue seen differently;
+ * - **the line number**: a secret that moves down three lines is the same secret.
  *
- * Le `purl` prime sur le nom de paquet parce qu'il est l'identité qualifiée par
- * écosystème ; le repli sur le nom garde empreintables les constats qui n'ont pas de
- * purl — secrets, IaC, licences.
+ * The `purl` takes precedence over the package name because it is the ecosystem-qualified
+ * identity; falling back to the name keeps findings that have no purl — secrets, IaC,
+ * licenses — fingerprintable.
  *
- * ## Une faiblesse reproduite volontairement
+ * ## A weakness reproduced on purpose
  *
- * Le séparateur est une barre verticale, et non l'octet NUL de la chaîne d'audit. Un
- * chemin de fichier contenant `|` peut donc, en principe, imiter une frontière de
- * champ et produire une collision. **Ne corrigez pas ceci ici.** Changer le
- * séparateur changerait toutes les empreintes déjà stockées, ce qui est exactement le
- * scénario décrit plus haut. Si cela doit être corrigé un jour, ce sera par une
- * migration qui recalcule les empreintes en base dans la même transaction.
+ * The separator is a vertical bar, not the audit chain's NUL byte. A file path containing
+ * `|` can therefore, in principle, imitate a field boundary and produce a collision. **Do
+ * not fix this here.** Changing the separator would change every fingerprint already
+ * stored, which is exactly the scenario described above. If it is ever to be fixed, it
+ * will be by a migration that recomputes the fingerprints in the database within the same
+ * transaction.
  */
 export interface FingerprintInput {
-    /** Exclusif avec `containerId` : un problème appartient à une cible. */
+    /** Mutually exclusive with `containerId`: an issue belongs to one target. */
     repoId: number | null;
     containerId: number | null;
     findingType: string | null;
@@ -56,17 +55,17 @@ export interface FingerprintInput {
 }
 
 export function buildFingerprint(input: FingerprintInput): string {
-    // `repo_id is not None` en Python : c'est bien la présence qui décide, pas la
-    // véracité. Un `repoId` valant 0 désigne le dépôt 0, pas l'absence de dépôt —
-    // d'où `!= null` et non un test de vérité, qui rangerait ce cas côté conteneur.
+    // `repo_id is not None` in Python: presence is what decides, not truthiness. A
+    // `repoId` of 0 names repository 0, not the absence of a repository — hence
+    // `!= null` rather than a truthiness test, which would file that case as a container.
     const target = input.repoId != null ? `repo:${input.repoId}` : `container:${input.containerId}`;
 
     const parts = [
         target,
         input.findingType || '',
         input.identifier || '',
-        // `purl or package_name or ""` : chaîne vide et null se comportent pareil,
-        // comme en Python. Un purl vide retombe donc sur le nom de paquet.
+        // `purl or package_name or ""`: the empty string and null behave alike, as in
+        // Python. An empty purl therefore falls back to the package name.
         input.purl || input.packageName || '',
         input.filePath || ''
     ];

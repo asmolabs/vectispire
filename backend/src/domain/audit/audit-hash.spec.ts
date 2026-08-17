@@ -1,7 +1,7 @@
 import { AuditEntryForHash, AuditEntryForVerification, computeEntryHash, rebuildChain, verifyChain } from './audit-hash';
 
-describe('empreinte d’une entrée du journal d’audit', () => {
-    describe('canonicalisation', () => {
+describe('audit log entry hash', () => {
+    describe('canonicalization', () => {
         const base: AuditEntryForHash = {
             previousHash: null,
             timestamp: new Date('2026-01-02T03:04:05.123Z'),
@@ -10,28 +10,28 @@ describe('empreinte d’une entrée du journal d’audit', () => {
             userId: 'alice',
             ipAddress: '10.0.0.4',
             userAgent: 'Mozilla/5.0',
-            description: 'Connexion réussie'
+            description: 'Successful login'
         };
 
-        it('dépend de l’instant et non de la façon dont il a été construit', () => {
-            // Deux `Date` construits différemment pour le même instant : la forme
-            // canonique est en UTC, donc l'empreinte ne dépend pas du fuseau de la
-            // machine qui la calcule. C'est la propriété qui compte pour un contrôle
-            // vérifiable ailleurs que là où il a été écrit.
+        it('depends on the instant and not on how it was built', () => {
+            // Two `Date`s built differently for the same instant: the canonical form is in
+            // UTC, so the hash does not depend on the timezone of the machine computing
+            // it. That is the property that matters for a control meant to be verifiable
+            // somewhere other than where it was written.
             const sameInstant = new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 123));
             expect(computeEntryHash({ ...base, timestamp: sameInstant })).toBe(computeEntryHash(base));
         });
 
-        it('distingue deux instants à la milliseconde', () => {
+        it('tells two instants apart to the millisecond', () => {
             expect(computeEntryHash({ ...base, timestamp: new Date('2026-01-02T03:04:05.124Z') })).not.toBe(computeEntryHash(base));
         });
 
-        it('distingue une absence d’horodatage', () => {
+        it('tells a missing timestamp apart', () => {
             expect(computeEntryHash({ ...base, timestamp: null })).not.toBe(computeEntryHash(base));
         });
     });
 
-    describe('sensibilité au contenu', () => {
+    describe('sensitivity to content', () => {
         const base: AuditEntryForHash = {
             previousHash: null,
             timestamp: new Date('2026-08-10T08:13:58.322Z'),
@@ -40,25 +40,25 @@ describe('empreinte d’une entrée du journal d’audit', () => {
             userId: 'alice',
             ipAddress: '10.0.0.4',
             userAgent: 'Mozilla/5.0',
-            description: 'Connexion réussie'
+            description: 'Successful login'
         };
 
-        it.each([['operationType'], ['resourceId'], ['userId'], ['ipAddress'], ['userAgent'], ['description'], ['previousHash'], ['timestamp']] as const)('change si %s change', (field) => {
+        it.each([['operationType'], ['resourceId'], ['userId'], ['ipAddress'], ['userAgent'], ['description'], ['previousHash'], ['timestamp']] as const)('changes when %s changes', (field) => {
             const altered: AuditEntryForHash = { ...base };
-            // Une milliseconde d'écart, et non une microseconde : la forme canonique
-            // s'arrête à la milliseconde, ce que le bloc précédent vérifie en propre.
+            // One millisecond apart, not one microsecond: the canonical form stops at the
+            // millisecond, which the previous block checks in its own right.
             if (field === 'timestamp') altered.timestamp = new Date('2026-08-10T08:13:58.323Z');
-            else (altered as unknown as Record<string, unknown>)[field] = 'modifié';
+            else (altered as unknown as Record<string, unknown>)[field] = 'altered';
             expect(computeEntryHash(altered)).not.toBe(computeEntryHash(base));
         });
 
-        it('traite null et chaîne vide comme équivalents', () => {
+        it('treats null and the empty string as equivalent', () => {
             expect(computeEntryHash({ ...base, userAgent: null })).toBe(computeEntryHash({ ...base, userAgent: '' }));
         });
 
-        it('ne laisse pas un contenu imiter une frontière de champ', () => {
-            // Le séparateur NUL existe pour ça : déplacer du texte d'un champ au
-            // suivant doit changer l'empreinte.
+        it('does not let content imitate a field boundary', () => {
+            // The NUL separator exists for this: moving text from one field to the next
+            // must change the hash.
             const a = computeEntryHash({ ...base, resourceId: 'ab', userId: 'cd' });
             const b = computeEntryHash({ ...base, resourceId: 'a', userId: 'bcd' });
             expect(a).not.toBe(b);
@@ -66,7 +66,7 @@ describe('empreinte d’une entrée du journal d’audit', () => {
     });
 });
 
-describe('vérification de la chaîne', () => {
+describe('chain verification', () => {
     function chained(count: number): AuditEntryForVerification[] {
         const entries: AuditEntryForVerification[] = [];
         let previousHash: string | null = null;
@@ -80,7 +80,7 @@ describe('vérification de la chaîne', () => {
                 userId: 'admin',
                 ipAddress: null,
                 userAgent: null,
-                description: `Modification ${i}`,
+                description: `Change ${i}`,
                 entryHash: null
             };
             entry.entryHash = computeEntryHash(entry);
@@ -90,102 +90,102 @@ describe('vérification de la chaîne', () => {
         return entries;
     }
 
-    it('accepte une chaîne intacte', () => {
+    it('accepts an intact chain', () => {
         expect(verifyChain(chained(5))).toEqual({ broken: null, unverifiable: 0 });
     });
 
-    it('accepte une chaîne vide', () => {
+    it('accepts an empty chain', () => {
         expect(verifyChain([])).toEqual({ broken: null, unverifiable: 0 });
     });
 
-    it("signale une entrée dont le contenu a été modifié après coup", () => {
+    it('reports an entry whose content was modified after the fact', () => {
         const entries = chained(5);
-        entries[2].description = 'Description réécrite';
+        entries[2].description = 'Rewritten description';
         expect(verifyChain(entries).broken).toContain('entry-2');
-        expect(verifyChain(entries).broken).toContain('ne correspond plus');
+        expect(verifyChain(entries).broken).toContain('no longer matches');
     });
 
-    it('signale une entrée supprimée', () => {
+    it('reports a deleted entry', () => {
         const entries = chained(5);
         entries.splice(2, 1);
         expect(verifyChain(entries).broken).toContain('entry-3');
-        expect(verifyChain(entries).broken).toContain('supprimée');
+        expect(verifyChain(entries).broken).toContain('deleted');
     });
 
-    it("compte sans les refuser les entrées antérieures au chaînage", () => {
-        // Elles ne portent pas d'empreinte parce qu'elles précèdent la fonctionnalité,
-        // pas parce qu'on y a touché.
+    it('counts entries predating the chaining without refusing them', () => {
+        // They carry no hash because they predate the feature, not because anyone touched
+        // them.
         const entries = chained(3);
         const legacy: AuditEntryForVerification = { ...entries[0], id: 'legacy', entryHash: null, previousHash: null };
         expect(verifyChain([legacy, ...entries])).toEqual({ broken: null, unverifiable: 1 });
     });
 
-    it('refuse une entrée sans empreinte postérieure au début du chaînage', () => {
-        // **Datée, et non simplement placée au milieu de la liste.** La vérification ne lit
-        // plus la position — elle ne veut plus rien dire depuis que deux instances écrivant
-        // au même instant produisent des branches légitimes. Ce qui distingue une ligne
-        // posée à la main d'une ligne héritée est sa date : la première est postérieure au
-        // début du chaînage, la seconde ne l'est pas.
+    it('refuses an entry with no hash dated after the chaining started', () => {
+        // **Dated, and not merely placed in the middle of the list.** Verification no
+        // longer reads position — it stopped meaning anything once two instances writing
+        // at the same instant produce legitimate branches. What tells a hand-placed row
+        // from an inherited one is its date: the first is later than the start of the
+        // chaining, the second is not.
         const entries = chained(3);
-        const inseree = { ...entries[0], id: 'inserée', entryHash: null, timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, 1, 500)) };
+        const inserted = { ...entries[0], id: 'inserted', entryHash: null, timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, 1, 500)) };
 
-        expect(verifyChain([...entries, inseree]).broken).toContain('inserée');
-        expect(verifyChain([...entries, inseree]).broken).toContain('insérée ou modifiée');
+        expect(verifyChain([...entries, inserted]).broken).toContain('inserted');
+        expect(verifyChain([...entries, inserted]).broken).toContain('inserted or modified');
     });
 
-    it('accepte deux branches nées du même maillon', () => {
-        // **Ce que la vérification refusait à tort.** Deux instances web lisant la même queue
-        // au même instant produisent deux entrées portant la même précédente. Le journal est
-        // parfaitement honnête ; l'ancienne vérification le déclarait rompu, et une alerte
-        // fausse dans un contrôle d'intégrité finit par couvrir les vraies.
+    it('accepts two branches born of the same link', () => {
+        // **What verification used to refuse wrongly.** Two web instances reading the same
+        // tail at the same instant produce two entries carrying the same predecessor. The
+        // log is perfectly honest; the old verification declared it broken, and a false
+        // alarm in an integrity check ends up covering the real ones.
         const entries = chained(2);
-        const jumelle: AuditEntryForVerification = {
+        const twin: AuditEntryForVerification = {
             ...entries[1],
-            id: 'concurrente',
-            resourceId: 'autre',
-            description: 'Écrite au même instant par une autre instance',
+            id: 'concurrent',
+            resourceId: 'other',
+            description: 'Written at the same instant by another instance',
             entryHash: null
         };
-        jumelle.entryHash = computeEntryHash(jumelle);
+        twin.entryHash = computeEntryHash(twin);
 
-        expect(verifyChain([...entries, jumelle])).toEqual({ broken: null, unverifiable: 0 });
+        expect(verifyChain([...entries, twin])).toEqual({ broken: null, unverifiable: 0 });
     });
 
-    it("ne détecte pas la suppression d'un bout de branche, et c'est le prix assumé", () => {
-        // Rien ne pointe vers la dernière entrée : rien ne manque après son départ. Refermer
-        // ce cas demanderait de sérialiser toutes les écritures d'audit, donc de faire
-        // attendre chaque action auditée derrière les autres. Écrit ici pour que la limite
-        // soit une décision visible plutôt qu'un oubli.
+    it('does not detect the deletion of a branch tip, and that is the accepted price', () => {
+        // Nothing points at the last entry: nothing is missing once it is gone. Closing
+        // that case would mean serializing every audit write, hence making each audited
+        // action wait behind the others. Written here so the limit is a visible decision
+        // rather than an oversight.
         const entries = chained(3);
 
         expect(verifyChain(entries.slice(0, 2)).broken).toBeNull();
     });
 });
 
-describe('reconstruction de la chaîne', () => {
+describe('chain rebuilding', () => {
     /**
-     * Des entrées portant des empreintes d'une autre formule — cohérentes entre elles et
-     * fausses pour celle-ci. C'est la situation d'un journal repris d'une version
-     * antérieure : la reconstruction doit le rendre vérifiable sans toucher au contenu.
+     * Entries carrying hashes from another formula — consistent with each other and wrong
+     * for this one. That is the situation of a log inherited from an earlier version: the
+     * rebuild must make it verifiable without touching the content.
      */
     function foreignFormula(count: number): AuditEntryForVerification[] {
         return Array.from({ length: count }, (_, index) => ({
             id: `entry-${index}`,
-            // Des empreintes d'une autre formule : présentes, cohérentes entre elles,
-            // et fausses pour celle-ci.
-            previousHash: index === 0 ? null : `ancienne-${index - 1}`,
-            entryHash: `ancienne-${index}`,
+            // Hashes from another formula: present, consistent with each other, and wrong
+            // for this one.
+            previousHash: index === 0 ? null : `legacy-${index - 1}`,
+            entryHash: `legacy-${index}`,
             timestamp: new Date(Date.UTC(2026, 7, 10, 8, 0, index)),
             operationType: 'SETTING_UPDATED',
             resourceId: String(index),
             userId: 'admin',
             ipAddress: null,
             userAgent: null,
-            description: `Modification ${index}`
+            description: `Change ${index}`
         }));
     }
 
-    it('rend vérifiable un historique venu de l’ancienne formule', () => {
+    it('makes a history from the old formula verifiable', () => {
         const entries = foreignFormula(5);
         expect(verifyChain(entries).broken).not.toBeNull();
 
@@ -194,9 +194,9 @@ describe('reconstruction de la chaîne', () => {
         expect(verifyChain(entries)).toEqual({ broken: null, unverifiable: 0 });
     });
 
-    it('ne touche pas au contenu des entrées', () => {
-        // Réécrire un journal d'intégrité est déjà assez ; en réécrire le contenu
-        // serait exactement ce que ce journal existe pour rendre détectable.
+    it('does not touch the entries content', () => {
+        // Rewriting an integrity log is quite enough; rewriting its content would be
+        // exactly what that log exists to make detectable.
         const entries = foreignFormula(3);
         const before = entries.map((entry) => ({ ...entry, previousHash: undefined, entryHash: undefined }));
 
@@ -205,13 +205,13 @@ describe('reconstruction de la chaîne', () => {
         expect(entries.map((entry) => ({ ...entry, previousHash: undefined, entryHash: undefined }))).toEqual(before);
     });
 
-    it('repart de zéro : la première entrée n’a pas de précédente', () => {
+    it('starts from scratch: the first entry has no predecessor', () => {
         const [first] = rebuildChain(foreignFormula(3));
         expect(first.previousHash).toBeNull();
     });
 
-    it('est idempotente', () => {
-        // Relancée par erreur, elle doit rendre exactement la même chaîne.
+    it('is idempotent', () => {
+        // Run again by mistake, it must produce exactly the same chain.
         const once = rebuildChain(foreignFormula(4)).map((entry) => entry.entryHash);
         const twice = rebuildChain(rebuildChain(foreignFormula(4))).map((entry) => entry.entryHash);
         expect(twice).toEqual(once);
