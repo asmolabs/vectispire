@@ -1,10 +1,11 @@
 # 0009 — Four database engines, each one measured
 
-**Date:** 2026-08-16 · **Status:** accepted · **Supersedes:** [0008](0008-postgresql-and-mysql.md)
+**Date:** 2026-08-16 · **Status:** accepted · **Decider:** Laurent Boucher · **Supersedes:** [0008](0008-postgresql-and-mysql.md)
 
-> Recorded after the fact, from commit `337ac80`, which is where the decision was actually
-> taken. The register requires a superseding page rather than an edit to 0008, and without
-> this one the register and the code disagree.
+> Written up after the fact, from commit `337ac80`, which is where the work was done and
+> the reasoning recorded; confirmed on 2026-08-17. The register requires a superseding
+> page rather than an edit to 0008, and without this one the register and the code
+> disagree.
 
 ## Context
 
