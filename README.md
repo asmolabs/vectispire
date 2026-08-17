@@ -1,6 +1,6 @@
 # Zanshin
 
-Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform, with a pluggable scanning layer (local Docker, local API, or cloud API depending on the analysis type).
+Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers; see the note at the end of this section on the two other back ends the Python version offered.
 
 Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over PostgreSQL, in a single npm workspace.
 
@@ -120,7 +120,7 @@ configuration of whichever machine scans. Secrets, IaC and source-code analysis 
 apply to an image and stay `null` — declaring them scanned would silently resolve their
 whole history for that target.
 
-See [`docs/architecture/04-execution-et-deploiement.md`](docs/architecture/04-execution-et-deploiement.md)
+See [`docs/architecture/04-runtime-and-deployment.md`](docs/architecture/04-runtime-and-deployment.md)
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
@@ -240,7 +240,7 @@ Three things are *not* runtime settings, because they have to exist before the a
 |---|---|---|
 | `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. |
 | `ZANSHIN_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Zanshin ships. Zanshin only carries its own: the public Semgrep rule sets are not redistributable, so you install the set you choose on your own machine and point this variable at it. Fetch it once at install time — the scan itself stays offline. The Python port shipped a `fetch_semgrep_rules` helper for this; it has **not** been ported, so the download is currently manual. |
-| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_ET_PURGE.md`](docs/ROTATION_ET_PURGE.md). |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. Also how a value encrypted with the old published default key is read one last time; see [`docs/ROTATION_AND_PURGE.md`](docs/ROTATION_AND_PURGE.md). |
 | `ZANSHIN_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
 | `ZANSHIN_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
 
