@@ -1,49 +1,46 @@
-# Inter, embarqué
+# Inter, bundled
 
-## Pourquoi le fichier est ici plutôt qu'une URL
+## Why the file is here rather than a URL
 
-La feuille précédente était chargée depuis `fonts.googleapis.com`, et **le CSP de Zanshin
-la refusait** : `style-src 'self'` (voir le bloc `helmet` de
-`backend/src/main.ts`) n'autorise aucune feuille tierce. La police n'a donc
-jamais été appliquée en production — l'interface tournait sur le repli système, avec la
-géométrie voulue et la typographie d'un autre.
+The previous stylesheet was loaded from `fonts.googleapis.com`, and **Zanshin's CSP
+refused it**: `style-src 'self'` (see the `helmet` block in `backend/src/main.ts`) allows
+no third-party stylesheet. The font was therefore never applied in production — the UI ran
+on the system fallback, with the intended geometry and somebody else's typography.
 
-Élargir le CSP aurait été la correction facile et la mauvaise. Une console de sécurité qui
-appelle un tiers à chaque chargement de page rend son inventaire de dépendances faux, fuite
-l'adresse de chaque analyste vers ce tiers, et cesse de fonctionner sur un réseau isolé —
-le réseau où ce genre d'outil est précisément déployé. `font-src 'self' data:` était déjà
-là ; il ne manquait que le fichier.
+Widening the CSP would have been the easy fix and the wrong one. A security console that
+calls a third party on every page load makes its own dependency inventory false, leaks
+every analyst's address to that third party, and stops working on an isolated network —
+the network where this kind of tool is precisely deployed. `font-src 'self' data:` was
+already there; only the file was missing.
 
-## Pourquoi Inter et pas Lato
+## Why Inter and not Lato
 
-Deux raisons, une esthétique et une juridique.
+Two reasons, one aesthetic and one legal.
 
-**Les chiffres.** Inter porte de vrais chiffres tabulaires (`tnum`) et des zéros barrés
-(`zero`). Zanshin est une application de colonnes de nombres — CVSS, EPSS, compteurs, dates.
-Avec une police à chasse proportionnelle, `9.8` et `10.0` n'ont pas la même largeur et les
-colonnes ondulent d'une ligne à l'autre.
+**The digits.** Inter carries real tabular figures (`tnum`) and slashed zeros (`zero`).
+Zanshin is an application of columns of numbers — CVSS, EPSS, counters, dates. With a
+proportional face, `9.8` and `10.0` are not the same width and the columns wobble from row
+to row.
 
-**La licence.** SIL Open Font License 1.1 (`LICENSE.txt`) : redistribuable dans un dépôt
-libre, ce qui est la situation de Zanshin. Elle demande de conserver le texte de licence et
-de ne pas vendre la police seule — les deux sont satisfaits par la présence de ce
-répertoire.
+**The license.** SIL Open Font License 1.1 (`LICENSE.txt`): redistributable in a free
+repository, which is Zanshin's situation. It requires keeping the license text and not
+selling the font on its own — both satisfied by the presence of this directory.
 
-## Ce que contiennent les fichiers
+## What the files contain
 
-Deux sous-ensembles Unicode d'une police *variable* (une seule graisse continue de 400 à
-800, pas quatre fichiers) :
+Two Unicode subsets of a *variable* font (one continuous weight axis from 400 to 800, not
+four files):
 
-| Fichier | Plage | Poids |
+| File | Range | Weight |
 |---|---|---|
-| `inter-latin.woff2` | latin | 48 Ko |
-| `inter-latin-ext.woff2` | latin étendu | 85 Ko |
+| `inter-latin.woff2` | latin | 48 KB |
+| `inter-latin-ext.woff2` | latin extended | 85 KB |
 
-Le second couvre les caractères que le premier n'a pas ; le navigateur ne télécharge que
-celui dont il a besoin, grâce aux `unicode-range` déclarés dans `assets/theme.css`. Les
-autres sous-ensembles amont (cyrillique, grec, vietnamien) ne sont pas embarqués : cette
-interface est en français.
+The second covers the characters the first does not; the browser downloads only the one it
+needs, thanks to the `unicode-range` declarations in `assets/theme.css`. The other upstream
+subsets (Cyrillic, Greek, Vietnamese) are not bundled.
 
-Origine : `https://fonts.gstatic.com/s/inter/v20/`, sous-ensembles servis par Google Fonts
-pour `family=Inter:wght@400..800`. Pour les mettre à jour, récupérer la feuille CSS avec un
-agent utilisateur de navigateur, y lire les URL `latin` et `latin-ext`, et remplacer les
-deux fichiers — les `unicode-range` de `theme.css` sont à revérifier à cette occasion.
+Source: `https://fonts.gstatic.com/s/inter/v20/`, the subsets Google Fonts serves for
+`family=Inter:wght@400..800`. To update them, fetch the CSS with a browser user agent, read
+the `latin` and `latin-ext` URLs from it, and replace the two files — the `unicode-range`
+values in `theme.css` should be re-checked at the same time.
