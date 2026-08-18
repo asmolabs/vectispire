@@ -83,6 +83,25 @@ public final class Repositories {
     public interface Issues extends JpaRepository<IssueEntity, Long> {
         Optional<IssueEntity> findByFingerprint(String fingerprint);
 
+        List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);
+
+        /**
+         * The open issues of one target, restricted to the types a scan actually looked at.
+         *
+         * <p>The type filter is the whole safety of the resolution pass: without it a scan that
+         * only looked for secrets would resolve the target's vulnerabilities as well.
+         */
+        @Query("""
+                select i from IssueEntity i
+                 where i.state = :state and i.type in :types
+                   and ((:repoId is not null and i.repoId = :repoId)
+                        or (:containerId is not null and i.containerId = :containerId))""")
+        List<IssueEntity> findOpenByTarget(
+                @Param("state") String state,
+                @Param("types") java.util.Collection<String> types,
+                @Param("repoId") Long repoId,
+                @Param("containerId") Long containerId);
+
         /**
          * Open issues of one type, counted by the identifier that produced them.
          *
