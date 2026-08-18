@@ -116,6 +116,7 @@ public final class ContainerRunner {
 
     public ContainerResult run(ContainerRun request) {
         Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
+        ensureImagePresent(request.image(), request.label());
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withBinds(request.binds().stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
@@ -141,23 +142,28 @@ public final class ContainerRunner {
         }
 
         CreateContainerResponse container = create.exec();
-        StreamCollector output = new StreamCollector();
 
         try {
-            docker.logContainerCmd(container.getId())
-                    .withStdOut(true)
-                    .withStdErr(true)
-                    .withFollowStream(true)
-                    .exec(output);
-
             docker.startContainerCmd(container.getId()).exec();
             int exitCode = waitFor(container.getId(), timeout, request.label());
 
-            // Let the streams drain: the wait returns before the last frame has crossed, and a
-            // truncated JSON document reads as an invalid one.
-            output.awaitCompletion(Duration.ofSeconds(2));
+            // **Read after the container has finished, not attached before it starts.** A
+            // follow-stream attached to a container that has not started yet completes
+            // immediately, on output that does not exist yet — which reads as a scanner that
+            // printed nothing, and therefore as "analysed, found nothing". The daemon retains
+            // the logs, so collecting them afterwards loses none and races on nothing.
+            StreamCollector output = new StreamCollector();
+            docker.logContainerCmd(container.getId())
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withTailAll()
+                    .exec(output)
+                    .awaitCompletion();
 
             return new ContainerResult(output.stdout(), output.stderr(), exitCode);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new ScannerFailureException(request.label(), "Interrupted while reading the scanner's output.");
         } finally {
             // In a `finally`: a forgotten container holds its workspace, hence the whole clone,
             // and the machine eventually runs out of disk.
@@ -166,6 +172,40 @@ public final class ContainerRunner {
             } catch (RuntimeException alreadyGone) {
                 // Nothing to do about it, and nothing worth masking the real error for.
             }
+        }
+    }
+
+    /**
+     * Pulls the scanner image if the host does not have it.
+     *
+     * <p><b>The API does not pull, and the original never did either.</b> {@code docker run} on
+     * the command line pulls implicitly; {@code createContainer} over the daemon API does not,
+     * and nothing pre-pulled the scanner images — not the agent image, not the documentation. On
+     * a fresh host the first scan of each type therefore died on a daemon error naming a digest
+     * and nothing else, which is unreadable to whoever has to act on it.
+     *
+     * <p>Inspect first, pull only when absent: pulling on every run would add a registry round
+     * trip to every scan for an image that changes when somebody edits a pinned digest.
+     */
+    private void ensureImagePresent(String image, String label) {
+        try {
+            docker.inspectImageCmd(image).exec();
+            return;
+        } catch (com.github.dockerjava.api.exception.NotFoundException absent) {
+            // Expected on a fresh host; fall through to the pull.
+        }
+
+        try {
+            docker.pullImageCmd(image).start().awaitCompletion();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new ScannerFailureException(label, "Interrupted while fetching the scanner image " + image + ".");
+        } catch (RuntimeException failure) {
+            throw new ScannerFailureException(
+                    label,
+                    "The scanner image " + image + " is not on this host and could not be fetched: "
+                            + failure.getMessage() + " Pre-pull it, or point the corresponding image setting at a "
+                            + "registry this machine can reach.");
         }
     }
 
@@ -242,12 +282,5 @@ public final class ContainerRunner {
             return err.toString();
         }
 
-        void awaitCompletion(Duration limit) {
-            try {
-                awaitCompletion(limit.toMillis(), TimeUnit.MILLISECONDS);
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-            }
-        }
     }
 }

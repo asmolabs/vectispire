@@ -14,6 +14,7 @@ the bytes.
 
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
+./gradlew :zanshin-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: postgres)
 ./gradlew integrationTest -Pdialect=mariadb
 ./gradlew integrationTestAll         # all four
@@ -55,6 +56,7 @@ the same commit that violates it; a missing dependency cannot.
 | The agent cannot reach the database | the module graph, plus `AgentIsolationTest` |
 | Layering inside the control plane | `ArchitectureTest` (ArchUnit) |
 | The domain depends on no framework, and no Docker client | `ArchitectureTest` |
+| `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |

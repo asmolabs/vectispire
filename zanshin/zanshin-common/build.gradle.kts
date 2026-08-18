@@ -53,3 +53,32 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+
+/**
+ * The scanning campaign, kept apart from the unit tests because it needs a Docker daemon.
+ *
+ * <p>Deliberately not built on Testcontainers. `ContainerRunner` is the thing under test, so
+ * running it through Testcontainers would mostly test Testcontainers; what this needs is a real
+ * daemon and a tiny image. Testcontainers earns its place in `zanshin-core`, where the four
+ * database engines are.
+ *
+ * **There is no "skip if Docker is missing" guard**, for the reason that holds everywhere in
+ * this repository: a suite that skips itself reports green without checking anything, and these
+ * are the only executable proof that `cap_drop`, `network: none` and the memory ceiling reach
+ * the daemon at all.
+ */
+val integrationTest: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+}
+
+configurations["integrationTestImplementation"].extendsFrom(configurations.testImplementation.get())
+configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.testRuntimeOnly.get())
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs the scanner containers against a real Docker daemon."
+    group = "verification"
+    testClassesDirs = integrationTest.output.classesDirs
+    classpath = configurations["integrationTestRuntimeClasspath"] + integrationTest.output + sourceSets.main.get().output
+    shouldRunAfter(tasks.test)
+}
