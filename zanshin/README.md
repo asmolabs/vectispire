@@ -59,6 +59,8 @@ the same commit that violates it; a missing dependency cannot.
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
+| The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
+| A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` *(not yet ported)* |
 
 ### Two things the original could not fix, fixed here
@@ -103,7 +105,9 @@ suite that skips itself reports green without having checked anything.
 | `PolicyResolution` — which policy applies, and from where |  done |
 | `SecurityOverview` — every target's posture, in one pass | done |
 | `OpenVexExport`, `SarifExport`, `IssueCsv` — the three deliverable formats | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus` | done, 94 tests |
+| `OutboundUrlGuard` — the anti-SSRF and anti-exfiltration rule | done |
+| `EncryptionKey`, `SecretCipher` — scrypt and AES-GCM on BouncyCastle | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 136 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
