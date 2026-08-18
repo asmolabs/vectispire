@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.config;
 
+import com.asmolabs.zanshin.common.domain.auth.Sessions;
 import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
 import java.time.Clock;
@@ -47,6 +48,21 @@ public class CoreConfiguration {
     Policy scanQueuePolicy(QueueProperties properties) {
         return new Policy(properties.lease(), properties.maxAttempts(), properties.claimAttempts());
     }
+
+    @Bean
+    Sessions.Policy sessionPolicy(SessionProperties properties) {
+        return new Sessions.Policy(properties.absoluteLifetime(), properties.idleLifetime());
+    }
+
+    /**
+     * @param absoluteLifetime past this, a session ends however active it has been. It is what
+     *     bounds a stolen token's usefulness, and no amount of activity may extend it
+     * @param idleLifetime past this without a request, a session ends. It is what protects an
+     *     unlocked screen, and it is deliberately much shorter
+     */
+    @ConfigurationProperties("zanshin.session")
+    public record SessionProperties(
+            @DefaultValue("12h") Duration absoluteLifetime, @DefaultValue("60m") Duration idleLifetime) {}
 
     /**
      * @param claimAttempts how many times a claim retries before giving up on a round.

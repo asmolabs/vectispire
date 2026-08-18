@@ -31,6 +31,12 @@ zanshin:
     # machine would then audit a variant nobody deploys.
     image-platform: ${ZANSHIN_IMAGE_SCAN_PLATFORM:}
 
+  session:
+    # The absolute lifetime bounds a stolen token's usefulness and no activity may extend it;
+    # the idle one protects an unlocked screen and is deliberately much shorter.
+    absolute-lifetime: ${ZANSHIN_SESSION_LIFETIME:12h}
+    idle-lifetime: ${ZANSHIN_SESSION_IDLE:60m}
+
   encryption:
     # The environment variable names are kept short and unprefixed on purpose: this is the one
     # value an operator has to set before the application is useful, and it is the first line
