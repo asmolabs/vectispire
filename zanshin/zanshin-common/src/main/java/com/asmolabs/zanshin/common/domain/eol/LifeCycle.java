@@ -1,12 +1,17 @@
 package com.asmolabs.zanshin.common.domain.eol;
 
 import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.zanshin.common.domain.sbom.Sbom;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -130,5 +135,99 @@ public final class LifeCycle {
     /** Today, in UTC — the timezone the catalog's dates are expressed in. */
     public static LocalDate today(Instant now) {
         return now.atZone(ZoneOffset.UTC).toLocalDate();
+    }
+
+    /**
+     * A product as the catalog publishes it.
+     *
+     * <p>Parsed by hand rather than bound by field names, because the wire names and the names
+     * that read well here disagree — {@code isEol} against {@code eol}, and a {@code latest}
+     * that is an object on the wire and a version string once it is useful. Binding annotations
+     * would put the catalog's spelling into the domain, where a change of spelling would then
+     * silently produce a product with no releases: no error, and every version reported
+     * supported.
+     */
+    public static Optional<Product> parseProduct(JsonNode payload) {
+        JsonNode result = payload == null ? null : payload.path("result");
+        if (result == null || !result.isObject()) {
+            return Optional.empty();
+        }
+
+        List<Release> releases = new ArrayList<>();
+        for (JsonNode release : result.path("releases")) {
+            releases.add(new Release(
+                    textOrNull(release, "name"),
+                    parseDate(textOrNull(release, "eolFrom")).orElse(null),
+                    booleanOrNull(release, "isEol"),
+                    booleanOrNull(release, "isMaintained"),
+                    textOrNull(release.path("latest"), "name")));
+        }
+        return Optional.of(new Product(textOrNull(result, "name"), releases));
+    }
+
+    private static String textOrNull(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isTextual() && !value.asText().isBlank() ? value.asText() : null;
+    }
+
+    private static Boolean booleanOrNull(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isBoolean() ? value.asBoolean() : null;
+    }
+
+    /**
+     * What a SBOM offers the lookup.
+     *
+     * @param purl empty for a distribution: a Syft SBOM carries <b>no purl for the operating
+     *     system itself</b>, even though that is the most useful answer for a container image —
+     *     the one no package-level lookup would find
+     */
+    public record Candidate(String product, String version, String label, String purl) {}
+
+    /**
+     * The catalog's purl index, as {@code normalized purl → product name}.
+     *
+     * <p>One request returns close to nine hundred matches, so there is no table to maintain by
+     * hand — and none to let rot.
+     */
+    public static Map<String, String> parseIdentifierIndex(JsonNode payload) {
+        JsonNode result = payload == null ? null : payload.path("result");
+        if (result == null || !result.isArray()) {
+            return Map.of();
+        }
+
+        Map<String, String> index = new HashMap<>();
+        for (JsonNode entry : result) {
+            String identifier = entry.path("identifier").asText("");
+            String product = entry.path("product").path("name").asText("").trim();
+            if (!identifier.isEmpty() && !product.isEmpty()) {
+                index.put(Purls.normalize(identifier), product);
+            }
+        }
+        return Map.copyOf(index);
+    }
+
+    /** The SBOM packages that match a product in the catalog. */
+    public static List<Candidate> packageCandidates(Sbom sbom, Map<String, String> index) {
+        if (index.isEmpty()) {
+            return List.of();
+        }
+
+        List<Candidate> candidates = new ArrayList<>();
+        for (Sbom.Artifact artifact : sbom.artifacts()) {
+            if (artifact.purl() == null || artifact.version() == null || artifact.version().isBlank()) {
+                continue;
+            }
+            String product = index.get(Purls.normalize(artifact.purl()));
+            if (product == null) {
+                continue;
+            }
+            candidates.add(new Candidate(
+                    product,
+                    artifact.version().trim(),
+                    artifact.name() == null ? product : artifact.name(),
+                    artifact.purl()));
+        }
+        return List.copyOf(candidates);
     }
 }

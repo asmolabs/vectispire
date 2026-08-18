@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.config;
 
+import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
 import java.time.Clock;
 import java.time.Duration;
@@ -29,6 +30,17 @@ public class CoreConfiguration {
     @Bean
     Clock clock() {
         return Clock.systemUTC();
+    }
+
+    /**
+     * The guard every outbound URL passes, with the default resolver.
+     *
+     * <p>A bean rather than a {@code new} at each call site, so a deployment that needs a
+     * different resolver — a test, a machine with no DNS — replaces one thing and not seven.
+     */
+    @Bean
+    OutboundUrlGuard outboundUrlGuard() {
+        return new OutboundUrlGuard();
     }
 
     @Bean
