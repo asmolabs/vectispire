@@ -33,14 +33,21 @@ class SettingTest {
     }
 
     @Test
-    @DisplayName("the three settings whose value is a bearer capability are marked secret")
+    @DisplayName("every setting whose value is a bearer capability is marked secret")
     void secretsAreMarked() {
         // A webhook URL is not configuration: whoever knows it can post in the channel where
         // the team awaits Zanshin's alerts, which is the channel where a forged message
         // carries most weight. Reading it needs no write permission.
+        //
+        // The list is exhaustive on purpose. A setting added here without `Sensitivity.SECRET`
+        // fails this test rather than quietly becoming readable by every account — which is the
+        // only way anybody would find out.
         assertThat(Arrays.stream(Setting.values()).filter(Setting::isSecret))
                 .containsExactlyInAnyOrder(
-                        Setting.WEBHOOK_URL, Setting.TICKET_BASE_URL, Setting.AI_REVIEW_OLLAMA_URL);
+                        Setting.WEBHOOK_URL,
+                        Setting.TICKET_BASE_URL,
+                        Setting.TICKET_TOKEN,
+                        Setting.AI_REVIEW_OLLAMA_URL);
     }
 
     @Test

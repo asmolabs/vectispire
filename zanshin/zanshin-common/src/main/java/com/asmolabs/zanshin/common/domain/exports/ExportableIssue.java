@@ -5,6 +5,8 @@ import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * An issue as the exports read it.
@@ -70,6 +72,16 @@ public record ExportableIssue(
 
         public String wireName() {
             return wireName;
+        }
+
+        /**
+         * Empty for anything unrecognized, which callers read as {@link #UNKNOWN}.
+         *
+         * <p>Never as {@link #FIXED}: "a fix exists" is the claim that closes a ticket, and it
+         * must come from a value the scanner actually wrote.
+         */
+        public static Optional<FixState> fromWireName(String value) {
+            return Arrays.stream(values()).filter(state -> state.wireName.equals(value)).findFirst();
         }
     }
 

@@ -41,6 +41,17 @@ public class OutboundPost {
                 .build();
     }
 
+    /**
+     * Validates a URL without calling it.
+     *
+     * <p>For callers that need the checked destination before they build a request against it —
+     * and so that a base URL is never validated by one component and posted to by another that
+     * checked something else.
+     */
+    public String validate(String url, OutboundPolicy policy, String label) {
+        return guard.validate(url, policy, label);
+    }
+
     public void postJson(String url, Object body, OutboundPolicy policy, String label) {
         postForResponse(url, body, policy, label);
     }

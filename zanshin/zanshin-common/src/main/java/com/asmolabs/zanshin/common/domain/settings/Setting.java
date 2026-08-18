@@ -123,6 +123,13 @@ public enum Setting {
             "The GitLab path (\"group/project\") or the Jira project key (\"SEC\").",
             ""),
 
+    TICKET_TOKEN("ticket_token", SettingType.TEXT, Section.TICKETS,
+            "Access token",
+            "Grants write access to the tracker, which is a different class of secret from a webhook URL: it is "
+                    + "therefore encrypted at rest like an SSH key, not stored in the clear alongside the other "
+                    + "settings.",
+            "", Sensitivity.SECRET),
+
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
             "The account address, required by Jira alongside the token for basic authentication. GitLab does "
