@@ -1,0 +1,36 @@
+# The schema, in one changelog for four engines.
+#
+# **One baseline rather than a migration history.** The NestJS implementation carried five
+# migrations per dialect because it had a schema in production to evolve. Nothing is deployed
+# yet, so replaying that history would be replaying somebody else's afternoon; the baseline
+# below is the schema those five arrive at. The next change to this file is a real changeset,
+# appended, never an edit to the baseline.
+#
+# **Where the engines disagree is a property, not a type.** Liquibase's abstract types cover
+# most of it; the four below are where they do not, and each is a divergence that has already
+# produced a defect somewhere:
+#
+#   json       — `json` on PostgreSQL and MySQL, `longtext` on MariaDB (which accepts `json`
+#                as an alias for it and then reports the underlying type), `text` on SQLite.
+#   uuid       — a real type on PostgreSQL, 36 characters elsewhere.
+#   timestamp  — `timestamptz` only on PostgreSQL. The others store no offset, which is why
+#                every instant is written in UTC before it reaches the driver.
+#   bool       — `boolean` everywhere except MySQL and MariaDB, where it is `tinyint(1)` and
+#                `tinyint`. They disagree with *each other*, which is the whole argument for
+#                running the parity check on all four rather than on a representative one.
+databaseChangeLog:
+  - property: { name: json.type, value: json, dbms: postgresql }
+  - property: { name: json.type, value: json, dbms: mysql }
+  - property: { name: json.type, value: longtext, dbms: mariadb }
+  - property: { name: json.type, value: text, dbms: sqlite }
+
+  - property: { name: uuid.type, value: uuid, dbms: postgresql }
+  - property: { name: uuid.type, value: char(36), dbms: "mysql,mariadb" }
+  - property: { name: uuid.type, value: varchar(36), dbms: sqlite }
+
+  - property: { name: timestamp.type, value: "timestamp with time zone", dbms: postgresql }
+  - property: { name: timestamp.type, value: "datetime(6)", dbms: "mysql,mariadb" }
+  - property: { name: timestamp.type, value: "datetime", dbms: sqlite }
+
+  - include: { file: db/changelog/001-baseline.yaml }
+  - include: { file: db/changelog/002-indexes.yaml }

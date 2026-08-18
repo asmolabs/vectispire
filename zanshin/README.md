@@ -112,7 +112,13 @@ trade: less duplication, at the price of hiding where engines actually disagree 
 against `tinyint`, `timestamptz` against `datetime` — which is where all three divergences
 found so far were.
 
-`SchemaParityIntegrationTest` puts that difference back where it can fail: it asks Hibernate to
+It has already earned its keep, before the entities even exist. Written the tidy way —
+`addForeignKeyConstraint` after the tables — the changelog applies **without complaint** on
+SQLite and creates no constraint at all: referential integrity on three engines out of four,
+and nothing saying so. `ChangelogTest` caught it in a second by running the thing, and now
+asserts the twelve foreign keys are really there.
+
+`SchemaParityIntegrationTest` puts the remaining difference back where it can fail: it asks Hibernate to
 validate the entities against the schema the changelog really built, on all four engines
 through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
@@ -124,7 +130,8 @@ suite that skips itself reports green without having checked anything.
 | Build, three modules, architecture suite | done |
 | **`zanshin-common/domain` — the whole layer** | **done** |
 | **`zanshin-common/scanning` — the whole layer** | **done** |
-| `zanshin-core` — persistence, repositories, services, api | not started |
+| `zanshin-core` — the schema changelog | done, executed on SQLite |
+| `zanshin-core` — entities, repositories, services, api | not started |
 | `zanshin-agent` — the protocol | not started |
 
 The domain layer is complete: every package under `backend/src/domain/` has a counterpart,
