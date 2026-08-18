@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.repositories;
 
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,10 @@ public interface Agents extends JpaRepository<AgentEntity, UUID> {
     Optional<AgentEntity> findByApiKeyId(UUID apiKeyId);
 
     Optional<AgentEntity> findByName(String name);
+
+    List<AgentEntity> findAllByOrderByNameAsc();
+
+    List<AgentEntity> findByEnabledTrue();
 
     /**
      * Records that an agent has just been heard from, and what it announced.

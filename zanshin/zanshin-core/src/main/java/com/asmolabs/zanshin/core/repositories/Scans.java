@@ -230,4 +230,24 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
              order by s.createdAt desc, s.id desc""")
     List<ScanEntity> findHistory(
             @Param("repoId") Long repoId, @Param("containerId") Long containerId, Limit limit);
+
+    long countByStatusAndClaimedBy(String status, String claimedBy);
+
+    @Query("""
+            select s.claimedBy, count(s.id) from ScanEntity s
+             where s.status = :status and s.claimedBy is not null
+             group by s.claimedBy""")
+    List<Object[]> countRunningByClaimant(@Param("status") String status);
+
+    /**
+     * The waiting scans, grouped by the label they require.
+     *
+     * <p>Only the labelled ones: a scan with no requirement goes to anybody, so counting it here
+     * would report as unroutable the work every worker is entitled to take.
+     */
+    @Query("""
+            select s.requiredAgentLabel, count(s.id) from ScanEntity s
+             where s.status = :status and s.requiredAgentLabel is not null
+             group by s.requiredAgentLabel""")
+    List<Object[]> countPendingByRequiredLabel(@Param("status") String status);
 }
