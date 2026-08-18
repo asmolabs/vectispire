@@ -106,4 +106,7 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
              where i.state = :state and i.containerId is not null
              group by i.containerId""")
     List<Object[]> countOpenByContainer(@Param("state") String state);
+
+    /** Every issue in one state, for the gate and the security overview. */
+    List<IssueEntity> findByState(String state);
 }
