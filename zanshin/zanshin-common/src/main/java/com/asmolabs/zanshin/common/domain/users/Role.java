@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.common.domain.users;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,5 +39,16 @@ public enum Role {
         return value == null
                 ? Optional.empty()
                 : Arrays.stream(values()).filter(role -> role.name().equals(value)).findFirst();
+    }
+
+    /**
+     * The roles that count as administrative.
+     *
+     * <p>Derived from the flag each role carries rather than listed again: two lists of
+     * administrators disagree the day somebody adds a role to one of them, and the half that
+     * gets forgotten is always the one used by a check.
+     */
+    public static List<Role> administrative() {
+        return Arrays.stream(values()).filter(Role::isAdministrative).toList();
     }
 }
