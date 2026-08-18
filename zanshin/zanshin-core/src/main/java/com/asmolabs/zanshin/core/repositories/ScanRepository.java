@@ -8,6 +8,7 @@ import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
@@ -99,7 +100,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * changes a row.
      */
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
                set s.status = :to, s.claimedBy = :worker, s.claimedAt = :claimedAt,
@@ -112,6 +113,37 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("worker") String worker,
             @Param("claimedAt") Instant claimedAt,
             @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
+    /**
+     * Extends the lease of a scan that is still progressing.
+     *
+     * <p>The owner is in the {@code where}, not checked beforehand: a worker whose lease already
+     * lapsed and whose scan was taken over must renew nothing, and reading then writing would
+     * leave exactly the window in which it could.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ScanEntity s set s.leaseExpiresAt = :leaseExpiresAt
+             where s.id = :id and s.status = :status and s.claimedBy = :worker""")
+    int renewLease(
+            @Param("id") Long id,
+            @Param("status") String status,
+            @Param("worker") String worker,
+            @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
+    /**
+     * Hands a scan back to the queue, or fails it, and <b>drops its lease</b> either way.
+     *
+     * <p>A failed scan that kept its lease would be picked up by the next reclaim, fail again,
+     * and go round until its attempts ran out.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ScanEntity s
+               set s.status = :to, s.error = :error, s.claimedBy = null,
+                   s.claimedAt = null, s.leaseExpiresAt = null
+             where s.id = :id""")
+    int release(@Param("id") Long id, @Param("to") String to, @Param("error") String error);
 
     /** Scans whose lease has lapsed: their worker stopped renewing, or stopped existing. */
     @Query("""

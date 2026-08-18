@@ -8,6 +8,7 @@ import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
+import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
 import com.asmolabs.zanshin.core.persistence.SettingEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import java.time.Instant;
@@ -86,6 +87,8 @@ public final class Repositories {
     public interface MonitoredRepositories extends JpaRepository<RepositoryEntity, Long> {}
 
     public interface Containers extends JpaRepository<ContainerEntity, Long> {}
+
+    public interface SshKeys extends JpaRepository<SshKeyEntity, UUID> {}
 
     public interface Findings extends JpaRepository<FindingEntity, Long> {
         List<FindingEntity> findByScanId(Long scanId);
