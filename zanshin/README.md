@@ -108,30 +108,18 @@ suite that skips itself reports green without having checked anything.
 | | |
 |---|---|
 | Build, three modules, architecture suite | done |
-| `Digests` (BouncyCastle), `IssueFingerprint`, `AuditChain` | done |
-| `PolicyGate` — verdict and request hardening | done |
-| `PolicyResolution` — which policy applies, and from where |  done |
-| `SecurityOverview` — every target's posture, in one pass | done |
-| `OpenVexExport`, `SarifExport`, `IssueCsv` — the three deliverable formats | done |
-| `OutboundUrlGuard` — the anti-SSRF and anti-exfiltration rule | done |
-| `EncryptionKey`, `SecretCipher` — scrypt and AES-GCM on BouncyCastle | done |
-| `Triage` — the VEX vocabulary, and when a suppression stops being true | done |
-| `LoginThrottle`, `Sessions` | done |
-| `PasswordHasher` — Argon2id | done |
-| `AccountRules`, `Role`, `ApiKeys`, `ApiKeyScope` | done |
-| `RetentionPolicy`, `Schedules` | done |
-| `Sbom` — one typed view of Syft's output | done |
-| `LicenseBlocklist`, `LifeCycle` (end of life) | done |
-| `NotificationPayload`, `NotificationSelection`, `OutboxRetry` | done |
-| `Tickets`, `TicketProvider` | done |
-| `DependencyGraph`, `Directness` | done |
-| `AiReview` — the prompt, and reading what a model returns | done |
-| `RuleSet` — uploaded Semgrep rules, and what activation costs | done |
-| `AgentLabels`, `AgentContract`, `Catalogs` (EPSS, KEV) | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 347 tests |
-| Everything else | not started |
+| **`zanshin-common/domain` — the whole layer** | **done, 421 tests** |
+| `zanshin-common/scanning` | not started |
+| `zanshin-core` — persistence, repositories, services, api | not started |
+| `zanshin-agent` — the protocol | not started |
 
-`ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
-because layers that have not been ported yet are legitimately empty. **Both must be removed
-once the port lands** — until then the suite proves less than it appears to, which is why it
-is written down here rather than left in a comment.
+The domain layer is complete: every package under `backend/src/domain/` has a counterpart,
+with one exception noted on purpose — `domain/common` held two timestamp helpers, and both
+were replaced by what the JDK already provides (`Clock` for the first, `appendInstant(3)` for
+the second). What survived is the *reason* the second existed, which now lives next to the
+hashing it exists for.
+
+`ArchitectureTest` still runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
+because `core`'s layers are not populated yet. **Both must be removed once the port lands** —
+until then the suite proves less than it appears to, which is why it is written down here
+rather than left in a comment.

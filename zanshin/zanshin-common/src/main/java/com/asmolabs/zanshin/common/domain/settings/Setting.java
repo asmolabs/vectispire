@@ -1,0 +1,280 @@
+package com.asmolabs.zanshin.common.domain.settings;
+
+import com.asmolabs.zanshin.common.domain.aireview.AiReview;
+import com.asmolabs.zanshin.common.domain.eol.LifeCycle;
+import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
+import com.asmolabs.zanshin.common.domain.retention.RetentionPolicy;
+import com.asmolabs.zanshin.common.domain.tickets.TicketProvider;
+import com.asmolabs.zanshin.common.domain.tickets.Tickets;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * The settings the application exposes, and <b>only those a service actually reads</b>.
+ *
+ * <p>That is the rule governing this file. A form that accepts a value and does nothing with
+ * it is worse than a form that does not offer it: the operator believes they have configured
+ * something, the behaviour does not change, and they conclude the tool is broken — or worse,
+ * never notice.
+ *
+ * <p><b>The rule is checked when the reading service is wired, not here.</b> During the port
+ * nothing reads anything yet, so applying it literally would leave the catalog empty. Every
+ * key below has its rule ported into {@code zanshin-common}; what remains is to confirm, as
+ * each service lands, that it genuinely consults the key it claims to.
+ *
+ * <p>An enum rather than a list of records, for the same reason as {@code PolicyFlag}: the
+ * definition travels with the key, so "this setting is not exposed" stops being an absent
+ * lookup a caller has to remember to handle.
+ */
+public enum Setting {
+
+    ENRICHMENT_ENABLED("enrichment_enabled", SettingType.BOOLEAN, Section.ENRICHMENT,
+            "Query EPSS and the KEV catalog",
+            "Only CVE identifiers leave the machine — never code, never a SBOM. Switched off, the "
+                    + "\"actively exploited\" counter stays at zero, which then means \"we did not ask\" and not "
+                    + "\"there are none\".",
+            "true"),
+
+    EOL_ENABLED("eol_detection_enabled", SettingType.BOOLEAN, Section.END_OF_LIFE,
+            "Detect platforms past their support window",
+            "A class of risk with no CVE attached: an expired environment will receive no fix for the next "
+                    + "vulnerability, whatever it turns out to be. Switching this off leaves existing findings "
+                    + "**open** rather than resolving them — \"we stopped looking\" is not \"it is fixed\".",
+            "true"),
+
+    EOL_WARN_DAYS("eol_warn_days", SettingType.INTEGER, Section.END_OF_LIFE,
+            "Warning window (days)",
+            "A cycle whose end falls inside this window is reported at medium severity. Beyond it, nothing: "
+                    + "everything reaches end of life one day, and flagging a version supported for another three "
+                    + "years would teach people to filter this type out.",
+            String.valueOf(LifeCycle.DEFAULT_WARNING_WINDOW.toDays())),
+
+    SAST_ENABLED("sast_enabled", SettingType.BOOLEAN, Section.SOURCE_CODE,
+            "Analyze the code with Semgrep",
+            "Off by default, and that is an operational decision: the first scan of an ordinary repository takes "
+                    + "its backlog from a few dozen vulnerabilities to a few thousand findings. Quality findings "
+                    + "never fail a build and never trigger a notification. Switching this off leaves existing "
+                    + "findings open rather than resolving them.",
+            "false"),
+
+    RETENTION_KEEP_PER_TARGET("retention_keep_per_target", SettingType.INTEGER, Section.RETENTION,
+            "Raw payloads kept per target",
+            "The SBOMs and scanner output of each target's last N scans are kept whatever their age. Zero means "
+                    + "\"no limit on this axis\". Findings, issues and summaries are never purged.",
+            String.valueOf(RetentionPolicy.DEFAULT.keepPerTarget())),
+
+    RETENTION_MAX_AGE_DAYS("retention_max_age_days", SettingType.INTEGER, Section.RETENTION,
+            "Maximum age of raw payloads (days)",
+            "The two rules combine: a payload is purged only if it is **both** outside the window above and "
+                    + "older than this age. Both at zero disables purging.",
+            String.valueOf(RetentionPolicy.DEFAULT.maxAge().toDays())),
+
+    WEBHOOK_URL("notification_webhook_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Webhook URL",
+            "A generic JSON POST, which reaches Slack, Teams, Discord, Mattermost or a script. Empty disables "
+                    + "notifications. The URL is validated on every send: a private destination is refused unless "
+                    + "explicitly allowed.",
+            "", Sensitivity.SECRET),
+
+    NOTIFICATION_MIN_SEVERITY("notification_min_severity", SettingType.SEVERITY, Section.NOTIFICATIONS,
+            "Minimum severity notified",
+            "Nothing new above this threshold, no message. One notification per scan teaches people to filter "
+                    + "the channel.",
+            NotificationSelection.DEFAULT_MIN_SEVERITY.wireName()),
+
+    NOTIFY_ON_KEV("notification_always_on_kev", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Notify any actively exploited vulnerability",
+            "Whatever its severity: the threshold alone would discard a \"medium\" being exploited today.",
+            "true"),
+
+    NOTIFICATION_ALLOW_PRIVATE_URL("notification_allow_private_url", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Allow a private webhook URL",
+            "For an internal bus. Off by default: a webhook URL resolving to a private address is far more often "
+                    + "a server-side request forgery attempt than an intranet endpoint. The instance metadata "
+                    + "endpoint stays refused in every case.",
+            "false"),
+
+    LICENSE_BLOCKLIST("license_blocklist", SettingType.TEXT, Section.LICENSES,
+            "Forbidden licenses",
+            "Comma-separated SPDX identifiers, for example \"GPL-3.0-only,AGPL-3.0-only\". Empty, nothing is "
+                    + "reported: which licenses are forbidden is an organizational decision, not a technical one. "
+                    + "Read from the SBOM already produced — no extra tool is needed.",
+            ""),
+
+    TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,
+            "Provider",
+            "\"gitlab\", \"jira\", or \"none\" to disable. A ticket is opened for any issue that would fail a "
+                    + "build under the gate policy — there is no second threshold, so that one single place "
+                    + "defines \"serious enough to act on\".",
+            TicketProvider.NONE.wireName()),
+
+    TICKET_BASE_URL("ticket_base_url", SettingType.TEXT, Section.TICKETS,
+            "Tracker URL",
+            "An internal destination is accepted here, unlike the webhook: a self-hosted GitLab or Jira commonly "
+                    + "lives on an internal network. The instance metadata endpoint stays refused.",
+            // Not a secret in the webhook's sense, but a map of the internal network that an
+            // unprivileged account has no reason to read.
+            "", Sensitivity.SECRET),
+
+    TICKET_PROJECT("ticket_project", SettingType.TEXT, Section.TICKETS,
+            "Project",
+            "The GitLab path (\"group/project\") or the Jira project key (\"SEC\").",
+            ""),
+
+    TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
+            "Jira account",
+            "The account address, required by Jira alongside the token for basic authentication. GitLab does "
+                    + "not use it.",
+            ""),
+
+    TICKET_ISSUE_TYPE("ticket_issue_type", SettingType.TEXT, Section.TICKETS,
+            "Jira issue type",
+            "The type name in the target project. GitLab does not use it.",
+            Tickets.DEFAULT_JIRA_ISSUE_TYPE),
+
+    TICKET_LABELS("ticket_labels", SettingType.TEXT, Section.TICKETS,
+            "Labels",
+            "Comma-separated, applied to every ticket opened.",
+            String.join(",", Tickets.DEFAULT_LABELS)),
+
+    TICKET_ALLOW_PRIVATE_URL("ticket_allow_private_url", SettingType.BOOLEAN, Section.TICKETS,
+            "Allow an internal URL",
+            "On by default. Clear it for a deployment that only uses a hosted tracker.",
+            "true"),
+
+    AI_REVIEW_ENABLED("ai_review_enabled", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Review the code with a local model",
+            "A light complement to the scanners, not a SAST engine: a single prompt, with no guaranteed "
+                    + "reproducibility. Its findings are tagged as coming from a model and excluded from the gate "
+                    + "by default — that is the structural mitigation against prompt injection, the analyzed code "
+                    + "being an input controlled by a third party.",
+            "false"),
+
+    AI_REVIEW_OLLAMA_URL("ai_review_ollama_url", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Ollama service URL",
+            "**This endpoint receives the scanned repository's source code.** The risk is therefore not that it "
+                    + "points inward, but outward: a well-formed public URL is exactly what an exfiltration "
+                    + "channel looks like. A public destination is refused unless explicitly acknowledged below.",
+            AiReview.DEFAULT_OLLAMA_URL, Sensitivity.SECRET),
+
+    AI_REVIEW_MODEL("ai_review_model", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Model",
+            "The name as Ollama knows it. It does not have to be installed already to be saved here.",
+            AiReview.DEFAULT_MODEL),
+
+    AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Allow a remote Ollama",
+            "Off by default, and it is the most consequential setting on this screen: turning it on allows "
+                    + "source code to be sent to a public host.",
+            "false");
+
+    /** The group the screen files a setting under. */
+    public enum Section {
+        ENRICHMENT("Enrichment"),
+        END_OF_LIFE("End of life"),
+        SOURCE_CODE("Source code analysis"),
+        RETENTION("Retention"),
+        NOTIFICATIONS("Notifications"),
+        LICENSES("Licenses"),
+        TICKETS("Ticket tracker"),
+        MODEL_REVIEW("Model review");
+
+        private final String label;
+
+        Section(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /**
+     * Whether the <b>value</b> is a secret, even though the key is not.
+     *
+     * <p>A Slack, Teams or Discord webhook URL is not configuration: it is a bearer capability.
+     * Whoever knows it can post in the channel — the very channel where the team awaits
+     * Zanshin's alerts, hence the one where a forged message carries most weight. Reading it
+     * requires no write permission, which made it reachable by any account.
+     *
+     * <p>The screen therefore receives "configured" without the value.
+     */
+    public enum Sensitivity {
+        PLAIN,
+        SECRET
+    }
+
+    private final String key;
+    private final SettingType type;
+    private final Section section;
+    private final String label;
+    private final String help;
+    private final String defaultValue;
+    private final Sensitivity sensitivity;
+
+    Setting(String key, SettingType type, Section section, String label, String help, String defaultValue) {
+        this(key, type, section, label, help, defaultValue, Sensitivity.PLAIN);
+    }
+
+    Setting(String key, SettingType type, Section section, String label, String help, String defaultValue,
+            Sensitivity sensitivity) {
+        this.key = key;
+        this.type = type;
+        this.section = section;
+        this.label = label;
+        this.help = help;
+        this.defaultValue = defaultValue;
+        this.sensitivity = sensitivity;
+    }
+
+    public String key() {
+        return key;
+    }
+
+    public SettingType type() {
+        return type;
+    }
+
+    public Section section() {
+        return section;
+    }
+
+    public String label() {
+        return label;
+    }
+
+    /** What this setting changes, and above all what it does not. */
+    public String help() {
+        return help;
+    }
+
+    public String defaultValue() {
+        return defaultValue;
+    }
+
+    public boolean isSecret() {
+        return sensitivity == Sensitivity.SECRET;
+    }
+
+    /** Empty when the value is acceptable, otherwise the message to show. */
+    public Optional<String> validate(String value) {
+        return type.validate(value);
+    }
+
+    /** A key's definition, or empty when it is not exposed. */
+    public static Optional<Setting> byKey(String key) {
+        return Arrays.stream(values()).filter(setting -> setting.key.equals(key)).findFirst();
+    }
+
+    /** The defaults, so the screen knows what an absent key is worth. */
+    public static Map<String, String> defaults() {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        for (Setting setting : values()) {
+            defaults.put(setting.key, setting.defaultValue);
+        }
+        return Map.copyOf(defaults);
+    }
+}
