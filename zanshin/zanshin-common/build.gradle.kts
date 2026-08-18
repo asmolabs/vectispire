@@ -24,6 +24,7 @@ plugins { id("zanshin.java-conventions") }
 dependencies {
     implementation(platform(libs.spring.boot.bom))
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation(libs.bouncycastle)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -32,14 +33,3 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-/**
- * The golden vectors are read from the NestJS tree, not copied into this one.
- *
- * They were generated from the Python implementation and are what proves the fingerprint and
- * the gate verdict survived two ports unchanged. A copy would be a second file that can drift
- * from the first, and the drift would be invisible: both suites would stay green while the two
- * backends disagreed about which issue is which.
- */
-sourceSets.test {
-    resources.srcDir(rootProject.layout.projectDirectory.dir("../backend/test/vectors"))
-}

@@ -2,10 +2,15 @@
 
 A port of the NestJS control plane to **Spring Boot 4.1 / JDK 25**, built with Gradle.
 
-It runs **alongside** `backend/`, not instead of it. Both speak to the same schema, and the
-NestJS implementation stays the executable reference the port is checked against: a contract
-you can run is worth more than a contract you can read. It is deleted when parity is proven,
-not before.
+It runs **alongside** `backend/`, not instead of it — the NestJS implementation stays readable
+while the Java one is written, and is deleted once this one is complete.
+
+**It is not a transliteration.** No instance of Zanshin has been run, so there is no stored
+data to stay compatible with, and byte-for-byte fidelity is not a goal. Several constraints in
+the TypeScript exist only because it had to match a Python implementation and a live database;
+those are void. Where the original documents a compromise it was forced into, this port does
+the right thing instead and says so. The reasoning in the comments is what carries over — not
+the bytes.
 
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
@@ -51,14 +56,29 @@ the same commit that violates it; a missing dependency cannot.
 | Layering inside the control plane | `ArchitectureTest` (ArchUnit) |
 | The domain depends on no framework | `ArchitectureTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
-| Fingerprints match the ones already stored | `IssueFingerprintTest`, on the shared vectors |
+| The fingerprint's identity rules hold | `IssueFingerprintTest` |
+| The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` *(not yet ported)* |
 
-The golden vectors under `backend/test/vectors/` are read **from the NestJS tree**, not copied
-into this one. They were generated from the original Python implementation, and they are what
-proves the fingerprint survived two ports unchanged. A copy would be a second file free to
-drift from the first — and the drift would be invisible, both suites staying green while the
-two backends disagreed about which issue is which.
+### Two things the original could not fix, fixed here
+
+**The fingerprint separator is NUL, not a vertical bar.** The NestJS version carried a note
+saying the collision — a file path containing `|` imitating a field boundary — must *not* be
+repaired, because changing the separator rewrites the identity of every stored issue and
+destroys the triage attached to them. With no data, it costs nothing. This was the last moment
+at which it was free.
+
+**Closed sets are types.** `ScanTarget` is a sealed interface rather than two nullable ids that
+a comment declares mutually exclusive; `FindingType` is an enum carrying `isSecurity()` rather
+than seven string constants plus a hand-maintained list the constants could drift from.
+
+### Cryptography
+
+Everything hashes through `Digests`, backed by **BouncyCastle**'s lightweight API rather than
+the JCA. The JCA resolves an algorithm from whatever providers the JVM was started with, so
+what actually ran becomes a property of the host — unacceptable for a hash that decides whether
+an audit log was tampered with. Calling the engine directly also avoids registering a provider,
+which is global mutable state in a process that also serves HTTP.
 
 ## Liquibase, and the check that has to stay
 
@@ -77,7 +97,7 @@ suite that skips itself reports green without having checked anything.
 | | |
 |---|---|
 | Build, three modules, architecture suite | done |
-| `IssueFingerprint` + golden vectors | done, 8/8 |
+| `Digests` (BouncyCastle), `IssueFingerprint`, `AuditChain`, `FindingType`, `ScanTarget` | done, 34 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,

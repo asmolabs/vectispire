@@ -36,7 +36,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation(libs.liquibase.core)
-    implementation(libs.bcrypt)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.mariadb)
