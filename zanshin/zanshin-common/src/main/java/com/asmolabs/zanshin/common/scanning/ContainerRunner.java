@@ -1,0 +1,253 @@
+package com.asmolabs.zanshin.common.scanning;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.WaitContainerResultCallback;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.StreamType;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Running a scanner container.
+ *
+ * <p><b>These containers analyse hostile input by definition.</b> See {@link ScannerLimits} for
+ * what that costs them.
+ *
+ * <p><b>None of them sees the Docker socket.</b> The image SBOM step used to mount it, which is
+ * equivalent to root on the host: a parsing flaw in the cataloguer — which by definition reads
+ * the layers of an image nobody controls — became a full escape. Zanshin now exports the image
+ * itself and hands the container a single read-only file. There is no option to mount the
+ * socket, and that absence is the design: an option survives, a missing capability does not.
+ *
+ * <p><b>The two streams are kept apart.</b> One combined output would corrupt the JSON on
+ * stdout, and silencing both would lose the scanner's own explanation — the one that ends up in
+ * the error an operator reads. So each is collected separately: stdout stays parseable
+ * <em>and</em> the reason for the failure survives.
+ */
+public final class ContainerRunner {
+
+    /** The mark placed on every container Zanshin launches. */
+    public static final String SCANNER_LABEL = "dev.zanshin.scanner";
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final DockerClient docker;
+    private final ScannerLimits limits;
+
+    public ContainerRunner() {
+        this(defaultClient(), ScannerLimits.DEFAULT);
+    }
+
+    public ContainerRunner(ScannerLimits limits) {
+        this(defaultClient(), limits);
+    }
+
+    /** Package-private: the client type is an implementation detail nothing outside may name. */
+    ContainerRunner(DockerClient docker, ScannerLimits limits) {
+        this.docker = docker;
+        this.limits = limits;
+    }
+
+    private static DockerClient defaultClient() {
+        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+        return DockerClientImpl.getInstance(
+                config,
+                new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost()).build());
+    }
+
+    /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
+    public boolean isAvailable() {
+        try {
+            docker.pingCmd().exec();
+            return true;
+        } catch (RuntimeException unreachable) {
+            return false;
+        }
+    }
+
+    /**
+     * Pulls an image and writes it out as a local archive.
+     *
+     * <p><b>This is what replaces the Docker socket mounted into the cataloguer.</b> Mounting it
+     * is equivalent to handing out root on the host: a parsing flaw in a tool that by definition
+     * reads layers nobody controls became a complete escape. Here the only process talking to
+     * the daemon is Zanshin, and the scanner sees a file, mounted read-only, with the network
+     * cut.
+     *
+     * <p>{@code platform} is <b>mandatory on the pull</b>: without it the daemon returns the
+     * <em>host's</em> architecture, silently producing the inventory of a variant nobody asked
+     * to audit. The resulting archive already carries the right one, so nothing downstream has
+     * to specify it again.
+     */
+    public void exportImage(String reference, String platform, Path destination) {
+        try {
+            docker.pullImageCmd(reference)
+                    .withPlatform(platform)
+                    .start()
+                    .awaitCompletion();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted while pulling " + reference, interrupted);
+        }
+
+        try (InputStream archive = docker.saveImageCmd(reference).exec()) {
+            Files.copy(archive, destination);
+        } catch (IOException e) {
+            throw new IllegalStateException("could not export " + reference, e);
+        }
+    }
+
+    public ContainerResult run(ContainerRun request) {
+        Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
+
+        HostConfig hostConfig = HostConfig.newHostConfig()
+                .withBinds(request.binds().stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
+                .withNetworkMode(request.network() ? "bridge" : "none")
+                .withMemory(limits.memory())
+                .withPidsLimit(limits.pids())
+                .withCapDrop(com.github.dockerjava.api.model.Capability.values())
+                .withSecurityOpts(List.of("no-new-privileges"))
+                // Removed explicitly below rather than by the daemon: an interrupted scan must
+                // not leave dead containers accumulating on the machine that scans.
+                .withAutoRemove(false);
+
+        var create = docker.createContainerCmd(request.image())
+                .withCmd(request.command())
+                // **Labelled, because the machine that scans is not necessarily ours.** An
+                // agent runs on a shared host where other containers come and go: with no
+                // mark, neither an operator nor an orphan sweep can tell what Zanshin
+                // launched from the rest.
+                .withLabels(Map.of(SCANNER_LABEL, request.label()))
+                .withHostConfig(hostConfig);
+        if (request.asRoot()) {
+            create = create.withUser("0:0");
+        }
+
+        CreateContainerResponse container = create.exec();
+        StreamCollector output = new StreamCollector();
+
+        try {
+            docker.logContainerCmd(container.getId())
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withFollowStream(true)
+                    .exec(output);
+
+            docker.startContainerCmd(container.getId()).exec();
+            int exitCode = waitFor(container.getId(), timeout, request.label());
+
+            // Let the streams drain: the wait returns before the last frame has crossed, and a
+            // truncated JSON document reads as an invalid one.
+            output.awaitCompletion(Duration.ofSeconds(2));
+
+            return new ContainerResult(output.stdout(), output.stderr(), exitCode);
+        } finally {
+            // In a `finally`: a forgotten container holds its workspace, hence the whole clone,
+            // and the machine eventually runs out of disk.
+            try {
+                docker.removeContainerCmd(container.getId()).withForce(true).exec();
+            } catch (RuntimeException alreadyGone) {
+                // Nothing to do about it, and nothing worth masking the real error for.
+            }
+        }
+    }
+
+    /**
+     * Waits for the end, or stops the container.
+     *
+     * <p>Stopping is necessary and not optional: abandoning the wait would leave the container
+     * running indefinitely, consuming its memory and its processes, while Zanshin considers the
+     * scan finished.
+     */
+    private int waitFor(String containerId, Duration timeout, String label) {
+        try (WaitContainerResultCallback wait = docker.waitContainerCmd(containerId).start()) {
+            return wait.awaitStatusCode(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (RuntimeException | IOException timedOut) {
+            try {
+                docker.stopContainerCmd(containerId).withTimeout(5).exec();
+            } catch (RuntimeException alreadyStopped) {
+                // Already gone, which is the outcome we wanted.
+            }
+            throw ScannerFailureException.timedOut(label, timeout);
+        }
+    }
+
+    public record ContainerResult(String stdout, String stderr, int exitCode) {}
+
+    /**
+     * Reads a scanner's JSON output, or explains why it is unusable.
+     *
+     * <p><b>Returns empty and never an empty list on failure.</b> The distinction is between
+     * "analysed, found nothing" and "not analysed", and it decides the fate of the whole backlog
+     * for that finding type: an empty list resolves every existing issue, an absent result
+     * changes nothing (decision 0007).
+     */
+    public static Optional<JsonNode> parseJson(ContainerResult result, String label, List<Integer> acceptedExitCodes) {
+        if (!acceptedExitCodes.contains(result.exitCode())) {
+            throw ScannerFailureException.exited(label, result.exitCode(), result.stderr());
+        }
+        String payload = result.stdout().strip();
+        if (payload.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(MAPPER.readTree(payload));
+        } catch (IOException notJson) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Collects the two streams apart.
+     *
+     * <p>The Docker protocol multiplexes them over one connection and tags each frame; keeping
+     * the tag is what stops the scanner's warnings from being interleaved into the JSON.
+     */
+    private static final class StreamCollector extends ResultCallback.Adapter<Frame> {
+
+        private final OutputStream out = new java.io.ByteArrayOutputStream();
+        private final OutputStream err = new java.io.ByteArrayOutputStream();
+
+        @Override
+        public void onNext(Frame frame) {
+            try {
+                (frame.getStreamType() == StreamType.STDERR ? err : out).write(frame.getPayload());
+            } catch (IOException impossible) {
+                throw new IllegalStateException("in-memory write failed", impossible);
+            }
+        }
+
+        String stdout() {
+            return out.toString();
+        }
+
+        String stderr() {
+            return err.toString();
+        }
+
+        void awaitCompletion(Duration limit) {
+            try {
+                awaitCompletion(limit.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}

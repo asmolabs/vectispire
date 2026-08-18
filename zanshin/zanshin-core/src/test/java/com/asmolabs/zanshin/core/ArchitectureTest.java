@@ -107,7 +107,12 @@ class ArchitectureTest {
                         "org.hibernate..",
                         "java.sql..",
                         "javax.sql..",
-                        "liquibase..")
+                        "liquibase..",
+                        // The scanning half of `zanshin-common` needs a Docker client; the
+                        // domain half must never. A calculation that reached the daemon would
+                        // stop being testable without one, which is the property the whole
+                        // layer exists for.
+                        "com.github.dockerjava..")
                 .allowEmptyShould(true)
                 .check(classes);
     }

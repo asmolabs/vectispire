@@ -54,7 +54,7 @@ the same commit that violates it; a missing dependency cannot.
 |---|---|
 | The agent cannot reach the database | the module graph, plus `AgentIsolationTest` |
 | Layering inside the control plane | `ArchitectureTest` (ArchUnit) |
-| The domain depends on no framework | `ArchitectureTest` |
+| The domain depends on no framework, and no Docker client | `ArchitectureTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
@@ -108,8 +108,8 @@ suite that skips itself reports green without having checked anything.
 | | |
 |---|---|
 | Build, three modules, architecture suite | done |
-| **`zanshin-common/domain` — the whole layer** | **done, 421 tests** |
-| `zanshin-common/scanning` | not started |
+| **`zanshin-common/domain` — the whole layer** | **done** |
+| `zanshin-common/scanning` — workspace, container runner | in progress (the scanners remain) |
 | `zanshin-core` — persistence, repositories, services, api | not started |
 | `zanshin-agent` — the protocol | not started |
 

@@ -26,6 +26,13 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation(libs.bouncycastle)
 
+    // The Docker daemon API, for the scanning half. It reaches the agent too, which is
+    // correct — the agent is what runs the containers. It does *not* reach the domain: the
+    // architecture suite forbids `domain` from depending on anything, and this is exactly the
+    // kind of dependency that would make the calculations untestable without a daemon.
+    implementation(libs.docker.java.core)
+    implementation(libs.docker.java.transport)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation(libs.assertj.core)
