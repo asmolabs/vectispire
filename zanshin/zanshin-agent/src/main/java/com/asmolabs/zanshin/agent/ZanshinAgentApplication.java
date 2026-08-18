@@ -28,6 +28,20 @@ public class ZanshinAgentApplication {
         return java.time.Clock.systemUTC();
     }
 
+    /**
+     * The JSON mapper. See {@code CoreConfiguration} for why it is declared and not
+     * auto-configured — and note that both sides must build it the same way, or the agent
+     * protocol's two ends disagree about how an instant is written.
+     */
+    @org.springframework.context.annotation.Bean
+    com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
+        return com.fasterxml.jackson.databind.json.JsonMapper.builder()
+                .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
+    }
+
     public static void main(String[] args) {
         new SpringApplicationBuilder(ZanshinAgentApplication.class)
                 .web(WebApplicationType.NONE)

@@ -1,6 +1,12 @@
 package com.asmolabs.zanshin.core.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.asmolabs.zanshin.common.domain.auth.Sessions;
+import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.zanshin.core.repositories.UserSessions;
@@ -23,6 +29,38 @@ import org.springframework.context.annotation.Configuration;
 public class CoreConfiguration {
 
     /**
+     * The JSON mapper, declared rather than auto-configured.
+     *
+     * <p><b>Spring Boot 4 auto-configures Jackson 3</b> ({@code tools.jackson.databind}), and
+     * this codebase is annotated with Jackson 2 ({@code com.fasterxml.jackson}) — the version
+     * the domain's export records, the notification payload and the agent contract are written
+     * against. Asking the container for a {@code com.fasterxml} mapper therefore finds nothing,
+     * and the failure arrives as "no qualifying bean" halfway down a dependency chain rather
+     * than as "your Jackson is the other one".
+     *
+     * <p>Migrating the annotations is a separate change with its own risk — the wire format of
+     * three export documents and one agent protocol depends on them — so the version in use is
+     * stated here, once, where the next person will look.
+     */
+    @Bean
+    ObjectMapper objectMapper() {
+        return JsonMapper.builder()
+                .addModule(new JavaTimeModule())
+                // Instants as ISO-8601 text, never as an epoch number. The frontend parses dates
+                // and an auditor reads them; a number satisfies neither, and the default is a
+                // number.
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                // An unknown field is the ordinary case of a newer agent talking to an older
+                // control plane. Failing on it would turn every rolling upgrade into an outage.
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                // Nulls are written, not omitted. The Angular client distinguishes "this target
+                // has never been scanned" from "the field is missing", and so does an agent
+                // reading a task with no deployment key — omitting them would make both of those
+                // look like a payload the other side failed to build.
+                .build();
+    }
+
+    /**
      * The clock, injected everywhere rather than called.
      *
      * <p>{@code Instant.now()} scattered through services is the thing that makes a scheduling
@@ -32,6 +70,18 @@ public class CoreConfiguration {
     @Bean
     Clock clock() {
         return Clock.systemUTC();
+    }
+
+    /**
+     * The sealing primitive, with the platform's secure random.
+     *
+     * <p>A bean rather than a field, so a test can hand it a deterministic source and assert
+     * what came out — which is the only way to test a construction whose whole purpose is that
+     * two runs never produce the same bytes.
+     */
+    @Bean
+    SealedEnvelope sealedEnvelope() {
+        return new SealedEnvelope();
     }
 
     /**

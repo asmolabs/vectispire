@@ -27,6 +27,10 @@ dependencies {
     // of this module's surface whether or not it is declared as such. Hiding it only means
     // every consumer has to redeclare it and discover why by a compile error.
     api("com.fasterxml.jackson.core:jackson-databind")
+    // Jackson 2's time module, and `api` for the same reason: an `Instant` crossing the wire is
+    // part of this module's surface. Spring Boot 4 auto-configures Jackson **3**, so nothing
+    // registers this for us — see `CoreConfiguration.objectMapper`.
+    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation(libs.bouncycastle)
 
     // The Docker daemon API, for the scanning half. It reaches the agent too, which is

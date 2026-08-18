@@ -71,10 +71,6 @@ class ArchitectureTest {
     void layersOnlyReachDownwards() {
         layeredArchitecture()
                 .consideringOnlyDependenciesInAnyPackage(ROOT + "..")
-                // The port is in progress: layers that have not been ported yet are
-                // legitimately empty. `findsSomethingToCheck` is what stops that from
-                // becoming a suite which passes because it looks at nothing.
-                .withOptionalLayers(true)
                 .layer("domain").definedBy(ROOT + ".common.domain..")
                 .layer("scanning").definedBy(ROOT + ".common.scanning..")
                 .layer("persistence").definedBy(ROOT + ".core.persistence..")
@@ -88,7 +84,9 @@ class ArchitectureTest {
                 .whereLayer("repositories").mayOnlyBeAccessedByLayers("services", "api")
                 .whereLayer("persistence").mayOnlyBeAccessedByLayers("repositories", "services", "api")
                 .whereLayer("scanning").mayOnlyBeAccessedByLayers("services", "api")
-                .allowEmptyShould(true)
+                // No optional layers and no empty-should escape any more: every layer is
+                // populated, so an empty one is now a package that was renamed or deleted — and
+                // this rule going quiet is exactly how that would go unnoticed.
                 .check(classes);
     }
 
@@ -113,7 +111,6 @@ class ArchitectureTest {
                         // stop being testable without one, which is the property the whole
                         // layer exists for.
                         "com.github.dockerjava..")
-                .allowEmptyShould(true)
                 .check(classes);
     }
 
@@ -124,7 +121,6 @@ class ArchitectureTest {
                 .that().resideInAnyPackage(ROOT + ".core.services..", ROOT + ".core.api..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("java.sql..", "javax.sql..", "org.hibernate..")
-                .allowEmptyShould(true)
                 .check(classes);
     }
 
@@ -136,7 +132,6 @@ class ArchitectureTest {
                 .that().resideInAPackage(ROOT + ".core.persistence..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("org.springframework.web..", "jakarta.servlet..")
-                .allowEmptyShould(true)
                 .check(classes);
     }
 
