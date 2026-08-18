@@ -107,7 +107,9 @@ suite that skips itself reports green without having checked anything.
 | `OpenVexExport`, `SarifExport`, `IssueCsv` — the three deliverable formats | done |
 | `OutboundUrlGuard` — the anti-SSRF and anti-exfiltration rule | done |
 | `EncryptionKey`, `SecretCipher` — scrypt and AES-GCM on BouncyCastle | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 136 tests |
+| `Triage` — the VEX vocabulary, and when a suppression stops being true | done |
+| `LoginThrottle`, `Sessions` | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 176 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
