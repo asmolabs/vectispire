@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
+import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.IssueFingerprint;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
@@ -37,9 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class IssueSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
-
-    private static final String STATE_OPEN = "open";
-    private static final String STATE_RESOLVED = "resolved";
 
     private final Repositories.Issues issues;
     private final Repositories.Findings findings;
@@ -116,7 +114,7 @@ public class IssueSyncService {
                 issue.setDescription(descriptions.get(orEmpty(finding.getIdentifier())));
                 created.add(issue);
             } else {
-                if (STATE_RESOLVED.equals(issue.getState())) {
+                if (IssueState.RESOLVED.wireName().equals(issue.getState())) {
                     reopen(issue);
                     reopened.add(issue);
                 }
@@ -188,13 +186,13 @@ public class IssueSyncService {
 
         List<String> types = scannedTypes.stream().map(FindingType::wireName).toList();
         List<IssueEntity> disappeared = issues
-                .findOpenByTarget(STATE_OPEN, types, scan.getRepoId(), scan.getContainerId())
+                .findOpenByTarget(IssueState.OPEN.wireName(), types, scan.getRepoId(), scan.getContainerId())
                 .stream()
                 .filter(issue -> !seen.contains(issue.getFingerprint()))
                 .toList();
 
         disappeared.forEach(issue -> {
-            issue.setState(STATE_RESOLVED);
+            issue.setState(IssueState.RESOLVED.wireName());
             issue.setResolvedAt(moment);
         });
         issues.saveAll(disappeared);
@@ -211,7 +209,7 @@ public class IssueSyncService {
         issue.setPurl(finding.getPurl());
         issue.setPackageName(finding.getPackageName());
         issue.setFilePath(finding.getFilePath());
-        issue.setState(STATE_OPEN);
+        issue.setState(IssueState.OPEN.wireName());
         issue.setFirstSeenAt(moment);
         issue.setLastSeenAt(moment);
         issue.setFirstSeenScanId(scan.getId());
@@ -227,7 +225,7 @@ public class IssueSyncService {
         issue.setLastSeenAt(moment);
         issue.setLastSeenScanId(scan.getId());
         issue.setTimesSeen(issue.getTimesSeen() + 1);
-        issue.setState(STATE_OPEN);
+        issue.setState(IssueState.OPEN.wireName());
         issue.setResolvedAt(null);
     }
 

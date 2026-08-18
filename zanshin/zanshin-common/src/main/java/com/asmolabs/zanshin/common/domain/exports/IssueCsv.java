@@ -1,5 +1,7 @@
 package com.asmolabs.zanshin.common.domain.exports;
 
+import com.asmolabs.zanshin.common.domain.issues.IssueState;
+
 import com.asmolabs.zanshin.common.domain.crypto.Digests;
 import java.time.Instant;
 import java.util.Arrays;
@@ -40,7 +42,7 @@ public final class IssueCsv {
         LINE("line", issue -> issue.line() == null || issue.line() == 0 ? "" : String.valueOf(issue.line())),
         FIX_STATE("fix_state", issue -> issue.fixState() == null ? "" : issue.fixState().wireName()),
         FIX_VERSIONS("fix_versions", ExportableIssue::fixVersions),
-        STATE("state", issue -> issue.resolved() ? "resolved" : "open"),
+        STATE("state", issue -> (issue.resolved() ? IssueState.RESOLVED : IssueState.OPEN).wireName()),
         TRIAGE_STATUS("triage_status", issue -> issue.triageStatus() == null ? "" : issue.triageStatus().wireName()),
         TRIAGE_JUSTIFICATION("triage_justification", ExportableIssue::triageJustification),
         TRIAGED_BY("triaged_by", ExportableIssue::triagedBy),

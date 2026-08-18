@@ -6,6 +6,7 @@ import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
+import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.SettingEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
@@ -125,6 +126,42 @@ public final class Repositories {
                  where i.state = :state and i.type = :type and i.identifier is not null
                  group by i.identifier""")
         List<Object[]> countOpenByIdentifier(@Param("state") String state, @Param("type") String type);
+    }
+
+    /**
+     * The uploaded Semgrep rule sets.
+     *
+     * <p>{@code isActive} is {@code Boolean}, and {@code null} rather than {@code false} is
+     * what "not active" means: the unique index over that column is what enforces "at most one
+     * active", and an index only counts NULLs as distinct.
+     */
+    public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
+        Optional<SemgrepRuleSetEntity> findByIsActiveTrue();
+
+        Optional<SemgrepRuleSetEntity> findByContentHash(String contentHash);
+
+        /**
+         * The listing, without the files.
+         *
+         * <p>The files are megabytes of YAML. A listing that carried them would be a listing
+         * nobody opens twice, and the projection is what stops a lazy `findAll` from becoming
+         * that by accident.
+         */
+        @Query("""
+                select new com.asmolabs.zanshin.core.repositories.RuleSetSummary(
+                        r.id, r.name, r.contentHash, r.ruleCount, r.fileCount, r.sizeBytes,
+                        r.isActive, r.uploadedBy, r.uploadedAt, r.activationNote)
+                  from SemgrepRuleSetEntity r
+                 order by r.uploadedAt desc, r.id desc""")
+        List<RuleSetSummary> summaries();
+
+        @Modifying(clearAutomatically = true, flushAutomatically = true)
+        @Query("update SemgrepRuleSetEntity r set r.isActive = null where r.isActive = true")
+        int deactivateAll();
+
+        @Modifying(clearAutomatically = true, flushAutomatically = true)
+        @Query("update SemgrepRuleSetEntity r set r.isActive = true, r.activationNote = :note where r.id = :id")
+        int activate(@Param("id") Long id, @Param("note") String note);
     }
 
     public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
