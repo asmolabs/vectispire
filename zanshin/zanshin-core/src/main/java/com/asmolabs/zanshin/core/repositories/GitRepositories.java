@@ -2,6 +2,8 @@ package com.asmolabs.zanshin.core.repositories;
 
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -22,4 +24,13 @@ public interface GitRepositories extends JpaRepository<RepositoryEntity, Long> {
     @Modifying(clearAutomatically = true)
     @Query("update RepositoryEntity r set r.lastScheduledScanAt = :at where r.id = :id")
     int stampScheduled(@Param("id") Long id, @Param("at") Instant at);
+
+    long countBySshKeyId(UUID sshKeyId);
+
+    /** How many repositories use each key, so the list can refuse a deletion that would break one. */
+    @Query("""
+            select r.sshKeyId, count(r.id) from RepositoryEntity r
+             where r.sshKeyId is not null
+             group by r.sshKeyId""")
+    List<Object[]> countBySshKey();
 }

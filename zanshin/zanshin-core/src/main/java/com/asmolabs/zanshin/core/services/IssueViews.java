@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.dependencies.Directness;
+import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
 import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
 import com.asmolabs.zanshin.common.domain.gate.GateIssue;
 import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
@@ -94,5 +95,46 @@ public final class IssueViews {
             return Directness.UNKNOWN;
         }
         return issue.getIsDirectDependency() ? Directness.DIRECT : Directness.TRANSITIVE;
+    }
+
+    /**
+     * An issue as the three export formats read it.
+     *
+     * <p>Instants are handed over as instants and canonicalized by the export itself. The
+     * NestJS version converted them at every call site, and a document handed to an auditor
+     * carried "Mon Aug 10 2026 …" the day one site was missed — offset by the machine's timezone
+     * on top of that.
+     */
+    public static ExportableIssue forExport(IssueEntity issue) {
+        return ExportableIssue.builder()
+                .id(issue.getId())
+                .fingerprint(issue.getFingerprint())
+                .type(FindingType.fromWireName(issue.getType()).orElse(null))
+                .identifier(issue.getIdentifier())
+                .severity(Severity.of(issue.getSeverity()))
+                .cvssScore(issue.getCvssScore())
+                .epssScore(issue.getEpssScore())
+                .kev(issue.getIsKev())
+                .packageName(issue.getPackageName())
+                .packageVersion(issue.getPackageVersion())
+                .purl(issue.getPurl())
+                .directness(directnessOf(issue))
+                .filePath(issue.getFilePath())
+                .line(issue.getLine())
+                .fixState(FixState.fromWireName(issue.getFixState()).orElse(FixState.UNKNOWN))
+                .fixVersions(issue.getFixVersions())
+                .link(issue.getLink())
+                .description(issue.getDescription())
+                .resolved(IssueState.RESOLVED.wireName().equals(issue.getState()))
+                .triageStatus(triageOf(issue))
+                .triageJustification(issue.getTriageJustification())
+                .triageComment(issue.getTriageComment())
+                .triagedBy(issue.getTriagedBy())
+                .triagedAt(issue.getTriagedAt())
+                .triageExpiresAt(issue.getTriageExpiresAt())
+                .firstSeenAt(issue.getFirstSeenAt())
+                .lastSeenAt(issue.getLastSeenAt())
+                .timesSeen(issue.getTimesSeen())
+                .build();
     }
 }

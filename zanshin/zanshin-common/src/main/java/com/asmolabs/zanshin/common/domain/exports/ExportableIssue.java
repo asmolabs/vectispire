@@ -94,6 +94,10 @@ public record ExportableIssue(
      * That matters most in tests, where the point of a case is the two fields it sets, and the
      * other twenty-six are noise that hides it.
      */
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public static final class Builder {
         private long id = 1;
         private String fingerprint;

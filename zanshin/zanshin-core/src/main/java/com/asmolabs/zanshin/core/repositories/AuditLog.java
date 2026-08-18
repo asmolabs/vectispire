@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -48,4 +50,28 @@ public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
             @Param("id") UUID id,
             @Param("previousHash") String previousHash,
             @Param("entryHash") String entryHash);
+
+    /**
+     * The filtered page the screen shows.
+     *
+     * <p>Every filter optional, expressed as a null check rather than as four query methods:
+     * four methods is four orderings to keep in step, and the day one drifts the log reads
+     * differently depending on which filter happens to be set — on the one table whose whole
+     * value is that it reads the same to everybody.
+     */
+    @Query("""
+            select a from AuditLogEntity a
+             where (:operationType is null or a.operationType = :operationType)
+               and (:userId is null or a.userId = :userId)
+               and (:search is null
+                    or lower(a.description) like :search
+                    or lower(a.resourceId) like :search)""")
+    Page<AuditLogEntity> findFiltered(
+            @Param("operationType") String operationType,
+            @Param("userId") String userId,
+            @Param("search") String search,
+            Pageable pageable);
+
+    @Query("select distinct a.operationType from AuditLogEntity a order by a.operationType asc")
+    List<String> distinctOperationTypes();
 }

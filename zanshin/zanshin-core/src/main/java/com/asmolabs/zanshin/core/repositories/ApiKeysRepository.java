@@ -28,6 +28,8 @@ public interface ApiKeysRepository extends JpaRepository<ApiKeyEntity, UUID> {
      */
     List<ApiKeyEntity> findByPrefix(String prefix);
 
+    List<ApiKeyEntity> findAllByOrderByCreatedAtDesc();
+
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("update ApiKeyEntity k set k.lastUsedAt = :at where k.id = :id")

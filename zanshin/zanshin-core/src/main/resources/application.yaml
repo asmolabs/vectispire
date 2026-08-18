@@ -31,6 +31,13 @@ zanshin:
     # machine would then audit a variant nobody deploys.
     image-platform: ${ZANSHIN_IMAGE_SCAN_PLATFORM:}
 
+  exports:
+    # Named in SARIF's information URI and in a VEX document's identifier, so a document handed
+    # to somebody else says where it came from.
+    public-url: ${ZANSHIN_PUBLIC_URL:}
+    vex-author: ${ZANSHIN_VEX_AUTHOR:Zanshin}
+    tool-version: ${ZANSHIN_VERSION:1.0.0}
+
   bootstrap:
     # Read once, on an empty users table, and ignored ever after: without that condition they
     # would be a permanent back door, re-armable by restarting with the right variable set.

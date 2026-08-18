@@ -109,4 +109,58 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
 
     /** Every issue in one state, for the gate and the security overview. */
     List<IssueEntity> findByState(String state);
+
+    /**
+     * The heaviest rules, files or targets of one issue type.
+     *
+     * <p>Three queries rather than one parameterized by a column name: a column name that
+     * arrives as a string is a column name that can arrive from a request, and "the grouping
+     * axis is injectable" is how a filter becomes an injection point.
+     */
+    @Query("""
+            select i.identifier, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type
+             group by i.identifier
+             order by total desc""")
+    List<Object[]> countOpenByRule(@Param("state") String state, @Param("type") String type, Limit limit);
+
+    @Query("""
+            select i.filePath, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type
+             group by i.filePath
+             order by total desc""")
+    List<Object[]> countOpenByFile(@Param("state") String state, @Param("type") String type, Limit limit);
+
+    @Query("""
+            select i.repoId, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId is not null
+             group by i.repoId
+             order by total desc""")
+    List<Object[]> countOpenByTargetRepository(@Param("state") String state, @Param("type") String type, Limit limit);
+
+    /** The backlog by severity, for the dashboard's headline figures. */
+    @Query("""
+            select i.severity, count(i.id) from IssueEntity i
+             where i.state = :state
+             group by i.severity""")
+    List<Object[]> countOpenBySeverity(@Param("state") String state);
+
+    long countByStateAndType(String state, String type);
+
+    /**
+     * How many distinct rules — or files — the backlog of one type touches.
+     *
+     * <p>Counted rather than taken from the length of the top-N list, which is what the NestJS
+     * screen did: it always answered "8" once there were eight or more, so the figure meant
+     * "the list below is full" and read as "the debt comes from eight rules".
+     */
+    @Query("""
+            select count(distinct i.identifier) from IssueEntity i
+             where i.state = :state and i.type = :type and i.identifier is not null""")
+    long countDistinctRules(@Param("state") String state, @Param("type") String type);
+
+    @Query("""
+            select count(distinct i.filePath) from IssueEntity i
+             where i.state = :state and i.type = :type and i.filePath is not null""")
+    long countDistinctFiles(@Param("state") String state, @Param("type") String type);
 }
