@@ -77,6 +77,24 @@ public enum Engine {
      */
     public static void configure(Engine engine, Optional<JdbcDatabaseContainer<?>> container,
             org.springframework.test.context.DynamicPropertyRegistry registry) {
+
+        // **The application's own background jobs are switched off.** The campaign starts the
+        // whole application, and `@Scheduled(fixedDelay=…)` runs its first execution immediately
+        // — so the scheduler took the leader lease in the middle of the test that asserts who
+        // holds it, roughly one run in three. An intermittent failure whose cause is the
+        // application competing with its own test is the least debuggable kind there is, and it
+        // reads as a flaky engine rather than as this.
+        registry.add("zanshin.worker.enabled", () -> "false");
+        registry.add("zanshin.jobs.relay-interval", () -> "24h");
+        registry.add("zanshin.jobs.scheduler-interval", () -> "24h");
+        registry.add("zanshin.jobs.maintenance-interval", () -> "24h");
+        // The interval alone was not enough, and that is the whole lesson: `fixedDelay` spaces
+        // the runs that *follow* and lets the first one fire the moment the context is ready.
+        // The lease was taken in the middle of the test asserting who held it, on two runs in
+        // five, and the message named a random instance id nobody could trace to a scheduler.
+        registry.add("zanshin.jobs.initial-delay", () -> "24h");
+        registry.add("zanshin.worker.initial-delay", () -> "24h");
+
         container.ifPresentOrElse(
                 started -> {
                     registry.add("spring.datasource.url", started::getJdbcUrl);

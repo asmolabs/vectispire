@@ -32,7 +32,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -63,6 +63,7 @@ public class AgentsAdminController {
     private final Scans scans;
     private final AuditLogService audit;
     private final WorkerProperties worker;
+    private final TransactionTemplate transactions;
     private final Clock clock;
 
     public AgentsAdminController(
@@ -71,12 +72,14 @@ public class AgentsAdminController {
             Scans scans,
             AuditLogService audit,
             WorkerProperties worker,
+            TransactionTemplate transactions,
             Clock clock) {
         this.agents = agents;
         this.keys = keys;
         this.scans = scans;
         this.audit = audit;
         this.worker = worker;
+        this.transactions = transactions;
         this.clock = clock;
     }
 
@@ -155,7 +158,6 @@ public class AgentsAdminController {
      * <p>Both together because an agent with no key can do nothing: separating them would leave
      * an inert row the operator would believe was working.
      */
-    @Transactional
     @PostMapping
     public DeclaredAgent create(
             @RequestBody CreateRequest body,
@@ -176,6 +178,11 @@ public class AgentsAdminController {
         ApiKeys.IssuedKey issued = ApiKeys.generate();
         Instant at = clock.instant();
 
+        // The key and the agent commit together — an agent pointing at a key that was rolled
+        // back is a row that can never authenticate — but the audit entry is written outside,
+        // because it uses REQUIRES_NEW and a nested connection deadlocks against its own parent
+        // on SQLite, where the lock is the file.
+        AgentEntity saved = transactions.execute(status -> {
         ApiKeyEntity key = new ApiKeyEntity();
         key.setName("Agent " + name);
         key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
@@ -200,7 +207,9 @@ public class AgentsAdminController {
         agent.setApiKeyId(savedKey.getId());
         agent.setCreatedAt(at);
 
-        AgentEntity saved = agents.save(agent);
+        return agents.save(agent);
+        });
+
         record(principal, request, saved.getId(), "Agent declared: " + name + " (" + mode.wireName() + ")");
         return new DeclaredAgent(saved.getId(), saved.getName(), issued.fullKey());
     }
@@ -243,7 +252,6 @@ public class AgentsAdminController {
         return answer;
     }
 
-    @Transactional
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
@@ -261,12 +269,14 @@ public class AgentsAdminController {
                     "This agent is running " + running + " scan(s). Disable it and wait for it to finish.");
         }
 
-        agents.deleteById(id);
+        transactions.executeWithoutResult(status -> {
+            agents.deleteById(id);
         // The key goes with it: keeping it would leave an open door to the protocol with no
         // agent behind it.
-        if (agent.getApiKeyId() != null) {
-            keys.deleteById(agent.getApiKeyId());
-        }
+            if (agent.getApiKeyId() != null) {
+                keys.deleteById(agent.getApiKeyId());
+            }
+        });
         record(principal, request, id, "Agent deleted: " + agent.getName());
     }
 

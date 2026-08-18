@@ -3,24 +3,17 @@ package com.asmolabs.zanshin.core.api;
 import com.asmolabs.zanshin.common.domain.auth.Sessions;
 import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.ZanshinApplication;
+import com.asmolabs.zanshin.core.ZanshinContextTest;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.repositories.UserSessions;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -42,32 +35,10 @@ import org.springframework.web.context.WebApplicationContext;
  * disagreements are the database campaign's business; what is under test here is the HTTP
  * surface, which is the same on all four.
  *
- * <p><b>The tables are emptied between tests, not wrapped in a rolled-back transaction.</b> The
- * usual {@code @Transactional} test would join its transaction to the request's, which changes
- * the very thing several of these routes depend on: the outbox enqueues with {@code MANDATORY},
- * the audit log writes with {@code REQUIRES_NEW}, and the scan queue deliberately runs outside
- * any transaction at all. A suite that rewrote those boundaries would be green about behaviour
- * production does not have.
+ * <p>The context and the between-test cleanup come from {@link ZanshinContextTest}; what this
+ * adds is the HTTP half — the filter chain, and accounts to authenticate as.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
-@ActiveProfiles("apitest")
-abstract class ApiTestBase {
-
-    /**
-     * A database file nobody has touched, one per JVM.
-     *
-     * <p>Not {@code drop-first}, which is the obvious way and does not work: Liquibase's
-     * {@code dropAll} issues a {@code DROP FOREIGN KEY} that SQLite has no generator for, so the
-     * context fails to start with a message about statement generators rather than about the
-     * schema. Not {@code :memory:} either — Liquibase and Hibernate open separate connections,
-     * and each would get its own empty database.
-     */
-    @DynamicPropertySource
-    static void database(DynamicPropertyRegistry registry) {
-        Path file = Path.of(System.getProperty("java.io.tmpdir"), "zanshin-apitest-" + UUID.randomUUID() + ".db");
-        file.toFile().deleteOnExit();
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
-    }
+abstract class ApiTestBase extends ZanshinContextTest {
 
     /**
      * Built by hand rather than through {@code @AutoConfigureMockMvc}.
@@ -98,46 +69,14 @@ abstract class ApiTestBase {
     @Autowired
     private Clock clock;
 
-    @Autowired
-    private JdbcTemplate jdbc;
-
     private String adminToken;
     private String readerToken;
 
-    /**
-     * Every table, children before parents.
-     *
-     * <p>Listed rather than discovered: a generated order would be right until the day a new
-     * foreign key changes it, and the failure — a delete refused mid-cleanup — reads as a broken
-     * test rather than as a missing entry here.
-     */
-    private static final List<String> TABLES_CHILDREN_FIRST = List.of(
-            "t_ai_review_result",
-            "t_finding",
-            "t_issue",
-            "t_scan",
-            "t_gate_policy",
-            "t_processed_message",
-            "t_outbox_message",
-            "t_audit_log",
-            "t_login_attempt",
-            "t_session",
-            "t_api_key",
-            "t_agent",
-            "t_repository",
-            "t_container",
-            "t_ssh_key",
-            "t_semgrep_rule_set",
-            "t_leader_lease",
-            "t_setting",
-            "t_user");
-
     @BeforeEach
-    void buildMockMvcAndEmptyTheDatabase() {
+    void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
         adminToken = null;
         readerToken = null;
-        TABLES_CHILDREN_FIRST.forEach(table -> jdbc.execute("delete from " + table));
     }
 
     /** A live session for an administrator, minted lazily so a test that needs none pays nothing. */

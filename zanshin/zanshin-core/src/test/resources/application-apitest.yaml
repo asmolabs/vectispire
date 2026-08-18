@@ -28,7 +28,11 @@ zanshin:
   # one kind nobody can debug from a CI log.
   worker:
     enabled: false
+    initial-delay: 24h
   jobs:
+    # The interval spaces the runs that follow; the initial delay is what stops the first one
+    # firing the instant the context is ready — which is inside every test.
+    initial-delay: 24h
     relay-interval: 24h
     scheduler-interval: 24h
     maintenance-interval: 24h

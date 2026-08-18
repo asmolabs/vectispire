@@ -14,6 +14,12 @@ import org.springframework.stereotype.Component;
  * running it every fifteen seconds would cost a pointless query each time for a result that
  * only changes at the rate scans happen.
  *
+ * <p><b>Every job waits before its first run.</b> {@code fixedDelay} spaces out the runs that
+ * follow and does nothing about the first, which otherwise fires the instant the context is
+ * ready — while Liquibase has just finished, the pool is still filling, and an instance that is
+ * about to lose a startup race for the leader lease is competing for it. Half a minute costs
+ * nothing and removes a whole class of "only on the first tick after a deploy".
+ *
  * <p><b>No leader election here, deliberately.</b> Everything below is idempotent: dropping the
  * same payload twice costs nothing, and the ticket sweep deduplicates on the reference stored
  * on the issue. That is not true of every periodic job — scheduling scans does need an election
@@ -62,18 +68,24 @@ public class MaintenanceJobs {
      * would make a due message wait longer than intended, and a faster one would find nothing
      * to do.
      */
-    @Scheduled(fixedDelayString = "${zanshin.jobs.relay-interval:60s}")
+    @Scheduled(
+            fixedDelayString = "${zanshin.jobs.relay-interval:60s}",
+            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
     public void relayNotifications() {
         run(relaying, "notification relay", () -> outbox.relay(OutboxRetry.MAX_PER_PASS));
     }
 
     /** The scan scheduler's tick. Leader-only, which {@code SchedulerService} enforces itself. */
-    @Scheduled(fixedDelayString = "${zanshin.jobs.scheduler-interval:60s}")
+    @Scheduled(
+            fixedDelayString = "${zanshin.jobs.scheduler-interval:60s}",
+            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
     public void scheduleDueScans() {
         run(dispatching, "scheduling tick", scheduler::runOnce);
     }
 
-    @Scheduled(fixedDelayString = "${zanshin.jobs.maintenance-interval:1h}")
+    @Scheduled(
+            fixedDelayString = "${zanshin.jobs.maintenance-interval:1h}",
+            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
     public void hourlyMaintenance() {
         run(maintaining, "maintenance", () -> {
             int pruned = retention.prune();

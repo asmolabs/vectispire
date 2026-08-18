@@ -91,9 +91,7 @@ public class LeaderElection {
         // Conditioned on the holder **and** on the expiry we have just read: if another instance
         // took the lease between the read and this update, its row count is zero and we lose —
         // rather than stealing a lease somebody legitimately holds.
-        int updated = mine
-                ? leases.renew(name, holder, expiresAt, at)
-                : leases.takeOver(name, holder, expiresAt, at, lease.getHolder(), lease.getExpiresAt());
+        int updated = mine ? leases.renew(name, holder, expiresAt, at) : takeOver(lease, name, holder, expiresAt, at);
 
         if (updated > 0 && !mine) {
             log.info("Instance {} took the \"{}\" lease.", holder, name);
@@ -137,6 +135,20 @@ public class LeaderElection {
     @Transactional(readOnly = true)
     public boolean isLeader(String name, String holder, Instant at) {
         return currentHolder(name, at).filter(holder::equals).isPresent();
+    }
+
+    /**
+     * A released lease and an expired one are taken over by different statements.
+     *
+     * <p>Not a style choice: comparing a bare parameter to {@code null} in JPQL leaves
+     * PostgreSQL unable to infer its type, and the single-statement version failed there while
+     * passing on the other three. See {@code LeaderLeases.takeOverFrom}.
+     */
+    private int takeOver(LeaderLeaseEntity lease, String name, String holder, Instant expiresAt, Instant at) {
+        if (lease.getHolder() == null || lease.getExpiresAt() == null) {
+            return leases.takeOverReleased(name, holder, expiresAt, at);
+        }
+        return leases.takeOverFrom(name, holder, expiresAt, at, lease.getHolder(), lease.getExpiresAt());
     }
 
     /**

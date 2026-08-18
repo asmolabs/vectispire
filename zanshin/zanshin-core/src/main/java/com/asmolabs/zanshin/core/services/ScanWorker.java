@@ -45,7 +45,9 @@ public class ScanWorker {
         this.properties = properties;
     }
 
-    @Scheduled(fixedDelayString = "${zanshin.worker.interval:15s}")
+    @Scheduled(
+            fixedDelayString = "${zanshin.worker.interval:15s}",
+            initialDelayString = "${zanshin.worker.initial-delay:15s}")
     public void tick() {
         if (!properties.enabled() || !busy.compareAndSet(false, true)) {
             return;

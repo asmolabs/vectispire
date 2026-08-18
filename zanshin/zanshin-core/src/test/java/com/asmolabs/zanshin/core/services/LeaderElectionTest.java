@@ -66,7 +66,7 @@ class LeaderElectionTest {
         // A leader that had to win again every tick would move the work around the fleet for no
         // reason.
         verify(leases).renew("scheduler", ME, NOW.plus(LEASE), NOW);
-        verify(leases, never()).takeOver(anyString(), anyString(), any(), any(), anyString(), any());
+        verify(leases, never()).takeOverFrom(anyString(), anyString(), any(), any(), anyString(), any());
     }
 
     @Test
@@ -75,7 +75,7 @@ class LeaderElectionTest {
         when(leases.findById("scheduler")).thenReturn(Optional.of(lease(THEM, NOW.plusSeconds(60))));
 
         assertThat(election.acquire("scheduler", ME, NOW)).isFalse();
-        verify(leases, never()).takeOver(anyString(), anyString(), any(), any(), anyString(), any());
+        verify(leases, never()).takeOverFrom(anyString(), anyString(), any(), any(), anyString(), any());
         verify(leases, never()).renew(anyString(), anyString(), any(), any());
     }
 
@@ -84,10 +84,10 @@ class LeaderElectionTest {
     void anExpiredLeaseIsTakenOver() {
         Instant expiry = NOW.minusSeconds(1);
         when(leases.findById("scheduler")).thenReturn(Optional.of(lease(THEM, expiry)));
-        when(leases.takeOver(anyString(), anyString(), any(), any(), anyString(), any())).thenReturn(1);
+        when(leases.takeOverFrom(anyString(), anyString(), any(), any(), anyString(), any())).thenReturn(1);
 
         assertThat(election.acquire("scheduler", ME, NOW)).isTrue();
-        verify(leases).takeOver("scheduler", ME, NOW.plus(LEASE), NOW, THEM, expiry);
+        verify(leases).takeOverFrom("scheduler", ME, NOW.plus(LEASE), NOW, THEM, expiry);
     }
 
     @Test
@@ -96,18 +96,20 @@ class LeaderElectionTest {
         when(leases.findById("scheduler")).thenReturn(Optional.of(lease(THEM, NOW.minusSeconds(1))));
         // Another instance got there between our read and our update, so the conditions no
         // longer match and the statement changes nothing.
-        when(leases.takeOver(anyString(), anyString(), any(), any(), anyString(), any())).thenReturn(0);
+        when(leases.takeOverFrom(anyString(), anyString(), any(), any(), anyString(), any())).thenReturn(0);
 
         assertThat(election.acquire("scheduler", ME, NOW)).isFalse();
     }
 
     @Test
-    @DisplayName("a lease with no expiry counts as expired")
+    @DisplayName("a lease with no expiry counts as expired, and takes the released path")
     void aLeaseThatNeverExpiresIsNoLease() {
         when(leases.findById("scheduler")).thenReturn(Optional.of(lease(THEM, null)));
-        when(leases.takeOver(anyString(), anyString(), any(), any(), anyString(), any())).thenReturn(1);
+        when(leases.takeOverReleased(anyString(), anyString(), any(), any())).thenReturn(1);
 
         assertThat(election.acquire("scheduler", ME, NOW)).isTrue();
+        // The other statement would compare a parameter to null, which PostgreSQL refuses.
+        verify(leases, never()).takeOverFrom(anyString(), anyString(), any(), any(), anyString(), any());
     }
 
     @Test

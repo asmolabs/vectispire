@@ -67,12 +67,23 @@ public class TicketSweepService {
     }
 
     /** One pass. Returns how many tickets were opened. */
-    @Transactional
     public int sweep() {
         return sweep(Tickets.MAX_TICKETS_PER_SWEEP);
     }
 
-    @Transactional
+    /**
+     * <b>Not one transaction for the pass</b>, for two reasons that happen to agree.
+     *
+     * <p>The first is behaviour: each issue is settled on its own, so a tracker that starts
+     * refusing at the twelfth ticket does not undo the eleven already opened — they would all be
+     * attempted again next pass, and a tracker does not deduplicate what it has already created.
+     *
+     * <p>The second is that a transaction here breaks SQLite outright. The audit entry is written
+     * {@code REQUIRES_NEW}, deliberately, so that the attempt survives a rollback; on an engine
+     * where the lock is the whole database file, that second connection waits for the first —
+     * which is this one — and the pass deadlocks against itself. Found by running it, on the one
+     * engine the unit suite can reach.
+     */
     public int sweep(int limit) {
         if (!tickets.isEnabled()) {
             return 0;
