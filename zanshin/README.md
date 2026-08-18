@@ -123,7 +123,7 @@ suite that skips itself reports green without having checked anything.
 |---|---|
 | Build, three modules, architecture suite | done |
 | **`zanshin-common/domain` — the whole layer** | **done** |
-| `zanshin-common/scanning` — workspace, container runner, clone | in progress (the scanners remain) |
+| **`zanshin-common/scanning` — the whole layer** | **done** |
 | `zanshin-core` — persistence, repositories, services, api | not started |
 | `zanshin-agent` — the protocol | not started |
 
