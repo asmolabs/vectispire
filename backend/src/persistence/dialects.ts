@@ -1,36 +1,30 @@
 /**
- * Les bases prises en charge, et ce que chacune sait faire.
+ * The supported databases, and what each one can do.
  *
- * TypeORM parle à une dizaine de moteurs, mais « le pilote se connecte » et « le
- * système est correct dessus » sont deux affirmations différentes. Ce module porte la
- * seconde, parce que les trois divergences ci-dessous ne produisent **aucune erreur** :
- * elles produisent des données fausses.
+ * TypeORM talks to a dozen engines, but "the driver connects" and "the system is correct on
+ * it" are two different claims. This module carries the second, because the three
+ * divergences below produce **no error at all**: they produce wrong data.
  *
- * Chacune a été trouvée en exécutant, pas en lisant, du temps où la pile Python
- * prenait MySQL en charge :
+ * Each was found by running, not by reading, back when the Python stack supported MySQL:
  *
- * 1. **`DATETIME` tronque à la seconde.** La chaîne d'intégrité du journal d'audit
- *    couvre l'horodatage à la microseconde. Sur un moteur qui la tronque, chaque
- *    entrée échoue à sa propre vérification : le journal se déclare falsifié, sans
- *    que rien ne l'ait été. C'est la raison qui avait fait retirer MySQL.
- * 2. **`SKIP LOCKED` compte les lignes sautées dans le `LIMIT`.** La réclamation d'un
- *    scan devient alors partielle sous charge : le lot revient court alors que la
- *    file ne l'est pas, et la concurrence réelle s'effondre en silence.
- * 3. **`NULLS LAST` est une erreur de syntaxe.** Elle apparaît dans les tris du
- *    backlog.
+ * 1. **`DATETIME` truncates to the second.** The audit log's integrity chain covers the
+ *    timestamp to the microsecond. On an engine that truncates it, every entry fails its
+ *    own verification: the log declares itself tampered with when nothing has been. That is
+ *    the reason MySQL was removed.
+ * 2. **`SKIP LOCKED` counts skipped rows against the `LIMIT`.** Claiming a scan then
+ *    becomes partial under load: the batch comes back short while the queue is not, and
+ *    real concurrency collapses silently.
+ * 3. **`NULLS LAST` is a syntax error.** It appears in the backlog's ordering.
  *
- * Et pour SQLite, une quatrième, d'une autre nature :
+ * And for SQLite, a fourth of another kind:
  *
- * 4. **SQLAlchemy comme TypeORM *suppriment* silencieusement `FOR UPDATE`.** La
- *    réclamation ressemble alors à une transaction, passe tous les tests sur la
- *    machine d'un développeur, et remet le même scan à deux processus en production.
- *    D'où `CAN_CLAIM_TRANSACTIONALLY`, et le refus au démarrage d'une deuxième
- *    instance sur SQLite.
+ * 4. **SQLAlchemy, like TypeORM, silently *drops* `FOR UPDATE`.** Claiming then looks like
+ *    a transaction, passes every test on a developer's machine, and hands the same scan to
+ *    two processes in production. Hence `canClaimTransactionally`.
  *
- * **Le parti pris de ce module : rien n'est interdit, tout est déclaré.** Un opérateur
- * qui choisit MySQL doit l'apprendre au démarrage, dans un message qui nomme la
- * conséquence — pas des mois plus tard, en découvrant un journal d'audit qui s'accuse
- * lui-même.
+ * **This module's stance: nothing is forbidden, everything is declared.** An operator
+ * choosing MySQL must learn it at startup, in a message that names the consequence — not
+ * months later, on discovering an audit log accusing itself.
  */
 
 export const SUPPORTED_DIALECTS = ['postgres', 'sqlite', 'mysql', 'mariadb'] as const;
@@ -38,29 +32,28 @@ export type Dialect = (typeof SUPPORTED_DIALECTS)[number];
 
 export interface DialectCapabilities {
     /**
-     * `SELECT … FOR UPDATE SKIP LOCKED` **empêche réellement qu'une ligne soit remise à
-     * deux réclamants**. C'est la propriété de sûreté, et la seule qui décide si plusieurs
-     * processus peuvent drainer la même file.
+     * `SELECT … FOR UPDATE SKIP LOCKED` **genuinely stops a row being handed to two
+     * claimants**. That is the safety property, and the only one deciding whether several
+     * processes can drain the same queue.
      */
     canClaimTransactionally: boolean;
     /**
-     * Un lot réclamé revient de la taille demandée quand la file en contient assez.
+     * A claimed batch comes back the requested size when the queue holds enough.
      *
-     * **Distinct de la sûreté, et la confusion coûtait cher.** MySQL compte les lignes
-     * sautées dans le `LIMIT` : un réclamant qui en demande deux peut n'en recevoir aucune
+     * **Distinct from safety, and the confusion was expensive.** MySQL counts skipped rows
+     * against the `LIMIT`: a claimant asking for two can receive none
      * alors que la file n'est pas vide. Aucune ligne n'est pour autant remise deux fois —
-     * mesuré, pas supposé. Le reste est pris au tour suivant, donc c'est une
-     * caractéristique de débit et non un défaut de correction.
+     * measured, not assumed. The rest is taken on the next round, so this is a throughput
+     * characteristic and not a correctness defect.
      */
     claimsCompleteBatches: boolean;
     /**
-     * Les horodatages conservent la microseconde. La chaîne d'audit en dépend
-     * entièrement.
+     * Timestamps keep the microsecond. The audit chain depends on it entirely.
      */
     preservesMicroseconds: boolean;
-    /** `ORDER BY … NULLS LAST` est accepté. */
+    /** `ORDER BY … NULLS LAST` is accepted. */
     supportsNullsLast: boolean;
-    /** Plusieurs processus peuvent écrire dans la même base. */
+    /** Several processes can write to the same database. */
     supportsConcurrentWriters: boolean;
 }
 
@@ -73,45 +66,45 @@ export const CAPABILITIES: Record<Dialect, DialectCapabilities> = {
         supportsConcurrentWriters: true
     },
     sqlite: {
-        // `FOR UPDATE` est accepté puis ignoré : le pire des deux mondes.
+        // `FOR UPDATE` is accepted and then ignored: the worst of both worlds.
         canClaimTransactionally: false,
         claimsCompleteBatches: false,
         preservesMicroseconds: true,
         supportsNullsLast: true,
-        // Un seul écrivain. Deux instances sur un fichier, ce n'est pas lent, c'est
+        // One writer. Two instances on one file is not slow, it is
         // corrompu.
         supportsConcurrentWriters: false
     },
     mysql: {
-        // **Corrigé après mesure.** Ce drapeau valait `false`, ce qui était faux : la
-        // campagne d'intégration sur MySQL 8.4 montre qu'aucune ligne n'est remise à deux
-        // réclamants. Le dire « non transactionnel » aurait écarté MySQL pour une mauvaise
-        // raison, alors que le vrai écart est ailleurs.
+        // **Corrected after measuring.** This flag was `false`, which was wrong: the
+        // integration campaign on MySQL 8.4 shows no row is ever handed to two claimants.
+        // Calling it "not transactional" would have ruled MySQL out for a bad reason, when
+        // the real divergence is elsewhere.
         canClaimTransactionally: true,
-        // Là est l'écart : les lignes sautées comptent dans le `LIMIT`, donc un lot revient
+        // Here is the divergence: skipped rows count against the `LIMIT`, so a batch comes
         // court sous contention. Le tour suivant prend le reste.
         claimsCompleteBatches: false,
-        // `DATETIME(6)` est déclaré dans `column-types.ts`, en un seul endroit plutôt que
-        // colonne par colonne — une seule oubliée suffirait à casser la chaîne d'audit.
-        // La connexion est forcée en UTC pour la même raison.
+        // `DATETIME(6)` is declared in `column-types.ts`, in one place rather than column
+        // by column — one missed column would be enough to break the audit chain. The
+        // connection is pinned to UTC for the same reason.
         preservesMicroseconds: true,
         supportsNullsLast: false,
         supportsConcurrentWriters: true
     },
     mariadb: {
-        // **Mesuré, et meilleur que MySQL.** Ces quatre drapeaux étaient hérités de MySQL
+        // **Measured, and better than MySQL.** These four flags were inherited from MySQL
         // « par prudence, pas par constat » — leur propre commentaire le disait — et trois
-        // étaient faux. La prudence n'était pas neutre : `canClaimTransactionally: false`
-        // envoyait la réclamation sur le chemin sans verrou, où le deuxième réclamant
+        // were wrong. The caution was not neutral: `canClaimTransactionally: false` sent
+        // claiming down the lock-free path, where the second claimant
         // attendait la transaction du premier. Le test de concurrence expirait au bout de
-        // soixante secondes, sur un moteur qui n'avait aucun problème.
+        // sixty seconds, on an engine that had no problem at all.
         canClaimTransactionally: true,
-        // Deux réclamants concurrents, quatre scans en file : MariaDB rend un lot complet
-        // — `[3, 4]` — là où MySQL rend une liste vide parce qu'il compte les lignes sautées
+        // Two concurrent claimants, four queued scans: MariaDB returns a full batch —
+        // `[3, 4]` — where MySQL returns an empty list because it counts skipped rows
         // dans le `LIMIT`. Sur ce point il se comporte comme PostgreSQL.
         claimsCompleteBatches: true,
-        // `datetime(6)`, comme MySQL, déclaré une seule fois dans `column-types.ts`. La
-        // chaîne d'audit s'y vérifie, ce que la campagne établit.
+        // `datetime(6)`, like MySQL, declared once in `column-types.ts`. The audit chain
+        // verifies there, which the campaign establishes.
         preservesMicroseconds: true,
         // Pas plus que MySQL : `NULLS LAST` n'existe pas dans cette famille.
         supportsNullsLast: false,
@@ -125,10 +118,10 @@ export interface DialectWarning {
 }
 
 /**
- * Ce qu'un opérateur doit savoir avant de servir une requête sur ce moteur.
+ * What an operator has to know before serving a request on this engine.
  *
- * Retourné plutôt que journalisé ici : l'appelant décide s'il avertit, refuse, ou
- * exige un aveu explicite par variable d'environnement.
+ * Returned rather than logged here: the caller decides whether to warn, to refuse, or to
+ * demand an explicit acknowledgement through an environment variable.
  */
 export function warningsFor(dialect: Dialect): DialectWarning[] {
     const capabilities = CAPABILITIES[dialect];
@@ -138,80 +131,78 @@ export function warningsFor(dialect: Dialect): DialectWarning[] {
         warnings.push({
             capability: 'preservesMicroseconds',
             message:
-                `${dialect} tronque les horodatages à la seconde (DATETIME sans précision). ` +
-                "La chaîne d'intégrité du journal d'audit couvre l'horodatage : chaque entrée " +
-                'échouera à sa propre vérification, et le journal se déclarera falsifié alors ' +
-                "que rien ne l'aura été. Déclarez DATETIME(6) sur toutes les colonnes de date, " +
-                'ou utilisez PostgreSQL.'
+                `${dialect} truncates timestamps to the second (DATETIME with no precision). ` +
+                "The audit log's integrity chain covers the timestamp: every entry will fail its " +
+                'own verification, and the log will declare itself tampered with when nothing has ' +
+                'been. Declare DATETIME(6) on every date column, or use PostgreSQL.'
         });
     }
     if (capabilities.canClaimTransactionally && !capabilities.claimsCompleteBatches) {
         warnings.push({
             capability: 'claimsCompleteBatches',
             message:
-                `${dialect} compte les lignes sautées par SKIP LOCKED dans le LIMIT : sous contention, ` +
-                "un réclamant reçoit moins de scans qu'il n'en demande, parfois aucun alors que la file n'est " +
-                'pas vide. Aucune ligne n\'est remise deux fois et le reste part au tour suivant — ' +
-                "c'est une caractéristique de débit, pas un défaut de correction."
+                `${dialect} counts rows skipped by SKIP LOCKED against the LIMIT: under contention, ` +
+                'a claimant receives fewer scans than it asked for, sometimes none while the queue is ' +
+                'not empty. No row is served twice and the rest goes out on the next round — this is a ' +
+                'throughput characteristic, not a correctness defect.'
         });
     }
     if (!capabilities.canClaimTransactionally) {
         warnings.push({
             capability: 'canClaimTransactionally',
             message:
-                `${dialect} ne permet pas une réclamation de scans réellement transactionnelle : ` +
-                'son pilote refuse FOR UPDATE. La réclamation retombe sur un UPDATE conditionnel gardé ' +
-                "par le statut — correct pour plusieurs fils d'un même processus, pas pour plusieurs " +
-                'processus.'
+                `${dialect} does not allow genuinely transactional scan claiming: ` +
+                'its driver refuses FOR UPDATE. Claiming falls back to a conditional UPDATE guarded by ' +
+                'the status — correct for several threads of one process, not for several processes.'
         });
     }
     if (!capabilities.supportsNullsLast) {
         warnings.push({
             capability: 'supportsNullsLast',
-            message: `${dialect} refuse « ORDER BY … NULLS LAST » ; les tris du backlog doivent l'émuler par une expression CASE.`
+            message: `${dialect} refuses "ORDER BY … NULLS LAST"; the backlog's ordering has to emulate it with a CASE expression.`
         });
     }
     if (!capabilities.supportsConcurrentWriters) {
         warnings.push({
             capability: 'supportsConcurrentWriters',
             message:
-                `${dialect} n'accepte qu'un seul écrivain. Une deuxième instance sur la même base ` +
-                'ne serait pas lente, elle corromprait les données. Un fichier, un processus.'
+                `${dialect} accepts one writer only. A second instance on the same database ` +
+                'would not be slow, it would corrupt the data. One file, one process.'
         });
     }
     return warnings;
 }
 
 /**
- * Le pilote TypeORM qui sert ce dialecte.
+ * The TypeORM driver that serves this dialect.
  *
- * **Le nom interne et le nom du pilote diffèrent, et c'est délibéré.** Zanshin dit
- * « sqlite » ; le pilote s'appelle `better-sqlite3`. Écrire le second dans la configuration
- * ferait fuir un choix d'implémentation jusque dans les variables d'environnement d'un
- * opérateur, qui devrait alors le changer le jour où l'on change de bibliothèque.
+ * **The internal name and the driver's name differ, deliberately.** Zanshin says "sqlite";
+ * the driver is called `better-sqlite3`. Writing the second one in the configuration would
+ * leak an implementation choice all the way into an operator's environment variables, which
+ * they would then have to change the day the library changes.
  */
 export function driverType(dialect: Dialect): 'postgres' | 'better-sqlite3' | 'mysql' | 'mariadb' {
     return dialect === 'sqlite' ? 'better-sqlite3' : dialect;
 }
 
 /**
- * Le répertoire de migrations de ce dialecte.
+ * This dialect's migration directory.
  *
- * **Un jeu par dialecte, et il en faut vraiment quatre.** SQLite ne connaît ni
- * `uuid_generate_v4()`, ni `TIMESTAMP WITH TIME ZONE`, ni `AUTO_INCREMENT`. Et **MariaDB
- * n'est pas MySQL** : depuis la 10.7 il porte un type `uuid` natif que son pilote choisit
- * seul, là où MySQL retombe sur `varchar(36)`. Faire lire les migrations MySQL à MariaDB
- * produisait un schéma que le modèle voulait aussitôt reconstruire — soixante-deux
- * instructions d'écart, mesurées, dont la reprise de chaque clé primaire.
+ * **One set per dialect, and four are genuinely needed.** SQLite knows neither
+ * `uuid_generate_v4()`, nor `TIMESTAMP WITH TIME ZONE`, nor `AUTO_INCREMENT`. And **MariaDB
+ * is not MySQL**: since 10.7 it carries a native `uuid` type its driver picks on its own,
+ * where MySQL falls back to `varchar(36)`. Letting MariaDB read the MySQL migrations
+ * produced a schema the model immediately wanted to rebuild — sixty-two statements of
+ * difference, measured, including every primary key.
  *
- * Aucun outil ne traduit l'un en l'autre, et les mélanger ferait échouer la première montée
- * de version sur le moteur qui n'est pas celui d'origine.
+ * No tool translates one into the other, and mixing them would fail the first migration run
+ * on whichever engine is not the original.
  */
 export function migrationDirectory(dialect: Dialect): 'postgres' | 'mysql' | 'mariadb' | 'sqlite' {
     return dialect;
 }
 
-/** Normalise ce qu'un opérateur peut avoir écrit dans la configuration. */
+/** Normalizes whatever an operator may have written in the configuration. */
 export function parseDialect(value: string): Dialect {
     const normalized = value.trim().toLowerCase();
     const aliases: Record<string, Dialect> = {
@@ -225,7 +216,7 @@ export function parseDialect(value: string): Dialect {
     };
     const dialect = aliases[normalized];
     if (!dialect) {
-        throw new Error(`Dialecte « ${value} » non pris en charge. Attendu : ${SUPPORTED_DIALECTS.join(', ')}.`);
+        throw new Error(`Unsupported dialect "${value}". Expected one of: ${SUPPORTED_DIALECTS.join(', ')}.`);
     }
     return dialect;
 }

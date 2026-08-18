@@ -1,121 +1,105 @@
 import { ColumnOptions } from 'typeorm';
-import { SPELLING, UUID_LENGTH, isMySql } from './column-types';
+import { SPELLING, UUID_LENGTH } from './column-types';
 
 /**
- * Types de colonnes partagés, pour que chaque entité les déclare de la même façon.
+ * Shared column types, so that every entity declares them the same way.
  *
- * **Le schéma appartient à Alembic, pas à TypeORM.** Tant que les deux plans de
- * contrôle coexistent, les quinze révisions Alembic restent l'unique source du schéma
- * et TypeORM tourne en `synchronize: false`. Ces entités *décrivent* des tables
- * existantes ; elles ne les créent pas. `database/schema-parity.integration-spec.ts`
- * est ce qui vérifie que la description reste exacte — l'équivalent d'`alembic check`.
+ * **The schema belongs to the migrations**, one set per dialect under `migrations/`, and
+ * TypeORM runs with `synchronize: false`. These entities *describe* existing tables; they
+ * do not create them. `schema-parity.integration-spec.ts` is what checks the description
+ * stays exact — it asks the question `migration:generate` asks, whose right answer is
+ * "nothing".
  *
- * Les clés primaires n'utilisent pas ces helpers : `@PrimaryColumn` exige
- * `nullable?: false`, que `ColumnOptions` ne garantit pas. Elles déclarent donc leur
- * type en clair, ce qui reste lisible pour les deux seules qui existent.
+ * Primary keys do not use these helpers: `@PrimaryColumn` requires `nullable?: false`,
+ * which `ColumnOptions` does not guarantee. They declare their type in the clear, which
+ * stays readable for the two that exist.
  */
 
 /**
- * Un horodatage, lu et écrit en **texte**.
+ * An instant, with its timezone.
  *
- * Aucun `transformer`, délibérément : convertir en `Date` perdrait la microseconde et
- * appliquerait le fuseau de la machine (voir `pg-types.ts`). Les valeurs circulent
- * donc au format `datetime.isoformat()` de Python, qui est celui qui entre dans la
- * chaîne d'intégrité du journal d'audit.
+ * It used to be `timestamp without time zone`, reproduced from the SQLAlchemy schema. That
+ * choice produced five distinct defects in this port: node-postgres returned a `Date`
+ * interpreted in the machine's timezone, TypeORM rehydrated columns the entity declared as
+ * text, and a session was born two hours in the past in summer. Each needed a workaround —
+ * `pg-types.ts`, a text conversion, canonicalization inside the audit fingerprint — and
+ * each was forgotten at least once.
+ *
+ * `timestamptz` removes the cause: the database stores an absolute instant, the driver
+ * returns a `Date`, and there is nothing left to convert or canonicalize.
  */
-/**
- * Un instant, avec son fuseau.
- *
- * C'était `timestamp without time zone`, reproduit du schéma SQLAlchemy. Ce choix a
- * produit cinq défauts distincts dans ce portage : node-postgres rendait un `Date`
- * interprété dans le fuseau de la machine, TypeORM réhydratait les colonnes que l'entité
- * déclarait en texte, et une session naissait deux heures dans le passé l'été. Chacun
- * demandait un contournement — `pg-types.ts`, `asTimestampText()`, la canonicalisation
- * dans l'empreinte d'audit — et chacun s'est fait oublier au moins une fois.
- *
- * `timestamptz` supprime la cause : PostgreSQL stocke un instant absolu, le pilote rend
- * un `Date`, et il n'y a plus rien à convertir ni à canonicaliser.
- */
-export const timestampColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    ...SPELLING.timestamp,
-    ...options
-} as ColumnOptions);
+export const timestampColumn = (options: ColumnOptions = {}): ColumnOptions =>
+    ({
+        ...SPELLING.timestamp,
+        ...options
+    }) as ColumnOptions;
 
-/** `String(255)` du modèle SQLAlchemy — la longueur par défaut de tout ce schéma. */
-export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnOptions => ({
-    type: SPELLING.string,
-    length,
-    ...options
-} as ColumnOptions);
+/** The default length across this whole schema. */
+export const stringColumn = (length = 255, options: ColumnOptions = {}): ColumnOptions =>
+    ({
+        type: SPELLING.string,
+        length,
+        ...options
+    }) as ColumnOptions;
 
 /**
- * L'identifiant binaire des tables qui n'ont pas de clé entière.
+ * A foreign key to a table with a UUID primary key.
  *
- * `GUID` côté Python : `uuid` natif sur PostgreSQL, `BINARY(16)` ailleurs. Le type
- * maison existait parce que `impl = BINARY` produisait un DDL que PostgreSQL refuse
- * (« type "binary" does not exist ») dès la première table de la première migration ;
- * avec PostgreSQL seul, c'est un `uuid` ordinaire.
- */
-/**
- * Une clé étrangère vers une table à clé UUID.
- *
- * `uuid` et non `char(36)` : TypeORM traduit ce type selon le dialecte — `uuid` natif en
- * PostgreSQL, `varchar(36)` en MySQL qui n'en a pas. Écrire `char(36)` à la main donnerait
- * un type incompatible avec la clé primaire référencée, que
- * `@PrimaryGeneratedColumn('uuid')` laisse justement TypeORM choisir.
+ * `uuid` and not `char(36)`: TypeORM maps this type per dialect — native `uuid` on
+ * PostgreSQL and MariaDB, `varchar(36)` on MySQL which has none. Writing `char(36)` by hand
+ * would give a type incompatible with the primary key it references, which
+ * `@PrimaryGeneratedColumn('uuid')` deliberately lets TypeORM choose.
  */
 export const uuidColumn = (options: ColumnOptions = {}): ColumnOptions =>
     ({
         type: SPELLING.uuid,
-        // **La longueur appartient au type, pas au dialecte.** `varchar` sans elle ne
-        // compile pas ; `uuid` — natif sous PostgreSQL comme sous MariaDB — la refuse. La
-        // condition portait sur le nom du moteur et MariaDB tombait du mauvais côté.
+        // **The length belongs to the type, not to the dialect.** `varchar` does not compile
+        // without it; `uuid` — native on PostgreSQL as on MariaDB — refuses it. The condition
+        // used to test the engine's name, and MariaDB fell on the wrong side of it.
         ...(SPELLING.uuid === 'varchar' ? { length: UUID_LENGTH } : {}),
         ...options
     }) as ColumnOptions;
 
-/** `Text` du modèle SQLAlchemy : sans longueur, pour ce qu'on ne veut pas tronquer. */
-export const textColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.text, ...options } as ColumnOptions);
+/** No length, for what must not be truncated. */
+export const textColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.text, ...options }) as ColumnOptions;
 
-export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.int, ...options } as ColumnOptions);
+export const intColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.int, ...options }) as ColumnOptions;
 
 /**
- * `BigInteger`. Une seule colonne du schéma en a légitimement besoin : `scan.duration_ms`,
- * qui est une durée. Toute *clé étrangère* correspond à la clé `integer` qu'elle
- * référence — une divergence que MySQL refusait et que SQLite comme PostgreSQL
- * toléraient, d'où son existence inaperçue jusqu'à ce qu'un troisième moteur la nomme.
+ * A wide integer, **returned as a number and not as a string**.
  *
- * Rendu en **chaîne** par node-postgres, qui ne suppose pas qu'un `bigint` tient dans
- * un `number`. C'est correct et il ne faut pas le « corriger » : la valeur dépasserait
- * `Number.MAX_SAFE_INTEGER` sans prévenir.
- */
-/**
- * Un entier large, **rendu comme un nombre et non comme une chaîne**.
+ * node-postgres returns `bigint` as a string, because a 64-bit integer does not fit in a
+ * JavaScript `number` without loss beyond 2^53. That is prudent in general and wrong here:
+ * a duration in milliseconds would reach 2^53 after two hundred and eighty thousand years.
+ * Without this transformer the API serialized `"59358"` where the screen expects a number —
+ * found by an end-to-end test, invisible to a reading.
  *
- * node-postgres rend les `bigint` en chaîne, parce qu'un entier 64 bits ne tient pas dans
- * un `number` JavaScript sans perte au-delà de 2^53. C'est prudent en général et faux
- * ici : une durée en millisecondes atteindrait 2^53 après deux cent quatre-vingt mille
- * ans. Sans ce transformateur, l'API sérialisait `"59358"` là où l'écran attend un nombre
- * — trouvé par un test de bout en bout, invisible à la lecture.
+ * One column of the schema legitimately needs the width: `scan.duration_ms`, a duration.
+ * Every *foreign key* matches the `integer` key it references — a divergence MySQL refused
+ * while SQLite and PostgreSQL tolerated it, which is why it went unnoticed until a third
+ * engine named it.
  */
-export const bigIntColumn = (options: ColumnOptions = {}): ColumnOptions => ({
-    type: SPELLING.bigint,
-    transformer: {
-        to: (value: number | null) => value,
-        from: (value: string | number | null) => (value === null || value === undefined ? null : Number(value))
-    },
-    ...options
-} as ColumnOptions);
+export const bigIntColumn = (options: ColumnOptions = {}): ColumnOptions =>
+    ({
+        type: SPELLING.bigint,
+        transformer: {
+            to: (value: number | null) => value,
+            from: (value: string | number | null) => (value === null || value === undefined ? null : Number(value))
+        },
+        ...options
+    }) as ColumnOptions;
 
-export const boolColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.bool, ...options } as ColumnOptions);
+export const boolColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.bool, ...options }) as ColumnOptions;
 
-/** `Float` du modèle SQLAlchemy — scores CVSS et EPSS. */
-export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.float, ...options } as ColumnOptions);
+/** CVSS and EPSS scores. */
+export const floatColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.float, ...options }) as ColumnOptions;
 
 /**
- * `JSON(none_as_null=True)` côté Python, et le drapeau compte : avec le défaut de
- * SQLAlchemy, écrire `None` stockait le littéral JSON `null`, qui n'est **pas** un
- * NULL SQL. `sbom IS NOT NULL` restait donc vrai pour une charge déjà purgée, et la
- * passe de rétention repurgeait les mêmes lignes indéfiniment.
+ * A JSON payload, where a null value must be a **SQL NULL** and not the JSON literal
+ * `null`.
+ *
+ * The distinction is not academic: with the JSON literal, `sbom IS NOT NULL` stayed true
+ * for a payload that had already been purged, and the retention pass repurged the same rows
+ * indefinitely.
  */
-export const jsonColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.json, ...options } as ColumnOptions);
+export const jsonColumn = (options: ColumnOptions = {}): ColumnOptions => ({ type: SPELLING.json, ...options }) as ColumnOptions;

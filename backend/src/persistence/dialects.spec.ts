@@ -14,8 +14,8 @@ describe('dialectes pris en charge', () => {
         expect(() => parseDialect('oracle')).toThrow(/postgres/);
     });
 
-    it('déclare une capacité pour chaque dialecte', () => {
-        // Un dialecte ajouté sans sa fiche de capacités se comporterait comme
+    it('declares a capability sheet for every dialect', () => {
+        // A dialect added without its capability sheet would behave like
         // PostgreSQL par accident.
         for (const dialect of SUPPORTED_DIALECTS) {
             expect(CAPABILITIES[dialect]).toBeDefined();
@@ -23,12 +23,12 @@ describe('dialectes pris en charge', () => {
     });
 });
 
-describe('avertissements par dialecte', () => {
-    it("PostgreSQL n'en produit aucun : c'est le moteur de référence", () => {
+describe('per-dialect warnings', () => {
+    it("PostgreSQL produces none: it is the reference engine", () => {
         expect(warningsFor('postgres')).toEqual([]);
     });
 
-    it('SQLite avertit sur la réclamation et sur l’écrivain unique', () => {
+    it('SQLite warns about claiming and about the single writer', () => {
         const capabilities = warningsFor('sqlite').map((warning) => warning.capability);
         expect(capabilities).toContain('canClaimTransactionally');
         expect(capabilities).toContain('supportsConcurrentWriters');
@@ -36,33 +36,33 @@ describe('avertissements par dialecte', () => {
         expect(capabilities).not.toContain('preservesMicroseconds');
     });
 
-    it("MySQL n'avertit plus sur les horodatages : la cause est supprimée", () => {
+    it("MySQL no longer warns about timestamps: the cause is gone", () => {
         // C'est la divergence qui avait fait retirer MySQL de la pile Python — elle ne
-        // levait aucune erreur, elle faisait que le journal d'audit s'accusait lui-même.
-        // `datetime(6)` est désormais déclaré dans `column-types.ts` et la connexion est
-        // fixée en UTC des deux côtés, donc l'avertissement n'aurait plus d'objet. Un
-        // avertissement qui décrit un défaut corrigé apprend à ignorer les avertissements.
+        // raised no error, it made the audit log accuse itself. `datetime(6)` is now
+        // declared in `column-types.ts` and the connection is pinned to UTC on both sides,
+        // so the warning would have no object. A warning describing a fixed defect teaches
+        // people to ignore warnings.
         expect(warningsFor('mysql').map((item) => item.capability)).not.toContain('preservesMicroseconds');
     });
 
-    it('MySQL avertit en revanche sur les lots de réclamation courts', () => {
-        // Le vrai écart, mesuré : les lignes sautées comptent dans le `LIMIT`. Aucune
-        // ligne n'est remise deux fois — c'est du débit, pas de la correction — et le
-        // message doit le dire, sinon il se lit comme un défaut de sûreté.
+    it('MySQL does warn about short claim batches', () => {
+        // The real divergence, measured: skipped rows count against the `LIMIT`. No row is
+        // served twice — this is throughput, not correctness — and the message has to say
+        // so, otherwise it reads as a safety defect.
         const [warning] = warningsFor('mysql').filter((item) => item.capability === 'claimsCompleteBatches');
         expect(warning).toBeDefined();
-        expect(warning.message).toContain('deux fois');
-        expect(warning.message).toContain('débit');
+        expect(warning.message).toContain('served twice');
+        expect(warning.message).toContain('throughput');
     });
 
-    it('MariaDB avertit moins que MySQL, une fois mesuré', () => {
-        // **Ce test affirmait l'inverse**, et son ancien nom le disait : « faute d'avoir été
-        // mesuré ». Trois des quatre capacités de MariaDB étaient héritées de MySQL par
-        // prudence, et fausses. La prudence n'était pas neutre : `canClaimTransactionally`
-        // à `false` envoyait la réclamation sur le chemin sans verrou, où le deuxième
-        // réclamant attendait la transaction du premier jusqu'à expiration.
+    it('MariaDB warns less than MySQL, once measured', () => {
+        // **This test used to assert the opposite**, and its old name said why: "for want
+        // of having been measured". Three of MariaDB's four capabilities were inherited from
+        // MySQL out of caution, and wrong. The caution was not neutral:
+        // `canClaimTransactionally` set to `false` sent claiming down the lock-free path,
+        // where the second claimant waited on the first's transaction until it expired.
         //
-        // Mesuré sur deux réclamants concurrents et quatre scans en file, MariaDB rend un
+        // Measured on two concurrent claimants and four queued scans, MariaDB returns a
         // lot complet — comme PostgreSQL, et mieux que MySQL. Il ne lui reste que l'absence
         // de `NULLS LAST`, qu'il partage avec sa famille.
         const mariadb = warningsFor('mariadb').map((item) => item.capability);
@@ -71,19 +71,19 @@ describe('avertissements par dialecte', () => {
     });
 
     it('SQLite avertit sur ce qu’il ne peut structurellement pas faire', () => {
-        // Un seul écrivain, et une réclamation qui ne peut pas être transactionnelle : les
-        // deux sont des propriétés du moteur, pas des défauts à corriger. Ce qui compte est
-        // qu'elles soient dites au démarrage plutôt que découvertes par une base corrompue.
+        // One writer, and claiming that cannot be transactional: both are properties of the
+        // engine, not defects to fix. What matters is that they are said at startup rather
+        // than discovered through a corrupted database.
         const sqlite = warningsFor('sqlite').map((item) => item.capability);
         expect(sqlite).toContain('canClaimTransactionally');
         expect(sqlite).toContain('supportsConcurrentWriters');
     });
 
-    it.each(SUPPORTED_DIALECTS)('%s : chaque avertissement nomme le dialecte et une conséquence', (dialect: Dialect) => {
+    it.each(SUPPORTED_DIALECTS)('%s: every warning names the dialect and a consequence', (dialect: Dialect) => {
         for (const warning of warningsFor(dialect)) {
             expect(warning.message).toContain(dialect);
             // Un avertissement qui ne dit pas ce qui casse est un avertissement qu'on
-            // désactive.
+            // switches off.
             expect(warning.message.length).toBeGreaterThan(80);
         }
     });
