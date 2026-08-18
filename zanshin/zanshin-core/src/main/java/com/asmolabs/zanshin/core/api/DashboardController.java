@@ -9,12 +9,16 @@ import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.GateService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Limit;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,10 +43,13 @@ public class DashboardController {
     private final Issues issues;
     private final Scans scans;
 
-    public DashboardController(GateService gate, Issues issues, Scans scans) {
+    private final VisibilityService visibility;
+
+    public DashboardController(GateService gate, Issues issues, Scans scans, VisibilityService visibility) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
+        this.visibility = visibility;
     }
 
     /**
@@ -74,8 +81,9 @@ public class DashboardController {
             List<RecentScan> recentScans) {}
 
     @GetMapping
-    public Overview overview() {
-        SecurityOverview.Overview posture = gate.overview();
+    public Overview overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        SecurityOverview.Overview posture = gate.overview(allowed);
 
         return new Overview(
                 new Posture(

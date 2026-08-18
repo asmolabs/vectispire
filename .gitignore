@@ -25,3 +25,5 @@ frontend/openapi.json
 # Gradle build output for the JVM port
 zanshin/**/build/
 zanshin/**/.gradle/
+**/bin/**
+*.class

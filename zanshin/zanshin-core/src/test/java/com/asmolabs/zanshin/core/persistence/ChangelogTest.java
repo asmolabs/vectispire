@@ -73,7 +73,7 @@ class ChangelogTest {
                         "t_api_key", "t_agent", "t_ssh_key", "t_container", "t_repository", "t_scan",
                         "t_ai_review_result", "t_audit_log", "t_issue", "t_finding", "t_gate_policy",
                         "t_leader_lease", "t_login_attempt", "t_outbox_message", "t_processed_message",
-                        "t_user", "t_session", "t_setting", "t_semgrep_rule_set");
+                        "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set");
     }
 
     @Test
@@ -87,8 +87,12 @@ class ChangelogTest {
 
         List<String> references = new ArrayList<>();
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database)) {
+            // Every table with a foreign key, listed. A table added here and forgotten in the
+            // list below would make this test pass while checking one table fewer — which is how
+            // a suite comes to prove less than its name says.
             for (String table : List.of(
-                    "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository", "t_ai_review_result")) {
+                    "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
+                    "t_ai_review_result", "t_user_target")) {
                 try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
                     while (rows.next()) {
                         references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -107,8 +111,9 @@ class ChangelogTest {
                         "t_finding.issue_id -> t_issue",
                         "t_session.user_id -> t_user",
                         "t_agent.api_key_id -> t_api_key",
-                        "t_repository.ssh_key_id -> t_ssh_key")
-                .hasSize(12);
+                        "t_repository.ssh_key_id -> t_ssh_key",
+                        "t_user_target.user_id -> t_user")
+                .hasSize(13);
     }
 
     @Test

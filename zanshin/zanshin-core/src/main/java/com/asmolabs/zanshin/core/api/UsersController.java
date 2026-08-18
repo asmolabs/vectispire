@@ -6,7 +6,9 @@ import com.asmolabs.zanshin.common.domain.users.AccountRules;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
+import com.asmolabs.zanshin.core.persistence.UserTargetEntity;
 import com.asmolabs.zanshin.core.repositories.UserSessions;
+import com.asmolabs.zanshin.core.repositories.UserTargets;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,12 +43,15 @@ public class UsersController {
 
     private final Users users;
     private final UserSessions sessions;
+    private final UserTargets assignments;
     private final AuditLogService audit;
     private final Clock clock;
 
-    public UsersController(Users users, UserSessions sessions, AuditLogService audit, Clock clock) {
+    public UsersController(
+            Users users, UserSessions sessions, UserTargets assignments, AuditLogService audit, Clock clock) {
         this.users = users;
         this.sessions = sessions;
+        this.assignments = assignments;
         this.audit = audit;
         this.clock = clock;
     }
@@ -68,6 +74,9 @@ public class UsersController {
             long activeSessions) {}
 
     public record Listing(List<Summary> users, Long currentUserId) {}
+
+    /** @param kind {@code repository} or {@code container} */
+    public record TargetAssignment(String kind, Long id) {}
 
     public record CreateRequest(String username, String password, String role, String email, String displayName) {}
 
@@ -202,6 +211,44 @@ public class UsersController {
             record(principal, request, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
         }
         return summaryOf(user, revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
+    }
+
+    /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
+    @GetMapping("/{id}/targets")
+    public List<TargetAssignment> targets(@PathVariable long id) {
+        users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
+        return assignments.findByUserId(id).stream()
+                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .toList();
+    }
+
+    /**
+     * Replaces the set wholesale.
+     *
+     * <p>Wholesale rather than add-and-remove, because the operation that matters is
+     * <em>removing</em> one: a screen that sends what it wants and a server that only adds is a
+     * revocation that silently does nothing.
+     */
+    @PutMapping("/{id}/targets")
+    public List<TargetAssignment> setTargets(
+            @PathVariable long id,
+            @RequestBody List<TargetAssignment> body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
+        List<TargetAssignment> wanted = body == null ? List.of() : body;
+
+        assignments.deleteByUserId(id);
+        wanted.forEach(assignment -> assignments.save(
+                new UserTargetEntity(id, assignment.kind(), assignment.id())));
+
+        // Audited like a role change, because it is the same kind of decision: it changes what
+        // somebody can read, by a gesture just as quiet.
+        record(principal, request, id,
+                "Visible targets of " + user.getUsername() + ": "
+                        + (wanted.isEmpty() ? "none" : wanted.size() + " assigned"));
+        return wanted;
     }
 
     @DeleteMapping("/{id}")

@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api.security;
 
+import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
@@ -30,15 +31,26 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
     private final transient SessionEntity session;
     private final transient AgentEntity agent;
 
+    /**
+     * The narrowing the credential itself carries — an API key issued for one target.
+     *
+     * <p>On the principal rather than fetched by whoever needs it, because "whoever needs it" is
+     * every read route and one of them would eventually not. It arrives already resolved from
+     * the filter that authenticated the request.
+     */
+    private final transient Visibility credentialRestriction;
+
     private ZanshinPrincipal(
             UserEntity user,
             SessionEntity session,
             AgentEntity agent,
+            Visibility credentialRestriction,
             Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.user = user;
         this.session = session;
         this.agent = agent;
+        this.credentialRestriction = credentialRestriction;
         setAuthenticated(true);
     }
 
@@ -50,11 +62,19 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
                 // mistyped its role in the database, and nobody would ever look.
                 ? List.of()
                 : List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
-        return new ZanshinPrincipal(user, session, null, authorities);
+        // A session carries no restriction of its own; the account's assignments are
+        // resolved separately, and intersected with this.
+        return new ZanshinPrincipal(user, session, null, Visibility.everything(), authorities);
     }
 
-    public static ZanshinPrincipal ofAgent(AgentEntity agent) {
-        return new ZanshinPrincipal(null, null, agent, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
+    public static ZanshinPrincipal ofAgent(AgentEntity agent, Visibility credentialRestriction) {
+        return new ZanshinPrincipal(
+                null, null, agent, credentialRestriction, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
+    }
+
+    /** What the credential itself allows, before the account's own assignments narrow it further. */
+    public Visibility credentialRestriction() {
+        return credentialRestriction;
     }
 
     public Optional<UserEntity> user() {

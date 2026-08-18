@@ -5,11 +5,16 @@ import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Findings;
 import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.TargetNaming;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.data.domain.Limit;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,10 +41,14 @@ public class ScansController {
     private final Findings findings;
     private final TargetNaming naming;
 
-    public ScansController(Scans scans, Findings findings, TargetNaming naming) {
+    private final VisibilityService visibility;
+
+    public ScansController(
+            Scans scans, Findings findings, TargetNaming naming, VisibilityService visibility) {
         this.scans = scans;
         this.findings = findings;
         this.naming = naming;
+        this.visibility = visibility;
     }
 
     public record Summary(
@@ -82,19 +91,28 @@ public class ScansController {
 
     @GetMapping
     public List<Summary> list(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId,
             @RequestParam(required = false, defaultValue = "50") int limit) {
 
         TargetNaming.Names names = naming.all();
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        // Filtered after the query rather than inside it: the history is capped at two hundred
+        // rows, so the cost is a predicate on a short list — and expressing "one of these
+        // (kind, id) pairs" in the query would duplicate `IssueFilters`' predicate for a page
+        // that cannot grow.
         return scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
+                .filter(scan -> allowed.permits(targetOf(scan)))
                 .map(scan -> summaryOf(scan, names))
                 .toList();
     }
 
     @GetMapping("/{id}")
-    public Detail detail(@PathVariable long id) {
+    public Detail detail(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
+        Visibilities.requireVisible(
+                targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         List<FindingEntity> page = findings.findByScanId(id, Limit.of(MAX_FINDINGS));
         long total = findings.countByScanId(id);
@@ -108,6 +126,14 @@ public class ScansController {
                 page.stream().map(ScansController::viewOf).toList(),
                 total,
                 total > page.size());
+    }
+
+    /** A scan with neither target is invisible rather than visible: see {@code Visibilities}. */
+    private static ScanTarget targetOf(ScanEntity scan) {
+        if (scan.getRepoId() != null) {
+            return new ScanTarget.Repository(scan.getRepoId());
+        }
+        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
     }
 
     private static Summary summaryOf(ScanEntity scan, TargetNaming.Names names) {

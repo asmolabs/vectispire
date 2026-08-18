@@ -12,6 +12,7 @@ import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.IssueTriageService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Period;
 import java.util.List;
@@ -50,11 +51,14 @@ public class IssuesController {
     private final Issues issues;
     private final IssueTriageService triage;
     private final AuditLogService audit;
+    private final VisibilityService visibility;
 
-    public IssuesController(Issues issues, IssueTriageService triage, AuditLogService audit) {
+    public IssuesController(
+            Issues issues, IssueTriageService triage, AuditLogService audit, VisibilityService visibility) {
         this.issues = issues;
         this.triage = triage;
         this.audit = audit;
+        this.visibility = visibility;
     }
 
     public record Page(List<IssueEntity> items, long total, int limit, int offset) {}
@@ -63,6 +67,7 @@ public class IssuesController {
 
     @GetMapping
     public Page list(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String type,
@@ -87,7 +92,10 @@ public class IssuesController {
                 repositoryId,
                 containerId,
                 onlyDirect,
-                search);
+                search,
+                // Narrowed here and not by the caller: a filter the request supplies is a filter
+                // the request can omit.
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         var specification = filters.toSpecification();
         var page = issues.findAll(
@@ -113,6 +121,10 @@ public class IssuesController {
             HttpServletRequest request) {
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
+        // Checked before the write, and 404 rather than 403 — see `Visibilities`.
+        Visibilities.requireVisible(
+                issues.findById(id).orElse(null),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
         IssueEntity issue = triage.triage(id, new Triage.Request(
                 TriageStatus.fromWireName(body.status()).orElse(null),
                 actor,

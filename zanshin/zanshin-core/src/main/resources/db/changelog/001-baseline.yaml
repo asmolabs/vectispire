@@ -1119,3 +1119,43 @@ databaseChangeLog:
               - column:
                   name: activation_note
                   type: clob
+
+  # Which targets an account is allowed to see, when the deployment restricts visibility.
+  #
+  # **A join table rather than a column on the target.** A target belongs to as many accounts as
+  # somebody decides, and a column would have forced either one owner or a delimited list — the
+  # second being a set pretending to be a string, which no foreign key can protect.
+  #
+  # **No foreign key on `target_id`**, and it is not an oversight: the column points at
+  # `t_repository` or `t_container` depending on `target_kind`, and SQL has no constraint for
+  # "one of these two". The assignment is deleted with its account by cascade; an assignment
+  # whose target has been deleted is harmless — it grants access to a row that is not there —
+  # and it is cleaned up when the screen next writes the set.
+  - changeSet:
+      id: baseline-t_user_target
+      author: zanshin
+      changes:
+        - createTable:
+            tableName: t_user_target
+            columns:
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    foreignKeyName: fk_user_target_user
+                    references: t_user(id)
+                    deleteCascade: true
+              - column:
+                  name: target_kind
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+              - column:
+                  name: target_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    primaryKey: true

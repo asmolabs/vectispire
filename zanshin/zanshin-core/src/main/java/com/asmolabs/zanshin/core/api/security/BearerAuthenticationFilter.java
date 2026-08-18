@@ -6,6 +6,7 @@ import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.asmolabs.zanshin.core.services.ApiKeyAuthService;
 import com.asmolabs.zanshin.core.services.AuthService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,11 +36,14 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final AuthService auth;
     private final ApiKeyAuthService apiKeys;
     private final Users users;
+    private final VisibilityService visibility;
 
-    public BearerAuthenticationFilter(AuthService auth, ApiKeyAuthService apiKeys, Users users) {
+    public BearerAuthenticationFilter(
+            AuthService auth, ApiKeyAuthService apiKeys, Users users, VisibilityService visibility) {
         this.auth = auth;
         this.apiKeys = apiKeys;
         this.users = users;
+        this.visibility = visibility;
     }
 
     @Override
@@ -71,8 +75,11 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
         return bearerToken(header)
                 .flatMap(apiKeys::resolve)
                 .filter(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT))
-                .flatMap(apiKeys::agentFor)
-                .map(ZanshinPrincipal::ofAgent);
+                .flatMap(key -> apiKeys.agentFor(key)
+                        // The key's own restriction travels with the principal. Resolved here
+                        // because this is the only place that has the key row in hand.
+                        .map(agent -> ZanshinPrincipal.ofAgent(
+                                agent, visibility.restrictionOf(key.getTargetKind(), key.getTargetId()))));
     }
 
     /** {@code Bearer zsk…} — the scheme is required, so a bare key does not pass by accident. */

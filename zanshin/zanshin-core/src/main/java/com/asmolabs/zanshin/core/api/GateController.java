@@ -9,10 +9,13 @@ import com.asmolabs.zanshin.common.domain.gate.SeverityRequest;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.GateService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,9 +35,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class GateController {
 
     private final GateService gate;
+    private final VisibilityService visibility;
 
-    public GateController(GateService gate) {
+    public GateController(GateService gate, VisibilityService visibility) {
         this.gate = gate;
+        this.visibility = visibility;
     }
 
     /**
@@ -78,7 +83,8 @@ public class GateController {
      * "your call is malformed", and a pipeline cannot tell the two apart from a status code.
      */
     @PostMapping("/gate")
-    public GateResponse evaluate(@RequestBody GateRequest body) {
+    public GateResponse evaluate(
+            @AuthenticationPrincipal ZanshinPrincipal principal, @RequestBody GateRequest body) {
         if ((body.repositoryId() == null) == (body.containerId() == null)) {
             throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
         }
@@ -86,6 +92,12 @@ public class GateController {
         ScanTarget target = body.repositoryId() != null
                 ? new ScanTarget.Repository(body.repositoryId())
                 : new ScanTarget.Container(body.containerId());
+
+        // A verdict is a summary of a target's backlog: counts, severities, the identifiers that
+        // violate. Answering one for a target the caller may not see hands over most of what the
+        // backlog would have said.
+        Visibilities.requireVisible(
+                target, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         GateService.Decision decision = gate.evaluate(target, requestedPolicy(body));
         GateVerdict verdict = decision.verdict();
@@ -110,8 +122,8 @@ public class GateController {
 
     /** Every target's posture — what the security screen shows. */
     @GetMapping("/security/overview")
-    public SecurityOverview.Overview overview() {
-        return gate.overview();
+    public SecurityOverview.Overview overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        return gate.overview(visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     private static Map<String, Long> countsByWireName(GateVerdict verdict) {

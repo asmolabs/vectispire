@@ -103,6 +103,15 @@ public enum Setting {
                     + "Read from the SBOM already produced — no extra tool is needed.",
             ""),
 
+    TARGET_VISIBILITY("target_visibility", SettingType.TEXT, Section.ACCESS,
+            "What a non-administrator sees",
+            "\"everyone\" means every signed-in account sees every target — the behaviour of a deployment "
+                    + "that has never thought about it, and the default so that updating changes nothing. "
+                    + "\"assigned\" means an account sees only the targets an administrator has assigned to it, "
+                    + "and an account with no assignment sees nothing. Administrators always see everything: "
+                    + "somebody has to be able to make the assignments.",
+            "everyone"),
+
     TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,
             "Provider",
             "\"gitlab\", \"jira\", or \"none\" to disable. A ticket is opened for any issue that would fail a "
@@ -179,6 +188,8 @@ public enum Setting {
 
     /** The group the screen files a setting under. */
     public enum Section {
+
+        ACCESS("Access"),
         ENRICHMENT("Enrichment"),
         END_OF_LIFE("End of life"),
         SOURCE_CODE("Source code analysis"),

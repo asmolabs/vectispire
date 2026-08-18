@@ -1,5 +1,7 @@
 package com.asmolabs.zanshin.core.repositories;
 
+import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
@@ -25,7 +27,22 @@ public record IssueFilters(
         Long repoId,
         Long containerId,
         boolean onlyDirect,
-        String search) {
+        String search,
+        Visibility visibility) {
+
+    /** Everything the caller asked for, seen by somebody the deployment does not restrict. */
+    public IssueFilters(
+            String state,
+            String severity,
+            String type,
+            String triageStatus,
+            Long repoId,
+            Long containerId,
+            boolean onlyDirect,
+            String search) {
+        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, search,
+                Visibility.everything());
+    }
 
     public Specification<IssueEntity> toSpecification() {
         return (root, query, builder) -> {
@@ -44,6 +61,8 @@ public record IssueFilters(
             if (onlyDirect) {
                 predicates.add(builder.isTrue(root.get("isDirectDependency")));
             }
+            visibility.asFilter().ifPresent(allowed -> predicates.add(visible(root, builder, allowed)));
+
             if (search != null && !search.isBlank()) {
                 String pattern = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
                 predicates.add(builder.or(
@@ -54,6 +73,30 @@ public record IssueFilters(
 
             return builder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    /**
+     * The rows whose target the caller may see.
+     *
+     * <p>An empty allowance yields {@code builder.disjunction()} — a predicate that is false —
+     * rather than no predicate at all. The alternative reads the same in code and means the
+     * opposite: an unassigned account would receive the whole backlog.
+     */
+    private static Predicate visible(
+            jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            java.util.Set<ScanTarget> allowed) {
+
+        List<Predicate> perTarget = new ArrayList<>();
+        for (ScanTarget target : allowed) {
+            switch (target) {
+                case ScanTarget.Repository repository ->
+                        perTarget.add(builder.equal(root.get("repoId"), repository.id()));
+                case ScanTarget.Container container ->
+                        perTarget.add(builder.equal(root.get("containerId"), container.id()));
+            }
+        }
+        return perTarget.isEmpty() ? builder.disjunction() : builder.or(perTarget.toArray(Predicate[]::new));
     }
 
     private static void equalIfPresent(

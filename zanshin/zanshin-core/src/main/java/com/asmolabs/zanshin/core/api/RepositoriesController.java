@@ -10,7 +10,10 @@ import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.CronExpressions;
 import com.asmolabs.zanshin.core.services.ScanTriggerService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,18 +49,21 @@ public class RepositoriesController {
     private final Issues issues;
     private final ScanTriggerService trigger;
     private final AuditLogService audit;
+    private final VisibilityService visibility;
 
     public RepositoriesController(
             GitRepositories repositories,
             Scans scans,
             Issues issues,
             ScanTriggerService trigger,
-            AuditLogService audit) {
+            AuditLogService audit,
+            VisibilityService visibility) {
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
         this.trigger = trigger;
         this.audit = audit;
+        this.visibility = visibility;
     }
 
     public record LastScan(Long id, String status, Instant createdAt, String error) {}
@@ -91,11 +97,14 @@ public class RepositoriesController {
 
     /** The list, with each target's latest scan and how many issues are waiting on it. */
     @GetMapping
-    public List<Summary> list() {
+    public List<Summary> list(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        Visibility allowed = visibility.of(
+                principal.user().orElse(null), principal.credentialRestriction());
         Map<Long, LastScan> latest = latestScans();
         Map<Long, Long> open = openIssueCounts();
 
         return repositories.findAll().stream()
+                .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
                 .map(repository -> new Summary(
                         repository.getId(),
                         repository.getUrl(),
@@ -143,7 +152,7 @@ public class RepositoriesController {
 
         RepositoryEntity saved = repositories.save(repository);
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + saved.getUrl());
-        return list().stream()
+        return list(principal).stream()
                 .filter(summary -> summary.id().equals(saved.getId()))
                 .findFirst()
                 .orElseThrow();

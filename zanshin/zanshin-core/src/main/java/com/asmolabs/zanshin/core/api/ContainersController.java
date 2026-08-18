@@ -12,7 +12,10 @@ import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Containers;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.CronExpressions;
 import com.asmolabs.zanshin.core.services.ScanTriggerService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,14 +50,17 @@ public class ContainersController {
     private final Issues issues;
     private final ScanTriggerService trigger;
     private final AuditLogService audit;
+    private final VisibilityService visibility;
 
     public ContainersController(
-            Containers containers, Scans scans, Issues issues, ScanTriggerService trigger, AuditLogService audit) {
+            Containers containers, Scans scans, Issues issues, ScanTriggerService trigger, AuditLogService audit,
+            VisibilityService visibility) {
         this.containers = containers;
         this.scans = scans;
         this.issues = issues;
         this.trigger = trigger;
         this.audit = audit;
+        this.visibility = visibility;
     }
 
     public record Summary(
@@ -80,11 +86,14 @@ public class ContainersController {
             String requiredAgentLabel) {}
 
     @GetMapping
-    public List<Summary> list() {
+    public List<Summary> list(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        Visibility allowed = visibility.of(
+                principal.user().orElse(null), principal.credentialRestriction());
         Map<Long, LastScan> latest = latestScans();
         Map<Long, Long> open = openIssueCounts();
 
         return containers.findAll().stream()
+                .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
                 .map(container -> {
                     ImageReference reference = referenceOf(container);
                     return new Summary(
@@ -132,7 +141,7 @@ public class ContainersController {
         ContainerEntity saved = containers.save(container);
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
                 "Image added: " + referenceOf(saved).format());
-        return list().stream()
+        return list(principal).stream()
                 .filter(summary -> summary.id().equals(saved.getId()))
                 .findFirst()
                 .orElseThrow();

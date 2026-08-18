@@ -81,10 +81,11 @@ class SchemaParityIntegrationTest {
     @DisplayName("every entity is mapped, and on a typed engine validated against the schema")
     void entitiesMatchTheSchema() {
         // On the three typed engines, reaching this line *is* the assertion: Hibernate validated
-        // all nineteen while the context came up. The count below stops the test from passing on
+        // every entity while the context came up. The count below stops the test from passing on
         // an empty metamodel, which is how an architecture check reports green having looked at
-        // nothing.
-        assertThat(entityManager.getMetamodel().getEntities()).hasSize(19);
+        // nothing — and it is written out so that adding an entity without a table fails here
+        // rather than the first time somebody queries it.
+        assertThat(entityManager.getMetamodel().getEntities()).hasSize(20);
     }
 
     @Test

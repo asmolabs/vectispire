@@ -9,7 +9,10 @@ import com.asmolabs.zanshin.common.domain.exports.SarifLog;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.ExportProperties;
+import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.IssueViews;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import java.time.Clock;
@@ -19,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,12 +50,19 @@ public class ExportsController {
     private final Issues issues;
     private final TargetNaming naming;
     private final ExportProperties properties;
+    private final VisibilityService visibility;
     private final Clock clock;
 
-    public ExportsController(Issues issues, TargetNaming naming, ExportProperties properties, Clock clock) {
+    public ExportsController(
+            Issues issues,
+            TargetNaming naming,
+            ExportProperties properties,
+            VisibilityService visibility,
+            Clock clock) {
         this.issues = issues;
         this.naming = naming;
         this.properties = properties;
+        this.visibility = visibility;
         this.clock = clock;
     }
 
@@ -63,7 +74,11 @@ public class ExportsController {
      * them as security alerts.
      */
     @GetMapping("/issues.sarif")
-    public ResponseEntity<SarifLog> sarif(@PathVariable String kind, @PathVariable long id) {
+    public ResponseEntity<SarifLog> sarif(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @PathVariable String kind,
+            @PathVariable long id) {
+        requireVisible(principal, kind, id);
         String name = targetName(kind, id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".sarif"))
@@ -82,7 +97,11 @@ public class ExportsController {
      */
     @GetMapping("/vex")
     public OpenVexDocument vex(
-            @PathVariable String kind, @PathVariable long id, @RequestParam(required = false) String author) {
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @PathVariable String kind,
+            @PathVariable long id,
+            @RequestParam(required = false) String author) {
+        requireVisible(principal, kind, id);
 
         String name = targetName(kind, id);
         return OpenVexExport.build(
@@ -96,13 +115,28 @@ public class ExportsController {
 
     @GetMapping("/issues.csv")
     public ResponseEntity<String> csv(
-            @PathVariable String kind, @PathVariable long id, @RequestParam(required = false) String state) {
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @PathVariable String kind,
+            @PathVariable long id,
+            @RequestParam(required = false) String state) {
+        requireVisible(principal, kind, id);
 
         targetName(kind, id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".csv"))
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
                 .body(IssueCsv.build(exportable(kind, id, state)));
+    }
+
+    /**
+     * An export is the widest read in the API — the whole backlog of one target, in one file.
+     * It is therefore the route where a missing check costs most, and the one a caller reaches
+     * by guessing a number rather than by clicking a link.
+     */
+    private void requireVisible(ZanshinPrincipal principal, String kind, long id) {
+        Visibilities.requireVisible(
+                isRepository(kind) ? new ScanTarget.Repository(id) : new ScanTarget.Container(id),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     private List<ExportableIssue> exportable(String kind, long targetId, String state) {

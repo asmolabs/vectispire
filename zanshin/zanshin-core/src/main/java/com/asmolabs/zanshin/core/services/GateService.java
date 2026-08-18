@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.services;
 
+import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.gate.GateIssue;
 import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
 import com.asmolabs.zanshin.common.domain.gate.PolicyGate;
@@ -84,20 +85,26 @@ public class GateService {
         return new Decision(PolicyGate.evaluate(scoped, resolved.policy()), resolved);
     }
 
-    /** Every target's posture, for the security screen. */
+    /** Every target's posture, for the security screen — narrowed to what the caller may see. */
     @Transactional(readOnly = true)
-    public SecurityOverview.Overview overview() {
+    public SecurityOverview.Overview overview(Visibility visibility) {
         Map<String, StoredPolicy> byScope = activePolicies();
 
         List<SecurityOverview.NamedTarget> targets = new ArrayList<>();
         Map<ScanTarget, StoredPolicy> policiesByTarget = new HashMap<>();
         repositories.findAll().forEach(repository -> {
             ScanTarget target = new ScanTarget.Repository(repository.getId());
+            if (!visibility.permits(target)) {
+                return;
+            }
             targets.add(new SecurityOverview.NamedTarget(target, TargetNaming.of(repository)));
             Optional.ofNullable(byScope.get(scopeKey(target))).ifPresent(policy -> policiesByTarget.put(target, policy));
         });
         containers.findAll().forEach(container -> {
             ScanTarget target = new ScanTarget.Container(container.getId());
+            if (!visibility.permits(target)) {
+                return;
+            }
             targets.add(new SecurityOverview.NamedTarget(target, TargetNaming.of(container)));
             Optional.ofNullable(byScope.get(scopeKey(target))).ifPresent(policy -> policiesByTarget.put(target, policy));
         });
