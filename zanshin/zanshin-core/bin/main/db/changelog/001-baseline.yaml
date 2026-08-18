@@ -9,6 +9,11 @@
 # way, this schema would have had referential integrity on three engines out of four — and
 # nothing would have said so, because the changelog applies without complaint on the fourth.
 #
+# **Identifiers are `bigint`, not `int`.** The NestJS schema used `SERIAL` because a JavaScript
+# number does not distinguish the two; Java does, and an `int` column against a `Long` field is
+# a schema-validation failure on every typed engine. Four extra bytes a row, and no ceiling at
+# two billion findings — which a busy install reaches in years rather than never.
+#
 # `deleteCascade: false` is not "no rule": Liquibase emits `ON DELETE SET NULL` for the
 # nullable columns below, which is the rule those columns need. An issue outlives the scan
 # that first saw it — that is what "first seen" means — and a repository outlives the key it
@@ -60,7 +65,7 @@ databaseChangeLog:
                   type: varchar(20)
               - column:
                   name: target_id
-                  type: int
+                  type: bigint
               - column:
                   name: expires_at
                   type: ${timestamp.type}
@@ -101,7 +106,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: enabled
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
@@ -184,7 +189,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -224,7 +229,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -274,7 +279,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -339,14 +344,14 @@ databaseChangeLog:
                   type: varchar(255)
               - column:
                   name: repo_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_scan_repository
                     references: t_repository(id)
                     deleteCascade: true
               - column:
                   name: container_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_scan_container
                     references: t_container(id)
@@ -378,7 +383,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -386,7 +391,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: scan_id
-                  type: int
+                  type: bigint
                   constraints:
                     nullable: false
                     foreignKeyName: fk_ai_review_scan
@@ -476,7 +481,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -484,14 +489,14 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: repo_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_issue_repository
                     references: t_repository(id)
                     deleteCascade: true
               - column:
                   name: container_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_issue_container
                     references: t_container(id)
@@ -532,7 +537,7 @@ databaseChangeLog:
                   type: double
               - column:
                   name: is_kev
-                  type: boolean
+                  type: ${bool.type}
                   defaultValueBoolean: false
                   constraints:
                     nullable: false
@@ -575,14 +580,14 @@ databaseChangeLog:
                   type: ${timestamp.type}
               - column:
                   name: first_seen_scan_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_issue_first_seen_scan
                     references: t_scan(id)
                     deleteCascade: false
               - column:
                   name: last_seen_scan_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_issue_last_seen_scan
                     references: t_scan(id)
@@ -616,7 +621,7 @@ databaseChangeLog:
                   type: ${timestamp.type}
               - column:
                   name: is_direct_dependency
-                  type: boolean
+                  type: ${bool.type}
               - column:
                   name: line
                   type: int
@@ -635,7 +640,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -643,7 +648,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: scan_id
-                  type: int
+                  type: bigint
                   constraints:
                     nullable: false
                     foreignKeyName: fk_finding_scan
@@ -682,7 +687,7 @@ databaseChangeLog:
                   type: double
               - column:
                   name: is_kev
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
@@ -707,14 +712,14 @@ databaseChangeLog:
                   type: varchar(500)
               - column:
                   name: issue_id
-                  type: int
+                  type: bigint
                   constraints:
                     foreignKeyName: fk_finding_issue
                     references: t_issue(id)
                     deleteCascade: false
               - column:
                   name: is_direct_dependency
-                  type: boolean
+                  type: ${bool.type}
               - column:
                   name: line
                   type: int
@@ -730,7 +735,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -743,7 +748,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: target_id
-                  type: int
+                  type: bigint
                   constraints:
                     nullable: false
               - column:
@@ -753,28 +758,28 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: is_active
-                  type: boolean
+                  type: ${bool.type}
               - column:
                   name: fail_on_severity
                   type: varchar(20)
               - column:
                   name: fail_on_kev
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
                   name: fixable_only
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
                   name: include_triaged
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
                   name: include_ai_review
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
@@ -897,7 +902,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -930,7 +935,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -965,7 +970,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: is_active
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
               - column:
@@ -992,7 +997,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: must_change_password
-                  type: boolean
+                  type: ${bool.type}
                   constraints:
                     nullable: false
   - changeSet:
@@ -1011,7 +1016,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: user_id
-                  type: int
+                  type: bigint
                   constraints:
                     nullable: false
                     foreignKeyName: fk_session_user
@@ -1064,7 +1069,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: int
+                  type: ${generated.id.type}
                   autoIncrement: true
                   constraints:
                     primaryKey: true
@@ -1102,7 +1107,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: is_active
-                  type: boolean
+                  type: ${bool.type}
               - column:
                   name: uploaded_by
                   type: varchar(255)

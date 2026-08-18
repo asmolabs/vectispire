@@ -50,7 +50,7 @@ public class ApiKeyEntity {
     private String targetKind;
 
     @Column(name = "target_id")
-    private Integer targetId;
+    private Long targetId;
 
     @Column(name = "expires_at")
     private Instant expiresAt;
@@ -119,11 +119,11 @@ public class ApiKeyEntity {
         this.targetKind = targetKind;
     }
 
-    public Integer getTargetId() {
+    public Long getTargetId() {
         return targetId;
     }
 
-    public void setTargetId(Integer targetId) {
+    public void setTargetId(Long targetId) {
         this.targetId = targetId;
     }
 

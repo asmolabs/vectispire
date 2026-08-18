@@ -14,9 +14,8 @@
 #   uuid       — see the note on the property itself: 36 characters everywhere, deliberately.
 #   timestamp  — `timestamptz` only on PostgreSQL. The others store no offset, which is why
 #                every instant is written in UTC before it reaches the driver.
-#   bool       — `boolean` everywhere except MySQL and MariaDB, where it is `tinyint(1)` and
-#                `tinyint`. They disagree with *each other*, which is the whole argument for
-#                running the parity check on all four rather than on a representative one.
+#   bool       — `bit(1)` on MySQL, `boolean` on the other three. See the property below: the
+#                two engines everybody treats as interchangeable are the two that differ.
 databaseChangeLog:
   # Text on all four, and no native JSON type anywhere. These payloads are opaque: stored
   # verbatim, re-exported verbatim, never queried with a JSON operator. PostgreSQL's `json`
@@ -39,7 +38,30 @@ databaseChangeLog:
 
   - property: { name: timestamp.type, value: "timestamp with time zone", dbms: postgresql }
   - property: { name: timestamp.type, value: "datetime(6)", dbms: "mysql,mariadb" }
-  - property: { name: timestamp.type, value: "datetime", dbms: sqlite }
+  # **`numeric` on SQLite, and the reason is affinity rather than type.** SQLite has no date
+  # type; a column's declared name only decides its affinity, and Liquibase turns `datetime`
+  # into TEXT. The driver then writes an instant as a number into a text-affinity column and
+  # cannot parse it back — "Error parsing time stamp", on read, long after the write looked
+  # fine. A NUMERIC affinity stores the epoch milliseconds the driver actually writes.
+  #
+  # No amount of column-type validation would have found this: the schema was consistent with
+  # itself. It took writing a row and reading it back.
+  - property: { name: timestamp.type, value: "numeric", dbms: sqlite }
+
+  # **MySQL and MariaDB disagree with each other, and this line is the proof.** Liquibase's
+  # abstract `boolean` becomes `tinyint` on MySQL, which Hibernate refuses against a `boolean`
+  # field — it expects `bit`. MariaDB, from the same lineage, reports something Hibernate
+  # accepts. Running the campaign on one of the two as a representative would have shipped a
+  # schema that fails to start on the other.
+  - property: { name: bool.type, value: "bit(1)", dbms: mysql }
+  - property: { name: bool.type, value: boolean }
+
+  # **A generated key is `integer` on SQLite and `bigint` on the other three, and the narrow
+  # name is the wide type.** SQLite refuses `AUTOINCREMENT` on anything but `INTEGER PRIMARY
+  # KEY` — and that column is a rowid alias, which is already 64 bits. Writing `bigint` there to
+  # look consistent produces a table that cannot be created at all.
+  - property: { name: generated.id.type, value: integer, dbms: sqlite }
+  - property: { name: generated.id.type, value: bigint }
 
   - include: { file: db/changelog/001-baseline.yaml }
   - include: { file: db/changelog/002-indexes.yaml }

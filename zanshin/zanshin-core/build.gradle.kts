@@ -78,11 +78,16 @@ configurations["integrationTestImplementation"].extendsFrom(configurations.testI
 configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
-    "integrationTestImplementation"(platform(libs.testcontainers.bom))
-    "integrationTestImplementation"("org.testcontainers:junit-jupiter")
-    "integrationTestImplementation"("org.testcontainers:postgresql")
-    "integrationTestImplementation"("org.testcontainers:mysql")
-    "integrationTestImplementation"("org.testcontainers:mariadb")
+    // Versions from the Spring Boot BOM, which already manages Testcontainers. A second BOM
+    // here would be a second authority for one version, and the mismatch surfaces as a missing
+    // class rather than as a conflict.
+    "integrationTestImplementation"(platform(libs.spring.boot.bom))
+    // Testcontainers 2.x prefixes every module with `testcontainers-`; the 1.x names resolve to
+    // nothing at all rather than to an older version.
+    "integrationTestImplementation"("org.testcontainers:testcontainers-junit-jupiter")
+    "integrationTestImplementation"("org.testcontainers:testcontainers-postgresql")
+    "integrationTestImplementation"("org.testcontainers:testcontainers-mysql")
+    "integrationTestImplementation"("org.testcontainers:testcontainers-mariadb")
     "integrationTestImplementation"("org.springframework.boot:spring-boot-testcontainers")
 }
 
@@ -103,11 +108,27 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
  * All four engines. A portability defect only shows up by running them all — each of the
  * four has produced one that was invisible on the others.
  */
-tasks.register("integrationTestAll") {
-    description = "Runs the campaign on postgres, mariadb, mysql and sqlite."
-    group = "verification"
-    dependsOn(integrationTestTask)
-    doLast {
-        logger.lifecycle("Single engine: -Pdialect=<postgres|mariadb|mysql|sqlite>")
+val engines = listOf("postgres", "mariadb", "mysql", "sqlite")
+
+engines.forEach { engine ->
+    tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
+        description = "Runs the campaign against $engine."
+        group = "verification"
+        testClassesDirs = integrationTest.output.classesDirs
+        classpath = configurations["integrationTestRuntimeClasspath"] +
+            integrationTest.output +
+            sourceSets.main.get().output
+        maxParallelForks = 1
+        systemProperty("zanshin.db.dialect", engine)
+        // Each engine gets its own results directory: one shared directory means the last run
+        // overwrites the others, and "which engine failed" stops being answerable.
+        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$engine")
+        reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$engine")
     }
+}
+
+tasks.register("integrationTestAll") {
+    description = "Runs the campaign on all four engines."
+    group = "verification"
+    dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
 }

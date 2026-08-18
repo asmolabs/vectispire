@@ -1,7 +1,6 @@
 # Versions in one place, so that "which Spring Boot is this?" has exactly one answer.
 [versions]
 springBoot = "4.1.0"
-testcontainers = "1.22.0"
 archunit = "1.4.1"
 junit = "6.0.1"
 assertj = "3.27.6"
@@ -23,7 +22,6 @@ spring-boot-liquibase = { module = "org.springframework.boot:spring-boot-liquiba
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
 mysql = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
