@@ -24,3 +24,13 @@ server:
   # The API and the agent protocol share it. Long polling holds a request open, which is why
   # the read timeout below is generous and the connection count is not.
   port: ${ZANSHIN_PORT:8000}
+
+zanshin:
+  encryption:
+    # The environment variable names are kept short and unprefixed on purpose: this is the one
+    # value an operator has to set before the application is useful, and it is the first line
+    # of every install guide.
+    key: ${ENCRYPTION_KEY:}
+    # Comma-separated. Keys kept only for reading, so a rotation does not have to rewrite
+    # every row before the new key takes effect.
+    previous-keys: ${ZANSHIN_PREVIOUS_ENCRYPTION_KEYS:}

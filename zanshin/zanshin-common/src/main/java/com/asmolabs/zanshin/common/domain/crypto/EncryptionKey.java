@@ -115,6 +115,30 @@ public final class EncryptionKey {
         return Arrays.clone(material);
     }
 
+    /**
+     * Two keys are equal when their material is.
+     *
+     * <p>Compared in constant time, and used for one thing: dropping a key that appears twice
+     * in the configuration, so a rotated deployment does not try the same key as current and
+     * again as previous.
+     */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof EncryptionKey key && Arrays.constantTimeAreEqual(material, key.material);
+    }
+
+    /**
+     * Deliberately constant.
+     *
+     * <p>A hash of the material is a 32-bit oracle on a secret, cheap to put in a heap dump or
+     * a debugger. The lists this class lives in hold two or three entries, so the degenerate
+     * bucket costs nothing measurable.
+     */
+    @Override
+    public int hashCode() {
+        return 0;
+    }
+
     @Override
     public String toString() {
         // Never the material. A key that prints itself ends up in a log, an exception message

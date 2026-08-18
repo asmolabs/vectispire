@@ -76,11 +76,23 @@ public final class Digests {
     }
 
     public static String sha256Hex(byte[] value) {
+        return Hex.toHexString(sha256(value));
+    }
+
+    /**
+     * The raw digest, for callers that feed it to another primitive rather than to a column.
+     *
+     * <p>Hex is the storage form, not the value; a key derivation salted with the hex string
+     * would be salted with twice the bytes and half the entropy.
+     */
+    public static byte[] sha256(byte[]... parts) {
         SHA256Digest digest = new SHA256Digest();
-        digest.update(value, 0, value.length);
+        for (byte[] part : parts) {
+            digest.update(part, 0, part.length);
+        }
         byte[] out = new byte[digest.getDigestSize()];
         digest.doFinal(out, 0);
-        return Hex.toHexString(out);
+        return out;
     }
 
     /**
