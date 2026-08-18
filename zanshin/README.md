@@ -119,7 +119,8 @@ suite that skips itself reports green without having checked anything.
 | `LoginThrottle`, `Sessions` | done |
 | `PasswordHasher` — Argon2id | done |
 | `AccountRules`, `Role`, `ApiKeys`, `ApiKeyScope` | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 218 tests |
+| `RetentionPolicy`, `Schedules` | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 240 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
