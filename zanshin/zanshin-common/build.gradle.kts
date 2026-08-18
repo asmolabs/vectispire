@@ -33,6 +33,19 @@ dependencies {
     implementation(libs.docker.java.core)
     implementation(libs.docker.java.transport)
 
+    // JGit rather than shelling out to the `git` binary. Three reasons, all of them things the
+    // subprocess version could not do: the agent's host no longer needs git installed; failures
+    // arrive as typed exceptions instead of English-only prose that has to be pattern-matched
+    // (the original pinned `LC_ALL=C` for exactly that, and found the need through a test on a
+    // French machine); and the deployment key never touches the filesystem.
+    implementation(libs.jgit)
+    // `bcpkix` alongside `bcprov`, because Apache MINA sshd detects BouncyCastle on the
+    // classpath and then requires its PEM reader. A half-present BouncyCastle fails in a
+    // static initializer, which surfaces as `ExceptionInInitializerError` from a class nobody
+    // named — the least legible way to discover a missing dependency.
+    implementation(libs.bouncycastle.pkix)
+    implementation(libs.jgit.ssh)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation(libs.assertj.core)

@@ -75,6 +75,18 @@ at which it was free.
 a comment declares mutually exclusive; `FindingType` is an enum carrying `isSecurity()` rather
 than seven string constants plus a hand-maintained list the constants could drift from.
 
+### One defect found while porting the clone
+
+The original passed `StrictHostKeyChecking=accept-new` and explained that this "refuses a host
+whose key has changed" — while pointing `UserKnownHostsFile` at a directory created fresh for
+each clone and deleted immediately after. **Every clone was a first contact**, so every host
+key was accepted, and the `Host key verification failed` branch of its error translation could
+never fire. The two halves cancelled out across forty lines, and nothing said so.
+
+`GitClone.HostKeyPolicy` is now a sealed choice between `AcceptNew(knownHosts)` — which detects
+interception, at the cost that a rotated host key blocks scans until an operator clears the
+entry — and `TrustEveryHost()`, named plainly because that is what the previous behaviour was.
+
 ### Cryptography
 
 Passwords go through **Argon2id**; everything else hashes through `Digests`. Both are
@@ -109,7 +121,7 @@ suite that skips itself reports green without having checked anything.
 |---|---|
 | Build, three modules, architecture suite | done |
 | **`zanshin-common/domain` — the whole layer** | **done** |
-| `zanshin-common/scanning` — workspace, container runner | in progress (the scanners remain) |
+| `zanshin-common/scanning` — workspace, container runner, clone | in progress (the scanners remain) |
 | `zanshin-core` — persistence, repositories, services, api | not started |
 | `zanshin-agent` — the protocol | not started |
 
