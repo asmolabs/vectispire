@@ -102,7 +102,8 @@ suite that skips itself reports green without having checked anything.
 | `PolicyGate` — verdict and request hardening | done |
 | `PolicyResolution` — which policy applies, and from where |  done |
 | `SecurityOverview` — every target's posture, in one pass | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag` | done, 65 tests |
+| `OpenVexExport`, `SarifExport`, `IssueCsv` — the three deliverable formats | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus` | done, 94 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
