@@ -32,11 +32,11 @@ public class ScanQueue {
 
     private static final int ERROR_MAX_LENGTH = 2_000;
 
-    private final ScanRepository scans;
+    private final Scans scans;
     private final Policy policy;
     private final Clock clock;
 
-    public ScanQueue(ScanRepository scans, Policy policy, Clock clock) {
+    public ScanQueue(Scans scans, Policy policy, Clock clock) {
         this.scans = scans;
         this.policy = policy;
         this.clock = clock;

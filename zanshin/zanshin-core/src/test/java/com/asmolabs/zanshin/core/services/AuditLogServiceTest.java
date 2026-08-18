@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.zanshin.common.domain.audit.AuditChain;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.AuditLog;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -26,13 +26,13 @@ class AuditLogServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
 
     private final List<AuditLogEntity> stored = new ArrayList<>();
-    private Repositories.AuditLog entries;
+    private AuditLog entries;
     private AuditLogService service;
 
     @BeforeEach
     void wire() {
         stored.clear();
-        entries = mock(Repositories.AuditLog.class);
+        entries = mock(AuditLog.class);
         service = new AuditLogService(entries, Clock.fixed(NOW, ZoneOffset.UTC));
 
         when(entries.save(any())).thenAnswer(call -> {

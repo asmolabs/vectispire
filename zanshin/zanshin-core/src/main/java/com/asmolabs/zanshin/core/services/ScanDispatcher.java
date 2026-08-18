@@ -14,8 +14,10 @@ import com.asmolabs.zanshin.core.persistence.ContainerEntity;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Containers;
+import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.ScanQueue;
+import com.asmolabs.zanshin.core.repositories.SshKeys;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -46,9 +48,9 @@ public class ScanDispatcher {
     private static final Set<ScanTask.Step> IMAGE_STEPS = EnumSet.of(ScanTask.Step.DEPENDENCIES);
 
     private final ScanQueue queue;
-    private final Repositories.MonitoredRepositories repositories;
-    private final Repositories.Containers containers;
-    private final Repositories.SshKeys sshKeys;
+    private final GitRepositories repositories;
+    private final Containers containers;
+    private final SshKeys sshKeys;
     private final ScanIngestor ingestor;
     private final EncryptionService encryption;
     private final SettingsService settings;
@@ -78,9 +80,9 @@ public class ScanDispatcher {
 
     public ScanDispatcher(
             ScanQueue queue,
-            Repositories.MonitoredRepositories repositories,
-            Repositories.Containers containers,
-            Repositories.SshKeys sshKeys,
+            GitRepositories repositories,
+            Containers containers,
+            SshKeys sshKeys,
             ScanIngestor ingestor,
             EncryptionService encryption,
             SettingsService settings,

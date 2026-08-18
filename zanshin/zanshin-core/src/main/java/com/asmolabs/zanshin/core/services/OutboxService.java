@@ -2,7 +2,7 @@ package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
 import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,7 +44,7 @@ public class OutboxService {
     private static final String STATUS_SENT = "sent";
     private static final String STATUS_FAILED = "failed";
 
-    private final Repositories.Outbox messages;
+    private final Outbox messages;
     private final NotificationService notifications;
     private final ObjectMapper json;
     private final Clock clock;
@@ -57,7 +57,7 @@ public class OutboxService {
     private final TransactionTemplate transactions;
 
     public OutboxService(
-            Repositories.Outbox messages,
+            Outbox messages,
             NotificationService notifications,
             ObjectMapper json,
             Clock clock,

@@ -2,7 +2,7 @@ package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.core.persistence.SettingEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Settings;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -25,9 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SettingsService {
 
-    private final Repositories.Settings settings;
+    private final Settings settings;
 
-    public SettingsService(Repositories.Settings settings) {
+    public SettingsService(Settings settings) {
         this.settings = settings;
     }
 

@@ -64,7 +64,7 @@ class ScanQueueIntegrationTest {
     private ScanQueue queue;
 
     @Autowired
-    private ScanRepository scans;
+    private Scans scans;
 
     @BeforeEach
     void emptyQueue() {

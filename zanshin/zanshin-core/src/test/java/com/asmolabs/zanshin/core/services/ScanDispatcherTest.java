@@ -21,8 +21,10 @@ import com.asmolabs.zanshin.core.persistence.ContainerEntity;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Containers;
+import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.ScanQueue;
+import com.asmolabs.zanshin.core.repositories.SshKeys;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,9 +52,9 @@ class ScanDispatcherTest {
     private final SealedEnvelope envelopes = new SealedEnvelope();
 
     private ScanQueue queue;
-    private Repositories.MonitoredRepositories repositories;
-    private Repositories.Containers containers;
-    private Repositories.SshKeys sshKeys;
+    private GitRepositories repositories;
+    private Containers containers;
+    private SshKeys sshKeys;
     private SettingsService settings;
     private RuleSetService ruleSets;
     private ScanDispatcher dispatcher;
@@ -60,9 +62,9 @@ class ScanDispatcherTest {
     @BeforeEach
     void wire() {
         queue = mock(ScanQueue.class);
-        repositories = mock(Repositories.MonitoredRepositories.class);
-        containers = mock(Repositories.Containers.class);
-        sshKeys = mock(Repositories.SshKeys.class);
+        repositories = mock(GitRepositories.class);
+        containers = mock(Containers.class);
+        sshKeys = mock(SshKeys.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(RuleSetService.class);
 

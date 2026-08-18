@@ -13,7 +13,8 @@ import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Findings;
+import com.asmolabs.zanshin.core.repositories.Issues;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -40,8 +41,8 @@ class IssueSyncServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-13T10:00:00Z");
 
-    private Repositories.Issues issues;
-    private Repositories.Findings findings;
+    private Issues issues;
+    private Findings findings;
     private IssueSyncService service;
 
     private final List<IssueEntity> stored = new ArrayList<>();
@@ -49,8 +50,8 @@ class IssueSyncServiceTest {
 
     @BeforeEach
     void wire() {
-        issues = mock(Repositories.Issues.class);
-        findings = mock(Repositories.Findings.class);
+        issues = mock(Issues.class);
+        findings = mock(Findings.class);
         service = new IssueSyncService(issues, findings, Clock.fixed(NOW, ZoneOffset.UTC));
 
         stored.clear();

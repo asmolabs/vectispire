@@ -6,7 +6,8 @@ import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.Noti
 import com.asmolabs.zanshin.common.domain.targets.ImageReference;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Containers;
+import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -23,14 +24,14 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
 
     private final NotificationService notifications;
     private final OutboxService outbox;
-    private final Repositories.MonitoredRepositories repositories;
-    private final Repositories.Containers containers;
+    private final GitRepositories repositories;
+    private final Containers containers;
 
     public ScanDeltaNotifier(
             NotificationService notifications,
             OutboxService outbox,
-            Repositories.MonitoredRepositories repositories,
-            Repositories.Containers containers) {
+            GitRepositories repositories,
+            Containers containers) {
         this.notifications = notifications;
         this.outbox = outbox;
         this.repositories = repositories;

@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.core.persistence.SettingEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Settings;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,12 +21,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("reading a setting, present or not")
 class SettingsServiceTest {
 
-    private Repositories.Settings rows;
+    private Settings rows;
     private SettingsService service;
 
     @BeforeEach
     void wire() {
-        rows = mock(Repositories.Settings.class);
+        rows = mock(Settings.class);
         service = new SettingsService(rows);
         when(rows.findById(anyString())).thenReturn(Optional.empty());
     }

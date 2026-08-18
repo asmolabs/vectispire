@@ -15,7 +15,9 @@ import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.LoginAttempts;
+import com.asmolabs.zanshin.core.repositories.UserSessions;
+import com.asmolabs.zanshin.core.repositories.Users;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -32,18 +34,18 @@ class AuthServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
     private static final String PASSWORD = "correct horse battery staple";
 
-    private Repositories.Users users;
-    private Repositories.Sessions sessions;
-    private Repositories.LoginAttempts attempts;
+    private Users users;
+    private UserSessions sessions;
+    private LoginAttempts attempts;
     private AuthService service;
 
     private final List<LoginAttemptEntity> recorded = new ArrayList<>();
 
     @BeforeEach
     void wire() {
-        users = mock(Repositories.Users.class);
-        sessions = mock(Repositories.Sessions.class);
-        attempts = mock(Repositories.LoginAttempts.class);
+        users = mock(Users.class);
+        sessions = mock(UserSessions.class);
+        attempts = mock(LoginAttempts.class);
         service = new AuthService(users, sessions, attempts, Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC));
 
         recorded.clear();

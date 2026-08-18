@@ -7,7 +7,9 @@ import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.LoginAttempts;
+import com.asmolabs.zanshin.core.repositories.UserSessions;
+import com.asmolabs.zanshin.core.repositories.Users;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,16 +33,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    private final Repositories.Users users;
-    private final Repositories.Sessions sessions;
-    private final Repositories.LoginAttempts attempts;
+    private final Users users;
+    private final UserSessions sessions;
+    private final LoginAttempts attempts;
     private final Sessions.Policy policy;
     private final Clock clock;
 
     public AuthService(
-            Repositories.Users users,
-            Repositories.Sessions sessions,
-            Repositories.LoginAttempts attempts,
+            Users users,
+            UserSessions sessions,
+            LoginAttempts attempts,
             Sessions.Policy policy,
             Clock clock) {
         this.users = users;

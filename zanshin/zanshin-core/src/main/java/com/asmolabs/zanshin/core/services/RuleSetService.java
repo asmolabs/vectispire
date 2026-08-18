@@ -3,13 +3,14 @@ package com.asmolabs.zanshin.core.services;
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.zanshin.common.domain.rules.RuleSet;
 import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.RuleSetSummary;
+import com.asmolabs.zanshin.core.repositories.RuleSets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,12 +44,12 @@ public class RuleSetService {
 
     private static final TypeReference<List<StoredFile>> FILES = new TypeReference<>() {};
 
-    private final Repositories.RuleSets ruleSets;
-    private final Repositories.Issues issues;
+    private final RuleSets ruleSets;
+    private final Issues issues;
     private final ObjectMapper json;
     private final Clock clock;
 
-    public RuleSetService(Repositories.RuleSets ruleSets, Repositories.Issues issues, ObjectMapper json, Clock clock) {
+    public RuleSetService(RuleSets ruleSets, Issues issues, ObjectMapper json, Clock clock) {
         this.ruleSets = ruleSets;
         this.issues = issues;
         this.json = json;
@@ -80,7 +81,7 @@ public class RuleSetService {
         row.setSizeBytes(stored.stream()
                 .mapToLong(file -> file.content().getBytes(StandardCharsets.UTF_8).length)
                 .sum());
-        // `null`, not `false`. See `Repositories.RuleSets`: the unique index is the guard.
+        // `null`, not `false`. See `RuleSets`: the unique index is the guard.
         row.setIsActive(null);
         row.setUploadedBy(uploadedBy);
         row.setUploadedAt(clock.instant());

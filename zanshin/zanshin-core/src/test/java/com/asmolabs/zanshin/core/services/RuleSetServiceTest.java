@@ -9,11 +9,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.zanshin.common.domain.rules.RuleSet;
 import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.zanshin.core.repositories.RuleSets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
@@ -32,14 +33,14 @@ class RuleSetServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T09:00:00Z");
 
-    private Repositories.RuleSets ruleSets;
-    private Repositories.Issues issues;
+    private RuleSets ruleSets;
+    private Issues issues;
     private RuleSetService service;
 
     @BeforeEach
     void wire() {
-        ruleSets = mock(Repositories.RuleSets.class);
-        issues = mock(Repositories.Issues.class);
+        ruleSets = mock(RuleSets.class);
+        issues = mock(Issues.class);
         service = new RuleSetService(ruleSets, issues, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 
         when(ruleSets.save(any())).thenAnswer(call -> call.getArgument(0));

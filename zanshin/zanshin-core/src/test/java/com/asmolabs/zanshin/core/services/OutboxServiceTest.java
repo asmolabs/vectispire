@@ -13,7 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
 import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Outbox;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -34,13 +34,13 @@ class OutboxServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T14:00:00Z");
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-00000000000f");
 
-    private Repositories.Outbox messages;
+    private Outbox messages;
     private NotificationService notifications;
     private OutboxService service;
 
     @BeforeEach
     void wire() {
-        messages = mock(Repositories.Outbox.class);
+        messages = mock(Outbox.class);
         notifications = mock(NotificationService.class);
 
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);

@@ -11,7 +11,7 @@ import java.time.Instant;
  * — depending on configuration nobody reads.
  *
  * @param active {@code true} for the one active set, {@code null} for the others. See {@code
- *     Repositories.RuleSets} for why it is not {@code false}
+ *     RuleSets} for why it is not {@code false}
  */
 public record RuleSetSummary(
         Long id,

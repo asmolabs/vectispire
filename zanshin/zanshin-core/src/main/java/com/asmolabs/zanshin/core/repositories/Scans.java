@@ -31,9 +31,19 @@ import jakarta.persistence.QueryHint;
  * then trim it — was tried and made PostgreSQL fail the very tests MySQL was failing: a
  * claimant holding rows it will not take starves the others for as long as it holds them.
  */
-public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
+public interface Scans extends JpaRepository<ScanEntity, Long> {
 
     long countByStatus(String status);
+
+    /**
+     * How many scans of this target are already waiting.
+     *
+     * <p>Asked before queueing another: a target whose previous scan has not started yet does
+     * not need a second, and stacking them grows the queue without learning anything.
+     */
+    long countByStatusAndRepoId(String status, Long repoId);
+
+    long countByStatusAndContainerId(String status, Long containerId);
 
     /**
      * The rows this claimant is allowed to take, locked.

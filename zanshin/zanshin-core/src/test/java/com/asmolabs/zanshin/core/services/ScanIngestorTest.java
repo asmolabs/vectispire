@@ -13,6 +13,7 @@ import com.asmolabs.zanshin.common.scanning.scanners.SastScanner.SastFinding;
 import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner.SecretFinding;
 import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.zanshin.core.repositories.Findings;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

@@ -3,7 +3,7 @@ package com.asmolabs.zanshin.core.services;
 import com.asmolabs.zanshin.common.domain.audit.AuditChain;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.AuditLog;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -30,7 +30,7 @@ public class AuditLogService {
     /** The column's width. Truncated here so an over-long description costs its tail, not the entry. */
     private static final int DESCRIPTION_MAX_LENGTH = 255;
 
-    private final Repositories.AuditLog entries;
+    private final AuditLog entries;
     private final Clock clock;
 
     /**
@@ -46,11 +46,11 @@ public class AuditLogService {
      *
      * <p>Per instance, and that is a known limit: two instances writing in the same millisecond
      * legitimately fork, and verification breaks the tie on the identifier. See {@code
-     * Repositories.AuditLog#findAllByOrderByTimestampAscIdAsc}.
+     * AuditLog#findAllByOrderByTimestampAscIdAsc}.
      */
     private final AtomicLong lastIssued = new AtomicLong(Long.MIN_VALUE);
 
-    public AuditLogService(Repositories.AuditLog entries, Clock clock) {
+    public AuditLogService(AuditLog entries, Clock clock) {
         this.entries = entries;
         this.clock = clock;
     }

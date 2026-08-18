@@ -1,14 +1,15 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.IssueFingerprint;
+import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Repositories;
+import com.asmolabs.zanshin.core.repositories.Findings;
+import com.asmolabs.zanshin.core.repositories.Issues;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -39,11 +40,11 @@ public class IssueSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
 
-    private final Repositories.Issues issues;
-    private final Repositories.Findings findings;
+    private final Issues issues;
+    private final Findings findings;
     private final Clock clock;
 
-    public IssueSyncService(Repositories.Issues issues, Repositories.Findings findings, Clock clock) {
+    public IssueSyncService(Issues issues, Findings findings, Clock clock) {
         this.issues = issues;
         this.findings = findings;
         this.clock = clock;

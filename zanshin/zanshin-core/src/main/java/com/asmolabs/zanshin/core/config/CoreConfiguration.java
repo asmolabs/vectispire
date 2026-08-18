@@ -3,10 +3,11 @@ package com.asmolabs.zanshin.core.config;
 import com.asmolabs.zanshin.common.domain.auth.Sessions;
 import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
+import com.asmolabs.zanshin.core.repositories.UserSessions;
 import java.time.Clock;
 import java.time.Duration;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
