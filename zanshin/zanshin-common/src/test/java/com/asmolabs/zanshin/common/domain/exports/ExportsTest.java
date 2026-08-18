@@ -276,7 +276,7 @@ class ExportsTest {
                             .packageVersion("2.31.0")
                             .fixVersions("2.32.0")
                             .kev(true)
-                            .directDependency(false)
+                            .directness(com.asmolabs.zanshin.common.domain.dependencies.Directness.TRANSITIVE)
                             .build()),
                     new SarifExport.Options("api-service"));
 
@@ -353,7 +353,7 @@ class ExportsTest {
         void unknownDependencyIsEmpty() {
             // A column filled with "unknown" reads as a finding about the dependency, when the
             // honest statement is that we have nothing to say about it.
-            String csv = IssueCsv.build(List.of(issue().directDependency(null).build()));
+            String csv = IssueCsv.build(List.of(issue().directness(com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN).build()));
             String[] header = csv.split("\r\n")[0].split(",");
             String[] row = csv.split("\r\n")[1].split(",", -1);
 

@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.common.domain.exports;
 
+import com.asmolabs.zanshin.common.domain.dependencies.Directness;
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
@@ -16,8 +17,8 @@ import java.time.Instant;
  * @param fingerprint what lets a platform match this issue across uploads even when the
  *     file moves and the line shifts
  * @param resolved whether the scanner has stopped seeing it
- * @param directDependency {@code null} when nothing is known — which is not the same as
- *     transitive, and the exports keep the difference
+ * @param directness three states, not two: "we do not know" is not "transitive", and the
+ *     exports keep the difference rather than printing a guess
  */
 public record ExportableIssue(
         long id,
@@ -31,7 +32,7 @@ public record ExportableIssue(
         String packageName,
         String packageVersion,
         String purl,
-        Boolean directDependency,
+        Directness directness,
         String filePath,
         Integer line,
         FixState fixState,
@@ -51,6 +52,7 @@ public record ExportableIssue(
 
     public ExportableIssue {
         severity = severity == null ? Severity.UNKNOWN : severity;
+        directness = directness == null ? Directness.UNKNOWN : directness;
     }
 
     /** Whether a fix has been published upstream. */
@@ -92,7 +94,7 @@ public record ExportableIssue(
         private String packageName;
         private String packageVersion;
         private String purl;
-        private Boolean directDependency;
+        private Directness directness = Directness.UNKNOWN;
         private String filePath;
         private Integer line;
         private FixState fixState;
@@ -121,7 +123,7 @@ public record ExportableIssue(
         public Builder packageName(String value) { this.packageName = value; return this; }
         public Builder packageVersion(String value) { this.packageVersion = value; return this; }
         public Builder purl(String value) { this.purl = value; return this; }
-        public Builder directDependency(Boolean value) { this.directDependency = value; return this; }
+        public Builder directness(Directness value) { this.directness = value; return this; }
         public Builder filePath(String value) { this.filePath = value; return this; }
         public Builder line(Integer value) { this.line = value; return this; }
         public Builder fixState(FixState value) { this.fixState = value; return this; }
@@ -142,7 +144,7 @@ public record ExportableIssue(
         public ExportableIssue build() {
             return new ExportableIssue(
                     id, fingerprint, type, identifier, severity, cvssScore, epssScore, kev, packageName,
-                    packageVersion, purl, directDependency, filePath, line, fixState, fixVersions, link,
+                    packageVersion, purl, directness, filePath, line, fixState, fixVersions, link,
                     description, resolved, triageStatus, triageJustification, triageComment, triagedBy,
                     triagedAt, triageExpiresAt, firstSeenAt, lastSeenAt, timesSeen);
         }

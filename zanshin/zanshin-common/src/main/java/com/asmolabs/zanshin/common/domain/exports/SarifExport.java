@@ -174,8 +174,8 @@ public final class SarifExport {
         properties.put("type", issue.type() == null ? null : issue.type().wireName());
         properties.put("firstSeen", issue.firstSeenAt() == null ? "" : Digests.canonical(issue.firstSeenAt()));
         properties.put("timesSeen", issue.timesSeen() == null || issue.timesSeen() == 0 ? 1 : issue.timesSeen());
-        if (issue.directDependency() != null) {
-            properties.put("dependency", issue.directDependency() ? "direct" : "transitive");
+        if (issue.directness() != com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN) {
+            properties.put("dependency", issue.directness().label());
         }
 
         return new SarifLog.Result(
@@ -214,7 +214,7 @@ public final class SarifExport {
         if (issue.kev()) {
             message.append(" — known active exploitation (CISA KEV)");
         }
-        if (Boolean.FALSE.equals(issue.directDependency())) {
+        if (issue.directness() == com.asmolabs.zanshin.common.domain.dependencies.Directness.TRANSITIVE) {
             message.append(" — transitive dependency");
         }
         return message.toString();

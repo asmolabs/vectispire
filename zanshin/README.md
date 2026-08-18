@@ -124,7 +124,9 @@ suite that skips itself reports green without having checked anything.
 | `LicenseBlocklist`, `LifeCycle` (end of life) | done |
 | `NotificationPayload`, `NotificationSelection`, `OutboxRetry` | done |
 | `Tickets`, `TicketProvider` | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 293 tests |
+| `DependencyGraph`, `Directness` | done |
+| `AiReview` — the prompt, and reading what a model returns | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 313 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,

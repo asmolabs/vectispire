@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.common.domain.tickets;
 
+import com.asmolabs.zanshin.common.domain.dependencies.Directness;
 import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
@@ -52,7 +53,7 @@ public final class Tickets {
             String packageVersion,
             String fixVersions,
             FixState fixState,
-            Boolean directDependency,
+            Directness directness,
             String filePath,
             Integer line,
             boolean kev,
@@ -94,9 +95,9 @@ public final class Tickets {
             lines.add("- Component: " + issue.packageName()
                     + (blank(issue.packageVersion()) ? "" : " " + issue.packageVersion()));
         }
-        if (issue.directDependency() != null) {
+        if (issue.directness() != Directness.UNKNOWN) {
             lines.add("- Dependency: "
-                    + (issue.directDependency() ? "direct (declared by the project)" : "transitive"));
+                    + (issue.directness() == Directness.DIRECT ? "direct (declared by the project)" : "transitive"));
         }
         if (!blank(issue.filePath())) {
             lines.add("- Location: " + issue.filePath() + (issue.line() == null ? "" : ":" + issue.line()));

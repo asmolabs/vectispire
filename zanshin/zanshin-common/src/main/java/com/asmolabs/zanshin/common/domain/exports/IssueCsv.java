@@ -35,7 +35,7 @@ public final class IssueCsv {
         PACKAGE_NAME("package_name", ExportableIssue::packageName),
         PACKAGE_VERSION("package_version", ExportableIssue::packageVersion),
         PURL("purl", ExportableIssue::purl),
-        DEPENDENCY("dependency", IssueCsv::dependencyLabel),
+        DEPENDENCY("dependency", issue -> issue.directness().label()),
         FILE_PATH("file_path", ExportableIssue::filePath),
         LINE("line", issue -> issue.line() == null || issue.line() == 0 ? "" : String.valueOf(issue.line())),
         FIX_STATE("fix_state", issue -> issue.fixState() == null ? "" : issue.fixState().wireName()),
@@ -127,19 +127,6 @@ public final class IssueCsv {
             return safe;
         }
         return '"' + safe.replace("\"", "\"\"") + '"';
-    }
-
-    /**
-     * Empty rather than "unknown".
-     *
-     * <p>A column filled with the word "unknown" reads as a finding about the dependency, when
-     * the honest statement is that we have nothing to say about it.
-     */
-    private static String dependencyLabel(ExportableIssue issue) {
-        if (issue.directDependency() == null) {
-            return "";
-        }
-        return issue.directDependency() ? "direct" : "transitive";
     }
 
     private static String number(Double value) {

@@ -16,7 +16,7 @@ class TicketsTest {
     private static TicketableIssue issue() {
         return new TicketableIssue(
                 42, FindingType.VULNERABILITY, "CVE-2024-1234", Severity.HIGH, "requests", "2.31.0",
-                "2.32.0", FixState.FIXED, true, null, null, true, 0.9754, "https://example/CVE-2024-1234",
+                "2.32.0", FixState.FIXED, com.asmolabs.zanshin.common.domain.dependencies.Directness.DIRECT, null, null, true, 0.9754, "https://example/CVE-2024-1234",
                 null, "abc123");
     }
 
@@ -31,7 +31,7 @@ class TicketsTest {
     @DisplayName("falls back to the finding type when there is no identifier")
     void titleWithoutIdentifier() {
         TicketableIssue anonymous = new TicketableIssue(
-                1, FindingType.SECRET, null, Severity.CRITICAL, null, null, null, null, null, "app.py", 12,
+                1, FindingType.SECRET, null, Severity.CRITICAL, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, "app.py", 12,
                 false, null, null, null, "f");
 
         assertThat(Tickets.title(anonymous, "api")).isEqualTo("[Zanshin][CRITICAL] secret (api)");
@@ -54,7 +54,7 @@ class TicketsTest {
     void noPublishedFix() {
         TicketableIssue unfixable = new TicketableIssue(
                 1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, "pkg", "1.0", null, FixState.NOT_FIXED,
-                null, null, null, false, null, null, null, "f");
+                com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null, false, null, null, null, "f");
 
         assertThat(Tickets.body(unfixable, "api")).contains("- No published fix to date");
     }
@@ -82,7 +82,7 @@ class TicketsTest {
     @DisplayName("truncates a description that would bury the conclusion")
     void truncatesTheDescription() {
         TicketableIssue verbose = new TicketableIssue(
-                1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, null, null, null, null, null, null, null,
+                1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null,
                 false, null, null, "x".repeat(5000), "f");
 
         assertThat(Tickets.body(verbose, "api")).contains("x".repeat(1000)).doesNotContain("x".repeat(1001));
@@ -92,7 +92,7 @@ class TicketsTest {
     @DisplayName("omits what it does not know rather than printing a placeholder")
     void omitsUnknownFields() {
         TicketableIssue sparse = new TicketableIssue(
-                1, FindingType.IAC, "CKV_AWS_1", Severity.MEDIUM, null, null, null, null, null, null, null,
+                1, FindingType.IAC, "CKV_AWS_1", Severity.MEDIUM, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null,
                 false, null, null, null, "f");
         String body = Tickets.body(sparse, "api");
 
