@@ -2,8 +2,10 @@
 
 A port of the NestJS control plane to **Spring Boot 4.1 / JDK 25**, built with Gradle.
 
-It runs **alongside** `backend/`, not instead of it — the NestJS implementation stays readable
-while the Java one is written, and is deleted once this one is complete.
+It runs **alongside** `backend/`, not instead of it. The port is complete — every service,
+every route and the remote agent — but the NestJS tree stays until somebody has run this one
+against a real deployment. Deleting the reference implementation before that would remove the
+only thing to compare a surprise against.
 
 **It is not a transliteration.** No instance of Zanshin has been run, so there is no stored
 data to stay compatible with, and byte-for-byte fidelity is not a goal. Several constraints in
@@ -63,7 +65,9 @@ the same commit that violates it; a missing dependency cannot.
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
-| Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` *(not yet ported)* |
+| Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
+| An expired session, a reset password and a role change all close the sessions | `UsersController` |
+| A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 
 ### Two things the original could not fix, fixed here
 
@@ -109,18 +113,24 @@ which is global mutable state in a process that also serves HTTP.
 
 The schema is one changelog rather than one migration set per dialect. That is the requested
 trade: less duplication, at the price of hiding where engines actually disagree — `tinyint(1)`
-against `tinyint`, `timestamptz` against `datetime` — which is where all three divergences
-found so far were.
+against `tinyint`, `timestamptz` against `datetime` — which is where every divergence found so
+far has been.
 
-It has already earned its keep, before the entities even exist. Written the tidy way —
-`addForeignKeyConstraint` after the tables — the changelog applies **without complaint** on
+The caveat proved out, and the executed checks are what caught it — five times over: SQLite silently creating no foreign keys,
+`int` against `Long` identifiers, MySQL and MariaDB disagreeing with *each other* about
+booleans, SQLite refusing `AUTOINCREMENT` on anything but `INTEGER PRIMARY KEY`, and a SQLite
+timestamp that wrote fine and failed to read back — that last one invisible to any comparison
+of type names.
+
+Written the tidy way — `addForeignKeyConstraint` after the tables — the changelog applies
+**without complaint** on
 SQLite and creates no constraint at all: referential integrity on three engines out of four,
 and nothing saying so. `ChangelogTest` caught it in a second by running the thing, and now
 asserts the twelve foreign keys are really there.
 
-**Strict parity is not in place yet, and this is the honest state of it.** `ChangelogTest`
-proves the changelog applies and that the twelve foreign keys exist; it does not compare column
-types against the entities. A first attempt did that on SQLite and was abandoned deliberately:
+**Strict parity is split in two, deliberately.** `ChangelogTest` proves the changelog applies
+and that the twelve foreign keys exist, on SQLite, in a second. It does not compare column types
+against the entities: a first attempt did that on SQLite and was abandoned deliberately —
 SQLite has no types, only affinities, so `datetime` is stored as TEXT and a type-name comparison
 there measures Liquibase's naming choices rather than whether the mapping works. Strict
 validation belongs on the three engines that have real types, and SQLite's mapping is better
@@ -133,22 +143,44 @@ suite that skips itself reports green without having checked anything.
 
 ## State of the port
 
+Complete. `backend/src` has a counterpart everywhere, and the suite that proves it runs on four
+engines.
+
 | | |
 |---|---|
 | Build, three modules, architecture suite | done |
-| **`zanshin-common/domain` — the whole layer** | **done** |
-| **`zanshin-common/scanning` — the whole layer** | **done** |
-| `zanshin-core` — the schema changelog | done, executed on SQLite |
-| `zanshin-core` — entities, repositories, services, api | not started |
-| `zanshin-agent` — the protocol | not started |
+| `zanshin-common/domain` and `zanshin-common/scanning` | done |
+| `zanshin-core` — schema, entities, repositories | done |
+| `zanshin-core` — services | done |
+| `zanshin-core` — API, security, agent protocol | done |
+| `zanshin-agent` | done |
 
-The domain layer is complete: every package under `backend/src/domain/` has a counterpart,
-with one exception noted on purpose — `domain/common` held two timestamp helpers, and both
-were replaced by what the JDK already provides (`Clock` for the first, `appendInstant(3)` for
-the second). What survived is the *reason* the second existed, which now lives next to the
-hashing it exists for.
+`ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer
+is populated, so an empty one now means a package was renamed or deleted, and that rule going
+quiet is exactly how it would go unnoticed.
 
-`ArchitectureTest` still runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
-because `core`'s layers are not populated yet. **Both must be removed once the port lands** —
-until then the suite proves less than it appears to, which is why it is written down here
-rather than left in a comment.
+### What the port changed on purpose
+
+Each of these is a place where the TypeScript documented a compromise it could not escape, or
+where reading it closely turned up something nobody had noticed. The reasoning lives in the
+code; this is the index.
+
+| | |
+|---|---|
+| `mustChangePassword` was enforced by the Angular client alone — a direct API call ignored it, and the bootstrap password stayed a valid SUPERUSER credential with no expiry | `PasswordChangeInterceptor` |
+| Resetting a password did not close the account's sessions, so a stolen token kept working for twelve hours while the screen confirmed the change | `UsersController` |
+| The dispatcher consulted the transport and not the agent's `credentialsMode`, so an agent declared `local` received every repository's decrypted deployment key | `ScanDispatcher` |
+| A malformed notification threshold fell back to `UNKNOWN`, which ranks last — the threshold silently let everything through | `NotificationService` |
+| The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityController` |
+| The backlog grouping took a column name as a string parameter | `Issues` |
+| `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
+| Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |
+
+### Where the port is deliberately different in shape
+
+| | |
+|---|---|
+| The agent's long poll parks a `DeferredResult` instead of sleeping in a service; a servlet container cannot afford a thread per idle agent | `AgentJobPoller` |
+| Transaction boundaries called from inside a class use `TransactionTemplate`, not `@Transactional` — the proxy is bypassed there, and the annotation reads as a guarantee while protecting nothing | `ScanDispatcher`, `OutboxService` |
+| Settings are read through the `Setting` catalog, not by key plus a caller-supplied default that could drift from the screen's | `SettingsService` |
+| Spring Boot 4 auto-configures Jackson **3**; this codebase is annotated for Jackson 2, so the mapper is declared explicitly on both sides of the agent protocol | `CoreConfiguration` |
