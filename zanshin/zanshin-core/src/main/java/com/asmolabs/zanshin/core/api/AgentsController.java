@@ -4,6 +4,7 @@ import com.asmolabs.zanshin.common.domain.agents.AgentContract;
 import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
+import com.asmolabs.zanshin.core.api.security.RequiresAgentKey;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
 import com.asmolabs.zanshin.core.repositories.Agents;
@@ -46,6 +47,7 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestController
 @RequestMapping("/api/v1/agent")
+@RequiresAgentKey
 public class AgentsController {
 
     private final ScanDispatcher dispatcher;

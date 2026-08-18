@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.api;
 
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/quality")
+@RequiresAccount
 public class QualityController {
 
     /** Eight: enough to see a pattern, few enough that the list is read rather than scrolled. */

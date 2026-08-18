@@ -5,6 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import org.springframework.data.domain.Persistable;
+import jakarta.persistence.Transient;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -21,10 +25,22 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "t_ssh_key")
-public class SshKeyEntity {
+public class SshKeyEntity implements Persistable<UUID> {
+
+
+    /**
+     * Assigned, not generated, and therefore {@link Persistable}.
+     *
+     * <p>The identifier has to exist <em>before</em> the row does: it is the encryption context the private key is sealed under, so the ciphertext cannot be built without it.
+     *
+     * <p>Spring Data decides insert-versus-update from "is the id null", so an assigned id makes
+     * every save a merge — which on a row that does not exist yet fails rather than inserting.
+     * {@code isNew} answers the question honestly instead.
+     */
+    @Transient
+    private boolean persisted;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "id", nullable = false)
     private UUID id;
@@ -81,5 +97,17 @@ public class SshKeyEntity {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    @Override
+    public boolean isNew() {
+        return !persisted;
+    }
+
+    /** Both callbacks, so a row read back is never mistaken for one that has yet to be written. */
+    @PostLoad
+    @PostPersist
+    void markPersisted() {
+        this.persisted = true;
     }
 }

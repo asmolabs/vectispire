@@ -6,6 +6,7 @@ import com.asmolabs.zanshin.common.domain.exports.OpenVexDocument;
 import com.asmolabs.zanshin.common.domain.exports.OpenVexExport;
 import com.asmolabs.zanshin.common.domain.exports.SarifExport;
 import com.asmolabs.zanshin.common.domain.exports.SarifLog;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.services.ExportProperties;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/targets/{kind}/{id}")
+@RequiresAccount
 public class ExportsController {
 
     /**

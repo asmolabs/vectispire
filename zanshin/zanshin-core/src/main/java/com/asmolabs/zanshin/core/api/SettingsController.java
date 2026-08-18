@@ -11,7 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -33,6 +34,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/settings")
+// The catalog is readable by any account — the screen needs the labels and the types — and the
+// two writing routes narrow it to administrators. A method's own marker wins over the class's,
+// which is what lets one controller carry two different rules without a second controller.
+@RequiresAccount
 public class SettingsController {
 
     private final SettingsService settings;
@@ -98,7 +103,7 @@ public class SettingsController {
         return new Catalog(views);
     }
 
-    @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+    @RequiresAdministrator
     @PutMapping
     public Map<String, Integer> update(
             @RequestBody Map<String, String> body,
@@ -151,7 +156,7 @@ public class SettingsController {
      * have needed an exception at every step — read, validate, audit — and one of them would
      * eventually have been forgotten.
      */
-    @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+    @RequiresAdministrator
     @PutMapping("/ticket-token")
     public Map<String, Boolean> setTicketToken(
             @RequestBody TokenRequest body,

@@ -8,6 +8,7 @@ import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
 import com.asmolabs.zanshin.common.domain.gate.SeverityRequest;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.services.GateService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1")
+@RequiresAccount
 public class GateController {
 
     private final GateService gate;

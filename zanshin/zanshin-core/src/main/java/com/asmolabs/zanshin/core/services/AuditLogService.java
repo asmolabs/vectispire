@@ -88,7 +88,6 @@ public class AuditLogService {
                     .orElse(null);
 
             AuditLogEntity row = new AuditLogEntity();
-            row.setId(UUID.randomUUID());
             // Set here rather than left to a column default: the hash covers the timestamp, and
             // a value applied by the database after the computation would make every entry fail
             // its own verification.

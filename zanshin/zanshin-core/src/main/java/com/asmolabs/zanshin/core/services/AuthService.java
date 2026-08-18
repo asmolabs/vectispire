@@ -202,7 +202,6 @@ public class AuthService {
 
     private void recordFailure(String counterKey, Instant now) {
         LoginAttemptEntity attempt = new LoginAttemptEntity();
-        attempt.setId(UUID.randomUUID());
         attempt.setCounterKey(counterKey);
         attempt.setOccurredAt(now);
         attempts.save(attempt);

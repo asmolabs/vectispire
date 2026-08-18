@@ -30,7 +30,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -52,7 +52,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/admin/agents")
-@PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+@RequiresAdministrator
 public class AgentsAdminController {
 
     /** Past this without a word, an agent counts as offline. */
@@ -177,17 +177,17 @@ public class AgentsAdminController {
         Instant at = clock.instant();
 
         ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(UUID.randomUUID());
         key.setName("Agent " + name);
         key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
         key.setPrefix(issued.prefix());
         // The only scope: an agent has no business reading the backlog or exporting anything.
         key.setScopes(ApiKeyScope.AGENT.wireName());
         key.setCreatedAt(at);
-        keys.save(key);
+        // Saved before the agent, because the agent points at it: the identifier is generated
+        // by the insert, so reading it any earlier reads null.
+        ApiKeyEntity savedKey = keys.save(key);
 
         AgentEntity agent = new AgentEntity();
-        agent.setId(UUID.randomUUID());
         agent.setName(name);
         agent.setDescription(text(body.description()));
         agent.setKind(AgentKind.REMOTE.wireName());
@@ -197,7 +197,7 @@ public class AgentsAdminController {
         agent.setLabels(joinedLabels(body.labels()));
         agent.setEnabled(true);
         agent.setMaxConcurrent(body.maxConcurrent() == null ? 1 : body.maxConcurrent());
-        agent.setApiKeyId(key.getId());
+        agent.setApiKeyId(savedKey.getId());
         agent.setCreatedAt(at);
 
         AgentEntity saved = agents.save(agent);

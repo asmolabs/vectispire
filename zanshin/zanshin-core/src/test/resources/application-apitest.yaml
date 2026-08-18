@@ -1,0 +1,39 @@
+# The API suite's configuration.
+#
+# SQLite in a temporary file rather than in memory: Liquibase and Hibernate open their own
+# connections, and `:memory:` gives each connection a *different* empty database — the schema
+# would be built in one and validated against another, and the failure reads as "missing table".
+spring:
+  datasource:
+    # The URL is set per run by `ApiTestBase`, so each JVM gets a database nobody has touched.
+    username: ""
+    password: ""
+  jpa:
+    hibernate:
+      # `none`, not `validate`, and only here. SQLite has affinities rather than types, so it
+      # reports `numeric` back as FLOAT and validation fails on every timestamp column — which
+      # says something about SQLite's type system and nothing about the mapping. Parity is the
+      # database campaign's job, on the three engines that have real types; this suite is about
+      # the HTTP surface.
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+zanshin:
+  # The periodic jobs are switched off, not merely slowed: a scheduler tick firing mid-test
+  # would queue scans no assertion accounts for, and the failure would be intermittent — the
+  # one kind nobody can debug from a CI log.
+  worker:
+    enabled: false
+  jobs:
+    relay-interval: 24h
+    scheduler-interval: 24h
+    maintenance-interval: 24h
+  bootstrap:
+    username: ""
+    password: ""
+  encryption:
+    key: dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcyEh

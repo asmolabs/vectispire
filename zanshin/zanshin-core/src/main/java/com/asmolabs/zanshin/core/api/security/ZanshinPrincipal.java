@@ -81,9 +81,19 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
         return "";
     }
 
+    /**
+     * <b>The token itself, not the row behind it.</b>
+     *
+     * <p>{@code @AuthenticationPrincipal} injects whatever this returns, and every controller
+     * asks for a {@code ZanshinPrincipal}. Returning the {@code UserEntity} — the obvious
+     * reading of "principal" — made the types disagree, so Spring injected {@code null} into
+     * every authenticated route in the application. Nothing failed to compile and no unit test
+     * could see it: the first symptom was a NullPointerException on the first real request,
+     * found by the first test that made one.
+     */
     @Override
     public Object getPrincipal() {
-        return user != null ? user : agent;
+        return this;
     }
 
     @Override

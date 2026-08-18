@@ -22,7 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +37,9 @@ import org.springframework.web.bind.annotation.RestController;
 /** The container images under watch, and triggering their scans. */
 @RestController
 @RequestMapping("/api/v1/containers")
+// Listing is readable by any account; creating, scanning and deleting are administrators' —
+// a scan costs machine time and the queue is shared. The method's marker wins over the class's.
+@RequiresAccount
 public class ContainersController {
 
     private final Containers containers;
@@ -100,7 +104,7 @@ public class ContainersController {
                 .toList();
     }
 
-    @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+    @RequiresAdministrator
     @PostMapping
     public Summary create(
             @RequestBody CreateRequest body,
@@ -134,7 +138,7 @@ public class ContainersController {
                 .orElseThrow();
     }
 
-    @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+    @RequiresAdministrator
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
             @PathVariable long id,
@@ -150,7 +154,7 @@ public class ContainersController {
         return new QueuedScan(scan.getId(), scan.getStatus());
     }
 
-    @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+    @RequiresAdministrator
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(

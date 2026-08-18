@@ -18,7 +18,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** The deployment keys. Administrators only, and the private half never leaves. */
 @RestController
 @RequestMapping("/api/v1/ssh-keys")
-@PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+@RequiresAdministrator
 public class SshKeysController {
 
     /**

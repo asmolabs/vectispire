@@ -23,7 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** The API keys. Administrators only. */
 @RestController
 @RequestMapping("/api/v1/api-keys")
-@PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+@RequiresAdministrator
 public class ApiKeysController {
 
     private final ApiKeysRepository keys;
@@ -135,7 +135,6 @@ public class ApiKeysController {
         Instant issuedAt = clock.instant();
 
         ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(UUID.randomUUID());
         key.setName(name);
         key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
         key.setPrefix(issued.prefix());

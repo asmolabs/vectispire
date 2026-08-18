@@ -3,7 +3,9 @@ package com.asmolabs.zanshin.core.api;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.common.domain.users.AccountRules;
+import com.asmolabs.zanshin.core.api.security.OpenToAnonymous;
 import com.asmolabs.zanshin.core.api.security.PasswordChangeGate;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.repositories.UserSessions;
@@ -61,6 +63,7 @@ public class AuthController {
 
     public record ChangePasswordRequest(String currentPassword, String newPassword) {}
 
+    @OpenToAnonymous
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest body, HttpServletRequest request) {
         AuthService.LoginResult result = auth.login(new AuthService.LoginRequest(
@@ -94,6 +97,7 @@ public class AuthController {
         };
     }
 
+    @RequiresAccount
     @PasswordChangeGate
     @DeleteMapping("/session")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -114,6 +118,7 @@ public class AuthController {
      * of its meaning. The current session survives, or the screen would bounce back to the login
      * page immediately after succeeding.
      */
+    @RequiresAccount
     @PasswordChangeGate
     @PostMapping("/change-password")
     public Map<String, Object> changePassword(
@@ -151,6 +156,7 @@ public class AuthController {
         return Map.of("mustChangePassword", false);
     }
 
+    @RequiresAccount
     @PasswordChangeGate
     @GetMapping("/me")
     public ResponseEntity<UserSummary> me(@AuthenticationPrincipal ZanshinPrincipal principal) {

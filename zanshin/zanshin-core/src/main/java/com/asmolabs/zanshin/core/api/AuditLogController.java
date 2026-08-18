@@ -7,7 +7,7 @@ import com.asmolabs.zanshin.core.services.AuditLogService;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** The audit trail, and its integrity. Administrators only. */
 @RestController
 @RequestMapping("/api/v1/audit-log")
-@PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN')")
+@RequiresAdministrator
 public class AuditLogController {
 
     private static final int DEFAULT_PAGE_SIZE = 50;

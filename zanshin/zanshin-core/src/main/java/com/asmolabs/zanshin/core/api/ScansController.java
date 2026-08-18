@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.persistence.FindingEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Findings;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/scans")
+@RequiresAccount
 public class ScansController {
 
     private static final int MAX_FINDINGS = 500;

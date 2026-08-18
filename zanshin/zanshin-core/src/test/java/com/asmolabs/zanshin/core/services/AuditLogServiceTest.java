@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,9 +36,15 @@ class AuditLogServiceTest {
         entries = mock(AuditLog.class);
         service = new AuditLogService(entries, Clock.fixed(NOW, ZoneOffset.UTC));
 
+        // The fake assigns an identifier, because the database does: the column is
+        // `@GeneratedValue`, and a fake that leaves it null tests a row shape production never
+        // produces — then fails on the read path for a reason that has nothing to do with the
+        // chain.
         when(entries.save(any())).thenAnswer(call -> {
-            stored.add(call.getArgument(0));
-            return call.getArgument(0);
+            AuditLogEntity row = call.getArgument(0);
+            row.setId(UUID.randomUUID());
+            stored.add(row);
+            return row;
         });
         when(entries.findTopByOrderByTimestampDescIdDesc())
                 .thenAnswer(call -> stored.stream().max(Comparator.comparing(AuditLogEntity::getTimestamp)));
@@ -76,6 +83,8 @@ class AuditLogServiceTest {
     @Test
     @DisplayName("a write failure never fails the action being described")
     void aFullTableDoesNotStopAnAdministratorLoggingIn() {
+        org.mockito.Mockito.reset(entries);
+        when(entries.findTopByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
         when(entries.save(any())).thenThrow(new IllegalStateException("disk full"));
 
         // No exception: the opposite would give a full table the power to block authentication.
