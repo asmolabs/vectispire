@@ -1,6 +1,8 @@
 package com.asmolabs.zanshin.common.scanning;
 
 import com.asmolabs.zanshin.common.domain.targets.ImageReference;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.Optional;
 import java.util.Set;
 
@@ -22,6 +24,18 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps) {
         SAST
     }
 
+    /**
+     * <b>Carries a discriminator on the wire.</b> A sealed interface tells the compiler which
+     * shapes exist; it tells a JSON parser nothing, so a task handed to a remote agent
+     * deserialized into an exception — one an agent could only read as "the control plane sent
+     * something broken". The name is part of the agent contract now, which is why it is spelled
+     * out here rather than derived from the class name.
+     */
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(value = Target.Repository.class, name = "repository"),
+        @JsonSubTypes.Type(value = Target.Image.class, name = "image")
+    })
     public sealed interface Target {
 
         /**

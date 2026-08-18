@@ -14,7 +14,19 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
  * of.
  */
 @SpringBootApplication
+@org.springframework.boot.context.properties.ConfigurationPropertiesScan
 public class ZanshinAgentApplication {
+
+    /**
+     * The clock, injected rather than called.
+     *
+     * <p>Same reason as in the control plane: a scan's duration is computed from it, and a
+     * duration nobody can fix in a test is a duration nobody has ever asserted.
+     */
+    @org.springframework.context.annotation.Bean
+    java.time.Clock clock() {
+        return java.time.Clock.systemUTC();
+    }
 
     public static void main(String[] args) {
         new SpringApplicationBuilder(ZanshinAgentApplication.class)
