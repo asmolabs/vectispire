@@ -21,3 +21,7 @@ frontend/openapi.json
 # 32,000 untracked files. Safe to delete `.web/` and drop these two lines with it.
 .web
 .states
+
+# Gradle build output for the JVM port
+zanshin/**/build/
+zanshin/**/.gradle/
