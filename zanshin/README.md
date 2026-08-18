@@ -58,6 +58,7 @@ the same commit that violates it; a missing dependency cannot.
 | Only `repositories` speaks SQL | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
+| A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` *(not yet ported)* |
 
 ### Two things the original could not fix, fixed here
@@ -97,7 +98,9 @@ suite that skips itself reports green without having checked anything.
 | | |
 |---|---|
 | Build, three modules, architecture suite | done |
-| `Digests` (BouncyCastle), `IssueFingerprint`, `AuditChain`, `FindingType`, `ScanTarget` | done, 34 tests |
+| `Digests` (BouncyCastle), `IssueFingerprint`, `AuditChain` | done |
+| `PolicyGate` — verdict and request hardening | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanTarget`, `PolicyFlag` | done, 53 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
