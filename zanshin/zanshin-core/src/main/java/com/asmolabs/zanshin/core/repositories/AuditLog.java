@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
     /**
@@ -40,6 +41,7 @@ public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
      * rewrite columns the rebuild has no business touching, on a table whose whole purpose
      * is that its rows do not change.
      */
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("update AuditLogEntity a set a.previousHash = :previousHash, a.entryHash = :entryHash where a.id = :id")
     int updateHashes(

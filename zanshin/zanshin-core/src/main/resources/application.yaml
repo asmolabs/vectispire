@@ -45,3 +45,18 @@ zanshin:
     # Comma-separated. Keys kept only for reading, so a rotation does not have to rewrite
     # every row before the new key takes effect.
     previous-keys: ${ZANSHIN_PREVIOUS_ENCRYPTION_KEYS:}
+
+  worker:
+    # Empty labels on purpose: the built-in worker takes only work with no requirement. The
+    # opposite would make targeting useless on any single-instance install, which is most.
+    enabled: ${ZANSHIN_EMBEDDED_WORKER:true}
+    max-concurrent: ${ZANSHIN_SCAN_MAX_CONCURRENT:2}
+    labels: ${ZANSHIN_WORKER_LABELS:}
+    interval: ${ZANSHIN_WORKER_INTERVAL:15s}
+
+  jobs:
+    # One minute is the backoff policy's shortest retry: slower makes a due message wait longer
+    # than intended, faster finds nothing to do.
+    relay-interval: ${ZANSHIN_RELAY_INTERVAL:60s}
+    scheduler-interval: ${ZANSHIN_SCHEDULER_INTERVAL:60s}
+    maintenance-interval: ${ZANSHIN_MAINTENANCE_INTERVAL:1h}

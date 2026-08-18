@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.QueryHint;
 
 /**
@@ -109,7 +110,7 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
      * two claimants racing on the same row both issue the update, and exactly one of them
      * changes a row.
      */
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
@@ -131,6 +132,7 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
      * lapsed and whose scan was taken over must renew nothing, and reading then writing would
      * leave exactly the window in which it could.
      */
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s set s.leaseExpiresAt = :leaseExpiresAt
@@ -147,6 +149,7 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
      * <p>A failed scan that kept its lease would be picked up by the next reclaim, fail again,
      * and go round until its attempts ran out.
      */
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
@@ -161,4 +164,36 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
              where s.status = :status
                and (s.leaseExpiresAt is null or s.leaseExpiresAt < :asOf)""")
     List<ScanEntity> findLapsed(@Param("status") String status, @Param("asOf") Instant asOf);
+
+    /**
+     * The scans that still carry a raw payload, newest first, with only the deciding columns.
+     *
+     * <p><b>Newest first is not cosmetic</b>: the retention rule ranks a target's scans in that
+     * order to decide which fall outside the keep window. Any other sort would purge the most
+     * recent scans — precisely the ones the payloads exist for — and nothing would say so.
+     *
+     * <p>Columns rather than entities, because loading the entities would read back the
+     * megabytes this purge exists to stop carrying.
+     */
+    @Query("""
+            select s.id, s.repoId, s.containerId, s.createdAt from ScanEntity s
+             where s.sbom is not null or s.cves is not null
+             order by s.createdAt desc, s.id desc""")
+    List<Object[]> findPayloadBearing();
+
+    @Query("select count(s.id) from ScanEntity s where s.sbom is not null or s.cves is not null")
+    long countPayloadBearing();
+
+    /**
+     * Erases the raw payloads of a batch of scans.
+     *
+     * <p>A bulk update, and the columns are set to a real SQL {@code null}. Going through an
+     * entity risks writing a JSON {@code null} literal into a JSON column, which satisfies
+     * {@code is not null}: the purge would then re-select the same rows on every pass, free
+     * nothing, and report a perfectly credible count.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update ScanEntity s set s.sbom = null, s.cves = null where s.id in :ids")
+    int dropPayloads(@Param("ids") Collection<Long> ids);
 }

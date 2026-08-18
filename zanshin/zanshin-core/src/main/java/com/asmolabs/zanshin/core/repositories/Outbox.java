@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The notification queue.
@@ -33,6 +34,7 @@ public interface Outbox extends JpaRepository<OutboxMessageEntity, UUID> {
              order by m.createdAt asc, m.id asc""")
     List<OutboxMessageEntity> findDue(@Param("status") String status, @Param("at") Instant at, Limit limit);
 
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update OutboxMessageEntity m
@@ -46,6 +48,7 @@ public interface Outbox extends JpaRepository<OutboxMessageEntity, UUID> {
             @Param("status") String status,
             @Param("nextAttemptAt") Instant nextAttemptAt);
 
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update OutboxMessageEntity m
@@ -58,6 +61,7 @@ public interface Outbox extends JpaRepository<OutboxMessageEntity, UUID> {
             @Param("status") String status,
             @Param("sentAt") Instant sentAt);
 
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("delete from OutboxMessageEntity m where m.status = :status and m.sentAt is not null and m.sentAt < :cutoff")
     int deleteSentBefore(@Param("status") String status, @Param("cutoff") Instant cutoff);

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The uploaded Semgrep rule sets.
@@ -35,10 +36,12 @@ public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
              order by r.uploadedAt desc, r.id desc""")
     List<RuleSetSummary> summaries();
 
+    @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update SemgrepRuleSetEntity r set r.isActive = null where r.isActive = true")
     int deactivateAll();
 
+    @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update SemgrepRuleSetEntity r set r.isActive = true, r.activationNote = :note where r.id = :id")
     int activate(@Param("id") Long id, @Param("note") String note);
