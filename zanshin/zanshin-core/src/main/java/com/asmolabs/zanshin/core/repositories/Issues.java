@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.repositories;
 
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -81,4 +82,14 @@ public interface Issues extends JpaRepository<IssueEntity, Long> {
     @Modifying(clearAutomatically = true)
     @Query("update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url where i.id = :id")
     int attachTicket(@Param("id") Long id, @Param("reference") String reference, @Param("url") String url);
+
+    /**
+     * The issues whose review date has passed.
+     *
+     * <p>Selected on the date alone, and the caller re-checks the status: the rule that decides
+     * what counts as expired lives in the domain, and duplicating it here would be two answers
+     * to one question, disagreeing the day either changes.
+     */
+    @Query("select i from IssueEntity i where i.triageExpiresAt is not null and i.triageExpiresAt <= :asOf")
+    List<IssueEntity> findWithExpiredTriage(@Param("asOf") Instant asOf);
 }

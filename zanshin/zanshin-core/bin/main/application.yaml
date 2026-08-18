@@ -31,6 +31,12 @@ zanshin:
     # machine would then audit a variant nobody deploys.
     image-platform: ${ZANSHIN_IMAGE_SCAN_PLATFORM:}
 
+  bootstrap:
+    # Read once, on an empty users table, and ignored ever after: without that condition they
+    # would be a permanent back door, re-armable by restarting with the right variable set.
+    username: ${ZANSHIN_BOOTSTRAP_USERNAME:}
+    password: ${ZANSHIN_BOOTSTRAP_PASSWORD:}
+
   session:
     # The absolute lifetime bounds a stolen token's usefulness and no activity may extend it;
     # the idle one protects an unlocked screen and is deliberately much shorter.
