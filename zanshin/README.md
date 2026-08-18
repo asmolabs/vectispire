@@ -126,7 +126,9 @@ suite that skips itself reports green without having checked anything.
 | `Tickets`, `TicketProvider` | done |
 | `DependencyGraph`, `Directness` | done |
 | `AiReview` — the prompt, and reading what a model returns | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 313 tests |
+| `RuleSet` — uploaded Semgrep rules, and what activation costs | done |
+| `AgentLabels`, `AgentContract`, `Catalogs` (EPSS, KEV) | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 347 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
