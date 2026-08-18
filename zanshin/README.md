@@ -118,6 +118,14 @@ SQLite and creates no constraint at all: referential integrity on three engines 
 and nothing saying so. `ChangelogTest` caught it in a second by running the thing, and now
 asserts the twelve foreign keys are really there.
 
+**Strict parity is not in place yet, and this is the honest state of it.** `ChangelogTest`
+proves the changelog applies and that the twelve foreign keys exist; it does not compare column
+types against the entities. A first attempt did that on SQLite and was abandoned deliberately:
+SQLite has no types, only affinities, so `datetime` is stored as TEXT and a type-name comparison
+there measures Liquibase's naming choices rather than whether the mapping works. Strict
+validation belongs on the three engines that have real types, and SQLite's mapping is better
+proven by writing a row and reading it back.
+
 `SchemaParityIntegrationTest` puts the remaining difference back where it can fail: it asks Hibernate to
 validate the entities against the schema the changelog really built, on all four engines
 through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a

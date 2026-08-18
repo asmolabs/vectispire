@@ -1,7 +1,6 @@
 # Versions in one place, so that "which Spring Boot is this?" has exactly one answer.
 [versions]
 springBoot = "4.1.0"
-liquibase = "4.34.0"
 testcontainers = "1.22.0"
 archunit = "1.4.1"
 junit = "6.0.1"
@@ -16,7 +15,11 @@ jgit = "7.7.1.202607240634-r"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
-liquibase-core = { module = "org.liquibase:liquibase-core", version.ref = "liquibase" }
+# Version managed by the Spring Boot BOM: pinning it here split it from what the
+# autoconfiguration module expects, which is the kind of mismatch that surfaces as a
+# ClassNotFoundError at startup rather than as a dependency conflict.
+liquibase-core = { module = "org.liquibase:liquibase-core" }
+spring-boot-liquibase = { module = "org.springframework.boot:spring-boot-liquibase" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -30,6 +33,7 @@ bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = 
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
 docker-java-transport = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "dockerJava" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
+hibernate-community-dialects = { module = "org.hibernate.orm:hibernate-community-dialects" }
 jgit-ssh = { module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache", version.ref = "jgit" }
 
 [plugins]

@@ -1,0 +1,26 @@
+# Defaults for a single-instance deployment. Everything here is overridable, and the two
+# settings that must never be is stated below rather than left to a reviewer's memory.
+spring:
+  application:
+    name: zanshin
+
+  datasource:
+    url: ${ZANSHIN_DB_URL:jdbc:postgresql://localhost:5432/zanshin}
+    username: ${ZANSHIN_DB_USER:zanshin}
+    password: ${ZANSHIN_DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      # **`validate`, never `update`, and never `create`.** The schema belongs to the changelog.
+      # Letting Hibernate reconcile it would mean two authorities for one schema, and the one
+      # that runs second wins silently — on whichever engine happens to boot first.
+      ddl-auto: validate
+    open-in-view: false
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  # The API and the agent protocol share it. Long polling holds a request open, which is why
+  # the read timeout below is generous and the connection count is not.
+  port: ${ZANSHIN_PORT:8000}

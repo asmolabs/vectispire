@@ -10,23 +10,32 @@
 # most of it; the four below are where they do not, and each is a divergence that has already
 # produced a defect somewhere:
 #
-#   json       — `json` on PostgreSQL and MySQL, `longtext` on MariaDB (which accepts `json`
-#                as an alias for it and then reports the underlying type), `text` on SQLite.
-#   uuid       — a real type on PostgreSQL, 36 characters elsewhere.
+#   json       — see the note on the property: text everywhere, deliberately.
+#   uuid       — see the note on the property itself: 36 characters everywhere, deliberately.
 #   timestamp  — `timestamptz` only on PostgreSQL. The others store no offset, which is why
 #                every instant is written in UTC before it reaches the driver.
 #   bool       — `boolean` everywhere except MySQL and MariaDB, where it is `tinyint(1)` and
 #                `tinyint`. They disagree with *each other*, which is the whole argument for
 #                running the parity check on all four rather than on a representative one.
 databaseChangeLog:
-  - property: { name: json.type, value: json, dbms: postgresql }
-  - property: { name: json.type, value: json, dbms: mysql }
-  - property: { name: json.type, value: longtext, dbms: mariadb }
-  - property: { name: json.type, value: text, dbms: sqlite }
+  # Text on all four, and no native JSON type anywhere. These payloads are opaque: stored
+  # verbatim, re-exported verbatim, never queried with a JSON operator. PostgreSQL's `json`
+  # would buy validation and operators nothing uses, at the price of a fourth truth to keep in
+  # step with the entities — and MariaDB's `json` is already an alias for `longtext`, which is
+  # how the two engines that both call it `json` end up disagreeing about what it is.
+  - property: { name: json.type, value: clob }
 
-  - property: { name: uuid.type, value: uuid, dbms: postgresql }
-  - property: { name: uuid.type, value: char(36), dbms: "mysql,mariadb" }
-  - property: { name: uuid.type, value: varchar(36), dbms: sqlite }
+  # `char(36)` on all four, PostgreSQL included, and that is a decision rather than a
+  # simplification. PostgreSQL's native `uuid` is a better column — sixteen bytes, validated by
+  # the engine — but Hibernate's default mapping for a `UUID` field is `binary(16)` on the other
+  # three, so a native type here means the entities agree with the schema on one engine and
+  # disagree on three. The choice is one representation everywhere against four truths to keep
+  # in step; the entities carry `@JdbcTypeCode(SqlTypes.CHAR)` to match, and the parity check is
+  # what would have had to encode the difference otherwise.
+  #
+  # It also makes `select * from t_agent` readable in a shell on every engine, which
+  # `binary(16)` does not.
+  - property: { name: uuid.type, value: char(36) }
 
   - property: { name: timestamp.type, value: "timestamp with time zone", dbms: postgresql }
   - property: { name: timestamp.type, value: "datetime(6)", dbms: "mysql,mariadb" }

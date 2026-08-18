@@ -36,11 +36,19 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation(libs.liquibase.core)
+    // Spring Boot 4 split its autoconfigurations into modules: `liquibase-core` alone no longer
+    // brings the one that runs the changelog at startup. Without this the application boots,
+    // Hibernate validates against an empty database, and the failure reads "missing table".
+    implementation(libs.spring.boot.liquibase)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.mariadb)
     runtimeOnly(libs.mysql)
     runtimeOnly(libs.sqlite)
+    // SQLite is not one of Hibernate's own dialects. It is a first-class engine here, so the
+    // community dialect is not optional — without it the schema check simply cannot run on the
+    // one engine that needs no daemon.
+    runtimeOnly(libs.hibernate.community.dialects)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
