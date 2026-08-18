@@ -100,7 +100,9 @@ suite that skips itself reports green without having checked anything.
 | Build, three modules, architecture suite | done |
 | `Digests` (BouncyCastle), `IssueFingerprint`, `AuditChain` | done |
 | `PolicyGate` — verdict and request hardening | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanTarget`, `PolicyFlag` | done, 53 tests |
+| `PolicyResolution` — which policy applies, and from where |  done |
+| `SecurityOverview` — every target's posture, in one pass | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag` | done, 65 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
