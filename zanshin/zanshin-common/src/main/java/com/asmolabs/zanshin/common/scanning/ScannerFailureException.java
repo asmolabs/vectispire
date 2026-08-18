@@ -16,6 +16,11 @@ public class ScannerFailureException extends RuntimeException {
         return label;
     }
 
+    /** A failure the scanner's own output does not explain. */
+    public static ScannerFailureException of(String label, String message) {
+        return new ScannerFailureException(label, message);
+    }
+
     /** The scanner ran too long and was stopped. */
     public static ScannerFailureException timedOut(String label, Duration timeout) {
         return new ScannerFailureException(
