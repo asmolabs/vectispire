@@ -196,4 +196,38 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     @Modifying(clearAutomatically = true)
     @Query("update ScanEntity s set s.sbom = null, s.cves = null where s.id in :ids")
     int dropPayloads(@Param("ids") Collection<Long> ids);
+
+    /**
+     * Each repository's most recent scan, as the target list shows it.
+     *
+     * <p>A correlated subquery rather than a join on a computed maximum: the latter returns two
+     * rows when two scans of one target share a creation instant, and the list would then show
+     * a target twice with no explanation.
+     */
+    @Query("""
+            select s.repoId, s.id, s.status, s.createdAt, s.error from ScanEntity s
+             where s.repoId is not null
+               and s.id = (select max(l.id) from ScanEntity l where l.repoId = s.repoId)""")
+    List<Object[]> findLatestPerRepository();
+
+    @Query("""
+            select s.containerId, s.id, s.status, s.createdAt, s.error from ScanEntity s
+             where s.containerId is not null
+               and s.id = (select max(l.id) from ScanEntity l where l.containerId = s.containerId)""")
+    List<Object[]> findLatestPerContainer();
+
+    /**
+     * The history, newest first, optionally narrowed to one target.
+     *
+     * <p>Both filters are optional and expressed with a null check rather than as three query
+     * methods: three methods is three orderings to keep in step, and the day one of them drifts
+     * the screen shows a different history depending on which filter is set.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where (:repoId is null or s.repoId = :repoId)
+               and (:containerId is null or s.containerId = :containerId)
+             order by s.createdAt desc, s.id desc""")
+    List<ScanEntity> findHistory(
+            @Param("repoId") Long repoId, @Param("containerId") Long containerId, Limit limit);
 }

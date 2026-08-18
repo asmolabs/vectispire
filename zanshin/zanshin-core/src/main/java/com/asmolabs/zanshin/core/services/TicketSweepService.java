@@ -10,12 +10,9 @@ import com.asmolabs.zanshin.common.domain.gate.PolicyResolution.StoredPolicy;
 import com.asmolabs.zanshin.common.domain.gate.RequestedPolicy;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
 import com.asmolabs.zanshin.common.domain.tickets.Tickets;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
 import com.asmolabs.zanshin.core.repositories.GatePolicies;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import java.util.HashMap;
 import java.util.List;
@@ -52,22 +49,19 @@ public class TicketSweepService {
 
     private final Issues issues;
     private final GatePolicies policies;
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
 
     public TicketSweepService(
             Issues issues,
             GatePolicies policies,
-            GitRepositories repositories,
-            Containers containers,
+            TargetNaming names,
             TicketService tickets,
             AuditLogService audit) {
         this.issues = issues;
         this.policies = policies;
-        this.repositories = repositories;
-        this.containers = containers;
+        this.names = names;
         this.tickets = tickets;
         this.audit = audit;
     }
@@ -93,8 +87,7 @@ public class TicketSweepService {
         }
 
         Map<String, StoredPolicy> byScope = activePolicies();
-        Map<Long, String> repositoryNames = repositoryNames();
-        Map<Long, String> containerNames = containerNames();
+        TargetNaming.Names targetNames = names.all();
 
         int created = 0;
         for (IssueEntity issue : candidates) {
@@ -112,7 +105,7 @@ public class TicketSweepService {
             }
 
             Optional<TicketService.Ticket> ticket = tickets.createForIssue(
-                    IssueViews.forTicket(issue), nameOf(issue, repositoryNames, containerNames));
+                    IssueViews.forTicket(issue), targetNames.of(issue.getRepoId(), issue.getContainerId()));
             // Left without a reference on purpose: the next pass will try again.
             if (ticket.isEmpty()) {
                 continue;
@@ -159,32 +152,4 @@ public class TicketSweepService {
         return byScope;
     }
 
-    private String nameOf(IssueEntity issue, Map<Long, String> repositoryNames, Map<Long, String> containerNames) {
-        if (issue.getRepoId() != null) {
-            return repositoryNames.getOrDefault(issue.getRepoId(), "repository " + issue.getRepoId());
-        }
-        if (issue.getContainerId() != null) {
-            return containerNames.getOrDefault(issue.getContainerId(), "container " + issue.getContainerId());
-        }
-        return "unknown target";
-    }
-
-    private Map<Long, String> repositoryNames() {
-        Map<Long, String> names = new HashMap<>();
-        repositories.findAll().forEach(repository -> names.put(
-                repository.getId(),
-                repository.getName() == null || repository.getName().isBlank()
-                        ? repository.getUrl()
-                        : repository.getName()));
-        return names;
-    }
-
-    private Map<Long, String> containerNames() {
-        Map<Long, String> names = new HashMap<>();
-        containers.findAll().forEach(container -> names.put(
-                container.getId(),
-                new ImageReference(container.getRegistry(), container.getImageName(), container.getTag())
-                        .displayName()));
-        return names;
-    }
 }

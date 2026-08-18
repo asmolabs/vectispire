@@ -7,12 +7,13 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Issues extends JpaRepository<IssueEntity, Long> {
+public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity> {
     Optional<IssueEntity> findByFingerprint(String fingerprint);
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);
@@ -92,4 +93,17 @@ public interface Issues extends JpaRepository<IssueEntity, Long> {
      */
     @Query("select i from IssueEntity i where i.triageExpiresAt is not null and i.triageExpiresAt <= :asOf")
     List<IssueEntity> findWithExpiredTriage(@Param("asOf") Instant asOf);
+
+    /** Open issues per repository, for the target list's badge. */
+    @Query("""
+            select i.repoId, count(i.id) from IssueEntity i
+             where i.state = :state and i.repoId is not null
+             group by i.repoId""")
+    List<Object[]> countOpenByRepository(@Param("state") String state);
+
+    @Query("""
+            select i.containerId, count(i.id) from IssueEntity i
+             where i.state = :state and i.containerId is not null
+             group by i.containerId""")
+    List<Object[]> countOpenByContainer(@Param("state") String state);
 }

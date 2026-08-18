@@ -15,11 +15,10 @@ import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.core.persistence.GatePolicyEntity;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
 import com.asmolabs.zanshin.core.repositories.GatePolicies;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,15 +39,13 @@ class TicketSweepServiceTest {
         policies = mock(GatePolicies.class);
         tickets = mock(TicketService.class);
         audit = mock(AuditLogService.class);
-        GitRepositories repositories = mock(GitRepositories.class);
-        Containers containers = mock(Containers.class);
+        TargetNaming naming = mock(TargetNaming.class);
+        when(naming.all()).thenReturn(new TargetNaming.Names(Map.of(), Map.of()));
 
-        sweep = new TicketSweepService(issues, policies, repositories, containers, tickets, audit);
+        sweep = new TicketSweepService(issues, policies, naming, tickets, audit);
 
         when(tickets.isEnabled()).thenReturn(true);
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
-        when(repositories.findAll()).thenReturn(List.of());
-        when(containers.findAll()).thenReturn(List.of());
         when(issues.findActionableWithoutTicket(anyString(), any(), any())).thenReturn(List.of());
         when(tickets.createForIssue(any(), anyString()))
                 .thenReturn(Optional.of(new TicketService.Ticket("#12", "https://gitlab.example/issues/12")));
