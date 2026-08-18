@@ -77,8 +77,16 @@ than seven string constants plus a hand-maintained list the constants could drif
 
 ### Cryptography
 
-Everything hashes through `Digests`, backed by **BouncyCastle**'s lightweight API rather than
-the JCA. The JCA resolves an algorithm from whatever providers the JVM was started with, so
+Passwords go through **Argon2id**; everything else hashes through `Digests`. Both are
+**BouncyCastle**'s lightweight API rather than the JCA.
+
+Argon2id replaces bcrypt, which the NestJS version used only to stay readable by a Python
+implementation. That constraint dragged a real defect behind it: **bcrypt silently ignores
+everything past 72 bytes**, so two passphrases sharing their first 72 were the same password,
+and a validation rule had to refuse long ones rather than let anybody believe they were
+protected. Both the truncation and the rule are gone.
+
+The JCA is avoided for a separate reason. The JCA resolves an algorithm from whatever providers the JVM was started with, so
 what actually ran becomes a property of the host — unacceptable for a hash that decides whether
 an audit log was tampered with. Calling the engine directly also avoids registering a provider,
 which is global mutable state in a process that also serves HTTP.
@@ -109,7 +117,9 @@ suite that skips itself reports green without having checked anything.
 | `EncryptionKey`, `SecretCipher` — scrypt and AES-GCM on BouncyCastle | done |
 | `Triage` — the VEX vocabulary, and when a suppression stops being true | done |
 | `LoginThrottle`, `Sessions` | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 176 tests |
+| `PasswordHasher` — Argon2id | done |
+| `AccountRules`, `Role`, `ApiKeys`, `ApiKeyScope` | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 218 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
