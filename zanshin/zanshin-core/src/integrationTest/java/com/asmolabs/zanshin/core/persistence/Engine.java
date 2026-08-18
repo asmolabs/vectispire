@@ -26,7 +26,7 @@ import org.testcontainers.utility.DockerImageName;
  * <p>The images are pinned. A campaign that silently moved to a new minor version would turn
  * "this engine changed its behaviour" into "the build broke this morning".
  */
-enum Engine {
+public enum Engine {
     POSTGRES("postgres:17.6-alpine", true),
     MYSQL("mysql:9.4", true),
     MARIADB("mariadb:11.8", true),
@@ -43,12 +43,12 @@ enum Engine {
     }
 
     /** Whether Hibernate can be asked to validate column types against this engine. */
-    boolean supportsStrictValidation() {
+    public boolean supportsStrictValidation() {
         return typed;
     }
 
     /** The engine named by {@code -Pdialect}, defaulting to the one deployments use. */
-    static Engine selected() {
+    public static Engine selected() {
         String name = System.getProperty("zanshin.db.dialect", "postgres").toUpperCase(Locale.ROOT);
         try {
             return valueOf(name);
@@ -59,7 +59,7 @@ enum Engine {
         }
     }
 
-    Optional<JdbcDatabaseContainer<?>> container() {
+    public Optional<JdbcDatabaseContainer<?>> container() {
         DockerImageName reference = image == null ? null : DockerImageName.parse(image);
         return switch (this) {
             case POSTGRES -> Optional.of(new PostgreSQLContainer(reference));
@@ -69,8 +69,33 @@ enum Engine {
         };
     }
 
+    /**
+     * Points a Spring context at the selected engine.
+     *
+     * <p>Shared by every suite in the campaign, so that "which engine am I on" is decided once
+     * — two suites configuring it apart is how one of them quietly runs on the wrong one.
+     */
+    public static void configure(Engine engine, Optional<JdbcDatabaseContainer<?>> container,
+            org.springframework.test.context.DynamicPropertyRegistry registry) {
+        container.ifPresentOrElse(
+                started -> {
+                    registry.add("spring.datasource.url", started::getJdbcUrl);
+                    registry.add("spring.datasource.username", started::getUsername);
+                    registry.add("spring.datasource.password", started::getPassword);
+                    registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+                },
+                () -> {
+                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + sqliteFile());
+                    registry.add("spring.datasource.username", () -> "");
+                    registry.add("spring.datasource.password", () -> "");
+                    registry.add("spring.jpa.database-platform",
+                            () -> "org.hibernate.community.dialect.SQLiteDialect");
+                    registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+                });
+    }
+
     /** Where SQLite keeps its file for a run. Fresh each time, so nothing carries over. */
-    static Path sqliteFile() {
+    public static Path sqliteFile() {
         Path file = Path.of(System.getProperty("java.io.tmpdir"), "zanshin-campaign.db");
         file.toFile().delete();
         return file;
