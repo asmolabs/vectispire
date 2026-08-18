@@ -6,7 +6,7 @@
  * drift apart.
  */
 plugins {
-    java
+    `java-library`
     jacoco
 }
 

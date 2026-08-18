@@ -23,7 +23,10 @@ plugins { id("zanshin.java-conventions") }
  */
 dependencies {
     implementation(platform(libs.spring.boot.bom))
-    implementation("com.fasterxml.jackson.core:jackson-databind")
+    // `api`, not `implementation`: `ScanArtifacts` hands out a `JsonNode`, so Jackson is part
+    // of this module's surface whether or not it is declared as such. Hiding it only means
+    // every consumer has to redeclare it and discover why by a compile error.
+    api("com.fasterxml.jackson.core:jackson-databind")
     implementation(libs.bouncycastle)
 
     // The Docker daemon API, for the scanning half. It reaches the agent too, which is
