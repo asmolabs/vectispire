@@ -122,7 +122,9 @@ suite that skips itself reports green without having checked anything.
 | `RetentionPolicy`, `Schedules` | done |
 | `Sbom` — one typed view of Syft's output | done |
 | `LicenseBlocklist`, `LifeCycle` (end of life) | done |
-| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 266 tests |
+| `NotificationPayload`, `NotificationSelection`, `OutboxRetry` | done |
+| `Tickets`, `TicketProvider` | done |
+| Domain vocabulary: `Severity`, `TriageStatus`, `FindingType`, `ScanStatus`, `ScanTarget`, `PolicyFlag`, `FixState`, `VexStatus`, `OutboundPolicy` | done, 293 tests |
 | Everything else | not started |
 
 `ArchitectureTest` currently runs with `withOptionalLayers(true)` and `allowEmptyShould(true)`,
