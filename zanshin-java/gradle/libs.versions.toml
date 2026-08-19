@@ -11,6 +11,7 @@ sqlite = "3.51.0.0"
 bouncycastle = "1.85"
 dockerJava = "3.7.1"
 jgit = "7.7.1.202607240634-r"
+pdfbox = "3.0.6"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -32,6 +33,10 @@ docker-java-core = { module = "com.github.docker-java:docker-java-core", version
 docker-java-transport = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "dockerJava" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 hibernate-community-dialects = { module = "org.hibernate.orm:hibernate-community-dialects" }
+# Apache-2.0, and a drawing API rather than an HTML engine: the alternative that renders HTML
+# to PDF drags in an XHTML parser and a CSS subset, which is a second rendering stack to keep
+# correct for a document of four sections.
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 jgit-ssh = { module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache", version.ref = "jgit" }
 
 [plugins]
