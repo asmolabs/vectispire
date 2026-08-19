@@ -270,7 +270,20 @@ public class ScanDispatcher {
         ScanEntity scan = queue.byId(scanId).orElseThrow();
         IssueSyncService.SyncResult result = ingestor.ingest(scan, artifacts);
 
-        scan.setStatus(com.asmolabs.zanshin.common.domain.scans.ScanStatus.COMPLETED.wireName());
+        // **A scan that observed nothing is a failure, not a completed scan.** Every step
+        // absent *and* something broken means the target was never examined — the case that
+        // named this was an image whose repository does not exist, where the pull fails and
+        // takes every step with it. Recorded as completed, it reached the screen as a finished
+        // scan with a green tag, and an operator reasonably read it as "this image is clean".
+        //
+        // Nothing observed with no failure either is left completed on purpose: that is a task
+        // asked to run no step, which is a configuration to look at and not an error to report.
+        boolean nothingExamined = artifacts.observedNothing() && !artifacts.failures().isEmpty();
+        scan.setStatus(
+                (nothingExamined
+                                ? com.asmolabs.zanshin.common.domain.scans.ScanStatus.FAILED
+                                : com.asmolabs.zanshin.common.domain.scans.ScanStatus.COMPLETED)
+                        .wireName());
         scan.setFindingsCount(result.created() + result.reopened() + result.stillOpen());
         scan.setNewIssuesCount(result.created());
         scan.setResolvedIssuesCount(result.resolved());

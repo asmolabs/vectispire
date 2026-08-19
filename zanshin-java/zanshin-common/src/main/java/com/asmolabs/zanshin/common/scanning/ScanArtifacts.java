@@ -35,6 +35,27 @@ public record ScanArtifacts(
     /** @param step named as an operator would recognize it, not as the class is called */
     public record Failure(String step, String reason) {}
 
+    /**
+     * Whether no step looked at anything at all.
+     *
+     * <p>Absent is not empty — that is this class's whole reason for existing — and the
+     * distinction matters as much for the <b>scan</b> as for the findings. A scan in which every
+     * step is absent observed nothing, and calling it completed says the target was examined and
+     * found clean.
+     *
+     * <p>The case that made this necessary: an image whose name does not exist. The pull fails,
+     * so every step fails with it, the backlog is correctly left alone by ingestion — and the
+     * scan was still recorded as completed, with a green tag on the screen. The operator saw a
+     * finished scan of an image that had never been fetched.
+     *
+     * <p>The SBOM is deliberately not counted: it is a description of the target, not an
+     * observation about it, and a scan producing one and nothing else has still analysed
+     * nothing.
+     */
+    public boolean observedNothing() {
+        return dependencies.isEmpty() && secrets.isEmpty() && iac.isEmpty() && sast.isEmpty();
+    }
+
     /** Nothing looked at yet. Every step absent, which is the honest starting point. */
     public static Builder builder() {
         return new Builder();

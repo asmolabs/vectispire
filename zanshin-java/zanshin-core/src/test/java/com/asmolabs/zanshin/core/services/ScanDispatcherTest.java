@@ -15,6 +15,9 @@ import com.asmolabs.zanshin.common.domain.agents.CredentialsMode;
 import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
+import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
+import com.asmolabs.zanshin.common.scanning.ScanRunner;
 import com.asmolabs.zanshin.common.scanning.ScanTask;
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
 import com.asmolabs.zanshin.core.persistence.ContainerEntity;
@@ -25,6 +28,7 @@ import com.asmolabs.zanshin.core.repositories.Containers;
 import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.ScanQueue;
 import com.asmolabs.zanshin.core.repositories.SshKeys;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -211,6 +215,61 @@ class ScanDispatcherTest {
         // Claiming what it cannot run would burn one of the scan's attempts per round and fail
         // it for good in three, while a remote agent was available all along.
         verify(queue, never()).claim(anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("a scan whose every step failed is recorded failed, not completed")
+    void aScanThatExaminedNothingIsNotCompleted() {
+        ScanEntity scan = withRunner(ScanArtifacts.builder()
+                .failed("dependencies", "pull access denied for temurin")
+                .build(Duration.ofSeconds(2)));
+
+        // The case this comes from: an image name that does not exist on the registry. The pull
+        // fails and takes every step with it. Recorded as completed it reached the screen with a
+        // green tag, and was read as "this image was scanned and is clean".
+        assertThat(scan.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(scan.getError()).contains("pull access denied");
+    }
+
+    @Test
+    @DisplayName("a step that ran and found nothing keeps the scan completed")
+    void aCleanScanStaysCompleted() {
+        // Absent is not empty. If an empty result counted as "examined nothing", every clean
+        // target would be reported as a failure — the opposite mistake, and a louder one.
+        ScanEntity scan = withRunner(
+                ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(2)));
+
+        assertThat(scan.getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
+    }
+
+    /** Runs one scan through the dispatcher with a stubbed runner, and returns the row written. */
+    private ScanEntity withRunner(ScanArtifacts artifacts) {
+        ScanEntity scan = repositoryScan();
+        queueHolds(scan);
+        when(queue.stillOwned(anyLong(), anyString())).thenReturn(true);
+        when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
+        when(queue.countRunning()).thenReturn(0L);
+        when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
+
+        ScanIngestor ingestor = mock(ScanIngestor.class);
+        when(ingestor.ingest(any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.run(any())).thenReturn(artifacts);
+
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        new ScanDispatcher(
+                        queue, repositories, containers, sshKeys, ingestor,
+                        new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                        settings, ruleSets, envelopes,
+                        new ScanningProperties(Optional.of("linux/amd64")),
+                        Optional.of(runner),
+                        new TransactionTemplate(manager))
+                .dispatch("worker-1", 2, List.of());
+
+        return scan;
     }
 
     private void queueHolds(ScanEntity scan) {
