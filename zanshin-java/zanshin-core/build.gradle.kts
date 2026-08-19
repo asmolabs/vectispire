@@ -25,6 +25,61 @@ plugins {
  * name one: a class importing `org.postgresql` is a class that stopped working on the other
  * three, which is a failure a portability campaign should catch before an operator does.
  */
+/**
+ * The interface, bundled into the jar.
+ *
+ * **Off by default, and that is the point.** Wiring the Angular build into every
+ * `./gradlew build` would put Node on the critical path of a backend change and add a minute
+ * to a loop somebody runs fifty times a day — and CI's JVM job has no Node at all.
+ *
+ * Two ways to turn it on:
+ *
+ * ```
+ * ./gradlew bootJar -Pui                    # builds the interface here, needs Node
+ * ./gradlew bootJar -PuiDist=/path/browser  # takes one already built
+ * ```
+ *
+ * The second exists for the container image, where the interface is built in a Node stage and
+ * the jar in a JDK stage. Without it the JDK image would need Node installed to run a build it
+ * has no other reason to know about.
+ *
+ * With either, one jar serves the API and the interface from **one origin**. That removes the
+ * dev proxy from production, makes `connect-src 'self'` true rather than aspirational, and
+ * makes a deployment one artifact instead of two that have to agree on a port.
+ */
+val uiSource = layout.projectDirectory.dir("../../zanshin-angular")
+val uiOutput = layout.buildDirectory.dir("angular")
+
+val buildUi by tasks.registering(Exec::class) {
+    // Declared so Gradle can skip the whole thing when nothing changed. Without these the task
+    // re-runs on every build, which is most of what makes bundling a UI feel expensive.
+    inputs.dir(uiSource.dir("src"))
+    inputs.file(uiSource.file("package.json"))
+    inputs.file(uiSource.file("angular.json"))
+    outputs.dir(uiOutput)
+
+    workingDir = uiSource.asFile
+    // `npx ng build` and not the root `npm run build`: that script drives the whole workspace,
+    // and this task wants exactly one project's production bundle, written where it says.
+    commandLine("npx", "ng", "build", "--configuration", "production", "--output-path",
+                uiOutput.get().asFile.absolutePath)
+}
+
+val prebuiltUi = providers.gradleProperty("uiDist")
+
+if (prebuiltUi.isPresent || project.hasProperty("ui")) {
+    tasks.named<ProcessResources>("processResources") {
+        val assets = if (prebuiltUi.isPresent) {
+            files(prebuiltUi.get())
+        } else {
+            files(buildUi.map { uiOutput.get().dir("browser") })
+        }
+        // `static/` is where Spring Boot serves from with no configuration. The SPA's deep
+        // links still need forwarding — see `SpaForwarding`.
+        from(assets) { into("static") }
+    }
+}
+
 dependencies {
     implementation(project(":zanshin-common"))
     implementation(platform(libs.spring.boot.bom))
@@ -35,6 +90,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // **In `zanshin-core` and not in the domain beside the other exports**, deliberately. The
+    // domain half of `zanshin-common` is what the agent also carries, and an agent that never
+    // renders a document has no business shipping a PDF library. The layer rule would have
+    // allowed it — it forbids frameworks and drivers, and PDFBox is neither — so the reason is
+    // the agent's classpath rather than the rule.
+    implementation(libs.pdfbox)
     implementation(libs.liquibase.core)
     // Spring Boot 4 split its autoconfigurations into modules: `liquibase-core` alone no longer
     // brings the one that runs the changelog at startup. Without this the application boots,

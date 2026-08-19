@@ -13,6 +13,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -79,6 +81,30 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
+                        // **The interface itself is not behind the token.** When the jar
+                        // bundles the Angular build, these are the files that *ask* for a
+                        // token; requiring one to fetch them means the sign-in screen answers
+                        // 401 and nobody can ever sign in. Nothing here is a secret — it is
+                        // the same bundle any visitor of a public deployment downloads — and
+                        // every API call it then makes is authenticated as before.
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico",
+                                "/*.js", "/*.css", "/*.webmanifest", "/assets/**", "/fonts/**",
+                                "/media/**")
+                        .permitAll()
+                        // **The SPA's deep links, on the request and on the forward.**
+                        // `SpaForwarding` sends `/security` to index.html — but the chain runs
+                        // first, and `anyRequest().authenticated()` would refuse the request
+                        // before any forwarding happened. Both passes therefore need a rule.
+                        //
+                        // The pattern mirrors that class exactly: a GET whose path is not under
+                        // `/api` or `/actuator` and contains no dot. The negative lookahead is
+                        // what keeps an unmapped API path a 404 the caller can act on instead
+                        // of an HTML page, and the missing dot keeps a lost `.js` a 404 rather
+                        // than a document the browser reports as a syntax error.
+                        .requestMatchers(RegexRequestMatcher.regexMatcher(
+                                HttpMethod.GET, "^/(?!api/|actuator/)[^.]*$"))
+                        .permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
                         .anyRequest().authenticated())
                 .build();
     }
