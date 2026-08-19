@@ -233,10 +233,21 @@ public class RepositoriesController {
                 request.getHeader("User-Agent")));
     }
 
-    /** What the screen calls it: the operator's name, or the URL when they gave none. */
+    /**
+     * What the screen calls it, through the domain's rule rather than a copy of it.
+     *
+     * <p><b>This method used to be that copy, and the two had already diverged.</b>
+     * {@link RepositoryUrl#displayName} falls back to the short form — {@code org/project} —
+     * where this returned the whole URL; it was tested, and called by nothing. The backlog's
+     * new target column forced the question, because a third rule would have had the same
+     * repository named two different things on two screens.
+     *
+     * <p>The visible change: a repository with no operator-chosen name now reads
+     * {@code org/project} instead of {@code https://github.com/org/project.git}. That is also
+     * what makes it fit in a table column.
+     */
     private static String displayName(RepositoryEntity repository) {
-        String name = trim(repository.getName());
-        return name.isEmpty() ? repository.getUrl() : name;
+        return RepositoryUrl.displayName(repository.getName(), repository.getUrl());
     }
 
     /**

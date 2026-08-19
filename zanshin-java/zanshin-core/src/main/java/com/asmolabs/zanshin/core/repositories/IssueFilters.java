@@ -18,6 +18,9 @@ import org.springframework.data.jpa.domain.Specification;
  * @param onlyDirect restricts to declared dependencies. <b>It only acts on {@code true}</b>:
  *     "show transitive ones too" is the default, and filtering on {@code false} would hide the
  *     issues whose nature is unknown — the majority on any target with no dependency graph
+ * @param onlyKev restricts to actively exploited vulnerabilities, and like {@code onlyDirect}
+ *     acts on {@code true} alone. The dashboard has always linked to this filter; nothing read
+ *     it, so the most actionable figure on the screen opened the entire backlog
  */
 public record IssueFilters(
         String state,
@@ -27,6 +30,7 @@ public record IssueFilters(
         Long repoId,
         Long containerId,
         boolean onlyDirect,
+        boolean onlyKev,
         String search,
         Visibility visibility) {
 
@@ -39,8 +43,9 @@ public record IssueFilters(
             Long repoId,
             Long containerId,
             boolean onlyDirect,
+            boolean onlyKev,
             String search) {
-        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, search,
+        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
                 Visibility.everything());
     }
 
@@ -60,6 +65,9 @@ public record IssueFilters(
             }
             if (onlyDirect) {
                 predicates.add(builder.isTrue(root.get("isDirectDependency")));
+            }
+            if (onlyKev) {
+                predicates.add(builder.isTrue(root.get("isKev")));
             }
             visibility.asFilter().ifPresent(allowed -> predicates.add(visible(root, builder, allowed)));
 

@@ -12,6 +12,7 @@ import com.asmolabs.zanshin.core.repositories.Scans;
 import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.GateService;
+import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import java.time.Instant;
 import java.util.HashMap;
@@ -42,13 +43,16 @@ public class DashboardController {
     private final GateService gate;
     private final Issues issues;
     private final Scans scans;
+    private final TargetNaming naming;
 
     private final VisibilityService visibility;
 
-    public DashboardController(GateService gate, Issues issues, Scans scans, VisibilityService visibility) {
+    public DashboardController(
+            GateService gate, Issues issues, Scans scans, TargetNaming naming, VisibilityService visibility) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
+        this.naming = naming;
         this.visibility = visibility;
     }
 
@@ -66,8 +70,21 @@ public class DashboardController {
     public record FailingTarget(
             String kind, Long targetId, String name, boolean observed, List<GateVerdict.Violation> violations) {}
 
+    /**
+     * @param targetName what the target is called. <b>The ids alone were what the screen
+     *     printed</b> — "Container 3" — which names nothing an operator recognises and cannot
+     *     be matched against the target they came here about
+     */
     public record RecentScan(
-            Long id, Long repoId, Long containerId, String status, int findingsCount, String error, Instant createdAt) {}
+            Long id,
+            Long repoId,
+            Long containerId,
+            String targetKind,
+            String targetName,
+            String status,
+            int findingsCount,
+            String error,
+            Instant createdAt) {}
 
     /**
      * @param qualityTotal apart, and never mixed into the security backlog: it blocks nothing
@@ -110,9 +127,15 @@ public class DashboardController {
     }
 
     private List<RecentScan> recentScans() {
-        return scans.findHistory(null, null, Limit.of(RECENT_SCANS)).stream()
-                .map(DashboardController::recentOf)
-                .toList();
+        List<ScanEntity> recent = scans.findHistory(null, null, Limit.of(RECENT_SCANS));
+        TargetNaming.Names names = naming.forIds(
+                idsOf(recent, ScanEntity::getRepoId), idsOf(recent, ScanEntity::getContainerId));
+
+        return recent.stream().map(scan -> recentOf(scan, names)).toList();
+    }
+
+    private static List<Long> idsOf(List<ScanEntity> scans, java.util.function.Function<ScanEntity, Long> id) {
+        return scans.stream().map(id).filter(java.util.Objects::nonNull).distinct().toList();
     }
 
     private static FailingTarget failingOf(SecurityOverview.TargetPosture posture) {
@@ -127,11 +150,32 @@ public class DashboardController {
                 posture.verdict().violations());
     }
 
-    private static RecentScan recentOf(ScanEntity scan) {
+    /**
+     * The target, with the branch when there is one.
+     *
+     * <p><b>The branch comes from the scan, not from the repository.</b> A repository's branch
+     * can be changed after the fact, and reading it from there would relabel a finished scan
+     * with a branch it never ran on — the one kind of error a history must not make.
+     *
+     * <p>Images are left alone: their scans carry {@code n/a} in that column, and "alpine:3.20 -
+     * n/a" is worse than no branch at all.
+     */
+    private static String scanTargetName(ScanEntity scan, TargetNaming.Names names) {
+        String name = names.of(scan.getRepoId(), scan.getContainerId());
+        if (name == null || scan.getContainerId() != null) {
+            return name;
+        }
+        String branch = scan.getBranch();
+        return branch == null || branch.isBlank() ? name : name + " — " + branch;
+    }
+
+    private static RecentScan recentOf(ScanEntity scan, TargetNaming.Names names) {
         return new RecentScan(
                 scan.getId(),
                 scan.getRepoId(),
                 scan.getContainerId(),
+                names.kindOf(scan.getContainerId()),
+                scanTargetName(scan, names),
                 scan.getStatus(),
                 scan.getFindingsCount(),
                 scan.getError(),

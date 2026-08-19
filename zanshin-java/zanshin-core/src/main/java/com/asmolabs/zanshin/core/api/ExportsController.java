@@ -1,6 +1,8 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
+import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
 import com.asmolabs.zanshin.common.domain.exports.IssueCsv;
 import com.asmolabs.zanshin.common.domain.exports.OpenVexDocument;
 import com.asmolabs.zanshin.common.domain.exports.OpenVexExport;
@@ -12,8 +14,10 @@ import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.ExportProperties;
+import com.asmolabs.zanshin.core.services.GateService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.IssueViews;
+import com.asmolabs.zanshin.core.services.PostureReport;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import java.time.Clock;
 import java.util.List;
@@ -48,6 +52,7 @@ public class ExportsController {
     private static final int MAX_EXPORTED = 50_000;
 
     private final Issues issues;
+    private final GateService gate;
     private final TargetNaming naming;
     private final ExportProperties properties;
     private final VisibilityService visibility;
@@ -55,11 +60,13 @@ public class ExportsController {
 
     public ExportsController(
             Issues issues,
+            GateService gate,
             TargetNaming naming,
             ExportProperties properties,
             VisibilityService visibility,
             Clock clock) {
         this.issues = issues;
+        this.gate = gate;
         this.naming = naming;
         this.properties = properties;
         this.visibility = visibility;
@@ -96,7 +103,7 @@ public class ExportsController {
      * author.
      */
     @GetMapping("/vex")
-    public OpenVexDocument vex(
+    public ResponseEntity<OpenVexDocument> vex(
             @AuthenticationPrincipal ZanshinPrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
@@ -104,13 +111,63 @@ public class ExportsController {
         requireVisible(principal, kind, id);
 
         String name = targetName(kind, id);
-        return OpenVexExport.build(
+        OpenVexDocument document = OpenVexExport.build(
                 exportable(kind, id, null),
                 new OpenVexExport.Options(
                         author == null || author.isBlank() ? properties.vexAuthor() : author,
                         name,
                         properties.publicUrl().orElse("urn:zanshin") + "/vex/" + kind + "/" + id,
                         clock.instant()));
+
+        // Downloaded like the other three. It used to render in the tab, which is fine for a
+        // developer poking at the API and useless for the button that hands the document to
+        // somebody downstream.
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".openvex.json"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(document);
+    }
+
+    /**
+     * The posture, as something a person reads.
+     *
+     * <p>The other three exports go to machines — a code host, a downstream consumer, a
+     * spreadsheet. This one goes to an auditor or a steering committee, and carries the verdict
+     * and the observation together: a target nobody scanned passes every policy, and a document
+     * that outlives the screen must not let that read as a clean bill of health.
+     */
+    @GetMapping("/posture.pdf")
+    public ResponseEntity<byte[]> pdf(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @PathVariable String kind,
+            @PathVariable long id,
+            @RequestParam(required = false) String state) {
+        requireVisible(principal, kind, id);
+
+        ScanTarget target = isRepository(kind) ? new ScanTarget.Repository(id) : new ScanTarget.Container(id);
+        // The same construction the Security screen renders, narrowed to one target. Computing
+        // the verdict a second way here would let the document and the screen disagree, which
+        // is the one disagreement nobody would think to check.
+        SecurityOverview.TargetPosture posture = gate.overview(Visibility.only(List.of(target))).targets().stream()
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("No " + kind + " with id " + id + "."));
+
+        byte[] document = PostureReport.render(
+                new PostureReport.Subject(
+                        targetName(kind, id),
+                        kind,
+                        posture.verdict().passed(),
+                        posture.observed(),
+                        posture.observation().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
+                        posture.policy().describeSource(),
+                        posture.lastScan().map(SecurityOverview.LatestScan::createdAt).orElse(null),
+                        clock.instant()),
+                exportable(kind, id, state));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".pdf"))
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(document);
     }
 
     @GetMapping("/issues.csv")
@@ -148,6 +205,7 @@ public class ExportsController {
                 null,
                 isRepository ? targetId : null,
                 isRepository ? null : targetId,
+                false,
                 false,
                 null);
 

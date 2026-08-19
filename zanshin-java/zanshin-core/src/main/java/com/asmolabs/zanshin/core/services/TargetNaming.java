@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.targets.ImageReference;
+import com.asmolabs.zanshin.common.domain.targets.RepositoryUrl;
 import com.asmolabs.zanshin.core.persistence.ContainerEntity;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.repositories.Containers;
@@ -34,6 +35,11 @@ public class TargetNaming {
     /** @param repositories and {@code containers} keyed by identifier, both resolved in one pass */
     public record Names(Map<Long, String> repositories, Map<Long, String> containers) {
 
+        /** {@code container} whenever a container id is set: only one of the two ever is. */
+        public String kindOf(Long containerId) {
+            return containerId != null ? "container" : "repository";
+        }
+
         public String of(Long repoId, Long containerId) {
             if (repoId != null) {
                 return repositories.getOrDefault(repoId, DELETED);
@@ -43,6 +49,24 @@ public class TargetNaming {
             }
             return DELETED;
         }
+    }
+
+    /**
+     * The names for a known set of identifiers.
+     *
+     * <p>{@link #all()} suits a screen that shows every target anyway; this one suits a page of
+     * fifty backlog rows on an estate of two thousand repositories, where loading them all to
+     * name four is the wrong shape of query.
+     */
+    @Transactional(readOnly = true)
+    public Names forIds(java.util.Collection<Long> repositoryIds, java.util.Collection<Long> containerIds) {
+        Map<Long, String> byRepository = new HashMap<>();
+        repositories.findAllById(repositoryIds).forEach(row -> byRepository.put(row.getId(), of(row)));
+
+        Map<Long, String> byContainer = new HashMap<>();
+        containers.findAllById(containerIds).forEach(row -> byContainer.put(row.getId(), of(row)));
+
+        return new Names(byRepository, byContainer);
     }
 
     /**
@@ -62,10 +86,16 @@ public class TargetNaming {
         return new Names(byRepository, byContainer);
     }
 
-    /** The operator's name for it, or the URL when they gave none. */
+    /**
+     * The operator's name for it, or the short form of the URL when they gave none.
+     *
+     * <p><b>Through the domain's rule rather than a copy of it.</b> This method was that copy,
+     * and returned the whole clone URL where {@link RepositoryUrl#displayName} returns
+     * {@code org/project} — so the same repository was called two things depending on which
+     * screen asked. The short form is also the only one that fits in a table column.
+     */
     public static String of(RepositoryEntity repository) {
-        String name = repository.getName() == null ? "" : repository.getName().trim();
-        return name.isEmpty() ? repository.getUrl() : name;
+        return RepositoryUrl.displayName(repository.getName(), repository.getUrl());
     }
 
     public static String of(ContainerEntity container) {

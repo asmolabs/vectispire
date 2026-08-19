@@ -10,13 +10,17 @@ import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
+import com.asmolabs.zanshin.core.repositories.IssueOrdering;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.IssueTriageService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Period;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -50,19 +54,25 @@ public class IssuesController {
     private static final int DEFAULT_PAGE_SIZE = 50;
 
     private final Issues issues;
+    private final TargetNaming naming;
     private final IssueTriageService triage;
     private final AuditLogService audit;
     private final VisibilityService visibility;
 
     public IssuesController(
-            Issues issues, IssueTriageService triage, AuditLogService audit, VisibilityService visibility) {
+            Issues issues,
+            TargetNaming naming,
+            IssueTriageService triage,
+            AuditLogService audit,
+            VisibilityService visibility) {
         this.issues = issues;
+        this.naming = naming;
         this.triage = triage;
         this.audit = audit;
         this.visibility = visibility;
     }
 
-    public record Page(List<IssueEntity> items, long total, int limit, int offset) {}
+    public record Page(List<BacklogEntry> items, long total, int limit, int offset) {}
 
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
@@ -76,6 +86,9 @@ public class IssuesController {
             @RequestParam(name = "repository_id", required = false) Long repositoryId,
             @RequestParam(name = "container_id", required = false) Long containerId,
             @RequestParam(name = "only_direct", required = false, defaultValue = "false") boolean onlyDirect,
+            // The dashboard has linked here since the first version. Nothing read it, so the
+            // most actionable figure on that screen opened the whole backlog instead.
+            @RequestParam(name = "is_kev", required = false, defaultValue = "false") boolean onlyKev,
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset) {
@@ -93,6 +106,7 @@ public class IssuesController {
                 repositoryId,
                 containerId,
                 onlyDirect,
+                onlyKev,
                 search,
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
@@ -101,9 +115,32 @@ public class IssuesController {
         var specification = filters.toSpecification();
         var page = issues.findAll(
                 specification,
-                PageRequest.of(from / Math.max(size, 1), size, Sort.by(Sort.Order.desc("lastSeenAt"), Sort.Order.desc("id"))));
+                PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
 
-        return new Page(page.getContent(), page.getTotalElements(), size, from);
+        return new Page(named(page.getContent()), page.getTotalElements(), size, from);
+    }
+
+    /**
+     * Attaches each issue's target name.
+     *
+     * <p><b>Two queries for the page, not two per row.</b> Resolving a name inside the mapping
+     * would issue one select per issue — fifty round trips to render fifty rows, and the cost
+     * grows with the page size a caller chooses.
+     */
+    private List<BacklogEntry> named(List<IssueEntity> page) {
+        TargetNaming.Names names = naming.forIds(
+                idsOf(page, IssueEntity::getRepoId), idsOf(page, IssueEntity::getContainerId));
+
+        return page.stream()
+                .map(issue -> new BacklogEntry(
+                        issue,
+                        names.kindOf(issue.getContainerId()),
+                        names.of(issue.getRepoId(), issue.getContainerId())))
+                .toList();
+    }
+
+    private static List<Long> idsOf(List<IssueEntity> page, Function<IssueEntity, Long> id) {
+        return page.stream().map(id).filter(Objects::nonNull).distinct().toList();
     }
 
     /**
