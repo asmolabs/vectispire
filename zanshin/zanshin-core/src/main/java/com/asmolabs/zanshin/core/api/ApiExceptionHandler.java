@@ -5,8 +5,10 @@ import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
 import com.asmolabs.zanshin.common.domain.net.UnsafeUrlException;
 import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
 import com.asmolabs.zanshin.common.domain.scheduling.InvalidCronExpressionException;
+import com.asmolabs.zanshin.core.api.security.PasswordChangeRequiredException;
 import com.asmolabs.zanshin.core.services.InsecureCredentialTransportException;
 import com.asmolabs.zanshin.core.services.MissingEncryptionKeyException;
+import com.asmolabs.zanshin.core.services.ScanTriggerService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -65,6 +67,29 @@ public class ApiExceptionHandler {
     @ExceptionHandler({MissingEncryptionKeyException.class, InsecureCredentialTransportException.class})
     ProblemDetail preconditionFailed(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, error.getMessage());
+    }
+
+    /**
+     * The caller is authenticated and owes a password change.
+     *
+     * <p>403 and not 401: the token is good and the server knows who this is. 401 would send the
+     * client back to sign in, which it has already done — and would do again, in a loop.
+     */
+    @ExceptionHandler(PasswordChangeRequiredException.class)
+    ProblemDetail passwordChangeRequired(PasswordChangeRequiredException error) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+    }
+
+    /**
+     * The request conflicts with the state the server is already in.
+     *
+     * <p>409 rather than 400: nothing about the request is malformed, and a caller that retries
+     * it unchanged in five minutes may well succeed. "Already queued" is the state's answer, not
+     * the request's fault.
+     */
+    @ExceptionHandler(ScanTriggerService.AlreadyQueuedException.class)
+    ProblemDetail conflict(RuntimeException error) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
     }
 
     /** A row that is not there. Thrown by the {@code orElseThrow} of a lookup. */

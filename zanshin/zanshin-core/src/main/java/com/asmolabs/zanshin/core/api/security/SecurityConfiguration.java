@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.api.security;
 
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -65,6 +66,14 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                         .accessDeniedHandler(auditingDeniedHandler()))
                 .authorizeHttpRequests(requests -> requests
+                        // **The error dispatch is not a request.** When a handler throws, the
+                        // container re-dispatches to `/error`, and that dispatch goes through
+                        // this chain again — with the security context already cleared. Without
+                        // this line every unmapped failure came back as 401 and an empty body:
+                        // the client reads "sign in", signs in, fails again, and the real 500 is
+                        // never seen by anybody. Found by starting the application and asking it
+                        // to do something it refuses.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/login").permitAll()
                         // The agent protocol authenticates by API key, resolved by the filter
                         // above; the controller refuses when no agent came out of it.

@@ -2,7 +2,6 @@ package com.asmolabs.zanshin.core.api.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -36,7 +35,7 @@ public class PasswordChangeInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        throw new AccessDeniedException("A password change is required before any other action.");
+        throw new PasswordChangeRequiredException();
     }
 
     private static boolean allowsPending(HandlerMethod method) {
