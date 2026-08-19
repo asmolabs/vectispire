@@ -30,7 +30,7 @@ public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
      */
     @Query("""
             select new com.asmolabs.zanshin.core.repositories.RuleSetSummary(
-                    r.id, r.name, r.contentHash, r.ruleCount, r.fileCount, r.sizeBytes,
+                    r.id, r.name, r.contentHash, r.ruleCount, r.fileCount, cast(r.sizeBytes as string),
                     r.isActive, r.uploadedBy, r.uploadedAt, r.activationNote)
               from SemgrepRuleSetEntity r
              order by r.uploadedAt desc, r.id desc""")

@@ -59,12 +59,20 @@ public class GateController {
             @JsonProperty("include_triaged") Boolean includeTriaged,
             @JsonProperty("include_ai_review") Boolean includeAiReview) {}
 
+    /**
+     * <b>camelCase inside, snake_case outside</b>, and that asymmetry is the contract rather
+     * than an oversight. The NestJS gate spread the policy object into the response, so its
+     * fields kept the names the domain used, while the response's own fields were written
+     * snake_case for the pipelines that read them. No screen consumes this — the client declares
+     * the shape and never calls the route — but a pipeline written against the old API does, and
+     * it parses by name.
+     */
     public record AppliedPolicy(
-            @JsonProperty("fail_on_severity") String failOnSeverity,
-            @JsonProperty("fail_on_kev") boolean failOnKev,
-            @JsonProperty("fixable_only") boolean fixableOnly,
-            @JsonProperty("include_triaged") boolean includeTriaged,
-            @JsonProperty("include_ai_review") boolean includeAiReview,
+            String failOnSeverity,
+            boolean failOnKev,
+            boolean fixableOnly,
+            boolean includeTriaged,
+            boolean includeAiReview,
             String source,
             Integer version,
             String description) {}
@@ -114,7 +122,7 @@ public class GateController {
                         policy.flag(PolicyFlag.FIXABLE_ONLY),
                         policy.flag(PolicyFlag.INCLUDE_TRIAGED),
                         policy.flag(PolicyFlag.INCLUDE_AI_REVIEW),
-                        decision.policy().source().name().toLowerCase(java.util.Locale.ROOT),
+                        SecurityOverviewView.source(decision.policy().source()),
                         decision.policy().version().orElse(null),
                         decision.policy().describeSource()),
                 decision.policy().ignoredRelaxations());

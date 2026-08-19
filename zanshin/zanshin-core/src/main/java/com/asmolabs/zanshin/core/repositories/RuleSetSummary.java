@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.repositories;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 
 /**
@@ -19,8 +20,8 @@ public record RuleSetSummary(
         String contentHash,
         int ruleCount,
         int fileCount,
-        Long sizeBytes,
-        Boolean active,
+        String sizeBytes,
+        @JsonProperty("isActive") Boolean active,
         String uploadedBy,
         Instant uploadedAt,
         String activationNote) {}

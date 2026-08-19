@@ -95,7 +95,7 @@ record SecurityOverviewView(
      * {@code built_in} would have shown "built_in vnull" in the policy column of every target
      * that has no policy of its own, which is most of them on a new install.
      */
-    private static String source(PolicyResolution.Source source) {
+    static String source(PolicyResolution.Source source) {
         return switch (source) {
             case BUILT_IN -> "built-in";
             case TARGET -> "target";
