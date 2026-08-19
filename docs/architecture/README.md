@@ -7,7 +7,7 @@ that way, and what breaks if you change it without knowing.
 > **NestJS/Angular port.** The implementation described here moved from Python/Reflex to
 > NestJS + Angular; the Python tree has been removed. **The decisions and their reasons
 > still hold** — that is what this folder records — but file paths and module names now
-> point into `backend/src/` and `frontend/src/`. The port's deliberate omissions (OSV and
+> point into `backend/src/` and `zanshin-angular/src/`. The port's deliberate omissions (OSV and
 > sidecar backends not carried over, remote agent without a client binary) are named in
 > the [README](../../README.md).
 

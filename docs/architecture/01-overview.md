@@ -44,7 +44,7 @@ flowchart TB
         SCHED["Scheduler<br/>scheduler.service.ts — periodic tick"]
     end
 
-    UI["Angular UI<br/>frontend/src/app/"]
+    UI["Angular UI<br/>zanshin-angular/src/app/"]
     DB[("Database<br/>PostgreSQL, MySQL, MariaDB or SQLite")]
     DOCKER["Docker daemon<br/>ephemeral analysis containers"]
     AGENT["Remote agent<br/>four-route protocol"]
@@ -100,7 +100,7 @@ Two practical consequences:
   reimplemented the verdict would agree today and diverge the first time a policy flag
   was added.
 - The UI's view models
-  ([`frontend/src/app/core/api.models.ts`](../../frontend/src/app/core/api.models.ts))
+  ([`zanshin-angular/src/app/core/api.models.ts`](../../zanshin-angular/src/app/core/api.models.ts))
   are typed and computed server-side. The browser receives finished values, not
   arithmetic.
 

@@ -150,7 +150,7 @@ Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for th
 ```bash
 npm install
 npm --workspace backend run start:dev     # API on http://localhost:3000
-npm --workspace frontend start            # UI on http://localhost:4200
+npm --workspace @zanshin/frontend start            # UI on http://localhost:4200
 ```
 
 The schema is owned by **TypeORM migrations** — `synchronize` is off, deliberately: a
@@ -392,7 +392,7 @@ backend/src/
 ├── repositories/      # Data access, no business rules
 ├── services/          # Orchestration: ingestion, issues, notifications, tickets
 └── api/               # HTTP controllers
-frontend/src/app/      # Angular: 15 screens, Sakai layout over Optimus UI
+zanshin-angular/src/app/      # Angular: 15 screens, Sakai layout over Optimus UI
 docs/architecture/     # ADR
 ```
 

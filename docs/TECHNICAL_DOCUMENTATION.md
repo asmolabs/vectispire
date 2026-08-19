@@ -12,7 +12,7 @@ it over the same HTTP API a CI pipeline or a remote agent uses.
 
 ```mermaid
 flowchart TB
-    subgraph front["Angular front end — frontend/src/app/"]
+    subgraph front["Angular front end — zanshin-angular/src/app/"]
         Pages["Pages<br/>dashboard, securite, qualite, depots, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log"]
     end
 
@@ -384,10 +384,10 @@ Angular 21 with [Optimus UI](https://github.com/openng/optimus-ui), the communit
 PrimeNG v21 — PrimeTek archived PrimeNG and moved v22 to a commercial license. The shell
 comes from the Sakai template (MIT). `primeicons` is pinned to exactly `7.0.0`: 8.0.0
 followed PrimeNG under a proprietary license, which is what moving to Optimus was meant to
-avoid. See [`frontend/README.md`](../frontend/README.md).
+avoid. See [`zanshin-angular/README.md`](../zanshin-angular/README.md).
 
 The view models the browser receives are typed and computed server-side
-([`core/api.models.ts`](../frontend/src/app/core/api.models.ts)): finished values, not
+([`core/api.models.ts`](../zanshin-angular/src/app/core/api.models.ts)): finished values, not
 arithmetic. In particular the gate verdict shown on the Security screen is the one
 `POST /api/v1/gate` returns, because both go through `domain/gate/policy-gate.ts` — not a
 second implementation in SQL, which would agree today and diverge the first time a policy

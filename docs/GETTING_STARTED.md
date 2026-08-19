@@ -19,7 +19,7 @@ cd Zanshin
 npm install
 ```
 
-One install for the whole workspace: `backend/` (NestJS) and `frontend/` (Angular) share
+One install for the whole workspace: `backend/` (NestJS) and `zanshin-angular/` (Angular) share
 a single lockfile.
 
 ## 3. Configuration
@@ -72,7 +72,7 @@ ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
 ```bash
 npm --workspace backend run migration:run   # bring the schema up to date
 npm --workspace backend run start:dev       # API on http://localhost:3000
-npm --workspace frontend start              # UI on http://localhost:4200
+npm --workspace @zanshin/frontend start              # UI on http://localhost:4200
 ```
 
 The first start creates a SUPERUSER from `ZANSHIN_BOOTSTRAP_USERNAME` and

@@ -1,15 +1,15 @@
 # Agents
 
 Zanshin is a **NestJS + Angular** application in a single npm workspace, and there is now a
-complete **Spring Boot 4 / JDK 25** port of the backend in [`zanshin/`](zanshin/) alongside it.
+complete **Spring Boot 4 / JDK 25** port of the backend in [`zanshin-java/`](zanshin-java/) alongside it.
 
-Which one you touch depends on what you are doing. **New backend work goes in `zanshin/`** —
+Which one you touch depends on what you are doing. **New backend work goes in `zanshin-java/`** —
 it is the implementation of record. `backend/` is kept as the reference to compare a surprise
 against until somebody has run the JVM one against a real deployment; it is not being extended.
 The Angular frontend is unchanged and talks to whichever backend is running, because the HTTP
 contract is the same.
 
-Read [`zanshin/README.md`](zanshin/README.md) before working there. It carries the module
+Read [`zanshin-java/README.md`](zanshin-java/README.md) before working there. It carries the module
 graph, what each guarantee is enforced by, and — the part that matters most — the index of
 where the port deliberately does something *different* from the TypeScript, and why.
 
@@ -22,10 +22,10 @@ telling you to install Reflex skills, set up a virtualenv, or run `reflex init`,
 | | |
 |---|---|
 | Backend | NestJS 11, TypeORM, `backend/` — see [`backend/README.md`](backend/README.md) |
-| Frontend | Angular 21, Optimus UI, `frontend/` — see [`frontend/README.md`](frontend/README.md) |
+| Frontend | Angular 21, Optimus UI, `zanshin-angular/` — see [`zanshin-angular/README.md`](zanshin-angular/README.md) |
 | Database | PostgreSQL (default), MySQL, MariaDB, SQLite — one migration set each |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
-| JVM backend | Spring Boot 4.1, JDK 25, Gradle, `zanshin/` — see [`zanshin/README.md`](zanshin/README.md) |
+| JVM backend | Spring Boot 4.1, JDK 25, Gradle, `zanshin-java/` — see [`zanshin-java/README.md`](zanshin-java/README.md) |
 
 ```bash
 npm ci                                                      # respects the lockfile

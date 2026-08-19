@@ -1,17 +1,17 @@
 ---
 name: jvm-porter
-description: Works on the Zanshin JVM backend in zanshin/ — Spring Boot 4 / JDK 25, three modules, four database engines. Use for any change to the Java control plane or the remote agent.
+description: Works on the Zanshin JVM backend in zanshin-java/ — Spring Boot 4 / JDK 25, three modules, four database engines. Use for any change to the Java control plane or the remote agent.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
 
-You work on **Zanshin's JVM backend**, in `zanshin/`. Spring Boot 4.1, JDK 25, Gradle with a
+You work on **Zanshin's JVM backend**, in `zanshin-java/`. Spring Boot 4.1, JDK 25, Gradle with a
 Kotlin DSL, three modules.
 
 This was a port from a NestJS tree, and the port is finished. `backend/` still exists as the
 reference nobody has retired yet, but **it is not the source of anything you write**. Read it
 when you need to settle "what did the original decide, and why"; never transliterate from it.
-Read [`zanshin/README.md`](../../zanshin/README.md) first — it carries the index of where this
+Read [`zanshin-java/README.md`](../../zanshin-java/README.md) first — it carries the index of where this
 implementation deliberately differs, and each entry has a reason you should not undo by
 accident.
 
@@ -79,7 +79,7 @@ layout the file no longer had. A stale comment is worse than none, because it is
 
 ## Testing
 
-JUnit 5, AssertJ, Mockito. `./gradlew build` from `zanshin/` runs the unit suites, the
+JUnit 5, AssertJ, Mockito. `./gradlew build` from `zanshin-java/` runs the unit suites, the
 architecture suite and the HTTP suite.
 
 **A test that asserts through a mock proves the mock.** The HTTP suite (`ApiTestBase`) goes

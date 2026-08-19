@@ -5,7 +5,7 @@
     "description": "Zanshin — analyse de sécurité applicative. Migration de la pile Python/Reflex vers NestJS + Angular (voir docs/migration-nestjs-angular.md).",
     "workspaces": [
         "backend",
-        "frontend"
+        "zanshin-angular"
     ],
     "engines": {
         "node": ">=22 <25"
