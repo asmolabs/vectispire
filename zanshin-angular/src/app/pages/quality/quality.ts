@@ -6,34 +6,33 @@ import { ApiService } from '@/app/core/api.service';
 import { QualityOverview, Tally } from '@/app/core/api.models';
 
 /**
- * La qualité du code, agrégée.
+ * Code quality, aggregated.
  *
- * **Si cette page n'était que le backlog filtré, elle ne mériterait pas d'exister.**
- * Elle agrège donc sur des axes que le backlog n'offre pas — règles, fichiers, dépôts —
- * parce que devant un backlog de qualité à quatre chiffres, « huit règles font
- * soixante-dix pour cent de la dette » est le seul cadrage actionnable.
+ * **If this page were only the filtered backlog it would not deserve to exist.** It therefore
+ * aggregates along axes the backlog does not offer — rules, files, repositories — because in
+ * front of a four-digit quality backlog, "eight rules account for seventy per cent of the debt"
+ * is the only actionable framing.
  *
- * Le bandeau dit explicitement que ces constats ne font jamais échouer une compilation.
- * Sans cette phrase, l'utilisateur suppose le contraire — et c'est cette supposition qui
- * fait désactiver un gate.
+ * The banner says outright that these findings never fail a build. Without that sentence people
+ * assume the opposite — and it is that assumption which gets a gate switched off.
  */
 @Component({
-    selector: 'zs-qualite',
+    selector: 'zs-quality',
     standalone: true,
     imports: [ButtonModule, MessageModule, RouterLink],
     template: `
         <div class="card">
-            <div class="font-semibold text-xl mb-1">Qualité</div>
-            <p class="text-muted-color mb-4">Ce que l'analyse du code source signale sur la façon dont il est écrit, plutôt que sur sa sûreté.</p>
+            <div class="font-semibold text-xl mb-1">Quality</div>
+            <p class="text-muted-color mb-4">What source analysis reports about how the code is written, rather than about how safe it is.</p>
 
             <p-message severity="info" styleClass="w-full mb-4"
-                text="Ces constats ne font jamais échouer une compilation. Ils sont visibles, exportables, et n'ont pas de voix au chapitre dans la barrière d'intégration continue." />
+                text="These findings never fail a build. They are visible, exportable, and have no say in the continuous-integration gate." />
 
             @if (overview(); as data) {
                 <div class="flex flex-wrap gap-6 mb-6">
-                    <div><span class="text-2xl font-medium">{{ data.openCount }}</span><span class="text-muted-color ml-2">constats ouverts</span></div>
-                    <div><span class="text-2xl font-medium">{{ data.ruleCount }}</span><span class="text-muted-color ml-2">règles distinctes</span></div>
-                    <div><span class="text-2xl font-medium">{{ data.fileCount }}</span><span class="text-muted-color ml-2">fichiers touchés</span></div>
+                    <div><span class="text-2xl font-medium">{{ data.openCount }}</span><span class="text-muted-color ml-2">open findings</span></div>
+                    <div><span class="text-2xl font-medium">{{ data.ruleCount }}</span><span class="text-muted-color ml-2">distinct rules</span></div>
+                    <div><span class="text-2xl font-medium">{{ data.fileCount }}</span><span class="text-muted-color ml-2">files affected</span></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -51,14 +50,14 @@ import { QualityOverview, Tally } from '@/app/core/api.models';
                                     </div>
                                 </div>
                             } @empty {
-                                <div class="text-muted-color text-sm">Aucun constat.</div>
+                                <div class="text-muted-color text-sm">No finding.</div>
                             }
                         </div>
                     }
                 </div>
 
                 <div class="mt-6">
-                    <p-button label="Voir tous les constats de qualité" [text]="true" [routerLink]="['/issues']" [queryParams]="{ type: 'quality' }" />
+                    <p-button label="See every quality finding" [text]="true" [routerLink]="['/issues']" [queryParams]="{ type: 'quality' }" />
                 </div>
             } @else if (error()) {
                 <p-message severity="error" [text]="error()!" styleClass="w-full" />
@@ -66,7 +65,7 @@ import { QualityOverview, Tally } from '@/app/core/api.models';
         </div>
     `
 })
-export class Qualite {
+export class Quality {
     private readonly api = inject(ApiService);
     readonly overview = signal<QualityOverview | null>(null);
     readonly error = signal<string | null>(null);
@@ -74,20 +73,20 @@ export class Qualite {
     constructor() {
         this.api.qualityOverview().subscribe({
             next: (data) => this.overview.set(data),
-            error: () => this.error.set('Impossible de charger la vue qualité.')
+            error: () => this.error.set('Could not load the quality view.')
         });
     }
 
     groups(data: QualityOverview) {
         return [
-            { title: 'Règles les plus fréquentes', rows: data.topRules },
-            { title: 'Fichiers les plus touchés', rows: data.topFiles },
-            { title: 'Dépôts les plus denses', rows: data.topTargets }
+            { title: 'Most frequent rules', rows: data.topRules },
+            { title: 'Most affected files', rows: data.topFiles },
+            { title: 'Densest repositories', rows: data.topTargets }
         ];
     }
 
-    /** Une part relative au plus gros du groupe : c'est la comparaison qui intéresse,
-     *  pas la proportion du total. */
+    /** A share relative to the largest in the group: that is the comparison that matters,
+     *  not the proportion of the total. */
     share(row: Tally, rows: Tally[]): number {
         const largest = Math.max(...rows.map((item) => item.count), 1);
         return Math.round((row.count / largest) * 100);

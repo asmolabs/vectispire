@@ -11,11 +11,11 @@ import { SessionStore } from '../../core/session.store';
 const MINIMUM_LENGTH = 12;
 
 /**
- * Le changement de son propre mot de passe.
+ * Changing your own password.
  *
- * Hors de `AppLayout`, comme la connexion : un compte qui doit changer son mot de passe
- * n'a rien à faire dans le reste de l'application, et lui montrer une barre latérale
- * cliquable inviterait à contourner l'écran.
+ * Outside `AppLayout`, like the sign-in screen: an account that has to change its password has
+ * no business in the rest of the application, and showing it a clickable sidebar would be an
+ * invitation to go around this screen.
  */
 @Component({
     selector: 'app-change-password',
@@ -27,20 +27,20 @@ const MINIMUM_LENGTH = 12;
                 <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%)">
                     <div class="w-full bg-surface-0 dark:bg-surface-900 py-12 px-8 sm:px-12" style="border-radius: 53px">
                         <div class="text-center mb-8">
-                            <div class="text-surface-900 dark:text-surface-0 text-2xl font-medium mb-2">Changer votre mot de passe</div>
+                            <div class="text-surface-900 dark:text-surface-0 text-2xl font-medium mb-2">Change your password</div>
                             @if (imposed()) {
-                                <span class="text-muted-color">Ce compte a été créé avec un mot de passe provisoire.</span>
+                                <span class="text-muted-color">This account was created with a temporary password.</span>
                             } @else {
-                                <span class="text-muted-color">Vos autres sessions seront fermées.</span>
+                                <span class="text-muted-color">Your other sessions will be closed.</span>
                             }
                         </div>
 
                         <form (ngSubmit)="submit()">
-                            <label for="current" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Mot de passe actuel</label>
+                            <label for="current" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Current password</label>
                             <p-password id="current" name="current" [(ngModel)]="currentPassword" [toggleMask]="true" [feedback]="false"
                                         styleClass="mb-6" [fluid]="true" autocomplete="current-password" />
 
-                            <label for="next" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Nouveau mot de passe</label>
+                            <label for="next" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">New password</label>
                             <p-password id="next" name="next" [(ngModel)]="newPassword" [toggleMask]="true" [feedback]="false"
                                         styleClass="mb-2" [fluid]="true" autocomplete="new-password" />
 
@@ -48,16 +48,15 @@ const MINIMUM_LENGTH = 12;
                             <p-password id="confirm" name="confirm" [(ngModel)]="confirmation" [toggleMask]="true" [feedback]="false"
                                         styleClass="mb-2" [fluid]="true" autocomplete="new-password" (keyup.enter)="submit()" />
 
-                            <!-- La longueur seule, parce que c'est la seule contrainte dont
-                                 l'effet sur l'entropie soit réel. Les classes de caractères
-                                 produisent « Motdepasse1! ». -->
-                            <p class="text-muted-color text-sm mt-2 mb-4">Au moins {{ minimumLength }} caractères.</p>
+                            <!-- Length alone, because it is the only constraint whose effect on
+                                 entropy is real. Character classes produce "Password1!". -->
+                            <p class="text-muted-color text-sm mt-2 mb-4">At least {{ minimumLength }} characters.</p>
 
                             @if (error(); as message) {
                                 <p-message severity="error" [text]="message" styleClass="w-full mb-4" />
                             }
 
-                            <p-button type="submit" label="Changer le mot de passe" styleClass="w-full" [loading]="loading()" />
+                            <p-button type="submit" label="Change the password" styleClass="w-full" [loading]="loading()" />
                         </form>
                     </div>
                 </div>
@@ -80,10 +79,10 @@ export class ChangePassword {
     confirmation = '';
 
     submit(): void {
-        // Vérifiée ici et pas côté serveur : la confirmation est une protection contre la
-        // faute de frappe, pas une règle. L'envoyer ne lui donnerait rien à vérifier.
+        // Checked here and not on the server: the confirmation guards against a typo, it is
+        // not a rule. Sending it would give the server nothing to check.
         if (this.newPassword !== this.confirmation) {
-            this.error.set('Le nouveau mot de passe et sa confirmation diffèrent.');
+            this.error.set('The new password and its confirmation differ.');
             return;
         }
 
@@ -98,11 +97,11 @@ export class ChangePassword {
             error: (response: { status: number; error?: { message?: string } }) => {
                 this.loading.set(false);
                 if (response.status === 0) {
-                    this.error.set('Serveur injoignable. Vérifiez que Zanshin est démarré.');
+                    this.error.set('Server unreachable. Check that Zanshin is running.');
                 } else {
-                    // Le serveur distingue « mot de passe actuel incorrect » (401) de
-                    // « nouveau mot de passe refusé » (400) ; son message porte laquelle.
-                    this.error.set(response.error?.message ?? 'Le changement a échoué.');
+                    // The server distinguishes "current password wrong" (401) from "new
+                    // password refused" (400); its message says which one.
+                    this.error.set(response.error?.message ?? 'The change failed.');
                 }
             }
         });

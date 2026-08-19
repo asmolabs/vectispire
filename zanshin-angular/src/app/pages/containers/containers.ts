@@ -20,21 +20,19 @@ import { LastScanTag } from '../../shared/last-scan';
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Conteneurs</h1>
-                <p class="text-muted-color mt-1 mb-0">Les images de conteneur surveillées et l'état de leur dernier scan.</p>
+                <h1 class="text-2xl font-semibold m-0">Containers</h1>
+                <p class="text-muted-color mt-1 mb-0">The monitored container images and the state of their last scan.</p>
             </div>
             @if (isAdmin()) {
-                <p-button label="Ajouter une image" icon="pi pi-plus" (onClick)="openForm()" />
+                <p-button label="Add an image" icon="pi pi-plus" (onClick)="openForm()" />
             }
         </div>
 
-        <p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
-            Le déclenchement d'un scan depuis l'interface n'est pas encore disponible : la file de scans
-            n'est pas portée. Les scans planifiés et ceux lancés par un agent continuent de fonctionner.
-        </p-message>
-
         @if (error(); as message) {
             <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+        }
+        @if (notice(); as message) {
+            <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
         }
 
         <p-card>
@@ -42,9 +40,9 @@ import { LastScanTag } from '../../shared/last-scan';
                 <ng-template #header>
                     <tr>
                         <th>Image</th>
-                        <th>Étiquette</th>
+                        <th>Tag</th>
                         <th>Dernier scan</th>
-                        <th class="text-right">À traiter</th>
+                        <th class="text-right">Outstanding</th>
                         @if (isAdmin()) { <th class="w-1"></th> }
                     </tr>
                 </ng-template>
@@ -64,41 +62,44 @@ import { LastScanTag } from '../../shared/last-scan';
                             }
                         </td>
                         @if (isAdmin()) {
-                            <td class="text-right">
+                            <td class="text-right whitespace-nowrap">
+                                <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Run a scan of ' + container.reference"
+                                          [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Supprimer ' + container.reference" (onClick)="askDelete(container)" />
+                                          [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
                             </td>
                         }
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">Aucune image surveillée.</td></tr>
+                    <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored image.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Ajouter une image" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog header="Add an image" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="registry" class="font-medium">Registre <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
                     <input pInputText id="registry" [(ngModel)]="form.registry" placeholder="ghcr.io" />
-                    <small class="text-muted-color">Vide pour le registre par défaut.</small>
+                    <small class="text-muted-color">Empty for the default registry.</small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="image" class="font-medium">Nom de l'image</label>
-                    <input pInputText id="image" [(ngModel)]="form.imageName" placeholder="equipe/service" />
+                    <label for="image" class="font-medium">Image name</label>
+                    <input pInputText id="image" [(ngModel)]="form.imageName" placeholder="team/service" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="tag" class="font-medium">Étiquette</label>
+                    <label for="tag" class="font-medium">Tag</label>
                     <input pInputText id="tag" [(ngModel)]="form.tag" placeholder="latest" />
-                    <small class="text-muted-color">Une étiquette, ou un condensé « sha256:… » pour figer la version scannée.</small>
+                    <small class="text-muted-color">A tag, or a "sha256:…" digest to pin the version that gets scanned.</small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="agent-label" class="font-medium">Agent exigé <span class="text-muted-color font-normal">(facultatif)</span></label>
-                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="réseau-client" />
+                    <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
+                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
                     <small class="text-muted-color">
-                        L'étiquette qu'un agent doit porter pour scanner cette cible — et donc pour en recevoir
-                        la clé de déploiement. Laissé vide, n'importe quel agent peut la prendre.
+                        The label an agent must carry to scan this target — and therefore to receive
+                        its deployment key. Left empty, any agent may take it.
                     </small>
                 </div>
                 @if (formError(); as message) {
@@ -106,21 +107,21 @@ import { LastScanTag } from '../../shared/last-scan';
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Ajouter" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Supprimer cette image ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Delete this image?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as container) {
                 <p class="m-0">
-                    <span class="font-medium">{{ container.reference }}</span> et tout son historique — scans, constats et
-                    {{ container.openIssues }} problème(s) à traiter — seront supprimés. C'est définitif.
+                    <span class="font-medium">{{ container.reference }}</span> and its whole history — scans, findings and
+                    {{ container.openIssues }} outstanding issue(s) — will be deleted. This is permanent.
                 </p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Supprimer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
@@ -133,6 +134,9 @@ export class Containers {
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
+    /** La ligne dont le scan est en cours de mise en file. */
+    readonly busy = signal<number | null>(null);
+    readonly notice = signal<string | null>(null);
     readonly formError = signal<string | null>(null);
     readonly formVisible = signal(false);
     readonly deleteVisible = signal(false);
@@ -142,11 +146,11 @@ export class Containers {
     form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '' };
 
     /**
-     * Abrège un condensé pour l'affichage, la valeur entière restant dans l'infobulle.
+     * Shortens a digest for display, the whole value staying in the tooltip.
      *
-     * Sans cela, les 64 caractères hexadécimaux élargissent leur colonne jusqu'à écraser
-     * toutes les autres — la table devient illisible pour *tous* les conteneurs dès qu'un
-     * seul est épinglé par condensé. Ça ne se voit qu'à l'écran.
+     * Without this the 64 hexadecimal characters widen their column until they crush every
+     * other one — the table becomes unreadable for *all* containers as soon as a single one is
+     * pinned by digest. It only shows on screen.
      */
     shorten(value: string): string {
         const match = /sha256:([a-f0-9]{64})/.exec(value);
@@ -155,6 +159,30 @@ export class Containers {
 
     constructor() {
         this.reload();
+    }
+
+    /**
+     * Queues a scan. **It does not run it**: a worker will claim it.
+     *
+     * The screen says so, because the wait that follows is not an ordinary button's — without
+     * that sentence, the absence of an immediate change reads as a failure. For an image it is
+     * truer still than for a repository: it has to be pulled from the registry first.
+     */
+    triggerScan(container: MonitoredContainer): void {
+        this.busy.set(container.id);
+        this.notice.set(null);
+        this.api.triggerContainerScan(container.id).subscribe({
+            next: () => {
+                this.busy.set(null);
+                this.notice.set(`Scan queued for ${container.reference}. It will start as soon as a worker is available.`);
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                // The server knows why — "a scan is already queued", most of the time.
+                this.error.set(response?.error?.message ?? 'Could not queue this scan.');
+            }
+        });
     }
 
     reload(): void {
@@ -166,7 +194,7 @@ export class Containers {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des conteneurs.');
+                this.error.set('Could not load the container list.');
                 this.loading.set(false);
             }
         });
@@ -195,9 +223,9 @@ export class Containers {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    // Le message du serveur est celui qui sait *pourquoi* — majuscules
-                    // refusées, condensé mal formé. Le remplacer perdrait l'information.
-                    this.formError.set(response?.error?.message ?? "Impossible d'ajouter cette image.");
+                    // The server's message is the one that knows *why* — upper case refused,
+                    // malformed digest. Replacing it would lose the information.
+                    this.formError.set(response?.error?.message ?? 'Could not add this image.');
                 }
             });
     }
@@ -220,7 +248,7 @@ export class Containers {
             error: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set('La suppression a échoué.');
+                this.error.set('The deletion failed.');
             }
         });
     }

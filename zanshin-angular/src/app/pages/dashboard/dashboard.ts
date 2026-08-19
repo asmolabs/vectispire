@@ -9,13 +9,13 @@ import { ApiService } from '../../core/api.service';
 import type { DashboardOverview } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 
-/** Les sévérités dans l'ordre décroissant, avec leur couleur. Ordre fixe et non tiré des
- *  données : sinon deux chargements successifs peuvent les présenter différemment. */
+/** The severities in descending order, with their colour. A fixed order, not derived from the
+ *  data: otherwise two successive loads could present them differently. */
 const SEVERITIES = [
-    { key: 'critical', label: 'Critique', severity: 'danger' as const },
-    { key: 'high', label: 'Élevée', severity: 'warn' as const },
-    { key: 'medium', label: 'Moyenne', severity: 'secondary' as const },
-    { key: 'low', label: 'Faible', severity: 'secondary' as const }
+    { key: 'critical', label: 'Critical', severity: 'danger' as const },
+    { key: 'high', label: 'High', severity: 'warn' as const },
+    { key: 'medium', label: 'Medium', severity: 'secondary' as const },
+    { key: 'low', label: 'Low', severity: 'secondary' as const }
 ];
 
 @Component({
@@ -24,8 +24,8 @@ const SEVERITIES = [
     imports: [CommonModule, RouterLink, CardModule, MessageModule, TableModule, TagModule, LastScanTag],
     template: `
         <div class="mb-4">
-            <h1 class="text-2xl font-semibold m-0">Tableau de bord</h1>
-            <p class="text-muted-color mt-1 mb-0">L'état de la surveillance, en une page.</p>
+            <h1 class="text-2xl font-semibold m-0">Dashboard</h1>
+            <p class="text-muted-color mt-1 mb-0">The state of the watch, on one page.</p>
         </div>
 
         @if (error(); as message) {
@@ -35,41 +35,41 @@ const SEVERITIES = [
         @if (data(); as overview) {
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
                 <p-card>
-                    <div class="text-muted-color text-sm">Cibles en échec</div>
+                    <div class="text-muted-color text-sm">Failing targets</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
                         {{ overview.posture.failingCount }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
                     </div>
-                    <a routerLink="/securite" class="text-sm">Voir la posture</a>
+                    <a routerLink="/security" class="text-sm">See the posture</a>
                 </p-card>
 
                 <p-card>
-                    <div class="text-muted-color text-sm">Vulnérabilités activement exploitées</div>
+                    <div class="text-muted-color text-sm">Actively exploited vulnerabilities</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">{{ overview.posture.kevCount }}</div>
-                    <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">Voir le catalogue KEV</a>
+                    <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">See the KEV catalogue</a>
                 </p-card>
 
                 <p-card>
-                    <div class="text-muted-color text-sm">Jamais scannées</div>
+                    <div class="text-muted-color text-sm">Never scanned</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.neverScannedCount > 0">
                         {{ overview.posture.neverScannedCount }}
                     </div>
-                    <!-- Le chiffre le plus facile à confondre avec une bonne nouvelle :
-                         une cible sans constat n'est pas une cible sans problème. -->
-                    <div class="text-sm text-muted-color">Sans constat faute d'observation</div>
+                    <!-- The figure easiest to mistake for good news: a target with no finding
+                         is not a target with no problem. -->
+                    <div class="text-sm text-muted-color">No finding for want of observation</div>
                 </p-card>
 
                 <p-card>
-                    <div class="text-muted-color text-sm">Dernier scan en échec</div>
+                    <div class="text-muted-color text-sm">Last scan failed</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.lastScanFailedCount > 0">
                         {{ overview.posture.lastScanFailedCount }}
                     </div>
-                    <div class="text-sm text-muted-color">Données possiblement périmées</div>
+                    <div class="text-sm text-muted-color">Data possibly stale</div>
                 </p-card>
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <p-card styleClass="xl:col-span-1">
-                    <ng-template #title>Problèmes à traiter</ng-template>
+                    <ng-template #title>Issues to handle</ng-template>
                     <div class="flex flex-col gap-3">
                         @for (level of severities; track level.key) {
                             <div class="flex items-center justify-between">
@@ -81,41 +81,41 @@ const SEVERITIES = [
                         }
                     </div>
 
-                    <!-- Séparé, et dit : mêler la qualité au backlog de sécurité ferait
-                         passer ce panneau à quatre chiffres le jour de la mise en service
-                         du SAST, et plus personne ne le regarderait. -->
+                    <!-- Separate, and said so: mixing quality into the security backlog would
+                         push this panel to four digits the day SAST is switched on, and nobody
+                         would look at it again. -->
                     <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
                         <div class="flex items-center justify-between">
-                            <span class="text-muted-color text-sm">Qualité <span class="text-xs">(ne bloque jamais)</span></span>
-                            <a routerLink="/qualite" class="font-semibold">{{ overview.qualityTotal }}</a>
+                            <span class="text-muted-color text-sm">Quality <span class="text-xs">(never blocks)</span></span>
+                            <a routerLink="/quality" class="font-semibold">{{ overview.qualityTotal }}</a>
                         </div>
                     </div>
                 </p-card>
 
                 <p-card styleClass="xl:col-span-2">
-                    <ng-template #title>Cibles en échec</ng-template>
+                    <ng-template #title>Failing targets</ng-template>
                     @if (overview.failing.length === 0) {
-                        <p class="text-muted-color m-0">Aucune cible ne viole sa politique.</p>
+                        <p class="text-muted-color m-0">No target violates its policy.</p>
                         @if (overview.posture.neverScannedCount > 0) {
                             <p class="text-muted-color text-sm mt-2 mb-0">
-                                {{ overview.posture.neverScannedCount }} cible(s) n'ont jamais été scannées : leur conformité n'est pas établie.
+                                {{ overview.posture.neverScannedCount }} target(s) have never been scanned: their compliance is not established.
                             </p>
                         }
                     } @else {
                         <p-table [value]="overview.failing" styleClass="p-datatable-sm">
                             <ng-template #header>
-                                <tr><th>Cible</th><th>Règle en cause</th><th class="text-right">Éléments</th></tr>
+                                <tr><th>Target</th><th>Rule at fault</th><th class="text-right">Items</th></tr>
                             </ng-template>
                             <ng-template #body let-target>
                                 <tr>
                                     <td>
                                         <div class="font-medium">{{ target.name }}</div>
-                                        <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? 'Dépôt' : 'Conteneur' }}</div>
+                                        <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? 'Repository' : 'Container' }}</div>
                                     </td>
                                     <td>
                                         @for (violation of firstViolations(target.violations); track $index) {
                                             <div class="text-sm">
-                                                <p-tag [value]="violation.rule === 'kev' ? 'KEV' : 'Sévérité'" severity="danger" styleClass="mr-2" />
+                                                <p-tag [value]="violation.rule === 'kev' ? 'KEV' : 'Severity'" severity="danger" styleClass="mr-2" />
                                                 {{ violation.reason }}
                                             </div>
                                         }
@@ -132,27 +132,28 @@ const SEVERITIES = [
             </div>
 
             <p-card styleClass="mt-4">
-                <ng-template #title>Scans récents</ng-template>
+                <ng-template #title>Recent scans</ng-template>
                 <p-table [value]="overview.recentScans" styleClass="p-datatable-sm">
                     <ng-template #header>
-                        <tr><th>Cible</th><th>État</th><th class="text-right">Constats</th></tr>
+                        <tr><th>Target</th><th>State</th><th class="text-right">Findings</th></tr>
                     </ng-template>
                     <ng-template #body let-scan>
                         <tr>
                             <td>
-                                <a [routerLink]="['/scans', scan.id]">{{ scan.repoId ? 'Dépôt ' + scan.repoId : 'Conteneur ' + scan.containerId }}</a>
+                                <a [routerLink]="['/scans', scan.id]">{{ scan.targetName ?? (scan.targetKind === 'container' ? 'Container ' + scan.containerId : 'Repository ' + scan.repoId) }}</a>
+                                <div class="text-xs text-muted-color">{{ scan.targetKind === 'container' ? 'image' : 'repository' }}</div>
                             </td>
                             <td><app-last-scan [scan]="scan" /></td>
                             <td class="text-right">{{ scan.findingsCount ?? '—' }}</td>
                         </tr>
                     </ng-template>
                     <ng-template #emptymessage>
-                        <tr><td colspan="3" class="text-center text-muted-color py-6">Aucun scan.</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted-color py-6">No scan.</td></tr>
                     </ng-template>
                 </p-table>
             </p-card>
         } @else if (loading()) {
-            <p class="text-muted-color">Chargement…</p>
+            <p class="text-muted-color">Loading…</p>
         }
     `
 })
@@ -171,14 +172,14 @@ export class Dashboard {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger le tableau de bord.');
+                this.error.set('Could not load the dashboard.');
                 this.loading.set(false);
             }
         });
     }
 
-    /** Trois violations au plus : au-delà, la ligne devient un mur de texte et le tableau
-     *  cesse de servir à repérer quoi traiter. */
+    /** Three violations at most: beyond that the row becomes a wall of text and the table
+     *  stops serving its purpose, which is spotting what to handle. */
     firstViolations(violations: DashboardOverview['failing'][number]['violations']) {
         return violations.slice(0, 3);
     }

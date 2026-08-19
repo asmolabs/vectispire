@@ -3,11 +3,11 @@ import { describe, beforeEach, it, expect } from 'vitest';
 import { LayoutService } from './layout.service';
 
 /**
- * Test de fumée du service qui porte l'état de la coquille (thème sombre, menu
- * replié, configurateur ouvert).
+ * Smoke test of the service that carries the shell's state (dark theme, collapsed menu,
+ * open configurator).
  *
- * Il existe surtout pour que la cible `test` vérifie réellement quelque chose :
- * une suite vide passe toujours, y compris le jour où le harnais est cassé.
+ * It exists mostly so that the `test` target checks something at all: an empty suite always
+ * passes, including on the day the harness is broken.
  */
 describe('LayoutService', () => {
     let service: LayoutService;
@@ -21,11 +21,11 @@ describe('LayoutService', () => {
         expect(service).toBeTruthy();
     });
 
-    it('démarre en thème clair', () => {
+    it('starts in the light theme', () => {
         expect(service.layoutConfig().darkTheme).toBe(false);
     });
 
-    it('bascule le thème sombre', () => {
+    it('toggles the dark theme', () => {
         service.layoutConfig.update((config) => ({ ...config, darkTheme: true }));
         expect(service.layoutConfig().darkTheme).toBe(true);
     });

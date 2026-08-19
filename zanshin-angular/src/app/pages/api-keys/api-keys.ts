@@ -14,13 +14,13 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import type { ApiKeySummary } from '../../core/api.models';
 
-/** Les portées, avec ce qu'elles autorisent — parce que « scan » et « agent » se
- *  ressemblent et que l'une des deux donne le droit d'exécuter du code. */
+/** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
+ *  grants the right to execute code. */
 const SCOPES = [
-    { value: 'read', label: 'Lecture', hint: 'Consulter les constats, scans et rapports.' },
-    { value: 'scan', label: 'Déclencher un scan', hint: 'Mettre un scan en file sur une cible existante.' },
-    { value: 'export', label: 'Export', hint: 'Récupérer SARIF, OpenVEX, SBOM.' },
-    { value: 'agent', label: 'Agent', hint: "Réclamer et exécuter des scans. Ce périmètre exécute du code : ne l'accordez qu'à un agent." }
+    { value: 'read', label: 'Read', hint: 'View findings, scans and reports.' },
+    { value: 'scan', label: 'Trigger a scan', hint: 'Queue a scan on an existing target.' },
+    { value: 'export', label: 'Export', hint: 'Retrieve SARIF, OpenVEX, SBOM.' },
+    { value: 'agent', label: 'Agent', hint: 'Claim and run scans. This scope executes code: grant it only to an agent.' }
 ];
 
 @Component({
@@ -30,10 +30,10 @@ const SCOPES = [
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Clés d'API</h1>
-                <p class="text-muted-color mt-1 mb-0">Les clés qui authentifient les appels automatisés.</p>
+                <h1 class="text-2xl font-semibold m-0">API keys</h1>
+                <p class="text-muted-color mt-1 mb-0">The keys that authenticate automated calls.</p>
             </div>
-            <p-button label="Émettre une clé" icon="pi pi-plus" (onClick)="openForm()" />
+            <p-button label="Issue a key" icon="pi pi-plus" (onClick)="openForm()" />
         </div>
 
         @if (error(); as message) {
@@ -44,11 +44,11 @@ const SCOPES = [
             <p-table [value]="keys()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th>Nom</th>
-                        <th>Préfixe</th>
-                        <th>Portées</th>
-                        <th>Cible</th>
-                        <th>Dernier usage</th>
+                        <th>Name</th>
+                        <th>Prefix</th>
+                        <th>Scopes</th>
+                        <th>Target</th>
+                        <th>Last used</th>
                         <th>Expiration</th>
                         <th class="w-1"></th>
                     </tr>
@@ -60,8 +60,8 @@ const SCOPES = [
                         <td>
                             <div class="flex flex-wrap gap-1">
                                 @for (scope of key.scopes; track scope) {
-                                    <!-- « agent » en rouge : il donne le droit d'exécuter des scans,
-                                         et se distingue mal de « scan » à la lecture. -->
+                                    <!-- "agent" in red: it grants the right to run scans, and reads
+                                         too much like "scan". -->
                                     <p-tag [value]="scopeLabel(scope)" [severity]="scope === 'agent' ? 'danger' : 'secondary'" />
                                 }
                             </div>
@@ -70,49 +70,49 @@ const SCOPES = [
                             @if (key.targetLabel) {
                                 <span class="text-sm">{{ key.targetLabel }}</span>
                             } @else {
-                                <span class="text-muted-color">Toutes</span>
+                                <span class="text-muted-color">All</span>
                             }
                         </td>
                         <td>
                             @if (key.lastUsedAt) {
                                 {{ key.lastUsedAt | date: 'dd/MM/yyyy HH:mm' }}
                             } @else {
-                                <!-- Jamais utilisée n'est pas rien : c'est souvent une clé émise
-                                     pour un usage qui n'a jamais eu lieu, donc à révoquer. -->
-                                <span class="text-muted-color">Jamais</span>
+                                <!-- Never used is not nothing: it is often a key issued for a use
+                                     that never happened, and therefore one to revoke. -->
+                                <span class="text-muted-color">Never</span>
                             }
                         </td>
                         <td>
                             @if (key.isExpired) {
-                                <p-tag value="Expirée" severity="danger" />
+                                <p-tag value="Expired" severity="danger" />
                             } @else if (key.expiresAt) {
                                 {{ key.expiresAt | date: 'dd/MM/yyyy' }}
                             } @else {
-                                <span class="text-muted-color">Sans limite</span>
+                                <span class="text-muted-color">No limit</span>
                             }
                         </td>
                         <td class="text-right">
                             <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                      [ariaLabel]="'Révoquer ' + key.name" (onClick)="askDelete(key)" />
+                                      [ariaLabel]="'Revoke ' + key.name" (onClick)="askDelete(key)" />
                         </td>
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="7" class="text-center text-muted-color py-6">Aucune clé émise.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted-color py-6">No key issued.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Émettre une clé d'API" [(visible)]="formVisible" [modal]="true" [style]="{ width: '36rem' }">
+        <p-dialog header="Issue an API key" [(visible)]="formVisible" [modal]="true" [style]="{ width: '36rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
                     <label for="name" class="font-medium">Nom</label>
-                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="Chaîne d'intégration" />
-                    <small class="text-muted-color">Ce qui permettra de savoir laquelle révoquer.</small>
+                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="Integration pipeline" />
+                    <small class="text-muted-color">What will make it possible to know which one to revoke.</small>
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <span class="font-medium">Portées</span>
+                    <span class="font-medium">Scopes</span>
                     @for (scope of scopes; track scope.value) {
                         <div class="flex items-start gap-2">
                             <p-checkbox [inputId]="scope.value" [binary]="true" [ngModel]="form.scopes.includes(scope.value)"
@@ -126,14 +126,14 @@ const SCOPES = [
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label for="target" class="font-medium">Restreindre à une cible <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="target" class="font-medium">Restrict to one target <span class="text-muted-color font-normal">(optional)</span></label>
                     <p-select id="target" [options]="targetOptions()" optionLabel="label" optionValue="value"
-                              [(ngModel)]="form.target" [showClear]="true" placeholder="Toutes les cibles" styleClass="w-full" />
+                              [(ngModel)]="form.target" [showClear]="true" placeholder="All targets" styleClass="w-full" />
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label for="lifetime" class="font-medium">Expire dans <span class="text-muted-color font-normal">(facultatif)</span></label>
-                    <p-inputnumber inputId="lifetime" [(ngModel)]="form.expiresInDays" [min]="1" [max]="3650" suffix=" jours" styleClass="w-full" />
+                    <label for="lifetime" class="font-medium">Expires in <span class="text-muted-color font-normal">(optional)</span></label>
+                    <p-inputnumber inputId="lifetime" [(ngModel)]="form.expiresInDays" [min]="1" [max]="3650" suffix=" days" styleClass="w-full" />
                 </div>
 
                 @if (formError(); as message) {
@@ -141,33 +141,33 @@ const SCOPES = [
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Émettre" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Issue" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <!-- La seule fois où la valeur existe. Fermer cette fenêtre la perd
-             définitivement, et c'est dit avant, pas après. -->
-        <p-dialog header="Clé émise" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+        <!-- The only time the value exists. Closing this window loses it for good, and that is
+             said before, not after. -->
+        <p-dialog header="Key issued" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
             <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-                Copiez-la maintenant : elle n'est stockée que sous forme d'empreinte et ne pourra pas être réaffichée.
+                Copy it now: it is stored only as a hash and cannot be shown again.
             </p-message>
             <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSecret() }}</div>
             <ng-template #footer>
-                <p-button label="J'ai copié la clé" (onClick)="dismissSecret()" />
+                <p-button label="I have copied the key" (onClick)="dismissSecret()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Révoquer cette clé ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Revoke this key?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as key) {
                 <p class="m-0">
-                    <span class="font-medium">{{ key.name }}</span> cessera immédiatement de fonctionner. Tout appel
-                    qui l'utilise échouera. C'est définitif.
+                    <span class="font-medium">{{ key.name }}</span> will stop working immediately. Every call
+                    that uses it will fail. This is permanent.
                 </p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Révoquer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Revoke" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
@@ -200,12 +200,12 @@ export class ApiKeys {
         this.api.apiKeyTargets().subscribe({
             next: (targets) => {
                 this.targetOptions.set([
-                    ...targets.repositories.map((row) => ({ label: `Dépôt — ${row.label}`, value: `repository:${row.id}` })),
-                    ...targets.containers.map((row) => ({ label: `Conteneur — ${row.label}`, value: `container:${row.id}` }))
+                    ...targets.repositories.map((row) => ({ label: `Repository — ${row.label}`, value: `repository:${row.id}` })),
+                    ...targets.containers.map((row) => ({ label: `Container — ${row.label}`, value: `container:${row.id}` }))
                 ]);
             },
-            // Silencieux : sans la liste, le champ reste vide et la clé porte sur toutes
-            // les cibles. C'est dégradé, pas cassé — inutile d'alarmer.
+            // Silent: without the list the field stays empty and the key covers every target.
+            // That is degraded, not broken — no reason to alarm anybody.
             error: () => this.targetOptions.set([])
         });
     }
@@ -219,7 +219,7 @@ export class ApiKeys {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des clés.');
+                this.error.set('Could not load the key list.');
                 this.loading.set(false);
             }
         });
@@ -260,13 +260,13 @@ export class ApiKeys {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? "Impossible d'émettre cette clé.");
+                    this.formError.set(response?.error?.message ?? 'Could not issue this key.');
                 }
             });
     }
 
     dismissSecret(): void {
-        // Effacée du modèle en même temps que de l'écran : la garder en mémoire pour rien
+        // Cleared from the model at the same time as from the screen: keeping it in memory for
         // laisserait la valeur accessible dans l'onglet ouvert.
         this.issuedSecret.set(null);
         this.secretVisible.set(false);
@@ -290,7 +290,7 @@ export class ApiKeys {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(response?.error?.message ?? 'La révocation a échoué.');
+                this.error.set(response?.error?.message ?? 'The revocation failed.');
                 this.reload(true);
             }
         });

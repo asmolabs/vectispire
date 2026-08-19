@@ -1,21 +1,20 @@
 import { Injectable, computed, signal } from '@angular/core';
 
-/** Le serveur les écrit en majuscules (`user.entity.ts`). */
+/** The server writes them in upper case (`user.entity.ts`). */
 export const ADMIN_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN'];
 import { AuthenticatedUser } from './api.models';
 
 /**
- * La session, côté navigateur.
+ * The session, browser side.
  *
- * **Le jeton vit en mémoire, pas en `localStorage`.** C'est un écart délibéré avec la
- * version Reflex, qui y gardait son jeton de client : ce qui est en `localStorage` est
- * lisible par tout script de la page, donc exfiltrable par la moindre faille XSS, et
- * survit indéfiniment à la fermeture de l'onglet.
+ * **The token lives in memory, not in `localStorage`.** A deliberate departure from the Reflex
+ * version, which kept its client token there: anything in `localStorage` is readable by every
+ * script on the page, and therefore exfiltrable through the smallest XSS, and it outlives the
+ * tab indefinitely.
  *
- * Le prix est réel et assumé : recharger la page déconnecte. Le remède propre est un
- * cookie `HttpOnly` posé par le serveur, que le navigateur envoie sans que le
- * JavaScript puisse le lire — à faire quand le déploiement sera fixé, l'API acceptant
- * déjà un jeton porteur.
+ * The price is real and accepted: reloading the page signs you out. The clean remedy is an
+ * `HttpOnly` cookie set by the server, which the browser sends and JavaScript cannot read — to
+ * be done once the deployment is settled, the API already accepting a bearer token.
  */
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
@@ -26,19 +25,19 @@ export class SessionStore {
     readonly role = computed(() => this.user()?.role ?? '');
 
     /**
-     * Le vocabulaire des rôles administrateurs, **défini une seule fois**.
+     * The administrator role vocabulary, **written once**.
      *
-     * Il vivait dans le menu, et l'écran des dépôts en avait recopié une variante
-     * comparant à `'admin'` en minuscules — donc toujours fausse. Une comparaison de
-     * rôle dupliquée est un contrôle d'accès dupliqué : elle divergera, et la divergence
-     * se lit soit comme un bouton absent, soit comme un bouton qui rend 403.
+     * It lived in the menu, and the repositories screen had copied a variant of it comparing
+     * against a lowercase `'admin'` — so always false. A duplicated role comparison is a
+     * duplicated access control: it will diverge, and the divergence reads either as a missing
+     * button or as a button that answers 403.
      */
     readonly isAdmin = computed(() => ADMIN_ROLES.includes(this.role()));
-    /** Le compte doit changer son mot de passe avant d'accéder au reste. */
+    /** The account must change its password before reaching anything else. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);
 
-    /** Après un changement réussi : l'obligation tombe sans qu'il faille se reconnecter,
-     *  la session courante ayant délibérément survécu côté serveur. */
+    /** After a successful change: the requirement lifts without signing in again, the current
+     *  session having deliberately survived on the server. */
     clearMustChangePassword(): void {
         const user = this.user();
         if (user) this.user.set({ ...user, mustChangePassword: false });
@@ -54,7 +53,7 @@ export class SessionStore {
         this.user.set(null);
     }
 
-    /** Lu par l'intercepteur, et par lui seul. */
+    /** Read by the interceptor, and by nothing else. */
     bearer(): string | null {
         return this.token();
     }

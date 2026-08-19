@@ -4,24 +4,23 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { SessionStore } from './session.store';
 
-/** Les appels dont un 401 n'est pas un jugement sur la session. */
+/** The calls where a 401 is not a verdict about the session. */
 const NOT_A_SESSION_VERDICT = ['/api/v1/auth/change-password'];
 
 /**
- * Pose le jeton sur chaque requête, et traite le 401 en un seul endroit.
+ * Puts the token on every request, and handles the 401 in one place.
  *
- * **Un 401 ferme la session et renvoie à la connexion.** Le serveur est seul juge de la
- * validité d'un jeton — il peut l'avoir révoqué, ou la session avoir expiré pour
- * inactivité — et laisser chaque écran deviner produirait autant d'interprétations que
- * d'écrans.
+ * **A 401 closes the session and returns to the sign-in screen.** The server alone judges a
+ * token's validity — it may have revoked it, or the session may have expired on inactivity —
+ * and letting each screen guess would produce as many interpretations as there are screens.
  *
- * Un **403** n'est pas traité ici, délibérément : il signifie « vous êtes connecté mais
- * ce n'est pas pour vous », et déconnecter quelqu'un parce qu'il a cliqué sur un lien
- * d'administration serait une réaction disproportionnée à une erreur de navigation.
+ * A **403** is deliberately not handled here: it means "you are signed in but this is not for
+ * you", and signing somebody out because they clicked an administration link would be a
+ * disproportionate response to a navigation mistake.
  *
- * **Une exception, et une seule** : le changement de mot de passe. Là, un 401 veut dire
- * « le mot de passe actuel est faux », pas « votre session a expiré » — la règle générale
- * déconnectait pour une faute de frappe, ce qui ne se voit qu'en la commettant.
+ * **One exception, and only one**: the password change. There, a 401 means "the current
+ * password is wrong", not "your session expired" — the general rule signed people out over a
+ * typo, which nobody sees until they make one.
  */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
     const session = inject(SessionStore);
@@ -35,8 +34,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
             const aboutTheSession = !NOT_A_SESSION_VERDICT.some((path) => request.url.startsWith(path));
             if (error.status === 401 && aboutTheSession) {
                 session.close();
-                // `replaceUrl` : la page qui a échoué ne doit pas rester dans
-                // l'historique, sinon le bouton « retour » ramène sur un écran vide.
+                // `replaceUrl`: the page that failed must not stay in the history, or the
+                // back button lands on an empty screen.
                 void router.navigate(['/login'], { replaceUrl: true });
             }
             return throwError(() => error);

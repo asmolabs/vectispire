@@ -12,10 +12,10 @@ export const appConfig: ApplicationConfig = {
             appRoutes,
             withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'enabled' }),
             withEnabledBlockingInitialNavigation(),
-            // **Sans cela, un paramètre de route n'atteint jamais l'entrée du composant.**
-            // L'écran de détail d'un scan restait sur « Chargement… » et le journal de la
-            // console disait NG0950 — une erreur qu'on ne voit pas si l'on se contente de
-            // regarder la page. C'est le genre de configuration qu'on croit implicite.
+            // **Without this, a route parameter never reaches the component's input.**
+            // The scan detail screen sat on "Loading…" while the console log said NG0950 —
+            // an error nobody sees who only looks at the page. This is the kind of
+            // configuration everybody assumes is implicit.
             withComponentInputBinding()
         ),
         provideHttpClient(withFetch(), withInterceptors([authInterceptor])),

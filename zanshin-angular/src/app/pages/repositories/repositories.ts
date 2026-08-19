@@ -14,17 +14,17 @@ import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 
 @Component({
-    selector: 'app-depots',
+    selector: 'app-repositories',
     standalone: true,
     imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, LastScanTag],
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Dépôts</h1>
-                <p class="text-muted-color mt-1 mb-0">Les dépôts git surveillés et l'état de leur dernier scan.</p>
+                <h1 class="text-2xl font-semibold m-0">Repositories</h1>
+                <p class="text-muted-color mt-1 mb-0">The monitored git repositories and the state of their last scan.</p>
             </div>
             @if (isAdmin()) {
-                <p-button label="Ajouter un dépôt" icon="pi pi-plus" (onClick)="openForm()" />
+                <p-button label="Add a repository" icon="pi pi-plus" (onClick)="openForm()" />
             }
         </div>
 
@@ -39,10 +39,10 @@ import { LastScanTag } from '../../shared/last-scan';
             <p-table [value]="repositories()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th>Dépôt</th>
-                        <th>Branche</th>
-                        <th>Dernier scan</th>
-                        <th class="text-right">À traiter</th>
+                        <th>Repository</th>
+                        <th>Branch</th>
+                        <th>Last scan</th>
+                        <th class="text-right">Outstanding</th>
                         @if (isAdmin()) { <th class="w-1"></th> }
                     </tr>
                 </ng-template>
@@ -62,7 +62,7 @@ import { LastScanTag } from '../../shared/last-scan';
                         </td>
                         <td class="text-right">
                             @if (repository.openIssues > 0) {
-                                <a [routerLink]="['/issues']" [queryParams]="{ repo_id: repository.id }" class="font-medium">{{ repository.openIssues }}</a>
+                                <a [routerLink]="['/issues']" [queryParams]="{ repository_id: repository.id }" class="font-medium">{{ repository.openIssues }}</a>
                             } @else {
                                 <span class="text-muted-color">0</span>
                             }
@@ -70,41 +70,41 @@ import { LastScanTag } from '../../shared/last-scan';
                         @if (isAdmin()) {
                             <td class="text-right whitespace-nowrap">
                                 <p-button icon="pi pi-play" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Lancer un scan de ' + repository.url"
+                                          [ariaLabel]="'Run a scan of ' + repository.url"
                                           [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Supprimer ' + repository.url" (onClick)="askDelete(repository)" />
+                                          [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
                             </td>
                         }
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">Aucun dépôt surveillé.</td></tr>
+                    <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored repository.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Ajouter un dépôt" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog header="Add a repository" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="url" class="font-medium">URL du dépôt</label>
+                    <label for="url" class="font-medium">Repository URL</label>
                     <input pInputText id="url" [(ngModel)]="form.url" placeholder="https://github.com/org/projet.git" />
-                    <small class="text-muted-color">https://…, ssh://… ou git&#64;hôte:chemin</small>
+                    <small class="text-muted-color">https://…, ssh://… or git&#64;host:path</small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="branch" class="font-medium">Branche</label>
+                    <label for="branch" class="font-medium">Branch</label>
                     <input pInputText id="branch" [(ngModel)]="form.branch" placeholder="main" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="name" class="font-medium">Nom affiché <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="name" class="font-medium">Display name <span class="text-muted-color font-normal">(optional)</span></label>
                     <input pInputText id="name" [(ngModel)]="form.name" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="agent-label" class="font-medium">Agent exigé <span class="text-muted-color font-normal">(facultatif)</span></label>
-                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="réseau-client" />
+                    <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
+                    <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
                     <small class="text-muted-color">
-                        L'étiquette qu'un agent doit porter pour scanner cette cible — et donc pour en recevoir
-                        la clé de déploiement. Laissé vide, n'importe quel agent peut la prendre.
+                        The label an agent must carry to scan this target — and therefore to receive
+                        its deployment key. Left empty, any agent may take it.
                     </small>
                 </div>
                 @if (formError(); as message) {
@@ -112,26 +112,26 @@ import { LastScanTag } from '../../shared/last-scan';
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Ajouter" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Supprimer ce dépôt ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Delete this repository?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as repository) {
                 <p class="m-0">
-                    <span class="font-medium">{{ repository.url }}</span> et tout son historique — scans, constats et
-                    {{ repository.openIssues }} problème(s) à traiter — seront supprimés. C'est définitif.
+                    <span class="font-medium">{{ repository.url }}</span> and its whole history — scans, findings and
+                    {{ repository.openIssues }} outstanding issue(s) — will be deleted. This is permanent.
                 </p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Supprimer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
 })
-export class Depots {
+export class Repositories {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
 
@@ -163,17 +163,17 @@ export class Depots {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des dépôts.');
+                this.error.set('Could not load the repository list.');
                 this.loading.set(false);
             }
         });
     }
 
     /**
-     * Met un scan en file. **Ne l'exécute pas** : un travailleur le réclamera.
+     * Queues a scan. **It does not run it**: a worker will claim it.
      *
-     * L'écran le dit, parce que l'attente qui suit n'est pas celle d'un bouton ordinaire —
-     * sans cette phrase, l'absence de changement immédiat se lit comme un échec.
+     * The screen says so, because the wait that follows is not an ordinary button's — without
+     * that sentence, the absence of an immediate change reads as a failure.
      */
     triggerScan(repository: MonitoredRepository): void {
         this.busy.set(repository.id);
@@ -181,13 +181,13 @@ export class Depots {
         this.api.triggerRepositoryScan(repository.id).subscribe({
             next: () => {
                 this.busy.set(null);
-                this.notice.set(`Scan mis en file pour ${repository.displayName}. Il démarrera dès qu'un travailleur sera disponible.`);
+                this.notice.set(`Scan queued for ${repository.displayName}. It will start as soon as a worker is available.`);
                 this.reload();
             },
             error: (response) => {
                 this.busy.set(null);
-                // Le serveur sait pourquoi — « un scan est déjà en file », le plus souvent.
-                this.error.set(response?.error?.message ?? 'Impossible de mettre ce scan en file.');
+                // The server knows why — "a scan is already queued", most of the time.
+                this.error.set(response?.error?.message ?? 'Could not queue this scan.');
             }
         });
     }
@@ -213,9 +213,9 @@ export class Depots {
             },
             error: (response) => {
                 this.saving.set(false);
-                // Le message du serveur est celui qui sait *pourquoi* — schéma refusé,
-                // hôte absent. Le remplacer par un « erreur » générique perdrait l'info.
-                this.formError.set(response?.error?.message ?? "Impossible d'ajouter ce dépôt.");
+                // The server's message is the one that knows *why* — scheme refused, host
+                // missing. Replacing it with a generic "error" would lose that.
+                this.formError.set(response?.error?.message ?? 'Could not add this repository.');
             }
         });
     }
@@ -238,7 +238,7 @@ export class Depots {
             error: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set('La suppression a échoué.');
+                this.error.set('The deletion failed.');
             }
         });
     }

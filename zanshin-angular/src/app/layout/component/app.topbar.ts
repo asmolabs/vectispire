@@ -15,9 +15,9 @@ import { LayoutService } from '@/app/layout/service/layout.service';
                 <i class="pi pi-bars"></i>
             </button>
             <a class="layout-topbar-logo" routerLink="/dashboard">
-                <!-- « Zanshin » : la vigilance qui subsiste après l'action. Un œil
-                     ouvert dans un bouclier — un scan n'est pas un état, c'est une
-                     surveillance qui continue. -->
+                <!-- "Zanshin": the awareness that remains after the action. An open eye
+                     inside a shield — a scan is not a state, it is a watch that
+                     continues. -->
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M20 2.5 4.5 8.2v11.3c0 9.1 6.3 15.9 15.5 18 9.2-2.1 15.5-8.9 15.5-18V8.2L20 2.5Z" stroke="var(--primary-color)" stroke-width="2.6" stroke-linejoin="round" fill="none" />
                     <path d="M11 19.4c2.4-3.6 5.4-5.4 9-5.4s6.6 1.8 9 5.4c-2.4 3.6-5.4 5.4-9 5.4s-6.6-1.8-9-5.4Z" stroke="var(--primary-color)" stroke-width="2.2" stroke-linejoin="round" fill="none" />
@@ -29,7 +29,7 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 
         <div class="layout-topbar-actions">
             <div class="layout-config-menu">
-                <button type="button" class="layout-topbar-action" (click)="toggleDarkMode()" [attr.aria-label]="layoutService.isDarkTheme() ? 'Passer en thème clair' : 'Passer en thème sombre'">
+                <button type="button" class="layout-topbar-action" (click)="toggleDarkMode()" [attr.aria-label]="layoutService.isDarkTheme() ? 'Switch to the light theme' : 'Switch to the dark theme'">
                     <i [ngClass]="{ 'pi ': true, 'pi-moon': layoutService.isDarkTheme(), 'pi-sun': !layoutService.isDarkTheme() }"></i>
                 </button>
                 <div class="relative">
@@ -62,20 +62,19 @@ import { LayoutService } from '@/app/layout/service/layout.service';
             </button>
 
             <!--
-                Le menu utilisateur de Sakai proposait Calendar / Messages / Profile,
-                trois écrans que Zanshin n'a pas. Ne restent que les deux actions
-                réelles ; le nom et le rôle affichés viendront du service de session
-                au lot 1.
+                Sakai's user menu offered Calendar / Messages / Profile, three screens
+                Zanshin does not have. Only the two real actions remain; the displayed
+                name and role will come from the session service.
             -->
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
                     <button type="button" class="layout-topbar-action" routerLink="/change-password">
                         <i class="pi pi-key"></i>
-                        <span>Mot de passe</span>
+                        <span>Password</span>
                     </button>
                     <button type="button" class="layout-topbar-action">
                         <i class="pi pi-sign-out"></i>
-                        <span>Se déconnecter</span>
+                        <span>Sign out</span>
                     </button>
                 </div>
             </div>

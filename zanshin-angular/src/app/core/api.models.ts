@@ -1,16 +1,14 @@
 /**
- * Les formes que rend l'API.
+ * The shapes the API returns.
  *
- * **Écrites à la main, et pas encore remplaçables.** `npm run generate:api` produit
- * bien `api.generated.ts` depuis `/api/v1/openapi.json`, mais ce document ne décrit
- * aujourd'hui que les *chemins* : NestJS ne déclare un schéma de réponse que si le
- * contrôleur porte les décorateurs `@ApiResponse`/`@ApiOkResponse` et rend une classe
- * DTO. Sans eux, le générateur rend des opérations aux réponses vides — utiles pour
- * les URL, muettes sur les formes.
+ * **Hand-written, and not yet replaceable.** `npm run generate:api` does produce
+ * `api.generated.ts` from `/api/v1/openapi.json`, but that document today describes only the
+ * *paths*: NestJS declares a response schema only where the controller carries the
+ * `@ApiResponse`/`@ApiOkResponse` decorators and returns a DTO class. Without them the
+ * generator emits operations with empty responses — useful for the URLs, silent on the shapes.
  *
- * Ce fichier disparaîtra donc quand les contrôleurs auront leurs DTO, et pas avant. Il
- * ne contient que des formes, aucune logique, pour que sa suppression soit alors sans
- * conséquence.
+ * This file will therefore disappear when the controllers have their DTOs, and not before. It
+ * holds shapes only, no logic, so that removing it then costs nothing.
  */
 
 export interface AuthenticatedUser {
@@ -30,6 +28,9 @@ export interface Issue {
     id: number;
     repoId: number | null;
     containerId: number | null;
+    /** Resolved by the server, so one target is never named two things on two screens. */
+    targetKind: 'repository' | 'container';
+    targetName: string | null;
     type: string;
     identifier: string | null;
     severity: string | null;
@@ -71,6 +72,7 @@ export interface IssueFilters {
     state?: string;
     severity?: string;
     type?: string;
+    is_kev?: boolean;
     triage_status?: string;
     repository_id?: number;
     container_id?: number;
@@ -108,7 +110,7 @@ export interface ResolvedGatePolicy {
     description: string;
 }
 
-/** Ce que le dernier scan dit de la confiance qu'on peut accorder au verdict. */
+/** What the last scan says about how far the verdict can be trusted. */
 export type Observation = 'ok' | 'never_scanned' | 'last_scan_failed' | 'in_progress';
 
 export interface TargetPosture {
@@ -122,8 +124,8 @@ export interface TargetPosture {
     lastScanId: number | null;
     passed: boolean;
     /**
-     * Le verdict repose-t-il sur une observation réelle ? Une cible jamais scannée
-     * produit un backlog vide, et un backlog vide passe toutes les politiques.
+     * Does the verdict rest on a real observation? A target that was never scanned produces an
+     * empty backlog, and an empty backlog passes every policy.
      */
     observed: boolean;
 }
@@ -137,7 +139,7 @@ export interface SecurityOverview {
     lastScanFailedCount: number;
 }
 
-/** Un décompte groupé — une règle, un fichier ou un dépôt, et son nombre de constats. */
+/** A grouped count — a rule, a file or a repository, and how many findings it carries. */
 export interface Tally {
     label: string | null;
     count: number;
@@ -152,13 +154,13 @@ export interface QualityOverview {
     topTargets: Tally[];
 }
 
-/** Un dépôt surveillé, avec l'état de son dernier scan. */
+/** A monitored repository, with the state of its last scan. */
 export interface MonitoredRepository {
     id: number;
     url: string;
     branch: string;
     name: string | null;
-    /** Calculé par le serveur, pour que le même dépôt porte le même nom partout. */
+    /** Computed by the server, so the same repository carries the same name everywhere. */
     displayName: string;
     subPath: string | null;
     scanIntervalMinutes: number | null;
@@ -172,11 +174,11 @@ export interface NewRepository {
     url: string;
     branch: string;
     name?: string;
-    /** L'étiquette qu'un agent doit porter pour scanner cette cible. Vide : n'importe lequel. */
+    /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
 }
 
-/** L'état d'un dernier scan, partagé par les dépôts et les conteneurs. */
+/** The state of a last scan, shared by repositories and containers. */
 export interface LastScan {
     id: number;
     status: string;
@@ -184,13 +186,13 @@ export interface LastScan {
     error: string | null;
 }
 
-/** Une image de conteneur surveillée. */
+/** A monitored container image. */
 export interface MonitoredContainer {
     id: number;
     registry: string | null;
     imageName: string;
     tag: string;
-    /** Calculée par le serveur : la forme qu'un registre attend. */
+    /** Computed by the server: the form a registry expects. */
     reference: string;
     lastScan: LastScan | null;
     openIssues: number;
@@ -200,15 +202,15 @@ export interface NewContainer {
     registry?: string;
     image_name: string;
     tag: string;
-    /** L'étiquette qu'un agent doit porter pour scanner cette cible. Vide : n'importe lequel. */
+    /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
 }
 
-/** Où en est une clé privée vis-à-vis des clés de chiffrement configurées. */
+/** Where a private key stands with respect to the configured encryption keys. */
 export type EncryptionState = 'current' | 'previous_key' | 'unreadable';
 
-/** Une clé de déploiement. La moitié privée n'apparaît jamais ici : le serveur ne la
- *  rend pas, et aucun écran n'aurait de raison de l'afficher. */
+/** A deployment key. The private half never appears here: the server does not return it, and
+ *  no screen would have a reason to show it. */
 export interface SshKeySummary {
     id: string;
     name: string;
@@ -224,8 +226,8 @@ export interface NewSshKey {
     public_key?: string;
 }
 
-/** Un compte. L'empreinte du mot de passe n'y figure jamais : le serveur ne la rend
- *  pas, et une empreinte bcrypt qui sort du serveur est une empreinte à casser. */
+/** An account. The password hash never appears here: the server does not return it, and a
+ *  bcrypt hash that leaves the server is a hash to be cracked. */
 export interface UserSummary {
     id: number;
     username: string;
@@ -240,7 +242,7 @@ export interface UserSummary {
 
 export interface UserList {
     users: UserSummary[];
-    /** Pour ne pas proposer des actions que le serveur refusera de toute façon. */
+    /** So the screen does not offer actions the server will refuse anyway. */
     currentUserId: number | null;
 }
 
@@ -258,12 +260,12 @@ export interface UserPatch {
     password?: string;
 }
 
-/** Une clé d'API. La valeur en clair n'y figure pas : elle n'existe qu'une fois, dans la
- *  réponse à la création. */
+/** An API key. The cleartext value is not here: it exists once only, in the response to its
+ *  creation. */
 export interface ApiKeySummary {
     id: string;
     name: string;
-    /** Les douze premiers caractères, en clair. Ce n'est pas un secret. */
+    /** The first twelve characters, in clear. This is not a secret. */
     prefix: string | null;
     scopes: string[];
     targetKind: string | null;
@@ -272,7 +274,7 @@ export interface ApiKeySummary {
     createdAt: string | null;
     lastUsedAt: string | null;
     expiresAt: string | null;
-    /** Calculé par le serveur : deux notions d'« expirée » divergeraient d'un fuseau. */
+    /** Computed by the server: two notions of "expired" would diverge by a time zone. */
     isExpired: boolean;
 }
 
@@ -286,7 +288,7 @@ export interface NewApiKey {
 
 export interface IssuedApiKey {
     key: ApiKeySummary;
-    /** La seule occurrence de la valeur en clair. Elle ne réapparaîtra jamais. */
+    /** The one and only occurrence of the cleartext value. It never reappears. */
     secret: string;
 }
 
@@ -295,7 +297,7 @@ export interface ApiKeyTargets {
     containers: { id: number; label: string }[];
 }
 
-/** Une entrée du journal d'audit. */
+/** An audit log entry. */
 export interface AuditEntry {
     id: string;
     timestamp: string | null;
@@ -317,18 +319,18 @@ export interface AuditFilters {
     offset?: number;
 }
 
-/** Le résultat de la vérification de la chaîne d'intégrité. */
+/** The result of verifying the integrity chain. */
 export interface AuditVerification {
     total: number;
-    /** Entrées antérieures au chaînage : ni une preuve ni une alerte. */
+    /** Entries predating the chaining: neither a proof nor an alarm. */
     unverifiable: number;
     verified: number;
     intact: boolean;
     broken: string | null;
 }
 
-/** Ce que montre le tableau de bord. Aucun de ces chiffres ne lui est propre : la
- *  posture vient de la même construction que l'écran Sécurité et que POST /gate. */
+/** What the dashboard shows. None of these figures is its own: the posture comes from the
+ *  same construction as the Security screen and POST /gate. */
 export interface DashboardOverview {
     posture: {
         failingCount: number;
@@ -337,9 +339,9 @@ export interface DashboardOverview {
         neverScannedCount: number;
         lastScanFailedCount: number;
     };
-    /** Hors qualité, délibérément. */
+    /** Outside quality, deliberately. */
     backlogBySeverity: Record<string, number>;
-    /** À part, et jamais mêlé au backlog de sécurité : il ne bloque rien. */
+    /** Kept apart, and never mixed into the security backlog: it blocks nothing. */
     qualityTotal: number;
     failing: {
         kind: string;
@@ -352,6 +354,9 @@ export interface DashboardOverview {
         id: number;
         repoId: number | null;
         containerId: number | null;
+        /** Resolved by the server: the ids alone named nothing an operator recognises. */
+        targetKind: 'repository' | 'container';
+        targetName: string | null;
         status: string;
         findingsCount: number | null;
         error: string | null;
@@ -367,9 +372,9 @@ export interface AgentSummary {
     kind: string;
     enabled: boolean;
     credentialsMode: string;
-    /** Ce que cet agent sait atteindre, séparé par des virgules. `null` : aucune cible étiquetée. */
+    /** What this agent can reach, comma-separated. `null`: no labelled target. */
     labels: string | null;
-    /** A-t-il annoncé une clé publique éphémère ? Sinon, ses secrets voyagent en clair. */
+    /** Did it announce an ephemeral public key? If not, its secrets travel in clear. */
     sealsCredentials: boolean;
     maxConcurrent: number | null;
     hostname: string | null;
@@ -377,7 +382,7 @@ export interface AgentSummary {
     version: string | null;
     contractVersion: string | null;
     lastSeenAt: string | null;
-    /** Vu récemment — et non « activé ». Un agent activé mais muet est le cas qui compte. */
+    /** Seen recently — not "enabled". An enabled but silent agent is the case that matters. */
     online: boolean;
     runningScans: number;
 }
@@ -386,12 +391,12 @@ export interface NewAgent {
     name: string;
     description?: string;
     credentials_mode: string;
-    /** Séparées par des virgules. Ce que cet agent sait atteindre. */
+    /** Comma-separated. What this agent can reach. */
     labels?: string;
     max_concurrent?: number;
 }
 
-/** Une étiquette exigée par des cibles qu'aucun agent activé ne porte. */
+/** A label demanded by targets that no enabled agent carries. */
 export interface UnroutableLabel {
     label: string;
     queued: number;
@@ -400,7 +405,7 @@ export interface UnroutableLabel {
 export interface IssuedAgent {
     id: string;
     name: string;
-    /** La seule occurrence de la clé en clair. */
+    /** The one and only occurrence of the key in clear. */
     secret: string;
 }
 
@@ -443,16 +448,16 @@ export interface ScanDetail extends ScanSummary {
     hasSbom: boolean;
     findings: ScanFinding[];
     findingsTotal: number;
-    /** La liste est-elle tronquée ? Le dire évite de croire le scan plus léger qu'il n'est. */
+    /** Is the list truncated? Saying so avoids believing the scan lighter than it was. */
     findingsTruncated: boolean;
 }
 
 /**
- * Un réglage, tel que le serveur le décrit.
+ * A setting, as the server describes it.
  *
- * Le type et l'explication viennent du serveur plutôt que d'être codés ici : ajouter un
- * réglage ne doit demander aucune modification de l'interface, et surtout l'écran ne doit
- * pas pouvoir proposer une clé qu'aucun service ne lit.
+ * The type and the explanation come from the server rather than being written here: adding a
+ * setting must require no change to the interface, and above all the screen must not be able
+ * to offer a key that no service reads.
  */
 export interface SettingDefinition {
     key: string;
@@ -462,7 +467,7 @@ export interface SettingDefinition {
     help: string;
     default: string;
     value: string;
-    /** A-t-elle été réglée, ou n'est-ce que le défaut ? Les deux ne se disent pas pareil. */
+    /** Has it been set, or is this only the default? The two are not said the same way. */
     configured: boolean;
 }
 

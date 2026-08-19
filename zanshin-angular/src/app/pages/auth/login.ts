@@ -9,16 +9,16 @@ import { ApiService } from '@/app/core/api.service';
 import { SessionStore } from '@/app/core/session.store';
 
 /**
- * L'écran de connexion.
+ * The sign-in screen.
  *
- * **Aucun identifiant par défaut n'est affiché**, contrairement à ce que faisait la
- * version Reflex. Le compte de provisionnement porte `mustChangePassword`, ce qui est
- * la façon correcte de dire « changez votre mot de passe » sans écrire lequel.
+ * **No default credential is displayed**, unlike the Reflex version. The bootstrap account
+ * carries `mustChangePassword`, which is the correct way to say "change your password" without
+ * writing down what it currently is.
  *
- * Le message d'erreur ne distingue pas « compte inconnu » de « mot de passe faux » —
- * l'API ne le distingue pas non plus, et les séparer donnerait à qui sonde la liste
- * des comptes existants. Le blocage par le limiteur, lui, est annoncé : c'est une
- * information dont la personne a besoin pour savoir qu'attendre suffit.
+ * The error message does not distinguish "unknown account" from "wrong password" — the API does
+ * not distinguish them either, and separating them would hand the list of existing accounts to
+ * whoever probes it. A rate-limiter block, on the other hand, is announced: that is something
+ * the person needs to know, so that they know waiting is enough.
  */
 @Component({
     selector: 'zs-login',
@@ -31,17 +31,17 @@ import { SessionStore } from '@/app/core/session.store';
                     <div class="w-full bg-surface-0 dark:bg-surface-900 py-16 px-8 sm:px-16" style="border-radius: 53px">
                         <div class="text-center mb-8">
                             <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-2">Zanshin</div>
-                            <span class="text-muted-color font-medium">Analyse de sécurité applicative</span>
+                            <span class="text-muted-color font-medium">Application security analysis</span>
                         </div>
 
                         <form (ngSubmit)="submit()">
-                            <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Identifiant</label>
+                            <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
                             <input pInputText id="username" name="username" type="text" autocomplete="username" class="w-full mb-6" [(ngModel)]="username" />
 
-                            <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Mot de passe</label>
-                            <!-- Entrée valide explicitement : « p-password » encapsule son champ, et la touche
-                                 n'atteignait pas la soumission du formulaire — se connecter au clavier
-                                 ne marchait pas, ce qui ne se voit qu'en essayant. -->
+                            <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+                            <!-- Enter is bound explicitly: p-password wraps its own input and the key
+                                 never reached the form's submit — signing in from the keyboard did not
+                                 work, which nobody sees without trying it. -->
                             <p-password id="password" name="password" [(ngModel)]="password" [toggleMask]="true" [feedback]="false"
                                         styleClass="mb-4" [fluid]="true" (keyup.enter)="submit()" />
 
@@ -49,7 +49,7 @@ import { SessionStore } from '@/app/core/session.store';
                                 <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />
                             }
 
-                            <p-button type="submit" label="Se connecter" styleClass="w-full" [loading]="loading()" />
+                            <p-button type="submit" label="Sign in" styleClass="w-full" [loading]="loading()" />
                         </form>
                     </div>
                 </div>
@@ -83,17 +83,17 @@ export class Login {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
                 if (retryAfter) {
-                    this.error.set(`Trop de tentatives. Réessayez dans ${Math.ceil(retryAfter / 60)} minute(s).`);
+                    this.error.set(`Too many attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`);
                 } else if (response.status === 401) {
-                    this.error.set('Identifiants invalides.');
+                    this.error.set('Invalid credentials.');
                 } else {
-                    // Un serveur injoignable ou en erreur affichait « Identifiants
-                    // invalides », ce qui envoie chercher un mot de passe correct pendant
-                    // que la vraie panne est ailleurs. Vu en essayant, pas en relisant.
+                    // An unreachable or failing server used to display "Invalid credentials",
+                    // which sends somebody hunting for the right password while the real fault
+                    // is elsewhere. Seen by trying it, not by reading it.
                     this.error.set(
                         response.status === 0
-                            ? 'Serveur injoignable. Vérifiez que Zanshin est démarré.'
-                            : `Le serveur a répondu ${response.status}. Réessayez, ou consultez ses journaux.`
+                            ? 'Server unreachable. Check that Zanshin is running.'
+                            : `The server answered ${response.status}. Try again, or check its logs.`
                     );
                 }
             }
@@ -102,12 +102,12 @@ export class Login {
 }
 
 /**
- * Identifie ce navigateur pour le second compteur du limiteur.
+ * Identifies this browser for the rate limiter's second counter.
  *
- * Persisté, parce qu'un identifiant tiré à chaque chargement rendrait ce compteur
- * inopérant — c'est précisément celui qui empêche un attaquant de balayer la liste des
- * comptes depuis un même poste. Il ne s'agit pas d'un secret : le perdre ne donne rien
- * à personne, il rend seulement le limiteur plus indulgent.
+ * Persisted, because an identifier drawn afresh on every load would make that counter useless —
+ * and it is precisely the one that stops an attacker sweeping the account list from a single
+ * machine. It is not a secret: losing it gives nobody anything, it only makes the limiter more
+ * forgiving.
  */
 function clientId(): string {
     const key = 'zanshin.client';

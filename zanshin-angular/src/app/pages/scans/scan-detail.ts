@@ -9,15 +9,15 @@ import { ApiService } from '../../core/api.service';
 import type { ScanDetail } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 
-/** Les types de constat, traduits. Table ouverte : un type inconnu s'affiche brut. */
+/** Finding types, in words. Open table: an unknown type is shown raw. */
 const TYPE_LABELS: Record<string, string> = {
-    vulnerability: 'Vulnérabilité',
+    vulnerability: 'Vulnerability',
     secret: 'Secret',
     iac: 'Infrastructure',
-    license: 'Licence',
-    eol: 'Fin de vie',
-    sast: 'Code source',
-    quality: 'Qualité'
+    license: 'License',
+    eol: 'End of life',
+    sast: 'Source code',
+    quality: 'Quality'
 };
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
@@ -36,7 +36,7 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     template: `
         @if (scan(); as detail) {
             <div class="mb-4">
-                <a routerLink="/depots" class="text-sm">← Dépôts</a>
+                <a routerLink="/repositories" class="text-sm">← Repositories</a>
                 <h1 class="text-2xl font-semibold m-0 mt-1">Scan #{{ detail.id }} — {{ detail.targetName }}</h1>
                 <p class="text-muted-color mt-1 mb-0">
                     {{ detail.branch }} · {{ detail.createdAt | date: 'dd/MM/yyyy HH:mm' }}
@@ -47,9 +47,9 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
             </div>
 
             @if (detail.error) {
-                <!-- Affiché même sur un scan terminé : c'est là que se logent les étapes qui
-                     n'ont rien regardé, et sans cette ligne l'opérateur croirait le scan
-                     complet. -->
+                <!-- Shown even on a completed scan: this is where the steps that looked at
+                      nothing are recorded, and without this line an operator would believe the
+                      scan complete. -->
                 <p-message [severity]="detail.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
                     {{ detail.error }}
                 </p-message>
@@ -57,19 +57,19 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <p-card>
-                    <div class="text-muted-color text-sm">État</div>
+                    <div class="text-muted-color text-sm">State</div>
                     <div class="mt-2"><app-last-scan [scan]="detail" /></div>
                 </p-card>
                 <p-card>
-                    <div class="text-muted-color text-sm">Constats</div>
+                    <div class="text-muted-color text-sm">Findings</div>
                     <div class="text-3xl font-semibold mt-1">{{ detail.findingsCount }}</div>
                 </p-card>
                 <p-card>
-                    <div class="text-muted-color text-sm">Nouveaux problèmes</div>
+                    <div class="text-muted-color text-sm">New issues</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.newIssuesCount > 0">{{ detail.newIssuesCount }}</div>
                 </p-card>
                 <p-card>
-                    <div class="text-muted-color text-sm">Problèmes résolus</div>
+                    <div class="text-muted-color text-sm">Resolved issues</div>
                     <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.resolvedIssuesCount > 0">
                         {{ detail.resolvedIssuesCount }}
                     </div>
@@ -78,15 +78,15 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 
             <p-card>
                 <ng-template #title>
-                    Constats de ce scan
+                    Findings from this scan
                     <span class="text-muted-color font-normal text-sm">
-                        — ce que ce scan a observé, pas le backlog de la cible
+                        — what this scan observed, not the target's backlog
                     </span>
                 </ng-template>
 
                 @if (detail.findingsTruncated) {
                     <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
-                        {{ detail.findingsTotal }} constats au total ; les {{ detail.findings.length }} premiers sont affichés.
+                        {{ detail.findingsTotal }} findings in total; the first {{ detail.findings.length }} are shown.
                     </p-message>
                 }
 
@@ -94,9 +94,9 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                     <ng-template #header>
                         <tr>
                             <th style="width: 9rem">Type</th>
-                            <th style="width: 7rem">Sévérité</th>
-                            <th>Constat</th>
-                            <th>Emplacement</th>
+                            <th style="width: 7rem">Severity</th>
+                            <th>Finding</th>
+                            <th>Location</th>
                         </tr>
                     </ng-template>
                     <ng-template #body let-finding>
@@ -118,9 +118,9 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                                     <div class="text-sm text-muted-color">
                                         {{ finding.packageName }} {{ finding.packageVersion }}
                                         @if (finding.fixVersions) {
-                                            · <span class="text-green-600">corrigé en {{ finding.fixVersions }}</span>
+                                            · <span class="text-green-600">fixed in {{ finding.fixVersions }}</span>
                                         } @else {
-                                            · <span class="text-muted-color">aucun correctif publié</span>
+                                            · <span class="text-muted-color">no published fix</span>
                                         }
                                     </div>
                                 }
@@ -135,14 +135,14 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                         </tr>
                     </ng-template>
                     <ng-template #emptymessage>
-                        <tr><td colspan="4" class="text-center text-muted-color py-6">Aucun constat.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted-color py-6">No finding.</td></tr>
                     </ng-template>
                 </p-table>
             </p-card>
         } @else if (error(); as message) {
             <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
         } @else {
-            <p class="text-muted-color">Chargement…</p>
+            <p class="text-muted-color">Loading…</p>
         }
     `
 })
@@ -154,10 +154,10 @@ export class ScanDetailPage {
     readonly error = signal<string | null>(null);
 
     constructor() {
-        // Un `effect` et non un appel dans le constructeur : les entrées signal ne sont pas
-        // encore liées à ce moment-là, et lire `id()` y lève NG0950 — l'écran restait sur
-        // « Chargement… » sans rien dire. L'effet a en prime la bonne propriété : il suit
-        // la navigation d'un scan à l'autre sans qu'on quitte l'écran.
+        // An `effect` rather than a call in the constructor: signal inputs are not bound yet
+        // at that point, and reading `id()` there raises NG0950 — the screen sat on "Loading…"
+        // and said nothing. The effect also has the right property for free: it follows
+        // navigation from one scan to the next without leaving the screen.
         effect(() => {
             const id = Number(this.id());
             if (Number.isFinite(id)) this.load(id);
@@ -179,7 +179,7 @@ export class ScanDetailPage {
     private load(id: number): void {
         this.api.scan(id).subscribe({
             next: (detail) => this.scan.set(detail),
-            error: (response) => this.error.set(response?.status === 404 ? "Ce scan n'existe pas." : 'Impossible de charger ce scan.')
+            error: (response) => this.error.set(response?.status === 404 ? 'This scan does not exist.' : 'Could not load this scan.')
         });
     }
 }

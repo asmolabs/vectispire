@@ -3,7 +3,7 @@
 ## Why the file is here rather than a URL
 
 The previous stylesheet was loaded from `fonts.googleapis.com`, and **Zanshin's CSP
-refused it**: `style-src 'self'` (see the `helmet` block in `backend/src/main.ts`) allows
+refused it**: `style-src 'self'` allows
 no third-party stylesheet. The font was therefore never applied in production — the UI ran
 on the system fallback, with the intended geometry and somebody else's typography.
 

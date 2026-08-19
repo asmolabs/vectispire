@@ -1,17 +1,17 @@
 # Zanshin — Angular UI
 
-Zanshin's user interface, ported from Reflex. See
-[`docs/migration-nestjs-angular.md`](../docs/migration-nestjs-angular.md) for what the
-port kept, dropped, and fixed along the way.
+Zanshin's user interface: fifteen screens over the HTTP API that
+[`zanshin-java/`](../zanshin-java/) serves.
 
 ```bash
-npm run start:frontend    # from the root, serves on http://localhost:4200
-npm run build             # both workspaces
+npm start                 # from the root, serves on http://localhost:4200
+npm run build
 npm test                  # asset check + Vitest suite
 ```
 
-The dev server proxies `/api` to `http://localhost:3000` (see `proxy.conf.json`), where
-the NestJS backend listens.
+The dev server proxies `/api` to `http://localhost:3100` (see `proxy.conf.json`). The
+control plane defaults to port 8000, so start it with `ZANSHIN_PORT=3100` — or change the
+proxy. They only have to agree.
 
 ## The stack, and why
 
@@ -54,7 +54,6 @@ fonts actually exist and are real `woff2` files.
 
 This is not zeal. Zanshin's content security policy refuses third-party stylesheets, and
 Sakai loaded Lato from a CDN. Such a reference breaks nothing visible: the request is
-blocked, the page falls back to the system font, and nothing reports it. That is what
-happened to the Reflex version, whose typography never reached production — it took
-measuring in the browser to find out. Inter is therefore served from `public/fonts/`,
-OFL license included.
+blocked, the page falls back to the system font, and nothing reports it — which is how a
+typography can fail to reach production without anyone noticing, until somebody measures it
+in the browser. Inter is therefore served from `public/fonts/`, OFL license included.

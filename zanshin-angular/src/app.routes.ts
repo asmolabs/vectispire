@@ -2,13 +2,17 @@ import { Routes } from '@angular/router';
 import { AppLayout } from './app/layout/component/app.layout';
 
 /**
- * Les routes reprennent celles de l'interface Reflex à l'identique — `/depots`,
- * `/securite`, `/qualite` et le reste — parce que les signets et les liens déjà
- * distribués les utilisent. Les renommer serait un gain cosmétique payé par tout
- * le monde.
+ * Three paths changed with the interface's translation: `/depots`, `/securite` and `/qualite`
+ * became `/repositories`, `/security` and `/quality`. **Bookmarks and links handed out against
+ * the old paths now land on `/notfound`** — the catch-all route below sends anything unmatched
+ * there, so the failure is visible rather than silent, which is the cheapest form this breakage
+ * can take. Adding redirects from the old paths would keep them working; nobody asked for that,
+ * and a redirect kept for ever is its own kind of debt.
  *
- * `/login` et `/change-password` vivent hors de `AppLayout` : ce sont les deux
- * seuls écrans sans barre latérale, comme dans l'application Reflex.
+ * The other paths were already English and are unchanged.
+ *
+ * `/login` and `/change-password` live outside `AppLayout`: they are the only two screens
+ * with no sidebar, as in the Reflex application.
  */
 export const appRoutes: Routes = [
     {
@@ -17,7 +21,7 @@ export const appRoutes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
             { path: 'dashboard', loadComponent: () => import('./app/pages/dashboard/dashboard').then((m) => m.Dashboard) },
-            { path: 'depots', loadComponent: () => import('./app/pages/depots/depots').then((m) => m.Depots) },
+            { path: 'repositories', loadComponent: () => import('./app/pages/repositories/repositories').then((m) => m.Repositories) },
             { path: 'containers', loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers) },
             { path: 'ssh-keys', loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
             { path: 'users', loadComponent: () => import('./app/pages/users/users').then((m) => m.Users) },
@@ -27,9 +31,9 @@ export const appRoutes: Routes = [
             { path: 'agents', loadComponent: () => import('./app/pages/agents/agents').then((m) => m.Agents) },
             { path: 'rule-sets', loadComponent: () => import('./app/pages/rule-sets/rule-sets').then((m) => m.RuleSets) },
             { path: 'scans/:id', loadComponent: () => import('./app/pages/scans/scan-detail').then((m) => m.ScanDetailPage) },
-            { path: 'securite', loadComponent: () => import('./app/pages/securite/securite').then((m) => m.Securite) },
+            { path: 'security', loadComponent: () => import('./app/pages/security/security').then((m) => m.Security) },
             { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) },
-            { path: 'qualite', loadComponent: () => import('./app/pages/qualite/qualite').then((m) => m.Qualite) }
+            { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
     },
     { path: 'change-password', loadComponent: () => import('./app/pages/auth/change-password').then((m) => m.ChangePassword) },

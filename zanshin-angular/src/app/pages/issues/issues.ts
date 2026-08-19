@@ -14,28 +14,27 @@ import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { ApiService } from '@/app/core/api.service';
 import { Issue, IssueFilters } from '@/app/core/api.models';
 
-/** Les justifications VEX d'une déclaration `not_affected`, telles que la norme les nomme. */
+/** The VEX justifications for a `not_affected` statement, as the standard names them. */
 const VEX_JUSTIFICATIONS = [
     { value: 'component_not_present', label: 'Composant absent' },
-    { value: 'vulnerable_code_not_present', label: 'Code vulnérable absent' },
-    { value: 'vulnerable_code_not_in_execute_path', label: "Code vulnérable hors du chemin d'exécution" },
-    { value: 'vulnerable_code_cannot_be_controlled_by_adversary', label: 'Non contrôlable par un adversaire' },
-    { value: 'inline_mitigations_already_exist', label: 'Mesures de contournement déjà en place' }
+    { value: 'vulnerable_code_not_present', label: 'Vulnerable code not present' },
+    { value: 'vulnerable_code_not_in_execute_path', label: 'Vulnerable code not in the execute path' },
+    { value: 'vulnerable_code_cannot_be_controlled_by_adversary', label: 'Not controllable by an adversary' },
+    { value: 'inline_mitigations_already_exist', label: 'Inline mitigations already exist' }
 ];
 
 /**
- * Le backlog, et le triage.
+ * The backlog, and triage.
  *
- * **La pagination est côté serveur**, pas côté table. Un backlog mûr se compte en
- * milliers de lignes : les charger toutes pour en afficher cinquante ferait transiter
- * des mégaoctets et figerait le navigateur, et c'est précisément l'écran où cela
- * arriverait en premier.
+ * **Pagination is server side**, not table side. A mature backlog runs to thousands of rows:
+ * loading them all to display fifty would move megabytes and freeze the browser, and this is
+ * precisely the screen where that would happen first.
  *
- * Le dialogue de triage reprend les règles VEX telles que l'API les applique — une
- * justification est **exigée** pour « non affecté », sans quoi la déclaration ne porte
- * aucune information et le document VEX exporté serait invalide. Le champ n'apparaît
- * donc que pour ce statut, et le bouton reste inactif tant qu'il est vide : mieux vaut
- * empêcher l'envoi que d'expliquer un refus après coup.
+ * The triage dialog follows the VEX rules exactly as the API applies them — a justification is
+ * **required** for "not affected", without which the statement carries no information and the
+ * exported VEX document would be invalid. The field therefore appears only for that status, and
+ * the button stays disabled while it is empty: better to prevent the submission than to explain
+ * a refusal afterwards.
  */
 @Component({
     selector: 'zs-issues',
@@ -43,26 +42,29 @@ const VEX_JUSTIFICATIONS = [
     imports: [FormsModule, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
     template: `
         <div class="card">
-            <div class="font-semibold text-xl mb-1">Problèmes</div>
-            <p class="text-muted-color mb-4">Ce que les scans ont trouvé, suivi d'un scan à l'autre. Un problème garde son historique et sa décision de triage.</p>
+            <div class="font-semibold text-xl mb-1">Issues</div>
+            <p class="text-muted-color mb-4">What the scans found, followed from one scan to the next. An issue keeps its history and its triage decision.</p>
 
             <div class="flex flex-wrap gap-3 mb-4">
-                <p-select [(ngModel)]="state" [options]="states" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="État" />
-                <p-select [(ngModel)]="severity" [options]="severities" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Sévérité" [showClear]="true" />
+                <p-select [(ngModel)]="state" [options]="states" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
+                <p-select [(ngModel)]="severity" [options]="severities" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Severity" [showClear]="true" />
                 <p-select [(ngModel)]="type" [options]="types" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
+                <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
+                          placeholder="Target" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
                 <p-iconfield>
                     <p-inputicon class="pi pi-search" />
-                    <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" placeholder="Identifiant, paquet, fichier" />
+                    <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" placeholder="Identifier, package, file" />
                 </p-iconfield>
             </div>
 
             <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()">
                 <ng-template #header>
                     <tr>
-                        <th>Problème</th>
-                        <th>Sévérité</th>
-                        <th>Composant</th>
-                        <th>Historique</th>
+                        <th>Issue</th>
+                        <th>Target</th>
+                        <th>Severity</th>
+                        <th>Component</th>
+                        <th>History</th>
                         <th>Triage</th>
                         <th></th>
                     </tr>
@@ -74,20 +76,24 @@ const VEX_JUSTIFICATIONS = [
                             @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
                             <div class="text-muted-color text-sm">{{ issue.filePath ?? issue.type }}</div>
                         </td>
+                        <td>
+                            <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
+                            <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? 'image' : 'repository' }}</div>
+                        </td>
                         <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
                         <td>
                             <span>{{ issue.packageName ?? '—' }}</span>
                             @if (issue.packageVersion) { <span class="text-muted-color"> {{ issue.packageVersion }}</span> }
                         </td>
-                        <td class="text-muted-color">vu {{ issue.timesSeen }}×</td>
+                        <td class="text-muted-color">seen {{ issue.timesSeen }}×</td>
                         <td>
                             <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
-                            @if (issue.triagedBy) { <div class="text-muted-color text-sm">par {{ issue.triagedBy }}</div> }
+                            @if (issue.triagedBy) { <div class="text-muted-color text-sm">by {{ issue.triagedBy }}</div> }
                             <!--
-                                Le ticket est affiché ici parce que sans lui, ouvrir un
-                                ticket serait invisible depuis Zanshin : quelqu'un
-                                rouvrirait le même à la main, et personne ne saurait que
-                                le travail est déjà planifié.
+                                The ticket is shown here because without it, an opened ticket
+                                would be invisible from Zanshin: somebody would raise the same
+                                one by hand, and nobody would know the work is already
+                                planned.
                             -->
                             @if (issue.ticketRef) {
                                 <div class="text-sm mt-1">
@@ -99,35 +105,35 @@ const VEX_JUSTIFICATIONS = [
                                 </div>
                             }
                         </td>
-                        <td><p-button label="Trier" size="small" [text]="true" (onClick)="openTriage(issue)" /></td>
+                        <td><p-button label="Triage" size="small" [text]="true" (onClick)="openTriage(issue)" /></td>
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="6" class="text-center text-muted-color py-6">Aucun problème ne correspond à ces filtres.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
                 </ng-template>
             </p-table>
 
             <div class="flex items-center justify-between mt-4">
                 <span class="text-muted-color">{{ pageLabel() }}</span>
                 <div class="flex gap-2">
-                    <p-button label="Précédent" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
-                    <p-button label="Suivant" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
+                    <p-button label="Previous" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
+                    <p-button label="Next" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
                 </div>
             </div>
         </div>
 
-        <p-dialog header="Trier ce problème" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog header="Triage this issue" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }">
             <div class="flex flex-col gap-4">
                 <div>
-                    <label class="block font-medium mb-2">Décision</label>
+                    <label class="block font-medium mb-2">Decision</label>
                     <p-select [(ngModel)]="triageStatus" [options]="triageOptions" optionLabel="label" optionValue="value" styleClass="w-full" />
                 </div>
 
                 @if (triageStatus === 'not_affected') {
                     <div>
                         <label class="block font-medium mb-2">Justification <span class="text-red-500">*</span></label>
-                        <p-select [(ngModel)]="triageJustification" [options]="justifications" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choisir" />
-                        <small class="text-muted-color">Exigée par la norme VEX : sans elle, la déclaration exportée ne porterait aucune information.</small>
+                        <p-select [(ngModel)]="triageJustification" [options]="justifications" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" />
+                        <small class="text-muted-color">Required by the VEX standard: without it the exported statement would carry no information.</small>
                     </div>
                 }
 
@@ -138,9 +144,9 @@ const VEX_JUSTIFICATIONS = [
 
                 @if (triageStatus !== 'under_review') {
                     <div>
-                        <label class="block font-medium mb-2">Réexaminer dans (jours)</label>
+                        <label class="block font-medium mb-2">Review again in (days)</label>
                         <input pInputText type="number" [(ngModel)]="triageExpiresInDays" class="w-full" />
-                        <small class="text-muted-color">Une décision est un énoncé sur un contexte, et les contextes changent. Laisser vide pour ne pas programmer de réexamen.</small>
+                        <small class="text-muted-color">A decision is a statement about a context, and contexts change. Leave empty to schedule no review.</small>
                     </div>
                 }
 
@@ -148,8 +154,8 @@ const VEX_JUSTIFICATIONS = [
             </div>
 
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="triageOpen = false" />
-                <p-button label="Enregistrer" [disabled]="!canSubmitTriage()" (onClick)="submitTriage()" />
+                <p-button label="Cancel" [text]="true" (onClick)="triageOpen = false" />
+                <p-button label="Save" [disabled]="!canSubmitTriage()" (onClick)="submitTriage()" />
             </ng-template>
         </p-dialog>
     `
@@ -169,20 +175,39 @@ export class Issues {
     type: string | null = null;
     search = '';
 
+    /**
+     * The selected target, as {@code repository:12} or {@code container:3}.
+     *
+     * One control rather than two, because a repository and an image are alternatives here and
+     * two selects would let somebody ask for both — a combination that matches nothing and
+     * whose empty result looks like a broken filter.
+     */
+    target: string | null = null;
+
+    /**
+     * The targets this account may see.
+     *
+     * Read from the two list endpoints and not from the admin-only one that already returns a
+     * repository/container pair: those two apply the visibility filter, so an account confined
+     * to three repositories is offered three and not the whole estate. A filter that offers
+     * what its results will never contain is worse than no filter.
+     */
+    readonly targets = signal<{ label: string; value: string }[]>([]);
+
     readonly states = [
-        { label: 'Ouverts', value: 'open' },
-        { label: 'Résolus', value: 'resolved' },
-        { label: 'Tous', value: 'all' }
+        { label: 'Open', value: 'open' },
+        { label: 'Resolved', value: 'resolved' },
+        { label: 'All', value: 'all' }
     ];
     readonly severities = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'].map((value) => ({ label: value, value }));
     readonly types = [
-        { label: 'Vulnérabilité', value: 'vulnerability' },
-        { label: 'Secret exposé', value: 'secret' },
-        { label: "Configuration d'infrastructure", value: 'iac' },
-        { label: 'Licence', value: 'license' },
-        { label: 'Fin de vie', value: 'eol' },
-        { label: 'Code vulnérable', value: 'sast' },
-        { label: 'Qualité du code', value: 'quality' }
+        { label: 'Vulnerability', value: 'vulnerability' },
+        { label: 'Exposed secret', value: 'secret' },
+        { label: 'Infrastructure configuration', value: 'iac' },
+        { label: 'License', value: 'license' },
+        { label: 'End of life', value: 'eol' },
+        { label: 'Vulnerable code', value: 'sast' },
+        { label: 'Code quality', value: 'quality' }
     ];
 
     triageOpen = false;
@@ -195,32 +220,71 @@ export class Issues {
 
     readonly justifications = VEX_JUSTIFICATIONS;
     readonly triageOptions = [
-        { label: 'À examiner', value: 'under_review' },
-        { label: 'Affecté', value: 'affected' },
-        { label: 'Non affecté', value: 'not_affected' },
-        { label: 'Corrigé', value: 'fixed' }
+        { label: 'Under review', value: 'under_review' },
+        { label: 'Affected', value: 'affected' },
+        { label: 'Not affected', value: 'not_affected' },
+        { label: 'Fixed', value: 'fixed' }
     ];
 
-    /** Les filtres de cible viennent de l'URL — c'est ce qui fait marcher les liens
-     *  de l'écran Sécurité, que la version Reflex produisait sans jamais les lire. */
+    /** The target filters come from the URL — that is what makes the Security screen's links
+     *  work, which the Reflex version produced without ever reading them. */
     private readonly targetFilters: IssueFilters = {};
 
     constructor() {
         const params = this.route.snapshot.queryParamMap;
         const repositoryId = params.get('repository_id');
         const containerId = params.get('container_id');
-        if (repositoryId) this.targetFilters.repository_id = Number(repositoryId);
-        if (containerId) this.targetFilters.container_id = Number(containerId);
+        // Reflected into the control, not only into the query: arriving from a link used to
+        // filter the list while every filter on screen read "all", so the short list looked
+        // like the whole backlog having lost most of its rows.
+        if (repositoryId) this.target = `repository:${repositoryId}`;
+        if (containerId) this.target = `container:${containerId}`;
         if (params.get('type')) this.type = params.get('type');
+
+        // The dashboard has always linked here with these three, and this screen read none of
+        // them: clicking "8 high" opened the whole backlog, and so did the KEV panel. Nothing
+        // failed — the page loaded, full of issues, simply not the ones that were asked for.
+        if (params.get('severity')) this.severity = params.get('severity');
+        if (params.get('state')) this.state = params.get('state')!;
+        if (params.get('is_kev') === 'true') this.targetFilters.is_kev = true;
+
+        this.loadTargets();
         this.reload(0);
+    }
+
+    /**
+     * Both lists, and a failure on either leaves the filter empty rather than the screen.
+     *
+     * The backlog is what somebody came for; not being able to narrow it is a degradation, not
+     * a reason to show an error over the list they can still read.
+     */
+    private loadTargets(): void {
+        const options: { label: string; value: string }[] = [];
+        this.api.repositories().subscribe({
+            next: (repositories) => {
+                options.push(...repositories.map((row) => ({ label: row.displayName, value: `repository:${row.id}` })));
+                this.targets.set([...options]);
+            },
+            error: () => undefined
+        });
+        this.api.containers().subscribe({
+            next: (containers) => {
+                options.push(...containers.map((row) => ({ label: row.reference, value: `container:${row.id}` })));
+                this.targets.set([...options]);
+            },
+            error: () => undefined
+        });
     }
 
     reload(offset: number): void {
         this.loading.set(true);
         this.offset.set(Math.max(0, offset));
+        const [kind, id] = this.target?.split(':') ?? [];
         this.api
             .issues({
                 ...this.targetFilters,
+                repository_id: kind === 'repository' ? Number(id) : undefined,
+                container_id: kind === 'container' ? Number(id) : undefined,
                 state: this.state,
                 severity: this.severity ?? undefined,
                 type: this.type ?? undefined,
@@ -239,8 +303,8 @@ export class Issues {
     }
 
     pageLabel(): string {
-        if (this.total() === 0) return 'Aucun résultat';
-        return `${this.offset() + 1}–${Math.min(this.offset() + this.limit, this.total())} sur ${this.total()}`;
+        if (this.total() === 0) return 'No result';
+        return `${this.offset() + 1}–${Math.min(this.offset() + this.limit, this.total())} of ${this.total()}`;
     }
 
     severityColour(severity: string | null): 'danger' | 'warn' | 'info' | 'secondary' {
@@ -270,7 +334,7 @@ export class Issues {
         this.triageOpen = true;
     }
 
-    /** Empêcher l'envoi vaut mieux qu'expliquer un refus après coup. */
+    /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
         return this.triageStatus !== 'not_affected' || !!this.triageJustification;
     }
@@ -289,7 +353,7 @@ export class Issues {
                     this.triageOpen = false;
                     this.reload(this.offset());
                 },
-                error: (response: { error?: { message?: string } }) => this.triageError.set(response.error?.message ?? 'Le triage a été refusé.')
+                error: (response: { error?: { message?: string } }) => this.triageError.set(response.error?.message ?? 'The triage was refused.')
             });
     }
 }

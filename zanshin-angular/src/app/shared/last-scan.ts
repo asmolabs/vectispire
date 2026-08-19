@@ -4,27 +4,27 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import type { LastScan } from '../core/api.models';
 
 /**
- * L'état du dernier scan d'une cible, dépôt ou conteneur.
+ * The state of a target's last scan, repository or container alike.
  *
- * Extrait parce que la distinction qu'il porte est trop facile à perdre en la recopiant :
- * **« jamais scanné » n'est pas « aucun problème »**, c'est une absence d'observation. Un
- * écran qui affiche une case vide dans ce cas ment par omission.
+ * Extracted because the distinction it carries is too easy to lose when copied:
+ * **"never scanned" is not "no problem"**, it is an absence of observation. A screen that
+ * renders an empty cell in that case lies by omission.
  */
 /**
- * Les clés sont celles de la base, pas celles qu'on attendrait.
+ * The keys are the database's, not the ones you would expect.
  *
- * `pending` et `scanning` — et non `queued` et `running` — parce que ce sont les valeurs
- * que la colonne contient. La première version employait les noms attendus, et l'écran
- * affichait « pending » en brut : la table fermée avait bien fait son travail en montrant
- * la valeur inconnue plutôt qu'en la masquant derrière un libellé rassurant, mais elle n'a
- * rien traduit. Vu à l'écran, pas à la relecture.
+ * `pending` and `scanning` — not `queued` and `running` — because those are the values the
+ * column holds. The first version used the expected names and the screen displayed a raw
+ * "pending": the closed table had done its job by showing the unknown value rather than
+ * hiding it behind a reassuring label, but it translated nothing. Seen on screen, not in
+ * review.
  */
 const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
-    pending: { label: 'En file', severity: 'info' },
-    scanning: { label: 'En cours', severity: 'info' },
-    completed: { label: 'Terminé', severity: 'success' },
-    failed: { label: 'Échoué', severity: 'danger' },
-    cancelled: { label: 'Annulé', severity: 'warn' }
+    pending: { label: 'Queued', severity: 'info' },
+    scanning: { label: 'Running', severity: 'info' },
+    completed: { label: 'Completed', severity: 'success' },
+    failed: { label: 'Failed', severity: 'danger' },
+    cancelled: { label: 'Cancelled', severity: 'warn' }
 };
 
 @Component({
@@ -39,15 +39,15 @@ const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn
                 <div class="text-sm text-red-500 mt-1">{{ value.error }}</div>
             }
         } @else {
-            <span class="text-muted-color">Jamais scanné</span>
+            <span class="text-muted-color">Never scanned</span>
         }
     `
 })
 export class LastScanTag {
     readonly scan = input.required<LastScan | null>();
 
-    /** Table fermée : un statut hors vocabulaire s'affiche brut plutôt que d'être masqué
-     *  par un libellé rassurant. */
+    /** Closed table: a status outside the vocabulary is shown raw rather than hidden behind
+     *  a reassuring label. */
     label(status: string): string {
         return STATUS_LABELS[status]?.label ?? status;
     }

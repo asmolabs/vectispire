@@ -11,16 +11,16 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import type { AuditEntry, AuditVerification } from '../../core/api.models';
 
-/** Les types d'opération, traduits. Table ouverte : un type inconnu s'affiche brut plutôt
- *  que d'être masqué — le journal doit montrer ce qu'il contient, pas ce qu'on attendait. */
+/** Operation types, in words. Open table: an unknown type is shown raw rather than hidden —
+ *  the log must show what it holds, not what somebody expected it to hold. */
 const OPERATION_LABELS: Record<string, string> = {
-    SETTING_UPDATED: 'Réglage modifié',
-    ACCESS_DENIED: 'Accès refusé',
-    LOGIN: 'Connexion',
-    LOGOUT: 'Déconnexion',
+    SETTING_UPDATED: 'Setting changed',
+    ACCESS_DENIED: 'Access denied',
+    LOGIN: 'Sign in',
+    LOGOUT: 'Sign out',
     TRIAGE: 'Triage',
-    SCAN_TRIGGERED: 'Scan déclenché',
-    POLICY_UPDATED: 'Politique modifiée'
+    SCAN_TRIGGERED: 'Scan triggered',
+    POLICY_UPDATED: 'Policy changed'
 };
 
 const PAGE_SIZE = 50;
@@ -31,31 +31,31 @@ const PAGE_SIZE = 50;
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule],
     template: `
         <div class="mb-4">
-            <h1 class="text-2xl font-semibold m-0">Journal d'audit</h1>
-            <p class="text-muted-color mt-1 mb-0">Les opérations sensibles, et l'état de la chaîne qui les protège.</p>
+            <h1 class="text-2xl font-semibold m-0">Audit log</h1>
+            <p class="text-muted-color mt-1 mb-0">The sensitive operations, and the state of the chain that protects them.</p>
         </div>
 
         <!--
-            Le chaînage existe depuis le début et n'était vérifiable que par un script. Un
-            journal dont personne ne regarde jamais l'intégrité protège surtout la
-            conscience de celui qui l'a écrit : le résultat doit être visible sans effort.
+            The chaining has existed from the start and could only be verified by a script. A
+            log whose integrity nobody ever looks at mostly protects the conscience of whoever
+            wrote it: the result has to be visible without effort.
         -->
         @if (verification(); as result) {
             @if (result.intact) {
                 <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">
-                    Chaîne intacte — {{ result.verified }} entrée(s) vérifiée(s)
+                    Chain intact — {{ result.verified }} entry(ies) verified
                     @if (result.unverifiable > 0) {
-                        , {{ result.unverifiable }} antérieure(s) au chaînage
+                        , {{ result.unverifiable }} predating the chaining
                     }
                     .
                 </p-message>
             } @else {
                 <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">
-                    <strong>Chaîne rompue.</strong> {{ result.broken }}
+                    <strong>Chain broken.</strong> {{ result.broken }}
                 </p-message>
             }
         } @else if (verifying()) {
-            <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">Vérification de la chaîne…</p-message>
+            <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">Verifying the chain…</p-message>
         }
 
         @if (error(); as message) {
@@ -65,14 +65,14 @@ const PAGE_SIZE = 50;
         <p-card>
             <div class="flex flex-wrap gap-3 mb-4 items-end">
                 <div class="flex flex-col gap-2">
-                    <label for="type" class="font-medium text-sm">Opération</label>
+                    <label for="type" class="font-medium text-sm">Operation</label>
                     <p-select id="type" [options]="operationOptions()" optionLabel="label" optionValue="value"
                               [(ngModel)]="filters.operationType" (ngModelChange)="search()" [showClear]="true"
-                              placeholder="Toutes" [style]="{ minWidth: '14rem' }" />
+                              placeholder="All" [style]="{ minWidth: '14rem' }" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="user" class="font-medium text-sm">Utilisateur</label>
-                    <input pInputText id="user" [(ngModel)]="filters.userId" (keyup.enter)="search()" placeholder="Tous" />
+                    <label for="user" class="font-medium text-sm">User</label>
+                    <input pInputText id="user" [(ngModel)]="filters.userId" (keyup.enter)="search()" placeholder="Any" />
                 </div>
                 <div class="flex flex-col gap-2 flex-1" style="min-width: 16rem">
                     <label for="q" class="font-medium text-sm">Description contient</label>
@@ -84,11 +84,11 @@ const PAGE_SIZE = 50;
             <p-table [value]="entries()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th style="width: 11rem">Horodatage</th>
-                        <th style="width: 12rem">Opération</th>
+                        <th style="width: 11rem">Timestamp</th>
+                        <th style="width: 12rem">Operation</th>
                         <th>Description</th>
-                        <th style="width: 9rem">Utilisateur</th>
-                        <th style="width: 9rem">Adresse IP</th>
+                        <th style="width: 9rem">User</th>
+                        <th style="width: 9rem">IP address</th>
                     </tr>
                 </ng-template>
                 <ng-template #body let-entry>
@@ -101,18 +101,18 @@ const PAGE_SIZE = 50;
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="5" class="text-center text-muted-color py-6">Aucune entrée.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted-color py-6">No entry.</td></tr>
                 </ng-template>
             </p-table>
 
             @if (total() > 0) {
                 <div class="flex items-center justify-between mt-4">
                     <span class="text-sm text-muted-color">
-                        {{ offset() + 1 }}–{{ shownTo() }} sur {{ total() }}
+                        {{ offset() + 1 }}–{{ shownTo() }} of {{ total() }}
                     </span>
                     <div class="flex gap-2">
-                        <p-button label="Précédent" icon="pi pi-chevron-left" [text]="true" [disabled]="offset() === 0" (onClick)="previous()" />
-                        <p-button label="Suivant" icon="pi pi-chevron-right" iconPos="right" [text]="true"
+                        <p-button label="Previous" icon="pi pi-chevron-left" [text]="true" [disabled]="offset() === 0" (onClick)="previous()" />
+                        <p-button label="Next" icon="pi pi-chevron-right" iconPos="right" [text]="true"
                                   [disabled]="shownTo() >= total()" (onClick)="next()" />
                     </div>
                 </div>
@@ -144,9 +144,9 @@ export class AuditLog {
             },
             error: () => {
                 this.verifying.set(false);
-                // Distinct d'une chaîne rompue : ne pas savoir n'est pas savoir que c'est
-                // cassé, et afficher « rompue » sur une panne réseau serait un mensonge.
-                this.error.set("La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose qu'une rupture.");
+                // Distinct from a broken chain: not knowing is not knowing that it is broken,
+                // and showing "broken" on a network failure would be a lie.
+                this.error.set('Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.');
             }
         });
 
@@ -197,7 +197,7 @@ export class AuditLog {
                     this.loading.set(false);
                 },
                 error: () => {
-                    this.error.set('Impossible de charger le journal.');
+                    this.error.set('Could not load the log.');
                     this.loading.set(false);
                 }
             });

@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
     standalone: true,
     selector: 'app-footer',
     template: `<div class="layout-footer">
-        Zanshin — analyse de sécurité applicative
+        Zanshin — application security analysis
     </div>`
 })
 export class AppFooter {}

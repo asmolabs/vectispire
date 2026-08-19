@@ -21,51 +21,59 @@ import { SessionStore } from '../../core/session.store';
 })
 export class AppMenu {
     /**
-     * La rubrique Administration est réservée aux administrateurs. Le prédicat vient du
-     * magasin de session et n'est pas redéfini ici : sans session, il rend `false`, donc
-     * la rubrique reste masquée par défaut — se tromper dans ce sens ne montre rien de
-     * trop, l'inverse si.
+     * The Administration section is for administrators. The predicate comes from the session
+     * store and is not restated here: with no session it answers `false`, so the section stays
+     * hidden by default — erring in that direction shows nothing it should not, and erring the
+     * other way does.
      */
     private readonly session = inject(SessionStore);
 
     readonly model = computed<MenuItem[]>(() => {
         const sections: MenuItem[] = [
             {
-                label: 'Tableau de bord',
-                items: [{ label: 'Tableau de bord', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard'] }]
+                label: 'Dashboard',
+                items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard'] }]
             },
             {
-                label: 'Sécurité',
+                // What is watched, apart from what the watching found. Repositories and
+                // containers sat under Security, where they read as findings rather than as
+                // the list of things somebody has to declare before anything is found at all.
+                label: 'Configuration',
                 items: [
-                    { label: 'Sécurité', icon: 'pi pi-fw pi-shield', routerLink: ['/securite'] },
-                    { label: 'Problèmes', icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
-                    { label: 'Dépôts & Scans', icon: 'pi pi-fw pi-sitemap', routerLink: ['/depots'] },
-                    { label: 'Conteneurs', icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
+                    { label: 'Repositories', icon: 'pi pi-fw pi-sitemap', routerLink: ['/repositories'] },
+                    { label: 'Containers', icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
                 ]
             },
             {
-                label: 'Qualité',
-                items: [{ label: 'Qualité', icon: 'pi pi-fw pi-sparkles', routerLink: ['/qualite'] }]
+                label: 'Security',
+                items: [
+                    { label: 'Security', icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
+                    { label: 'Issues', icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] }
+                ]
             },
             {
-                label: 'Exploitation',
-                items: [{ label: 'Clés SSH', icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
+                label: 'Quality',
+                items: [{ label: 'Quality', icon: 'pi pi-fw pi-sparkles', routerLink: ['/quality'] }]
+            },
+            {
+                label: 'Operations',
+                items: [{ label: 'SSH keys', icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
             }
         ];
 
-        // Masquer la rubrique n'est pas ce qui protège quoi que ce soit : chaque
-        // endpoint porte sa propre garde côté serveur. C'est du confort de lecture,
-        // et il faut que ça reste énoncé pour que personne ne s'y fie.
+        // Hiding the section is not what protects anything: every endpoint carries its own
+        // guard on the server. This is reading comfort, and saying so has to stay in the file
+        // so that nobody comes to rely on it.
         if (this.session.isAdmin()) {
             sections.push({
                 label: 'Administration',
                 items: [
-                    { label: 'Clés API', icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
+                    { label: 'API keys', icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
                     { label: 'Agents', icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
-                    { label: 'Utilisateurs', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
-                    { label: "Journal d'audit", icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
-                    { label: 'Règles Semgrep', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
-                    { label: 'Paramètres', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
+                    { label: 'Users', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
+                    { label: 'Audit log', icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
+                    { label: 'Semgrep rules', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
+                    { label: 'Settings', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
                 ]
             });
         }

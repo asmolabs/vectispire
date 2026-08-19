@@ -14,28 +14,27 @@ import { ApiService } from '../../core/api.service';
 import type { EncryptionState, SshKeySummary } from '../../core/api.models';
 
 /**
- * L'état de chiffrement mérite une colonne, pas une ligne de journal.
+ * The encryption state deserves a column, not a log line.
  *
- * Une clé lisible seulement sous une clé de chiffrement précédente n'a pas fini d'être
- * tournée. Une clé qu'aucune clé configurée ne lit fera échouer le prochain clone qui en
- * a besoin — au moment du scan, dans un fil d'exécution, des heures plus tard, avec un
- * message qui ressemblera à un problème de réseau.
+ * A key readable only under a previous encryption key has not finished being rotated. A key
+ * that no configured key reads will fail the next clone that needs it — at scan time, on a
+ * worker thread, hours later, with a message that will look like a network problem.
  */
 const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'success' | 'warn' | 'danger'; hint: string }> = {
-    current: { label: 'OK', severity: 'success', hint: "Chiffrée avec la clé de chiffrement courante." },
+    current: { label: 'OK', severity: 'success', hint: 'Encrypted with the current encryption key.' },
     previous_key: {
-        label: 'À faire tourner',
+        label: 'Rotate',
         severity: 'warn',
         hint:
-            "Chiffrée avec une clé de chiffrement précédente. Réenregistrez-la pour la passer sous ENCRYPTION_KEY — " +
-            "et si elle date de la clé par défaut publiée dans le dépôt, sa moitié privée est publique : générez une nouvelle paire."
+            'Encrypted with a previous encryption key. Save it again to move it under ENCRYPTION_KEY — ' +
+            'and if it dates from the default key published in the repository, its private half is public: generate a new pair.'
     },
     unreadable: {
-        label: 'Illisible',
+        label: 'Unreadable',
         severity: 'danger',
         hint:
-            "Aucune clé configurée ne déchiffre cette valeur : le prochain clone qui en a besoin échouera. " +
-            'Renseignez la clé précédente dans ZANSHIN_PREVIOUS_ENCRYPTION_KEYS, ou remplacez cette clé SSH.'
+            'No configured key decrypts this value: the next clone that needs it will fail. ' +
+            'Add the previous key to ZANSHIN_PREVIOUS_ENCRYPTION_KEYS, or replace this SSH key.'
     }
 };
 
@@ -46,17 +45,17 @@ const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'suc
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Clés SSH</h1>
-                <p class="text-muted-color mt-1 mb-0">Les clés de déploiement servant à cloner les dépôts privés.</p>
+                <h1 class="text-2xl font-semibold m-0">SSH keys</h1>
+                <p class="text-muted-color mt-1 mb-0">The deployment keys used to clone private repositories.</p>
             </div>
-            <p-button label="Ajouter une clé" icon="pi pi-plus" (onClick)="openForm()" />
+            <p-button label="Add a key" icon="pi pi-plus" (onClick)="openForm()" />
         </div>
 
-        <!-- Dit ce qui manque plutôt que d'offrir un bouton qui produirait une paire dont
-             on ne peut pas vérifier ici qu'un serveur git l'accepte. -->
+        <!-- Says what is missing rather than offering a button that would produce a pair we
+             cannot check here that a git server accepts. -->
         <p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
-            La génération d'une paire depuis l'interface n'est pas encore portée. Générez-la avec
-            <span class="font-mono">ssh-keygen -t ed25519</span>, puis collez la moitié privée ici.
+            Generating a pair from the interface is not ported yet. Generate one with
+            <span class="font-mono">ssh-keygen -t ed25519</span>, then paste the private half here.
         </p-message>
 
         @if (error(); as message) {
@@ -67,11 +66,11 @@ const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'suc
             <p-table [value]="keys()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th>Nom</th>
-                        <th>Clé publique</th>
-                        <th>Chiffrement</th>
-                        <th>Ajoutée le</th>
-                        <th class="text-right">Dépôts</th>
+                        <th>Name</th>
+                        <th>Public key</th>
+                        <th>Encryption</th>
+                        <th>Added</th>
+                        <th class="text-right">Repositories</th>
                         <th class="w-1"></th>
                     </tr>
                 </ng-template>
@@ -93,51 +92,51 @@ const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'suc
                         <td class="text-right">{{ key.usedByRepositories }}</td>
                         <td class="text-right">
                             <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                      [ariaLabel]="'Supprimer ' + key.name" (onClick)="askDelete(key)" />
+                                      [ariaLabel]="'Delete ' + key.name" (onClick)="askDelete(key)" />
                         </td>
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="6" class="text-center text-muted-color py-6">Aucune clé enregistrée.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted-color py-6">No key registered.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Ajouter une clé SSH" [(visible)]="formVisible" [modal]="true" [style]="{ width: '40rem' }">
+        <p-dialog header="Add an SSH key" [(visible)]="formVisible" [modal]="true" [style]="{ width: '40rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
                     <label for="name" class="font-medium">Nom</label>
-                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="Déploiement GitHub" />
+                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="GitHub deployment" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="private" class="font-medium">Clé privée</label>
+                    <label for="private" class="font-medium">Private key</label>
                     <textarea pTextarea id="private" [(ngModel)]="form.privateKey" rows="7" class="font-mono text-sm"
                               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
-                    <small class="text-muted-color">Chiffrée avant écriture, et jamais réaffichée ensuite.</small>
+                    <small class="text-muted-color">Encrypted before it is written, and never shown again.</small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="public" class="font-medium">Clé publique <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="public" class="font-medium">Public key <span class="text-muted-color font-normal">(optional)</span></label>
                     <textarea pTextarea id="public" [(ngModel)]="form.publicKey" rows="2" class="font-mono text-sm"
                               placeholder="ssh-ed25519 AAAA…"></textarea>
-                    <small class="text-muted-color">Utile pour retrouver quelle clé déclarer chez le fournisseur.</small>
+                    <small class="text-muted-color">Useful for finding which key to register with the provider.</small>
                 </div>
                 @if (formError(); as message) {
                     <p-message severity="error" [closable]="false">{{ message }}</p-message>
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Ajouter" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Supprimer cette clé ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Delete this key?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as key) {
-                <p class="m-0"><span class="font-medium">{{ key.name }}</span> sera supprimée. C'est définitif.</p>
+                <p class="m-0"><span class="font-medium">{{ key.name }}</span> will be deleted. This is permanent.</p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Supprimer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
@@ -169,7 +168,7 @@ export class SshKeys {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des clés.');
+                this.error.set('Could not load the key list.');
                 this.loading.set(false);
             }
         });
@@ -179,8 +178,8 @@ export class SshKeys {
         return ENCRYPTION_LABELS[state] ?? ENCRYPTION_LABELS.unreadable;
     }
 
-    /** Une clé publique tient sur une ligne de 400 caractères : abrégée, comme les
-     *  condensés d'images, sous peine d'écraser toutes les autres colonnes. */
+    /** A public key runs to a 400-character line: shortened, like image digests, or it
+     *  crushes every other column. */
     shorten(value: string): string {
         return value.length > 44 ? `${value.slice(0, 44)}…` : value;
     }
@@ -207,9 +206,9 @@ export class SshKeys {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    // Le serveur sait *pourquoi* — pas une clé privée, aucune clé de
-                    // chiffrement configurée. Un message générique perdrait l'action à mener.
-                    this.formError.set(response?.error?.message ?? "Impossible d'ajouter cette clé.");
+                    // The server knows *why* — not a private key, no encryption key configured.
+                    // A generic message would lose the action to take.
+                    this.formError.set(response?.error?.message ?? 'Could not add this key.');
                 }
             });
     }
@@ -232,8 +231,8 @@ export class SshKeys {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                // Notamment « utilisée par N dépôts » : le refus porte le nombre à détacher.
-                this.error.set(response?.error?.message ?? 'La suppression a échoué.');
+                // Notably "used by N repositories": the refusal carries the number to detach.
+                this.error.set(response?.error?.message ?? 'The deletion failed.');
             }
         });
     }

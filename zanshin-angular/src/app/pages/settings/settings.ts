@@ -12,10 +12,10 @@ import { ApiService } from '../../core/api.service';
 import type { SettingDefinition } from '../../core/api.models';
 
 const SEVERITIES = [
-    { label: 'Critique', value: 'critical' },
-    { label: 'Élevée', value: 'high' },
-    { label: 'Moyenne', value: 'medium' },
-    { label: 'Faible', value: 'low' }
+    { label: 'Critical', value: 'critical' },
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' }
 ];
 
 @Component({
@@ -25,25 +25,25 @@ const SEVERITIES = [
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Paramètres</h1>
+                <h1 class="text-2xl font-semibold m-0">Settings</h1>
                 <p class="text-muted-color mt-1 mb-0">
-                    Ce que Zanshin regarde, ce qu'il conserve, et ce qu'il annonce.
+                    What Zanshin looks at, what it keeps, and what it announces.
                 </p>
             </div>
-            <p-button label="Enregistrer" icon="pi pi-check" [loading]="saving()" [disabled]="!dirty()" (onClick)="save()" />
+            <p-button label="Save" icon="pi pi-check" [loading]="saving()" [disabled]="!dirty()" (onClick)="save()" />
         </div>
 
         @if (error(); as message) {
             <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
         }
         @if (saved()) {
-            <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">Réglages enregistrés.</p-message>
+            <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">Settings saved.</p-message>
         }
 
         <!--
-            Rendu depuis le catalogue du serveur, sections comprises : ajouter un réglage
-            côté serveur le fait apparaître ici sans toucher à ce fichier, et l'écran ne
-            peut pas proposer une clé qu'aucun service ne lit.
+            Rendered from the server's catalogue, sections included: adding a setting on the
+            server makes it appear here without touching this file, and the screen cannot offer
+            a key that no service reads.
         -->
         @for (section of sections(); track section.name) {
             <p-card styleClass="mb-4">
@@ -52,36 +52,47 @@ const SEVERITIES = [
                 <div class="flex flex-col gap-5">
                     @for (setting of section.settings; track setting.key) {
                         <div class="flex flex-col gap-2">
-                            <div class="flex items-start justify-between gap-6">
-                                <label [for]="setting.key" class="font-medium">{{ setting.label }}</label>
+                            <!--
+                                flex-wrap and min-w-0 on the label: without both, a flex item will
+                                not go below the width of its content, so a long label and a
+                                fixed-width field neither shrink nor wrap — they overflow the card.
+                            -->
+                            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                                <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ setting.label }}</label>
 
-                                @switch (setting.type) {
-                                    @case ('boolean') {
-                                        <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
-                                                        (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
+                                <div class="shrink-0 w-full sm:w-auto">
+                                    @switch (setting.type) {
+                                        @case ('boolean') {
+                                            <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                                            (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
+                                        }
+                                        @case ('integer') {
+                                            <!-- styleClass dresses the host, inputStyleClass the field itself:
+                                                 without the second, the field keeps its own width and leaves the box. -->
+                                            <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
+                                                           (ngModelChange)="set(setting.key, numberToText($event))"
+                                                           styleClass="w-32" inputStyleClass="w-full" />
+                                        }
+                                        @case ('severity') {
+                                            <p-select [inputId]="setting.key" [options]="severities" optionLabel="label" optionValue="value"
+                                                      [ngModel]="values()[setting.key]" (ngModelChange)="set(setting.key, $event)"
+                                                      [fluid]="true" styleClass="w-full sm:w-48" />
+                                        }
+                                        @default {
+                                            <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
+                                                   [ngModel]="values()[setting.key]"
+                                                   (ngModelChange)="set(setting.key, $event)" />
+                                        }
                                     }
-                                    @case ('integer') {
-                                        <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
-                                                       (ngModelChange)="set(setting.key, numberToText($event))" styleClass="w-32" />
-                                    }
-                                    @case ('severity') {
-                                        <p-select [inputId]="setting.key" [options]="severities" optionLabel="label" optionValue="value"
-                                                  [ngModel]="values()[setting.key]" (ngModelChange)="set(setting.key, $event)"
-                                                  styleClass="w-48" />
-                                    }
-                                    @default {
-                                        <input pInputText [id]="setting.key" class="w-96" [ngModel]="values()[setting.key]"
-                                               (ngModelChange)="set(setting.key, $event)" />
-                                    }
-                                }
+                                </div>
                             </div>
 
-                            <!-- L'explication dit surtout ce que le réglage *ne* fait pas :
-                                 c'est la partie qu'un opérateur ne peut pas deviner. -->
+                            <!-- The explanation says above all what the setting does *not* do:
+                                 that is the part an operator cannot guess. -->
                             <small class="text-muted-color max-w-3xl">{{ setting.help }}</small>
 
                             @if (!setting.configured) {
-                                <small class="text-muted-color italic">Valeur par défaut — jamais réglée.</small>
+                                <small class="text-muted-color italic">Default value — never set.</small>
                             }
                         </div>
                     }
@@ -90,41 +101,44 @@ const SEVERITIES = [
         }
 
         <!--
-            Le jeton a sa propre carte, hors du catalogue : il est chiffré au repos et ne
-            peut pas être relu. L'écran ne peut donc dire que « configuré » ou « absent »,
-            et le mêler aux autres champs laisserait croire qu'un champ vide veut dire
-            « pas de jeton » alors qu'il veut dire « on ne peut pas vous le montrer ».
+            The token has a card of its own, outside the catalogue: it is encrypted at rest and
+            cannot be read back. The screen can therefore only say "configured" or "absent", and
+            mixing it in with the other fields would suggest that an empty field means
+            "no token" when it means "we cannot show it to you".
         -->
         @if (sections().length > 0) {
             <p-card styleClass="mb-4">
-                <ng-template #title>Jeton du gestionnaire de tickets</ng-template>
+                <ng-template #title>Ticket tracker token</ng-template>
                 <div class="flex flex-col gap-2">
-                    <div class="flex items-start justify-between gap-6">
-                        <label for="ticket-token" class="font-medium">
-                            Jeton
+                    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                        <label for="ticket-token" class="font-medium min-w-0 flex-1">
+                            Token
                             @if (tokenConfigured()) {
-                                <span class="text-green-600 text-sm font-normal">— enregistré</span>
+                                <span class="text-green-600 text-sm font-normal">— saved</span>
                             } @else {
-                                <span class="text-muted-color text-sm font-normal">— aucun</span>
+                                <span class="text-muted-color text-sm font-normal">— none</span>
                             }
                         </label>
-                        <div class="flex gap-2">
-                            <input pInputText id="ticket-token" type="password" class="w-96" [(ngModel)]="tokenInput"
-                                   placeholder="Laisser vide pour ne pas changer" autocomplete="off" />
-                            <p-button label="Enregistrer" [loading]="savingToken()" (onClick)="saveToken()" />
+                        <!-- Field *and* button: this is the widest row on the screen, and so the
+                             first to leave the card when the window narrows. -->
+                        <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                            <input pInputText id="ticket-token" type="password" class="w-full sm:w-96 max-w-full"
+                                   [(ngModel)]="tokenInput"
+                                   placeholder="Leave empty to keep it unchanged" autocomplete="off" />
+                            <p-button label="Save" [loading]="savingToken()" (onClick)="saveToken()" />
                         </div>
                     </div>
                     <small class="text-muted-color max-w-3xl">
-                        Chiffré au repos, comme une clé SSH : il donne un accès en écriture au gestionnaire, ce qui est une
-                        autre classe de secret qu'une URL. Il ne peut pas être réaffiché — enregistrer une valeur vide
-                        l'efface.
+                        Encrypted at rest, like an SSH key: it grants write access to the tracker, which
+                        is another class of secret than a URL. It cannot be shown again — saving an empty
+                        value erases it.
                     </small>
                 </div>
             </p-card>
         }
 
         @if (sections().length === 0 && !error()) {
-            <p class="text-muted-color">Chargement…</p>
+            <p class="text-muted-color">Loading…</p>
         }
     `
 })
@@ -142,7 +156,7 @@ export class Settings {
     readonly savingToken = signal(false);
     tokenInput = '';
 
-    /** Ce qui a changé depuis le chargement. Sert au bouton, et à n'envoyer que le delta. */
+    /** What changed since loading. Drives the button, and sends only the delta. */
     private original: Record<string, string> = {};
 
     readonly dirty = computed(() => Object.entries(this.values()).some(([key, value]) => this.original[key] !== value));
@@ -171,15 +185,15 @@ export class Settings {
         return Number.isFinite(parsed) ? parsed : 0;
     }
 
-    /** `p-inputnumber` rend `null` quand le champ est vidé ; le serveur refuse le vide. */
+    /** `p-inputnumber` yields `null` when the field is cleared; the server refuses empty. */
     numberToText(value: number | null): string {
         return value === null || value === undefined ? '0' : String(value);
     }
 
     save(): void {
-        // Seulement ce qui a changé : envoyer tout le catalogue écrirait des lignes pour
-        // des réglages jamais touchés, et l'écran ne pourrait plus dire lesquels sont
-        // restés au défaut.
+        // Only what changed: sending the whole catalogue would write rows for settings nobody
+        // ever touched, and the screen could no longer say which ones stayed at their
+        // default.
         const changed = Object.fromEntries(Object.entries(this.values()).filter(([key, value]) => this.original[key] !== value));
         if (Object.keys(changed).length === 0) return;
 
@@ -193,9 +207,9 @@ export class Settings {
             },
             error: (response) => {
                 this.saving.set(false);
-                // Le message du serveur porte le libellé du réglage fautif et la valeur
-                // attendue ; le remplacer par un texte générique le perdrait.
-                this.error.set(response?.error?.message ?? "L'enregistrement a échoué.");
+                // The server's message carries the offending setting's label and the expected
+                // value; replacing it with generic text would lose that.
+                this.error.set(response?.error?.message ?? 'Saving failed.');
             }
         });
     }
@@ -207,14 +221,14 @@ export class Settings {
             next: ({ configured }) => {
                 this.savingToken.set(false);
                 this.tokenConfigured.set(configured);
-                // Effacé du modèle en même temps que du champ : le garder laisserait la
-                // valeur accessible dans l'onglet ouvert, comme pour une clé d'API.
+                // Cleared from the model at the same time as from the field: keeping it would
+                // leave the value reachable in the open tab, as for an API key.
                 this.tokenInput = '';
                 this.saved.set(true);
             },
             error: (response) => {
                 this.savingToken.set(false);
-                this.error.set(response?.error?.message ?? "L'enregistrement du jeton a échoué.");
+                this.error.set(response?.error?.message ?? 'Saving the token failed.');
             }
         });
     }
@@ -232,7 +246,7 @@ export class Settings {
                 this.values.set(values);
                 this.original = { ...values };
             },
-            error: () => this.error.set('Impossible de charger les réglages.')
+            error: () => this.error.set('Could not load the settings.')
         });
     }
 }

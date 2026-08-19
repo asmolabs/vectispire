@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
     AgentSummary,
@@ -37,15 +37,15 @@ import {
 } from './api.models';
 
 /**
- * L'accès à l'API, en un point unique.
+ * Access to the API, in one place.
  *
- * Un service par ressource serait plus habituel ; un seul suffit tant que la surface
- * tient sur un écran, et évite de multiplier les fichiers qui ne font qu'appeler
- * `HttpClient`. À découper le jour où il ne tient plus.
+ * One service per resource would be more usual; a single one is enough while the surface fits
+ * on a screen, and it avoids multiplying files that do nothing but call `HttpClient`. To be
+ * split the day it stops fitting.
  *
- * Aucune URL absolue : le serveur de développement relaie `/api` vers le backend
- * (`proxy.conf.json`), et en production les deux sont servis depuis la même origine —
- * ce qui est aussi ce qui permet à la CSP de rester en `connect-src 'self'`.
+ * No absolute URL: the development server proxies `/api` to the backend
+ * (`proxy.conf.json`), and in production both are served from the same origin — which is also
+ * what lets the CSP stay on `connect-src 'self'`.
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -69,8 +69,8 @@ export class ApiService {
     issues(filters: IssueFilters = {}): Observable<Page<Issue>> {
         let params = new HttpParams();
         for (const [key, value] of Object.entries(filters)) {
-            // Une valeur absente ne doit pas devenir « undefined » dans l'URL — le
-            // serveur la lirait comme un filtre sur la chaîne « undefined ».
+            // An absent value must not become "undefined" in the URL — the server would read
+            // it as a filter on the literal string "undefined".
             if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
         }
         return this.http.get<Page<Issue>>('/api/v1/issues', { params });
@@ -98,6 +98,22 @@ export class ApiService {
 
     createRepository(repository: NewRepository): Observable<MonitoredRepository> {
         return this.http.post<MonitoredRepository>('/api/v1/repositories', repository);
+    }
+
+    /**
+     * An export, as bytes plus the response that carries its filename.
+     *
+     * **Not a plain `<a href>`**, which was the first attempt and answered 401 every time: the
+     * session token lives in memory and is put on requests by the interceptor, so a browser
+     * navigation carries no credential at all. Going through `HttpClient` is what authenticates
+     * the download — and `observe: 'response'` is what keeps the server's filename, which the
+     * body alone does not carry.
+     */
+    exportDocument(kind: string, id: number, document: string): Observable<HttpResponse<Blob>> {
+        return this.http.get(`/api/v1/targets/${kind}/${id}/${document}`, {
+            responseType: 'blob',
+            observe: 'response'
+        });
     }
 
     settings(): Observable<{ settings: SettingDefinition[] }> {
@@ -141,10 +157,10 @@ export class ApiService {
     }
 
     /**
-     * Les étiquettes exigées par des cibles qu'aucun agent activé ne porte.
+     * The labels demanded by targets that no enabled agent carries.
      *
-     * Sans cet appel, une cible mal étiquetée met ses scans en file où ils restent
-     * indéfiniment : l'écran dit « en attente », ce qui est vrai et n'explique rien.
+     * Without this call, a mislabelled target queues scans that stay there for ever: the screen
+     * says "queued", which is true and explains nothing.
      */
     unroutableLabels(): Observable<UnroutableLabel[]> {
         return this.http.get<UnroutableLabel[]>('/api/v1/admin/agents/non-routables');

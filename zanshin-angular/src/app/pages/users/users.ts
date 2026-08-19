@@ -13,9 +13,9 @@ import { ApiService } from '../../core/api.service';
 import type { UserSummary } from '../../core/api.models';
 
 const ROLES = [
-    { label: 'Utilisateur', value: 'USER' },
-    { label: 'Administrateur', value: 'ADMIN' },
-    { label: 'Super-utilisateur', value: 'SUPERUSER' }
+    { label: 'User', value: 'USER' },
+    { label: 'Administrator', value: 'ADMIN' },
+    { label: 'Superuser', value: 'SUPERUSER' }
 ];
 
 @Component({
@@ -25,10 +25,10 @@ const ROLES = [
     template: `
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-semibold m-0">Utilisateurs</h1>
-                <p class="text-muted-color mt-1 mb-0">Les comptes autorisés à ouvrir Zanshin.</p>
+                <h1 class="text-2xl font-semibold m-0">Users</h1>
+                <p class="text-muted-color mt-1 mb-0">The accounts allowed to open Zanshin.</p>
             </div>
-            <p-button label="Créer un compte" icon="pi pi-plus" (onClick)="openForm()" />
+            <p-button label="Create an account" icon="pi pi-plus" (onClick)="openForm()" />
         </div>
 
         @if (error(); as message) {
@@ -39,11 +39,11 @@ const ROLES = [
             <p-table [value]="users()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th>Identifiant</th>
-                        <th>Rôle</th>
-                        <th>État</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>State</th>
                         <th class="text-right">Sessions</th>
-                        <th>Créé le</th>
+                        <th>Created</th>
                         <th class="w-1"></th>
                     </tr>
                 </ng-template>
@@ -61,64 +61,64 @@ const ROLES = [
                             }
                         </td>
                         <td>
-                            <!-- Modifiable en place : c'est l'action la plus fréquente, et
-                                 ouvrir une fenêtre pour changer une valeur parmi trois
-                                 coûterait plus qu'elle ne protège. Le serveur refuse de
-                                 toute façon ce qui verrouillerait tout le monde dehors. -->
+                            <!-- Editable in place: it is the most frequent action, and opening a
+                                 window to change one value out of three would cost more than it
+                                 protects. The server refuses anyway whatever would lock everybody
+                                 out. -->
                             <p-select [options]="roles" optionLabel="label" optionValue="value" [ngModel]="user.role"
                                       (ngModelChange)="changeRole(user, $event)" [disabled]="busy() === user.id" styleClass="w-full" />
                         </td>
                         <td>
                             @if (user.isActive) {
-                                <p-tag value="Actif" severity="success" />
+                                <p-tag value="Active" severity="success" />
                             } @else {
-                                <p-tag value="Désactivé" severity="danger" />
+                                <p-tag value="Disabled" severity="danger" />
                             }
                             @if (user.mustChangePassword) {
-                                <div class="text-sm text-muted-color mt-1">Doit changer son mot de passe</div>
+                                <div class="text-sm text-muted-color mt-1">Must change its password</div>
                             }
                         </td>
                         <td class="text-right">{{ user.activeSessions }}</td>
                         <td>{{ user.createdAt | date: 'dd/MM/yyyy' }}</td>
                         <td class="text-right whitespace-nowrap">
                             <p-button [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
-                                      [ariaLabel]="(user.isActive ? 'Désactiver ' : 'Réactiver ') + user.username"
+                                      [ariaLabel]="(user.isActive ? 'Disable ' : 'Re-enable ') + user.username"
                                       [disabled]="busy() === user.id" (onClick)="toggleActive(user)" />
                             <p-button icon="pi pi-key" [text]="true" [rounded]="true"
-                                      [ariaLabel]="'Réinitialiser le mot de passe de ' + user.username"
+                                      [ariaLabel]="'Reset the password of ' + user.username"
                                       [disabled]="busy() === user.id" (onClick)="openReset(user)" />
                             <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                      [ariaLabel]="'Supprimer ' + user.username"
+                                      [ariaLabel]="'Delete ' + user.username"
                                       [disabled]="busy() === user.id" (onClick)="askDelete(user)" />
                         </td>
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="6" class="text-center text-muted-color py-6">Aucun compte.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted-color py-6">No account.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Créer un compte" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog header="Create an account" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="username" class="font-medium">Identifiant</label>
+                    <label for="username" class="font-medium">Username</label>
                     <input pInputText id="username" [(ngModel)]="form.username" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="displayName" class="font-medium">Nom affiché <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="displayName" class="font-medium">Display name <span class="text-muted-color font-normal">(optional)</span></label>
                     <input pInputText id="displayName" [(ngModel)]="form.displayName" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="role" class="font-medium">Rôle</label>
+                    <label for="role" class="font-medium">Role</label>
                     <p-select id="role" [options]="roles" optionLabel="label" optionValue="value" [(ngModel)]="form.role" styleClass="w-full" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="password" class="font-medium">Mot de passe initial</label>
+                    <label for="password" class="font-medium">Initial password</label>
                     <input pInputText id="password" [(ngModel)]="form.password" />
                     <small class="text-muted-color">
-                        Au moins 12 caractères. Visible parce que vous devez le transmettre : il tient lieu de
-                        laissez-passer, et le compte devra le changer à sa première connexion.
+                        At least 12 characters. Shown because you have to pass it on: it stands in for a
+                        one-time pass, and the account will have to change it at first sign-in.
                     </small>
                 </div>
                 @if (formError(); as message) {
@@ -126,37 +126,37 @@ const ROLES = [
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Créer" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Create" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Réinitialiser le mot de passe" [(visible)]="resetVisible" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog header="Reset the password" [(visible)]="resetVisible" [modal]="true" [style]="{ width: '32rem' }">
             @if (pendingReset(); as user) {
                 <div class="flex flex-col gap-4">
-                    <p class="m-0">Nouveau mot de passe pour <span class="font-medium">{{ user.username }}</span>.</p>
+                    <p class="m-0">New password for <span class="font-medium">{{ user.username }}</span>.</p>
                     <input pInputText [(ngModel)]="resetPassword" />
-                    <small class="text-muted-color">Le compte devra le changer à sa prochaine connexion.</small>
+                    <small class="text-muted-color">The account will have to change it at its next sign-in.</small>
                     @if (formError(); as message) {
                         <p-message severity="error" [closable]="false">{{ message }}</p-message>
                     }
                 </div>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="resetVisible.set(false)" />
-                <p-button label="Réinitialiser" [loading]="saving()" (onClick)="confirmReset()" />
+                <p-button label="Cancel" [text]="true" (onClick)="resetVisible.set(false)" />
+                <p-button label="Reset" [loading]="saving()" (onClick)="confirmReset()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Supprimer ce compte ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Delete this account?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as user) {
                 <p class="m-0">
-                    <span class="font-medium">{{ user.username }}</span> et ses sessions seront supprimés. C'est définitif.
+                    <span class="font-medium">{{ user.username }}</span> and its sessions will be deleted. This is permanent.
                 </p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Supprimer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
@@ -169,8 +169,8 @@ export class Users {
     readonly currentUserId = signal<number | null>(null);
     readonly loading = signal(true);
     readonly saving = signal(false);
-    /** L'identifiant de la ligne en cours de modification : deux actions simultanées sur
-     *  le même compte partiraient d'un état déjà périmé. */
+    /** The id of the row being modified: two simultaneous actions on the same account would
+     *  both start from an already stale state. */
     readonly busy = signal<number | null>(null);
     readonly error = signal<string | null>(null);
     readonly formError = signal<string | null>(null);
@@ -189,10 +189,10 @@ export class Users {
     }
 
     /**
-     * `preserveError` existe pour une raison précise : après un refus du serveur, l'écran
-     * recharge la liste pour la remettre en accord avec la base — et effaçait du même coup
-     * le message qui expliquait le refus. Le bouton semblait alors ne rien faire. Ça ne se
-     * voit qu'en cliquant.
+     * `preserveError` exists for one precise reason: after a refusal from the server the screen
+     * reloads the list to bring it back in line with the database — and used to erase, in the
+     * same move, the message that explained the refusal. The button then looked as though it did
+     * nothing. It only shows by clicking.
      */
     reload(preserveError = false): void {
         this.loading.set(true);
@@ -204,7 +204,7 @@ export class Users {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des comptes.');
+                this.error.set('Could not load the account list.');
                 this.loading.set(false);
             }
         });
@@ -230,11 +230,11 @@ export class Users {
             error: (response) => {
                 this.busy.set(null);
                 // Le refus porte sa raison — « dernier administrateur actif », « votre
-                // propre compte ». La remplacer par un message générique laisserait
-                // croire à une panne là où il y a une règle.
-                this.error.set(response?.error?.message ?? "L'opération a échoué.");
-                // Rechargement pour remettre la liste en accord avec la base — le sélecteur
-                // de rôle affiche sinon la valeur refusée.
+                // own account". Replacing it with a generic message would suggest a fault where
+                // there is a rule.
+                this.error.set(response?.error?.message ?? 'The operation failed.');
+                // Reloaded to bring the list back in line with the database — otherwise the role
+                // selector keeps showing the refused value.
                 this.reload(true);
             }
         });
@@ -263,7 +263,7 @@ export class Users {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? 'Impossible de créer ce compte.');
+                    this.formError.set(response?.error?.message ?? 'Could not create this account.');
                 }
             });
     }
@@ -287,7 +287,7 @@ export class Users {
             },
             error: (response) => {
                 this.saving.set(false);
-                this.formError.set(response?.error?.message ?? 'La réinitialisation a échoué.');
+                this.formError.set(response?.error?.message ?? 'The reset failed.');
             }
         });
     }
@@ -310,7 +310,7 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(response?.error?.message ?? 'La suppression a échoué.');
+                this.error.set(response?.error?.message ?? 'The deletion failed.');
                 this.reload(true);
             }
         });

@@ -14,11 +14,11 @@ import { ApiService } from '../../core/api.service';
 import type { AgentSummary, UnroutableLabel } from '../../core/api.models';
 
 const CREDENTIALS = [
-    { label: 'Clés locales', value: 'local', hint: "L'agent utilise ses propres identifiants git. Zanshin ne lui envoie aucune clé." },
+    { label: 'Local keys', value: 'local', hint: 'The agent uses its own git credentials. Zanshin sends it no key.' },
     {
-        label: 'Clés déléguées',
+        label: 'Delegated keys',
         value: 'delegated',
-        hint: "Zanshin envoie la clé de déploiement du dépôt. Exige une liaison chiffrée — l'agent est refusé sinon."
+        hint: 'Zanshin sends the repository deployment key. Requires an encrypted link — the agent is refused otherwise.'
     }
 ];
 
@@ -30,9 +30,9 @@ const CREDENTIALS = [
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-semibold m-0">Agents</h1>
-                <p class="text-muted-color mt-1 mb-0">Les travailleurs distants qui exécutent les scans.</p>
+                <p class="text-muted-color mt-1 mb-0">The remote workers that run the scans.</p>
             </div>
-            <p-button label="Déclarer un agent" icon="pi pi-plus" (onClick)="openForm()" />
+            <p-button label="Declare an agent" icon="pi pi-plus" (onClick)="openForm()" />
         </div>
 
         @if (error(); as message) {
@@ -40,15 +40,15 @@ const CREDENTIALS = [
         }
 
         <!--
-            **L'attente serait muette sans cela.** Une cible étiquetée « client » alors
-            qu'aucun agent activé ne porte cette étiquette met ses scans en file, où ils
-            restent indéfiniment : la page Dépôts dit « en attente », ce qui est vrai et
-            n'explique rien. Ici, la cause est nommée et le correctif est à un champ près.
+            **The wait would be silent without this.** A target labelled "customer" while no
+            enabled agent carries that label queues its scans, where they stay for ever: the
+            Repositories page says "queued", which is true and explains nothing. Here the cause
+            is named and the fix is one field away.
         -->
         @for (blocked of unroutable(); track blocked.label) {
             <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-                {{ blocked.queued }} scan(s) exigent l'étiquette « {{ blocked.label }} », qu'aucun agent activé ne porte.
-                Ils attendront tant que personne ne la déclare.
+                {{ blocked.queued }} scan(s) require the label "{{ blocked.label }}", which no enabled agent carries.
+                They will wait until somebody declares it.
             </p-message>
         }
 
@@ -57,9 +57,9 @@ const CREDENTIALS = [
                 <ng-template #header>
                     <tr>
                         <th>Agent</th>
-                        <th>État</th>
+                        <th>State</th>
                         <th>Machine</th>
-                        <th>Étiquettes</th>
+                        <th>Labels</th>
                         <th>Identifiants</th>
                         <th class="text-right">Scans</th>
                         <th class="w-1"></th>
@@ -75,22 +75,22 @@ const CREDENTIALS = [
                         </td>
                         <td>
                             <!--
-                                « En ligne » veut dire vu récemment, pas activé. Un agent
-                                activé mais muet depuis une heure est le cas qui compte : la
-                                file se remplit, personne ne la vide, et rien d'autre à
-                                l'écran ne le dirait.
+                                "Online" means seen recently, not enabled. An enabled agent that
+                                has been silent for an hour is the case that matters: the queue
+                                fills, nobody drains it, and nothing else on the screen would
+                                say so.
                             -->
                             @if (!agent.enabled) {
-                                <p-tag value="Désactivé" severity="secondary" />
+                                <p-tag value="Disabled" severity="secondary" />
                             } @else if (agent.online) {
-                                <p-tag value="En ligne" severity="success" />
+                                <p-tag value="Online" severity="success" />
                             } @else {
-                                <p-tag value="Muet" severity="warn" />
+                                <p-tag value="Silent" severity="warn" />
                             }
                             @if (agent.lastSeenAt) {
-                                <div class="text-sm text-muted-color mt-1">Vu {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
+                                <div class="text-sm text-muted-color mt-1">Seen {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
                             } @else {
-                                <div class="text-sm text-muted-color mt-1">Jamais annoncé</div>
+                                <div class="text-sm text-muted-color mt-1">Never announced</div>
                             }
                         </td>
                         <td>
@@ -107,66 +107,66 @@ const CREDENTIALS = [
                                     <p-tag [value]="label" severity="info" styleClass="mr-1" />
                                 }
                             } @else {
-                                <!-- Sans étiquette, il ne prend que les cibles qui n'en exigent aucune. -->
-                                <span class="text-muted-color text-sm">Cibles libres</span>
+                                <!-- With no label, it only takes targets that require none. -->
+                                <span class="text-muted-color text-sm">Unlabelled targets</span>
                             }
                         </td>
                         <td>
-                            <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Déléguées' : 'Locales' }}</span>
+                            <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Delegated' : 'Local' }}</span>
                             <!--
-                                Affiché seulement pour les identifiants délégués : c'est le seul cas où
-                                une clé part. Un opérateur qui croit sceller alors que son agent est
-                                d'une version antérieure n'aurait aucun autre moyen de s'en apercevoir,
-                                et la clé traverserait son proxy inverse en clair.
+                                Shown only for delegated credentials: that is the only case where a
+                                key leaves. An operator who believes they are sealing while their
+                                agent is an older version would have no other way of noticing, and
+                                the key would cross their reverse proxy in clear.
                             -->
                             @if (agent.credentialsMode === 'delegated') {
                                 <div class="text-sm" [class.text-muted-color]="agent.sealsCredentials">
-                                    {{ agent.sealsCredentials ? 'Scellées de bout en bout' : 'En clair sous TLS' }}
+                                    {{ agent.sealsCredentials ? 'Sealed end to end' : 'In clear under TLS' }}
                                 </div>
                             }
                         </td>
                         <td class="text-right">{{ agent.runningScans }}</td>
                         <td class="text-right whitespace-nowrap">
                             <p-button [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
-                                      [ariaLabel]="(agent.enabled ? 'Désactiver ' : 'Réactiver ') + agent.name"
+                                      [ariaLabel]="(agent.enabled ? 'Disable ' : 'Re-enable ') + agent.name"
                                       [disabled]="busy() === agent.id" (onClick)="toggle(agent)" />
                             <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                      [ariaLabel]="'Supprimer ' + agent.name" (onClick)="askDelete(agent)" />
+                                      [ariaLabel]="'Delete ' + agent.name" (onClick)="askDelete(agent)" />
                         </td>
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="6" class="text-center text-muted-color py-6">Aucun agent déclaré. Les scans sont exécutés par le travailleur intégré.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted-color py-6">No agent declared. Scans are run by the built-in worker.</td></tr>
                 </ng-template>
             </p-table>
         </p-card>
 
-        <p-dialog header="Déclarer un agent" [(visible)]="formVisible" [modal]="true" [style]="{ width: '34rem' }">
+        <p-dialog header="Declare an agent" [(visible)]="formVisible" [modal]="true" [style]="{ width: '34rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
-                    <label for="name" class="font-medium">Nom</label>
-                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="runner-bruxelles-1" />
+                    <label for="name" class="font-medium">Name</label>
+                    <input pInputText id="name" [(ngModel)]="form.name" placeholder="runner-brussels-1" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="description" class="font-medium">Description <span class="text-muted-color font-normal">(facultatif)</span></label>
+                    <label for="description" class="font-medium">Description <span class="text-muted-color font-normal">(optional)</span></label>
                     <input pInputText id="description" [(ngModel)]="form.description" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="mode" class="font-medium">Identifiants git</label>
+                    <label for="mode" class="font-medium">Git credentials</label>
                     <p-select id="mode" [options]="credentials" optionLabel="label" optionValue="value" [(ngModel)]="form.credentialsMode" styleClass="w-full" />
                     <small class="text-muted-color">{{ hintFor(form.credentialsMode) }}</small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="labels" class="font-medium">Étiquettes</label>
-                    <input pInputText id="labels" [(ngModel)]="form.labels" placeholder="production, réseau-client" />
+                    <label for="labels" class="font-medium">Labels</label>
+                    <input pInputText id="labels" [(ngModel)]="form.labels" placeholder="production, customer-network" />
                     <small class="text-muted-color">
-                        Ce que cet agent sait atteindre. Un dépôt ou une image peut exiger une étiquette :
-                        seuls les agents qui la portent recevront ses scans — et sa clé de déploiement.
-                        Sans étiquette, cet agent ne prend que les cibles qui n'en exigent aucune.
+                        What this agent can reach. A repository or an image may require a label:
+                        only the agents carrying it will receive its scans — and its deployment key.
+                        With no label, this agent only takes targets that require none.
                     </small>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <label for="concurrent" class="font-medium">Scans en parallèle</label>
+                    <label for="concurrent" class="font-medium">Concurrent scans</label>
                     <p-inputnumber inputId="concurrent" [(ngModel)]="form.maxConcurrent" [min]="1" [max]="16" styleClass="w-full" />
                 </div>
                 @if (formError(); as message) {
@@ -174,32 +174,32 @@ const CREDENTIALS = [
                 }
             </div>
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Déclarer" [loading]="saving()" (onClick)="submit()" />
+                <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+                <p-button label="Declare" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
-        <!-- La clé n'existe qu'ici, comme pour les clés d'API. -->
-        <p-dialog header="Agent déclaré" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+        <!-- The key exists here only, as for API keys. -->
+        <p-dialog header="Agent declared" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
             <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-                Copiez cette clé maintenant : elle n'est stockée que sous forme d'empreinte et ne pourra pas être réaffichée.
-                Donnez-la à l'agent par la variable <span class="font-mono">ZANSHIN_API_KEY</span>.
+                Copy this key now: it is stored only as a hash and cannot be shown again.
+                Give it to the agent through the <span class="font-mono">ZANSHIN_API_KEY</span> variable.
             </p-message>
             <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSecret() }}</div>
             <ng-template #footer>
-                <p-button label="J'ai copié la clé" (onClick)="dismissSecret()" />
+                <p-button label="I have copied the key" (onClick)="dismissSecret()" />
             </ng-template>
         </p-dialog>
 
-        <p-dialog header="Supprimer cet agent ?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+        <p-dialog header="Delete this agent?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
             @if (pendingDelete(); as agent) {
                 <p class="m-0">
-                    <span class="font-medium">{{ agent.name }}</span> et sa clé d'API seront supprimés. L'agent ne pourra plus réclamer de scan.
+                    <span class="font-medium">{{ agent.name }}</span> and its API key will be deleted. The agent will no longer be able to claim a scan.
                 </p>
             }
             <ng-template #footer>
-                <p-button label="Annuler" [text]="true" (onClick)="deleteVisible.set(false)" />
-                <p-button label="Supprimer" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+                <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+                <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
             </ng-template>
         </p-dialog>
     `
@@ -233,9 +233,9 @@ export class Agents {
 
     reload(preserveError = false): void {
         this.loading.set(true);
-        // **Rechargées ensemble, et l'échec de la seconde ne masque pas la première.** Un
-        // avertissement absent est moins grave qu'un écran vide, et la liste des agents est
-        // ce que l'opérateur vient chercher.
+        // **Reloaded together, and the second one failing does not hide the first.** A missing
+        // warning is less serious than an empty screen, and the agent list is what the operator
+        // came for.
         this.api.unroutableLabels().subscribe({
             next: (blocked) => this.unroutable.set(blocked),
             error: () => this.unroutable.set([])
@@ -248,7 +248,7 @@ export class Agents {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Impossible de charger la liste des agents.');
+                this.error.set('Could not load the agent list.');
                 this.loading.set(false);
             }
         });
@@ -264,7 +264,7 @@ export class Agents {
             },
             error: (response) => {
                 this.busy.set(null);
-                this.error.set(response?.error?.message ?? "L'opération a échoué.");
+                this.error.set(response?.error?.message ?? 'The operation failed.');
                 this.reload(true);
             }
         });
@@ -296,13 +296,13 @@ export class Agents {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? 'Impossible de déclarer cet agent.');
+                    this.formError.set(response?.error?.message ?? 'Could not declare this agent.');
                 }
             });
     }
 
     dismissSecret(): void {
-        // Effacée du modèle en même temps que de l'écran : la garder laisserait la valeur
+        // Cleared from the model at the same time as from the screen: keeping it would leave
         // accessible dans l'onglet ouvert.
         this.issuedSecret.set(null);
         this.secretVisible.set(false);
@@ -326,8 +326,8 @@ export class Agents {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                // Notamment « cet agent exécute N scans » : le refus porte le nombre.
-                this.error.set(response?.error?.message ?? 'La suppression a échoué.');
+                // Notably "this agent is running N scans": the refusal carries the number.
+                this.error.set(response?.error?.message ?? 'The deletion failed.');
                 this.reload(true);
             }
         });
