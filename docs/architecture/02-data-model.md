@@ -60,7 +60,7 @@ deduplicated), `leader_lease` (who holds the tick), `agent`.
 ## The fingerprint
 
 An issue's identity across scans, computed by
-[`buildFingerprint`](../../backend/src/domain/issues/issue-fingerprint.ts):
+[`buildFingerprint`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/issues/IssueFingerprint.java):
 
 ```
 sha256( target, type, identifier, purl-or-package-name, file-path )
@@ -108,7 +108,7 @@ stateDiagram-v2
 **"Absent from a scan that looked for this type"** is the clause that matters. An issue is
 resolved only if the scan actually looked for its type — hence the `scannedTypes` list
 carried into
-[`issue-sync.service.ts`](../../backend/src/services/issue-sync.service.ts), which
+[`IssueSyncService`](../../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/IssueSyncService.java), which
 includes a type only if it ran. Without that condition, turning off secret scanning would
 declare every secret fixed.
 
@@ -131,11 +131,12 @@ blob, precisely so that it keeps working after the purge.
 
 ## The migrations
 
-TypeORM, one set per dialect, under `backend/src/persistence/migrations/`. Two rules
+One Liquibase changelog under `zanshin-java/zanshin-core/src/main/resources/db/changelog/`,
+with dialect differences expressed as properties rather than as four parallel sets. Two rules
 learned by breaking something.
 
 **A migration that has already been applied is a record, not code.** Rewriting it breaks
-fresh installations — this happened: an Alembic revision in the Python stack rebuilt the
+fresh installations — this has happened before: a revision that rebuilt the
 SQLite tables from the *live* models instead of the real database, so a fresh install
 failed on a column the model had and the database did not yet. The narrow, safe exception
 is amending a *baseline*, which by construction only ever runs on an empty database.
@@ -155,7 +156,7 @@ revealed that its declared capabilities were wrong on three counts, and that its
 Hence `npm run test:integration:all`, which runs all four
 ([decision 0008](decisions/0008-postgresql-and-mysql.md)).
 
-**And hence `schema-parity.integration-spec.ts`**, which asks on every engine the question
+**And hence `SchemaParityIntegrationTest`**, which asks on every engine the question
 `migration:generate` asks — "what would have to change for the database to look like the
 entities?" — whose right answer is "nothing". The two had already diverged: an index
 enriched by a migration without being enriched on the entity, another created without

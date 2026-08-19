@@ -77,7 +77,7 @@ log's index created without being declared anywhere.
 
 The rule this decision leaves behind is the one that cost the most to learn twice: **a
 declared capability that has not been executed against the engine it names is a comment,
-not a fact.** `dialects.ts` is only trustworthy because `test:integration:all` runs.
+not a fact.** The dialect properties are only trustworthy because `integrationTestAll` runs.
 
 The cost is four migration sets to keep in step, and a CI job that starts four containers.
 [04](../04-runtime-and-deployment.md) records what each engine cannot do and what is said

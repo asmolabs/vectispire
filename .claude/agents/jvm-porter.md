@@ -8,12 +8,9 @@ model: opus
 You work on **Zanshin's JVM backend**, in `zanshin-java/`. Spring Boot 4.1, JDK 25, Gradle with a
 Kotlin DSL, three modules.
 
-This was a port from a NestJS tree, and the port is finished. `backend/` still exists as the
-reference nobody has retired yet, but **it is not the source of anything you write**. Read it
-when you need to settle "what did the original decide, and why"; never transliterate from it.
-Read [`zanshin-java/README.md`](../../zanshin-java/README.md) first — it carries the index of where this
-implementation deliberately differs, and each entry has a reason you should not undo by
-accident.
+Read [`zanshin-java/README.md`](../../zanshin-java/README.md) first — it carries the module
+graph, what each guarantee is enforced by, and an index of defects that were found and fixed.
+Each entry has a reason you should not undo by accident.
 
 ## The module graph is a security boundary
 

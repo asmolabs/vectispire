@@ -1,8 +1,8 @@
 # Zanshin
 
-Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers; see the note at the end of this section on the two other back ends the Python version offered.
+Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
 
-Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over PostgreSQL, in a single npm workspace.
+Built with [Spring Boot](https://spring.io/projects/spring-boot) on JDK 25 and [Angular](https://angular.dev) over PostgreSQL.
 
 ## Features
 
@@ -35,7 +35,7 @@ Built with [NestJS](https://nestjs.com) and [Angular](https://angular.dev) over 
 - **Notifications**: a webhook fires when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once.
 - **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, and the stored SBOM.
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
-- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. The OSV.dev and HTTP-sidecar backends the Python version offered are **not part of this port** — the sidecar was already documented as redundant, and OSV matching bought little that a pinned Grype image does not.
+- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/decisions/0010-one-scan-runner.md)).
 
 ## Architecture
 
@@ -60,7 +60,7 @@ product names and versions.
 
 Results are normalized into a single `Finding` table (type, severity, identifier, package, source, EPSS/CVSS scores, KEV status, fix version), in addition to the raw JSON blobs (`Scan.sbom`, `Scan.cves`) kept for audit purposes.
 
-A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`backend/src/services/issue-sync.service.ts`](backend/src/services/issue-sync.service.ts).
+A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/IssueSyncService.java).
 
 The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
@@ -131,11 +131,10 @@ and the login throttle is counted in the database rather than in process memory.
 
 - **PostgreSQL or MySQL** (`ZANSHIN_DATABASE_URL`, plus `ZANSHIN_DB_DIALECT=mysql` for the
   latter). Both keep a claimed scan from reaching two workers;
-- **the migration as its own deployment step** (`npm --workspace backend run
-  migration:run`), before the new instances start;
+- **nothing to run for the schema.** Liquibase applies the changelog at startup, and the
+  leader lease is what stops two instances migrating at once;
 - nothing else. Sessions live in the database, not in process memory, so a client that
-  lands on the other instance stays signed in — the Redis that the Reflex version needed
-  for its state manager has no equivalent here.
+  lands on the other instance stays signed in. No cache, no shared state service.
 
 The scheduler elects a single owner across the fleet, while every instance keeps claiming
 work for its own built-in worker: a fleet whose instances only worked while holding the
@@ -149,17 +148,18 @@ Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for th
 
 ```bash
 npm install
-npm --workspace backend run start:dev     # API on http://localhost:3000
+cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8000
 npm --workspace @zanshin/frontend start            # UI on http://localhost:4200
 ```
 
-The schema is owned by **TypeORM migrations** — `synchronize` is off, deliberately: a
+The schema is owned by a **Liquibase changelog** — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
-against it would let a faulty migration through.
+against it would let a faulty changeset through. `SchemaParityIntegrationTest` asks Hibernate
+to validate the entities against the schema the changelog really built, on all four engines.
 
 ```bash
-npm --workspace backend run migration:run       # apply
-npm --workspace backend run migration:generate  # write one from the entities
+# Liquibase applies the changelog at startup — there is no separate command to run.
+# A new change is a new changeset in zanshin-core/src/main/resources/db/changelog/.
 ```
 
 ### Main pages
@@ -167,7 +167,9 @@ npm --workspace backend run migration:generate  # write one from the entities
 | Route | Description |
 |---|---|
 | `/dashboard` | Overview |
-| `/depots` | Tracked Git repositories, scan history, finding details |
+| `/repositories` | Tracked Git repositories, scan history, finding details |
+| `/security` | The gate verdict for every target, and the policy that produced it |
+| `/quality` | Code-quality findings, aggregated by rule, file and repository |
 | `/issues` | Issue backlog across scans, with triage (VEX) |
 | `/containers` | Tracked container images |
 | `/ssh-keys` | Encrypted SSH keys for cloning private repositories |
@@ -250,7 +252,7 @@ Operational tuning (all optional, shown with their defaults):
 | Variable | Default | Purpose |
 |---|---|---|
 | `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | One of `postgres`, `mysql`, `mariadb`, `sqlite`. Selects the migration set and the spelling of the column types, and declares at startup what the engine cannot do (see `dialects.ts`). |
+| `ZANSHIN_DB_DIALECT` | `postgres` | One of `postgres`, `mysql`, `mariadb`, `sqlite`. Selects the Liquibase properties that spell the column types, and declares at startup what the engine cannot do. |
 | `PORT` | `3000` | HTTP port of the API. |
 | `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
 | `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
@@ -297,11 +299,11 @@ Every "no" comes from a defect found by running, and **none of them raises an er
 - **SQLite has a single writer.** A second instance on the same file would not be slow, it
   would corrupt data. Its claim therefore falls back to a conditional `UPDATE` guarded by
   the status column, which is correct for threads of one process. Its driver **refuses**
-  `FOR UPDATE` rather than ignoring it — the Python stack dropped it silently, producing a
-  claim that looked transactional and handed the same scan to two processes in production.
+  `FOR UPDATE` rather than ignoring it. A driver that drops the clause silently produces a
+  claim that looks transactional and hands the same scan to two processes.
 - **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
   second, which would make the audit chain fail its own verification and declare itself
-  tampered with. `datetime(6)` is declared in `column-types.ts`, in one place rather than
+  tampered with. `datetime(6)` is declared once in the changelog rather than
   column by column, and the connection is pinned to UTC for the same reason.
 
 PostgreSQL remains the reference engine: the one where everything is true without
@@ -317,8 +319,7 @@ source and bind everyone who takes it up
 ([decision 0006](docs/architecture/decisions/0006-semgrep-rules-written-here.md)). So the
 rules are fetched by you, from their author, and never redistributed here.
 
-The Python version shipped a helper script for this. It was not ported, and the steps are
-short enough not to warrant a second tool:
+No tool ships for this. The steps are short enough not to warrant one:
 
 ```bash
 # 1. Pick a tag and stay on it. A moving target makes scans irreproducible, and a rule
@@ -355,8 +356,8 @@ Two things to know:
 ## Tests
 
 ```bash
-npm --workspace backend test              # unit suite
-npm --workspace backend run test:integration   # starts PostgreSQL via testcontainers
+cd zanshin-java && ./gradlew build        # unit, architecture and HTTP suites
+cd zanshin-java && ./gradlew integrationTest   # starts PostgreSQL via testcontainers
 ```
 
 562 unit tests and 249 integration tests. **The integration suites do not skip.** They used
@@ -373,31 +374,38 @@ production will receive.
 uvx pyright
 ```
 
-The backend compiles under `strictNullChecks` and a **layering test**
-(`architecture.spec.ts`) that fails the build when an import crosses the wrong way. That
-test is not decoration: it is what keeps the domain layer — fingerprints, gate verdicts,
-schedules — free of TypeORM and HTTP, and therefore testable without a database.
+The backend compiles under `-Werror` and a **layering test** (`ArchitectureTest`, ArchUnit)
+that fails the build when an import crosses the wrong way. That test is not decoration: it is
+what keeps the domain layer — fingerprints, gate verdicts, schedules — free of Hibernate and
+HTTP, and therefore testable without a database.
 
-The lesson kept from the Python version's type checking still applies: a gate that fires on
-noise is switched off within a week. So the rules here are the ones whose findings were all
-real.
+One rule governs what is enabled: a gate that fires on noise is switched off within a week.
+So the rules here are the ones whose findings were all real.
 
 ## Project structure
 
 ```
-backend/src/
-├── domain/            # Pure rules: fingerprint, gate, exports, schedule, payloads
-├── scanning/          # Runs the scanners — no database (agent side)
-├── persistence/       # TypeORM entities and migrations
-├── repositories/      # Data access, no business rules
-├── services/          # Orchestration: ingestion, issues, notifications, tickets
-└── api/               # HTTP controllers
-zanshin-angular/src/app/      # Angular: 15 screens, Sakai layout over Optimus UI
-docs/architecture/     # ADR
+zanshin-java/
+├── zanshin-common/          # Shared with the agent
+│   ├── domain/              # Pure rules: fingerprint, gate, exports, schedule, payloads
+│   └── scanning/            # Runs the scanners — no database
+├── zanshin-core/            # The control plane
+│   ├── persistence/         # JPA entities; the schema lives in db/changelog/
+│   ├── repositories/        # Data access, no business rules — the only layer that speaks SQL
+│   ├── services/            # Orchestration: ingestion, issues, notifications, tickets
+│   └── api/                 # HTTP controllers
+└── zanshin-agent/           # The remote worker. Does NOT depend on zanshin-core.
+zanshin-angular/src/app/     # Angular: 15 screens, Sakai layout over Optimus UI
+docs/architecture/           # ADR
 ```
 
-The import direction is enforced by a test (`architecture.spec.ts`):
+**`zanshin-agent` not depending on `zanshin-core` is a security property, not packaging.** No
+JDBC driver is on its classpath, so it cannot hold a database connection — which it would need
+`ENCRYPTION_KEY` for, and that key decrypts every deployment key Zanshin stores. The violation
+fails to compile rather than failing review.
+
+The import direction is enforced by `ArchitectureTest`:
 `domain ← scanning ← persistence ← repositories ← services ← api`. The domain layer knows
-nothing of TypeORM or HTTP, which is what makes the rules that matter — a fingerprint, a
+nothing of Hibernate or HTTP, which is what makes the rules that matter — a fingerprint, a
 gate verdict, a due date — testable without a database.
 

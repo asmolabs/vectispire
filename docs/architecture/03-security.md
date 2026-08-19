@@ -76,7 +76,7 @@ accepted; closing that case would mean serializing every audit write, and theref
 making every audited action queue behind the others.
 
 **No outbound call follows a redirect.**
-[`validateOutboundUrl`](../../backend/src/domain/net/url-guard.ts) only checks the
+[`validateOutboundUrl`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/net/OutboundUrlGuard.java) only checks the
 *first* request: Node follows redirects by default, so a validated destination answering
 `302 Location: http://169.254.169.254/` was reached with nothing re-checking. All six
 calls in the repository needed this; none had it. The costliest case is not the webhook
@@ -104,9 +104,12 @@ resolves the target's entire history.
 the advisory feeds, that is, from data an attacker influences. The CSP decides whether an
 injected string is inert or runs with the analyst's session. It is real and narrow:
 `default-src 'self'`, `script-src 'self'`, `style-src 'self'`, `frame-ancestors 'none'` —
-see the `helmet` block in [`backend/src/main.ts`](../../backend/src/main.ts). The Reflex
-version needed `'unsafe-inline'` and `'unsafe-eval'` because its generated bundle required
-them; the Angular build does not, and the port tightened the policy accordingly. **HSTS is
+**and it is not implemented.** The header is absent: the server sends `X-Content-Type-Options`
+and `X-Frame-Options` and nothing else. This paragraph described a control that was lost when
+the control plane was rewritten, and it is left here as a stated gap rather than deleted,
+because deleting it would remove the only record that the policy above is the one intended.
+The Angular build needs no `'unsafe-eval'`; whether it needs `'unsafe-inline'` for styles has
+to be measured against the running interface, not assumed. **HSTS is
 deliberately absent**: Zanshin is often reached over HTTP on an internal address, and HSTS
 would make that origin permanently unreachable in any browser that saw it once. It belongs
 to the proxy that terminates TLS, which knows it has TLS.
@@ -115,7 +118,7 @@ to the proxy that terminates TLS, which knows it has TLS.
 number one reason for long-polling: an agent with a PostgreSQL connection would need the
 database credentials *and* `ENCRYPTION_KEY`, hence everything needed to decrypt every SSH
 key of every target ([decision 0003](decisions/0003-long-polling-for-agents.md)). An
-import test in `architecture.spec.ts` guarantees it cannot import the database layer.
+module graph guarantees it: `zanshin-agent` does not depend on `zanshin-core`, so the import does not compile.
 
 ## The controls, and why they are set this way
 
@@ -173,7 +176,7 @@ verdict blocks nothing.
 ## What the tests guarantee
 
 What matters here is checked rather than asserted: the agent cannot import the database
-layer (import test in `architecture.spec.ts`), the log detects tampering (`verifyChain`),
+layer (the module graph makes it impossible), the log detects tampering (`verifyChain`),
 a restricted key does not see other targets, a public Ollama URL is refused at send time,
 the login page names no credential, and no third-party stylesheet is declared — the CSP
 would refuse it, so declaring it would produce a page that merely *looks* right.
@@ -190,16 +193,6 @@ would refuse it, so declaring it would produce a page that merely *looks* right.
   was not carried over by the port.
 - **A compromised agent can skew a verdict** by reporting false results. Reports are
   audited; they are not proven.
-- **`npm audit` reports `js-yaml` (GHSA-pm4m-ph32-ghv5), and this is accepted.**
-  `@nestjs/swagger` pins it to exactly `5.2.1` — the last version carrying the advisory —
-  and the only YAML that path produces is the OpenAPI document Zanshin generates itself:
-  the exponential-time parse needs hostile *input*, and there is none.
-
-  **The obvious fix is worse than the defect, and was tried.** An npm override scoped to
-  Swagger makes the advisory disappear — and leaves Swagger loading the `js-yaml 4.x`
-  hoisted at the root, a major version back, silently. Verified: 4.3.1 is what resolves,
-  not the 5.2.2 requested. An advisory that goes quiet by substituting a dependency behind
-  the back of whoever declared it is not a fix.
-
-  What would change the decision: `@nestjs/swagger` loosening its pin, or some path in
-  Zanshin starting to parse YAML from elsewhere.
+- **`npm audit` reports nothing, and that is worth stating rather than assuming.** The
+  interface is the only npm tree left; the control plane is a Gradle build. Run it as part
+  of a release, not as a belief.

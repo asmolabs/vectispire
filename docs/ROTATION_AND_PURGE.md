@@ -30,7 +30,7 @@ In other words: anyone who obtained a copy of the old `database.sqlite` holds th
 key in clear text. It must be considered compromised.
 
 **What the code does now.** That constant has been removed from
-[`backend/src/services/encryption.service.ts`](../backend/src/services/encryption.service.ts):
+[`EncryptionService`](../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/EncryptionService.java):
 the application no longer carries the key that opens its own database, and the value above
 is no longer tried during decryption. The `perso` row therefore shows as **"Unreadable"**
 on the *SSH keys* page — that is the expected result, and the replacement below is the only
@@ -41,7 +41,7 @@ If you need to read it one last time (to identify which provider to revoke it at
 instance), supply the old key explicitly, for the duration of the operation:
 
 ```bash
-ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" npm --workspace backend run start:dev
+ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" cd zanshin-java && ./gradlew :zanshin-core:bootRun
 ```
 
 To do, **in this order**:
@@ -112,7 +112,7 @@ by hand.
 ```bash
 ENCRYPTION_KEY="<new key>" \
 ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<old key>" \
-npm --workspace backend run start:dev
+cd zanshin-java && ./gradlew :zanshin-core:bootRun
 ```
 
 The old key is used **for decryption only**: every write goes under the new one. Values

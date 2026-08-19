@@ -4,12 +4,10 @@ This folder is written for **someone picking up the code** — not for a reviewe
 a committee. It answers three questions, in this order: how it is built, why it is built
 that way, and what breaks if you change it without knowing.
 
-> **NestJS/Angular port.** The implementation described here moved from Python/Reflex to
-> NestJS + Angular; the Python tree has been removed. **The decisions and their reasons
-> still hold** — that is what this folder records — but file paths and module names now
-> point into `backend/src/` and `zanshin-angular/src/`. The port's deliberate omissions (OSV and
-> sidecar backends not carried over, remote agent without a client binary) are named in
-> the [README](../../README.md).
+> These documents describe the system as it is: a Spring Boot control plane in
+> `zanshin-java/` and an Angular interface in `zanshin-angular/`. The deliberate omissions
+> (OSV and sidecar scan backends, remote agent without a client binary) are named in the
+> [README](../../README.md).
 
 | Document | The question it answers |
 |---|---|
@@ -46,8 +44,8 @@ This folder is worth nothing unless it is true, and a false architecture documen
 worse than none: it gets believed. Three rules are followed here.
 
 **Whatever a test enforces says so and cites it.** A folder that claims "the agent never
-touches the database" without saying that `backend/src/architecture.spec.ts` enforces it
-on the import graph is stating a wish.
+touches the database" without saying what enforces it is stating a wish. Here it is not even a
+test: `zanshin-agent` does not depend on `zanshin-core`, so the violation fails to compile.
 
 **Known limits are written in the same place as the guarantees.** A "still open" section
 at the end of each document, not in a separate file nobody opens. A reader who discovers

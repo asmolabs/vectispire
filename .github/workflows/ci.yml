@@ -1,13 +1,17 @@
 name: CI
 
-# Ce que la CI garde, dans l'ordre où ça a réellement cassé :
-#   1. la suite de tests ;
-#   2. le schéma — les entités TypeORM tournent en `synchronize: false` et *décrivent*
-#      des tables que les migrations créent ; un écart entre les deux ne se voit que
-#      contre une vraie base (`schema-parity.integration-spec.ts`) ;
-#   3. la portabilité entre moteurs, qu'aucune base simulée ne peut montrer.
+# What CI keeps, in the order it actually broke:
+#   1. the test suites;
+#   2. the schema — entities run under `ddl-auto: validate` and *describe* tables the
+#      changelog creates; a gap between the two only shows against a real server;
+#   3. portability across engines, which no simulated database can demonstrate.
 #
-# Node est épinglé par `.nvmrc` sur la LTS 24 : Angular refuse Node 25.
+# **Point 3 is not run here, deliberately, and that is a gap worth naming.**
+# `./gradlew integrationTestAll` needs Docker and takes about ten minutes; it caught five
+# engine divergences during the port and it is run by hand before a release. Somebody
+# reading a green tick on this file should know it does not cover that.
+#
+# Node is pinned by `.nvmrc` to LTS 24: Angular refuses Node 25.
 
 on:
   push:
@@ -15,7 +19,29 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # The control plane and the remote agent. This is the implementation of record.
+  jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          # Matches the toolchain the build declares. Letting the runner's default JDK
+          # decide is how a build passes here and fails on a developer's machine.
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Compiles all three modules, runs the unit suites, the architecture suite and the
+      # HTTP suite against a real SQLite database.
+      - name: Build and test
+        working-directory: zanshin-java
+        run: ./gradlew build
+
+  # The Angular interface.
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +52,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # `npm ci` et pas `npm install` : le lockfile est ce qui rend l'arbre de
-        # dépendances reproductible, et pour un outil qui audite des chaînes
-        # d'approvisionnement, l'installer sans le respecter serait difficile à tenir.
+        # `npm ci` and not `npm install`: the lockfile is what makes the dependency tree
+        # reproducible, and for a tool that audits supply chains, installing without
+        # honouring it would be hard to defend.
         run: npm ci
 
       - name: Build
@@ -36,30 +62,3 @@ jobs:
 
       - name: Test
         run: npm test
-
-  # Tout ce qui exige un vrai serveur de base de données.
-  #
-  # Son propre job parce qu'il est lent (téléchargement d'images) et parce qu'il doit
-  # être *vu* tourner : ces tests existent précisément pour les défauts invisibles sur
-  # une base simulée et à une relecture attentive, donc une suite qui se sauterait en
-  # silence serait pire que pas de suite du tout (docs/architecture/04).
-  #
-  # Aucun `services:` ici : c'est `test/jest-global-setup.ts` qui démarre la base par
-  # testcontainers et applique les migrations, une fois pour la campagne. Docker est
-  # disponible sur les runners GitHub, ce dont testcontainers a besoin.
-  backends:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - run: npm ci
-
-      - name: Run the server-backed tests on all four engines
-        # Les quatre, et non le seul PostgreSQL : un défaut de portabilité ne se voit
-        # qu'en les exécutant tous, et chacun en a révélé un.
-        run: npm run test:integration:all --workspace @zanshin/backend

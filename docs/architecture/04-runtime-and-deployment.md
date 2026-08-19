@@ -13,8 +13,7 @@ engines, its driver was not installed, and no connection was possible. All four 
 now pass the entire integration campaign, each with its own set of migrations.
 
 **Several instances.** Possible since the queue, the scheduler and the counters stopped
-living in memory. Requires PostgreSQL and migrations as a deployment step. The Reflex
-stack also required Redis for shared session state; the NestJS API is stateless and the
+living in memory. Requires PostgreSQL. The API is stateless and the
 session lives in the database, so that requirement is gone.
 
 **Remote agents.** One web instance, executors elsewhere — another network, another
@@ -23,7 +22,7 @@ Works **even on SQLite**, because an agent never touches the database.
 
 ## What the engine tells you at startup, and why
 
-[`backend/src/persistence/dialects.ts`](../../backend/src/persistence/dialects.ts)
+[`001-baseline.yaml`](../../zanshin-java/zanshin-core/src/main/resources/db/changelog/001-baseline.yaml)
 declares what each engine can and cannot do, and the startup path emits a warning for
 every capability that is missing, each one naming the consequence rather than the
 capability. Saying it early beats letting the problem be discovered as a corrupted
@@ -37,7 +36,7 @@ database or as users logged out at random.
 | `NULLS LAST` | MySQL, MariaDB | ordering puts nulls at the other end; the queries compensate explicitly |
 | Concurrent writers | SQLite | a second instance on the same file does not run slowly, it corrupts |
 
-These are warnings, not refusals. The Python stack additionally refused to boot a second
+These are warnings, not refusals. An earlier design additionally refused to boot a second
 instance on SQLite, detecting its peer through the built-in agent rows; that guard, and
 the `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` escape hatch that muted it, were not carried
 over by the port. **Nothing currently stops you from pointing two instances at one SQLite
@@ -67,7 +66,7 @@ capability is finally read. It had described the behaviour from the start withou
 producing it: claiming issued `FOR UPDATE` unconditionally.
 
 The `better-sqlite3` driver **refuses** `FOR UPDATE` rather than ignoring it, which is
-preferable: the Python stack dropped it silently, producing a claim that looked
+preferable: a driver that drops it silently produces a claim that looks
 transactional, green on the developer's machine, and handing the same scan to two
 processes in production.
 
@@ -164,18 +163,18 @@ enough.
 | `ZANSHIN_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
 | `ZANSHIN_SCAN_LEASE_SECONDS`, `ZANSHIN_SCAN_MAX_ATTEMPTS` | the lease and the takeover budget described above |
 | `ZANSHIN_LEADER_LEASE_SECONDS` | how long the tick's holder keeps it without renewing |
-| migration | `npm --workspace backend run migration:run` as a deployment step, before the instances start |
+| migration | Liquibase applies the changelog at startup, under the leader lease, so one instance migrates and the others wait |
 | `ZANSHIN_*_IMAGE` | replace a pinned analyzer image, to update it |
 | `ZANSHIN_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
 
-Three variables the Reflex stack needed are gone, and are listed here because their
+Three variables earlier versions needed are gone, and are listed here because their
 absence is the answer to "where did it go": ~~`REDIS_URL`~~ (the API is stateless, the
 session lives in the database), ~~`ZANSHIN_ALLOWED_ORIGINS`~~ (there is no websocket to
 authorize any more), and ~~`ZANSHIN_AUTO_MIGRATE`~~ (migrations are an explicit step).
 
 ## Still open
 
-- **Nothing refuses a second instance on SQLite any more.** The Python stack detected a
+- **Nothing refuses a second instance on SQLite.** An earlier version detected a
   live peer through the built-in agent rows and refused to boot; the port did not carry
   the guard over. The failure mode is corruption, not slowness, which makes this the
   heaviest item on this list.

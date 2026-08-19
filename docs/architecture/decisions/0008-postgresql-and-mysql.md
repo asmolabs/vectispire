@@ -9,17 +9,17 @@
 ## Context
 
 Decision 0004 kept SQLite and PostgreSQL, and **refused MySQL at configuration time**. It
-was right with what was known then: the Python stack had measured three MySQL divergences
-that produced no error but produced wrong data, one of which — the timestamp truncated to
-the second — made **the audit log declare itself tampered with when nothing had been**.
+was right with what was known then: three MySQL divergences had been measured that produced
+no error but produced wrong data, one of which — the timestamp truncated to the second —
+made **the audit log declare itself tampered with when nothing had been**.
 
 Two things changed.
 
 First the need: some customers do not have PostgreSQL, they have MySQL. An engine refused
 at configuration time is not a technical compromise, it is an impossible deployment.
 
-Then the port: the control plane moved to NestJS/TypeORM, and the three divergences were
-re-examined **by running**, not by re-reading the previous stack's analysis.
+Then the re-examination: the three divergences were measured **by running** the engines,
+not by re-reading an earlier analysis of them.
 
 ## Decision
 
@@ -34,7 +34,7 @@ that refuses is preferable to an engine that lies.
 
 ## What measurement corrected
 
-**The timestamps.** `datetime(6)` is declared in `column-types.ts`, in a single place
+**The timestamps.** `datetime(6)` is declared in the changelog, in a single place
 rather than column by column, and the connection is fixed to UTC. The audit chain hashes
 the ISO-serialized timestamp — hence to the millisecond — and it verifies. The defect that
 had MySQL removed no longer exists, because its cause was removed and not worked around.
@@ -55,7 +55,7 @@ differs**, and the index is now in place on both.
 ## What remains true of 0004
 
 The price of multi-dialect support is still paid the same way: capabilities are **declared**
-in `dialects.ts` rather than guessed, and an operator learns at startup what their engine
+in the changelog properties rather than guessed, and an operator learns at startup what their engine
 cannot do. Nothing is forbidden silently.
 
 ## What is not decided here

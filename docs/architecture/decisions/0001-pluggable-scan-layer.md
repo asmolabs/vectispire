@@ -14,7 +14,7 @@ first.
 
 ## Decision
 
-A common interface, [`ScanRunner`](../../../backend/src/scanning/scan-runner.ts), which
+A common interface, [`ScanRunner`](../../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java), which
 separates **what** to scan from **how and where** it is executed. The orchestrator calls
 the configured implementation; the Docker engine stays the default, functionally
 unchanged.
@@ -49,9 +49,9 @@ three implementations answer the same way. Without it, the engines would have dr
 
 ---
 
-> **Superseded on 2026-08-17 by [0010](0010-one-scan-runner.md).** The NestJS port carried
-> over only the Docker implementation, and the contract test named above went with the
-> Python tree. Rather than rebuild the seam, 0010 abandons it and records the remote agent
+> **Superseded on 2026-08-17 by [0010](0010-one-scan-runner.md).** Only the Docker
+> implementation was ever built, and the contract test named above no longer exists.
+> Rather than rebuild the seam, 0010 abandons it and records the remote agent
 > as the extension point that survived. The text above is kept as it was: it says what was
 > decided at that date, and its argument about `null` rather than an abstract method would
 > still apply if a second execution mode were ever needed.

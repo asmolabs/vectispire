@@ -37,11 +37,11 @@ runs through the whole codebase
 
 ```mermaid
 flowchart TB
-    subgraph proc["Zanshin backend (NestJS)"]
-        API["HTTP API<br/>backend/src/api/"]
-        SVC["Services<br/>backend/src/services/"]
-        REPO["Repositories<br/>backend/src/repositories/"]
-        SCHED["Scheduler<br/>scheduler.service.ts — periodic tick"]
+    subgraph proc["Zanshin control plane (Spring Boot)"]
+        API["HTTP API<br/>zanshin-core/api/"]
+        SVC["Services<br/>zanshin-core/services/"]
+        REPO["Repositories<br/>zanshin-core/repositories/"]
+        SCHED["Scheduler<br/>SchedulerService — periodic tick"]
     end
 
     UI["Angular UI<br/>zanshin-angular/src/app/"]
@@ -63,13 +63,13 @@ flowchart TB
     AGENT --> DOCKER
 ```
 
-**Two artifacts, one API.** The port split the single Reflex process into a NestJS
+**Two artifacts, one API.** A Spring Boot
 backend and an Angular front end; the browser now talks to the same HTTP API that a CI
 pipeline or a remote agent talks to. The API keys finally have a consumer that is not
-the UI itself — under Reflex they could be issued and served no purpose.
+the UI itself.
 
-**Dependency injection is NestJS's**, wired in
-[`backend/src/api/api.module.ts`](../../backend/src/api/api.module.ts). The Python stack
+**Dependency injection is Spring's**, by constructor: every collaborator is a parameter a
+class cannot be built without. An earlier design
 built its own `IoCContainer` per request around a database session; that hand-rolled
 graph is gone.
 
@@ -87,16 +87,16 @@ One rule, and it is what makes the whole thing testable: **a layer only knows th
 below it.** In particular, a service writes no SQL — it goes through a repository — and a
 repository holds no business rule.
 
-Unlike the Python stack, this rule is not merely written down:
-`backend/src/architecture.spec.ts` reads the import graph and fails the suite when a
-layer imports from above itself, or when a domain file imports a framework. See
-[`backend/README.md`](../../backend/README.md) for the full table.
+This rule is not merely written down: `ArchitectureTest` reads the
+import graph with ArchUnit and fails the suite when a layer imports from above itself, or when
+a domain class imports a framework. See
+[`zanshin-java/README.md`](../../zanshin-java/README.md) for the full table.
 
 Two practical consequences:
 
 - The UI and a CI pipeline are two clients of the **same** endpoint. The verdict shown on
   the Security screen is the one `POST /api/v1/gate` returns, because both go through
-  `domain/gate/policy-gate.ts` — not because someone was careful. A SQL aggregate that
+  the same `PolicyGate` — not because someone was careful. A SQL aggregate that
   reimplemented the verdict would agree today and diverge the first time a policy flag
   was added.
 - The UI's view models
@@ -134,8 +134,8 @@ request ([decision 0002](decisions/0002-the-database-carries-the-queue.md)).
 the database; `ScanIngestor` reads the artifacts and writes. The cut is not cosmetic: it
 is what lets a remote agent execute the first half with no database access
 ([decision 0003](decisions/0003-long-polling-for-agents.md)), and
-`architecture.spec.ts` forbids the agent from importing `typeorm`, `pg`, `mysql2` or
-`@nestjs/` so the property cannot quietly lapse.
+`zanshin-agent` does not depend on `zanshin-core`, so no JDBC driver is on its compile
+classpath and the property cannot quietly lapse — the violation fails to compile.
 
 ### The analyzers
 
@@ -153,8 +153,8 @@ supply chain, and they run on a machine that has the Docker socket.
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
 
-[`ScanRunner`](../../backend/src/scanning/scan-runner.ts) is a single concrete class, and
-deliberately so. The Python stack had it as a `ScannerEngine` interface with three
+[`ScanRunner`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java) is a single concrete class, and
+deliberately so. An earlier design had a `ScannerEngine` interface with three
 implementations — Docker, a local side-car API, and OSV
 ([decision 0001](decisions/0001-pluggable-scan-layer.md)); the port carried over only the
 Docker one, and [decision 0010](decisions/0010-one-scan-runner.md) abandons the seam rather
@@ -166,7 +166,7 @@ running an agent elsewhere**, not by substituting an engine.
 A single rhythm carries all background work: scheduled scans, retention of raw payloads,
 triage expiry, outbox relay, refreshing the built-in agent. It is taken **under a lease**
 — a row in `leader_lease`, see
-[`leader-election.service.ts`](../../backend/src/services/leader-election.service.ts) —
+[`LeaderLeases`](../../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/repositories/LeaderLeases.java) —
 so that only one instance holds it. A holder that dies stops renewing; the next tick
 takes over after expiry ([04](04-runtime-and-deployment.md)).
 

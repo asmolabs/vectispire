@@ -35,9 +35,10 @@ can try it.** Requiring a PostgreSQL before the first result moves the evaluatio
 quarter of an hour to half a day.
 
 And dropping SQLite would not fix the problem it seems to fix: of the three obstacles to
-fleet deployment, PostgreSQL removes only one. Reflex's server state stays pinned to the
-instance that accepted the socket — Redis is needed — and the migration lock stays
-per-host.
+fleet deployment, PostgreSQL removes only one: at the time of this decision, server state
+stayed pinned to the instance that accepted the socket and the migration lock was per-host.
+Both have since been solved — sessions live in the database and the leader lease guards the
+migration — which is what made [0008](0008-postgresql-and-mysql.md) possible.
 
 ### Why MySQL goes
 

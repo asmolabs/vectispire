@@ -19,8 +19,8 @@ cd Zanshin
 npm install
 ```
 
-One install for the whole workspace: `backend/` (NestJS) and `zanshin-angular/` (Angular) share
-a single lockfile.
+`npm` covers the interface alone. The control plane is a Gradle build in `zanshin-java/` and
+shares nothing with it but the HTTP contract.
 
 ## 3. Configuration
 
@@ -47,11 +47,11 @@ docker run -d --name zanshin-db -p 5432:5432 \
   postgres:16-alpine
 ```
 
-The schema belongs to **TypeORM migrations**, applied as an explicit step:
+The schema belongs to a **Liquibase changelog**, applied at startup:
 
 ```bash
-npm --workspace backend run migration:run       # apply
-npm --workspace backend run migration:generate  # write one from the entities
+# Liquibase applies the changelog at startup — there is no separate command to run.
+# A new change is a new changeset in zanshin-core/src/main/resources/db/changelog/.
 ```
 
 `synchronize` is off, deliberately: a schema synthesised from the entities is not the one
@@ -70,8 +70,8 @@ ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
 ## 5. Launching the application
 
 ```bash
-npm --workspace backend run migration:run   # bring the schema up to date
-npm --workspace backend run start:dev       # API on http://localhost:3000
+# Liquibase brings the schema up to date at startup; nothing to run by hand.
+cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8000
 npm --workspace @zanshin/frontend start              # UI on http://localhost:4200
 ```
 
@@ -84,7 +84,7 @@ variables are ignored.
 
 An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans; its narrative result and normalized findings (severity/title/file) show up in the scan detail dialog. See `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
 
-Ollama can be run either natively or in Docker — Zanshin talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. The Python version carried a *Mode de déploiement* setting here; it changed nothing about how Zanshin called Ollama, so it is not part of this port.
+Ollama can be run either natively or in Docker — Zanshin talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. There is deliberately no setting for it: where Ollama runs changes nothing about how Zanshin calls it.
 
 **Native install (recommended, especially on Apple Silicon Macs)** — see [ollama.com/download](https://ollama.com/download). Gets full GPU acceleration: Metal on Apple Silicon, CUDA/ROCm on Linux with the right drivers.
 
@@ -108,8 +108,8 @@ Then, from Zanshin's **Settings** page, under "Revue de code par IA": toggle the
 ## 7. Running the tests
 
 ```bash
-npm --workspace backend test                    # unit suite
-npm --workspace backend run test:integration    # starts PostgreSQL via testcontainers
+cd zanshin-java && ./gradlew build              # unit, architecture and HTTP suites
+cd zanshin-java && ./gradlew integrationTest    # starts PostgreSQL via testcontainers
 ```
 
 The integration suites start their own database and **do not skip** when one is missing:

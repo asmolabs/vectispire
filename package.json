@@ -2,9 +2,8 @@
     "name": "zanshin",
     "version": "0.1.0",
     "private": true,
-    "description": "Zanshin — analyse de sécurité applicative. Migration de la pile Python/Reflex vers NestJS + Angular (voir docs/migration-nestjs-angular.md).",
+    "description": "Zanshin \u2014 application security analysis. Spring Boot control plane in zanshin-java/, Angular interface in zanshin-angular/.",
     "workspaces": [
-        "backend",
         "zanshin-angular"
     ],
     "engines": {
@@ -14,16 +13,7 @@
         "build": "npm run build --workspaces --if-present",
         "test": "npm run test --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
-        "start:backend": "npm run start:dev --workspace @zanshin/backend",
-        "start:frontend": "npm run start --workspace @zanshin/frontend"
+        "start": "npm run start --workspace @zanshin/frontend"
     },
-    "devDependencies": {
-        "@testcontainers/postgresql": "^12.1.0",
-        "@types/dockerode": "^4.0.1",
-        "jsdom": "^26.1.0",
-        "vitest": "^4.1.10"
-    },
-    "dependencies": {
-        "dockerode": "^5.0.1"
-    }
+    "devDependencies": {}
 }

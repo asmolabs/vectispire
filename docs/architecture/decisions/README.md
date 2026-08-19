@@ -34,12 +34,12 @@ and would choose otherwise again without knowing why.
 alternative will assume it was never considered, and will propose it. The "what was
 rejected" section is not politeness: it is what stops the argument from starting over.
 
-## A note on the port
+## Two that name something absent
 
-Decisions 0001 to 0007 were written against the Python/Reflex implementation. Their
-reasoning still holds — that is why they are here — but two of them named artifacts the
-NestJS port did not carry over. 0001's contract test and its two non-Docker engines are
-settled: [0010](0010-one-scan-runner.md) supersedes it and abandons the seam rather than
-rebuilding it. 0006's fetch script is still missing with no superseding page, and carries a
-dated note after its text, outside the decision, rather than an edit to the decision
-itself.
+**0001** is superseded by [0010](0010-one-scan-runner.md), which abandons the pluggable scan
+seam rather than rebuilding it: there is one runner, and it runs Docker.
+
+**0006** describes a fetch script for the Semgrep rules that does not exist. It carries a
+dated note after its text, outside the decision, rather than an edit to the decision itself —
+a decision is a record of what was decided and when, and editing one to match what was built
+loses the only evidence that the two diverged.

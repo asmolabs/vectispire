@@ -7,8 +7,9 @@ its [decision register](architecture/decisions/).
 
 ## 1. Layered architecture
 
-Two artifacts in one npm workspace: a NestJS backend and an Angular front end that talks to
-it over the same HTTP API a CI pipeline or a remote agent uses.
+Two artifacts, built by different toolchains: a Spring Boot control plane in `zanshin-java/`
+and an Angular front end in `zanshin-angular/` that talks to it over the same HTTP API a CI
+pipeline or a remote agent uses.
 
 ```mermaid
 flowchart TB
@@ -36,7 +37,7 @@ flowchart TB
     end
 
     subgraph persistence["persistence/ — entities, dialects, driver types"]
-        Ent["19 TypeORM entities · migrations per dialect"]
+        Ent["20 JPA entities · one Liquibase changelog"]
     end
 
     subgraph domain["domain/ — pure, depends on nothing"]
@@ -57,29 +58,30 @@ flowchart TB
     scanning --> domain
 ```
 
-**Dependency injection is NestJS's**, wired in
-[`api/api.module.ts`](../backend/src/api/api.module.ts) and
-[`persistence/persistence.module.ts`](../backend/src/persistence/persistence.module.ts).
-The Python stack built an `IoCContainer` by hand, fresh per request, around a database
-session; that graph is gone.
+**Dependency injection is Spring's**, by constructor. Every collaborator a class needs is a
+parameter it cannot be built without, which is also what makes the unit suites possible: a
+test hands a stub where the container hands a bean, and nothing has to be intercepted.
 
 **The layering is enforced, not documented.**
-[`architecture.spec.ts`](../backend/src/architecture.spec.ts) reads the import graph and
-fails the suite when a layer imports from above itself, when a `domain/` file imports a
-framework, or when `agent/` imports `typeorm`, `pg`, `mysql2` or `@nestjs/`. That last one
-is a security property, not a style rule — see
-[decision 0003](architecture/decisions/0003-long-polling-for-agents.md). A rule written
+[`ArchitectureTest`](../zanshin-java/zanshin-core/src/test/java/com/asmolabs/zanshin/core/ArchitectureTest.java)
+reads the import graph with ArchUnit and fails the suite when a layer imports from above
+itself, or when a `domain` class imports a framework.
+
+**The agent's isolation is stronger than that test.** `zanshin-agent` does not depend on
+`zanshin-core`, so no JDBC driver is on its compile classpath and the violation fails to
+compile rather than failing a suite somebody could delete — a security property, not a style
+rule, see [decision 0003](architecture/decisions/0003-long-polling-for-agents.md). A rule
+written
 only in a document is true the day it is written and false six months later.
 
-`domain/` is pure because it carries the calculations where a mistake raises no exception
-but destroys data: an issue's fingerprint, the audit chain, the gate verdict, the three
-export formats. One exemption in the test: a `*.module.ts` is wiring, and is the one kind
-of file whose job is to know NestJS.
+`domain` is pure because it carries the calculations where a mistake raises no exception but
+destroys data: an issue's fingerprint, the audit chain, the gate verdict, the export formats.
+It depends on nothing but the JDK, BouncyCastle and Jackson.
 
 ## 2. Database schema
 
 The schema belongs to the **migrations**, under
-[`persistence/migrations/<dialect>/`](../backend/src/persistence/migrations/) — one set per
+[`persistence/migrations/<dialect>/`](../zanshin-java/zanshin-core/src/main/resources/db/changelog/) — one set per
 engine, because the same intent is spelled differently on each. `synchronize` is `false`
 and stays that way: it would modify the database from the entities, at startup, with no
 trace and no review.
@@ -87,7 +89,7 @@ trace and no review.
 `ZANSHIN_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
 four pass the whole integration campaign
 ([decision 0009](architecture/decisions/0009-four-engines.md)).
-[`schema-parity.integration-spec.ts`](../backend/src/persistence/schema-parity.integration-spec.ts)
+[`SchemaParityIntegrationTest`](../zanshin-java/zanshin-core/src/integrationTest/java/com/asmolabs/zanshin/core/persistence/SchemaParityIntegrationTest.java)
 asks on each engine the question `migration:generate` asks — "what would have to change for
 the database to look like the entities?" — whose right answer is "nothing".
 
@@ -228,11 +230,11 @@ Outside the main model, and each one load-bearing:
 | Table | What it holds | Why it exists |
 |---|---|---|
 | `user` | accounts, bcrypt password, role, `must_change_password` | — |
-| `session` | opaque token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: the Reflex token could not be invalidated, so nobody could be logged out |
+| `session` | opaque token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out |
 | `login_attempt` | `counter_key`, `occurred_at` | anti-stuffing counted per user **and** per client; one axis alone is defeatable |
 | `api_key` | bcrypt hash, prefix for display, scopes, target restriction, expiry | the raw secret is returned once and never stored |
 | `ssh_key` | AES-GCM ciphertext bound to its row by associated data | without the binding, key A's ciphertext copied into row B decrypts cleanly |
-| `setting` | key/value | the catalog in `domain/settings/catalog.ts` decides what is exposed |
+| `setting` | key/value | the `Setting` catalog decides what is exposed |
 | `audit_log` | entry hash, previous hash, IP, user agent | chained: makes **selective** editing detectable |
 | `outbox_message` | payload, `status`, `attempts`, `next_attempt_at` | written in the transaction that produces the result, so a crash before the POST loses nothing |
 | `processed_message` | `message_id` UK, `agent_id` | deduplicates an at-least-once agent report; the fingerprint alone would still inflate `times_seen` |
@@ -291,7 +293,7 @@ Points that are not obvious from the diagram:
 - **Rules are copied into the scan's workspace.** Counter-intuitive but mandatory: volume
   paths are resolved by the Docker *daemon*, so a directory inside Zanshin's own image is
   invisible to the sibling scanner container. See
-  [`scanning/bundled-rules.ts`](../backend/src/scanning/bundled-rules.ts), which also
+  [`RulePlacement`](../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/RulePlacement.java), which also
   merges the operator's `ZANSHIN_SEMGREP_RULES_DIR`.
 - **Secrets, IaC and SAST never run on a container image.** They look in source code;
   declaring them scanned would silently resolve that target's whole history for those
@@ -314,8 +316,8 @@ to fetch.
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
 
-There is **one** runner, [`ScanRunner`](../backend/src/scanning/scan-runner.ts), and it runs
-Docker. The Python stack had a `ScannerEngine` interface with three implementations; the
+There is **one** runner, [`ScanRunner`](../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java), and it runs
+Docker. An earlier design had a `ScannerEngine` interface with three implementations; the
 port kept only the Docker one and
 [decision 0010](architecture/decisions/0010-one-scan-runner.md) abandons the seam rather
 than rebuilding it around a single implementation. Moving execution elsewhere is done by
@@ -328,7 +330,7 @@ with a read-only archive.
 
 ### AI code review (Ollama), off by default
 
-[`AiReviewService`](../backend/src/services/ai-review.service.ts) is a light complement to
+[`AiReviewService`](../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/AiReviewService.java) is a light complement to
 the scanners, not a SAST engine: one prompt, no guaranteed reproducibility. The sample sent
 is a sorted, extension-filtered concatenation of source files capped at 40,000 characters —
 no chunking, so large repositories are truncated.
@@ -376,7 +378,7 @@ parse yields an empty list and never raises.
 Five repositories only — `Scan`, `Issue`, `Target`, `AuditLog`, `Session` — each a thin
 wrapper around the queries its callers actually need. There is no generic base repository.
 A service writes no SQL, and a repository holds no business rule;
-`architecture.spec.ts` enforces both.
+`ArchitectureTest` enforces both.
 
 ## 6. The front end
 
@@ -389,7 +391,7 @@ avoid. See [`zanshin-angular/README.md`](../zanshin-angular/README.md).
 The view models the browser receives are typed and computed server-side
 ([`core/api.models.ts`](../zanshin-angular/src/app/core/api.models.ts)): finished values, not
 arithmetic. In particular the gate verdict shown on the Security screen is the one
-`POST /api/v1/gate` returns, because both go through `domain/gate/policy-gate.ts` — not a
+`POST /api/v1/gate` returns, because both go through the same `PolicyGate` — not a
 second implementation in SQL, which would agree today and diverge the first time a policy
 flag was added.
 
@@ -397,7 +399,7 @@ flag was added.
 third-party domain in `index.html` and `styles.scss` and verifies the declared fonts exist
 and are real `woff2`. Not zeal: the CSP refuses third-party stylesheets, and such a
 reference breaks nothing visible — the request is blocked, the page falls back to the system
-font, and nothing reports it. That is exactly how the Reflex version's typography never
+font, and nothing reports it. That is exactly how a typography never
 reached production.
 
 ## 7. Testing approach
@@ -409,8 +411,8 @@ migration, and roll each test back in its own transaction — so the schema unde
 one production will receive, and the cases cannot see each other.
 
 ```bash
-npm run test:integration --workspace @zanshin/backend       # PostgreSQL
-npm run test:integration:all --workspace @zanshin/backend   # all four engines
+cd zanshin-java && ./gradlew integrationTest                # PostgreSQL
+cd zanshin-java && ./gradlew integrationTestAll             # all four engines
 ```
 
 Two rules the harness enforces on itself:

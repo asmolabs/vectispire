@@ -73,7 +73,7 @@ living inside Zanshin's image is invisible to the sibling Semgrep container.
 > - **Zanshin's own rules**: one rule, not "about forty, Python / JS-TS / Java".
 > - **`ZANSHIN_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
 >   and read nowhere in the code. Implemented on 2026-08-17 in
->   `scanning/bundled-rules.ts`, with a directory that cannot be read now failing SAST
+>   `RulePlacement`, with a directory that cannot be read now failing SAST
 >   rather than letting the scan run with the bundled rules alone.
 > - **The fetch script**: not ported. The manual procedure is in the README; a wrapper
 >   around a pinned download did not earn a second tool to maintain.

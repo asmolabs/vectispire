@@ -1,18 +1,8 @@
 # Zanshin on the JVM
 
-A port of the NestJS control plane to **Spring Boot 4.1 / JDK 25**, built with Gradle.
-
-It runs **alongside** `backend/`, not instead of it. The port is complete — every service,
-every route and the remote agent — but the NestJS tree stays until somebody has run this one
-against a real deployment. Deleting the reference implementation before that would remove the
-only thing to compare a surprise against.
-
-**It is not a transliteration.** No instance of Zanshin has been run, so there is no stored
-data to stay compatible with, and byte-for-byte fidelity is not a goal. Several constraints in
-the TypeScript exist only because it had to match a Python implementation and a live database;
-those are void. Where the original documents a compromise it was forced into, this port does
-the right thing instead and says so. The reasoning in the comments is what carries over — not
-the bytes.
+Zanshin's control plane and its remote agent: **Spring Boot 4.1 / JDK 25**, built with Gradle.
+The Angular interface lives in [`zanshin-angular/`](../zanshin-angular/) and reaches this over
+HTTP.
 
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
@@ -42,9 +32,9 @@ one question this system may not get wrong twice.
 classpath. An agent holding a database connection would also need `ENCRYPTION_KEY`, which is
 enough to decrypt *every* deployment key Zanshin holds; the property that justifies the
 agent's existence is precisely what it does not have ([decision
-0003](../docs/architecture/decisions/0003-long-polling-for-agents.md)). The NestJS tree
-asserted this with a test that read the import graph. Here it is a fact about the build
-graph: the violation does not fail review, it fails to compile.
+0003](../docs/architecture/decisions/0003-long-polling-for-agents.md)). It is a fact about
+the build graph rather than a rule somebody enforces: the violation does not fail review, it
+fails to compile.
 
 **What that costs.** The layers *inside* `zanshin-core` — `persistence`, `repositories`,
 `services`, `api` — can no longer be expressed by the module graph, so `ArchitectureTest`
@@ -69,25 +59,25 @@ the same commit that violates it; a missing dependency cannot.
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 
-### Two things the original could not fix, fixed here
+### Two decisions worth knowing
 
-**The fingerprint separator is NUL, not a vertical bar.** The NestJS version carried a note
-saying the collision — a file path containing `|` imitating a field boundary — must *not* be
-repaired, because changing the separator rewrites the identity of every stored issue and
-destroys the triage attached to them. With no data, it costs nothing. This was the last moment
-at which it was free.
+**The fingerprint separator is NUL, not a vertical bar.** A file path containing `|` would
+otherwise imitate a field boundary and collide with another issue. The reason this is worth
+stating: **changing the separator rewrites the identity of every stored issue and destroys the
+triage attached to them.** It was free to get right before any data existed; it will not be
+free again.
 
 **Closed sets are types.** `ScanTarget` is a sealed interface rather than two nullable ids that
 a comment declares mutually exclusive; `FindingType` is an enum carrying `isSecurity()` rather
 than seven string constants plus a hand-maintained list the constants could drift from.
 
-### One defect found while porting the clone
+### Host keys, and a trap worth naming
 
-The original passed `StrictHostKeyChecking=accept-new` and explained that this "refuses a host
-whose key has changed" — while pointing `UserKnownHostsFile` at a directory created fresh for
-each clone and deleted immediately after. **Every clone was a first contact**, so every host
-key was accepted, and the `Host key verification failed` branch of its error translation could
-never fire. The two halves cancelled out across forty lines, and nothing said so.
+`StrictHostKeyChecking=accept-new` reads as "refuses a host whose key has changed" — and means
+nothing at all if `UserKnownHostsFile` points at a directory created fresh for each clone and
+deleted immediately after. **Every clone is then a first contact**, every host key is accepted,
+and the `Host key verification failed` branch can never fire. The two halves cancel out across
+forty lines and nothing says so; this is how it was, and it is why the policy is now a type.
 
 `GitClone.HostKeyPolicy` is now a sealed choice between `AcceptNew(knownHosts)` — which detects
 interception, at the cost that a rotated host key blocks scans until an operator clears the
@@ -98,11 +88,10 @@ entry — and `TrustEveryHost()`, named plainly because that is what the previou
 Passwords go through **Argon2id**; everything else hashes through `Digests`. Both are
 **BouncyCastle**'s lightweight API rather than the JCA.
 
-Argon2id replaces bcrypt, which the NestJS version used only to stay readable by a Python
-implementation. That constraint dragged a real defect behind it: **bcrypt silently ignores
-everything past 72 bytes**, so two passphrases sharing their first 72 were the same password,
-and a validation rule had to refuse long ones rather than let anybody believe they were
-protected. Both the truncation and the rule are gone.
+**Argon2id and not bcrypt**, for one reason worth stating because it is easy to reintroduce:
+bcrypt silently ignores everything past 72 bytes. Two passphrases sharing their first 72 are
+the same password, which forces a validation rule refusing long ones rather than letting
+anybody believe they are protected. Argon2id needs neither the truncation nor the rule.
 
 The JCA is avoided for a separate reason. The JCA resolves an algorithm from whatever providers the JVM was started with, so
 what actually ran becomes a property of the host — unacceptable for a hash that decides whether
@@ -141,29 +130,21 @@ validate the entities against the schema the changelog really built, on all four
 through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
 
-## State of the port
+## What the suites cover
 
-Complete. `backend/src` has a counterpart everywhere, and the suite that proves it runs on four
-engines.
-
-| | |
-|---|---|
-| Build, three modules, architecture suite | done |
-| `zanshin-common/domain` and `zanshin-common/scanning` | done |
-| `zanshin-core` — schema, entities, repositories | done |
-| `zanshin-core` — services | done |
-| `zanshin-core` — API, security, agent protocol | done |
-| `zanshin-agent` | done |
+`./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against a
+real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
+all four engines through Testcontainers — **not run by CI**, because it needs Docker and ten
+minutes; run it before a release and after any change to the changelog.
 
 `ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer
 is populated, so an empty one now means a package was renamed or deleted, and that rule going
 quiet is exactly how it would go unnoticed.
 
-### What the port changed on purpose
+### Defects fixed rather than reproduced
 
-Each of these is a place where the TypeScript documented a compromise it could not escape, or
-where reading it closely turned up something nobody had noticed. The reasoning lives in the
-code; this is the index.
+Each of these was found by reading closely or by running the thing, and each would have been
+easy to carry forward unnoticed. The reasoning lives in the code; this is the index.
 
 | | |
 |---|---|
@@ -176,7 +157,7 @@ code; this is the index.
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |
 
-### Where the port is deliberately different in shape
+### Shapes chosen deliberately
 
 | | |
 |---|---|

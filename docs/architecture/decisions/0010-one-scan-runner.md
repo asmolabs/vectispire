@@ -10,16 +10,15 @@ right at the time — the alternative was `docker.containers.run` hard-coded int
 orchestrator, which froze the Docker socket requirement into production and left nowhere
 to plug a second analyzer in.
 
-The NestJS port carried over only the Docker implementation, and the contract test that
-kept the three honest went with the Python tree. `ScanRunner` has been a single concrete
-class ever since, so the register and the code have disagreed without either being
-revised.
+Only the Docker implementation was ever built, and the contract test that would have kept
+three honest no longer exists. `ScanRunner` has been a single concrete class throughout, so
+the register and the code have disagreed without either being revised.
 
 This decision closes that gap by **abandoning the seam**, not by rebuilding it.
 
 ## Decision
 
-There is one scan runner, `backend/src/scanning/scan-runner.ts`, and it runs Docker
+There is one scan runner, `ScanRunner` in `zanshin-common/scanning/`, and it runs Docker
 containers. No interface, no implementation registry, no engine configuration.
 
 **The extension point that survived is the remote agent.** 0001's own consequences section

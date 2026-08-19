@@ -16,11 +16,6 @@ zanshin-angular/openapi.json
 # macOS
 .DS_Store
 
-# Reflex build residue, from before the NestJS/Angular port. Nothing produces these any
-# more; the entry stays only so that a working copy predating the port does not report
-# 32,000 untracked files. Safe to delete `.web/` and drop these two lines with it.
-.web
-.states
 
 # Gradle build output for the JVM port
 zanshin-java/**/build/
