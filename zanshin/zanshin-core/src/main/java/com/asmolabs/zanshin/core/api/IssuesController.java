@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.Triage;
@@ -63,7 +64,7 @@ public class IssuesController {
 
     public record Page(List<IssueEntity> items, long total, int limit, int offset) {}
 
-    public record TriageRequest(String status, String justification, String comment, Integer expiresInDays) {}
+    public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
     @GetMapping
     public Page list(

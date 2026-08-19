@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
@@ -76,7 +77,11 @@ public class SshKeysController {
             String encryptionState,
             long usedByRepositories) {}
 
-    public record CreateRequest(String name, String privateKey, String publicKey) {}
+    /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
+    public record CreateRequest(
+            String name,
+            @JsonProperty("private_key") String privateKey,
+            @JsonProperty("public_key") String publicKey) {}
 
     @GetMapping
     public List<Summary> list() {

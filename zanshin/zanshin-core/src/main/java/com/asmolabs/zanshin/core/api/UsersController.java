@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.common.domain.users.AccountRules;
@@ -78,10 +79,16 @@ public class UsersController {
     /** @param kind {@code repository} or {@code container} */
     public record TargetAssignment(String kind, Long id) {}
 
-    public record CreateRequest(String username, String password, String role, String email, String displayName) {}
+    /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
+    public record CreateRequest(
+            String username,
+            String password,
+            String role,
+            String email,
+            @JsonProperty("display_name") String displayName) {}
 
     /** Every field optional: absent means "leave it as it is", which is what PATCH means. */
-    public record UpdateRequest(String role, Boolean isActive, String password) {}
+    public record UpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
 
     @GetMapping
     public Listing list(@AuthenticationPrincipal ZanshinPrincipal principal) {

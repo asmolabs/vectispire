@@ -55,9 +55,13 @@ class PasswordChangeGateTest extends ApiTestBase {
 
         mvc.perform(authenticated(post("/api/v1/auth/change-password"), token)
                         .contentType(MediaType.APPLICATION_JSON)
+                        // snake_case, because that is what `api.service.ts` sends. This test
+                        // used to spell them the way the Java record did, and so asserted the
+                        // implementation rather than the contract — it passed while the real
+                        // client could not have changed a password at all.
                         .content(write(Map.of(
-                                "currentPassword", "correct horse battery staple",
-                                "newPassword", "a different long passphrase"))))
+                                "current_password", "correct horse battery staple",
+                                "new_password", "a different long passphrase"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mustChangePassword").value(false));
 
@@ -74,7 +78,7 @@ class PasswordChangeGateTest extends ApiTestBase {
         // account.
         mvc.perform(authenticated(post("/api/v1/auth/change-password"), token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(Map.of("currentPassword", "wrong", "newPassword", "a long new passphrase"))))
+                        .content(write(Map.of("current_password", "wrong", "new_password", "a long new passphrase"))))
                 .andExpect(status().isUnauthorized());
     }
 }

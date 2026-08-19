@@ -30,12 +30,12 @@ class AuthRoutesTest extends ApiTestBase {
 
         mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(Map.of("username", "someone", "password", "wrong", "clientId", "t"))))
+                        .content(write(Map.of("username", "someone", "password", "wrong", "client_id", "t"))))
                 .andExpect(status().isUnauthorized());
 
         mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(Map.of("username", "nobody-at-all", "password", "wrong", "clientId", "t"))))
+                        .content(write(Map.of("username", "nobody-at-all", "password", "wrong", "client_id", "t"))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -49,7 +49,7 @@ class AuthRoutesTest extends ApiTestBase {
                         .content(write(Map.of(
                                 "username", "alice",
                                 "password", "correct horse battery staple",
-                                "clientId", "browser-1"))))
+                                "client_id", "browser-1"))))
                 .andExpect(status().isOk())
                 // These four names are the contract the unchanged Angular client reads. A port
                 // that renamed one of them would compile, pass every unit test, and blank the

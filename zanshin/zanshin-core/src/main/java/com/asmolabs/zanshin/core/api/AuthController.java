@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.common.domain.users.AccountRules;
@@ -55,13 +56,13 @@ public class AuthController {
     }
 
     /** @param clientId the throttle's second counter. Never the IP alone — see {@link AuthService} */
-    public record LoginRequest(String username, String password, String clientId) {}
+    public record LoginRequest(String username, String password, @JsonProperty("client_id") String clientId) {}
 
     public record LoginResponse(String token, Instant expiresAt, UserSummary user) {}
 
     public record UserSummary(String username, String displayName, String role, boolean mustChangePassword) {}
 
-    public record ChangePasswordRequest(String currentPassword, String newPassword) {}
+    public record ChangePasswordRequest(@JsonProperty("current_password") String currentPassword, @JsonProperty("new_password") String newPassword) {}
 
     @OpenToAnonymous
     @PostMapping("/login")

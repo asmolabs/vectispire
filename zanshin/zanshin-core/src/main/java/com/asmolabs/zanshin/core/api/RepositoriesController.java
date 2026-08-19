@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
@@ -83,6 +84,7 @@ public class RepositoriesController {
             LastScan lastScan,
             long openIssues) {}
 
+    /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record CreateRequest(
             String url,
             String branch,
@@ -90,7 +92,7 @@ public class RepositoriesController {
             String subPath,
             Integer scanIntervalMinutes,
             String scanCron,
-            String requiredAgentLabel,
+            @JsonProperty("required_agent_label") String requiredAgentLabel,
             UUID sshKeyId) {}
 
     public record QueuedScan(Long id, String status) {}

@@ -8,7 +8,10 @@
  *
  * <h2>Two conventions, both load-bearing</h2>
  *
- * <b>Every {@code @Modifying} query carries {@code @Transactional}.</b> Spring Data makes
+ * <b>Every write carries {@code @Transactional}</b> — the {@code @Modifying} queries and the
+ * derived {@code deleteBy…} methods alike. The derived ones are the trap: they have no
+ * annotation to prompt the question, and they fail at runtime with "No EntityManager with actual
+ * transaction available" rather than at startup. Spring Data makes
  * derived and inherited methods transactional but not custom modifying queries, so one written
  * without it fails outright when no caller happens to have opened a transaction — and works
  * when one has, which is how the omission survives review and reaches production as an
