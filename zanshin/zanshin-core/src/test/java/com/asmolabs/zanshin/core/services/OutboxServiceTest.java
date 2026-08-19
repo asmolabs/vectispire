@@ -8,9 +8,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.zanshin.common.domain.issues.FindingType;
+import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
+import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.Detail;
 import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
 import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
 import com.asmolabs.zanshin.core.repositories.Outbox;
@@ -24,6 +29,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -134,6 +140,48 @@ class OutboxServiceTest {
 
         assertThat(service.pruneSent()).isEqualTo(3);
         verify(messages).deleteSentBefore("sent", NOW.minus(OutboxRetry.SENT_RETENTION));
+    }
+
+    @Test
+    @DisplayName("what comes back out of the queue is what went in, message identifier included")
+    void thePayloadSurvivesTheRoundTrip() {
+        NotificationPayload queued = NotificationPayload.of(new NotificationPayload.Delta(
+                "service", 7, List.of(issue()), List.of(), 3, Severity.HIGH));
+        OutboxMessageEntity stored = service.enqueue(queued, OutboxService.TYPE_SCAN_DELTA);
+        due(stored);
+
+        ArgumentCaptor<NotificationPayload> delivered = ArgumentCaptor.forClass(NotificationPayload.class);
+        service.relay(20);
+        verify(notifications).deliver(delivered.capture());
+
+        // The relay parses the stored text back into the record before posting it, so every field
+        // the record does not declare is dropped — and the mapper is configured not to complain
+        // about unknown properties, so it would be dropped without a word. `message_id` is the
+        // one that matters: it is stamped by `enqueue` and is the receiver's only way to
+        // recognise the repeat that at-least-once delivery will eventually send it.
+        assertThat(delivered.getValue().messageId()).isEqualTo(stored.getId().toString());
+        assertThat(delivered.getValue().scanId()).isEqualTo(7);
+        assertThat(delivered.getValue().resolvedCount()).isEqualTo(3);
+        assertThat(delivered.getValue().issues()).singleElement().returns("CVE-2026-1", Detail::identifier);
+    }
+
+    @Test
+    @DisplayName("a message of an unknown type is refused, not delivered as an empty scan delta")
+    void anUnknownTypeIsNotGuessedAt() {
+        OutboxMessageEntity other = pending(0);
+        other.setMessageType("digest");
+        due(other);
+
+        // Unknown properties are ignored by design, so parsing a digest as a scan delta would
+        // succeed and produce zeroes — a webhook announcing that nothing happened. Failing the
+        // message keeps it in the queue where somebody can see it.
+        assertThat(service.relay(20).failed()).isEqualTo(1);
+        verify(notifications, never()).deliver(any());
+    }
+
+    private static NotificationPayload.NotifiableIssue issue() {
+        return new NotificationPayload.NotifiableIssue(
+                1L, "CVE-2026-1", FindingType.VULNERABILITY, Severity.HIGH, false, 0.4, "openssl", null, "3.5.2", null);
     }
 
     private void due(OutboxMessageEntity... pending) {

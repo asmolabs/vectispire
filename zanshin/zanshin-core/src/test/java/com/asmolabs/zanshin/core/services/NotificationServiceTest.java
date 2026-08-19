@@ -14,7 +14,6 @@ import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +78,7 @@ class NotificationServiceTest {
     void theDestinationIsValidatedAtSendTime() {
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("https://corrected.example.com/z");
 
-        service.deliver(new ObjectMapper().createObjectNode().put("scan_id", 4));
+        service.deliver(payload());
 
         // An operator fixing a typo must not have to re-run a scan to flush what is pending.
         verify(post).postJson(eq("https://corrected.example.com/z"), any(), eq(OutboundPolicy.PUBLIC_ONLY), anyString());
@@ -90,9 +89,14 @@ class NotificationServiceTest {
     void thePolicyFollowsTheSetting() {
         when(settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)).thenReturn(true);
 
-        service.deliver(new ObjectMapper().createObjectNode().put("scan_id", 4));
+        service.deliver(payload());
 
         verify(post).postJson(anyString(), any(), eq(OutboundPolicy.INTERNAL_ALLOWED), anyString());
+    }
+
+    private static NotificationPayload payload() {
+        return NotificationPayload.of(new NotificationPayload.Delta(
+                "service", 4, List.of(issue(Severity.HIGH, false)), List.of(), 0, Severity.HIGH));
     }
 
     private static NotifiableIssue issue(Severity severity, boolean kev) {

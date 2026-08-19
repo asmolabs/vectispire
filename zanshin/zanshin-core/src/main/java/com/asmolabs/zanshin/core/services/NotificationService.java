@@ -6,7 +6,6 @@ import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -90,16 +89,17 @@ public class NotificationService {
      * fixing a typo must not have to re-run a scan to flush the pending notifications, and a
      * setting written straight into the database must not become an unchecked destination.
      */
-    public void deliver(JsonNode payload) {
+    public void deliver(NotificationPayload payload) {
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;
 
         post.postJson(webhookUrl(), payload, policy, "webhook URL");
         log.info(
-                "Webhook notified for scan {} ({} new, {} reopened).",
-                payload.path("scan_id").asText(""),
-                payload.path("new_count").asText(""),
-                payload.path("reopened_count").asText(""));
+                "Webhook notified for scan {} ({} new, {} reopened), message {}.",
+                payload.scanId(),
+                payload.newCount(),
+                payload.reopenedCount(),
+                payload.messageId());
     }
 }

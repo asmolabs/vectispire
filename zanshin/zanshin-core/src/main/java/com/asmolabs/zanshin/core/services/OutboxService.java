@@ -1,10 +1,10 @@
 package com.asmolabs.zanshin.core.services;
 
+import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
 import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
 import com.asmolabs.zanshin.core.repositories.Outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Clock;
@@ -123,7 +123,7 @@ public class OutboxService {
         for (OutboxMessageEntity message : due) {
             int attempts = message.getAttempts() + 1;
             try {
-                notifications.deliver(json.readTree(message.getPayload()));
+                notifications.deliver(payloadOf(message));
             } catch (JsonProcessingException | RuntimeException error) {
                 if (Boolean.TRUE.equals(
                         transactions.execute(status -> settleFailure(message, attempts, at, error)))) {
@@ -185,12 +185,20 @@ public class OutboxService {
         messages.markSent(id, attempts, STATUS_SENT, at);
     }
 
-    /** Exposed for the screen that shows a message's payload. */
-    public JsonNode payloadOf(OutboxMessageEntity message) {
-        try {
-            return json.readTree(message.getPayload());
-        } catch (JsonProcessingException unreadable) {
-            throw new IllegalStateException("Outbox message " + message.getId() + " holds unreadable JSON", unreadable);
+    /**
+     * Reads a stored message back into the record that was queued.
+     *
+     * <p><b>The type is checked, not assumed.</b> The column holds text and the table is generic
+     * by {@code message_type}; parsing whatever is there as a scan delta would, for any second
+     * message type, produce a payload of zeroes rather than an error — the mapper is configured
+     * not to fail on unknown properties, precisely so a rolling upgrade survives, and that
+     * tolerance is what would make the mistake silent.
+     */
+    private NotificationPayload payloadOf(OutboxMessageEntity message) throws JsonProcessingException {
+        if (!TYPE_SCAN_DELTA.equals(message.getMessageType())) {
+            throw new IllegalStateException(
+                    "Outbox message " + message.getId() + " has unknown type " + message.getMessageType());
         }
+        return json.readValue(message.getPayload(), NotificationPayload.class);
     }
 }
