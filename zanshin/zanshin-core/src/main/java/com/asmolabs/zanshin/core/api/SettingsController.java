@@ -4,6 +4,7 @@ import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.SettingsService;
 import com.asmolabs.zanshin.core.services.TicketService;
@@ -53,6 +54,9 @@ public class SettingsController {
     /**
      * @param value the effective value, default included — without it the screen would show an
      *     empty field where the service is applying something
+     * @param defaultValue serialized as {@code default}, which is a Java keyword and therefore
+     *     cannot be the field's name. The client reads {@code default}, and a settings screen
+     *     whose every default is blank is what the mismatch looked like
      * @param configured told apart explicitly, because "never set" and "set to the same value as
      *     the default" do not read the same to an operator
      */
@@ -62,7 +66,7 @@ public class SettingsController {
             String section,
             String label,
             String help,
-            String defaultValue,
+            @JsonProperty("default") String defaultValue,
             String value,
             boolean configured) {}
 

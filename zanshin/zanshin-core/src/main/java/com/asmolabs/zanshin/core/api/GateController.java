@@ -73,7 +73,7 @@ public class GateController {
             boolean passed,
             int evaluated,
             @JsonProperty("counts_by_severity") Map<String, Long> countsBySeverity,
-            List<GateVerdict.Violation> violations,
+            List<ViolationView> violations,
             AppliedPolicy policy,
             @JsonProperty("ignored_relaxations") List<String> ignoredRelaxations) {}
 
@@ -107,7 +107,7 @@ public class GateController {
                 verdict.passed(),
                 verdict.evaluated(),
                 countsByWireName(verdict),
-                verdict.violations(),
+                ViolationView.of(verdict.violations()),
                 new AppliedPolicy(
                         policy.failOnSeverity() == null ? null : policy.failOnSeverity().wireName(),
                         policy.flag(PolicyFlag.FAIL_ON_KEV),
@@ -122,8 +122,9 @@ public class GateController {
 
     /** Every target's posture — what the security screen shows. */
     @GetMapping("/security/overview")
-    public SecurityOverview.Overview overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
-        return gate.overview(visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    public SecurityOverviewView overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        return SecurityOverviewView.of(
+                gate.overview(visibility.of(principal.user().orElse(null), principal.credentialRestriction())));
     }
 
     private static Map<String, Long> countsByWireName(GateVerdict verdict) {
