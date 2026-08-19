@@ -11,7 +11,7 @@ dist/
 .angular/
 coverage/
 *.tsbuildinfo
-frontend/openapi.json
+zanshin-angular/openapi.json
 
 # macOS
 .DS_Store
@@ -23,7 +23,7 @@ frontend/openapi.json
 .states
 
 # Gradle build output for the JVM port
-zanshin/**/build/
-zanshin/**/.gradle/
+zanshin-java/**/build/
+zanshin-java/**/.gradle/
 **/bin/**
 *.class
