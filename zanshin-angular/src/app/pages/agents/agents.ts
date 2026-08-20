@@ -10,6 +10,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { AgentSummary, UnroutableLabel } from '../../core/api.models';
 
@@ -264,7 +265,7 @@ export class Agents {
             },
             error: (response) => {
                 this.busy.set(null);
-                this.error.set(response?.error?.message ?? 'The operation failed.');
+                this.error.set(messageOf(response, 'The operation failed.'));
                 this.reload(true);
             }
         });
@@ -296,7 +297,7 @@ export class Agents {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? 'Could not declare this agent.');
+                    this.formError.set(messageOf(response, 'Could not declare this agent.'));
                 }
             });
     }
@@ -327,7 +328,7 @@ export class Agents {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
                 // Notably "this agent is running N scans": the refusal carries the number.
-                this.error.set(response?.error?.message ?? 'The deletion failed.');
+                this.error.set(messageOf(response, 'The deletion failed.'));
                 this.reload(true);
             }
         });

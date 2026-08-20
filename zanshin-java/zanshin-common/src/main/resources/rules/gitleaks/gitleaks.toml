@@ -1,0 +1,27 @@
+# The secret-detection configuration, **supplied by Zanshin and not by the target**.
+#
+# Without `--config`, gitleaks falls back to `<source>/.gitleaks.toml` — a file inside the
+# repository being scanned, written by whoever is being audited — and uses it *instead of*
+# its built-in set. An empty file with a universal allowlist switched detection off with no
+# error: the scan reported "analysed, found nothing", which silently resolved that target's
+# entire secrets history, triage included. The repository closed its own findings.
+#
+# This file is copied into the workspace beside the Semgrep rules, outside the analysed
+# tree, and passed explicitly on the command line.
+
+title = "Zanshin"
+
+# The built-in gitleaks rule set, and nothing more: it is maintained upstream, covers the
+# common providers, and replacing it with a hand-written list would be a commitment to keep
+# that list current — which nobody does.
+[extend]
+useDefault = true
+
+# **No `[allowlist]` section, deliberately.** A secret in a test file is a secret: it is in
+# the git history, it was pushed, and "it is only an example" is a claim to be settled at
+# triage, not a defect in the analysis.
+#
+# An allowlist here would also be the first thing an attacker would try to widen. The
+# built-in set already carries its own, written upstream; Zanshin adds none. (gitleaks
+# refuses an empty allowlist anyway — the only way to exclude nothing is to not declare
+# the section at all.)

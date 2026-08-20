@@ -8,6 +8,7 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { MonitoredRepository } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
@@ -50,7 +51,17 @@ import { LastScanTag } from '../../shared/last-scan';
                     <tr>
                         <td>
                             <div class="font-medium">{{ repository.displayName }}</div>
-                            <div class="text-sm text-muted-color break-all">{{ repository.url }}</div>
+                            <div class="text-sm text-muted-color break-all">
+                                {{ repository.url }}
+                                <!--
+                                    Shown because two rows can now be the same URL. Without it a
+                                    monorepo registered twice reads as the same target listed
+                                    twice, and nobody can tell which one they are scanning.
+                                -->
+                                @if (repository.subPath) {
+                                    <span class="font-mono">· {{ repository.subPath }}</span>
+                                }
+                            </div>
                         </td>
                         <td>{{ repository.branch }}</td>
                         <td>
@@ -72,6 +83,8 @@ import { LastScanTag } from '../../shared/last-scan';
                                 <p-button icon="pi pi-play" [text]="true" [rounded]="true"
                                           [ariaLabel]="'Run a scan of ' + repository.url"
                                           [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
+                                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Edit ' + repository.url" (onClick)="openForm(repository)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
                                           [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
                             </td>
@@ -84,7 +97,7 @@ import { LastScanTag } from '../../shared/last-scan';
             </p-table>
         </p-card>
 
-        <p-dialog header="Add a repository" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+        <p-dialog [header]="editing() ? 'Edit this repository' : 'Add a repository'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-2">
                     <label for="url" class="font-medium">Repository URL</label>
@@ -100,6 +113,16 @@ import { LastScanTag } from '../../shared/last-scan';
                     <input pInputText id="name" [(ngModel)]="form.name" />
                 </div>
                 <div class="flex flex-col gap-2">
+                    <label for="sub-path" class="font-medium">Sub-path <span class="text-muted-color font-normal">(optional)</span></label>
+                    <input pInputText id="sub-path" [(ngModel)]="form.subPath" placeholder="services/billing" />
+                    <small class="text-muted-color">
+                        The directory to analyse, when only part of the repository is a project. Leave empty for the
+                        whole thing. <strong>A monorepo is registered once per project</strong>: add the same URL again
+                        with another sub-path, and give each a display name — the two are scanned, triaged and gated
+                        independently, which is the point.
+                    </small>
+                </div>
+                <div class="flex flex-col gap-2">
                     <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
                     <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
                     <small class="text-muted-color">
@@ -113,7 +136,7 @@ import { LastScanTag } from '../../shared/last-scan';
             </div>
             <ng-template #footer>
                 <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-                <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
+                <p-button [label]="editing() ? 'Save' : 'Add'" [loading]="saving()" (onClick)="submit()" />
             </ng-template>
         </p-dialog>
 
@@ -148,7 +171,10 @@ export class Repositories {
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { url: '', branch: 'main', name: '', requiredAgentLabel: '' };
+    form = { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '' };
+
+    /** The row being edited, or null when the dialog is adding one. */
+    readonly editing = signal<MonitoredRepository | null>(null);
 
     constructor() {
         this.reload();
@@ -187,35 +213,55 @@ export class Repositories {
             error: (response) => {
                 this.busy.set(null);
                 // The server knows why — "a scan is already queued", most of the time.
-                this.error.set(response?.error?.message ?? 'Could not queue this scan.');
+                this.error.set(messageOf(response, 'Could not queue this scan.'));
             }
         });
     }
 
-    openForm(): void {
-        this.form = { url: '', branch: 'main', name: '', requiredAgentLabel: '' };
+    openForm(repository?: MonitoredRepository): void {
+        this.editing.set(repository ?? null);
+        this.form = repository
+            ? {
+                  url: repository.url,
+                  branch: repository.branch,
+                  name: repository.name ?? '',
+                  subPath: repository.subPath ?? '',
+                  requiredAgentLabel: repository.requiredAgentLabel ?? ''
+              }
+            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
 
     submit(): void {
+        const editing = this.editing();
+        // **Empty string and not `undefined` when editing.** On the create path an absent field
+        // means "no value"; on the update path the server reads absent as "leave alone", so a
+        // field the operator cleared has to be sent as empty or the clearing is silently
+        // dropped — the form would show it gone and the next scan would disagree.
+        const blank = editing ? '' : undefined;
+        const body = {
+            url: this.form.url.trim(),
+            branch: this.form.branch.trim() || 'main',
+            name: this.form.name.trim() || blank,
+            subPath: this.form.subPath.trim() || blank,
+            required_agent_label: this.form.requiredAgentLabel.trim() || blank
+        };
+
         this.saving.set(true);
-        this.api.createRepository({
-                url: this.form.url.trim(),
-                branch: this.form.branch.trim() || 'main',
-                name: this.form.name.trim() || undefined,
-                required_agent_label: this.form.requiredAgentLabel.trim() || undefined
-            }).subscribe({
+        const call = editing ? this.api.updateRepository(editing.id, body) : this.api.createRepository(body);
+        call.subscribe({
             next: () => {
                 this.saving.set(false);
                 this.formVisible.set(false);
+                this.editing.set(null);
                 this.reload();
             },
             error: (response) => {
                 this.saving.set(false);
                 // The server's message is the one that knows *why* — scheme refused, host
                 // missing. Replacing it with a generic "error" would lose that.
-                this.formError.set(response?.error?.message ?? 'Could not add this repository.');
+                this.formError.set(messageOf(response, editing ? 'Could not save this repository.' : 'Could not add this repository.'));
             }
         });
     }

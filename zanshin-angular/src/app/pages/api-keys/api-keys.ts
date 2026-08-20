@@ -11,6 +11,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { ApiKeySummary } from '../../core/api.models';
 
@@ -260,7 +261,7 @@ export class ApiKeys {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? 'Could not issue this key.');
+                    this.formError.set(messageOf(response, 'Could not issue this key.'));
                 }
             });
     }
@@ -290,7 +291,7 @@ export class ApiKeys {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(response?.error?.message ?? 'The revocation failed.');
+                this.error.set(messageOf(response, 'The revocation failed.'));
                 this.reload(true);
             }
         });

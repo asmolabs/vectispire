@@ -1,6 +1,12 @@
 package com.asmolabs.zanshin.core.api;
 
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
+import com.asmolabs.zanshin.common.domain.rules.RuleCatalogue;
+import com.asmolabs.zanshin.core.services.RuleCatalogueFetcher;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Map;
+import java.util.Set;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
@@ -38,10 +44,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class RuleSetsController {
 
     private final RuleSetService ruleSets;
+    private final RuleCatalogueFetcher fetcher;
     private final AuditLogService audit;
 
-    public RuleSetsController(RuleSetService ruleSets, AuditLogService audit) {
+    public RuleSetsController(
+            RuleSetService ruleSets, RuleCatalogueFetcher fetcher, AuditLogService audit) {
         this.ruleSets = ruleSets;
+        this.fetcher = fetcher;
         this.audit = audit;
     }
 
@@ -52,6 +61,24 @@ public class RuleSetsController {
     public record Uploaded(Long id, String contentHash, int ruleCount, int fileCount) {}
 
     public record ActivateRequest(String note) {}
+
+    /**
+     * @param languages how many rule files each holds, so a choice is made on a number rather
+     *     than on a name
+     * @param licence the text at this tag, shown in full. Not summarised: a summary of a licence
+     *     is an opinion about a licence
+     * @param licenceSha256 echoed back on acceptance, which is what binds the two together
+     */
+    public record CataloguePreview(
+            String upstream,
+            String commit,
+            String licenceName,
+            String licence,
+            @JsonProperty("licence_sha256") String licenceSha256,
+            Map<String, Integer> languages) {}
+
+    public record CatalogueRequest(
+            String commit, List<String> languages, @JsonProperty("licence_sha256") String licenceSha256) {}
 
     @GetMapping
     public Listing list() {
@@ -80,6 +107,88 @@ public class RuleSetsController {
                 String.valueOf(stored.getId()),
                 "Rule set \"" + stored.getName() + "\" uploaded: " + stored.getFileCount() + " files, "
                         + stored.getRuleCount() + " rules.",
+                actor,
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return new Uploaded(
+                stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
+    }
+
+    /**
+     * What the upstream catalogue holds at a tag, and under what terms.
+     *
+     * <p><b>Fetched, not summarised from memory.</b> The licence is read from the checkout,
+     * because it can change between commits and a stored copy would let somebody accept a text
+     * that is not the one they are about to receive.
+     *
+     * <p>This clones the repository to answer, which is not cheap. It is an administrator
+     * action taken rarely, and the alternative — trusting a cached description — is exactly the
+     * thing that makes an acceptance meaningless.
+     */
+    @GetMapping("/catalogue")
+    public CataloguePreview catalogue() {
+        RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
+        return new CataloguePreview(
+                RuleCatalogue.UPSTREAM,
+                fetched.commit(),
+                RuleCatalogue.LICENCE,
+                fetched.contents().licence(),
+                fetched.licenceSha256(),
+                fetched.contents().languages());
+    }
+
+    /**
+     * Fetches the chosen languages and stores them as a rule set. Does not activate it.
+     *
+     * <p><b>The acceptance is bound to a licence, not to a checkbox.</b> The digest the caller
+     * echoes back must match the one just fetched: without that, "accepted" would mean "clicked
+     * a button next to some text at some point", and the text could have changed in between.
+     *
+     * <p>The audit entry carries the tag, the commit and that digest. A year from now, "which
+     * terms did we agree to, and who agreed" has an answer.
+     *
+     * <p><b>What it does not do is activate.</b> The set lands beside an uploaded one and goes
+     * through the same impact preview, because a fetched set can destroy triage exactly as an
+     * uploaded one can — more so, since it is larger.
+     */
+    @PostMapping("/catalogue")
+    public Uploaded fetchCatalogue(
+            @RequestBody CatalogueRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        RuleCatalogue.requireCommit(body.commit());
+        RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
+
+        // **Both must still match.** The upstream is a moving branch, so between reading the
+        // licence and accepting it the head can advance. Refusing is the only honest answer: an
+        // acceptance that silently applied to a different commit would be worth nothing, and
+        // this is the one place where "it probably did not change" is not good enough.
+        if (!fetched.commit().equalsIgnoreCase(body.commit())) {
+            throw new IllegalArgumentException(
+                    "The upstream moved between the preview and this request: you read " + body.commit()
+                            + ", it is now " + fetched.commit() + ". Read the catalogue again.");
+        }
+        if (!fetched.licenceSha256().equals(body.licenceSha256())) {
+            throw new IllegalArgumentException(
+                    "The licence changed between the preview and this request. Read it again before accepting: "
+                            + "what you agreed to is not what this commit carries.");
+        }
+
+        Set<String> languages = body.languages() == null ? Set.of() : Set.copyOf(body.languages());
+        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages);
+
+        String actor = principal.user().map(user -> user.getUsername()).orElse(null);
+        SemgrepRuleSetEntity stored =
+                ruleSets.store(files, RuleCatalogue.nameFor(fetched.commit(), languages), actor);
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.RULE_SET_UPLOADED,
+                String.valueOf(stored.getId()),
+                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ", languages " + String.join(", ", new java.util.TreeSet<>(languages)) + ": "
+                        + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
+                        + " accepted, sha256 " + fetched.licenceSha256() + ".",
                 actor,
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));

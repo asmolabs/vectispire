@@ -8,6 +8,7 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { MonitoredContainer } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
@@ -180,7 +181,7 @@ export class Containers {
             error: (response) => {
                 this.busy.set(null);
                 // The server knows why — "a scan is already queued", most of the time.
-                this.error.set(response?.error?.message ?? 'Could not queue this scan.');
+                this.error.set(messageOf(response, 'Could not queue this scan.'));
             }
         });
     }
@@ -225,7 +226,7 @@ export class Containers {
                     this.saving.set(false);
                     // The server's message is the one that knows *why* — upper case refused,
                     // malformed digest. Replacing it would lose the information.
-                    this.formError.set(response?.error?.message ?? 'Could not add this image.');
+                    this.formError.set(messageOf(response, 'Could not add this image.'));
                 }
             });
     }

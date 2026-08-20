@@ -8,6 +8,7 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { SettingDefinition } from '../../core/api.models';
 
@@ -209,7 +210,7 @@ export class Settings {
                 this.saving.set(false);
                 // The server's message carries the offending setting's label and the expected
                 // value; replacing it with generic text would lose that.
-                this.error.set(response?.error?.message ?? 'Saving failed.');
+                this.error.set(messageOf(response, 'Saving failed.'));
             }
         });
     }
@@ -228,7 +229,7 @@ export class Settings {
             },
             error: (response) => {
                 this.savingToken.set(false);
-                this.error.set(response?.error?.message ?? 'Saving the token failed.');
+                this.error.set(messageOf(response, 'Saving the token failed.'));
             }
         });
     }

@@ -10,6 +10,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { TooltipModule } from '@openng/optimus-ui/tooltip';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { EncryptionState, SshKeySummary } from '../../core/api.models';
 
@@ -208,7 +209,7 @@ export class SshKeys {
                     this.saving.set(false);
                     // The server knows *why* — not a private key, no encryption key configured.
                     // A generic message would lose the action to take.
-                    this.formError.set(response?.error?.message ?? 'Could not add this key.');
+                    this.formError.set(messageOf(response, 'Could not add this key.'));
                 }
             });
     }
@@ -232,7 +233,7 @@ export class SshKeys {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
                 // Notably "used by N repositories": the refusal carries the number to detach.
-                this.error.set(response?.error?.message ?? 'The deletion failed.');
+                this.error.set(messageOf(response, 'The deletion failed.'));
             }
         });
     }

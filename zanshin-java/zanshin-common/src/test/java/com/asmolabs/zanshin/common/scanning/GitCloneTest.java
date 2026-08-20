@@ -17,7 +17,7 @@ class GitCloneTest {
     private static final Path INTO = Path.of("/tmp/zanshin-clone-test");
 
     private static GitClone.Request request(String url, String key) {
-        return new GitClone.Request(url, "main", INTO, key, Duration.ofMinutes(5), new GitClone.HostKeyPolicy.TrustEveryHost());
+        return new GitClone.Request(url, "main", INTO, key, Duration.ofMinutes(5), new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE);
     }
 
     @ParameterizedTest(name = "refuses {0} before any network call")

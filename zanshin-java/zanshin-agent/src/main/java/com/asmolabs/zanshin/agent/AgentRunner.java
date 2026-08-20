@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.agent;
 
 import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.zanshin.common.scanning.BundledRules;
 import com.asmolabs.zanshin.common.scanning.ContainerRunner;
 import com.asmolabs.zanshin.common.scanning.GitClone;
 import com.asmolabs.zanshin.common.scanning.RulePlacement;
@@ -9,6 +10,7 @@ import com.asmolabs.zanshin.common.scanning.scanners.ScannerImages;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -94,9 +96,18 @@ public class AgentRunner implements ApplicationRunner {
         ScanRunner runner = new ScanRunner(
                 new ContainerRunner(),
                 ScannerImages.PINNED,
-                Path.of("rules"),
+                // Unpacked from the agent's own jar, for the same reason: `Path.of("rules")`
+                // resolved against whatever directory the agent was started in, and no such
+                // directory ships with it.
+                BundledRules.materialise(),
                 ruleSets,
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
+                // **What `CredentialsMode.LOCAL` has always promised.** An agent in that mode
+                // receives no deployment key, and until now the session was built with an empty
+                // identity set — so the documented recommendation could not clone a private
+                // repository at all. Falling back to the host's own git access is what the mode
+                // means; an agent in DELEGATED still gets its key and never reaches this.
+                GitClone.WithoutKey.HOST_SSH,
                 clock);
 
         AgentLoop loop = new AgentLoop(protocol, runner::run, properties);

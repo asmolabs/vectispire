@@ -11,6 +11,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '@/app/core/api.service';
 import { Issue, IssueFilters } from '@/app/core/api.models';
 
@@ -61,6 +62,7 @@ const VEX_JUSTIFICATIONS = [
                 <ng-template #header>
                     <tr>
                         <th>Issue</th>
+                        <th>Type</th>
                         <th>Target</th>
                         <th>Severity</th>
                         <th>Component</th>
@@ -74,8 +76,9 @@ const VEX_JUSTIFICATIONS = [
                         <td>
                             <span class="font-medium">{{ issue.identifier ?? '—' }}</span>
                             @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
-                            <div class="text-muted-color text-sm">{{ issue.filePath ?? issue.type }}</div>
+                            <div class="text-muted-color text-sm">{{ issue.filePath ?? '—' }}</div>
                         </td>
+                        <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
                         <td>
                             <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
                             <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? 'image' : 'repository' }}</div>
@@ -109,7 +112,7 @@ const VEX_JUSTIFICATIONS = [
                     </tr>
                 </ng-template>
                 <ng-template #emptymessage>
-                    <tr><td colspan="7" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
                 </ng-template>
             </p-table>
 
@@ -307,6 +310,14 @@ export class Issues {
         return `${this.offset() + 1}–${Math.min(this.offset() + this.limit, this.total())} of ${this.total()}`;
     }
 
+    /**
+     * The type in words. Open table: an unknown type shows raw rather than being hidden, because
+     * a type Zanshin does not know is a type somebody added and nobody wired to this screen.
+     */
+    typeLabel(type: string): string {
+        return this.types.find((option) => option.value === type)?.label ?? type;
+    }
+
     severityColour(severity: string | null): 'danger' | 'warn' | 'info' | 'secondary' {
         if (severity === 'critical' || severity === 'high') return 'danger';
         if (severity === 'medium') return 'warn';
@@ -353,7 +364,7 @@ export class Issues {
                     this.triageOpen = false;
                     this.reload(this.offset());
                 },
-                error: (response: { error?: { message?: string } }) => this.triageError.set(response.error?.message ?? 'The triage was refused.')
+                error: (response) => this.triageError.set(messageOf(response, 'The triage was refused.'))
             });
     }
 }

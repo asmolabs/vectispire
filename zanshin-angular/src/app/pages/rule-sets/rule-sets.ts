@@ -3,12 +3,14 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
+import { CheckboxModule } from '@openng/optimus-ui/checkbox';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { RuleSetImpact, RuleSetSummary } from '../../core/api.models';
+import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core/api.models';
 
 /**
  * Uploading Semgrep rule sets, and choosing which one is active.
@@ -32,7 +34,7 @@ import type { RuleSetImpact, RuleSetSummary } from '../../core/api.models';
 @Component({
     selector: 'app-rule-sets',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule],
     template: `
         <div class="mb-4">
             <h1 class="text-2xl font-semibold m-0">Semgrep rule sets</h1>
@@ -86,6 +88,89 @@ import type { RuleSetImpact, RuleSetSummary } from '../../core/api.models';
                         (onClick)="upload()"
                     />
                 </div>
+            </div>
+        </p-card>
+
+        <p-card styleClass="mb-4">
+            <ng-template #title>Fetch from the upstream catalogue</ng-template>
+
+            <!--
+                **Zanshin does not ship these rules, it fetches them on your instruction.** That
+                distinction is what makes this legitimate: they travel from their author to this
+                installation because somebody here asked. Decision 0006 has the full argument.
+            -->
+            <div class="flex flex-col gap-4">
+                <div>
+                    <p-button label="Read the catalogue" icon="pi pi-download" [loading]="loadingCatalogue()"
+                              (onClick)="readCatalogue()" />
+                </div>
+                <small class="text-muted-color max-w-3xl">
+                    Clones the upstream and shows what it holds right now. <strong>It publishes no tags</strong>, so
+                    what is pinned is the commit — and the rules you fetch are frozen in the database from that moment,
+                    which is what keeps later scans reproducible.
+                </small>
+
+                @if (catalogueError(); as message) {
+                    <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+                }
+
+                @if (catalogue(); as preview) {
+                    <div class="border-t pt-4" style="border-color: var(--surface-border)">
+                        <p class="m-0 mb-3 text-sm">
+                            <span class="font-medium">{{ preview.upstream }}</span> at commit
+                            <span class="font-mono">{{ preview.commit.slice(0, 12) }}</span>.
+                        </p>
+
+                        <div class="font-medium mb-2">Languages</div>
+                        <div class="flex flex-wrap gap-3 mb-4">
+                            @for (language of languagesOf(preview); track language.name) {
+                                <div class="flex items-center gap-2">
+                                    <p-checkbox [inputId]="'lang-' + language.name" [binary]="true"
+                                                [ngModel]="chosen().has(language.name)"
+                                                (ngModelChange)="choose(language.name, $event)" />
+                                    <label [for]="'lang-' + language.name" class="cursor-pointer text-sm">
+                                        {{ language.name }}
+                                        <span class="text-muted-color">({{ language.count }})</span>
+                                    </label>
+                                </div>
+                            }
+                        </div>
+
+                        <!--
+                            Taking everything is the highest-risk option, so it is not the default
+                            and it is not one click. A rule id enters an issue fingerprint, so the
+                            larger the set the more triage a later tag bump can destroy — and a
+                            gate that fires on noise is switched off within a week.
+                        -->
+                        <p-message severity="warn" [closable]="false" styleClass="w-full mb-4">
+                            Choose the languages you actually scan. Every rule id becomes part of an issue's identity,
+                            so a set you do not need is triage you can lose the next time the upstream moves a file.
+                        </p-message>
+
+                        <div class="font-medium mb-2">{{ preview.licenceName }}</div>
+                        <pre class="text-xs p-3 border rounded overflow-auto max-h-64 whitespace-pre-wrap"
+                             style="border-color: var(--surface-border)">{{ preview.licence }}</pre>
+
+                        <div class="flex items-start gap-2 mt-3">
+                            <p-checkbox inputId="licence-accepted" [binary]="true" [(ngModel)]="licenceAccepted" />
+                            <label for="licence-accepted" class="cursor-pointer text-sm">
+                                I accept these terms on behalf of this installation.
+                                <span class="block text-muted-color">
+                                    The Commons Clause takes whoever adopts these rules out of open source in the OSI
+                                    sense. Building an agent image that contains them is a legitimate use;
+                                    <strong>publishing that image is redistribution</strong>. Your acceptance is
+                                    recorded in the audit log with the tag, the commit and a digest of this text.
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="mt-4">
+                            <p-button label="Fetch as a rule set" icon="pi pi-check" [loading]="fetching()"
+                                      [disabled]="!licenceAccepted || chosen().size === 0" (onClick)="fetchCatalogue()" />
+                            <span class="text-muted-color text-sm ml-3">Stored, not activated.</span>
+                        </div>
+                    </div>
+                }
             </div>
         </p-card>
 
@@ -211,6 +296,72 @@ export class RuleSets {
     readonly picked = signal<{ name: string; content: string }[]>([]);
     readonly candidate = signal<RuleSetSummary | null>(null);
     readonly impact = signal<RuleSetImpact | null>(null);
+    /** The upstream catalogue: what came back, and what was chosen from it. */
+    licenceAccepted = false;
+    readonly catalogue = signal<CataloguePreview | null>(null);
+    readonly catalogueError = signal<string | null>(null);
+    readonly loadingCatalogue = signal(false);
+    readonly fetching = signal(false);
+    readonly chosen = signal<Set<string>>(new Set());
+
+    languagesOf(preview: CataloguePreview): { name: string; count: number }[] {
+        return Object.entries(preview.languages).map(([name, count]) => ({ name, count }));
+    }
+
+    choose(language: string, selected: boolean): void {
+        const next = new Set(this.chosen());
+        selected ? next.add(language) : next.delete(language);
+        this.chosen.set(next);
+    }
+
+    readCatalogue(): void {
+        this.loadingCatalogue.set(true);
+        this.catalogueError.set(null);
+        // Cleared, not kept: the acceptance is bound to one licence text, and leaving a tick
+        // from a previous tag would carry an agreement to terms nobody has read.
+        this.licenceAccepted = false;
+        this.catalogue.set(null);
+        this.chosen.set(new Set());
+
+        this.api.ruleCatalogue().subscribe({
+            next: (preview) => {
+                this.loadingCatalogue.set(false);
+                this.catalogue.set(preview);
+            },
+            error: (response) => {
+                this.loadingCatalogue.set(false);
+                // The server names the cause — a branch instead of a tag, a tag that does not
+                // exist upstream. A generic message would send somebody to the wrong place.
+                this.catalogueError.set(messageOf(response, 'The catalogue could not be read.'));
+            }
+        });
+    }
+
+    fetchCatalogue(): void {
+        const preview = this.catalogue();
+        if (!preview) return;
+
+        this.fetching.set(true);
+        this.api
+            .fetchRuleCatalogue(preview.commit, [...this.chosen()], preview.licence_sha256)
+            .subscribe({
+                next: (stored) => {
+                    this.fetching.set(false);
+                    this.catalogue.set(null);
+                    this.licenceAccepted = false;
+                    this.notice.set(
+                        `Fetched ${stored.ruleCount} rules from ${preview.upstream} at ${preview.commit.slice(0, 12)}. ` +
+                            'Stored, not active — review the activation cost before switching to it.'
+                    );
+                    this.reload();
+                },
+                error: (response) => {
+                    this.fetching.set(false);
+                    this.catalogueError.set(messageOf(response, 'The fetch failed.'));
+                }
+            });
+    }
+
     readonly uploading = signal(false);
     readonly activating = signal(false);
     readonly error = signal<string | null>(null);
@@ -262,7 +413,7 @@ export class RuleSets {
             },
             error: (response) => {
                 this.uploading.set(false);
-                this.error.set(response?.error?.message ?? 'The upload was refused.');
+                this.error.set(messageOf(response, 'The upload was refused.'));
             }
         });
     }
@@ -295,7 +446,7 @@ export class RuleSets {
             },
             error: (response) => {
                 this.activating.set(false);
-                this.error.set(response?.error?.message ?? 'The activation failed.');
+                this.error.set(messageOf(response, 'The activation failed.'));
             }
         });
     }

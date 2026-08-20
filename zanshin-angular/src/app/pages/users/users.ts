@@ -9,6 +9,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { UserSummary } from '../../core/api.models';
 
@@ -232,7 +233,7 @@ export class Users {
                 // Le refus porte sa raison — « dernier administrateur actif », « votre
                 // own account". Replacing it with a generic message would suggest a fault where
                 // there is a rule.
-                this.error.set(response?.error?.message ?? 'The operation failed.');
+                this.error.set(messageOf(response, 'The operation failed.'));
                 // Reloaded to bring the list back in line with the database — otherwise the role
                 // selector keeps showing the refused value.
                 this.reload(true);
@@ -263,7 +264,7 @@ export class Users {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(response?.error?.message ?? 'Could not create this account.');
+                    this.formError.set(messageOf(response, 'Could not create this account.'));
                 }
             });
     }
@@ -287,7 +288,7 @@ export class Users {
             },
             error: (response) => {
                 this.saving.set(false);
-                this.formError.set(response?.error?.message ?? 'The reset failed.');
+                this.formError.set(messageOf(response, 'The reset failed.'));
             }
         });
     }
@@ -310,7 +311,7 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(response?.error?.message ?? 'The deletion failed.');
+                this.error.set(messageOf(response, 'The deletion failed.'));
                 this.reload(true);
             }
         });

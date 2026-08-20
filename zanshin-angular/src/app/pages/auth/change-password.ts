@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import { SessionStore } from '../../core/session.store';
 
@@ -101,7 +102,7 @@ export class ChangePassword {
                 } else {
                     // The server distinguishes "current password wrong" (401) from "new
                     // password refused" (400); its message says which one.
-                    this.error.set(response.error?.message ?? 'The change failed.');
+                    this.error.set(messageOf(response, 'The change failed.'));
                 }
             }
         });

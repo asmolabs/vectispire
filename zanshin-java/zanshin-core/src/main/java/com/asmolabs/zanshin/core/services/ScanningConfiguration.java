@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.services;
 
+import com.asmolabs.zanshin.common.scanning.BundledRules;
 import com.asmolabs.zanshin.common.scanning.ContainerRunner;
 import com.asmolabs.zanshin.common.scanning.GitClone;
 import com.asmolabs.zanshin.common.scanning.RulePlacement;
@@ -40,32 +41,54 @@ import org.springframework.context.annotation.Configuration;
 public class ScanningConfiguration {
 
     /**
+     * Where the scanners read Zanshin's own rules from.
+     *
+     * <p>Unpacked from the jar into a temporary directory, once, because the scanners run as
+     * sibling containers and a bind mount cannot resolve a path inside a jar.
+     */
+    private static Path bundledRules(String override) {
+        if (override != null && !override.isBlank()) {
+            return Path.of(override);
+        }
+        return BundledRules.materialise();
+    }
+
+    /**
      * The same runner an agent builds, wired to the database instead of to HTTP.
      *
      * <p>The rule provider is the only difference between the two, and it is the reason {@code
      * ScanRunner} takes one: this side reads an uploaded set from its own tables, an agent
      * fetches it over the protocol, and the scanning code may know neither.
      *
-     * @param bundledRules the tree Zanshin ships. Relative to the working directory, as for the
-     *     agent; {@code ZANSHIN_SEMGREP_RULES_DIR} adds to it and is read by {@code
-     *     RulePlacement} itself
+     * @param bundledRulesOverride a directory to use instead of the rules packaged in the jar.
+     *     Empty by default and rarely wanted: the shipped tree is the one the tests cover, and
+     *     the previous behaviour — a relative {@code rules} path resolved against the process
+     *     working directory — pointed at nothing and failed every repository scan
+     * @param hostSsh whether a repository with no deployment key falls back to this machine's
+     *     own git access. <b>Off by default, and the default is the one to keep on a shared
+     *     installation</b>: with it on, every target anybody adds to Zanshin is cloned with
+     *     whatever the host's key can reach, and the per-repository scoping — a key attached to
+     *     one target, encrypted at rest — stops meaning anything. On a single-team install it is
+     *     the convenient answer and costs nothing real
      */
     @Bean
     ScanRunner scanRunner(
             RuleSetService ruleSets,
             Clock clock,
-            @Value("${zanshin.scanning.bundled-rules:rules}") Path bundledRules) {
+            @Value("${zanshin.scanning.bundled-rules:}") String bundledRulesOverride,
+            @Value("${zanshin.scanning.host-ssh:false}") boolean hostSsh) {
         RulePlacement.RuleSetProvider provider =
                 contentHash -> ruleSets.byHash(contentHash).map(ruleSets::filesOf).orElse(List.of());
 
         return new ScanRunner(
                 new ContainerRunner(),
                 ScannerImages.PINNED,
-                bundledRules,
+                bundledRules(bundledRulesOverride),
                 provider,
                 // Same policy as the agent: a changed host key blocks the scan rather than being
                 // accepted, which is the whole point of recording it in the first place.
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
+                hostSsh ? GitClone.WithoutKey.HOST_SSH : GitClone.WithoutKey.NONE,
                 clock);
     }
 }

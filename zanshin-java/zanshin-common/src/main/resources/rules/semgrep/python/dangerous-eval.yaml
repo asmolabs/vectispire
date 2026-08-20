@@ -1,0 +1,25 @@
+# Zanshin's own rules, written here, with no third-party licence.
+#
+# **Why so few.** `semgrep-rules` was relicensed under terms that forbid distributing the
+# rules, and the `opengrep-rules` fork carries a Commons Clause that would take Zanshin out
+# of open source in the OSI sense. Zanshin therefore ships its own — few and high-signal —
+# and fetches the rest from their author, on the operator's instruction, into a rule set of
+# their own (decision 0006).
+rules:
+  # **The id enters an issue's fingerprint.** Renaming it resolves every finding this rule
+  # produced and recreates them as new, losing their triage. It was renamed from
+  # `eval-sur-entree` while no scan had ever produced one — the last moment at which it was
+  # free. It is not free again.
+  - id: zanshin.python.eval-on-input
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+    message: >-
+      `eval` runs the string it is given. If that string comes from a request, a file or an
+      environment variable, the caller chooses the code that runs. Use `ast.literal_eval`
+      for data, or a lookup table for a choice.
+    patterns:
+      - pattern: eval(...)
+      - pattern-not: eval("...")

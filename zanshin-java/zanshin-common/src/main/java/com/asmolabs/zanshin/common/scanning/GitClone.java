@@ -90,13 +90,52 @@ public final class GitClone {
     }
 
     /**
+     * What to do when no deployment key came with the task.
+     *
+     * <p>A closed choice rather than a boolean, because the two answers have very different
+     * consequences and a parameter named {@code true} states neither.
+     */
+    public enum WithoutKey {
+
+        /**
+         * No identity at all. A public repository clones; a private one is refused.
+         *
+         * <p><b>The safe answer, and the reason it exists:</b> a key lying around on the host
+         * could otherwise clone a repository nobody attached it to. With a key per repository,
+         * a target can only be reached by the credential somebody deliberately gave it.
+         */
+        NONE,
+
+        /**
+         * The host's own git access — {@code ~/.ssh}, its config, its agent.
+         *
+         * <p>This is what {@code CredentialsMode.LOCAL} has always promised for a remote agent:
+         * "the agent uses its own git access". Without it that mode cannot clone a private
+         * repository at all, because the session is built with an empty identity set.
+         *
+         * <p><b>It removes the per-repository scoping, and that is the trade.</b> Every target
+         * this executor scans is reachable with whatever the host's key can reach. On a
+         * single-team installation that is the point; on a shared one it means adding a URL is
+         * enough to have Zanshin clone it with an identity nobody attached to it.
+         */
+        HOST_SSH
+    }
+
+    /**
      * @param privateKey the key in the clear, or {@code null} for a public repository
+     * @param withoutKey what to fall back on when {@code privateKey} is absent
      */
     public record Request(
-            String url, String branch, Path into, String privateKey, Duration timeout, HostKeyPolicy hostKeys) {
+            String url,
+            String branch,
+            Path into,
+            String privateKey,
+            Duration timeout,
+            HostKeyPolicy hostKeys,
+            WithoutKey withoutKey) {
 
         public Request(String url, String branch, Path into, HostKeyPolicy hostKeys) {
-            this(url, branch, into, null, Duration.ofMinutes(5), hostKeys);
+            this(url, branch, into, null, Duration.ofMinutes(5), hostKeys, WithoutKey.NONE);
         }
 
         boolean hasKey() {
@@ -148,11 +187,30 @@ public final class GitClone {
         };
     }
 
+    /**
+     * The SSH session, built two very different ways.
+     *
+     * <p><b>With a key, nothing of the host is used.</b> No agent, no default identity, and a
+     * throwaway home directory: only the key this scan was given. That is what keeps a target
+     * reachable solely by the credential somebody attached to it — a key lying around on the
+     * host cannot clone a repository nobody gave it to.
+     *
+     * <p><b>With {@link WithoutKey#HOST_SSH} and no key, the host's own configuration is used
+     * whole</b> — identities, {@code config}, agent and {@code known_hosts}. Deliberately whole:
+     * borrowing the identities while pointing {@code known_hosts} at an empty directory would
+     * make every clone a first contact, which is the shape of a check that looks present and
+     * verifies nothing.
+     */
     private static SshdSessionFactory sessionFactory(Request request, Iterable<KeyPair> keys) {
+        if (request.withoutKey() == WithoutKey.HOST_SSH && !request.hasKey()) {
+            return new SshdSessionFactoryBuilder()
+                    .setPreferredAuthentications("publickey")
+                    .setHomeDirectory(new java.io.File(System.getProperty("user.home")))
+                    .setSshDirectory(new java.io.File(System.getProperty("user.home"), ".ssh"))
+                    .build(null);
+        }
+
         SshdSessionFactoryBuilder builder = new SshdSessionFactoryBuilder()
-                // No agent, no default identity: only the key this scan was given. Otherwise a
-                // key lying around on the agent's host could clone a repository nobody attached
-                // it to.
                 .setPreferredAuthentications("publickey")
                 .setDefaultKeysProvider(ignored -> keys)
                 .setServerKeyDatabase((homeDir, sshDir) -> serverKeys(request.hostKeys()));

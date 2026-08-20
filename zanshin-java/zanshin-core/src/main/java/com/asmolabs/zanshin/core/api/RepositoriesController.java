@@ -30,6 +30,7 @@ import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -154,6 +155,79 @@ public class RepositoriesController {
 
         RepositoryEntity saved = repositories.save(repository);
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + saved.getUrl());
+        return list(principal).stream()
+                .filter(summary -> summary.id().equals(saved.getId()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    /**
+     * Changes a monitored repository.
+     *
+     * <p><b>Absent means unchanged, not cleared.</b> A {@code null} field is left alone and an
+     * empty string clears it: with the opposite convention, a screen sending only the two fields
+     * it edits would silently erase the SSH key, the schedule and the agent label. That mistake
+     * is invisible until the next scan waits for an agent nobody requires any more.
+     *
+     * <p><b>Changing the URL keeps the issues.</b> The fingerprint does not include the
+     * repository, so the backlog attached to this row survives and now describes a different
+     * codebase. That is the right behaviour for the ordinary case — a repository that moved host
+     * — and the wrong one for pointing an existing row at an unrelated project. The audit entry
+     * records both URLs so the surprise has an explanation.
+     */
+    @RequiresAdministrator
+    @PatchMapping("/{id}")
+    public Summary update(
+            @PathVariable long id,
+            @RequestBody CreateRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        RepositoryEntity repository = repositories
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException("No repository with id " + id + "."));
+        Visibilities.requireVisible(
+                new ScanTarget.Repository(id),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+
+        String previousUrl = repository.getUrl();
+        if (body.url() != null) {
+            String url = trim(body.url());
+            // Validated on update exactly as on create: an unvalidated URL reaching a git clone
+            // is arbitrary code execution, and a row edited later is no safer than a row added.
+            RepositoryUrl.validate(url).ifPresent(message -> {
+                throw new IllegalArgumentException(message);
+            });
+            repository.setUrl(url);
+        }
+        if (body.branch() != null) {
+            repository.setBranch(trim(body.branch()).isEmpty() ? "main" : trim(body.branch()));
+        }
+        if (body.name() != null) {
+            repository.setName(optional(body.name()));
+        }
+        if (body.subPath() != null) {
+            repository.setSubPath(optional(body.subPath()));
+        }
+        if (body.scanIntervalMinutes() != null) {
+            repository.setScanIntervalMinutes(body.scanIntervalMinutes());
+        }
+        if (body.scanCron() != null) {
+            repository.setScanCron(validatedCron(body.scanCron()));
+        }
+        if (body.requiredAgentLabel() != null) {
+            repository.setRequiredAgentLabel(
+                    AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
+        }
+        if (body.sshKeyId() != null) {
+            repository.setSshKeyId(body.sshKeyId());
+        }
+
+        RepositoryEntity saved = repositories.save(repository);
+        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + previousUrl + ")";
+        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
+                "Repository updated: " + saved.getUrl() + moved);
+
         return list(principal).stream()
                 .filter(summary -> summary.id().equals(saved.getId()))
                 .findFirst()

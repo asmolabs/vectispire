@@ -95,6 +95,10 @@ dependencies {
     // renders a document has no business shipping a PDF library. The layer rule would have
     // allowed it — it forbids frameworks and drivers, and PDFBox is neither — so the reason is
     // the agent's classpath rather than the rule.
+    // Cloning the upstream rule catalogue at a pinned tag. `zanshin-common` keeps JGit as
+    // `implementation`, so it does not reach here transitively — and declaring it explicitly is
+    // the honest form anyway: this module uses it directly.
+    implementation(libs.jgit)
     implementation(libs.pdfbox)
     implementation(libs.liquibase.core)
     // Spring Boot 4 split its autoconfigurations into modules: `liquibase-core` alone no longer

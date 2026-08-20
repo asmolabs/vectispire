@@ -35,6 +35,17 @@ public final class ScanRunner {
     private final RulePlacement rules;
     private final RulePlacement.RuleSetProvider ruleSets;
     private final GitClone.HostKeyPolicy hostKeys;
+
+    /**
+     * What to do for a repository that carries no deployment key.
+     *
+     * <p>Injected rather than decided here, for the same reason the rule provider is: this class
+     * runs on both sides and the two sides answer differently. A remote agent in
+     * {@code CredentialsMode.LOCAL} is supposed to use its own git access — that is the whole
+     * meaning of the mode — while the built-in worker runs inside the control plane, where
+     * borrowing the host's identity would let any target added to Zanshin be cloned with it.
+     */
+    private final GitClone.WithoutKey withoutKey;
     private final Clock clock;
 
     /**
@@ -50,6 +61,7 @@ public final class ScanRunner {
             Path bundledRules,
             RulePlacement.RuleSetProvider ruleSets,
             GitClone.HostKeyPolicy hostKeys,
+            GitClone.WithoutKey withoutKey,
             Clock clock) {
         this.containers = containers;
         this.dependencies = new DependencyScanner(containers, images);
@@ -59,6 +71,7 @@ public final class ScanRunner {
         this.rules = new RulePlacement(bundledRules);
         this.ruleSets = ruleSets;
         this.hostKeys = hostKeys;
+        this.withoutKey = withoutKey;
         this.clock = clock;
     }
 
@@ -79,7 +92,7 @@ public final class ScanRunner {
             // and carrying on would produce empty lists that resolve the whole backlog.
             GitClone.clone(new GitClone.Request(
                     repository.url(), repository.branch(), workspace.source(),
-                    repository.privateKey(), Duration.ofMinutes(5), hostKeys));
+                    repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey));
 
             String subPath = repository.subPath();
 

@@ -71,7 +71,8 @@ public class IssueSyncService {
      *     looked" must leave them alone. Deriving the set from the findings cannot tell the two
      *     apart, and getting it wrong silently resolves a type's entire history — no error, no
      *     log line (decision 0007).
-     * @param descriptions text by identifier, when the scanner supplies any
+     * @param descriptions text by identifier — the advisory prose an enrichment pass looked up.
+     *     Only vulnerabilities have any; see {@link #describe} for what the others get
      * @param beforeCommit called with the result <b>while the transaction is still open</b>.
      *     Exists for one caller and one reason: the notification outbox has to become durable at
      *     the same instant as the issues it describes. Queueing it after the return would leave
@@ -112,7 +113,7 @@ public class IssueSyncService {
 
             if (issue == null) {
                 issue = create(scan, entry.getKey(), finding, moment);
-                issue.setDescription(descriptions.get(orEmpty(finding.getIdentifier())));
+                issue.setDescription(describe(finding, descriptions));
                 created.add(issue);
             } else {
                 if (IssueState.RESOLVED.wireName().equals(issue.getState())) {
@@ -121,7 +122,7 @@ public class IssueSyncService {
                 }
                 refresh(issue, finding, scan, moment);
                 if (issue.getDescription() == null) {
-                    issue.setDescription(descriptions.get(orEmpty(finding.getIdentifier())));
+                    issue.setDescription(describe(finding, descriptions));
                 }
             }
             touched.add(issue);
@@ -219,6 +220,29 @@ public class IssueSyncService {
         issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
         copyRefreshedFields(issue, finding, true);
         return issue;
+    }
+
+    /**
+     * What the screen shows under an identifier.
+     *
+     * <p><b>The lookup alone left every non-vulnerability blank.</b> It is keyed by identifier
+     * and holds advisory prose, so a CVE finds its text and a secret asking for
+     * {@code generic-api-key} or a Checkov control asking for {@code CKV2_GHA_1} finds nothing —
+     * while the scanner had supplied a perfectly good sentence that was written to the finding
+     * and then ignored. The backlog showed a rule id and a file path and left the reader to
+     * guess: "Detected a Generic API Key" and "Ensure top-level permissions are not set to
+     * write-all" existed one table away the whole time.
+     *
+     * <p>The lookup still wins where it has something: an advisory says more about a CVE than a
+     * scanner's one-line summary.
+     */
+    private static String describe(FindingEntity finding, Map<String, String> descriptions) {
+        String advisory = descriptions.get(orEmpty(finding.getIdentifier()));
+        if (advisory != null && !advisory.isBlank()) {
+            return advisory;
+        }
+        String own = finding.getDescription();
+        return own == null || own.isBlank() ? null : own;
     }
 
     private void refresh(IssueEntity issue, FindingEntity finding, ScanEntity scan, Instant moment) {

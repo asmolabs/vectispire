@@ -165,6 +165,8 @@ export interface MonitoredRepository {
     subPath: string | null;
     scanIntervalMinutes: number | null;
     scanCron: string | null;
+    /** The label an agent must carry to scan this target. Sent by the server all along. */
+    requiredAgentLabel: string | null;
     sshKeyId: string | null;
     lastScan: { id: number; status: string; createdAt: string | null; error: string | null } | null;
     openIssues: number;
@@ -174,6 +176,14 @@ export interface NewRepository {
     url: string;
     branch: string;
     name?: string;
+    /**
+     * A directory inside the repository, when only part of it is a project.
+     *
+     * camelCase on the wire while its neighbours are snake_case — see `ClientContractTest`.
+     * The same repository can be registered more than once with different sub-paths: nothing
+     * makes the URL unique, deliberately, because a monorepo holds several projects.
+     */
+    subPath?: string;
     /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
 }
@@ -497,4 +507,17 @@ export interface RuleSetImpact {
     affectedIssues: number;
     addedRules: number;
     removedRules: number;
+}
+
+/** What the upstream rule catalogue offers at one pinned tag. */
+export interface CataloguePreview {
+    upstream: string;
+    /** The commit that was actually fetched. The upstream publishes no tags at all. */
+    commit: string;
+    licenceName: string;
+    /** The full text at this tag, never a summary: a summary of a licence is an opinion. */
+    licence: string;
+    licence_sha256: string;
+    /** Language to rule count, so a choice is made on a number rather than on a name. */
+    languages: Record<string, number>;
 }
