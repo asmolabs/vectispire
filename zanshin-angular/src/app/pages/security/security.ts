@@ -5,6 +5,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '@/app/core/api.service';
+import { saveDocument } from '@/app/core/download';
 import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 
 /**
@@ -161,17 +162,7 @@ export class Security {
         this.api.exportDocument(target.kind, target.targetId, document).subscribe({
             next: (response) => {
                 this.downloading.set(null);
-                const blob = response.body;
-                if (!blob) return;
-
-                const url = URL.createObjectURL(blob);
-                const link = window.document.createElement('a');
-                link.href = url;
-                link.download = filenameOf(response.headers.get('Content-Disposition')) ?? document;
-                link.click();
-                // Revoked immediately: the blob holds the whole export in memory, and a tab
-                // left open on this screen would accumulate one per click.
-                URL.revokeObjectURL(url);
+                saveDocument(response, document);
             },
             error: () => {
                 this.downloading.set(null);
@@ -185,8 +176,3 @@ export class Security {
     }
 }
 
-/** The name the server chose, or nothing when it did not say. */
-function filenameOf(disposition: string | null): string | null {
-    const match = disposition?.match(/filename="([^"]+)"/);
-    return match ? match[1] : null;
-}

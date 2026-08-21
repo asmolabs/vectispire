@@ -102,7 +102,7 @@ const SEVERITIES = [
                             </p>
                         }
                     } @else {
-                        <p-table [value]="overview.failing" styleClass="p-datatable-sm">
+                        <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
                             <ng-template #header>
                                 <tr><th>Target</th><th>Rule at fault</th><th class="text-right">Items</th></tr>
                             </ng-template>

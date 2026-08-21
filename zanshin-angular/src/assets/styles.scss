@@ -59,3 +59,31 @@ body {
         'tnum' 1,
         'zero' 1;
 }
+
+/* Les tableaux défilent à l'intérieur de leur carte, jamais la page.
+ *
+ * Sans cette règle, un tableau de sept colonnes sur un écran étroit élargit le
+ * document entier : la barre de défilement horizontale apparaît sur `body`, l'en-tête
+ * et le menu se décalent avec, et chaque écran de l'application devient bancal à cause
+ * d'un seul tableau. Le conteneur défile, le reste de la page ne bouge pas.
+ *
+ * Le `min-width` est ce qui fait la différence entre défiler et écraser. Sans lui, le
+ * navigateur comprime les colonnes jusqu'à couper les mots caractère par caractère —
+ * un tableau techniquement visible et illisible. Il ne s'applique qu'en dessous de
+ * 40rem, donc il ne change rien sur un poste de travail : c'est exactement la largeur
+ * en dessous de laquelle un tableau de données cesse de tenir.
+ */
+.p-datatable-table-container {
+    overflow-x: auto;
+}
+
+.p-datatable-table {
+    min-width: 40rem;
+}
+
+/* Un tableau à deux ou trois colonnes n'a rien à faire défiler : la classe le dispense
+ * du plancher ci-dessus. Posée sur les tableaux étroits plutôt que retirée des larges,
+ * parce que l'oubli doit pencher du côté lisible. */
+.zs-table-narrow .p-datatable-table {
+    min-width: 0;
+}
