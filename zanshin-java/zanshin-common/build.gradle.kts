@@ -57,6 +57,15 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
+    // **Test scope, and one class needs it.** The austerity above is about what ships: this
+    // module must stay runnable on an agent with a Docker socket and nothing else, and a test
+    // dependency reaches neither the agent nor the control plane. `ScanRunnerTest` asserts that
+    // a scanner which fails is *reported* rather than read as a clean target, and the only seam
+    // is `ContainerRunner` — a final class, so there is no hand-written fake to write instead.
+    // The alternative was the integration campaign, which CI does not run; a guard against
+    // silent data loss belongs where it runs on every change.
+    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation("org.mockito:mockito-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

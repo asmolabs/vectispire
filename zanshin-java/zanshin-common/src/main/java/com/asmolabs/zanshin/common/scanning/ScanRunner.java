@@ -96,13 +96,21 @@ public final class ScanRunner {
 
             String subPath = repository.subPath();
 
+            // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
+            // analysis: it produces no finding, resolves no backlog, and its absence is an
+            // ordinary property of a repository rather than a scanner that failed. Wrapping it
+            // would put "no pom.xml" in the same list as "Semgrep timed out".
+            ProjectManifest.read(workspace.source().resolve(subPath)).ifPresent(artifacts::project);
+
             if (task.runs(ScanTask.Step.DEPENDENCIES)) {
                 step(artifacts, "dependencies", () -> {
-                    Optional<JsonNode> sbom = dependencies.sbomOfDirectory(workspace, subPath);
-                    sbom.ifPresent(document -> {
-                        artifacts.sbom(document);
-                        dependencies.matchSbom(workspace, document.toString()).ifPresent(artifacts::dependencies);
-                    });
+                    JsonNode sbom = ran(
+                            dependencies.sbomOfDirectory(workspace, subPath),
+                            "the inventory of the tree's dependencies could not be taken.");
+                    artifacts.sbom(sbom);
+                    artifacts.dependencies(ran(
+                            dependencies.matchSbom(workspace, sbom.toString()),
+                            "the inventory was taken but could not be matched against known vulnerabilities."));
                 });
             }
 
@@ -116,7 +124,9 @@ public final class ScanRunner {
                 step(artifacts, "secrets", () -> artifacts.secrets(secrets.scan(workspace, subPath)));
             }
             if (task.runs(ScanTask.Step.IAC)) {
-                step(artifacts, "IaC", () -> iac.scan(workspace, subPath).ifPresent(artifacts::iac));
+                step(artifacts, "IaC", () -> artifacts.iac(ran(
+                        iac.scan(workspace, subPath),
+                        "the infrastructure manifest check did not complete.")));
             }
             if (task.runs(ScanTask.Step.SAST)) {
                 step(artifacts, "SAST", () -> {
@@ -127,7 +137,9 @@ public final class ScanRunner {
                     // clean, shorter list.
                     rules.placeRuleSet(
                             workspace, task.rulesHash(), ruleSets, RulePlacement.environmentDirectory().orElse(null));
-                    sast.scan(workspace, subPath).ifPresent(artifacts::sast);
+                    artifacts.sast(ran(
+                            sast.scan(workspace, subPath),
+                            "the source analysis did not run, or covered too few files to be worth reading."));
                 });
             }
 
@@ -156,12 +168,13 @@ public final class ScanRunner {
         // read-only file.
         Workspace.withWorkspace(workspace -> {
             step(artifacts, "dependencies", () -> {
-                Optional<JsonNode> sbom = dependencies.sbomOfImage(
-                        workspace, image.reference().format(), image.platform());
-                sbom.ifPresent(document -> {
-                    artifacts.sbom(document);
-                    dependencies.matchStandaloneSbom(document.toString()).ifPresent(artifacts::dependencies);
-                });
+                JsonNode sbom = ran(
+                        dependencies.sbomOfImage(workspace, image.reference().format(), image.platform()),
+                        "the image could not be fetched, or its dependencies could not be inventoried.");
+                artifacts.sbom(sbom);
+                artifacts.dependencies(ran(
+                        dependencies.matchStandaloneSbom(sbom.toString()),
+                        "the inventory was taken but could not be matched against known vulnerabilities."));
             });
             return null;
         });
@@ -185,6 +198,34 @@ public final class ScanRunner {
             body.run();
         } catch (RuntimeException failure) {
             artifacts.failed(name, failure.getMessage() == null ? failure.toString() : failure.getMessage());
+        }
+    }
+
+    /**
+     * The result of a scanner that reports its own failure by returning nothing.
+     *
+     * <p><b>An absent result used to be dropped here in silence.</b> Every scanner below returns
+     * {@code Optional.empty()} rather than an empty list when its analysis did not happen —
+     * timeout, non-zero exit, a report covering no file — and the call sites consumed that with
+     * {@code ifPresent}. The artifact then stayed absent, which is correct and is what protects
+     * the backlog, but {@code failures} stayed empty too: the scan was recorded {@code
+     * completed}, with no error to show, and an operator reading an empty SAST list saw a clean
+     * repository instead of a step that never ran. {@link ScanArtifacts#observedNothing()} does
+     * not catch it either — it asks whether <em>every</em> step is absent, and the other three
+     * had produced findings.
+     *
+     * <p>Raised as an exception so the failure travels through {@link #step} rather than through
+     * a second mechanism: one place decides what a failed step does, and the artifact is left
+     * absent by the same path.
+     */
+    private static <T> T ran(Optional<T> result, String reason) {
+        return result.orElseThrow(() -> new StepDidNotRun(reason));
+    }
+
+    /** Carries the reason to {@link #step}; never leaves this class. */
+    private static final class StepDidNotRun extends RuntimeException {
+        StepDidNotRun(String reason) {
+            super(reason);
         }
     }
 }
