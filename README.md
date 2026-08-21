@@ -30,10 +30,11 @@ Built with [Spring Boot](https://spring.io/projects/spring-boot) on JDK 25 and [
   [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
-- **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?" against a **stored, versioned policy** — global, or per target. The rules used to arrive in the request body, which meant each project decided its own bar; a request can now only *tighten* the stored policy, never loosen it, and the verdict says which policy it applied. Authenticated with the API keys the UI issues.
+- **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The stored, versioned policy the resolution supports (global or per target) has no writer yet, so today the applied policy is the built-in default. Authenticated with the API keys the UI issues.
 - **Tracker tickets** (GitLab, Jira): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
 - **Notifications**: a webhook fires when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once.
-- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, and the stored SBOM.
+- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
+- **Detection and triage history**: per repository, every scan with the project version it read, the issues that scan observed, and every triage decision taken on them — from which status to which, by whom, with which justification, and against which version. For the reader who has to be convinced after the fact and was not there. Exportable as PDF and CSV. An issue nobody triaged is printed saying so: silence would let it pass for a decision that was merely not written down.
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
 - **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/decisions/0010-one-scan-runner.md)).
 
@@ -127,10 +128,10 @@ for the decisions and the known limits.
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
 scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has exactly
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
-and the login throttle is counted in the database rather than in process memory. What it requires:
+the login throttle is counted in the database rather than in process memory. What it requires:
 
-- **PostgreSQL or MySQL** (`ZANSHIN_DATABASE_URL`, plus `ZANSHIN_DB_DIALECT=mysql` for the
-  latter). Both keep a claimed scan from reaching two workers;
+- **PostgreSQL or MySQL** (`ZANSHIN_DB_URL`; the engine is read from the URL). Both keep a
+  claimed scan from reaching two workers;
 - **nothing to run for the schema.** Liquibase applies the changelog at startup, and the
   leader lease is what stops two instances migrating at once;
 - nothing else. Sessions live in the database, not in process memory, so a client that
@@ -173,27 +174,28 @@ to validate the entities against the schema the changelog really built, on all f
 | `/issues` | Issue backlog across scans, with triage (VEX) |
 | `/containers` | Tracked container images |
 | `/ssh-keys` | Encrypted SSH keys for cloning private repositories |
-| `/api-keys` | Programmatic API keys (bcrypt hash, secret shown once) |
+| `/api-keys` | Programmatic API keys (Argon2id hash, secret shown once) |
 | `/agents` | Scan agents (built-in and remote), the queue, and leases (admin only) |
 | `/settings` | Scan backend selection, enrichment toggle, license blocklist |
 | `/users` | User management (admin only) |
 | `/audit-log` | Audit log of sensitive actions (admin only) |
-| `/api/v1/docs` | Interactive API reference (OpenAPI) |
+| `/history` | Per repository: every scan with its version, the issues it observed, and every triage decision — with PDF and CSV export |
 
 ## API and CI integration
 
 The API is served from the same process and port as the UI, under `/api/v1`, and authenticates with a key created on the **API keys** page:
 
 ```bash
-export ZANSHIN=http://localhost:3000
+export ZANSHIN=http://localhost:8000
 export ZANSHIN_KEY=zsk_...
 
 # What can I scan?
-curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/targets
+curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/repositories
+curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/containers
 
-# Scan, then poll
-curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1}' $ZANSHIN/api/v1/scans
+# Scan, then poll. A scan is queued on its target, not posted to a queue:
+# the target is what carries the branch, the sub-path and the deployment key.
+curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/repositories/1/scan
 curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/scans/42
 
 # Should this build fail?
@@ -204,11 +206,28 @@ curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: applicati
 
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-The policy itself lives in the database, edited from the **Settings** page: a global default plus optional per-target overrides, each change stored as a new version with its author and an optional note. `GET /api/v1/gate/policies` lists what is in force and `.../history` every version of one scope — "which policy failed that build in March" has an answer.
+The policy the gate applies is **the application's built-in default**, and the verdict says so —
+`describeSource()` returns *"the application's default policy"*. The schema and the resolution
+rules for a stored one are in place (`t_gate_policy`, versioned, scoped globally or per target,
+with an author and a note; a target's policy replaces the global one entirely rather than merging
+with it), and `GateService` reads them on every verdict. **Nothing writes them yet**: no route and
+no screen creates a policy, so the table stays empty and the built-in default always wins. Until
+that is built, the per-project bar is set by the `policy` object in the request — which can only
+tighten what applies, never loosen it.
 
 A `policy` object in the request body is still accepted and can only make the rules **stricter**. Every field's strict direction is defined per field, since it does not mean "greater": a *lower* severity threshold is stricter; `fail_on_kev` and `include_triaged` are stricter when `true`; `fixable_only` is stricter when **`false`**, because `true` excludes issues with no published fix — which is exactly the case that needs a human decision, not a green build. Anything refused comes back in `policy.ignored_relaxations`, alongside the `source` and `version` actually applied.
 
-Exports: `GET /api/v1/targets/{repository|container}/{id}/issues.sarif` (SARIF 2.1.0), `.../vex` (OpenVEX), `.../issues.csv`, and `GET /api/v1/scans/{id}/sbom` (the Syft SBOM as produced).
+Exports, all authenticated like every other route:
+
+| Route | Document |
+|---|---|
+| `GET /api/v1/targets/{repository\|container}/{id}/issues.sarif` | SARIF 2.1.0 |
+| `.../vex` | OpenVEX, built from the triage decisions |
+| `.../issues.csv` | The backlog as rows |
+| `.../posture.pdf` | The verdict and the backlog, for a person |
+| `GET /api/v1/scans/{id}/sbom` | The Syft SBOM, served verbatim — 404 when the scan produced none |
+| `GET /api/v1/history/repositories/{id}/export.pdf` | Detection and triage history |
+| `.../export.csv` | The same, one row per decision |
 
 SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
 
@@ -219,7 +238,7 @@ gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
      -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c zanshin.sarif | base64 -w0)"
 ```
 
-Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Zanshin's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Full reference at `/api/v1/docs` — which requires a key, like every other route: an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Zanshin's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers under [`api/`](zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/api/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -251,23 +270,32 @@ Operational tuning (all optional, shown with their defaults):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ZANSHIN_DATABASE_URL` | — | PostgreSQL connection URL. Required: there is no file-backed default any more, and there is a reason for that below. |
-| `ZANSHIN_DB_DIALECT` | `postgres` | One of `postgres`, `mysql`, `mariadb`, `sqlite`. Selects the Liquibase properties that spell the column types, and declares at startup what the engine cannot do. |
-| `PORT` | `3000` | HTTP port of the API. |
+| `ZANSHIN_DB_URL` | `jdbc:postgresql://localhost:5432/zanshin` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
+| `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / — | Database credentials. |
+| `ZANSHIN_PORT` | `8000` | HTTP port. The API and the agent protocol share it. |
 | `ZANSHIN_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
+| `ZANSHIN_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh` — identities, `config`, agent and `known_hosts`, used whole. `false` on any installation where the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have Zanshin clone it with an identity nobody attached to it. |
 | `ZANSHIN_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
 | `ZANSHIN_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
-| `ZANSHIN_SCAN_LEASE_SECONDS` / `_MAX_ATTEMPTS` / `_CLAIM_ATTEMPTS` | `900` / `3` / `3` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
-| `ZANSHIN_SCAN_TIMEOUT_SECONDS` | `900` | Ceiling for a single scanner container; past it the container is killed and the scan fails with a timeout instead of hanging. |
-| `ZANSHIN_SCAN_MEMORY_LIMIT_MB` / `_PIDS_LIMIT` | `2048` / `512` | Memory and process ceilings per scanner container. |
-| `ZANSHIN_SCHEDULER_ENABLED` | `true` | `false` for a deployment that only scans on demand. |
-| `ZANSHIN_SCHEDULER_TICK_SECONDS` | `60` | How often due targets are looked for. |
-| `ZANSHIN_LEADER_LEASE_SECONDS` | `180` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
-| `ZANSHIN_SYFT_IMAGE` / `_GRYPE_` / `_GITLEAKS_` / `_CHECKOV_` / `_SEMGREP_` | pinned digests | Scanner images. Pinned by digest, not by tag: they execute on the scanning host and read input nobody controls, so they *are* Zanshin's supply chain — whoever controls `anchore/syft:latest` controls what runs there. Update deliberately with `docker buildx imagetools inspect <image>:latest`. |
+| `ZANSHIN_WORKER_LABELS` / `ZANSHIN_WORKER_INTERVAL` | — / `15s` | Labels this worker answers to, and how often it looks for work. Empty labels on purpose: the built-in worker takes only work with no requirement, or targeting would be useless on a single-instance install. |
+| `ZANSHIN_QUEUE_LEASE` / `ZANSHIN_QUEUE_MAX_ATTEMPTS` / `ZANSHIN_QUEUE_CLAIM_ATTEMPTS` | `20m` / `3` / `12` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
+| `ZANSHIN_SCHEDULER_INTERVAL` / `ZANSHIN_RELAY_INTERVAL` / `ZANSHIN_MAINTENANCE_INTERVAL` | `60s` / `60s` / `1h` | How often due targets are looked for, the notification outbox is drained, and housekeeping runs. |
+| `ZANSHIN_LEADER_LEASE` | `180s` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
 | `ZANSHIN_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
-| `ZANSHIN_SESSION_TTL_HOURS` / `_IDLE_MINUTES` | `12` / `60` | Absolute and idle session lifetimes. |
-| `ZANSHIN_VEX_AUTHOR` | `Zanshin` | Author recorded in OpenVEX documents — a VEX is an assertion about who said what, and when. |
-| `ZANSHIN_SQL_LOGGING` | `false` | Logs every statement. For diagnosis, never for a running deployment. |
+| `ZANSHIN_SESSION_LIFETIME` / `ZANSHIN_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
+| `ZANSHIN_VEX_AUTHOR` / `ZANSHIN_VERSION` | `Zanshin` / `1.0.0` | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. |
+
+**The scanner images are not configurable, and that is deliberate.** The five digests are
+constants in [`ScannerImages`](zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/scanners/ScannerImages.java):
+they execute on the scanning host and read input nobody controls, so they *are* Zanshin's
+supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving one is a
+commit that goes through review, not an environment variable somebody sets on a server. Update
+deliberately with `docker buildx imagetools inspect <image>:latest`.
+
+A remote agent reads a different set: `ZANSHIN_URL` and `ZANSHIN_AGENT_TOKEN` (both required),
+plus `ZANSHIN_AGENT_WAIT` (`30s`), `ZANSHIN_AGENT_RETRY` (`10s`) and `ZANSHIN_AGENT_HEARTBEAT`
+(`60s`). It reads no database variable at all, and cannot: see
+[the agent section](#distributed-scanning-agents).
 
 
 
@@ -276,10 +304,12 @@ The database file is not part of the repository (it holds password hashes and en
 ### Choosing a database
 
 Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
-exercised by the full integration campaign**, with its own migration set. Set
-`ZANSHIN_DB_DIALECT`; PostgreSQL is the default. A portability defect is invisible to
-reading and to a single engine; running all four is the only way it gets found, and it
-found several.
+exercised by the full integration campaign**. There is **one changelog**, not one per engine:
+where the engines disagree the difference is a Liquibase property spelling the column type, so
+a table is declared once and the four truths stay in step by construction. Point `ZANSHIN_DB_URL`
+at the engine; it is read from the URL, and PostgreSQL is the default. A portability defect is
+invisible to reading and to a single engine; running all four is the only way it gets found, and
+it found several.
 
 | | PostgreSQL | MariaDB | MySQL | SQLite |
 |---|---|---|---|---|
@@ -356,23 +386,23 @@ Two things to know:
 ## Tests
 
 ```bash
-cd zanshin-java && ./gradlew build        # unit, architecture and HTTP suites
-cd zanshin-java && ./gradlew integrationTest   # starts PostgreSQL via testcontainers
+cd zanshin-java && ./gradlew build              # unit, architecture and HTTP suites
+cd zanshin-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
+cd zanshin-java && ./gradlew integrationTestAll # all four engines — ten minutes, needs Docker
+npm ci && npm run build && npm test             # the Angular interface
 ```
 
-562 unit tests and 249 integration tests. **The integration suites do not skip.** They used
-to begin with `const describeWithPostgres = connectionString ? describe : describe.skip`:
-without a database URL, twelve files silently skipped themselves and the run reported green
-having verified nothing. The harness now starts the container itself, so a missing Docker
-fails loudly — which is the correct behaviour, and exactly the class of defect this project
-exists to find.
+Around 840 unit tests, and five integration classes run against real servers. **CI runs the
+first command and the Angular ones, and not the four-engine campaign**: it needs Docker and ten
+minutes, and is run by hand before a release. A green tick does not mean portability was checked.
 
-Migrations rather than `synchronize`, for the same reason: the schema under test is the one
-production will receive.
+**The integration suites do not skip.** There is no "skip if the database is missing" guard,
+deliberately: a suite that skips itself reports green having verified nothing. The harness starts
+the container itself, so a missing Docker fails loudly — which is the correct behaviour, and
+exactly the class of defect this project exists to find.
 
-```bash
-uvx pyright
-```
+The changelog rather than `ddl-auto: update`, for the same reason: the schema under test is the
+one production will receive.
 
 The backend compiles under `-Werror` and a **layering test** (`ArchitectureTest`, ArchUnit)
 that fails the build when an import crosses the wrong way. That test is not decoration: it is
@@ -395,7 +425,7 @@ zanshin-java/
 │   ├── services/            # Orchestration: ingestion, issues, notifications, tickets
 │   └── api/                 # HTTP controllers
 └── zanshin-agent/           # The remote worker. Does NOT depend on zanshin-core.
-zanshin-angular/src/app/     # Angular: 15 screens, Sakai layout over Optimus UI
+zanshin-angular/src/app/     # Angular: 17 page areas, Sakai layout over Optimus UI
 docs/architecture/           # ADR
 ```
 
