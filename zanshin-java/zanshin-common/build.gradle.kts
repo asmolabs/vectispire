@@ -38,6 +38,15 @@ dependencies {
     // architecture suite forbids `domain` from depending on anything, and this is exactly the
     // kind of dependency that would make the calculations untestable without a daemon.
     implementation(libs.docker.java.core)
+    // **Raised for named advisories, not for freshness.** docker-java's transport brings
+    // Apache's client, and the versions it and the Spring Boot BOM agree on carry fixable High
+    // findings that Zanshin's own SBOM scan reports (see `supply-chain` in CI). Declared here
+    // rather than excluded: the transport needs them, and Gradle takes the highest of the
+    // declared version and the platform's constraint.
+    implementation(libs.apache.httpclient5)
+    implementation(libs.apache.httpcore5)
+    implementation(libs.apache.httpcore5.h2)
+
     implementation(libs.docker.java.transport)
 
     // JGit rather than shelling out to the `git` binary. Three reasons, all of them things the

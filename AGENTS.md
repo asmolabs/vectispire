@@ -30,6 +30,11 @@ npm test
 campaign needs Docker and ten minutes; it is run by hand before a release. A green tick does not
 mean portability was checked.
 
+CI also runs a **`supply-chain`** job that no local command mirrors: Syft builds an SBOM of the
+jar that ships and Grype fails on a fixable High finding, and `npm audit` blocks on production
+dependencies. It uses the scanner digests `ScannerImages` pins, so the same scanner version
+audits Zanshin as audits its targets.
+
 ## Before you change anything
 
 **Read [`docs/architecture/`](docs/architecture/) first.** Documents 01 to 04 describe the

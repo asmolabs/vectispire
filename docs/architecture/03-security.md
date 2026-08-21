@@ -320,6 +320,18 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   containment boundary**; rootless Docker or a remote agent is what reduces the privilege.
 - **A compromised agent can skew a verdict** by reporting false results. Reports are
   audited; they are not proven.
-- **`npm audit` reports nothing, and that is worth stating rather than assuming.** The
-  interface is the only npm tree left; the control plane is a Gradle build. Run it as part
-  of a release, not as a belief.
+- **Zanshin's own supply chain is now scanned by Zanshin's own scanners**, on every run, in
+  the `supply-chain` job: Syft builds an SBOM of the jar that actually ships and Grype fails
+  the build on a **fixable** High finding. `--only-fixed` is the design, not a softening —
+  failing on an advisory with no released fix makes a gate nobody can satisfy, which is
+  [decision 0005](decisions/0005-quality-never-blocks-the-gate.md) applied to ourselves.
+  Turning it on found three fixable High findings in the jar (httpcore5 twice, the PostgreSQL
+  driver), so it went green by fixing rather than by lowering the line; the catalog raises all
+  three above what the Spring Boot BOM asks for, with the advisories named. `npm audit` runs
+  there too — blocking on what ships, reporting on the development tree — so "it reports
+  nothing" is a measurement rather than a belief. Medium findings with fixes (jackson-databind,
+  log4j-api, both BOM-managed) are printed and block nobody.
+- **Releases are not signed, and there is no release pipeline to sign them in.** Publishing a
+  signed artifact and its SBOM would be the next step for anybody consuming Zanshin as a
+  binary; writing the signing before the publishing would be inventing a process the project
+  does not have.

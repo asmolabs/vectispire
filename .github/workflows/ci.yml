@@ -62,3 +62,85 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # **Zanshin's own supply chain, scanned by Zanshin's own scanners.** A tool that reports
+  # other people's vulnerable dependencies and never looks at its own is making a claim it has
+  # not checked.
+  #
+  # The images are the digests `ScannerImages` pins, not `:latest`: CI and the product must
+  # agree on which scanner ran, and a floating tag makes "why did this pass last week"
+  # unanswerable.
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The artifact that ships, so the SBOM describes what is deployed rather than what the
+      # build files declare. A dependency raised by conflict resolution is in one and not the
+      # other — and it is the resolved version that runs.
+      - name: Build the jar
+        working-directory: zanshin-java
+        run: ./gradlew :zanshin-core:bootJar
+
+      - name: SBOM of the control plane
+        run: |
+          docker run --rm --network none \
+            -v "$PWD/zanshin-java/zanshin-core/build/libs:/scan:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan file:/scan/zanshin-core.jar -o cyclonedx-json > zanshin-jvm.cdx.json
+          echo "components: $(grep -o '"bom-ref"' zanshin-jvm.cdx.json | wc -l)"
+
+      # Kept whether the scan below passes or fails: the SBOM is the evidence, and it is most
+      # wanted on the run that failed.
+      - name: Keep the SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zanshin-sbom
+          path: zanshin-jvm.cdx.json
+
+      # **`--only-fixed`, and that is the whole design of this gate.** Failing on an advisory
+      # with no released fix turns CI red for something nobody in this repository can do
+      # anything about, and a gate that cannot be satisfied is a gate somebody disables — the
+      # same reasoning as decision 0005, applied to ourselves. `--fail-on high` draws the line
+      # where acting is proportionate; everything below it is reported in the step's log and
+      # blocks nobody.
+      #
+      # It went green by fixing, not by lowering: turning this on found fixable High findings in
+      # httpcore5 and the PostgreSQL driver, and the catalog now raises all three above what the
+      # Spring Boot BOM asks for.
+      - name: Known vulnerabilities, where a fix exists
+        run: |
+          docker run --rm -v "$PWD:/sbom:ro" \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            sbom:/sbom/zanshin-jvm.cdx.json --only-fixed -o table
+          docker run --rm -v "$PWD:/sbom:ro" \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            sbom:/sbom/zanshin-jvm.cdx.json --only-fixed --fail-on high -q -o table
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # **`npm audit`, run rather than believed.** `03-security.md` said it reported nothing and
+      # that this was worth stating rather than assuming. Stating it was not checking it; this
+      # step is. Production dependencies fail the job — they are what ships in the bundle an
+      # analyst loads. The development tree is reported and blocks nothing: a build-time
+      # advisory in a transitive test dependency is not a hole in the deployed interface, and
+      # treating the two alike is how the gate stops being read.
+      - name: npm audit — what ships
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm audit — the whole tree, for the record
+        if: always()
+        run: npm audit || true

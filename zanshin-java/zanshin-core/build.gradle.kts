@@ -86,7 +86,11 @@ dependencies {
     testImplementation(platform(libs.spring.boot.bom))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.apache.httpcomponents.client5:httpclient5")
+    // **Declared, though it was already on the classpath through docker-java's transport.**
+    // `PinnedHttpSender` needs a client that takes a DNS resolver per instance, which the JDK's
+    // does not offer; depending on it by accident is not depending on it. The version comes from
+    // the catalog, where the advisories that raised it are named.
+    implementation(libs.apache.httpclient5)
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // The OIDC client, for the optional single sign-on. `oauth2-client` and not
