@@ -60,6 +60,24 @@ class PostureReportTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("counts what is past its remediation deadline")
+    void theReportSaysWhatIsLate() throws Exception {
+        long id = seedRepository();
+        // A high first seen 45 days ago, against the default 30-day window, and one from today.
+        seedIssue(id, Severity.HIGH, "CVE-2026-LATE", "openssl", java.time.Duration.ofDays(45));
+        seedIssue(id, Severity.HIGH, "CVE-2026-FRESH", "zlib");
+
+        byte[] pdf = mvc.perform(authenticated(get("/api/v1/targets/repository/" + id + "/posture.pdf"), asAdmin()))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        // The figure a reader outside the team is asked for, and the reason this document exists
+        // rather than a link to a screen.
+        assertThat(textOf(pdf)).contains("1 past their remediation deadline");
+    }
+
+    @Test
     @DisplayName("says a never-scanned target was not observed, next to its verdict")
     void anUnobservedTargetSaysSo() throws Exception {
         long id = seedRepository();
@@ -95,6 +113,16 @@ class PostureReportTest extends ApiTestBase {
     }
 
     private void seedIssue(long repositoryId, Severity severity, String identifier, String packageName) {
+        seedIssue(repositoryId, severity, identifier, packageName, java.time.Duration.ZERO);
+    }
+
+    private void seedIssue(
+            long repositoryId,
+            Severity severity,
+            String identifier,
+            String packageName,
+            java.time.Duration age) {
+
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repositoryId);
         issue.setFingerprint("fp-" + identifier);
@@ -104,7 +132,7 @@ class PostureReportTest extends ApiTestBase {
         issue.setState(IssueState.OPEN.wireName());
         issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
         issue.setPackageName(packageName);
-        issue.setFirstSeenAt(Instant.now());
+        issue.setFirstSeenAt(Instant.now().minus(age));
         issue.setLastSeenAt(Instant.now());
         issue.setTimesSeen(1);
         issues.save(issue);

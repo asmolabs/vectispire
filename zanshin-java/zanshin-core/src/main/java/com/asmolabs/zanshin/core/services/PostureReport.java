@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
+import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -56,13 +57,19 @@ public final class PostureReport {
 
     private PostureReport() {}
 
-    public static byte[] render(Subject subject, List<ExportableIssue> issues) {
+    /**
+     * @param sla the remediation policy in force, so the report can say how much of this backlog
+     *     is <b>late</b> — the one figure a reader outside the team is usually asked for, and the
+     *     reason this document exists rather than a link to a screen. Passed in rather than read
+     *     here: this class renders, it does not decide policy
+     */
+    public static byte[] render(Subject subject, List<ExportableIssue> issues, RemediationSla sla) {
         try (PDDocument document = new PDDocument();
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
 
             ReportCursor cursor = new ReportCursor(document);
             heading(cursor, subject);
-            summary(cursor, issues);
+            summary(cursor, issues, sla, subject.generatedAt());
             table(cursor, issues);
             cursor.close();
 
@@ -102,13 +109,29 @@ public final class PostureReport {
         cursor.gap();
     }
 
-    private static void summary(ReportCursor cursor, List<ExportableIssue> issues) {
+    private static void summary(
+            ReportCursor cursor, List<ExportableIssue> issues, RemediationSla sla, Instant generatedAt) {
+
         Map<Severity, Integer> counts = new EnumMap<>(Severity.class);
         int kev = 0;
+        int overdue = 0;
         for (ExportableIssue issue : issues) {
             counts.merge(issue.severity() == null ? Severity.UNKNOWN : issue.severity(), 1, Integer::sum);
             if (issue.kev()) {
                 kev++;
+            }
+            // Assessed as of the moment the document says it was generated, not of now: a report
+            // read next week must not describe a different backlog than its own stamp.
+            boolean late = sla.assess(
+                            issue.severity() == null ? Severity.UNKNOWN : issue.severity(),
+                            issue.firstSeenAt(),
+                            !issue.resolved(),
+                            issue.triageStatus() != null && issue.triageStatus().isSettled(),
+                            generatedAt)
+                    .map(RemediationSla.Assessment::isOverdue)
+                    .orElse(false);
+            if (late) {
+                overdue++;
             }
         }
 
@@ -124,6 +147,9 @@ public final class PostureReport {
         cursor.text(parts.isEmpty() ? "none" : String.join(" · ", parts), ReportCursor.HELVETICA_10);
         if (kev > 0) {
             cursor.text(kev + " actively exploited (KEV)", ReportCursor.HELVETICA_BOLD_10);
+        }
+        if (overdue > 0) {
+            cursor.text(overdue + " past their remediation deadline", ReportCursor.HELVETICA_BOLD_10);
         }
         cursor.gap();
     }

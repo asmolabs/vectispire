@@ -59,6 +59,18 @@ export interface Issue {
     isDirectDependency: boolean | null;
     ticketRef: string | null;
     ticketUrl: string | null;
+    /** When this issue's remediation window closes; null when none applies — a severity with no
+     *  window, or an issue already settled or closed.
+     *
+     *  **Computed by the server**, like the gate verdict. Deriving it here from the policy would
+     *  be a second implementation of the deadline, and the two would disagree the day it moves. */
+    slaDueAt: string | null;
+    /** `on_time`, `due_soon` or `overdue`; null with no deadline. A state and not a date to
+     *  compare, so "late" means the same thing on this screen, in an export and in a report. */
+    slaState: 'on_time' | 'due_soon' | 'overdue' | null;
+    /** Days until due, **negative when late**. One signed field: "3 days late" and "due in 12
+     *  days" are one measurement read from opposite sides. */
+    slaDays: number | null;
 }
 
 export interface Page<T> {
@@ -73,6 +85,9 @@ export interface IssueFilters {
     severity?: string;
     type?: string;
     is_kev?: boolean;
+    /** Open, not settled, and past the window its severity carries. The server owns the
+     *  thresholds: sending dates from here would be a second copy of the policy. */
+    overdue?: boolean;
     triage_status?: string;
     repository_id?: number;
     container_id?: number;
@@ -377,6 +392,9 @@ export interface DashboardOverview {
         kevCount: number;
         neverScannedCount: number;
         lastScanFailedCount: number;
+        /** Open issues past their remediation window. Zero also means "every window disabled",
+         *  which the remediation section of the settings screen is where to check. */
+        overdueCount: number;
     };
     /** Outside quality, deliberately. */
     backlogBySeverity: Record<string, number>;

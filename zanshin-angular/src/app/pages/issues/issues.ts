@@ -130,6 +130,9 @@ export class Issues {
         if (params.get('severity')) this.severity = params.get('severity');
         if (params.get('state')) this.state = params.get('state')!;
         if (params.get('is_kev') === 'true') this.targetFilters.is_kev = true;
+        // The same arrangement for the deadline figure: the dashboard links here, and a link
+        // this screen does not read is a filter that silently does nothing.
+        if (params.get('overdue') === 'true') this.targetFilters.overdue = true;
 
         this.loadTargets();
         this.reload(0);
@@ -202,6 +205,30 @@ export class Issues {
         if (severity === 'critical' || severity === 'high') return 'danger';
         if (severity === 'medium') return 'warn';
         if (severity === 'low') return 'info';
+        return 'secondary';
+    }
+
+    /**
+     * The deadline, in words.
+     *
+     * The state comes from the server and is not re-derived here: this only turns it into a
+     * phrase. A screen computing lateness from `slaDueAt` would be a second implementation of
+     * the policy, and the two would part company the day a window moves.
+     */
+    slaLabel(issue: Issue): string | null {
+        if (!issue.slaState || issue.slaDays === null) return null;
+        if (issue.slaState === 'overdue') {
+            const late = Math.abs(issue.slaDays);
+            return late === 0 ? 'late today' : `${late} day${late === 1 ? '' : 's'} late`;
+        }
+        // "due in 0 days" reads worse than "due today", and the zero is a real case: the last
+        // day of a window rounds to it.
+        return issue.slaDays === 0 ? 'due today' : `due in ${issue.slaDays} days`;
+    }
+
+    slaColour(issue: Issue): 'danger' | 'warn' | 'secondary' {
+        if (issue.slaState === 'overdue') return 'danger';
+        if (issue.slaState === 'due_soon') return 'warn';
         return 'secondary';
     }
 

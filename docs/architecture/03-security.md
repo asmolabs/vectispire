@@ -300,6 +300,21 @@ ignore. So the default is off — and the verification reports `mirrored: false`
 reporting nothing, because "0 missing" from a mirror that does not exist reads as reassurance
 and is not.
 
+**A remediation deadline reports, and blocks nothing.** Each severity carries a window —
+15 / 30 / 90 / 180 days by default, all four settings — counted from when an issue was **first
+seen**, never from the last scan: restarting the clock at each sighting would make a deadline
+unreachable by construction, since a target scanned nightly would reset every window every
+night. A settled issue has none, because a triage decision is not lateness, and a window of zero
+disables its severity rather than breaching it — the other reading turns clearing a field into a
+backlog entirely in breach. No window enters a gate verdict, for the reason
+[decision 0005](decisions/0005-quality-never-blocks-the-gate.md) gives about quality: a gate that
+starts failing the day a policy is switched on is a gate that gets switched off by lunchtime.
+
+The figure on the dashboard, the list it links to and the line in the posture PDF all come from
+**one clause** — a union of per-severity thresholds evaluated in the database — so a count and
+the rows behind it cannot disagree. `RemediationSlaRoutesTest` checks exactly that pairing,
+because two copies of one filter part company the first time either is edited.
+
 **The verdict does not accept just anything.** Two finding types enter no gate verdict: AI
 review, because a hostile repository could get a model it is handed its own code to write
 a `critical`; and quality, because a gate that turns red the day source-code analysis is
@@ -325,6 +340,11 @@ template — because the CSP would refuse it, so declaring it would produce a pa
 
 ## Still open
 
+- **An aggregate was leaking past the visibility rule.** The dashboard's backlog-by-severity
+  breakdown was a single grouped query with no visibility clause, so a reader assigned to one
+  repository read the whole deployment's severity counts beside a posture that was correctly
+  narrowed. Fixed with this change, and worth recording as the shape of the mistake: every read
+  path was asking `Visibility` except the one that returned numbers rather than rows.
 - **Restricted visibility is off by default.** `TARGET_VISIBILITY` ships as `everyone`, so an
   update changes nothing for an existing deployment — and a deployment that never changes it has
   no partitioning at all. Teams and per-account assignment both do nothing until it is switched

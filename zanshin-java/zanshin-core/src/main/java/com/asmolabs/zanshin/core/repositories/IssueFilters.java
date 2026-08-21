@@ -1,11 +1,15 @@
 package com.asmolabs.zanshin.core.repositories;
 
 import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import jakarta.persistence.criteria.Predicate;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -32,6 +36,8 @@ public record IssueFilters(
         boolean onlyDirect,
         boolean onlyKev,
         String search,
+        boolean excludeSettled,
+        Map<Severity, Instant> overdueBefore,
         Visibility visibility) {
 
     /** Everything the caller asked for, seen by somebody the deployment does not restrict. */
@@ -46,7 +52,23 @@ public record IssueFilters(
             boolean onlyKev,
             String search) {
         this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                Visibility.everything());
+                false, Map.of(), Visibility.everything());
+    }
+
+    /** The nine filters a request can carry, with the visibility resolved for its caller. */
+    public IssueFilters(
+            String state,
+            String severity,
+            String type,
+            String triageStatus,
+            Long repoId,
+            Long containerId,
+            boolean onlyDirect,
+            boolean onlyKev,
+            String search,
+            Visibility visibility) {
+        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                false, Map.of(), visibility);
     }
 
     public Specification<IssueEntity> toSpecification() {
@@ -68,6 +90,22 @@ public record IssueFilters(
             }
             if (onlyKev) {
                 predicates.add(builder.isTrue(root.get("isKev")));
+            }
+            if (excludeSettled) {
+                // Named after what it does rather than after the SLA that wanted it: "not
+                // dismissed and not fixed" is a filter a backlog screen will want on its own day.
+                predicates.add(root.get("triageStatus").in(TriageStatus.unsettledWireNames()));
+            }
+            if (overdueBefore != null && !overdueBefore.isEmpty()) {
+                // **A union, not a single comparison.** Late means "critical older than fifteen
+                // days *or* high older than thirty *or* …", so one predicate per severity, or-ed.
+                // Expressed here rather than by four queries, so the figure a dashboard shows and
+                // the rows this list returns come from the same clause.
+                List<Predicate> late = new ArrayList<>();
+                overdueBefore.forEach((forSeverity, threshold) -> late.add(builder.and(
+                        builder.equal(root.get("severity"), forSeverity.wireName()),
+                        builder.lessThan(root.get("firstSeenAt"), threshold))));
+                predicates.add(builder.or(late.toArray(Predicate[]::new)));
             }
             visibility.asFilter().ifPresent(allowed -> predicates.add(visible(root, builder, allowed)));
 

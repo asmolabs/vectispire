@@ -23,6 +23,7 @@
                 <th>Severity</th>
                 <th>Component</th>
                 <th>History</th>
+                <th>Deadline</th>
                 <th>Triage</th>
                 <th></th>
             </tr>
@@ -50,6 +51,16 @@
                 </td>
                 <td class="text-muted-color">seen {{ issue.timesSeen }}×</td>
                 <td>
+                    <!--
+                        Absent rather than "—" when no window applies: a severity with no deadline,
+                        or an issue triage has settled, has nothing to be late for, and an empty
+                        dash invites the reader to wonder which of the two it is.
+                    -->
+                    @if (slaLabel(issue); as label) {
+                        <p-tag [severity]="slaColour(issue)" [value]="label" />
+                    }
+                </td>
+                <td>
                     <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
                     @if (issue.triagedBy) { <div class="text-muted-color text-sm">by {{ issue.triagedBy }}</div> }
                     <!--
@@ -72,7 +83,7 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="8" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
         </ng-template>
     </p-table>
 

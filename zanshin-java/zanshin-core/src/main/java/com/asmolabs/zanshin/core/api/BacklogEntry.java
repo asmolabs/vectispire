@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.api;
 
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import java.time.Instant;
 
 /**
  * An issue, plus the target it was found on.
@@ -24,5 +25,19 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
  * @param targetName never null in practice, but not guaranteed: an issue whose target was
  *     deleted in the same request keeps its id and loses its name, and a blank cell is a better
  *     answer there than a crash
+ * @param slaDueAt when this issue's remediation window closes, or {@code null} when none applies
+ *     — a severity with no window, an issue already settled or closed. <b>Computed on the server
+ *     like the gate verdict</b>: a client re-deriving it from the policy would be a second
+ *     implementation of the deadline, and the two would disagree the day the policy changes
+ * @param slaState {@code on_time}, {@code due_soon} or {@code overdue}; {@code null} with no
+ *     deadline. Sent as a state rather than left to the client to infer from the date, so that
+ *     "late" means the same thing on the screen, in an export and in a report
+ * @param slaDays days until due, negative when late, {@code null} with no deadline
  */
-public record BacklogEntry(@JsonUnwrapped IssueEntity issue, String targetKind, String targetName) {}
+public record BacklogEntry(
+        @JsonUnwrapped IssueEntity issue,
+        String targetKind,
+        String targetName,
+        Instant slaDueAt,
+        String slaState,
+        Long slaDays) {}
