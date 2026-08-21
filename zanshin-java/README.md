@@ -59,6 +59,8 @@ the same commit that violates it; a missing dependency cannot.
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
+| An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
+| No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 

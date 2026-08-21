@@ -28,14 +28,20 @@ import java.util.Set;
  *
  * <h2>Two limits, recorded rather than hidden</h2>
  *
- * <p><b>DNS rebinding.</b> Names are resolved here so that one pointing at a blocked address
- * is refused too. That leaves a window between this check and the request itself, which this
- * class cannot close: closing it takes pinning the resolved address in the HTTP client.
+ * <p><b>DNS rebinding — closed, but only for callers that take the addresses.</b> Names are
+ * resolved here so that one pointing at a blocked address is refused too. Validating and then
+ * letting the client resolve the name a second time leaves a window: between the two lookups
+ * the answer can change, and the address that was checked is not the address that is reached.
+ * {@link #validateAndResolve} therefore returns <em>what was checked</em>, so the caller can
+ * connect to exactly that and resolve nothing again. {@link #validate}, which returns the URL
+ * alone, leaves the window open and is kept for the callers that only need a verdict — a
+ * settings screen saving a value, not sending to it.
  *
  * <p><b>Redirects.</b> This validates the first destination only. A validated host answering
  * {@code 302 Location: http://169.254.169.254/} defeats the whole guard, so every caller must
- * refuse redirects — {@code HttpClient.Redirect.NEVER} — and that is not something this class
- * can enforce for them.
+ * refuse redirects, and that is not something this class can enforce for them. What does
+ * enforce it is that there is only one caller — the sender in {@code zanshin-core} that turns a
+ * {@link Destination} into a request — and an architecture rule that keeps it that way.
  */
 public final class OutboundUrlGuard {
 
@@ -63,8 +69,49 @@ public final class OutboundUrlGuard {
         this.resolver = resolver;
     }
 
+    /**
+     * A destination that has been checked, and the addresses it was checked at.
+     *
+     * @param url the cleaned URL, unchanged — the host name still travels to the server, so
+     *     virtual hosting, SNI and certificate verification all keep working
+     * @param host the host as written, which is what a TLS certificate is verified against
+     * @param addresses every address the name resolved to at validation time, all of them
+     *     accepted by the policy. <b>Connect to these and resolve nothing again</b>: that is
+     *     what makes the check binding. Empty only when the name did not resolve at all and the
+     *     policy tolerated it
+     */
+    public record Destination(String url, String host, List<InetAddress> addresses) {}
+
+    /**
+     * Validates, and hands back the addresses so the connection can be pinned to them.
+     *
+     * <p>The addresses come from the same lookup the policy was applied to — not a second one.
+     * A caller that re-resolved would be checking one answer and using another, which is the
+     * whole of DNS rebinding.
+     */
+    public Destination validateAndResolve(String url, OutboundPolicy policy, String label) {
+        Checked checked = check(url, policy, label);
+        List<InetAddress> addresses = new ArrayList<>();
+        for (byte[] address : checked.addresses()) {
+            try {
+                addresses.add(InetAddress.getByAddress(checked.host(), address));
+            } catch (UnknownHostException impossible) {
+                // `getByAddress` only rejects a wrong length, and these came from a parser.
+                throw new UnsafeUrlException(label + ": unusable address for " + checked.host() + ".");
+            }
+        }
+        return new Destination(checked.url(), checked.host(), List.copyOf(addresses));
+    }
+
     /** Returns the cleaned URL, or throws {@link UnsafeUrlException}. */
     public String validate(String url, OutboundPolicy policy, String label) {
+        return check(url, policy, label).url();
+    }
+
+    /** What one validation established, before it is turned into either shape above. */
+    private record Checked(String url, String host, List<byte[]> addresses) {}
+
+    private Checked check(String url, OutboundPolicy policy, String label) {
         String candidate = url == null ? "" : url.trim();
         if (candidate.isEmpty()) {
             throw new UnsafeUrlException(label + ": empty value.");
@@ -102,7 +149,7 @@ public final class OutboundUrlGuard {
         for (byte[] address : addresses) {
             check(address, policy, label);
         }
-        return candidate;
+        return new Checked(candidate, hostname, addresses);
     }
 
     private static void check(byte[] address, OutboundPolicy policy, String label) {

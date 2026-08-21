@@ -10,7 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
-import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -170,7 +169,7 @@ public class TicketService {
                 Map.of("title", title, "description", body, "labels", String.join(",", labels())),
                 policy(),
                 "GitLab",
-                HttpRequest.newBuilder().header("PRIVATE-TOKEN", token())));
+                Map.of("PRIVATE-TOKEN", token())));
 
         return new Ticket("#" + payload.path("iid").asText(""), payload.path("web_url").asText(""));
     }
@@ -186,14 +185,15 @@ public class TicketService {
             fields.put("labels", labels());
         }
 
-        HttpRequest.Builder request = HttpRequest.newBuilder().header("Accept", "application/json");
+        Map<String, String> headers = new java.util.LinkedHashMap<>();
+        headers.put("Accept", "application/json");
         String user = settings.get(Setting.TICKET_USER).trim();
         // Jira wants the account's address alongside the token for basic authentication; GitLab
         // does not use it.
         if (!user.isEmpty()) {
             String credentials = Base64.getEncoder()
                     .encodeToString((user + ":" + token()).getBytes(StandardCharsets.UTF_8));
-            request = request.header("Authorization", "Basic " + credentials);
+            headers.put("Authorization", "Basic " + credentials);
         }
 
         JsonNode payload = read(post.postForResponse(
@@ -201,7 +201,7 @@ public class TicketService {
                 Map.of("fields", fields),
                 policy(),
                 "Jira",
-                request));
+                headers));
 
         String key = payload.path("key").asText("");
         return new Ticket(key, key.isEmpty() ? "" : baseUrl + "/browse/" + key);

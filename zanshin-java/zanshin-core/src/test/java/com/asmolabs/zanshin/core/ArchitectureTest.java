@@ -125,6 +125,31 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("an outbound call goes through the door that validates and pins")
+    void onlyTheOutboundDoorSpeaksHttpOutwards() {
+        // **The rule the guard cannot enforce for itself.** `OutboundUrlGuard` refuses a URL
+        // resolving to link-local or, for the model review, to anything public — and none of
+        // that happens if a seventh caller builds its own client and calls a setting straight.
+        // Nothing about such a call looks wrong: it works perfectly, right up to the redirect
+        // or the rebind. The three classes named below are the only ones allowed to hold a
+        // client, and each one validates first.
+        //
+        // `03-security.md` claimed this rule existed for as long as it did not: it described
+        // the NestJS suite, which was not carried over. Written down now, in the place that
+        // fails.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                // Matched on the full name rather than the simple one, so a nested or
+                // anonymous class counts as its owner: the resolver inside `PinnedHttpSender`
+                // is an anonymous `DnsResolver`, whose simple name is empty, and a simple-name
+                // exclusion silently failed to cover it.
+                .and().haveNameNotMatching(".*\\.(PinnedHttpSender|OutboundPost|OutboundJson)(\\$.*)?")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("java.net.http..", "org.apache.hc..")
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("an entity describes a table and nothing else")
     void persistenceHasNoWebOrService() {
         // Dependency injection is not an entity's business, and neither is HTTP.

@@ -83,8 +83,10 @@ calls in the repository needed this; none had it. The costliest case is not the 
 but the model review: its guard demands an internal destination precisely because it
 receives the scanned repository's source code, and a redirect outward would have made it
 a silent exfiltration channel. The rule lives in a single module, and an architecture
-test stops the seventh call from going straight to `fetch` — a lapse no functional test
-would see, since everything works perfectly as long as nobody redirects.
+test stops the seventh call from building its own client — a lapse no functional test would
+see, since everything works perfectly as long as nobody redirects. That test **did not exist**
+until the pin was added: this paragraph described the NestJS suite, which was not carried over
+by the port, and for that whole time the sentence was the only thing enforcing it.
 
 **The scan queue is routed.** Any registered agent used to claim any scan: an agent placed
 in a less-trusted segment — which is what remote agents are for — could claim the scans of
@@ -206,6 +208,33 @@ resolved address is checked, not the first: one name can return a public and a p
 one. And the URL is **re-validated at send time**, not only when saved — a setting written
 straight into the database must not become an exfiltration channel.
 
+**And the connection goes to the address that was checked.** Validating a name and then
+handing the *name* to a client means two lookups, and between them the answer can change: a
+record with a one-second TTL answers with a public address while the settings page is saved
+and with `169.254.169.254` when the request is made. Everything reads correctly and nothing
+is protected — that is DNS rebinding, and the only place it can be closed is where the socket
+is opened. `OutboundUrlGuard.validateAndResolve` therefore returns the addresses it checked,
+and `PinnedHttpSender` connects to those and resolves nothing again.
+
+The JDK's `HttpClient` could not do it: it has no resolver hook — checked against JDK 25 —
+and the JDK's answer, `InetAddressResolverProvider`, replaces resolution for the **whole
+process**, which is the same global mutable state this codebase refuses when it declines to
+register a JCA provider. Apache's client takes a resolver per client, so the pin lives for one
+request. It was already on the runtime classpath through docker-java; the build now declares
+it, because depending on something by accident is not depending on it.
+
+Two details that are the difference between a pin and a broken client. The **host name still
+travels** — only the lookup is replaced — so `Host`, SNI and certificate verification are
+untouched; connecting to a validated IP literal instead would have traded TLS verification for
+SSRF protection. And a host that was *not* checked is **refused rather than resolved**: the
+resolver has no fallback, so a redirect somebody re-enables cannot leave the process. A
+destination whose name does not resolve at all is refused too — there is nothing to pin to, and
+sending anyway would mean the validation decided nothing.
+
+`PinnedHttpSenderTest` proves it against a real socket rather than a mock: the request reaches
+a listening server **through a host name under `.invalid`, which resolves nowhere**. Had
+anything in the path asked the system resolver, it could not have arrived.
+
 **Audit log.** Each entry carries the previous one's hash, plus the IP and user agent. The
 chaining does not make the log immutable — whoever can write the table can rewrite the
 whole chain — but it makes **selective** editing detectable, and that is the realistic
@@ -238,8 +267,6 @@ template — because the CSP would refuse it, so declaring it would produce a pa
 
 - **No per-team partitioning at the account level.** A user sees everything. The heaviest
   limit on this list.
-- **The DNS rebinding window is not closed** between checking a URL and making the
-  request. It would take pinning the resolved address in the HTTP client.
 - **The audit log is in the database it watches.**
 - **The Docker socket stays mounted** in the default deployment. Only remote agents take
   it out of the process exposed on the network; the `local_api` back end that also did so

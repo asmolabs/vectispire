@@ -86,6 +86,7 @@ dependencies {
     testImplementation(platform(libs.spring.boot.bom))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // The OIDC client, for the optional single sign-on. `oauth2-client` and not
