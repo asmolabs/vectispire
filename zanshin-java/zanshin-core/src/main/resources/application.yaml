@@ -31,6 +31,12 @@ zanshin:
     # machine would then audit a variant nobody deploys.
     image-platform: ${ZANSHIN_IMAGE_SCAN_PLATFORM:}
 
+    # A repository with no deployment key attached falls back to this machine's own ~/.ssh.
+    # **`false` on any installation where the people adding targets are not the people who own
+    # that key**: the fallback is host-wide, so adding a URL is then enough to have Zanshin clone
+    # it with an identity nobody attached to it.
+    host-ssh: ${ZANSHIN_HOST_SSH:true}
+
   exports:
     # Named in SARIF's information URI and in a VEX document's identifier, so a document handed
     # to somebody else says where it came from.

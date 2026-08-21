@@ -65,18 +65,21 @@ public class ScanningConfiguration {
      *     the previous behaviour — a relative {@code rules} path resolved against the process
      *     working directory — pointed at nothing and failed every repository scan
      * @param hostSsh whether a repository with no deployment key falls back to this machine's
-     *     own git access. <b>Off by default, and the default is the one to keep on a shared
-     *     installation</b>: with it on, every target anybody adds to Zanshin is cloned with
-     *     whatever the host's key can reach, and the per-repository scoping — a key attached to
-     *     one target, encrypted at rest — stops meaning anything. On a single-team install it is
-     *     the convenient answer and costs nothing real
+     *     own git access. <b>On by default, and to be turned off on a shared installation</b>:
+     *     with it on, every target anybody adds to Zanshin is cloned with whatever the host's key
+     *     can reach, so the per-repository scoping — a key attached to one target, encrypted at
+     *     rest — stops meaning anything, and adding a URL is enough to have Zanshin clone it with
+     *     an identity nobody attached to it. The default favours the single-team install, where
+     *     the operator's {@code ~/.ssh} is already the credential that reaches every target and
+     *     the alternative was re-declaring it once per repository. Set {@code ZANSHIN_HOST_SSH}
+     *     to {@code false} where the people adding targets are not the people who own that key
      */
     @Bean
     ScanRunner scanRunner(
             RuleSetService ruleSets,
             Clock clock,
             @Value("${zanshin.scanning.bundled-rules:}") String bundledRulesOverride,
-            @Value("${zanshin.scanning.host-ssh:false}") boolean hostSsh) {
+            @Value("${zanshin.scanning.host-ssh:true}") boolean hostSsh) {
         RulePlacement.RuleSetProvider provider =
                 contentHash -> ruleSets.byHash(contentHash).map(ruleSets::filesOf).orElse(List.of());
 
