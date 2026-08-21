@@ -13,6 +13,10 @@
 # artifacts that have to agree on a port. It also makes `connect-src 'self'` a true statement
 # rather than an aspiration.
 #
+# See `docs/architecture/04-runtime-and-deployment.md` for the filtering-proxy configuration
+# (`DOCKER_HOST`, one variable, no code change) and — more importantly — for why that proxy
+# shrinks the blast radius without closing the escape.
+#
 # **The Docker socket is mounted, and that is the trade-off to know.** The built-in worker runs
 # the scanners as sibling containers; reaching that socket is equivalent to root on the host.
 # A deployment that cannot accept it should set `ZANSHIN_EMBEDDED_WORKER=false` and give the

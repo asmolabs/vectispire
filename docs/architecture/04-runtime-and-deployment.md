@@ -151,6 +151,70 @@ the payload so a receiver can deduplicate an at-least-once delivery.
 There is **no outbox for the scan queue**: there is no second system, the database is
 enough.
 
+## The Docker socket, and what a proxy in front of it is worth
+
+The built-in worker runs the analyzers as sibling containers, so the process exposed on the
+network holds the Docker socket. Reaching that socket is equivalent to root on the host. That
+is the deployment's largest single risk and it is worth being exact about what reduces it.
+
+**A socket proxy needs no code change, and that was verified rather than assumed.** The client
+is built from `DefaultDockerClientConfig`, which reads `DOCKER_HOST`, so pointing Zanshin at a
+filtering proxy is one variable. The whole scanner suite —
+`ContainerRunnerIntegrationTest`, ten cases including the pull path with the image deleted
+first — was run against [`tecnativa/docker-socket-proxy`] with the flags below, and passed.
+The proxy's own log is where this list comes from; it is the traffic, not a reading of the
+code:
+
+| Endpoint | Why Zanshin calls it |
+|---|---|
+| `GET /_ping` | is the daemon there, asked before claiming a scan rather than during one |
+| `GET /images/{ref}/json` | is the pinned digest already local |
+| `POST /images/create` | pull, with the platform forced |
+| `GET /images/{ref}/get` | export an image as an archive, so the cataloguer never sees the socket |
+| `POST /containers/create` | one analyzer, with its caps dropped and its network off |
+| `POST /containers/{id}/start`, `/wait`, `/stop` | run it, wait for it, stop it when it overruns |
+| `GET /containers/{id}/logs` | its stdout and stderr, kept apart |
+| `DELETE /containers/{id}` | remove it |
+
+```yaml
+# The minimum that works. Every other section of the API stays refused — `GET /info` answers
+# 403, which is how the restriction was confirmed to be real.
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+    environment:
+      CONTAINERS: 1   # create, start, wait, stop, logs, remove
+      IMAGES: 1       # inspect, pull, export
+      PING: 1
+      POST: 1         # without it every call above is read-only and no scan runs
+  zanshin:
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    # and no socket mounted here
+```
+
+**Now the part that matters more than the table.** `CONTAINERS=1` with `POST=1` allows
+`POST /containers/create`, and that endpoint accepts `Privileged`, `CapAdd` and a bind mount
+of `/`. **Anyone who can reach this proxy can still take the host.** The proxy therefore does
+not make the socket safe; what it removes is everything *else* — `exec`, swarm, secrets,
+networks, volumes, `/info`, the events stream — which shrinks what a compromise reaches
+sideways, and makes the endpoints Zanshin uses an enumerable list somebody can audit. Deploy
+it for that, and do not deploy it believing the escape is closed.
+
+What actually reduces the privilege, in ascending order of what it costs to run:
+
+- **Rootless Docker.** The escape then lands on an unprivileged user rather than on root. One
+  daemon to reconfigure, and bind mounts need care; it is the highest ratio of the three.
+- **Remote agents** ([decision 0003](decisions/0003-long-polling-for-agents.md)). The socket
+  moves to a machine that holds no `ENCRYPTION_KEY` and serves nothing on the network. This is
+  the shape Zanshin was designed for, and it is why the agent cannot reach the database.
+- **A sandboxed runtime** — gVisor, Kata, Sysbox — as the analyzers' runtime. It contains the
+  analyzer, not the socket holder, so it pairs with one of the two above rather than replacing
+  them.
+
+[`tecnativa/docker-socket-proxy`]: https://github.com/Tecnativa/docker-socket-proxy
+
 ## The settings that matter
 
 | Variable | What it decides |
@@ -159,6 +223,7 @@ enough.
 | `ENCRYPTION_KEY` | without it, nothing can be encrypted. No default value |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
 | `ZANSHIN_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
+| `DOCKER_HOST` | read by the Docker client, so the daemon can be a filtering proxy instead of the socket. See the section above for the exact surface, and for what it does not buy |
 | `ZANSHIN_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
 | `ZANSHIN_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
 | `ZANSHIN_SCAN_LEASE_SECONDS`, `ZANSHIN_SCAN_MAX_ATTEMPTS` | the lease and the takeover budget described above |

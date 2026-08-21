@@ -313,7 +313,11 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   a default-off control can do.
 - **The Docker socket stays mounted** in the default deployment. Only remote agents take
   it out of the process exposed on the network; the `local_api` back end that also did so
-  was not carried over by the port.
+  was not carried over by the port. A filtering proxy in front of it now has a documented and
+  *measured* configuration ([04](04-runtime-and-deployment.md#the-docker-socket-and-what-a-proxy-in-front-of-it-is-worth)),
+  which shrinks the sideways reach — but `POST /containers/create` is on the list Zanshin needs,
+  and that endpoint accepts a privileged container bind-mounting `/`. **The proxy is not a
+  containment boundary**; rootless Docker or a remote agent is what reduces the privilege.
 - **A compromised agent can skew a verdict** by reporting false results. Reports are
   audited; they are not proven.
 - **`npm audit` reports nothing, and that is worth stating rather than assuming.** The
