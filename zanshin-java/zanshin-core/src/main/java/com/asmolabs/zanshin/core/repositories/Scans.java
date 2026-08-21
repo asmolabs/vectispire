@@ -181,6 +181,19 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
              order by s.createdAt desc, s.id desc""")
     List<Object[]> findPayloadBearing();
 
+    /**
+     * Scans holding an SBOM that nothing has indexed yet.
+     *
+     * <p>The answer was always on disk; only the index is new. Selected by the absence of rows
+     * rather than by a marker column, so the query and the table it describes cannot disagree.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where s.sbom is not null
+               and not exists (select 1 from ComponentEntity c where c.scanId = s.id)
+             order by s.id desc""")
+    List<ScanEntity> findWithSbomButNoComponents(Limit limit);
+
     @Query("select count(s.id) from ScanEntity s where s.sbom is not null or s.cves is not null")
     long countPayloadBearing();
 

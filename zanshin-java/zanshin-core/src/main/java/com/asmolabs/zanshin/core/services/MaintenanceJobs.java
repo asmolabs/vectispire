@@ -34,6 +34,7 @@ public class MaintenanceJobs {
     private final OutboxService outbox;
     private final TicketSweepService tickets;
     private final SessionCleanupService sessions;
+    private final InventoryBackfill backfill;
     private final SchedulerService scheduler;
 
     /**
@@ -53,11 +54,13 @@ public class MaintenanceJobs {
             OutboxService outbox,
             TicketSweepService tickets,
             SessionCleanupService sessions,
+            InventoryBackfill backfill,
             SchedulerService scheduler) {
         this.retention = retention;
         this.outbox = outbox;
         this.tickets = tickets;
         this.sessions = sessions;
+        this.backfill = backfill;
         this.scheduler = scheduler;
     }
 
@@ -104,6 +107,12 @@ public class MaintenanceJobs {
             // set on the issue is its deduplication key — so a tracker under maintenance is
             // simply retried next turn.
             tickets.sweep();
+
+            // A batch per tick, not the whole history: the inventory of past scans is read back
+            // from SBOMs already on disk, and a single pass over ten thousand of them would hold
+            // one transaction open for minutes. It converges, and a fresh install has nothing to
+            // do here.
+            backfill.runOnce();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
             if (cleaned.sessions() > 0 || cleaned.attempts() > 0) {

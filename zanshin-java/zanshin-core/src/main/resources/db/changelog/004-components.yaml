@@ -1,0 +1,79 @@
+# The inventory: every component a scan catalogued, not only the ones that produced a finding.
+#
+# **Why a table when the SBOM is already stored.** The SBOM is kept whole on the scan, and it is
+# the right thing to keep — it is what other tools consume. It is also opaque text: answering
+# "which of our projects ships log4j 2.14.1" means reading sixteen documents of half a megabyte
+# and parsing each one. The question that matters on the day a CVE is published cannot be asked
+# of the data that holds the answer.
+#
+# **And a finding is not an inventory.** An issue exists only where something was wrong: a
+# library with no vulnerability, no licence problem and no end-of-life date leaves no trace in
+# `t_issue`. Searching issues answers "who has a *vulnerable* log4j", which is a different
+# question from "who uses log4j", and the difference is precisely the window before a
+# vulnerability is known.
+#
+# Rows are per scan, not per target: the point is to answer "in which version of our project did
+# this component appear, and in which version did it go", and that history disappears the moment
+# the table only holds the current state. `ON DELETE CASCADE` ties them to the scan, so purging a
+# scan takes its inventory with it.
+databaseChangeLog:
+  - changeSet:
+      id: 004-t_component
+      author: zanshin
+      changes:
+        - createTable:
+            tableName: t_component
+            columns:
+              - column:
+                  name: id
+                  type: ${generated.id.type}
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_t_component
+                    nullable: false
+              - column:
+                  name: scan_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_component_scan
+                    references: t_scan(id)
+                    deleteCascade: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              # Nullable: a cataloguer reports components whose version it could not determine,
+              # and dropping those rows would make the inventory quietly incomplete on exactly
+              # the components somebody is looking for.
+              - column:
+                  name: version
+                  type: varchar(255)
+              # The package URL — ecosystem, group and name in one string. It is what makes
+              # "org.apache.logging.log4j:log4j-core" distinguishable from an npm package of a
+              # similar name, and what a search should really match on.
+              - column:
+                  name: purl
+                  type: varchar(500)
+              - column:
+                  name: type
+                  type: varchar(50)
+              # `true` declared, `false` pulled in, **null unknown** — the SBOM carries no
+              # dependency graph for every ecosystem, and a default of `false` would state that a
+              # package is transitive when nothing said so.
+              - column:
+                  name: is_direct
+                  type: ${bool.type}
+
+        # The inventory is read by "which scans carry this component", never by primary key.
+        # Name first: a search starts from a library, narrows by version, and reaches the scan
+        # last.
+        - createIndex:
+            indexName: idx_component_search
+            tableName: t_component
+            columns:
+              - column: { name: name }
+              - column: { name: version }
+              - column: { name: scan_id }

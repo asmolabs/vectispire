@@ -64,6 +64,7 @@ public class ScanIngestor {
         void enqueue(ScanEntity scan, IssueSyncService.SyncResult result);
     }
 
+    private final ComponentInventory inventory;
     private final IssueSyncService sync;
     private final Optional<Enricher> enricher;
     private final Optional<EndOfLifeSource> endOfLife;
@@ -77,7 +78,9 @@ public class ScanIngestor {
             Optional<EndOfLifeSource> endOfLife,
             Optional<LicenseSource> licenses,
             Optional<NotificationSink> notifications,
+            ComponentInventory inventory,
             Clock clock) {
+        this.inventory = inventory;
         this.sync = sync;
         this.enricher = enricher;
         this.endOfLife = endOfLife;
@@ -97,6 +100,12 @@ public class ScanIngestor {
         // everywhere — read by the exports, the tickets and the "direct only" filter, and
         // written nowhere.
         DependencyGraph graph = new DependencyGraph(artifacts.sbom().orElse(null));
+
+        // The inventory, written from the same document the graph was built from. Absent when
+        // the cataloguer did not run — and absent means the previous scan's inventory is left
+        // alone rather than replaced by nothing, exactly as an absent finding list leaves the
+        // backlog alone.
+        artifacts.sbom().ifPresent(sbom -> inventory.record(scan.getId(), sbom, graph));
 
         artifacts.dependencies().ifPresent(dependencies -> {
             scannedTypes.add(FindingType.VULNERABILITY);

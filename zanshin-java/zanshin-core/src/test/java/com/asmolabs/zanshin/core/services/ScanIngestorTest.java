@@ -42,6 +42,7 @@ class ScanIngestorTest {
     private static final Instant NOW = Instant.parse("2026-08-13T10:00:00Z");
 
     private IssueSyncService sync;
+    private ComponentInventory components;
     private ScanIngestor ingestor;
 
     @BeforeEach
@@ -49,8 +50,10 @@ class ScanIngestorTest {
         sync = mock(IssueSyncService.class);
         when(sync.sync(any(), any(), any(), any(), any()))
                 .thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        components = mock(ComponentInventory.class);
         ingestor = new ScanIngestor(
                 sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                components,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -124,7 +127,7 @@ class ScanIngestorTest {
             ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
             when(source.isEnabled()).thenReturn(false);
 
-            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(),
+            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
                             Clock.fixed(NOW, ZoneOffset.UTC))
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
@@ -140,7 +143,7 @@ class ScanIngestorTest {
             ScanIngestor.LicenseSource source = mock(ScanIngestor.LicenseSource.class);
             when(source.findings(any(), any())).thenReturn(List.of());
 
-            new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.of(source), Optional.empty(),
+            new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.of(source), Optional.empty(), components,
                             Clock.fixed(NOW, ZoneOffset.UTC))
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
@@ -254,7 +257,7 @@ class ScanIngestorTest {
             return new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of());
         });
 
-        new ScanIngestor(sync, Optional.of(enricher), Optional.empty(), Optional.empty(), Optional.empty(),
+        new ScanIngestor(sync, Optional.of(enricher), Optional.empty(), Optional.empty(), Optional.empty(), components,
                         Clock.fixed(NOW, ZoneOffset.UTC))
                 .ingest(scan(), ScanArtifacts.builder().secrets(List.of()).build(Duration.ZERO));
 
@@ -275,7 +278,7 @@ class ScanIngestorTest {
             return result;
         });
 
-        new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(sink),
+        new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(sink), components,
                         Clock.fixed(NOW, ZoneOffset.UTC))
                 .ingest(scan(), ScanArtifacts.builder().secrets(List.of()).build(Duration.ZERO));
 
