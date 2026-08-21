@@ -19,12 +19,17 @@ import org.springframework.stereotype.Service;
 public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
 
     private final NotificationService notifications;
+    private final List<NotificationChannel> channels;
     private final OutboxService outbox;
     private final TargetNaming names;
 
     public ScanDeltaNotifier(
-            NotificationService notifications, OutboxService outbox, TargetNaming names) {
+            NotificationService notifications,
+            List<NotificationChannel> channels,
+            OutboxService outbox,
+            TargetNaming names) {
         this.notifications = notifications;
+        this.channels = channels;
         this.outbox = outbox;
         this.names = names;
     }
@@ -45,7 +50,17 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
                         notifiable(result.newIssues()),
                         notifiable(result.reopenedIssues()),
                         result.resolved())
-                .ifPresent(payload -> outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA));
+                // **One row per configured destination.** Delivering three from a single row makes
+                // a partial failure unrepresentable: Teams accepted, the relay retries because the
+                // mail server was down, and the channel receives the message twice. Per-row is what
+                // lets the backoff be about one destination.
+                //
+                // A destination that is not configured is queued nothing, rather than queued and
+                // failed — an outbox full of rows that can never leave is an outbox whose age says
+                // nothing.
+                .ifPresent(payload -> channels.stream()
+                        .filter(NotificationChannel::isConfigured)
+                        .forEach(channel -> outbox.enqueue(payload, channel.type())));
     }
 
     private static List<NotifiableIssue> notifiable(List<IssueEntity> issues) {

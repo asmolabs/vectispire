@@ -45,6 +45,9 @@ class SettingTest {
         assertThat(Arrays.stream(Setting.values()).filter(Setting::isSecret))
                 .containsExactlyInAnyOrder(
                         Setting.WEBHOOK_URL,
+                        // Same reasoning, and if anything sharper: a Teams workflow URL needs no
+                        // credential at all — whoever holds it posts into the channel as Zanshin.
+                        Setting.TEAMS_WEBHOOK_URL,
                         Setting.TICKET_BASE_URL,
                         Setting.TICKET_TOKEN,
                         Setting.AI_REVIEW_OLLAMA_URL);
