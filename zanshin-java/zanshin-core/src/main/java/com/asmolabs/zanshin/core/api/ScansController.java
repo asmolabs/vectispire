@@ -14,6 +14,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.data.domain.Limit;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -80,10 +84,19 @@ public class ScansController {
             String description,
             String link) {}
 
-    /** @param findingsTruncated said explicitly, or a scan of a thousand findings would show five hundred in silence */
+    /**
+     * @param findingsTruncated said explicitly, or a scan of a thousand findings would show five
+     *     hundred in silence
+     * @param projectType and {@code projectVersion} what the scanned tree says about itself, both
+     *     null when it carries no manifest this can read. On the detail rather than in the list:
+     *     it answers "which build did this" for one scan, and would be a column of blanks in a
+     *     history where most rows are container scans
+     */
     public record Detail(
             Summary scan,
             String subPath,
+            String projectType,
+            String projectVersion,
             boolean hasSbom,
             List<FindingView> findings,
             long findingsTotal,
@@ -120,12 +133,52 @@ public class ScansController {
         return new Detail(
                 summaryOf(scan, naming.all()),
                 scan.getSubPath(),
+                scan.getProjectType(),
+                scan.getVersion(),
                 // The SBOM is not returned here: it weighs megabytes and the screen shows none
-                // of it. Its export has its own route.
+                // of it. It is served whole by `/{id}/sbom` instead, so a caller who wants it
+                // asks for it.
                 scan.getSbom() != null,
                 page.stream().map(ScansController::viewOf).toList(),
                 total,
                 total > page.size());
+    }
+
+    /**
+     * The SBOM exactly as the cataloguer produced it.
+     *
+     * <p><b>This route was documented and did not exist.</b> The README announced it twice, the
+     * API key scope offered "retrieve SARIF, OpenVEX, SBOM", the detail payload carried a
+     * {@code hasSbom} flag and this very class said its export had its own route — four claims,
+     * no mapping. The document was already stored on every scan; only the way out was missing.
+     *
+     * <p>Served verbatim rather than re-serialized: an SBOM is consumed by other tools, and a
+     * document that has been through a parser and a writer is no longer byte-for-byte what the
+     * cataloguer signed off. 404 when the scan produced none — a scan that failed before the
+     * inventory has no SBOM, and an empty document would claim it inventoried nothing.
+     */
+    @GetMapping(value = "/{id}/sbom", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> sbom(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+        ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
+        Visibilities.requireVisible(
+                targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+
+        String document = scan.getSbom();
+        if (document == null) {
+            throw new NoSuchElementException("This scan produced no SBOM.");
+        }
+
+        // An attachment: the payload runs to megabytes of JSON, and a browser asked to render it
+        // inline freezes on the tab rather than saving the file the caller came for.
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("zanshin-scan-" + id + ".sbom.json")
+                                .build()
+                                .toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(document);
     }
 
     /** A scan with neither target is invisible rather than visible: see {@code Visibilities}. */

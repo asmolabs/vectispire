@@ -2,6 +2,8 @@ package com.asmolabs.zanshin.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -191,6 +193,49 @@ class RemainingContractTest extends ApiTestBase {
                 .andExpect(jsonPath("$.hasSbom").value(false))
                 // The summary is flattened into the detail, as the screen reads it.
                 .andExpect(jsonPath("$.scan.targetKind").value("repository"));
+    }
+
+    @Test
+    @DisplayName("the SBOM is served whole, and absent when the scan produced none")
+    void theSbomDownloads() throws Exception {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repositories.save(repository()).getId());
+        scan.setBranch("main");
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(Instant.now());
+        long withoutSbom = scans.save(scan).getId();
+
+        // A scan that failed before the inventory has no SBOM. Returning an empty document
+        // would claim it inventoried nothing, which is the opposite of what happened.
+        mvc.perform(authenticated(get("/api/v1/scans/" + withoutSbom + "/sbom"), asAdmin()))
+                .andExpect(status().isNotFound());
+
+        ScanEntity catalogued = new ScanEntity();
+        catalogued.setRepoId(repositories.save(repository()).getId());
+        catalogued.setBranch("main");
+        catalogued.setStatus(ScanStatus.COMPLETED.wireName());
+        catalogued.setCreatedAt(Instant.now());
+        catalogued.setSbom("{\"artifacts\":[],\"source\":{\"type\":\"directory\"}}");
+        long withSbom = scans.save(catalogued).getId();
+
+        String body = mvc.perform(authenticated(get("/api/v1/scans/" + withSbom + "/sbom"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        "Content-Disposition", "attachment; filename=\"zanshin-scan-" + withSbom + ".sbom.json\""))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Byte for byte: an SBOM is consumed by other tools, and one that has been through a
+        // parser and a writer is no longer the document the cataloguer produced.
+        assertThat(body).isEqualTo("{\"artifacts\":[],\"source\":{\"type\":\"directory\"}}");
+    }
+
+    private static RepositoryEntity repository() {
+        RepositoryEntity entity = new RepositoryEntity();
+        entity.setUrl("https://github.com/org/sbom-project.git");
+        entity.setBranch("main");
+        return entity;
     }
 
     @Test

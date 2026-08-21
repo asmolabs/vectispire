@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
+import { saveDocument } from '../../core/download';
 import type { ScanDetail } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 
@@ -32,7 +34,7 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 @Component({
     selector: 'app-scan-detail',
     standalone: true,
-    imports: [CommonModule, RouterLink, CardModule, MessageModule, TableModule, TagModule, LastScanTag],
+    imports: [CommonModule, RouterLink, ButtonModule, CardModule, MessageModule, TableModule, TagModule, LastScanTag],
     template: `
         @if (scan(); as detail) {
             <div class="mb-4">
@@ -42,6 +44,14 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                     {{ detail.branch }} · {{ detail.createdAt | date: 'dd/MM/yyyy HH:mm' }}
                     @if (detail.durationMs) {
                         · {{ seconds(detail.durationMs) }} s
+                    }
+                    <!-- Only when the tree carried a manifest this could read. A blank "Version:"
+                          label would suggest the project has none, which is not what was found. -->
+                    @if (detail.projectType) {
+                        · {{ detail.projectType }}
+                        @if (detail.projectVersion) {
+                            {{ detail.projectVersion }}
+                        }
                     }
                 </p>
             </div>
@@ -76,6 +86,19 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                 </p-card>
             </div>
 
+            @if (detail.hasSbom) {
+                <!-- The flag existed and led nowhere: the payload announced an SBOM the interface
+                      offered no way to fetch. -->
+                <div class="mb-4">
+                    <p-button
+                        label="Download SBOM"
+                        icon="pi pi-download"
+                        severity="secondary"
+                        size="small"
+                        (onClick)="downloadSbom(detail.id)" />
+                </div>
+            }
+
             <p-card>
                 <ng-template #title>
                     Findings from this scan
@@ -90,7 +113,13 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
                     </p-message>
                 }
 
-                <p-table [value]="detail.findings" dataKey="id" styleClass="p-datatable-sm">
+                <p-table
+                    [value]="detail.findings"
+                    dataKey="id"
+                    styleClass="p-datatable-sm"
+                    [paginator]="detail.findings.length > 25"
+                    [rows]="25"
+                    [rowsPerPageOptions]="[25, 50, 100]">
                     <ng-template #header>
                         <tr>
                             <th style="width: 9rem">Type</th>
@@ -170,6 +199,14 @@ export class ScanDetailPage {
 
     severityOf(severity: string): 'danger' | 'warn' | 'secondary' {
         return SEVERITY_SEVERITY[severity] ?? 'secondary';
+    }
+
+    downloadSbom(id: number): void {
+        // Through HttpClient, never a navigation: the token is in memory and a navigation
+        // carries none, so the browser would save the 401's empty body as a zero-byte file.
+        this.api.downloadDocument(`/api/v1/scans/${id}/sbom`).subscribe({
+            next: (response) => saveDocument(response, `zanshin-scan-${id}.sbom.json`)
+        });
     }
 
     seconds(durationMs: number): number {

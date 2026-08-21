@@ -25,6 +25,7 @@ import java.util.Optional;
  */
 public record ScanArtifacts(
         Optional<JsonNode> sbom,
+        Optional<ProjectManifest.Project> project,
         Optional<List<DependencyFinding>> dependencies,
         Optional<List<SecretFinding>> secrets,
         Optional<List<IacFinding>> iac,
@@ -48,9 +49,9 @@ public record ScanArtifacts(
      * scan was still recorded as completed, with a green tag on the screen. The operator saw a
      * finished scan of an image that had never been fetched.
      *
-     * <p>The SBOM is deliberately not counted: it is a description of the target, not an
-     * observation about it, and a scan producing one and nothing else has still analysed
-     * nothing.
+     * <p>The SBOM is deliberately not counted, and the project's identity no more: both
+     * describe the target rather than observing it, and a scan that produced an inventory and a
+     * version number and nothing else has still analysed nothing.
      */
     public boolean observedNothing() {
         return dependencies.isEmpty() && secrets.isEmpty() && iac.isEmpty() && sast.isEmpty();
@@ -63,6 +64,7 @@ public record ScanArtifacts(
 
     public static final class Builder {
         private JsonNode sbom;
+        private ProjectManifest.Project project;
         private List<DependencyFinding> dependencies;
         private List<SecretFinding> secrets;
         private List<IacFinding> iac;
@@ -70,6 +72,7 @@ public record ScanArtifacts(
         private final List<Failure> failures = new ArrayList<>();
 
         public Builder sbom(JsonNode value) { this.sbom = value; return this; }
+        public Builder project(ProjectManifest.Project value) { this.project = value; return this; }
         public Builder dependencies(List<DependencyFinding> value) { this.dependencies = value; return this; }
         public Builder secrets(List<SecretFinding> value) { this.secrets = value; return this; }
         public Builder iac(List<IacFinding> value) { this.iac = value; return this; }
@@ -83,6 +86,7 @@ public record ScanArtifacts(
         public ScanArtifacts build(Duration duration) {
             return new ScanArtifacts(
                     Optional.ofNullable(sbom),
+                    Optional.ofNullable(project),
                     Optional.ofNullable(dependencies),
                     Optional.ofNullable(secrets),
                     Optional.ofNullable(iac),

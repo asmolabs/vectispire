@@ -289,6 +289,13 @@ public class ScanDispatcher {
         scan.setResolvedIssuesCount(result.resolved());
         scan.setDurationMs(artifacts.duration().toMillis());
         artifacts.sbom().ifPresent(sbom -> scan.setSbom(sbom.toString()));
+        // Left untouched when absent rather than blanked: a scan whose clone carried no manifest
+        // says nothing about the target's ecosystem, and overwriting what a previous scan read
+        // would turn "we did not find it this time" into "it does not have one".
+        artifacts.project().ifPresent(project -> {
+            scan.setProjectType(project.type());
+            scan.setVersion(project.version());
+        });
         // Step failures are recorded even on a successful scan: without them, an operator would
         // not know that one scanner looked at nothing.
         scan.setError(failureSummary(artifacts));
