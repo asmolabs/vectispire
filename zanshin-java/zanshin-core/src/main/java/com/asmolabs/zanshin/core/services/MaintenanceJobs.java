@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ public class MaintenanceJobs {
     private final SessionCleanupService sessions;
     private final InventoryBackfill backfill;
     private final SchedulerService scheduler;
+    private final IssueTriageService triage;
 
     /**
      * One turn at a time, per job.
@@ -55,13 +57,15 @@ public class MaintenanceJobs {
             TicketSweepService tickets,
             SessionCleanupService sessions,
             InventoryBackfill backfill,
-            SchedulerService scheduler) {
+            SchedulerService scheduler,
+            IssueTriageService triage) {
         this.retention = retention;
         this.outbox = outbox;
         this.tickets = tickets;
         this.sessions = sessions;
         this.backfill = backfill;
         this.scheduler = scheduler;
+        this.triage = triage;
     }
 
     /**
@@ -113,6 +117,21 @@ public class MaintenanceJobs {
             // one transaction open for minutes. It converges, and a fresh install has nothing to
             // do here.
             backfill.runOnce();
+
+            // **Nothing called this until now, and that is what the feature was missing.** An
+            // acceptance could be recorded "for thirty days", the review date was stored, the
+            // SARIF document said "to review on …" — and it never came back, because
+            // `expireStale` was reachable only from its own tests. Its javadoc said it was called
+            // from this tick, which was the only place the claim existed.
+            //
+            // Here rather than on page load, for the reason that javadoc gives: a dismissal that
+            // lapses overnight has to stop dismissing in the VEX document a customer downloads
+            // and in the verdict a pipeline asks for at three in the morning. Hourly, so the
+            // worst case is that an acceptance outlives its date by an hour.
+            List<Long> expired = triage.expireStale();
+            if (!expired.isEmpty()) {
+                log.info("Maintenance: {} triage decision(s) returned under review.", expired.size());
+            }
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
             if (cleaned.sessions() > 0 || cleaned.attempts() > 0) {

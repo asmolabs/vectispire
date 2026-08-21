@@ -64,6 +64,16 @@
                     <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
                     @if (issue.triagedBy) { <div class="text-muted-color text-sm">by {{ issue.triagedBy }}</div> }
                     <!--
+                        The review date, which could be set and was displayed nowhere. An
+                        acceptance nobody can see the end of is an acceptance nobody revisits —
+                        and the date is what turns "dismissed" into "dismissed until".
+                    -->
+                    @if (issue.triageExpiresAt) {
+                        <div class="text-sm mt-1" [class.text-orange-500]="reviewIsImminent(issue)">
+                            review {{ issue.triageExpiresAt | date: 'dd/MM/yyyy' }}
+                        </div>
+                    }
+                    <!--
                         The ticket is shown here because without it, an opened ticket
                         would be invisible from Zanshin: somebody would raise the same
                         one by hand, and nobody would know the work is already

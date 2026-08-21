@@ -85,6 +85,13 @@ as long as it existed, because no bean supplied its `ScanRunner` and the dispatc
 `Optional` was empty; every queued scan stayed `pending`, silently, on an install whose own
 defaults say the worker is on. No unit test could see it. Start the application.
 
+It has happened twice. `IssueTriageService.expireStale` was called by **nothing** — its own
+javadoc said "called from the maintenance tick", and that sentence was the only place the claim
+existed. An acceptance recorded "for thirty days" kept its review date, exported it into SARIF as
+"to review on …", and never came back. Every service involved had passing tests, because no test
+of a service can see that its caller is missing. `MaintenanceJobsTest` now asserts the
+composition itself, which is the only level at which that class of defect is visible.
+
 **Never skip silently.** There is no "skip if the database is missing" guard in the
 integration suite, deliberately: a suite that skips itself reports green without checking
 anything.

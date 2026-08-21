@@ -300,6 +300,22 @@ ignore. So the default is off — and the verification reports `mirrored: false`
 reporting nothing, because "0 missing" from a mirror that does not exist reads as reassurance
 and is not.
 
+**An accepted risk now has an end, and the end arrives.** A triage decision may carry a review
+date — offered and not imposed, because "the component is not present" needs no re-examination
+while "not reachable in our configuration" badly does, and only the person deciding knows which
+they recorded. The date returns the issue to `under_review` when it passes, which changes what a
+gate answers and what a VEX document asserts, so it is recorded in the triage history as an
+event with **no actor**: inventing a "system" user would put a person who does not exist into a
+compliance report.
+
+**It was not enforced until now, and the shape of that gap is worth keeping.** The expiry
+existed, was tested, was exported into SARIF — and was called by nothing outside its own suite.
+An acceptance was therefore permanent, silently, on an installation whose export documents
+promised a review date. It is wired into the hourly tick, so the worst case is that a lapsed
+decision outlives its date by an hour; the alternative — expiring on page load — would leave the
+gate a pipeline asks for at three in the morning answering from a decision that lapsed the day
+before.
+
 **A remediation deadline reports, and blocks nothing.** Each severity carries a window —
 15 / 30 / 90 / 180 days by default, all four settings — counted from when an issue was **first
 seen**, never from the last scan: restarting the clock at each sighting would make a deadline

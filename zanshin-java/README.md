@@ -65,6 +65,7 @@ the same commit that violates it; a missing dependency cannot.
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
+| A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |

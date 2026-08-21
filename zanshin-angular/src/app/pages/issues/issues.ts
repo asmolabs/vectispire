@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +41,7 @@ const VEX_JUSTIFICATIONS = [
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
+    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
     templateUrl: './issues.html'
 })
 export class Issues {
@@ -230,6 +231,21 @@ export class Issues {
         if (issue.slaState === 'overdue') return 'danger';
         if (issue.slaState === 'due_soon') return 'warn';
         return 'secondary';
+    }
+
+    /**
+     * Whether a dismissal's review date is close enough to plan for.
+     *
+     * A week, the same horizon the remediation deadline uses: two different warning windows on
+     * one screen would be two ideas of "soon" for a reader to reconcile.
+     *
+     * The expiry itself happens on the server, hourly — this only colours the date. A screen
+     * deciding that a decision has lapsed would disagree with the gate, which reads the row.
+     */
+    reviewIsImminent(issue: Issue): boolean {
+        if (!issue.triageExpiresAt) return false;
+        const dueInDays = (new Date(issue.triageExpiresAt).getTime() - Date.now()) / 86_400_000;
+        return dueInDays <= 7;
     }
 
     triageColour(status: string): 'success' | 'danger' | 'warn' | 'secondary' {
