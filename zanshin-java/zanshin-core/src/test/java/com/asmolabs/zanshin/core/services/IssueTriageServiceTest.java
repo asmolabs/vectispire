@@ -28,14 +28,25 @@ class IssueTriageServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T09:00:00Z");
 
     private Issues issues;
+    private com.asmolabs.zanshin.core.repositories.TriageEvents events;
     private IssueTriageService service;
 
     @BeforeEach
     void wire() {
         issues = mock(Issues.class);
-        service = new IssueTriageService(issues, Clock.fixed(NOW, ZoneOffset.UTC));
+        events = mock(com.asmolabs.zanshin.core.repositories.TriageEvents.class);
+        service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC));
         when(issues.save(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAll(any())).thenAnswer(call -> call.getArgument(0));
+        when(events.save(any())).thenAnswer(call -> call.getArgument(0));
+    }
+
+    /** The single event this call recorded. */
+    private com.asmolabs.zanshin.core.persistence.TriageEventEntity recorded() {
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.asmolabs.zanshin.core.persistence.TriageEventEntity.class);
+        org.mockito.Mockito.verify(events).save(captor.capture());
+        return captor.getValue();
     }
 
     @Test
@@ -50,6 +61,60 @@ class IssueTriageServiceTest {
         assertThat(triaged.getTriagedBy()).isEqualTo("alice");
         assertThat(triaged.getTriagedAt()).isEqualTo(NOW);
         assertThat(triaged.getTriageExpiresAt()).isEqualTo(NOW.plus(Period.ofDays(90)));
+    }
+
+    @Test
+    @DisplayName("records the transition, both ends of it, against the version in force")
+    void recordsTheTransition() {
+        // The left half is the whole point. Capturing the status after the assignment would
+        // record every decision as going from its own outcome to itself, and a history of
+        // "accepted -> accepted" proves nothing about a change of position.
+        IssueEntity issue = issue(TriageStatus.UNDER_REVIEW, null);
+        issue.setLastSeenScanId(17L);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        service.triage(1L, new Triage.Request(
+                TriageStatus.NOT_AFFECTED, "alice", VexJustification.VULNERABLE_CODE_NOT_PRESENT,
+                "The affected module is not compiled in.", Period.ofDays(90)));
+
+        var event = recorded();
+        assertThat(event.getFromStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+        assertThat(event.getActor()).isEqualTo("alice");
+        assertThat(event.getOrigin()).isEqualTo("manual");
+        assertThat(event.getOccurredAt()).isEqualTo(NOW);
+        assertThat(event.getScanId())
+                .describedAs("the scan in force, so the trail can say which version was accepted")
+                .isEqualTo(17L);
+    }
+
+    @Test
+    @DisplayName("an expiry is recorded as a decision nobody took")
+    void expiryIsRecordedWithoutAnActor() {
+        IssueEntity dismissed = issue(TriageStatus.NOT_AFFECTED, NOW.minusSeconds(1));
+        dismissed.setTriagedBy("alice");
+        when(issues.findWithExpiredTriage(NOW)).thenReturn(List.of(dismissed));
+
+        service.expireStale();
+
+        var event = recorded();
+        assertThat(event.getFromStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+        assertThat(event.getOrigin()).isEqualTo("expiry");
+        // Alice decided the acceptance; she did not decide that it lapsed. Naming her here would
+        // attribute an action to somebody who did not take it, in a document meant as evidence.
+        assertThat(event.getActor()).isNull();
+    }
+
+    @Test
+    @DisplayName("nothing to expire records nothing, or the history fills with non-events")
+    void nothingToExpireRecordsNothing() {
+        IssueEntity already = issue(TriageStatus.UNDER_REVIEW, NOW.minusSeconds(1));
+        when(issues.findWithExpiredTriage(NOW)).thenReturn(List.of(already));
+
+        service.expireStale();
+
+        org.mockito.Mockito.verify(events, org.mockito.Mockito.never()).save(any());
     }
 
     @Test

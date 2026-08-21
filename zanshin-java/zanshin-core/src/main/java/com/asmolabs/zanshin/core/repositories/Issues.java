@@ -94,6 +94,25 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
     @Query("select i from IssueEntity i where i.triageExpiresAt is not null and i.triageExpiresAt <= :asOf")
     List<IssueEntity> findWithExpiredTriage(@Param("asOf") Instant asOf);
 
+    /**
+     * One repository's issues in a given state, in full.
+     *
+     * <p>Ordered so a report built from them reads the same twice: severity has no natural SQL
+     * order, so the identifier decides, and a digest that reshuffles on every run would make two
+     * reports differ for no reason anybody could point at.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.repoId = :repoId and i.state = :state
+             order by i.type asc, i.identifier asc, i.id asc""")
+    List<IssueEntity> findByRepositoryAndState(@Param("repoId") Long repoId, @Param("state") String state);
+
+    /** One repository's open issues, for a page that shows one target rather than all of them. */
+    @Query("""
+            select count(i.id) from IssueEntity i
+             where i.state = :state and i.repoId = :repoId""")
+    long countByStateAndRepository(@Param("state") String state, @Param("repoId") Long repoId);
+
     /** Open issues per repository, for the target list's badge. */
     @Query("""
             select i.repoId, count(i.id) from IssueEntity i

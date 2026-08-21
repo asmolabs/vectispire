@@ -65,3 +65,5 @@ databaseChangeLog:
 
   - include: { file: db/changelog/001-baseline.yaml }
   - include: { file: db/changelog/002-indexes.yaml }
+  - include: { file: db/changelog/003-triage-events.yaml }
+  - include: { file: db/changelog/004-components.yaml }

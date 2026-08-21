@@ -1,0 +1,104 @@
+# The history of triage decisions.
+#
+# **Why a table and not the audit log.** The audit log already records every triage, chained by
+# hash, and it stays the evidentiary record — the one nobody can rewrite. What it cannot do is
+# answer a question: its payload is a sentence written for a human (`Triage "accepted"
+# (component_not_present)`), it carries the state a decision arrived at and never the one it
+# left, and reconstructing a transition from it means parsing prose that a later commit is free
+# to reword. A report built on that lies the day somebody improves the wording.
+#
+# So: the log proves, this table answers. Both are written in the same transaction as the
+# decision, and a disagreement between them is a defect rather than a design.
+#
+# **The foreign keys are inline, for the reason the baseline gives**: SQLite has no `ALTER TABLE
+# ADD CONSTRAINT`, so `addForeignKeyConstraint` produces referential integrity on three engines
+# out of four and says nothing on the fourth. Written that way here, it did not even get that
+# far — Liquibase refuses the changeset outright on SQLite, which is how this was caught.
+databaseChangeLog:
+  - changeSet:
+      id: 003-t_issue_triage_event
+      author: zanshin
+      changes:
+        - createTable:
+            tableName: t_issue_triage_event
+            columns:
+              - column:
+                  name: id
+                  type: ${generated.id.type}
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_t_issue_triage_event
+                    nullable: false
+              - column:
+                  name: issue_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_triage_event_issue
+                    references: t_issue(id)
+                    deleteCascade: true
+              # **Both ends of the transition, spelled out.** The whole point of the table: "it
+              # was under review, it became accepted" is the sentence an auditor needs, and
+              # deriving the left half from the previous row would make every report depend on
+              # rows never being purged.
+              - column:
+                  name: from_status
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_status
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: justification
+                  type: varchar(64)
+              - column:
+                  name: comment
+                  type: ${json.type}
+              # Null when nobody decided — see `origin`. Not defaulted to a name like "system",
+              # which would put a fictional user in a compliance report.
+              - column:
+                  name: actor
+                  type: varchar(255)
+              # **`manual` or `expiry`.** A decision somebody took and a decision that lapsed on
+              # its own are the same transition on paper and are not the same fact. Without this
+              # column the difference is a null actor, which reads as missing data.
+              - column:
+                  name: origin
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: occurred_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: ${timestamp.type}
+              # The target's last scan when the decision was taken, hence the version the
+              # decision was taken against. Nullable and `SET NULL` on delete: a decision
+              # outlives the scan that motivated it, exactly as an issue outlives the scan that
+              # first saw it.
+              - column:
+                  name: scan_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_triage_event_scan
+                    references: t_scan(id)
+                    # `false` is not "no rule": Liquibase emits ON DELETE SET NULL, which is the
+                    # rule this column needs. A decision outlives the scan that motivated it.
+                    deleteCascade: false
+
+        # The table is read as "this issue's history, oldest first" and never by primary key.
+        # Without this, opening one issue sorts every decision ever taken.
+        - createIndex:
+            indexName: idx_triage_event_issue
+            tableName: t_issue_triage_event
+            columns:
+              - column: { name: issue_id }
+              - column: { name: occurred_at }
+              - column: { name: id }

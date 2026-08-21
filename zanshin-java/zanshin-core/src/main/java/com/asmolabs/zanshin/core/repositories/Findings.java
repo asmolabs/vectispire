@@ -26,5 +26,27 @@ public interface Findings extends JpaRepository<FindingEntity, Long> {
                       f.id asc""")
     List<FindingEntity> findByScanId(@Param("scanId") Long scanId, Limit limit);
 
+    /**
+     * The findings of several scans at once.
+     *
+     * <p>For a page showing a whole dossier: asking scan by scan turns fifty scans into fifty
+     * round trips, which is invisible on a demo database and is not on a real history.
+     */
+    List<FindingEntity> findByScanIdIn(java.util.Collection<Long> scanIds);
+
+    /**
+     * Every scan that observed one issue, newest first, with the scan itself.
+     *
+     * <p>The sighting list of a detail page. An issue carries {@code firstSeenScanId} and
+     * {@code lastSeenScanId} and nothing between them; "seen in 1.17.4, still in 1.17.6, gone in
+     * 1.18.0" is a question about the findings, and the join to the scan is what supplies the
+     * version each sighting happened on.
+     */
+    @Query("""
+            select f, s from FindingEntity f, ScanEntity s
+             where f.scanId = s.id and f.issueId = :issueId
+             order by s.createdAt desc, s.id desc""")
+    List<Object[]> sightingsOf(@Param("issueId") Long issueId, Limit limit);
+
     long countByScanId(Long scanId);
 }
