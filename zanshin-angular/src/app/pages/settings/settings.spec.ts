@@ -21,7 +21,7 @@ describe('the settings screen', () => {
         settings: [
             {
                 key: 'ai_review_enabled',
-                section: 'Model review',
+                section: 'OWASP review',
                 label: 'Review the code with a local model',
                 description: '',
                 type: 'boolean',

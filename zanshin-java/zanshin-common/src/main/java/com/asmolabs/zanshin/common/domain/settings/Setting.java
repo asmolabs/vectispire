@@ -205,7 +205,7 @@ public enum Setting {
         NOTIFICATIONS("Notifications"),
         LICENSES("Licenses"),
         TICKETS("Ticket tracker"),
-        MODEL_REVIEW("Model review");
+        MODEL_REVIEW("OWASP review");
 
         private final String label;
 
