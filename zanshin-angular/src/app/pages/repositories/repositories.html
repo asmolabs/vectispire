@@ -15,66 +15,70 @@
     <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<p-card>
-    <p-table [value]="repositories()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
-        <ng-template #header>
-            <tr>
-                <th>Repository</th>
-                <th>Branch</th>
-                <th>Last scan</th>
-                <th class="text-right">Outstanding</th>
-                @if (isAdmin()) { <th class="w-1"></th> }
-            </tr>
-        </ng-template>
-        <ng-template #body let-repository>
-            <tr>
-                <td>
-                    <div class="font-medium">{{ repository.displayName }}</div>
-                    <div class="text-sm text-muted-color break-all">
-                        {{ repository.url }}
-                        <!--
-                            Shown because two rows can now be the same URL. Without it a
-                            monorepo registered twice reads as the same target listed
-                            twice, and nobody can tell which one they are scanning.
-                        -->
-                        @if (repository.subPath) {
-                            <span class="font-mono">· {{ repository.subPath }}</span>
+<p-dataview [value]="repositories()" [loading]="loading()" layout="list">
+    <ng-template #list let-items>
+        <!--
+            A card per repository rather than a row, because these are entities and not
+            measurements: nobody compares the URL of the third against the URL of the seventh, and
+            the alignment a table buys is paid for in horizontal scrolling on a narrow screen.
+            The tabular screens — issues, inventory, the audit log — keep their tables, where
+            reading down a column is the whole point.
+        -->
+        <div class="flex flex-col">
+            @for (repository of items; track repository.id) {
+                <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-t"
+                     style="border-color: var(--surface-border)">
+                    <div class="min-w-0">
+                        <div class="font-medium">{{ repository.displayName }}</div>
+                        <div class="text-sm text-muted-color break-all">
+                            {{ repository.url }}
+                            <!--
+                                Shown because two rows can now be the same URL. Without it a
+                                monorepo registered twice reads as the same target listed twice,
+                                and nobody can tell which one they are scanning.
+                            -->
+                            @if (repository.subPath) {
+                                <span class="font-mono">· {{ repository.subPath }}</span>
+                            }
+                        </div>
+                        <div class="text-sm text-muted-color mt-1">
+                            {{ repository.branch }} ·
+                            @if (repository.openIssues > 0) {
+                                <a [routerLink]="['/issues']" [queryParams]="{ repository_id: repository.id }"
+                                   class="font-medium">{{ repository.openIssues }} outstanding</a>
+                            } @else {
+                                <span>nothing outstanding</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 shrink-0">
+                        @if (repository.lastScan; as scan) {
+                            <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                        } @else {
+                            <app-last-scan [scan]="null" />
+                        }
+
+                        @if (isAdmin()) {
+                            <div class="whitespace-nowrap">
+                                <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Run a scan of ' + repository.url"
+                                          [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
+                                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Edit ' + repository.url" (onClick)="openForm(repository)" />
+                                <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
+                            </div>
                         }
                     </div>
-                </td>
-                <td>{{ repository.branch }}</td>
-                <td>
-                    @if (repository.lastScan; as scan) {
-                        <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
-                    } @else {
-                        <app-last-scan [scan]="null" />
-                    }
-                </td>
-                <td class="text-right">
-                    @if (repository.openIssues > 0) {
-                        <a [routerLink]="['/issues']" [queryParams]="{ repository_id: repository.id }" class="font-medium">{{ repository.openIssues }}</a>
-                    } @else {
-                        <span class="text-muted-color">0</span>
-                    }
-                </td>
-                @if (isAdmin()) {
-                    <td class="text-right whitespace-nowrap">
-                        <p-button icon="pi pi-play" [text]="true" [rounded]="true"
-                                  [ariaLabel]="'Run a scan of ' + repository.url"
-                                  [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
-                        <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
-                                  [ariaLabel]="'Edit ' + repository.url" (onClick)="openForm(repository)" />
-                        <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                  [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
-                    </td>
-                }
-            </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-            <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored repository.</td></tr>
-        </ng-template>
-    </p-table>
-</p-card>
+                </div>
+            }
+        </div>
+    </ng-template>
+    <ng-template #empty>
+        <div class="text-center text-muted-color py-6">No monitored repository.</div>
+    </ng-template>
+</p-dataview>
 
 <p-dialog [header]="editing() ? 'Edit this repository' : 'Add a repository'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">

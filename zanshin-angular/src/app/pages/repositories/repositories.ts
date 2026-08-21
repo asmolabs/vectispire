@@ -7,7 +7,7 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
-import { TableModule } from '@openng/optimus-ui/table';
+import { DataViewModule } from '@openng/optimus-ui/dataview';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { MonitoredRepository } from '../../core/api.models';
@@ -17,7 +17,7 @@ import { LastScanTag } from '../../shared/last-scan';
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, LastScanTag],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag],
     templateUrl: './repositories.html'
 })
 export class Repositories {

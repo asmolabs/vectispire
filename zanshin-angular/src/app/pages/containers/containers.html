@@ -15,48 +15,60 @@
     <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<p-card>
-    <p-table [value]="containers()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
-        <ng-template #header>
-            <tr>
-                <th>Image</th>
-                <th>Tag</th>
-                <th>Dernier scan</th>
-                <th class="text-right">Outstanding</th>
-                @if (isAdmin()) { <th class="w-1"></th> }
-            </tr>
-        </ng-template>
-        <ng-template #body let-container>
-            <tr>
-                <td>
-                    <div class="font-medium">{{ container.imageName }}</div>
-                    <div class="text-sm text-muted-color" [title]="container.reference">{{ shorten(container.reference) }}</div>
-                </td>
-                <td class="font-mono text-sm whitespace-nowrap" [title]="container.tag">{{ shorten(container.tag) }}</td>
-                <td><app-last-scan [scan]="container.lastScan" /></td>
-                <td class="text-right">
-                    @if (container.openIssues > 0) {
-                        <a [routerLink]="['/issues']" [queryParams]="{ container_id: container.id }" class="font-medium">{{ container.openIssues }}</a>
-                    } @else {
-                        <span class="text-muted-color">0</span>
-                    }
-                </td>
-                @if (isAdmin()) {
-                    <td class="text-right whitespace-nowrap">
-                        <p-button icon="pi pi-play" [text]="true" [rounded]="true"
-                                  [ariaLabel]="'Run a scan of ' + container.reference"
-                                  [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
-                        <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                  [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
-                    </td>
-                }
-            </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-            <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored image.</td></tr>
-        </ng-template>
-    </p-table>
-</p-card>
+<p-dataview [value]="containers()" [loading]="loading()" layout="list">
+    <ng-template #list let-items>
+        <!--
+            Cards rather than rows, as on the repository list and for the same reason: these are
+            entities, not measurements. Nobody reads down the column of image references looking
+            for a pattern, and the alignment a table buys is paid for in horizontal scrolling on
+            a narrow screen.
+        -->
+        <div class="flex flex-col">
+            @for (container of items; track container.id) {
+                <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-t"
+                     style="border-color: var(--surface-border)">
+                    <div class="min-w-0">
+                        <div class="font-medium">{{ container.imageName }}</div>
+                        <!--
+                            Truncated with the whole value on hover: a digest reference is sixty
+                            characters of hexadecimal that would push everything else off a phone,
+                            and it is read to be compared rather than to be read.
+                        -->
+                        <div class="text-sm text-muted-color break-all" [title]="container.reference">
+                            {{ shorten(container.reference) }}
+                        </div>
+                        <div class="text-sm text-muted-color mt-1">
+                            <span class="font-mono" [title]="container.tag">{{ shorten(container.tag) }}</span> ·
+                            @if (container.openIssues > 0) {
+                                <a [routerLink]="['/issues']" [queryParams]="{ container_id: container.id }"
+                                   class="font-medium">{{ container.openIssues }} outstanding</a>
+                            } @else {
+                                <span>nothing outstanding</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 shrink-0">
+                        <app-last-scan [scan]="container.lastScan" />
+
+                        @if (isAdmin()) {
+                            <div class="whitespace-nowrap">
+                                <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Run a scan of ' + container.reference"
+                                          [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
+                                <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </ng-template>
+    <ng-template #empty>
+        <div class="text-center text-muted-color py-6">No monitored image.</div>
+    </ng-template>
+</p-dataview>
 
 <p-dialog header="Add an image" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
