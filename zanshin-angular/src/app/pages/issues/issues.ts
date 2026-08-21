@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -40,7 +40,7 @@ const VEX_JUSTIFICATIONS = [
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [FormsModule, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
+    imports: [FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
     template: `
         <div class="card">
             <div class="font-semibold text-xl mb-1">Issues</div>
@@ -74,7 +74,11 @@ const VEX_JUSTIFICATIONS = [
                 <ng-template #body let-issue>
                     <tr>
                         <td>
-                            <span class="font-medium">{{ issue.identifier ?? '—' }}</span>
+                            <!-- The identifier is the handle: it is what somebody reads the row
+                                  for, so it is what opens the detail. -->
+                            <a class="font-medium" [routerLink]="['/issues', issue.id]">
+                                {{ issue.identifier ?? '—' }}
+                            </a>
                             @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
                             <div class="text-muted-color text-sm">{{ issue.filePath ?? '—' }}</div>
                         </td>

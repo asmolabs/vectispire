@@ -33,6 +33,13 @@ export const appRoutes: Routes = [
             { path: 'scans/:id', loadComponent: () => import('./app/pages/scans/scan-detail').then((m) => m.ScanDetailPage) },
             { path: 'security', loadComponent: () => import('./app/pages/security/security').then((m) => m.Security) },
             { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) },
+            {
+                path: 'issues/:id',
+                loadComponent: () => import('./app/pages/issues/issue-detail').then((m) => m.IssueDetailPage)
+            },
+            { path: 'history', loadComponent: () => import('./app/pages/history/history').then((m) => m.History) },
+            { path: 'inventory', loadComponent: () => import('./app/pages/inventory/inventory').then((m) => m.Inventory) },
+            { path: 'owasp', loadComponent: () => import('./app/pages/owasp/owasp').then((m) => m.Owasp) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
     },

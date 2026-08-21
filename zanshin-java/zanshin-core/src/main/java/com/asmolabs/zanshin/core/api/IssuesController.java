@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.Triage;
@@ -11,18 +12,26 @@ import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.IssueOrdering;
+import com.asmolabs.zanshin.core.persistence.FindingEntity;
+import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.zanshin.core.repositories.Findings;
 import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.zanshin.core.repositories.TriageEvents;
+import com.asmolabs.zanshin.core.services.TriageHistory;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.IssueTriageService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.time.Period;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Limit;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,7 +62,12 @@ public class IssuesController {
     public static final int MAX_PAGE_SIZE = 500;
     private static final int DEFAULT_PAGE_SIZE = 50;
 
+    /** A detail page shows where an issue was seen, not every scan that ever ran. */
+    private static final int MAX_SIGHTINGS = 100;
+
     private final Issues issues;
+    private final Findings findings;
+    private final TriageEvents events;
     private final TargetNaming naming;
     private final IssueTriageService triage;
     private final AuditLogService audit;
@@ -61,11 +75,15 @@ public class IssuesController {
 
     public IssuesController(
             Issues issues,
+            Findings findings,
+            TriageEvents events,
             TargetNaming naming,
             IssueTriageService triage,
             AuditLogService audit,
             VisibilityService visibility) {
         this.issues = issues;
+        this.findings = findings;
+        this.events = events;
         this.naming = naming;
         this.triage = triage;
         this.audit = audit;
@@ -141,6 +159,79 @@ public class IssuesController {
 
     private static List<Long> idsOf(List<IssueEntity> page, Function<IssueEntity, Long> id) {
         return page.stream().map(id).filter(Objects::nonNull).distinct().toList();
+    }
+
+    /**
+     * @param sightings the scans that observed this issue, newest first. An issue carries a first
+     *     and a last scan and nothing between them; "seen in 1.17.4, still in 1.17.6" is a
+     *     question the findings answer, and the version comes from the scan
+     * @param decisions every triage transition, from the same table the history screen reads —
+     *     one issue's slice of it, so the page that asks "why is this dismissed" has the answer
+     *     beside the dismissal rather than three screens away
+     */
+    public record Detail(
+            @JsonUnwrapped IssueEntity issue,
+            String targetKind,
+            String targetName,
+            List<Sighting> sightings,
+            List<TriageHistory.Decision> decisions) {}
+
+    /** @param version what the project called itself when this scan saw the issue */
+    public record Sighting(
+            Long scanId, String status, String branch, String version, Instant scannedAt, String severity) {}
+
+    /**
+     * One issue, with what a row cannot carry.
+     *
+     * <p>The issue itself is unwrapped rather than restated: the list already sends every column,
+     * and a second definition of an issue drifts from the first the day a column is added. What
+     * is added here is what needs a query of its own — where it was seen, and what was decided.
+     */
+    @GetMapping("/{id}")
+    public Detail detail(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+        IssueEntity issue = issues.findById(id).orElse(null);
+        // 404 rather than 403 when it exists but is not visible — see `Visibilities`.
+        Visibilities.requireVisible(
+                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        if (issue == null) {
+            throw new NoSuchElementException("Issue not found.");
+        }
+
+        TargetNaming.Names names = naming.all();
+        List<Sighting> sightings = findings.sightingsOf(id, Limit.of(MAX_SIGHTINGS)).stream()
+                .map(row -> {
+                    FindingEntity finding = (FindingEntity) row[0];
+                    ScanEntity scan = (ScanEntity) row[1];
+                    return new Sighting(
+                            scan.getId(),
+                            scan.getStatus(),
+                            scan.getBranch(),
+                            scan.getVersion(),
+                            scan.getCreatedAt(),
+                            finding.getSeverity());
+                })
+                .toList();
+
+        List<TriageHistory.Decision> decisions = events.findForIssues(List.of(id)).stream()
+                .map(event -> new TriageHistory.Decision(
+                        event.getFromStatus(),
+                        event.getToStatus(),
+                        event.getJustification(),
+                        event.getComment(),
+                        event.getActor(),
+                        event.getOrigin(),
+                        event.getOccurredAt(),
+                        event.getExpiresAt(),
+                        event.getScanId(),
+                        null))
+                .toList();
+
+        return new Detail(
+                issue,
+                issue.getRepoId() != null ? "repository" : "container",
+                names.of(issue.getRepoId(), issue.getContainerId()),
+                sightings,
+                decisions);
     }
 
     /**

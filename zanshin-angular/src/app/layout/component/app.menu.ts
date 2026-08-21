@@ -48,12 +48,11 @@ export class AppMenu {
                 label: 'Security',
                 items: [
                     { label: 'Security', icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
-                    { label: 'Issues', icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] }
+                    { label: 'Issues', icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
+                    { label: 'History', icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
+                    { label: 'Component search', icon: 'pi pi-fw pi-search', routerLink: ['/inventory'] },
+                    { label: 'OWASP report', icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] }
                 ]
-            },
-            {
-                label: 'Quality',
-                items: [{ label: 'Quality', icon: 'pi pi-fw pi-sparkles', routerLink: ['/quality'] }]
             },
             {
                 label: 'Operations',

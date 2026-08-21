@@ -27,6 +27,12 @@ import {
     NewUser,
     Page,
     QualityOverview,
+    HistoryDossier,
+    InventoryResults,
+    IssueDetail,
+    OllamaCheck,
+    OwaspReport,
+    HistoryRepository,
     ScanDetail,
     SecurityOverview,
     SettingDefinition,
@@ -208,6 +214,49 @@ export class ApiService {
 
     scan(id: number): Observable<ScanDetail> {
         return this.http.get<ScanDetail>(`/api/v1/scans/${id}`);
+    }
+
+    /**
+     * Any document the server serves as a file.
+     *
+     * **Through `HttpClient`, never a navigation.** The token is in memory and travels only on
+     * requests the interceptor sees; a browser navigation carries none, the server answers 401
+     * and the browser saves the empty body as a zero-byte file.
+     */
+    issue(id: number): Observable<IssueDetail> {
+        return this.http.get<IssueDetail>(`/api/v1/issues/${id}`);
+    }
+
+    downloadDocument(path: string): Observable<HttpResponse<Blob>> {
+        return this.http.get(path, { responseType: 'blob', observe: 'response' });
+    }
+
+    owaspReport(repositoryId: number): Observable<OwaspReport> {
+        return this.http.get<OwaspReport>(`/api/v1/repositories/${repositoryId}/owasp-review`);
+    }
+
+    runOwaspReport(repositoryId: number): Observable<OwaspReport> {
+        return this.http.post<OwaspReport>(`/api/v1/repositories/${repositoryId}/owasp-review`, {});
+    }
+
+    testOllama(): Observable<OllamaCheck> {
+        return this.http.post<OllamaCheck>('/api/v1/settings/ollama-test', {});
+    }
+
+    searchComponents(name: string, version: string): Observable<InventoryResults> {
+        const params = new URLSearchParams({ name });
+        if (version) {
+            params.set('version', version);
+        }
+        return this.http.get<InventoryResults>(`/api/v1/inventory/search?${params.toString()}`);
+    }
+
+    historyRepositories(): Observable<HistoryRepository[]> {
+        return this.http.get<HistoryRepository[]>('/api/v1/history/repositories');
+    }
+
+    historyDossier(id: number): Observable<HistoryDossier> {
+        return this.http.get<HistoryDossier>(`/api/v1/history/repositories/${id}`);
     }
 
     triggerContainerScan(id: number): Observable<{ id: number; status: string }> {

@@ -455,6 +455,13 @@ export interface ScanFinding {
 
 export interface ScanDetail extends ScanSummary {
     subPath: string | null;
+    /** What the scanned tree says about itself — `maven`, `gradle`, `npm`, `python`. */
+    projectType: string | null;
+    /**
+     * The project's own version, read from its manifest. Null is a real answer: a repository may
+     * carry no manifest, or one that names its ecosystem without stating a version.
+     */
+    projectVersion: string | null;
     hasSbom: boolean;
     findings: ScanFinding[];
     findingsTotal: number;
@@ -520,4 +527,174 @@ export interface CataloguePreview {
     licence_sha256: string;
     /** Language to rule count, so a choice is made on a number rather than on a name. */
     languages: Record<string, number>;
+}
+
+/**
+ * The detection-and-triage trail.
+ *
+ * Three facts that live apart in the schema, joined by the server: a scan carries the version of
+ * the tree it read, a finding links that scan to an issue, and a decision carries what was
+ * concluded about that issue. The joining is the feature.
+ */
+export interface HistoryRepository {
+    id: number;
+    name: string;
+    url: string;
+    branch: string;
+    /** The last version actually read. Null means nobody read one, not that there is none. */
+    version: string | null;
+    projectType: string | null;
+    scanCount: number;
+    lastScanAt: string | null;
+    openIssues: number;
+    decisions: number;
+}
+
+export interface HistoryDecision {
+    fromStatus: string;
+    toStatus: string;
+    justification: string | null;
+    comment: string | null;
+    /** Null when nobody decided: the deadline passed. See `origin`. */
+    actor: string | null;
+    /** `manual` or `expiry`. */
+    origin: string;
+    occurredAt: string;
+    expiresAt: string | null;
+    scanId: number | null;
+    version: string | null;
+}
+
+export interface HistoryIssue {
+    id: number;
+    type: string;
+    identifier: string | null;
+    severity: string | null;
+    packageName: string | null;
+    packageVersion: string | null;
+    filePath: string | null;
+    /** Where the issue stands **today**, not on the day of the scan. */
+    state: string;
+    triageStatus: string | null;
+    firstSeenAt: string | null;
+    resolvedAt: string | null;
+    decisions: HistoryDecision[];
+}
+
+export interface HistoryScan {
+    id: number;
+    status: string;
+    branch: string;
+    version: string | null;
+    projectType: string | null;
+    createdAt: string;
+    durationMs: number | null;
+    findingsCount: number;
+    newIssuesCount: number;
+    resolvedIssuesCount: number;
+    error: string | null;
+    issues: HistoryIssue[];
+}
+
+export interface HistoryDossier {
+    repository: HistoryRepository;
+    scans: HistoryScan[];
+    generatedAt: string;
+}
+
+/**
+ * One place a component was catalogued.
+ *
+ * The two versions are named apart on purpose: `componentVersion` is the library's,
+ * `projectVersion` is ours — the release it went out in, which is what makes the answer
+ * actionable rather than merely true.
+ */
+export interface InventoryOccurrence {
+    component: string;
+    componentVersion: string | null;
+    purl: string | null;
+    type: string | null;
+    /** `null` when the SBOM carried no dependency graph: unknown, not transitive. */
+    direct: boolean | null;
+    targetKind: string;
+    targetId: number | null;
+    targetName: string;
+    branch: string;
+    projectVersion: string | null;
+    scanId: number;
+    scannedAt: string;
+}
+
+export interface InventoryResults {
+    occurrences: InventoryOccurrence[];
+    total: number;
+    /** Said explicitly: a capped list read as complete is a wrong answer. */
+    truncated: boolean;
+}
+
+/**
+ * A model-written OWASP posture report.
+ *
+ * A failed run is a report too: `status: 'failed'` with an `error`, so "the model could not be
+ * reached at 09:00" reaches the screen instead of an empty page.
+ */
+/**
+ * One block of the report, parsed by the server.
+ *
+ * The client places `text` into an element it chose. Nothing here is markup and nothing is
+ * interpreted — which is the point: this prose is model output derived from findings written by
+ * the audited repository, and handing that to `innerHTML` would be an injection path.
+ */
+export interface OwaspBlock {
+    kind: 'HEADING' | 'CATEGORY' | 'PARAGRAPH' | 'BULLET' | 'NUMBERED';
+    level: number;
+    marker: string | null;
+    text: string;
+}
+
+export interface OwaspReport {
+    id: number;
+    status: 'completed' | 'failed';
+    /** The model that wrote it: comparing two reports without knowing this is a trap. */
+    model: string;
+    /** The model's answer as it came. Kept so nothing renders a report the raw text contradicts. */
+    content: string | null;
+    blocks: OwaspBlock[];
+    error: string | null;
+    /** The scan it was built from — what dates it and names the version it describes. */
+    scanId: number;
+    createdAt: string;
+}
+
+/** What the configured Ollama answered when asked what it holds. */
+export interface OllamaCheck {
+    reachable: boolean;
+    /** Separate from `reachable`: a reachable host without the model is the usual misconfiguration. */
+    modelInstalled: boolean;
+    model: string;
+    url: string;
+    models: string[];
+    detail: string;
+}
+
+/** Where an issue was seen: one scan, and the project version that scan read. */
+export interface IssueSighting {
+    scanId: number;
+    status: string;
+    branch: string;
+    version: string | null;
+    scannedAt: string;
+    severity: string | null;
+}
+
+/**
+ * One issue with what a backlog row cannot carry.
+ *
+ * Extends `Issue` because the server unwraps the entity into the same shape the list sends — a
+ * second definition would drift from the first the day a column is added.
+ */
+export interface IssueDetail extends Issue {
+    sightings: IssueSighting[];
+    decisions: HistoryDecision[];
+    isDirectDependency: boolean | null;
 }
