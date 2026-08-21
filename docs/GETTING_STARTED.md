@@ -32,9 +32,11 @@ Three environment variables matter before the first run:
 
 | Variable | Default |
 |---|---|
-| `ZANSHIN_DATABASE_URL` | *none* — required, e.g. `postgres://zanshin:zanshin@localhost:5432/zanshin` |
+| `ZANSHIN_DB_URL` | `jdbc:postgresql://localhost:5432/zanshin` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/zanshin` |
+| `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / empty |
 | `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
+| `ZANSHIN_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 
 
 ## 4. Database

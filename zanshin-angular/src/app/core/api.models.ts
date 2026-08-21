@@ -335,8 +335,20 @@ export interface AuditVerification {
     /** Entries predating the chaining: neither a proof nor an alarm. */
     unverifiable: number;
     verified: number;
+    /** The chain holds **and** nothing the mirror kept has left the table. */
     intact: boolean;
     broken: string | null;
+    /** Whether a copy outside this database is configured at all. `false` is a state to show,
+     *  not a detail to hide: "nothing missing" from a mirror that does not exist reads as
+     *  reassurance and is not. */
+    mirrored: boolean;
+    /** Entries the mirror holds and the table does not — the deletion the chain cannot see,
+     *  since nothing descends from the last entry written. */
+    missingFromTable: number;
+    /** Entries the table holds and the mirror does not: written before the mirror existed,
+     *  written while it could not be reached, or inserted by somebody who had the database and
+     *  not the file. */
+    missingFromMirror: number;
 }
 
 /** What the dashboard shows. None of these figures is its own: the posture comes from the

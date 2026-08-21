@@ -16,7 +16,7 @@ This document says where the boundaries are, what guards them, and what is still
 | Access to the Docker socket | process | root-equivalent on the host |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
 | Raw gitleaks reports | `scan.cves`, purged | **secrets in clear text** |
-| Audit log | `audit_log`, chained | erases who did what |
+| Audit log | `audit_log`, chained, optionally mirrored outside the database | erases who did what |
 
 The last row deserves reading twice: **a secret scanner's raw payload contains the
 secrets**. The normalized `Finding` keeps only the rule, the file and the line. That is
@@ -242,6 +242,29 @@ threat when the interesting row is one among thousands. Entries predating the ch
 declared unverifiable rather than back-hashed: backfilling hashes would be manufacturing
 evidence.
 
+**And there can now be a second copy, outside the database the log watches.**
+`ZANSHIN_AUDIT_MIRROR` names a path; each entry is appended there as one JSON line, in the
+canonical form the hash covers, so the two copies are comparable field by field. It is not
+that a file is unforgeable — it is not. It is that erasing an entry now takes **two edits in
+two media with two sets of permissions**, and the mirror is normally shipped off the host by a
+collector within seconds, at which point the second copy is beyond reach of whoever holds the
+database.
+
+What that buys, precisely: **the deletion the chain is blind to**. Removing the last entry
+written — the tip nobody descends from, which is exactly the entry somebody covering their
+tracks removes — leaves a chain that verifies perfectly. This document recorded that as an
+accepted limit. Against a mirror it is one subtraction, and `/audit-log/verify` reports it as
+a break rather than calling the log intact. The reverse difference is reported too: entries in
+the table and not in the mirror, which is what an insert by somebody holding the database and
+not the file looks like — indistinguishable, from here, from entries written before the mirror
+existed, and the report says so rather than guessing.
+
+**Off unless configured, and the screen says which.** Writing to a path unasked fails on a
+read-only container filesystem, and a control that warns at every start is one people learn to
+ignore. So the default is off — and the verification reports `mirrored: false` instead of
+reporting nothing, because "0 missing" from a mirror that does not exist reads as reassurance
+and is not.
+
 **The verdict does not accept just anything.** Two finding types enter no gate verdict: AI
 review, because a hostile repository could get a model it is handed its own code to write
 a `critical`; and quality, because a gate that turns red the day source-code analysis is
@@ -259,7 +282,8 @@ What matters here is checked rather than asserted: the agent cannot import the d
 layer (the module graph makes it impossible), the log detects tampering (`verifyChain`),
 a restricted key does not see other targets, a public Ollama URL is refused at send time,
 the login page names no credential, the policy header is sent with its every directive
-(`SecurityHeadersTest`), and no third-party asset is declared anywhere — shell or component
+(`SecurityHeadersTest`), a deleted entry the chain declares intact is caught by the mirror
+(`AuditMirrorTest`), and no third-party asset is declared anywhere — shell or component
 template — because the CSP would refuse it, so declaring it would produce a page that merely
 *looks* right.
 
@@ -267,7 +291,10 @@ template — because the CSP would refuse it, so declaring it would produce a pa
 
 - **No per-team partitioning at the account level.** A user sees everything. The heaviest
   limit on this list.
-- **The audit log is in the database it watches.**
+- **The audit log is in the database it watches**, unless a mirror is configured — and the
+  default is unconfigured. A deployment that sets no `ZANSHIN_AUDIT_MIRROR` still has one copy
+  and one set of credentials protecting it; the verification screen says so, which is the most
+  a default-off control can do.
 - **The Docker socket stays mounted** in the default deployment. Only remote agents take
   it out of the process exposed on the network; the `local_api` back end that also did so
   was not carried over by the port.

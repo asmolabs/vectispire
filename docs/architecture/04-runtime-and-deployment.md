@@ -155,10 +155,10 @@ enough.
 
 | Variable | What it decides |
 |---|---|
-| `ZANSHIN_DATABASE_URL` / `ZANSHIN_DB_PATH` | where the data lives. A path is enough for the common case |
-| `ZANSHIN_DB_DIALECT` | `postgres` (default), `mysql`, `mariadb` or `sqlite`; selects the migration set and the column types |
+| `ZANSHIN_DB_URL`, `ZANSHIN_DB_USER`, `ZANSHIN_DB_PASSWORD` | where the data lives. A **JDBC** URL — `jdbc:postgresql://…`, `jdbc:mysql://…` — from which the driver and the dialect follow; there is no separate dialect variable |
 | `ENCRYPTION_KEY` | without it, nothing can be encrypted. No default value |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
+| `ZANSHIN_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
 | `ZANSHIN_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
 | `ZANSHIN_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
 | `ZANSHIN_SCAN_LEASE_SECONDS`, `ZANSHIN_SCAN_MAX_ATTEMPTS` | the lease and the takeover budget described above |

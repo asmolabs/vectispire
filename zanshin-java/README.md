@@ -60,6 +60,7 @@ the same commit that violates it; a missing dependency cannot.
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
+| A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |

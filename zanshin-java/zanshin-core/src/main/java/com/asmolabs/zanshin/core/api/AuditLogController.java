@@ -35,8 +35,25 @@ public class AuditLogController {
     /**
      * @param unverifiable entries predating the chaining: neither a proof nor an alarm, a fact
      * @param broken the first break, or {@code null} when the chain holds
+     * @param mirrored whether a second copy outside this database is configured at all. Reported
+     *     rather than hidden: "nothing missing" from a mirror that does not exist reads as
+     *     reassurance, and is not
+     * @param missingFromTable entries the mirror holds and this table does not. <b>The case the
+     *     chain is blind to</b> — deleting the last entry leaves a chain that still verifies,
+     *     because nothing descends from what was removed
+     * @param missingFromMirror entries this table holds and the mirror does not: written before
+     *     the mirror existed, written while it could not be reached, or inserted by somebody who
+     *     had the database and not the file
      */
-    public record Verification(long total, int unverifiable, long verified, boolean intact, String broken) {}
+    public record Verification(
+            long total,
+            int unverifiable,
+            long verified,
+            boolean intact,
+            String broken,
+            boolean mirrored,
+            int missingFromTable,
+            int missingFromMirror) {}
 
     /**
      * {@code limit}/{@code offset} as on {@code /issues}.
@@ -81,13 +98,20 @@ public class AuditLogController {
     @GetMapping("/verify")
     public Verification verify() {
         AuditChain.Verification result = service.verify();
+        AuditLogService.MirrorComparison mirror = service.verifyAgainstMirror();
         long total = entries.count();
         return new Verification(
                 total,
                 result.unverifiable(),
                 total - result.unverifiable(),
-                result.broken() == null,
-                result.broken());
+                // **The chain holding is no longer the whole answer.** An entry the mirror has
+                // and the table lost leaves the chain intact by construction, so reporting
+                // `intact` on the chain alone would call a deletion a clean bill of health.
+                result.broken() == null && mirror.missingFromTable() == 0,
+                result.broken(),
+                mirror.configured(),
+                mirror.missingFromTable(),
+                mirror.missingFromMirror());
     }
 
     private static String blankToNull(String value) {
