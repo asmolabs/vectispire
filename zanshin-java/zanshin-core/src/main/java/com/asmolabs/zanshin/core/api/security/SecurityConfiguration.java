@@ -53,9 +53,78 @@ public class SecurityConfiguration implements WebMvcConfigurer {
         registry.addInterceptor(passwordChange);
     }
 
+    /**
+     * The content security policy, in one place because it is one sentence.
+     *
+     * <p><b>What it is for.</b> Everything Zanshin displays — a finding's message, a package
+     * name, a CVE description, a commit author — comes from the analyzers and the advisory
+     * feeds, which is to say from data an attacker influences. This header is what decides
+     * whether a string that got through the rendering runs with the analyst's session or sits
+     * there inert. It is the last line, not the first: it does not excuse an unescaped
+     * interpolation, it survives one.
+     *
+     * <p><b>Read the relaxations, not the restrictions.</b> `default-src 'self'` already covers
+     * scripts, styles, images, fonts and XHR; the directives repeating it are named anyway so
+     * that narrowing one later is an edit rather than an addition. Everything below that is a
+     * hole, and each one carries what would happen without it:
+     *
+     * <ul>
+     *   <li>{@code object-src 'none'} and {@code base-uri 'self'} are not covered by
+     *       {@code default-src} at all. A {@code <base>} tag injected into the document
+     *       silently re-points every relative URL on the page — including the API calls — at
+     *       somebody else's host, and no other directive says a word about it.
+     *   <li>{@code frame-ancestors 'none'} is the modern half of {@code X-Frame-Options}, kept
+     *       alongside it because a proxy or a browser may honour one and not the other.
+     *   <li>{@code form-action 'self'} stops an injected form from posting the session
+     *       elsewhere. There is one real form flow — the OIDC redirect — and it is same-origin.
+     * </ul>
+     *
+     * <p><b>{@code style-src} carries {@code 'unsafe-inline'}, and that was measured rather than
+     * assumed.</b> Without it the production bundle loads and runs, and renders completely
+     * unstyled: Angular emits component styles as {@code <style>} elements at runtime and
+     * PrimeNG sets style attributes on elements it positions, and the console fills with
+     * "Applying inline style violates ... style-src 'self'" — several dozen on the sign-in page
+     * alone. Neither a nonce nor a hash list fixes it, because the browser applies neither to
+     * <em>style attributes</em>; closing this properly is a change to the interface, not to this
+     * header.
+     *
+     * <p>What that costs is worth naming rather than waving at: an injected {@code <style>} can
+     * still redress the page — cover a button, fake a dialog, and leak the shape of the DOM
+     * through selectors. What it cannot do is execute, because {@code script-src} keeps no
+     * {@code 'unsafe-inline'} and no {@code 'unsafe-eval'} — and that is the half that turns a
+     * displayed string into a session. A policy relaxed on styles still stops the attack this
+     * header exists for; one relaxed on scripts would not.
+     *
+     * <p><b>No {@code 'unsafe-eval'}, and the Angular build does not need it</b> — that is a
+     * property of the production configuration, which compiles templates ahead of time. A
+     * development build does eval, which is one more reason the measurement was taken against
+     * the bundle that ships.
+     *
+     * <p><b>HSTS stays absent, deliberately.</b> Zanshin is routinely reached over plain HTTP on
+     * an internal address; a Strict-Transport-Security header seen once makes that origin
+     * permanently unreachable in that browser. It belongs to the proxy terminating TLS, which is
+     * the component that knows it has TLS.
+     */
+    private static final String CONTENT_SECURITY_POLICY = String.join("; ",
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data:",
+            "font-src 'self'",
+            "connect-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'");
+
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
         return http
+                // On every response, static files included: the document that carries the
+                // injected string is `index.html`, so a policy applied only to `/api` would
+                // guard the JSON and leave the page it is rendered into unprotected.
+                .headers(headers -> headers.contentSecurityPolicy(
+                        policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY)))
                 // No CSRF token: this API is consumed by a client that sends a bearer token, and
                 // a bearer token is not attached by a browser to a cross-site request. Enabling
                 // it would only break the agent protocol, which has no page to read a token from.

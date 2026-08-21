@@ -102,17 +102,43 @@ resolves the target's entire history.
 
 *Between the results and the analyst.* What Zanshin displays comes from the analyzers and
 the advisory feeds, that is, from data an attacker influences. The CSP decides whether an
-injected string is inert or runs with the analyst's session. It is real and narrow:
-`default-src 'self'`, `script-src 'self'`, `style-src 'self'`, `frame-ancestors 'none'` —
-**and it is not implemented.** The header is absent: the server sends `X-Content-Type-Options`
-and `X-Frame-Options` and nothing else. This paragraph described a control that was lost when
-the control plane was rewritten, and it is left here as a stated gap rather than deleted,
-because deleting it would remove the only record that the policy above is the one intended.
-The Angular build needs no `'unsafe-eval'`; whether it needs `'unsafe-inline'` for styles has
-to be measured against the running interface, not assumed. **HSTS is
-deliberately absent**: Zanshin is often reached over HTTP on an internal address, and HSTS
-would make that origin permanently unreachable in any browser that saw it once. It belongs
-to the proxy that terminates TLS, which knows it has TLS.
+injected string is inert or runs with the analyst's session, and it is now **sent** — on every
+response, static files included, since the document carrying the string is `index.html` and not
+the JSON. `SecurityHeadersTest` asserts the whole policy string rather than its presence,
+because this control was already lost once: it was described here for an implementation that
+was then rewritten, and nothing disagreed with the document for as long as the header was
+missing. That is the failure mode of a security header — every page still renders.
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';
+frame-ancestors 'none'
+```
+
+**`style-src` carries `'unsafe-inline'`, and it was measured rather than assumed.** Without it
+the production bundle loads, runs, and renders *entirely unstyled*: Angular emits component
+styles as `<style>` elements at runtime and PrimeNG sets style attributes on what it positions,
+which the console reports several dozen times on the sign-in page alone. Neither a nonce nor a
+hash list closes it — a browser applies neither to style attributes — so closing it properly is
+a change to the interface, not to this header. What the relaxation costs is page redressing: an
+injected `<style>` can cover a button or fake a dialog. What it does not cost is execution,
+because **`script-src` keeps neither `'unsafe-inline'` nor `'unsafe-eval'`**, and that is the
+half that turns a displayed string into a session.
+
+**Two things the measurement found that reading could not.** Angular's production build inlines
+critical CSS by emitting `<link media="print" onload="this.media='all'">`; `script-src 'self'`
+blocks that inline handler, the stylesheet stays `media="print"`, and the interface renders
+unstyled — a page broken by a header nobody would suspect. `inlineCritical` is therefore off in
+`angular.json`, which is the fix that keeps `script-src` strict. And two pages inherited from
+the Sakai template — `auth/access` and `auth/error` — each pulled an illustration from
+`primefaces.org/cdn`, which `img-src 'self' data:` refuses. `scripts/check-assets.mjs` read the
+application shell only, so nothing saw them; it now reads every component template, and the
+images are gone rather than the directive widened.
+
+**HSTS is deliberately absent**: Zanshin is often reached over HTTP on an internal address, and
+HSTS would make that origin permanently unreachable in any browser that saw it once. It belongs
+to the proxy that terminates TLS, which knows it has TLS. `SecurityHeadersTest` pins its
+absence, so that adding it becomes a decision rather than a default.
 
 *Between an agent and the database.* A remote agent **only talks to the API**. That is the
 number one reason for long-polling: an agent with a PostgreSQL connection would need the
@@ -203,8 +229,10 @@ verdict blocks nothing.
 What matters here is checked rather than asserted: the agent cannot import the database
 layer (the module graph makes it impossible), the log detects tampering (`verifyChain`),
 a restricted key does not see other targets, a public Ollama URL is refused at send time,
-the login page names no credential, and no third-party stylesheet is declared — the CSP
-would refuse it, so declaring it would produce a page that merely *looks* right.
+the login page names no credential, the policy header is sent with its every directive
+(`SecurityHeadersTest`), and no third-party asset is declared anywhere — shell or component
+template — because the CSP would refuse it, so declaring it would produce a page that merely
+*looks* right.
 
 ## Still open
 

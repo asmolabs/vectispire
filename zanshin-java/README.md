@@ -58,6 +58,8 @@ the same commit that violates it; a missing dependency cannot.
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
+| The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
+| No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 
 ### Two decisions worth knowing
