@@ -1,17 +1,23 @@
 package com.asmolabs.zanshin.core.api;
 
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
+import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
+import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.common.domain.teams.TeamRules;
 import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.TeamEntity;
 import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
 import com.asmolabs.zanshin.core.persistence.TeamTargetEntity;
+import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
 import com.asmolabs.zanshin.core.repositories.TeamMembers;
 import com.asmolabs.zanshin.core.repositories.TeamTargets;
+import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
 import com.asmolabs.zanshin.core.repositories.Teams;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.SettingsService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -55,7 +61,10 @@ public class TeamsController {
     private final Teams teams;
     private final TeamMembers memberships;
     private final TeamTargets targets;
+    private final TeamWebhooks webhooks;
     private final Users users;
+    private final OutboundUrlGuard outbound;
+    private final SettingsService settings;
     private final AuditLogService audit;
     private final Clock clock;
 
@@ -63,13 +72,19 @@ public class TeamsController {
             Teams teams,
             TeamMembers memberships,
             TeamTargets targets,
+            TeamWebhooks webhooks,
             Users users,
+            OutboundUrlGuard outbound,
+            SettingsService settings,
             AuditLogService audit,
             Clock clock) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
+        this.webhooks = webhooks;
         this.users = users;
+        this.outbound = outbound;
+        this.settings = settings;
         this.audit = audit;
         this.clock = clock;
     }
@@ -78,10 +93,22 @@ public class TeamsController {
      * @param memberCount and {@code targetCount} on the list, so the administration screen can
      *     say "four people, two repositories" without one request per team. A team with no
      *     targets grants nothing, and that is worth seeing at a glance rather than by opening it
+     * @param notified whether this team has its own channel — <b>and not the URL</b>. A webhook
+     *     URL is a bearer capability: whoever reads it can post in the channel where the team
+     *     awaits Zanshin's alerts, which is where a forged message carries most weight. The
+     *     settings catalogue makes the same choice for the global one
      */
-    public record TeamSummary(Long id, String name, String description, int memberCount, int targetCount) {}
+    public record TeamSummary(
+            Long id, String name, String description, int memberCount, int targetCount, boolean notified) {}
 
     public record TeamRequest(String name, String description) {}
+
+    /**
+     * @param url the channel, or empty to remove it. Write-only by construction: there is no route
+     *     that returns it, so an account that should not have it cannot read it back out of the
+     *     screen that sets it
+     */
+    public record WebhookRequest(String url) {}
 
     public record TargetAssignment(String kind, Long id) {}
 
@@ -93,6 +120,9 @@ public class TeamsController {
                 .map(row -> row.getId().teamId()));
         Map<Long, Long> owned = countBy(targets.findAll().stream()
                 .map(row -> row.getId().teamId()));
+        java.util.Set<Long> notified = webhooks.findAll().stream()
+                .map(TeamWebhookEntity::getTeamId)
+                .collect(java.util.stream.Collectors.toSet());
 
         return teams.findAll().stream()
                 .sorted(Comparator.comparing(TeamEntity::getName, String.CASE_INSENSITIVE_ORDER))
@@ -101,7 +131,8 @@ public class TeamsController {
                         team.getName(),
                         team.getDescription(),
                         members.getOrDefault(team.getId(), 0L).intValue(),
-                        owned.getOrDefault(team.getId(), 0L).intValue()))
+                        owned.getOrDefault(team.getId(), 0L).intValue(),
+                        notified.contains(team.getId())))
                 .toList();
     }
 
@@ -122,7 +153,7 @@ public class TeamsController {
         TeamEntity saved = teams.save(team);
 
         record(principal, request, saved.getId(), AuditOperation.TEAM_UPDATED, "Team created: " + name);
-        return new TeamSummary(saved.getId(), saved.getName(), saved.getDescription(), 0, 0);
+        return new TeamSummary(saved.getId(), saved.getName(), saved.getDescription(), 0, 0, false);
     }
 
     @PatchMapping("/{id}")
@@ -152,7 +183,8 @@ public class TeamsController {
                 team.getName(),
                 team.getDescription(),
                 memberships.findByTeamId(id).size(),
-                targets.findByTeamId(id).size());
+                targets.findByTeamId(id).size(),
+                webhooks.existsById(id));
     }
 
     /**
@@ -262,6 +294,58 @@ public class TeamsController {
         record(principal, request, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Targets of " + team.getName() + ": " + wanted.size());
         return wanted;
+    }
+
+    /**
+     * Sets or clears this team's channel.
+     *
+     * <p><b>Validated here rather than only at send time</b>, though it is validated there too:
+     * refusing a private address at the moment it is typed tells the administrator what is wrong
+     * while they are still looking at the field, and the check at send time is what stops a value
+     * written straight into the database from becoming an unchecked destination. Two checks, one
+     * rule — {@code OutboundUrlGuard} owns it.
+     *
+     * <p>Empty removes the channel: the team then falls back to the global webhook, which is the
+     * state it was in before anybody set one.
+     */
+    @PutMapping("/{id}/webhook")
+    public TeamSummary setWebhook(
+            @PathVariable long id,
+            @RequestBody WebhookRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        TeamEntity team = requireTeam(id);
+        String url = body == null || body.url() == null ? "" : body.url().trim();
+
+        if (url.isEmpty()) {
+            webhooks.deleteById(id);
+            record(principal, request, id, AuditOperation.TEAM_ACCESS_CHANGED,
+                    "Webhook removed from " + team.getName());
+        } else {
+            outbound.validate(url, policy(), "team webhook URL");
+            webhooks.save(new TeamWebhookEntity(id, url));
+            // **The URL is not in the entry.** An audit log is read by people who are not
+            // necessarily allowed to post in that channel, and a capability copied into a table
+            // that is deliberately never purged is a capability that outlives its rotation.
+            record(principal, request, id, AuditOperation.TEAM_ACCESS_CHANGED,
+                    "Webhook set on " + team.getName());
+        }
+
+        return new TeamSummary(
+                team.getId(),
+                team.getName(),
+                team.getDescription(),
+                memberships.findByTeamId(id).size(),
+                targets.findByTeamId(id).size(),
+                !url.isEmpty());
+    }
+
+    /** The same rule as the global webhook: private destinations only when the operator said so. */
+    private OutboundPolicy policy() {
+        return settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
     }
 
     private TeamEntity requireTeam(long id) {

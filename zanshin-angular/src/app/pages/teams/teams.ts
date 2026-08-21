@@ -64,6 +64,8 @@ export class Teams {
     readonly accessTeam = signal<TeamSummary | null>(null);
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<TeamSummary | null>(null);
+    readonly webhookVisible = signal(false);
+    readonly webhookTeam = signal<TeamSummary | null>(null);
 
     readonly isEmpty = computed(() => this.teams().length === 0);
     /** Options for the member picker: every account, whatever its role. An administrator is
@@ -76,6 +78,10 @@ export class Teams {
     form = { name: '', description: '' };
     selectedMembers: number[] = [];
     selectedTargets: string[] = [];
+    /** Always starts empty, even for a team that has one: nothing returns the URL, so there is
+     *  nothing to prefill. Saving an empty field is how a channel is removed, which is why the
+     *  dialog says so rather than leaving it to be discovered. */
+    webhookUrl = '';
 
     constructor() {
         this.reload();
@@ -205,6 +211,34 @@ export class Teams {
             error: (failure) => {
                 this.saving.set(false);
                 this.formError.set(messageOf(failure, 'Could not save the membership.'));
+            }
+        });
+    }
+
+    openWebhook(team: TeamSummary): void {
+        this.webhookTeam.set(team);
+        this.webhookUrl = '';
+        this.formError.set(null);
+        this.webhookVisible.set(true);
+    }
+
+    saveWebhook(): void {
+        const team = this.webhookTeam();
+        if (!team) return;
+
+        this.saving.set(true);
+        this.formError.set(null);
+        this.api.setTeamWebhook(team.id, this.webhookUrl).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.webhookVisible.set(false);
+                this.reload();
+            },
+            error: (failure) => {
+                this.saving.set(false);
+                // The server refuses a private destination unless the deployment allows it, and
+                // that message is worth showing verbatim: it names which rule was broken.
+                this.formError.set(messageOf(failure, 'Could not save the channel.'));
             }
         });
     }

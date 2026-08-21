@@ -85,6 +85,18 @@ public class OutboxService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public OutboxMessageEntity enqueue(Object payload, String messageType) {
+        return enqueue(payload, messageType, null);
+    }
+
+    /**
+     * @param teamId whose channel this copy is for, or {@code null} for the global webhook. One
+     *     message per destination rather than one message with a list: a channel that is
+     *     unreachable must be retried on its own, and a single row would make one broken Slack
+     *     workspace hold back every other team's notification — or mark the lot delivered because
+     *     the first POST succeeded
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public OutboxMessageEntity enqueue(Object payload, String messageType, Long teamId) {
         UUID id = UUID.randomUUID();
         ObjectNode body = json.valueToTree(payload);
         body.put("message_id", id.toString());
@@ -92,6 +104,7 @@ public class OutboxService {
         OutboxMessageEntity message = new OutboxMessageEntity();
         message.setId(id);
         message.setMessageType(messageType);
+        message.setTeamId(teamId);
         message.setPayload(body.toString());
         message.setStatus(STATUS_PENDING);
         message.setAttempts(0);
@@ -123,7 +136,15 @@ public class OutboxService {
         for (OutboxMessageEntity message : due) {
             int attempts = message.getAttempts() + 1;
             try {
-                notifications.deliver(payloadOf(message));
+                notifications.deliver(payloadOf(message), message.getTeamId());
+            } catch (NotificationService.GoneDestinationException gone) {
+                // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
+                // back a team somebody deleted, and twelve attempts would fill the log with an
+                // error nobody can act on — the log an operator has to read to notice the ones
+                // they can.
+                transactions.executeWithoutResult(status -> abandon(message, attempts, at, gone));
+                abandoned++;
+                continue;
             } catch (JsonProcessingException | RuntimeException error) {
                 if (Boolean.TRUE.equals(
                         transactions.execute(status -> settleFailure(message, attempts, at, error)))) {
@@ -157,6 +178,18 @@ public class OutboxService {
             counts.put((String) row[0], ((Number) row[1]).longValue());
         }
         return counts;
+    }
+
+    /**
+     * A message whose destination no longer exists.
+     *
+     * <p>Its own path rather than {@code settleFailure} with a short attempt budget: the reason is
+     * different in kind, and the row's {@code last_error} is what an operator reads to tell "your
+     * Slack is down" from "this notification was for a team that no longer exists".
+     */
+    private void abandon(OutboxMessageEntity message, int attempts, Instant at, RuntimeException reason) {
+        messages.recordAttempt(message.getId(), attempts, reason.getMessage(), STATUS_FAILED, null);
+        log.error("Notification {} abandoned: {}", message.getId(), reason.getMessage());
     }
 
     /** @return whether the message was abandoned for good */

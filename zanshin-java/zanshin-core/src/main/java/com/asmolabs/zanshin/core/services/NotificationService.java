@@ -6,6 +6,8 @@ import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
+import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -26,19 +28,28 @@ public class NotificationService {
 
     private final SettingsService settings;
     private final OutboundPost post;
+    private final TeamWebhooks teamWebhooks;
 
-    public NotificationService(SettingsService settings, OutboundPost post) {
+    public NotificationService(SettingsService settings, OutboundPost post, TeamWebhooks teamWebhooks) {
         this.settings = settings;
         this.post = post;
+        this.teamWebhooks = teamWebhooks;
     }
 
     public String webhookUrl() {
         return settings.get(Setting.WEBHOOK_URL).trim();
     }
 
-    /** Enabled means "a URL is configured": there is no other switch. */
+    /**
+     * Enabled means "somebody is listening": the global URL, or at least one team's.
+     *
+     * <p>Both, because a deployment that gives every team its own channel and sets no global one
+     * is a reasonable configuration — and reading only the global URL would have made it a
+     * configuration where nothing is ever built or queued. That would be the same silence as a
+     * missing wire: the channels are configured, the screen says so, and no message exists.
+     */
     public boolean isEnabled() {
-        return !webhookUrl().isEmpty();
+        return !webhookUrl().isEmpty() || teamWebhooks.count() > 0;
     }
 
     public Severity minSeverity() {
@@ -89,17 +100,62 @@ public class NotificationService {
      * fixing a typo must not have to re-run a scan to flush the pending notifications, and a
      * setting written straight into the database must not become an unchecked destination.
      */
-    public void deliver(NotificationPayload payload) {
+    public void deliver(NotificationPayload payload, Long teamId) {
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;
 
-        post.postJson(webhookUrl(), payload, policy, "webhook URL");
+        String destination = destinationFor(teamId);
+        String label = teamId == null ? "webhook URL" : "team webhook URL";
+
+        post.postJson(destination, payload, policy, label);
         log.info(
-                "Webhook notified for scan {} ({} new, {} reopened), message {}.",
+                "Webhook notified for scan {} ({} new, {} reopened), message {}, destination {}.",
                 payload.scanId(),
                 payload.newCount(),
                 payload.reopenedCount(),
-                payload.messageId());
+                payload.messageId(),
+                teamId == null ? "global" : "team " + teamId);
+    }
+
+    /**
+     * The URL this message is for, read now rather than when it was queued.
+     *
+     * <p><b>A destination that has disappeared is a permanent failure, not a transient one.</b> A
+     * team deleted, or its channel cleared, while one of its notifications waited in the queue:
+     * retrying that for twelve attempts would fill the log with an error nobody can fix, and
+     * marking it sent would claim a delivery that never happened. {@link GoneDestinationException}
+     * says which it is, and the relay abandons it with a reason an operator can read.
+     */
+    private String destinationFor(Long teamId) {
+        if (teamId == null) {
+            String global = webhookUrl();
+            if (global.isEmpty()) {
+                throw new GoneDestinationException("the global webhook URL has been cleared");
+            }
+            return global;
+        }
+        return teamWebhooks
+                .findById(teamId)
+                .map(TeamWebhookEntity::getUrl)
+                .filter(url -> !url.isBlank())
+                .orElseThrow(() -> new GoneDestinationException(
+                        "team " + teamId + " no longer has a webhook — deleted, or its channel was cleared"));
+    }
+
+    /**
+     * A destination that no longer exists.
+     *
+     * <p>Distinct from an unreachable one on purpose: the second deserves the twelve retries the
+     * backoff policy grants, the first deserves none, because nothing about waiting will bring
+     * back a team somebody deleted.
+     */
+    public static class GoneDestinationException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public GoneDestinationException(String message) {
+            super(message);
+        }
     }
 }

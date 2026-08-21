@@ -161,6 +161,30 @@ deleting a team removes its rows **explicitly** instead of relying on the declar
 because SQLite enforces foreign keys only when `PRAGMA foreign_keys = ON` has been issued and
 nothing here issues it — a revocation must not depend on which of four engines is underneath.
 
+**And the channel is partitioned too, or the rest of it leaks.** Visibility decides what an
+account reads in the interface; it decides nothing about where Zanshin announces findings. With a
+single webhook, a deployment that carefully restricted its screens still posted every team's
+vulnerabilities where everybody reads. A team may now have its own channel, and receives only
+what concerns the targets it owns; the global webhook keeps receiving everything, because it is
+the security team's feed and narrowing it would be a silent change to what an existing
+deployment is told.
+
+Three details are load-bearing. **One queued message per destination**, not one carrying a list:
+a channel that is unreachable has to be retried on its own, where a single row would let one
+broken workspace hold back every other team's notification — or mark the lot delivered because
+the first POST succeeded. **The message stores the team, not the URL**, so the destination is
+re-read and re-validated at send time: fixing a typo flushes the queue instead of requiring a
+re-scan, and a URL written straight into the database is still checked before anything is posted
+to it. And **a destination that has disappeared is abandoned rather than retried** — a team
+deleted while its notification waited deserves none of the twelve attempts the backoff policy
+grants, because nothing about waiting brings it back.
+
+The URL itself is never returned by any route: it is a bearer capability — whoever reads it can
+post in the channel where a team awaits Zanshin's alerts, which is where a forged message carries
+most weight — so the screen shows *whether* a team has a channel and cannot show *which*. The
+audit entry names the team and not the URL, for the same reason and one more: the audit table is
+deliberately never purged, and a capability copied into it outlives its own rotation.
+
 *Between an agent and the database.* A remote agent **only talks to the API**. That is the
 number one reason for long-polling: an agent with a PostgreSQL connection would need the
 database credentials *and* `ENCRYPTION_KEY`, hence everything needed to decrypt every SSH

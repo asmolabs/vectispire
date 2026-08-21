@@ -3,8 +3,12 @@ package com.asmolabs.zanshin.core.services;
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.zanshin.common.domain.teams.TeamRules;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
+import com.asmolabs.zanshin.core.repositories.TeamTargets;
+import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +18,11 @@ import org.springframework.stereotype.Service;
  * <p>Its own class rather than a method on either side, because it is the only place that knows
  * both: {@link IssueSyncService} must not learn what a webhook is, and {@link
  * NotificationService} must not learn what an issue row looks like.
+ *
+ * <p><b>And it is where a notification is routed</b>, because it is also the only place that
+ * knows which target the delta is about. One copy for the global channel and one per owning team
+ * that has its own: with a single global webhook, a deployment that carefully restricted its
+ * screens still announced every team's vulnerabilities where everybody reads.
  */
 @Service
 public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
@@ -21,12 +30,20 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
     private final NotificationService notifications;
     private final OutboxService outbox;
     private final TargetNaming names;
+    private final TeamTargets teamTargets;
+    private final TeamWebhooks teamWebhooks;
 
     public ScanDeltaNotifier(
-            NotificationService notifications, OutboxService outbox, TargetNaming names) {
+            NotificationService notifications,
+            OutboxService outbox,
+            TargetNaming names,
+            TeamTargets teamTargets,
+            TeamWebhooks teamWebhooks) {
         this.notifications = notifications;
         this.outbox = outbox;
         this.names = names;
+        this.teamTargets = teamTargets;
+        this.teamWebhooks = teamWebhooks;
     }
 
     /**
@@ -45,7 +62,44 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
                         notifiable(result.newIssues()),
                         notifiable(result.reopenedIssues()),
                         result.resolved())
-                .ifPresent(payload -> outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA));
+                .ifPresent(payload -> {
+                    // The global channel keeps receiving everything: it is the security team's
+                    // feed, and narrowing it would be a silent change to what an existing
+                    // deployment is told.
+                    if (!notifications.webhookUrl().isEmpty()) {
+                        outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, null);
+                    }
+                    for (Long teamId : teamsToTell(scan)) {
+                        outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, teamId);
+                    }
+                });
+    }
+
+    /**
+     * The teams that own this scan's target <b>and</b> have somewhere to be told.
+     *
+     * <p>Two queries, inside the caller's transaction, on a set of a few rows. Ownership and
+     * channel are asked separately because most teams have the first and not the second: queueing
+     * a message for a team with no webhook would create a row whose only future is to be
+     * abandoned by the relay.
+     */
+    private List<Long> teamsToTell(ScanEntity scan) {
+        String kind = scan.getContainerId() == null ? TeamRules.KIND_REPOSITORY : TeamRules.KIND_CONTAINER;
+        Long targetId = scan.getContainerId() == null ? scan.getRepoId() : scan.getContainerId();
+        if (targetId == null) {
+            return List.of();
+        }
+
+        List<Long> owners = teamTargets.findByTarget(kind, targetId).stream()
+                .map(row -> row.getId().teamId())
+                .distinct()
+                .toList();
+        if (owners.isEmpty()) {
+            return List.of();
+        }
+        return teamWebhooks.findByTeamIdIn(owners).stream()
+                .map(TeamWebhookEntity::getTeamId)
+                .toList();
     }
 
     private static List<NotifiableIssue> notifiable(List<IssueEntity> issues) {

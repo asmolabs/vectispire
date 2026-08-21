@@ -20,6 +20,7 @@
                 <th>Team</th>
                 <th class="text-right">Members</th>
                 <th class="text-right">Targets</th>
+                <th>Notifications</th>
                 <th class="w-1"></th>
             </tr>
         </ng-template>
@@ -43,7 +44,25 @@
                         {{ team.targetCount }}
                     }
                 </td>
+                <td>
+                    <!--
+                        Whether, not where. A webhook URL is a bearer capability — whoever reads it
+                        can post in the channel where this team awaits its alerts — so no route
+                        returns it and this cell cannot show it.
+                    -->
+                    @if (team.notified) {
+                        <p-tag severity="success" value="own channel" />
+                    } @else {
+                        <span class="text-muted-color text-sm">global webhook</span>
+                    }
+                </td>
                 <td class="text-right whitespace-nowrap">
+                    <p-button
+                        label="Channel"
+                        icon="pi pi-bell"
+                        severity="secondary"
+                        [text]="true"
+                        (onClick)="openWebhook(team)" />
                     <p-button
                         label="Access"
                         icon="pi pi-users"
@@ -57,7 +76,7 @@
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="4" class="text-center text-muted-color py-6">
+                <td colspan="5" class="text-center text-muted-color py-6">
                     No team yet. Until a target belongs to one, visibility is decided account by account.
                 </td>
             </tr>
@@ -144,6 +163,30 @@
     <ng-template #footer>
         <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="accessVisible.set(false)" />
         <p-button label="Save" [loading]="saving()" (onClick)="saveAccess()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [(visible)]="webhookVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+    [header]="'Channel — ' + (webhookTeam()?.name ?? '')">
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <div class="flex flex-col gap-2">
+        <label for="team-webhook" class="font-medium">Webhook URL</label>
+        <input pInputText id="team-webhook" name="team-webhook" [(ngModel)]="webhookUrl" class="w-full" />
+        <small class="text-muted-color">
+            Only what concerns this team's targets is posted here. The global webhook keeps receiving everything.
+            <br />
+            The field starts empty even when a channel is set: the URL is never sent back, because reading it is
+            enough to post in that channel. <strong>Saving it empty removes the channel.</strong>
+        </small>
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="webhookVisible.set(false)" />
+        <p-button label="Save" [loading]="saving()" (onClick)="saveWebhook()" />
     </ng-template>
 </p-dialog>
 

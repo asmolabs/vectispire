@@ -360,6 +360,12 @@ export class ApiService {
         return this.http.delete<void>(`/api/v1/teams/${id}`);
     }
 
+    /** Write-only: there is no companion getter, because nothing returns the URL. Empty removes
+     *  the channel, and the team falls back to the global webhook. */
+    setTeamWebhook(id: number, url: string): Observable<TeamSummary> {
+        return this.http.put<TeamSummary>(`/api/v1/teams/${id}/webhook`, { url });
+    }
+
     teamMembers(id: number): Observable<number[]> {
         return this.http.get<number[]>(`/api/v1/teams/${id}/members`);
     }

@@ -27,6 +27,15 @@ public interface TeamTargets extends JpaRepository<TeamTargetEntity, TeamTargetE
     @Query("select t from TeamTargetEntity t where t.id.teamId in :teamIds")
     List<TeamTargetEntity> findByTeamIdIn(@Param("teamIds") List<Long> teamIds);
 
+    /**
+     * Which teams own one target.
+     *
+     * <p>The reverse of {@link #findByTeamId}: asked when something happens <em>to a target</em>
+     * and the teams concerned have to be found — a notification to route, for instance.
+     */
+    @Query("select t from TeamTargetEntity t where t.id.targetKind = :kind and t.id.targetId = :targetId")
+    List<TeamTargetEntity> findByTarget(@Param("kind") String kind, @Param("targetId") Long targetId);
+
     /** Replaced wholesale: what matters is that a removal really removes. */
     @Transactional
     @Modifying(clearAutomatically = true)

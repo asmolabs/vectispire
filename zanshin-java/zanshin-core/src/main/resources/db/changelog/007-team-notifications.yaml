@@ -1,0 +1,71 @@
+# A webhook per team, and a destination on each queued message.
+#
+# **Why the partitioning is incomplete without this.** Visibility decides what an account reads
+# in the interface; it decides nothing about the channel where Zanshin announces findings. With
+# one global webhook, every team's vulnerabilities are posted where everybody reads — so a
+# deployment that carefully restricted the screens still tells the whole company that team B's
+# repository has a critical. The cloisonnement leaks through Slack.
+#
+# **The message stores the team, not the URL.** `NotificationService` re-reads and re-validates
+# the destination at send time on purpose — an operator fixing a typo must not have to re-run a
+# scan to flush the queue, and a URL written straight into the database must not become an
+# unchecked destination. Storing a resolved URL on the row would freeze it at queue time and undo
+# both properties. A null `team_id` means the global webhook, which is what every existing row is.
+databaseChangeLog:
+  - changeSet:
+      id: 007-team-webhook
+      author: zanshin
+      changes:
+        # **A table and not a column on `t_team`, for two reasons that agree.**
+        #
+        # The first is portability, and it was measured rather than foreseen: `addColumn` on
+        # `t_team` makes Liquibase **recreate** the table on SQLite, and the recreation left
+        # `t_team_member.team_id` and `t_team_target.team_id` pointing at a `t_team_temporary`
+        # that does not exist — referential integrity on the access-control tables, destroyed by
+        # the most innocuous change there is. `ChangelogTest` caught it, which is why that test
+        # asserts the keys rather than the columns. It is the third time this trap has fired in
+        # this repository.
+        #
+        # The second is that a webhook URL is not configuration but a **bearer capability**:
+        # whoever knows it can post in the channel where the team awaits Zanshin's alerts, which
+        # is the channel where a forged message carries most weight. Keeping it out of `t_team`
+        # means the administration screen's `select` over teams cannot carry it by accident — the
+        # same reasoning the settings catalogue applies to the global one with `Sensitivity.SECRET`.
+        - createTable:
+            tableName: t_team_webhook
+            columns:
+              - column:
+                  name: team_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_t_team_webhook
+                    foreignKeyName: fk_team_webhook_team
+                    references: t_team(id)
+                    deleteCascade: true
+              - column:
+                  name: url
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 007-outbox-destination
+      author: zanshin
+      changes:
+        - addColumn:
+            tableName: t_outbox_message
+            columns:
+              # **No foreign key, and this one is a deliberate exception rather than an
+              # impossibility.** A team deleted while one of its notifications is still queued
+              # would take the message with it under a cascade — silently dropping a delivery that
+              # was already promised — or block the deletion under a restrict. Neither is right:
+              # the relay should find the team gone and abandon that message with a reason an
+              # operator can read, which is what `OutboxService` does.
+              #
+              # `addColumn` is safe here where it was not on `t_team`: nothing references
+              # `t_outbox_message`, so its recreation on SQLite carries no key to lose.
+              - column:
+                  name: team_id
+                  type: bigint

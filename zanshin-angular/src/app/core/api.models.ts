@@ -327,6 +327,10 @@ export interface TeamSummary {
      *  glance rather than by opening it. */
     memberCount: number;
     targetCount: number;
+    /** Whether the team has its own notification channel — **not the URL**. A webhook URL is a
+     *  bearer capability: whoever reads it can post where the team awaits Zanshin's alerts, so no
+     *  route returns it and this screen cannot display it back. */
+    notified: boolean;
 }
 
 export interface TeamTargetAssignment {
