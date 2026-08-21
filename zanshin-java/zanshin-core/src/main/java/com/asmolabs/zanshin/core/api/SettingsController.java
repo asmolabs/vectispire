@@ -5,6 +5,8 @@ import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.asmolabs.zanshin.common.domain.aireview.AiReview;
+import com.asmolabs.zanshin.core.services.AiReviewService;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.SettingsService;
 import com.asmolabs.zanshin.core.services.TicketService;
@@ -16,6 +18,7 @@ import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,11 +47,14 @@ public class SettingsController {
     private final SettingsService settings;
     private final TicketService tickets;
     private final AuditLogService audit;
+    private final AiReviewService aiReview;
 
-    public SettingsController(SettingsService settings, TicketService tickets, AuditLogService audit) {
+    public SettingsController(
+            SettingsService settings, TicketService tickets, AuditLogService audit, AiReviewService aiReview) {
         this.settings = settings;
         this.tickets = tickets;
         this.audit = audit;
+        this.aiReview = aiReview;
     }
 
     /**
@@ -97,7 +103,10 @@ public class SettingsController {
             views.add(new SettingView(
                     setting.key(),
                     setting.type().name().toLowerCase(java.util.Locale.ROOT),
-                    setting.section().name().toLowerCase(java.util.Locale.ROOT),
+                    // The label, not the enum constant. `Section` carries one and nothing called
+                    // it, so every card on this screen was titled `model_review` and
+                    // `end_of_life` — the raw name, lowercased, straight from the wire.
+                    setting.section().label(),
                     setting.label(),
                     setting.help(),
                     setting.defaultValue(),
@@ -187,5 +196,64 @@ public class SettingsController {
     @GetMapping("/ticket-token")
     public Map<String, Boolean> ticketTokenState() {
         return Map.of("configured", !tickets.token().isEmpty());
+    }
+
+    /**
+     * @param reachable whether the host answered at all
+     * @param modelInstalled whether the configured model is among the ones it holds. <b>Separate
+     *     from {@code reachable} deliberately</b>: a reachable Ollama without the model is the
+     *     most common way this is misconfigured, and a single green tick would hide it until the
+     *     first report failed
+     * @param detail what to do about it, in a sentence, because a boolean pair is a puzzle
+     */
+    public record OllamaCheck(
+            boolean reachable, boolean modelInstalled, String model, String url, List<String> models, String detail) {}
+
+    /**
+     * Asks the configured Ollama what it holds.
+     *
+     * <p><b>A test button exists because the alternative is finding out from a failed report.</b>
+     * Every part of this configuration — the URL, whether a remote one is allowed, the model's
+     * name — is only exercised when something asks for a review, which is minutes later and on
+     * another screen. The check runs the same URL validation as a real call, so a refusal here is
+     * the refusal a report would get.
+     *
+     * <p>It reports rather than throws: "unreachable" is an answer to the question the button
+     * asks, not an error in asking it.
+     */
+    @PostMapping("/ollama-test")
+    public OllamaCheck testOllama() {
+        String model = aiReview.selectedModel();
+        String url;
+        try {
+            url = aiReview.validatedUrl();
+        } catch (RuntimeException refused) {
+            // A public URL with no acknowledgement lands here. It is a configuration answer, and
+            // the operator needs the reason rather than a red cross.
+            return new OllamaCheck(false, false, model, aiReview.ollamaUrl(), List.of(), refused.getMessage());
+        }
+
+        List<String> models = aiReview.availableModels();
+        // `availableModels` never throws and falls back to suggestions, which is right for a
+        // dropdown and wrong for a test: the fallback list is indistinguishable from an installed
+        // one unless the URL is asked a second time. Equality with the suggestions is what
+        // separates "the host answered" from "the host did not".
+        boolean reachable = !models.equals(AiReview.FALLBACK_MODEL_SUGGESTIONS);
+
+        if (!reachable) {
+            return new OllamaCheck(false, false, model, url, List.of(),
+                    "No answer from " + url + ". Is Ollama running, and reachable from this process?");
+        }
+        boolean installed = models.contains(model);
+        return new OllamaCheck(
+                true,
+                installed,
+                model,
+                url,
+                models,
+                installed
+                        ? "Reachable, and \"" + model + "\" is installed."
+                        : "Reachable, but \"" + model + "\" is not installed there. Pull it, or pick one of the "
+                                + models.size() + " it holds.");
     }
 }

@@ -27,6 +27,15 @@ public final class AiReview {
     public static final String DEFAULT_MODEL = "gemma4:12b-it-qat";
 
     /**
+     * Five minutes.
+     *
+     * <p>Generous on purpose: the failure it replaces was a ten-second ceiling that reported
+     * itself as the model timing out. A wait that is too long costs one held request; one that is
+     * too short costs every report, and looks like somebody else's fault.
+     */
+    public static final int DEFAULT_TIMEOUT_SECONDS = 300;
+
+    /**
      * Offered only when Ollama itself is unreachable, so the settings screen is not empty
      * during installation — <b>never presented as installed</b>.
      */

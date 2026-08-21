@@ -32,6 +32,15 @@ public enum AuditOperation {
     ISSUE_TRIAGED,
 
     SCAN_TRIGGERED,
+
+    /**
+     * A model was asked for a report about a target.
+     *
+     * <p>Audited because it is an outbound send: the target's finding list — identifiers, file
+     * paths, descriptions — leaves this process towards a host an operator configured. That the
+     * host is usually localhost is a deployment fact, not a property of the operation.
+     */
+    AI_REVIEW_REQUESTED,
     TICKET_CREATED,
     GATE_POLICY_UPDATED,
 

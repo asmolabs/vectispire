@@ -10,7 +10,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { SettingDefinition } from '../../core/api.models';
+import type { OllamaCheck, SettingDefinition } from '../../core/api.models';
 
 const SEVERITIES = [
     { label: 'Critical', value: 'critical' },
@@ -49,6 +49,25 @@ const SEVERITIES = [
         @for (section of sections(); track section.name) {
             <p-card styleClass="mb-4">
                 <ng-template #title>{{ section.name }}</ng-template>
+
+                @if (isModelReview(section)) {
+                    <!--
+                        A test button, because the alternative is finding out from a failed report.
+                        Every field here — the URL, whether a remote one is allowed, the model's
+                        name — is only exercised when something asks for a review, which is minutes
+                        later and on another screen.
+                    -->
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <p-button label="Test the connection" icon="pi pi-bolt" severity="secondary" size="small"
+                                  [loading]="testingOllama()" (onClick)="testOllama()" />
+                        @if (ollama(); as check) {
+                            <p-message [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
+                                       [closable]="false" styleClass="m-0">
+                                {{ check.detail }}
+                            </p-message>
+                        }
+                    </div>
+                }
 
                 <div class="flex flex-col gap-5">
                     @for (setting of section.settings; track setting.key) {
@@ -161,6 +180,45 @@ export class Settings {
     private original: Record<string, string> = {};
 
     readonly dirty = computed(() => Object.entries(this.values()).some(([key, value]) => this.original[key] !== value));
+
+    /**
+     * Matched on the settings it holds, not on its title.
+     *
+     * <p>The server sends a human label — it used to send the raw enum name, which is why this
+     * screen said `model_review`. A label is prose and prose gets reworded; keying the button to
+     * it would make the button vanish silently the day somebody improves the wording. The keys
+     * are the contract.
+     */
+    isModelReview(section: { settings: SettingDefinition[] }): boolean {
+        return section.settings.some((setting) => setting.key.startsWith('ai_review_'));
+    }
+
+    readonly ollama = signal<OllamaCheck | null>(null);
+    readonly testingOllama = signal(false);
+
+    testOllama(): void {
+        this.testingOllama.set(true);
+        this.ollama.set(null);
+        this.api.testOllama().subscribe({
+            next: (check) => {
+                this.ollama.set(check);
+                this.testingOllama.set(false);
+            },
+            error: () => {
+                this.testingOllama.set(false);
+                // Reported as an answer rather than an error banner: "the check itself failed" is
+                // still information about the configuration being tested.
+                this.ollama.set({
+                    reachable: false,
+                    modelInstalled: false,
+                    model: '',
+                    url: '',
+                    models: [],
+                    detail: 'The connection test could not be run.'
+                });
+            }
+        });
+    }
 
     readonly sections = computed(() => {
         const groups = new Map<string, SettingDefinition[]>();

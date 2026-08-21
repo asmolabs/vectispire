@@ -180,6 +180,14 @@ public enum Setting {
             "The name as Ollama knows it. It does not have to be installed already to be saved here.",
             AiReview.DEFAULT_MODEL),
 
+    AI_REVIEW_TIMEOUT_SECONDS("ai_review_timeout_seconds", SettingType.INTEGER, Section.MODEL_REVIEW,
+            "How long to wait for the model (seconds)",
+            "A local model writing a report takes minutes on ordinary hardware, and the ten seconds that suit a "
+                    + "webhook turn every run into \"request timed out\" — which reads as a broken Ollama rather "
+                    + "than as a limit set here. The right value depends on the machine and the model, which is "
+                    + "why it is a setting and not a constant.",
+            String.valueOf(AiReview.DEFAULT_TIMEOUT_SECONDS)),
+
     AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
             "Allow a remote Ollama",
             "Off by default, and it is the most consequential setting on this screen: turning it on allows "

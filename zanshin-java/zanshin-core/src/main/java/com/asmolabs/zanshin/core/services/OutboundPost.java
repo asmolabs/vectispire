@@ -26,6 +26,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class OutboundPost {
 
+    /**
+     * Right for a webhook and a tracker: a destination that has not answered in ten seconds is a
+     * destination to retry, not to wait on while a scan's transaction stays open.
+     *
+     * <p><b>Wrong for a model, and that is why the timeout is now a parameter.</b> A local model
+     * writing a report takes minutes on ordinary hardware — this ceiling turned every OWASP run
+     * into "Ollama: request timed out" after ten seconds, which reads as a broken Ollama rather
+     * than as a limit Zanshin chose.
+     */
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private final HttpClient http;
@@ -64,6 +73,18 @@ public class OutboundPost {
     /** @param prepared a builder already carrying the headers this destination needs, typically authentication */
     public String postForResponse(
             String url, Object body, OutboundPolicy policy, String label, HttpRequest.Builder prepared) {
+        return postForResponse(url, body, policy, label, prepared, TIMEOUT);
+    }
+
+    /**
+     * @param timeout for a destination whose normal answer takes longer than a webhook's. Taken
+     *     alongside the builder rather than as its own overload: a five-argument form would sit
+     *     next to the one taking a builder, and a mock matching on {@code any()} could not tell
+     *     them apart — which is a compile error in the tests and a coin toss at a call site.
+     */
+    public String postForResponse(
+            String url, Object body, OutboundPolicy policy, String label, HttpRequest.Builder prepared,
+            Duration timeout) {
 
         String validated = guard.validate(url, policy, label);
         String encoded;
@@ -75,7 +96,7 @@ public class OutboundPost {
 
         HttpRequest request = prepared
                 .uri(URI.create(validated))
-                .timeout(TIMEOUT)
+                .timeout(timeout)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(encoded))
                 .build();

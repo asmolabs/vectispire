@@ -123,7 +123,9 @@ public class AiReviewService {
                                 Map.of("role", "user", "content", AiReview.userMessage(code))),
                         "stream", false),
                 policy(),
-                "Ollama");
+                "Ollama",
+                java.net.http.HttpRequest.newBuilder(),
+                timeout());
 
         try {
             return json.readTree(response).path("message").path("content").asText("");
@@ -134,6 +136,14 @@ public class AiReviewService {
 
     public String reviewCode(String code) {
         return reviewCode(code, AiReview.SECURITY_ARCHITECT_PROMPT);
+    }
+
+    /** How long to wait for the model. See the setting: the right value is a property of the host. */
+    public java.time.Duration timeout() {
+        int seconds = settings.asInt(Setting.AI_REVIEW_TIMEOUT_SECONDS);
+        // A zero or a negative would mean "no timeout" to the HTTP client on some JDKs and throw
+        // on others. The default is the honest reading of a value that cannot be a duration.
+        return java.time.Duration.ofSeconds(seconds > 0 ? seconds : AiReview.DEFAULT_TIMEOUT_SECONDS);
     }
 
     private OutboundPolicy policy() {

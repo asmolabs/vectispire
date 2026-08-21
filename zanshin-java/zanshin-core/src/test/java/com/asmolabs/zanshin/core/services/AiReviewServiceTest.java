@@ -41,7 +41,7 @@ class AiReviewServiceTest {
         when(settings.isEnabled(any())).thenReturn(false);
         when(post.validate(anyString(), any(), anyString())).thenAnswer(call -> call.getArgument(0));
         when(get.get(anyString(), any(), anyString())).thenReturn(Optional.empty());
-        when(post.postForResponse(anyString(), any(), any(), anyString()))
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"message\":{\"content\":\"No issue found.\"}}");
     }
 
@@ -94,13 +94,13 @@ class AiReviewServiceTest {
     @DisplayName("a review returns the model's answer")
     void reviewReturnsTheContent() {
         assertThat(service.reviewCode("class A {}")).isEqualTo("No issue found.");
-        verify(post).postForResponse(contains("/api/chat"), any(), any(), anyString());
+        verify(post).postForResponse(contains("/api/chat"), any(), any(), anyString(), any(), any());
     }
 
     @Test
     @DisplayName("a review failure throws, so the caller knows it did not get one")
     void reviewFailuresAreNotSwallowed() {
-        when(post.postForResponse(anyString(), any(), any(), anyString()))
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
                 .thenThrow(new OutboundJson.OutboundFailureException("HTTP 500"));
 
         // The opposite contract from the configuration methods above: a caller that wanted a
@@ -119,5 +119,32 @@ class AiReviewServiceTest {
     void defaultsToLocalhost() {
         assertThat(service.ollamaUrl()).isEqualTo(AiReview.DEFAULT_OLLAMA_URL);
         assertThat(service.selectedModel()).isEqualTo(AiReview.DEFAULT_MODEL);
+    }
+
+    @Test
+    @DisplayName("waits for the model, not for a webhook")
+    void theModelGetsItsOwnTimeout() {
+        // Ten seconds is right for a webhook and wrong for a model: a local one writing a report
+        // takes minutes, and that ceiling turned every run into "Ollama: request timed out",
+        // which reads as a broken Ollama rather than as a limit chosen here.
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any())).thenReturn("{}");
+        when(settings.asInt(Setting.AI_REVIEW_TIMEOUT_SECONDS)).thenReturn(120);
+
+        service.reviewCode("code");
+
+        org.mockito.ArgumentCaptor<java.time.Duration> timeout =
+                org.mockito.ArgumentCaptor.forClass(java.time.Duration.class);
+        verify(post).postForResponse(anyString(), any(), any(), anyString(), any(), timeout.capture());
+        assertThat(timeout.getValue()).isEqualTo(java.time.Duration.ofSeconds(120));
+    }
+
+    @Test
+    @DisplayName("a timeout of zero is not 'no timeout', it is a value that cannot be one")
+    void anUnusableTimeoutFallsBackToTheDefault() {
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any())).thenReturn("{}");
+        when(settings.asInt(Setting.AI_REVIEW_TIMEOUT_SECONDS)).thenReturn(0);
+
+        assertThat(service.timeout())
+                .isEqualTo(java.time.Duration.ofSeconds(AiReview.DEFAULT_TIMEOUT_SECONDS));
     }
 }
