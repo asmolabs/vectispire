@@ -63,8 +63,13 @@ class AuthServiceTest {
         AuthService.LoginResult result = service.login(request("alice", PASSWORD));
 
         assertThat(result.outcome()).isInstanceOfSatisfying(AuthService.Outcome.Success.class, success -> {
-            assertThat(success.session().getToken()).isNotBlank();
-            assertThat(success.session().getExpiresAt()).isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
+            assertThat(success.issued().token()).isNotBlank();
+            // The clear token is handed out; the row keeps its hash and nothing else.
+            assertThat(success.issued().session().getTokenHash())
+                    .isEqualTo(Sessions.hashOf(success.issued().token()))
+                    .isNotEqualTo(success.issued().token());
+            assertThat(success.issued().session().getExpiresAt())
+                    .isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
         });
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
         // A success clears both counters: five mistypes then the right password is not an attack.
@@ -110,22 +115,24 @@ class AuthServiceTest {
     @DisplayName("an idle session is deleted, not merely refused")
     void anExpiredSessionIsRemoved() {
         SessionEntity session = new SessionEntity();
-        session.setToken("t");
+        session.setTokenHash(Sessions.hashOf("t"));
         session.setCreatedAt(NOW.minus(Sessions.Policy.DEFAULT.absoluteLifetime()).minusSeconds(1));
         session.setLastSeenAt(NOW);
-        when(sessions.findById("t")).thenReturn(Optional.of(session));
+        // Stubbed on the hash, which is what the lookup asks for: a stub on the clear token
+        // would answer nothing and the test would pass for the wrong reason.
+        when(sessions.findById(Sessions.hashOf("t"))).thenReturn(Optional.of(session));
 
         assertThat(service.resolve("Bearer t")).isEmpty();
-        verify(sessions).deleteById("t");
+        verify(sessions).deleteById(Sessions.hashOf("t"));
     }
 
     @Test
     void refreshesTheActivityOfALiveSession() {
         SessionEntity session = new SessionEntity();
-        session.setToken("t");
+        session.setTokenHash(Sessions.hashOf("t"));
         session.setCreatedAt(NOW.minusSeconds(60));
         session.setLastSeenAt(NOW.minusSeconds(60));
-        when(sessions.findById("t")).thenReturn(Optional.of(session));
+        when(sessions.findById(Sessions.hashOf("t"))).thenReturn(Optional.of(session));
 
         assertThat(service.resolve("Bearer t")).get().returns(NOW, SessionEntity::getLastSeenAt);
     }

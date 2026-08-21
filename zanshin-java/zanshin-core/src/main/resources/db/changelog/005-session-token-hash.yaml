@@ -1,0 +1,66 @@
+# The session store keeps a verifier, not a credential.
+#
+# **Why the table is dropped and rebuilt rather than its column renamed.** A `renameColumn`
+# would carry the existing rows over — and those rows hold session tokens *in the clear*, in a
+# column now documented as holding hashes. The migration would leave behind exactly the values
+# it exists to stop storing, and they would authenticate nothing anymore while still being
+# usable by whoever read the backup taken yesterday. Dropping the table is the only form of this
+# change that ends with no clear token anywhere.
+#
+# **What it costs, stated plainly:** every signed-in user is signed out once, at upgrade. A
+# session is not durable data — it survives neither a token rotation nor a role change — so this
+# is a re-login, not a data loss. It is also why this changeset is safe to run on a live
+# install without a window.
+#
+# It is written as drop-then-create for a second reason: `renameColumn` on a primary key is
+# where the four engines diverge most, and SQLite's `alter table` support is the one Liquibase
+# emulates rather than issues. A `createTable` is the same statement on all four.
+databaseChangeLog:
+  - changeSet:
+      id: 005-session-token-hash
+      author: zanshin
+      changes:
+        - dropTable:
+            tableName: t_session
+        - createTable:
+            tableName: t_session
+            columns:
+              # 64 characters: SHA-256 in lowercase hex. The clear token was 43, so the column
+              # is not merely reused with room to spare — a value of the old width in it is a
+              # value that was never hashed.
+              - column:
+                  name: token_hash
+                  type: varchar(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_t_session
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_session_user
+                    references: t_user(id)
+                    deleteCascade: true
+              - column:
+                  name: created_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_seen_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_agent
+                  type: varchar(255)
+              - column:
+                  name: ip_address
+                  type: varchar(64)

@@ -3,6 +3,7 @@ package com.asmolabs.zanshin.core.services;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.zanshin.common.domain.auth.LoginThrottle;
+import com.asmolabs.zanshin.common.domain.auth.Sessions;
 import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.ZanshinContextTest;
@@ -58,8 +59,27 @@ class AuthDatabaseTest extends ZanshinContextTest {
         AuthService.LoginResult result = auth.login(request("alice", PASSWORD));
 
         assertThat(result.outcome()).isInstanceOf(AuthService.Outcome.Success.class);
-        String token = ((AuthService.Outcome.Success) result.outcome()).session().getToken();
+        String token = ((AuthService.Outcome.Success) result.outcome()).issued().token();
         assertThat(auth.resolve("Bearer " + token)).isPresent();
+    }
+
+    @Test
+    @DisplayName("what the store holds is a verifier, not the token")
+    void theStoredValueDoesNotAuthenticate() {
+        String token = ((AuthService.Outcome.Success) auth.login(request("alice", PASSWORD)).outcome())
+                .issued()
+                .token();
+
+        // The property, checked against a real row rather than against the mapping: nothing in
+        // the table equals the token, and the value that is there is its hash. A dump of
+        // `t_session` therefore hands over no session — which is the entire point.
+        assertThat(sessions.findAll()).singleElement().satisfies(row -> {
+            assertThat(row.getTokenHash()).isNotEqualTo(token).isEqualTo(Sessions.hashOf(token));
+            // And presenting the stored value does not get in. Reading the table is not enough;
+            // one would have to invert SHA-256.
+            assertThat(auth.resolve("Bearer " + row.getTokenHash())).isEmpty();
+        });
+        assertThat(sessions.findById(token)).isEmpty();
     }
 
     @Test
@@ -91,14 +111,13 @@ class AuthDatabaseTest extends ZanshinContextTest {
     @Test
     @DisplayName("signing out really removes the row")
     void revokingDeletes() {
-        String token = ((AuthService.Outcome.Success) auth.login(request("alice", PASSWORD)).outcome())
-                .session()
-                .getToken();
+        AuthService.IssuedSession issued =
+                ((AuthService.Outcome.Success) auth.login(request("alice", PASSWORD)).outcome()).issued();
 
-        auth.revoke(token);
+        auth.revoke(issued.session());
 
-        assertThat(sessions.findById(token)).isEmpty();
-        assertThat(auth.resolve("Bearer " + token)).isEmpty();
+        assertThat(sessions.findById(issued.session().getTokenHash())).isEmpty();
+        assertThat(auth.resolve("Bearer " + issued.token())).isEmpty();
     }
 
     @Test

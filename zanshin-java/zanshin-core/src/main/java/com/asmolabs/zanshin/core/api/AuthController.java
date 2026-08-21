@@ -110,7 +110,11 @@ public class AuthController {
                 // hands whoever is probing the list of accounts that exist.
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
             case AuthService.Outcome.Success success -> new LoginResponse(
-                    success.session().getToken(), success.session().getExpiresAt(), summaryOf(success.user()));
+                    // The one moment the clear token exists outside the client: it is not stored,
+                    // so it cannot be read back for a second response.
+                    success.issued().token(),
+                    success.issued().session().getExpiresAt(),
+                    summaryOf(success.user()));
         };
     }
 
@@ -157,7 +161,9 @@ public class AuthController {
         UserEntity user = users.findById(session.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
 
-        return new LoginResponse(session.getToken(), session.getExpiresAt(), summaryOf(user));
+        // The token comes from the cookie, not from the row: the row holds a hash, and handing
+        // that back would be handing back something that authenticates nothing.
+        return new LoginResponse(token, session.getExpiresAt(), summaryOf(user));
     }
 
     private static String handoffToken(HttpServletRequest request) {
@@ -199,7 +205,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@AuthenticationPrincipal ZanshinPrincipal principal) {
         // The row disappears: signing out is real, including for a tab left open elsewhere.
-        principal.session().ifPresent(session -> auth.revoke(session.getToken()));
+        principal.session().ifPresent(auth::revoke);
     }
 
     /**
@@ -239,7 +245,8 @@ public class AuthController {
         }
 
         users.changePassword(user.getId(), PasswordHasher.hash(next), clock.instant());
-        principal.session().ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.getToken()));
+        principal.session()
+                .ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.getTokenHash()));
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.PASSWORD_CHANGED,

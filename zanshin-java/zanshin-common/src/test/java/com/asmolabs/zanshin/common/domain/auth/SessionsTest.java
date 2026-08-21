@@ -49,9 +49,32 @@ class SessionsTest {
     @Test
     @DisplayName("a token is opaque, and never the same twice")
     void tokensAreOpaqueAndUnique() {
-        String first = Sessions.newToken();
+        String first = Sessions.issue().token();
 
-        assertThat(first).hasSize(43).doesNotContain(".").isNotEqualTo(Sessions.newToken());
+        assertThat(first).hasSize(43).doesNotContain(".").isNotEqualTo(Sessions.issue().token());
+    }
+
+    @Test
+    @DisplayName("a minted token comes with the hash that will be stored in its place")
+    void mintingProducesBothForms() {
+        Sessions.IssuedToken minted = Sessions.issue();
+
+        // 64 hex characters against the token's 43: the two are not confusable by width either,
+        // which is what makes a clear token left in the column visible rather than plausible.
+        assertThat(minted.hash()).hasSize(64).isEqualTo(Sessions.hashOf(minted.token()));
+        assertThat(minted.hash()).isNotEqualTo(minted.token());
+    }
+
+    @Test
+    @DisplayName("the hash is a verifier: it does not hash to itself")
+    void theHashIsNotACredential() {
+        Sessions.IssuedToken minted = Sessions.issue();
+
+        // Presenting the stored value looks up the hash *of the stored value*, which is not a
+        // key of the table. Reading the session store therefore authenticates nobody — the
+        // property the whole change exists for, stated where it can be checked without a
+        // database.
+        assertThat(Sessions.hashOf(minted.hash())).isNotEqualTo(minted.hash());
     }
 
     @Test

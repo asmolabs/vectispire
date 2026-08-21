@@ -66,7 +66,7 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
                 // The account was deactivated or deleted while the session was running. Revoking
                 // here rather than merely refusing is what stops a disabled account's tab going
                 // on working until the session's own lifetime runs out.
-                auth.revoke(session.get().getToken());
+                auth.revoke(session.get());
                 return Optional.empty();
             }
             return Optional.of(ZanshinPrincipal.ofUser(user.get(), session.get()));

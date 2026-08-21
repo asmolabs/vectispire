@@ -122,14 +122,39 @@ module graph guarantees it: `zanshin-agent` does not depend on `zanshin-core`, s
 
 ## The controls, and why they are set this way
 
-**Authentication and sessions.** bcrypt cost 12, session expiry at 12 hours checked on
-page load. A missing or unreadable timestamp counts as expired — failing open would make
-the control decorative, and the cost of failing closed is one re-login.
+**Authentication and sessions.** Argon2id for the password — 19 MiB, two passes, through
+BouncyCastle's lightweight API rather than the JCA (see the note in
+[`PasswordHasher`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/crypto/PasswordHasher.java);
+bcrypt is gone, and with it the 72-byte truncation that forced a rule refusing long
+passphrases). An absolute lifetime of 12 hours and an idle lifetime of 60 minutes, both
+re-evaluated on **every request** rather than on page load. A missing or unreadable timestamp
+counts as expired — failing open would make the control decorative, and the cost of failing
+closed is one re-login.
+
+**The session store holds verifiers, not credentials.** `t_session`'s primary key is the
+token's SHA-256; the token itself is written nowhere. It used to be the key in the clear,
+which meant every copy of that table was a set of live sessions — a nightly backup, a read
+replica, a `select *` pasted into a support thread, or the dump of the very database the
+audit log lives in. Reading the table now yields hashes, and presenting one authenticates
+nobody, because the lookup hashes what the caller sent.
+
+**SHA-256 and not Argon2id here, for the opposite reason to the password.** A session token
+is 32 bytes from a CSPRNG: there is no dictionary to walk, so a memory-hard derivation
+protects nothing — and it would be paid on every authenticated request, which is how a
+protection becomes the denial-of-service lever. API keys can afford Argon2 precisely because
+their clear prefix narrows the lookup to a handful of rows first; a session is resolved by
+primary key, once per request, and has no such budget.
+
+The field is `tokenHash`, not `token`, and that is a control rather than a preference: the
+two are one assignment apart, and writing the clear token into the hash column produces a
+system that works perfectly and protects nothing. Upgrading **drops** the table rather than
+renaming its column — a rename would carry over rows holding exactly the clear tokens the
+change exists to stop storing. Everybody signs in once more; a session is not durable data.
 
 **Anti-stuffing.** Failures are counted **per user and per client**, never one alone: on
 the user alone, anyone locks a known account by failing on purpose; on the client alone, a
-botnet spreads its attempts. The check happens **before** hashing — otherwise bcrypt's
-deliberate slowness becomes a way to spend the server's CPU for free.
+botnet spreads its attempts. The check happens **before** hashing — otherwise Argon2id's
+deliberate cost, memory included, becomes a way to spend the server's CPU for free.
 
 **API keys.** Three axes: scopes (`read`/`scan`/`export`), restriction to one target, and
 expiry. The restriction also narrows the **lists** — refusing the per-target routes while

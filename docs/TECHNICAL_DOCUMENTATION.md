@@ -230,7 +230,7 @@ Outside the main model, and each one load-bearing:
 | Table | What it holds | Why it exists |
 |---|---|---|
 | `user` | accounts, bcrypt password, role, `must_change_password` | — |
-| `session` | opaque token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out |
+| `session` | the token's **SHA-256** as primary key — never the token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out. Storing the token itself would make every dump of this table a set of live sessions |
 | `login_attempt` | `counter_key`, `occurred_at` | anti-stuffing counted per user **and** per client; one axis alone is defeatable |
 | `api_key` | bcrypt hash, prefix for display, scopes, target restriction, expiry | the raw secret is returned once and never stored |
 | `ssh_key` | AES-GCM ciphertext bound to its row by associated data | without the binding, key A's ciphertext copied into row B decrypts cleanly |
