@@ -22,48 +22,7 @@ const MINIMUM_LENGTH = 12;
     selector: 'app-change-password',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, MessageModule, PasswordModule],
-    template: `
-        <div class="flex items-center justify-center min-h-screen overflow-hidden">
-            <div class="flex flex-col items-center justify-center w-full max-w-md">
-                <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%)">
-                    <div class="w-full bg-surface-0 dark:bg-surface-900 py-12 px-8 sm:px-12" style="border-radius: 53px">
-                        <div class="text-center mb-8">
-                            <div class="text-surface-900 dark:text-surface-0 text-2xl font-medium mb-2">Change your password</div>
-                            @if (imposed()) {
-                                <span class="text-muted-color">This account was created with a temporary password.</span>
-                            } @else {
-                                <span class="text-muted-color">Your other sessions will be closed.</span>
-                            }
-                        </div>
-
-                        <form (ngSubmit)="submit()">
-                            <label for="current" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Current password</label>
-                            <p-password id="current" name="current" [(ngModel)]="currentPassword" [toggleMask]="true" [feedback]="false"
-                                        styleClass="mb-6" [fluid]="true" autocomplete="current-password" />
-
-                            <label for="next" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">New password</label>
-                            <p-password id="next" name="next" [(ngModel)]="newPassword" [toggleMask]="true" [feedback]="false"
-                                        styleClass="mb-2" [fluid]="true" autocomplete="new-password" />
-
-                            <label for="confirm" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2 mt-4">Confirmation</label>
-                            <p-password id="confirm" name="confirm" [(ngModel)]="confirmation" [toggleMask]="true" [feedback]="false"
-                                        styleClass="mb-2" [fluid]="true" autocomplete="new-password" (keyup.enter)="submit()" />
-
-                            <!-- Length alone, because it is the only constraint whose effect on
-                                 entropy is real. Character classes produce "Password1!". -->
-                            <p class="text-muted-color text-sm mt-2 mb-4">At least {{ minimumLength }} characters.</p>
-
-                            @if (error(); as message) {
-                                <p-message severity="error" [text]="message" styleClass="w-full mb-4" />
-                            }
-
-                            <p-button type="submit" label="Change the password" styleClass="w-full" [loading]="loading()" />
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `
+    templateUrl: './change-password.html'
 })
 export class ChangePassword {
     private readonly api = inject(ApiService);

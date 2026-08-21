@@ -1,0 +1,133 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">Repositories</h1>
+        <p class="text-muted-color mt-1 mb-0">The monitored git repositories and the state of their last scan.</p>
+    </div>
+    @if (isAdmin()) {
+        <p-button label="Add a repository" icon="pi pi-plus" (onClick)="openForm()" />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="repositories()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>Repository</th>
+                <th>Branch</th>
+                <th>Last scan</th>
+                <th class="text-right">Outstanding</th>
+                @if (isAdmin()) { <th class="w-1"></th> }
+            </tr>
+        </ng-template>
+        <ng-template #body let-repository>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ repository.displayName }}</div>
+                    <div class="text-sm text-muted-color break-all">
+                        {{ repository.url }}
+                        <!--
+                            Shown because two rows can now be the same URL. Without it a
+                            monorepo registered twice reads as the same target listed
+                            twice, and nobody can tell which one they are scanning.
+                        -->
+                        @if (repository.subPath) {
+                            <span class="font-mono">· {{ repository.subPath }}</span>
+                        }
+                    </div>
+                </td>
+                <td>{{ repository.branch }}</td>
+                <td>
+                    @if (repository.lastScan; as scan) {
+                        <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                    } @else {
+                        <app-last-scan [scan]="null" />
+                    }
+                </td>
+                <td class="text-right">
+                    @if (repository.openIssues > 0) {
+                        <a [routerLink]="['/issues']" [queryParams]="{ repository_id: repository.id }" class="font-medium">{{ repository.openIssues }}</a>
+                    } @else {
+                        <span class="text-muted-color">0</span>
+                    }
+                </td>
+                @if (isAdmin()) {
+                    <td class="text-right whitespace-nowrap">
+                        <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                  [ariaLabel]="'Run a scan of ' + repository.url"
+                                  [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
+                        <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                                  [ariaLabel]="'Edit ' + repository.url" (onClick)="openForm(repository)" />
+                        <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                                  [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
+                    </td>
+                }
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored repository.</td></tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog [header]="editing() ? 'Edit this repository' : 'Add a repository'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="url" class="font-medium">Repository URL</label>
+            <input pInputText id="url" [(ngModel)]="form.url" placeholder="https://github.com/org/projet.git" />
+            <small class="text-muted-color">https://…, ssh://… or git&#64;host:path</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="branch" class="font-medium">Branch</label>
+            <input pInputText id="branch" [(ngModel)]="form.branch" placeholder="main" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="name" class="font-medium">Display name <span class="text-muted-color font-normal">(optional)</span></label>
+            <input pInputText id="name" [(ngModel)]="form.name" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="sub-path" class="font-medium">Sub-path <span class="text-muted-color font-normal">(optional)</span></label>
+            <input pInputText id="sub-path" [(ngModel)]="form.subPath" placeholder="services/billing" />
+            <small class="text-muted-color">
+                The directory to analyse, when only part of the repository is a project. Leave empty for the
+                whole thing. <strong>A monorepo is registered once per project</strong>: add the same URL again
+                with another sub-path, and give each a display name — the two are scanned, triaged and gated
+                independently, which is the point.
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
+            <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
+            <small class="text-muted-color">
+                The label an agent must carry to scan this target — and therefore to receive
+                its deployment key. Left empty, any agent may take it.
+            </small>
+        </div>
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="editing() ? 'Save' : 'Add'" [loading]="saving()" (onClick)="submit()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog header="Delete this repository?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+    @if (pendingDelete(); as repository) {
+        <p class="m-0">
+            <span class="font-medium">{{ repository.url }}</span> and its whole history — scans, findings and
+            {{ repository.openIssues }} outstanding issue(s) — will be deleted. This is permanent.
+        </p>
+    }
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+    </ng-template>
+</p-dialog>

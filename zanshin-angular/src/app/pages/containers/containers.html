@@ -1,0 +1,106 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">Containers</h1>
+        <p class="text-muted-color mt-1 mb-0">The monitored container images and the state of their last scan.</p>
+    </div>
+    @if (isAdmin()) {
+        <p-button label="Add an image" icon="pi pi-plus" (onClick)="openForm()" />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="containers()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>Image</th>
+                <th>Tag</th>
+                <th>Dernier scan</th>
+                <th class="text-right">Outstanding</th>
+                @if (isAdmin()) { <th class="w-1"></th> }
+            </tr>
+        </ng-template>
+        <ng-template #body let-container>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ container.imageName }}</div>
+                    <div class="text-sm text-muted-color" [title]="container.reference">{{ shorten(container.reference) }}</div>
+                </td>
+                <td class="font-mono text-sm whitespace-nowrap" [title]="container.tag">{{ shorten(container.tag) }}</td>
+                <td><app-last-scan [scan]="container.lastScan" /></td>
+                <td class="text-right">
+                    @if (container.openIssues > 0) {
+                        <a [routerLink]="['/issues']" [queryParams]="{ container_id: container.id }" class="font-medium">{{ container.openIssues }}</a>
+                    } @else {
+                        <span class="text-muted-color">0</span>
+                    }
+                </td>
+                @if (isAdmin()) {
+                    <td class="text-right whitespace-nowrap">
+                        <p-button icon="pi pi-play" [text]="true" [rounded]="true"
+                                  [ariaLabel]="'Run a scan of ' + container.reference"
+                                  [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
+                        <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                                  [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
+                    </td>
+                }
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-center text-muted-color py-6">No monitored image.</td></tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog header="Add an image" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
+            <input pInputText id="registry" [(ngModel)]="form.registry" placeholder="ghcr.io" />
+            <small class="text-muted-color">Empty for the default registry.</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="image" class="font-medium">Image name</label>
+            <input pInputText id="image" [(ngModel)]="form.imageName" placeholder="team/service" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="tag" class="font-medium">Tag</label>
+            <input pInputText id="tag" [(ngModel)]="form.tag" placeholder="latest" />
+            <small class="text-muted-color">A tag, or a "sha256:…" digest to pin the version that gets scanned.</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
+            <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
+            <small class="text-muted-color">
+                The label an agent must carry to scan this target — and therefore to receive
+                its deployment key. Left empty, any agent may take it.
+            </small>
+        </div>
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog header="Delete this image?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+    @if (pendingDelete(); as container) {
+        <p class="m-0">
+            <span class="font-medium">{{ container.reference }}</span> and its whole history — scans, findings and
+            {{ container.openIssues }} outstanding issue(s) — will be deleted. This is permanent.
+        </p>
+    }
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,137 @@
+@if (scan(); as detail) {
+    <div class="mb-4">
+        <a routerLink="/repositories" class="text-sm">← Repositories</a>
+        <h1 class="text-2xl font-semibold m-0 mt-1">Scan #{{ detail.id }} — {{ detail.targetName }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ detail.branch }} · {{ detail.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            @if (detail.durationMs) {
+                · {{ seconds(detail.durationMs) }} s
+            }
+            <!-- Only when the tree carried a manifest this could read. A blank "Version:"
+                  label would suggest the project has none, which is not what was found. -->
+            @if (detail.projectType) {
+                · {{ detail.projectType }}
+                @if (detail.projectVersion) {
+                    {{ detail.projectVersion }}
+                }
+            }
+        </p>
+    </div>
+
+    @if (detail.error) {
+        <!-- Shown even on a completed scan: this is where the steps that looked at
+              nothing are recorded, and without this line an operator would believe the
+              scan complete. -->
+        <p-message [severity]="detail.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
+            {{ detail.error }}
+        </p-message>
+    }
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <p-card>
+            <div class="text-muted-color text-sm">State</div>
+            <div class="mt-2"><app-last-scan [scan]="detail" /></div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">Findings</div>
+            <div class="text-3xl font-semibold mt-1">{{ detail.findingsCount }}</div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">New issues</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.newIssuesCount > 0">{{ detail.newIssuesCount }}</div>
+        </p-card>
+        <p-card>
+            <div class="text-muted-color text-sm">Resolved issues</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.resolvedIssuesCount > 0">
+                {{ detail.resolvedIssuesCount }}
+            </div>
+        </p-card>
+    </div>
+
+    @if (detail.hasSbom) {
+        <!-- The flag existed and led nowhere: the payload announced an SBOM the interface
+              offered no way to fetch. -->
+        <div class="mb-4">
+            <p-button
+                label="Download SBOM"
+                icon="pi pi-download"
+                severity="secondary"
+                size="small"
+                (onClick)="downloadSbom(detail.id)" />
+        </div>
+    }
+
+    <p-card>
+        <ng-template #title>
+            Findings from this scan
+            <span class="text-muted-color font-normal text-sm">
+                — what this scan observed, not the target's backlog
+            </span>
+        </ng-template>
+
+        @if (detail.findingsTruncated) {
+            <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
+                {{ detail.findingsTotal }} findings in total; the first {{ detail.findings.length }} are shown.
+            </p-message>
+        }
+
+        <p-table
+            [value]="detail.findings"
+            dataKey="id"
+            styleClass="p-datatable-sm"
+            [paginator]="detail.findings.length > 25"
+            [rows]="25"
+            [rowsPerPageOptions]="[25, 50, 100]">
+            <ng-template #header>
+                <tr>
+                    <th style="width: 9rem">Type</th>
+                    <th style="width: 7rem">Severity</th>
+                    <th>Finding</th>
+                    <th>Location</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-finding>
+                <tr>
+                    <td>{{ typeLabel(finding.type) }}</td>
+                    <td><p-tag [value]="finding.severity" [severity]="severityOf(finding.severity)" /></td>
+                    <td>
+                        <div class="font-medium">
+                            @if (finding.link) {
+                                <a [href]="finding.link" target="_blank" rel="noopener noreferrer">{{ finding.identifier }}</a>
+                            } @else {
+                                {{ finding.identifier }}
+                            }
+                        </div>
+                        @if (finding.description) {
+                            <div class="text-sm text-muted-color">{{ finding.description }}</div>
+                        }
+                        @if (finding.packageName) {
+                            <div class="text-sm text-muted-color">
+                                {{ finding.packageName }} {{ finding.packageVersion }}
+                                @if (finding.fixVersions) {
+                                    · <span class="text-green-600">fixed in {{ finding.fixVersions }}</span>
+                                } @else {
+                                    · <span class="text-muted-color">no published fix</span>
+                                }
+                            </div>
+                        }
+                    </td>
+                    <td class="font-mono text-sm">
+                        @if (finding.filePath) {
+                            {{ finding.filePath }}@if (finding.line) {<span>:{{ finding.line }}</span>}
+                        } @else {
+                            <span class="text-muted-color font-sans">—</span>
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr><td colspan="4" class="text-center text-muted-color py-6">No finding.</td></tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+} @else if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+} @else {
+    <p class="text-muted-color">Loading…</p>
+}

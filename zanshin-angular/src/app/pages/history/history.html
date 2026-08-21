@@ -1,0 +1,190 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">History</h1>
+    <p class="text-muted-color mt-1 mb-0">
+        What each scan observed, on which version, and what was decided about it.
+    </p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card styleClass="mb-4">
+    <p-table [value]="repositories()" dataKey="id" styleClass="p-datatable-sm" [loading]="loadingList()">
+        <ng-template #header>
+            <tr>
+                <th>Repository</th>
+                <th style="width: 8rem">Branch</th>
+                <th style="width: 11rem">Version</th>
+                <th style="width: 6rem">Scans</th>
+                <th style="width: 7rem">Open</th>
+                <th style="width: 8rem">Decisions</th>
+                <th style="width: 11rem">Last scan</th>
+                <th style="width: 7rem"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-repository>
+            <tr [class.bg-highlight]="repository.id === selectedId()">
+                <td>
+                    <div class="font-medium">{{ repository.name }}</div>
+                    <div class="text-sm text-muted-color">{{ repository.url }}</div>
+                </td>
+                <td>{{ repository.branch }}</td>
+                <td>
+                    @if (repository.version) {
+                        {{ repository.version }}
+                        @if (repository.projectType) {
+                            <div class="text-sm text-muted-color">{{ repository.projectType }}</div>
+                        }
+                    } @else {
+                        <!-- Not "0" and not blank: a version nobody read is unknown, which is
+                             a different statement from a project that has none. -->
+                        <span class="text-muted-color">unknown</span>
+                    }
+                </td>
+                <td>{{ repository.scanCount }}</td>
+                <td>{{ repository.openIssues }}</td>
+                <td>{{ repository.decisions }}</td>
+                <td>{{ repository.lastScanAt ? (repository.lastScanAt | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
+                <td>
+                    <p-button label="Open" severity="secondary" size="small" (onClick)="open(repository)" />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="8" class="text-muted-color">No repository yet.</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+@if (dossier(); as file) {
+    <p-card>
+        <ng-template #title>
+            {{ file.repository.name }}
+            <span class="text-muted-color font-normal text-sm">
+                — {{ file.scans.length }} scans, {{ file.repository.decisions }} decisions recorded
+            </span>
+        </ng-template>
+        <ng-template #subtitle>
+            <div class="flex gap-2 mt-2">
+                <p-button
+                    label="Export PDF"
+                    icon="pi pi-file-pdf"
+                    severity="secondary"
+                    size="small"
+                    (onClick)="download('pdf')" />
+                <p-button
+                    label="Export CSV"
+                    icon="pi pi-file-excel"
+                    severity="secondary"
+                    size="small"
+                    (onClick)="download('csv')" />
+            </div>
+        </ng-template>
+
+        @if (file.repository.decisions === 0) {
+            <!-- Said rather than left as a zero: an untriaged backlog and a history that
+                  predates the recording of decisions look identical on a counter. -->
+            <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
+                No triage decision has been recorded for this target — either nothing has been triaged,
+                or the decisions predate the recording of this history.
+            </p-message>
+        }
+
+        @for (scan of file.scans; track scan.id) {
+            <div class="mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold">Scan #{{ scan.id }}</span>
+                    <span class="text-muted-color">{{ scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    <p-tag [value]="scan.status" [severity]="scan.status === 'completed' ? 'success' : 'danger'" />
+                    @if (scan.version) {
+                        <p-tag [value]="scan.version" severity="secondary" />
+                    }
+                </div>
+                <div class="text-sm text-muted-color mt-1">
+                    {{ scan.branch }} · {{ scan.findingsCount }} findings ·
+                    {{ scan.newIssuesCount }} new · {{ scan.resolvedIssuesCount }} resolved
+                </div>
+
+                @if (scan.error) {
+                    <!-- Shown even on a completed scan: this is where a step that looked at
+                          nothing is recorded, and omitting it presents a partial scan as full. -->
+                    <p-message
+                        [severity]="scan.status === 'failed' ? 'error' : 'warn'"
+                        [closable]="false"
+                        styleClass="mt-2 w-full">
+                        {{ scan.error }}
+                    </p-message>
+                }
+
+                @if (scan.issues.length === 0) {
+                    <div class="text-sm text-muted-color mt-2">No issue observed by this scan.</div>
+                } @else {
+                    <p-table
+                        [value]="scan.issues"
+                        dataKey="id"
+                        styleClass="p-datatable-sm mt-2"
+                        [paginator]="scan.issues.length > 15"
+                        [rows]="15">
+                        <ng-template #header>
+                            <tr>
+                                <th style="width: 7rem">Severity</th>
+                                <th style="width: 12rem">Identifier</th>
+                                <th>Component</th>
+                                <th style="width: 7rem">State</th>
+                                <th style="width: 10rem">Triage</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-issue>
+                            <tr>
+                                <td>
+                                    <p-tag
+                                        [value]="issue.severity ?? 'unknown'"
+                                        [severity]="severityOf(issue.severity)" />
+                                </td>
+                                <td>{{ issue.identifier ?? '—' }}</td>
+                                <td>
+                                    {{ component(issue) }}
+                                    @for (decision of issue.decisions; track decision.occurredAt) {
+                                        <div class="text-sm mt-1">
+                                            <span class="text-muted-color">
+                                                {{ decision.occurredAt | date: 'dd/MM/yyyy' }} —
+                                            </span>
+                                            {{ triageLabel(decision.fromStatus) }} →
+                                            {{ triageLabel(decision.toStatus) }}
+                                            @if (decision.justification) {
+                                                ({{ decision.justification }})
+                                            }
+                                            @if (decision.actor) {
+                                                by {{ decision.actor }}
+                                            } @else {
+                                                <!-- A lapse is not somebody's decision. Naming an
+                                                      actor here would attribute an action to a
+                                                      person who did not take it. -->
+                                                <em>expired automatically</em>
+                                            }
+                                            @if (decision.version) {
+                                                on {{ decision.version }}
+                                            }
+                                        </div>
+                                        @if (decision.comment) {
+                                            <div class="text-sm text-muted-color italic">
+                                                “{{ decision.comment }}”
+                                            </div>
+                                        }
+                                    } @empty {
+                                        <div class="text-sm text-muted-color mt-1">no decision recorded</div>
+                                    }
+                                </td>
+                                <td>{{ issue.state }}</td>
+                                <td>{{ triageLabel(issue.triageStatus) }}</td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                }
+            </div>
+        }
+    </p-card>
+}

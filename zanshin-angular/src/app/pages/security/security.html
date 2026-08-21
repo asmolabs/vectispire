@@ -1,0 +1,74 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">Security</div>
+    <p class="text-muted-color mb-4">The verdict the continuous-integration gate would return for each target, with the policy that produced it.</p>
+
+    @if (overview(); as data) {
+        <div class="flex flex-wrap gap-6 mb-4">
+            <div>
+                <span class="text-2xl font-medium" [class.text-red-500]="data.failingCount > 0">{{ data.failingCount }}</span>
+                <span class="text-muted-color ml-2">/ {{ data.totalCount }} failing</span>
+            </div>
+            <div><span class="text-2xl font-medium">{{ data.kevCount }}</span><span class="text-muted-color ml-2">open KEV</span></div>
+            <div><span class="text-2xl font-medium">{{ data.neverScannedCount }}</span><span class="text-muted-color ml-2">never scanned</span></div>
+            <div><span class="text-2xl font-medium">{{ data.lastScanFailedCount }}</span><span class="text-muted-color ml-2">last scan failed</span></div>
+        </div>
+
+        @if (data.neverScannedCount + data.lastScanFailedCount > 0) {
+            <p-message severity="warn" styleClass="w-full mb-4"
+                text="Some targets have not been observed. An empty backlog passes every policy: their verdict says nothing until a scan has succeeded." />
+        }
+
+        <p-table [value]="data.targets" [tableStyle]="{ 'min-width': '50rem' }">
+            <ng-template #header>
+                <tr>
+                    <th>Target</th>
+                    <th>Verdict</th>
+                    <th>Evaluated</th>
+                    <th>Policy</th>
+                    <th>Last scan</th>
+                    <th></th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-target>
+                <tr>
+                    <td>
+                        <span class="font-medium">{{ target.name }}</span>
+                        <div class="text-muted-color text-sm">{{ target.kind === 'repository' ? 'Repository' : 'Container' }}</div>
+                    </td>
+                    <td>
+                        <p-tag [severity]="target.passed ? 'success' : 'danger'" [value]="target.passed ? 'Passing' : 'Failing'" />
+                        @if (!target.observed) {
+                            <p-tag severity="warn" [value]="observationLabel(target)" styleClass="ml-2" />
+                        }
+                        @if (target.verdict.violations.length) {
+                            <div class="text-muted-color text-sm mt-1">{{ target.verdict.violations[0].reason }}</div>
+                        }
+                    </td>
+                    <td>{{ target.verdict.evaluated }}</td>
+                    <td class="text-muted-color">{{ target.policy.source === 'built-in' ? 'default' : target.policy.source + ' v' + target.policy.version }}</td>
+                    <td class="text-muted-color">{{ formatDate(target.lastScanAt) }}</td>
+                    <td>
+                        <p-button label="Issues" size="small" [text]="true" [routerLink]="['/issues']" [queryParams]="issueFilter(target)" />
+                        <!--
+                            Buttons and not links: the session token lives in memory and
+                            is put on requests by the interceptor, so a browser
+                            navigation to the same URL carries no credential and answers
+                            401. Going through the HTTP client is what authenticates it.
+                        -->
+                        <p-button label="PDF" size="small" [text]="true" [disabled]="downloading() === target.targetId"
+                                  (onClick)="download(target, 'posture.pdf')" />
+                        <p-button label="CSV" size="small" [text]="true" [disabled]="downloading() === target.targetId"
+                                  (onClick)="download(target, 'issues.csv')" />
+                        <p-button label="VEX" size="small" [text]="true" [disabled]="downloading() === target.targetId"
+                                  (onClick)="download(target, 'vex')" />
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr><td colspan="6" class="text-center text-muted-color py-6">No monitored target.</td></tr>
+            </ng-template>
+        </p-table>
+    } @else if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full" />
+    }
+</div>

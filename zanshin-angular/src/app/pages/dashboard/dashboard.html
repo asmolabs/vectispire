@@ -1,0 +1,132 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">Dashboard</h1>
+    <p class="text-muted-color mt-1 mb-0">The state of the watch, on one page.</p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+@if (data(); as overview) {
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+        <p-card>
+            <div class="text-muted-color text-sm">Failing targets</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
+                {{ overview.posture.failingCount }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
+            </div>
+            <a routerLink="/security" class="text-sm">See the posture</a>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">Actively exploited vulnerabilities</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">{{ overview.posture.kevCount }}</div>
+            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">See the KEV catalogue</a>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">Never scanned</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.neverScannedCount > 0">
+                {{ overview.posture.neverScannedCount }}
+            </div>
+            <!-- The figure easiest to mistake for good news: a target with no finding
+                 is not a target with no problem. -->
+            <div class="text-sm text-muted-color">No finding for want of observation</div>
+        </p-card>
+
+        <p-card>
+            <div class="text-muted-color text-sm">Last scan failed</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.lastScanFailedCount > 0">
+                {{ overview.posture.lastScanFailedCount }}
+            </div>
+            <div class="text-sm text-muted-color">Data possibly stale</div>
+        </p-card>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <p-card styleClass="xl:col-span-1">
+            <ng-template #title>Issues to handle</ng-template>
+            <div class="flex flex-col gap-3">
+                @for (level of severities; track level.key) {
+                    <div class="flex items-center justify-between">
+                        <p-tag [value]="level.label" [severity]="level.severity" />
+                        <a [routerLink]="['/issues']" [queryParams]="{ severity: level.key, state: 'open' }" class="text-xl font-semibold">
+                            {{ overview.backlogBySeverity[level.key] ?? 0 }}
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <!-- Separate, and said so: mixing quality into the security backlog would
+                 push this panel to four digits the day SAST is switched on, and nobody
+                 would look at it again. -->
+            <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
+                <div class="flex items-center justify-between">
+                    <span class="text-muted-color text-sm">Quality <span class="text-xs">(never blocks)</span></span>
+                    <a routerLink="/quality" class="font-semibold">{{ overview.qualityTotal }}</a>
+                </div>
+            </div>
+        </p-card>
+
+        <p-card styleClass="xl:col-span-2">
+            <ng-template #title>Failing targets</ng-template>
+            @if (overview.failing.length === 0) {
+                <p class="text-muted-color m-0">No target violates its policy.</p>
+                @if (overview.posture.neverScannedCount > 0) {
+                    <p class="text-muted-color text-sm mt-2 mb-0">
+                        {{ overview.posture.neverScannedCount }} target(s) have never been scanned: their compliance is not established.
+                    </p>
+                }
+            } @else {
+                <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
+                    <ng-template #header>
+                        <tr><th>Target</th><th>Rule at fault</th><th class="text-right">Items</th></tr>
+                    </ng-template>
+                    <ng-template #body let-target>
+                        <tr>
+                            <td>
+                                <div class="font-medium">{{ target.name }}</div>
+                                <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? 'Repository' : 'Container' }}</div>
+                            </td>
+                            <td>
+                                @for (violation of firstViolations(target.violations); track $index) {
+                                    <div class="text-sm">
+                                        <p-tag [value]="violation.rule === 'kev' ? 'KEV' : 'Severity'" severity="danger" styleClass="mr-2" />
+                                        {{ violation.reason }}
+                                    </div>
+                                }
+                                @if (target.violations.length > 3) {
+                                    <div class="text-sm text-muted-color mt-1">et {{ target.violations.length - 3 }} autre(s)</div>
+                                }
+                            </td>
+                            <td class="text-right font-semibold">{{ target.violations.length }}</td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            }
+        </p-card>
+    </div>
+
+    <p-card styleClass="mt-4">
+        <ng-template #title>Recent scans</ng-template>
+        <p-table [value]="overview.recentScans" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr><th>Target</th><th>State</th><th class="text-right">Findings</th></tr>
+            </ng-template>
+            <ng-template #body let-scan>
+                <tr>
+                    <td>
+                        <a [routerLink]="['/scans', scan.id]">{{ scan.targetName ?? (scan.targetKind === 'container' ? 'Container ' + scan.containerId : 'Repository ' + scan.repoId) }}</a>
+                        <div class="text-xs text-muted-color">{{ scan.targetKind === 'container' ? 'image' : 'repository' }}</div>
+                    </td>
+                    <td><app-last-scan [scan]="scan" /></td>
+                    <td class="text-right">{{ scan.findingsCount ?? '—' }}</td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr><td colspan="3" class="text-center text-muted-color py-6">No scan.</td></tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+} @else if (loading()) {
+    <p class="text-muted-color">Loading…</p>
+}

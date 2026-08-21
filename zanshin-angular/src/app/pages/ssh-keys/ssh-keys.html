@@ -1,0 +1,96 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">SSH keys</h1>
+        <p class="text-muted-color mt-1 mb-0">The deployment keys used to clone private repositories.</p>
+    </div>
+    <p-button label="Add a key" icon="pi pi-plus" (onClick)="openForm()" />
+</div>
+
+<!-- Says what is missing rather than offering a button that would produce a pair we
+     cannot check here that a git server accepts. -->
+<p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
+    Generating a pair from the interface is not ported yet. Generate one with
+    <span class="font-mono">ssh-keygen -t ed25519</span>, then paste the private half here.
+</p-message>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="keys()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>Name</th>
+                <th>Public key</th>
+                <th>Encryption</th>
+                <th>Added</th>
+                <th class="text-right">Repositories</th>
+                <th class="w-1"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-key>
+            <tr>
+                <td class="font-medium">{{ key.name }}</td>
+                <td>
+                    @if (key.publicKey) {
+                        <span class="font-mono text-sm whitespace-nowrap" [title]="key.publicKey">{{ shorten(key.publicKey) }}</span>
+                    } @else {
+                        <span class="text-muted-color">—</span>
+                    }
+                </td>
+                <td>
+                    <p-tag [value]="badge(key.encryptionState).label" [severity]="badge(key.encryptionState).severity"
+                           [pTooltip]="badge(key.encryptionState).hint" tooltipPosition="top" />
+                </td>
+                <td>{{ key.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-right">{{ key.usedByRepositories }}</td>
+                <td class="text-right">
+                    <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
+                              [ariaLabel]="'Delete ' + key.name" (onClick)="askDelete(key)" />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr><td colspan="6" class="text-center text-muted-color py-6">No key registered.</td></tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog header="Add an SSH key" [(visible)]="formVisible" [modal]="true" [style]="{ width: '40rem' }">
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="name" class="font-medium">Nom</label>
+            <input pInputText id="name" [(ngModel)]="form.name" placeholder="GitHub deployment" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="private" class="font-medium">Private key</label>
+            <textarea pTextarea id="private" [(ngModel)]="form.privateKey" rows="7" class="font-mono text-sm"
+                      placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+            <small class="text-muted-color">Encrypted before it is written, and never shown again.</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="public" class="font-medium">Public key <span class="text-muted-color font-normal">(optional)</span></label>
+            <textarea pTextarea id="public" [(ngModel)]="form.publicKey" rows="2" class="font-mono text-sm"
+                      placeholder="ssh-ed25519 AAAA…"></textarea>
+            <small class="text-muted-color">Useful for finding which key to register with the provider.</small>
+        </div>
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog header="Delete this key?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+    @if (pendingDelete(); as key) {
+        <p class="m-0"><span class="font-medium">{{ key.name }}</span> will be deleted. This is permanent.</p>
+    }
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+    </ng-template>
+</p-dialog>

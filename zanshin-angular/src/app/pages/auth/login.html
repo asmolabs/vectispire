@@ -1,0 +1,30 @@
+<div class="flex items-center justify-center min-h-screen overflow-hidden">
+    <div class="flex flex-col items-center justify-center w-full max-w-md">
+        <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33,150,243,0) 30%)">
+            <div class="w-full bg-surface-0 dark:bg-surface-900 py-16 px-8 sm:px-16" style="border-radius: 53px">
+                <div class="text-center mb-8">
+                    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-2">Zanshin</div>
+                    <span class="text-muted-color font-medium">Application security analysis</span>
+                </div>
+
+                <form (ngSubmit)="submit()">
+                    <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
+                    <input pInputText id="username" name="username" type="text" autocomplete="username" class="w-full mb-6" [(ngModel)]="username" />
+
+                    <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+                    <!-- Enter is bound explicitly: p-password wraps its own input and the key
+                         never reached the form's submit — signing in from the keyboard did not
+                         work, which nobody sees without trying it. -->
+                    <p-password id="password" name="password" [(ngModel)]="password" [toggleMask]="true" [feedback]="false"
+                                styleClass="mb-4" [fluid]="true" (keyup.enter)="submit()" />
+
+                    @if (error()) {
+                        <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />
+                    }
+
+                    <p-button type="submit" label="Sign in" styleClass="w-full" [loading]="loading()" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

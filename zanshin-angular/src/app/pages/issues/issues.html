@@ -1,0 +1,123 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">Issues</div>
+    <p class="text-muted-color mb-4">What the scans found, followed from one scan to the next. An issue keeps its history and its triage decision.</p>
+
+    <div class="flex flex-wrap gap-3 mb-4">
+        <p-select [(ngModel)]="state" [options]="states" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
+        <p-select [(ngModel)]="severity" [options]="severities" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Severity" [showClear]="true" />
+        <p-select [(ngModel)]="type" [options]="types" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
+        <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
+                  placeholder="Target" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
+        <p-iconfield>
+            <p-inputicon class="pi pi-search" />
+            <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" placeholder="Identifier, package, file" />
+        </p-iconfield>
+    </div>
+
+    <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()">
+        <ng-template #header>
+            <tr>
+                <th>Issue</th>
+                <th>Type</th>
+                <th>Target</th>
+                <th>Severity</th>
+                <th>Component</th>
+                <th>History</th>
+                <th>Triage</th>
+                <th></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-issue>
+            <tr>
+                <td>
+                    <!-- The identifier is the handle: it is what somebody reads the row
+                          for, so it is what opens the detail. -->
+                    <a class="font-medium" [routerLink]="['/issues', issue.id]">
+                        {{ issue.identifier ?? '—' }}
+                    </a>
+                    @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
+                    <div class="text-muted-color text-sm">{{ issue.filePath ?? '—' }}</div>
+                </td>
+                <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
+                <td>
+                    <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
+                    <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? 'image' : 'repository' }}</div>
+                </td>
+                <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
+                <td>
+                    <span>{{ issue.packageName ?? '—' }}</span>
+                    @if (issue.packageVersion) { <span class="text-muted-color"> {{ issue.packageVersion }}</span> }
+                </td>
+                <td class="text-muted-color">seen {{ issue.timesSeen }}×</td>
+                <td>
+                    <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
+                    @if (issue.triagedBy) { <div class="text-muted-color text-sm">by {{ issue.triagedBy }}</div> }
+                    <!--
+                        The ticket is shown here because without it, an opened ticket
+                        would be invisible from Zanshin: somebody would raise the same
+                        one by hand, and nobody would know the work is already
+                        planned.
+                    -->
+                    @if (issue.ticketRef) {
+                        <div class="text-sm mt-1">
+                            @if (issue.ticketUrl) {
+                                <a [href]="issue.ticketUrl" target="_blank" rel="noopener noreferrer">{{ issue.ticketRef }}</a>
+                            } @else {
+                                <span class="text-muted-color">{{ issue.ticketRef }}</span>
+                            }
+                        </div>
+                    }
+                </td>
+                <td><p-button label="Triage" size="small" [text]="true" (onClick)="openTriage(issue)" /></td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr><td colspan="8" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
+        </ng-template>
+    </p-table>
+
+    <div class="flex items-center justify-between mt-4">
+        <span class="text-muted-color">{{ pageLabel() }}</span>
+        <div class="flex gap-2">
+            <p-button label="Previous" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
+            <p-button label="Next" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
+        </div>
+    </div>
+</div>
+
+<p-dialog header="Triage this issue" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }">
+    <div class="flex flex-col gap-4">
+        <div>
+            <label class="block font-medium mb-2">Decision</label>
+            <p-select [(ngModel)]="triageStatus" [options]="triageOptions" optionLabel="label" optionValue="value" styleClass="w-full" />
+        </div>
+
+        @if (triageStatus === 'not_affected') {
+            <div>
+                <label class="block font-medium mb-2">Justification <span class="text-red-500">*</span></label>
+                <p-select [(ngModel)]="triageJustification" [options]="justifications" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" />
+                <small class="text-muted-color">Required by the VEX standard: without it the exported statement would carry no information.</small>
+            </div>
+        }
+
+        <div>
+            <label class="block font-medium mb-2">Commentaire</label>
+            <textarea pTextarea [(ngModel)]="triageComment" rows="3" class="w-full"></textarea>
+        </div>
+
+        @if (triageStatus !== 'under_review') {
+            <div>
+                <label class="block font-medium mb-2">Review again in (days)</label>
+                <input pInputText type="number" [(ngModel)]="triageExpiresInDays" class="w-full" />
+                <small class="text-muted-color">A decision is a statement about a context, and contexts change. Leave empty to schedule no review.</small>
+            </div>
+        }
+
+        @if (triageError()) { <p-message severity="error" [text]="triageError()!" styleClass="w-full" /> }
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancel" [text]="true" (onClick)="triageOpen = false" />
+        <p-button label="Save" [disabled]="!canSubmitTriage()" (onClick)="submitTriage()" />
+    </ng-template>
+</p-dialog>

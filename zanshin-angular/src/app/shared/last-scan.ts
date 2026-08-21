@@ -31,17 +31,7 @@ const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn
     selector: 'app-last-scan',
     standalone: true,
     imports: [CommonModule, TagModule],
-    template: `
-        @if (scan(); as value) {
-            <p-tag [value]="label(value.status)" [severity]="severity(value.status)" />
-            <div class="text-sm text-muted-color mt-1">{{ value.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
-            @if (value.error) {
-                <div class="text-sm text-red-500 mt-1">{{ value.error }}</div>
-            }
-        } @else {
-            <span class="text-muted-color">Never scanned</span>
-        }
-    `
+    templateUrl: './last-scan.html'
 })
 export class LastScanTag {
     readonly scan = input.required<LastScan | null>();
