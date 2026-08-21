@@ -36,6 +36,7 @@ Three environment variables matter before the first run:
 | `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / empty |
 | `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
+| `ZANSHIN_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `ZANSHIN_OIDC_ISSUER` is set: it would leave no way in |
 | `ZANSHIN_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 
 

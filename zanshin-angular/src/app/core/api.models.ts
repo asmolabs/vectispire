@@ -716,4 +716,11 @@ export interface SignInMethods {
     /** False when no issuer is configured: the button is then absent, not disabled. */
     configured: boolean;
     label: string | null;
+    /** False when this deployment delegates authentication entirely to the provider — so the
+     *  second factor is the realm's, and Zanshin never sees a password. The form is then hidden
+     *  rather than shown and refused: an input that cannot work is worse than no input.
+     *
+     *  Always true when no provider is configured, whatever was asked for: the server refuses to
+     *  close the only door that works. */
+    password: boolean;
 }

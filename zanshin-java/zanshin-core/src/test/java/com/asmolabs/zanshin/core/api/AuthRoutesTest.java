@@ -24,6 +24,18 @@ class AuthRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the sign-in methods say a password is accepted here")
+    void methodsReportsTheOpenDoors() throws Exception {
+        // Read before anybody is authenticated, because the screen has to know which inputs to
+        // draw. The test build configures no issuer, so this is the ordinary deployment: a
+        // password works, single sign-on is absent rather than present and refusing.
+        mvc.perform(get("/api/v1/auth/methods"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.password").value(true))
+                .andExpect(jsonPath("$.configured").value(false));
+    }
+
+    @Test
     @DisplayName("login refuses a wrong password without saying whether the account exists")
     void wrongCredentialsAreOneAnswer() throws Exception {
         tokenFor("someone", Role.USER, false);

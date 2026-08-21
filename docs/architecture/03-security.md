@@ -159,6 +159,22 @@ re-evaluated on **every request** rather than on page load. A missing or unreada
 counts as expired — failing open would make the control decorative, and the cost of failing
 closed is one re-login.
 
+**A second factor, delegated rather than built.** Zanshin holds a deployment key for every
+repository it watches, and a password is one factor. `ZANSHIN_PASSWORD_LOGIN=false` closes the
+password door, so single sign-on carries whatever the realm requires — including an MFA
+requirement Zanshin never implements, never stores a secret for, and never has to write a
+recovery path around. What blocked that delegation before was that the password stayed
+available beside the provider: the realm's strongest requirement was optional in practice.
+
+The guard matters more than the feature. **The request is honoured only when a provider is
+configured**; asked for without one, password sign-in stays on and says so at error level,
+because closing the only door that works locks everybody out of a tool holding every watched
+repository's key — and the person best placed to notice is the one who can no longer sign in.
+That is the same shape as `OidcConfiguration` hanging on the issuer variable rather than on a
+bean. The way back from a realm that has become unreachable is the variable and a restart, by
+whoever can reach the process: deliberately not a button in the interface, which the attacker
+this setting exists to stop could also press.
+
 **The session store holds verifiers, not credentials.** `t_session`'s primary key is the
 token's SHA-256; the token itself is written nowhere. It used to be the key in the clear,
 which meant every copy of that table was a set of live sessions — a nightly backup, a read

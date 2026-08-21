@@ -7,6 +7,7 @@ import com.asmolabs.zanshin.common.domain.users.AccountRules;
 import com.asmolabs.zanshin.core.api.security.OpenToAnonymous;
 import com.asmolabs.zanshin.core.api.security.PasswordChangeGate;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.SignInMethodPolicy;
 import com.asmolabs.zanshin.core.api.security.OidcConfiguration;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
@@ -50,6 +51,7 @@ public class AuthController {
     /** Absent when no issuer is configured: single sign-on is optional, and absent when off. */
     private final Optional<ClientRegistrationRepository> providers;
 
+    private final SignInMethodPolicy methods;
     private final AuthService auth;
     private final AuditLogService audit;
     private final Users users;
@@ -62,8 +64,10 @@ public class AuthController {
             Users users,
             UserSessions sessions,
             Optional<ClientRegistrationRepository> providers,
+            SignInMethodPolicy methods,
             Clock clock) {
         this.providers = providers;
+        this.methods = methods;
         this.auth = auth;
         this.audit = audit;
         this.users = users;
@@ -83,6 +87,23 @@ public class AuthController {
     @OpenToAnonymous
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest body, HttpServletRequest request) {
+        if (!methods.passwordAllowed()) {
+            // Audited, and refused before the password is looked at. An attempt on a door that
+            // is closed is exactly what somebody working from a stolen password list produces,
+            // and it is worth being able to find afterwards.
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_BLOCKED,
+                    text(body == null ? null : body.username()),
+                    "Password sign-in is disabled on this deployment",
+                    text(body == null ? null : body.username()),
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent")));
+            // 403 and not 401: the credentials were not judged, and a client that reads
+            // "unauthorized" tries again with another password. This door is closed to everyone.
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Password sign-in is disabled here. Use single sign-on.");
+        }
+
         AuthService.LoginResult result = auth.login(new AuthService.LoginRequest(
                 text(body == null ? null : body.username()),
                 text(body == null ? null : body.password()),
@@ -122,8 +143,11 @@ public class AuthController {
      * @param configured whether an identity provider is wired at all — the screen offers the
      *     button only then, because an optional feature that is off should be absent rather than
      *     present and refusing
+     * @param password whether a password may still be exchanged for a session. False makes the
+     *     screen hide the form rather than offer one that answers 403 — an input that cannot
+     *     work is worse than no input
      */
-    public record SignInMethods(boolean configured, String label) {}
+    public record SignInMethods(boolean configured, String label, boolean password) {}
 
     /**
      * What this deployment accepts as a way in.
@@ -135,7 +159,12 @@ public class AuthController {
     @OpenToAnonymous
     @GetMapping("/methods")
     public SignInMethods methods() {
-        return new SignInMethods(providers.isPresent(), providers.map(this::labelOf).orElse(null));
+        return new SignInMethods(
+                providers.isPresent(),
+                providers.map(this::labelOf).orElse(null),
+                // The effective answer, not the requested one: asking for password sign-in to be
+                // off without a provider leaves it on, and this endpoint must say what is true.
+                methods.passwordAllowed());
     }
 
     /**
