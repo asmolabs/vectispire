@@ -1,0 +1,162 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">Teams</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            Who may read which targets. A member sees everything the team owns, on top of whatever was assigned to
+            them individually.
+        </p>
+    </div>
+    <p-button label="Create a team" icon="pi pi-plus" (onClick)="openCreate()" />
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="teams()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>Team</th>
+                <th class="text-right">Members</th>
+                <th class="text-right">Targets</th>
+                <th class="w-1"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-team>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ team.name }}</div>
+                    @if (team.description) {
+                        <div class="text-sm text-muted-color">{{ team.description }}</div>
+                    }
+                </td>
+                <td class="text-right">{{ team.memberCount }}</td>
+                <td class="text-right">
+                    <!--
+                        A team owning nothing grants nothing, however many people are in it. Said
+                        on the row rather than left to be inferred from a zero.
+                    -->
+                    @if (team.targetCount === 0) {
+                        <p-tag severity="warn" value="grants nothing" />
+                    } @else {
+                        {{ team.targetCount }}
+                    }
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button
+                        label="Access"
+                        icon="pi pi-users"
+                        severity="secondary"
+                        [text]="true"
+                        (onClick)="openAccess(team)" />
+                    <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="openRename(team)" />
+                    <p-button icon="pi pi-trash" severity="danger" [text]="true" (onClick)="confirmDelete(team)" />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="4" class="text-center text-muted-color py-6">
+                    No team yet. Until a target belongs to one, visibility is decided account by account.
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+<p-dialog
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+    [header]="editing() ? 'Rename the team' : 'Create a team'">
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="team-name" class="font-medium">Name</label>
+            <input pInputText id="team-name" name="team-name" [(ngModel)]="form.name" class="w-full" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="team-description" class="font-medium">Description</label>
+            <input
+                pInputText
+                id="team-description"
+                name="team-description"
+                [(ngModel)]="form.description"
+                class="w-full" />
+        </div>
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button label="Save" [loading]="saving()" (onClick)="save()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [(visible)]="accessVisible"
+    [modal]="true"
+    [style]="{ width: '36rem' }"
+    [header]="'Access — ' + (accessTeam()?.name ?? '')">
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+    <!--
+        Both lists are sent as they stand, not as a set of additions: removing somebody is the
+        operation that matters, and a screen that only ever added would make a revocation a click
+        that silently does nothing.
+    -->
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="team-members" class="font-medium">Members</label>
+            <p-multiselect
+                inputId="team-members"
+                name="team-members"
+                [options]="accountOptions()"
+                [(ngModel)]="selectedMembers"
+                optionLabel="label"
+                optionValue="value"
+                [filter]="true"
+                placeholder="Nobody yet"
+                styleClass="w-full" />
+            <small class="text-muted-color">
+                An administrator is never restricted, so adding one changes nothing for them.
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="team-targets" class="font-medium">Targets</label>
+            <p-multiselect
+                inputId="team-targets"
+                name="team-targets"
+                [options]="targetOptions()"
+                [(ngModel)]="selectedTargets"
+                optionLabel="label"
+                optionValue="value"
+                [filter]="true"
+                placeholder="Nothing yet"
+                styleClass="w-full" />
+            <small class="text-muted-color">
+                Every member sees each of these, and only administrators can change the list.
+            </small>
+        </div>
+    </div>
+    <ng-template #footer>
+        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="accessVisible.set(false)" />
+        <p-button label="Save" [loading]="saving()" (onClick)="saveAccess()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }" header="Delete this team?">
+    @if (pendingDelete(); as team) {
+        <p class="m-0">
+            <strong>{{ team.name }}</strong> and its access go together: its
+            {{ team.memberCount }} member(s) immediately lose the {{ team.targetCount }} target(s) it owned, unless
+            something else grants them.
+        </p>
+    }
+    <ng-template #footer>
+        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="remove()" />
+    </ng-template>
+</p-dialog>

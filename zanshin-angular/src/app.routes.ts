@@ -25,6 +25,7 @@ export const appRoutes: Routes = [
             { path: 'containers', loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers) },
             { path: 'ssh-keys', loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
             { path: 'users', loadComponent: () => import('./app/pages/users/users').then((m) => m.Users) },
+            { path: 'teams', loadComponent: () => import('./app/pages/teams/teams').then((m) => m.Teams) },
             { path: 'api-keys', loadComponent: () => import('./app/pages/api-keys/api-keys').then((m) => m.ApiKeys) },
             { path: 'audit-log', loadComponent: () => import('./app/pages/audit-log/audit-log').then((m) => m.AuditLog) },
             { path: 'settings', loadComponent: () => import('./app/pages/settings/settings').then((m) => m.Settings) },

@@ -302,6 +302,23 @@ export interface IssuedApiKey {
     secret: string;
 }
 
+/** A team: the grouping that makes restricted visibility administrable. */
+export interface TeamSummary {
+    id: number;
+    name: string;
+    description: string | null;
+    /** On the list so the screen can say "four people, two repositories" without one request
+     *  per team — and so that a team owning nothing, which grants nothing, is visible at a
+     *  glance rather than by opening it. */
+    memberCount: number;
+    targetCount: number;
+}
+
+export interface TeamTargetAssignment {
+    kind: string;
+    id: number;
+}
+
 export interface ApiKeyTargets {
     repositories: { id: number; label: string }[];
     containers: { id: number; label: string }[];

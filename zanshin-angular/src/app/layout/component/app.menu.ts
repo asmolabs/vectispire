@@ -70,6 +70,7 @@ export class AppMenu {
                     { label: 'API keys', icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
                     { label: 'Agents', icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
                     { label: 'Users', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
+                    { label: 'Teams', icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
                     { label: 'Audit log', icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
                     { label: 'Semgrep rules', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
                     { label: 'Settings', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }

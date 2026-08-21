@@ -62,6 +62,7 @@ the same commit that violates it; a missing dependency cannot.
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
+| A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |

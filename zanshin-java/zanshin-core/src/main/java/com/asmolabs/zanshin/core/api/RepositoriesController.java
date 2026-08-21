@@ -5,6 +5,9 @@ import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.targets.RepositoryUrl;
+import com.asmolabs.zanshin.common.domain.teams.TeamRules;
+import com.asmolabs.zanshin.core.repositories.TeamTargets;
+import com.asmolabs.zanshin.core.repositories.UserTargets;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
@@ -53,13 +56,20 @@ public class RepositoriesController {
     private final AuditLogService audit;
     private final VisibilityService visibility;
 
+    private final UserTargets userTargets;
+    private final TeamTargets teamTargets;
+
     public RepositoriesController(
             GitRepositories repositories,
             Scans scans,
             Issues issues,
             ScanTriggerService trigger,
             AuditLogService audit,
-            VisibilityService visibility) {
+            VisibilityService visibility,
+            UserTargets userTargets,
+            TeamTargets teamTargets) {
+        this.userTargets = userTargets;
+        this.teamTargets = teamTargets;
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
@@ -269,6 +279,14 @@ public class RepositoriesController {
         // Scans, findings and issues follow by cascade. That is intended: keeping the backlog of
         // a target that no longer exists would have it counting towards the totals for ever with
         // nobody able to act on it.
+        //
+        // The visibility rows do **not** follow by cascade — `(target_kind, target_id)` points
+        // into one of two tables, so there is no foreign key to cascade through — and leaving
+        // them is an access-control problem rather than clutter: SQLite reuses a freed `rowid`,
+        // so an assignment naming repository 5 would come to name the *next* repository 5. Both
+        // tables are cleared before the row goes.
+        userTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, id);
+        teamTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, id);
         repositories.deleteById(id);
         record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + repository.getUrl());
     }

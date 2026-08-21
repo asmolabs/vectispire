@@ -142,6 +142,25 @@ HSTS would make that origin permanently unreachable in any browser that saw it o
 to the proxy that terminates TLS, which knows it has TLS. `SecurityHeadersTest` pins its
 absence, so that adding it becomes a decision rather than a default.
 
+*Between one team and another.* Two kinds of grant decide what an account reads, and they are
+**unioned**: the teams it belongs to, and the targets assigned to it directly. Direct assignment
+is the exception — one contractor, one repository — and a team is the organisation, because a
+per-account pairing costs one row per account per target and nobody maintains that by hand for
+long. Intersecting the two would have made joining a team *narrow* what somebody already had, so
+an administrator adding a member would silently revoke; the union is the only reading in which
+both gestures grant.
+
+Everything else follows the rule that was already there: an account with no grant sees
+**nothing**, administrators see everything (somebody has to be able to assign), a refusal on
+another team's target is a **404 and not a 403** — the identifier itself is not information a
+stranger should confirm — and an API key's restriction is intersected with all of it, never
+unioned. Two details are load-bearing rather than incidental. The membership query is a
+`team_id in (…)`, whose empty form is a syntax error on some engines and matches every row on
+others, so an account in no team short-circuits before the query rather than after it. And
+deleting a team removes its rows **explicitly** instead of relying on the declared cascade,
+because SQLite enforces foreign keys only when `PRAGMA foreign_keys = ON` has been issued and
+nothing here issues it — a revocation must not depend on which of four engines is underneath.
+
 *Between an agent and the database.* A remote agent **only talks to the API**. That is the
 number one reason for long-polling: an agent with a PostgreSQL connection would need the
 database credentials *and* `ENCRYPTION_KEY`, hence everything needed to decrypt every SSH
@@ -297,7 +316,8 @@ verdict blocks nothing.
 What matters here is checked rather than asserted: the agent cannot import the database
 layer (the module graph makes it impossible), the log detects tampering (`verifyChain`),
 a restricted key does not see other targets, a public Ollama URL is refused at send time,
-the login page names no credential, the policy header is sent with its every directive
+the login page names no credential, a team member sees what the team owns and an account in no
+team sees nothing (`TeamVisibilityTest`), the policy header is sent with its every directive
 (`SecurityHeadersTest`), a deleted entry the chain declares intact is caught by the mirror
 (`AuditMirrorTest`), and no third-party asset is declared anywhere — shell or component
 template — because the CSP would refuse it, so declaring it would produce a page that merely
@@ -305,8 +325,11 @@ template — because the CSP would refuse it, so declaring it would produce a pa
 
 ## Still open
 
-- **No per-team partitioning at the account level.** A user sees everything. The heaviest
-  limit on this list.
+- **Restricted visibility is off by default.** `TARGET_VISIBILITY` ships as `everyone`, so an
+  update changes nothing for an existing deployment — and a deployment that never changes it has
+  no partitioning at all. Teams and per-account assignment both do nothing until it is switched
+  to `assigned`, which is a setting an administrator has to know exists. The screen says which
+  mode is in force; nothing forces the choice.
 - **The audit log is in the database it watches**, unless a mirror is configured — and the
   default is unconfigured. A deployment that sets no `ZANSHIN_AUDIT_MIRROR` still has one copy
   and one set of credentials protecting it; the verification screen says so, which is the most

@@ -74,7 +74,7 @@ class ChangelogTest {
                         "t_ai_review_result", "t_audit_log", "t_issue", "t_finding", "t_gate_policy",
                         "t_leader_lease", "t_login_attempt", "t_outbox_message", "t_processed_message",
                         "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set",
-                        "t_issue_triage_event", "t_component");
+                        "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target");
     }
 
     @Test
@@ -93,7 +93,8 @@ class ChangelogTest {
             // a suite comes to prove less than its name says.
             for (String table : List.of(
                     "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
-                    "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component")) {
+                    "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
+                    "t_team_member", "t_team_target")) {
                 try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
                     while (rows.next()) {
                         references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -116,8 +117,11 @@ class ChangelogTest {
                         "t_user_target.user_id -> t_user",
                         "t_issue_triage_event.issue_id -> t_issue",
                         "t_issue_triage_event.scan_id -> t_scan",
-                        "t_component.scan_id -> t_scan")
-                .hasSize(16);
+                        "t_component.scan_id -> t_scan",
+                        "t_team_member.team_id -> t_team",
+                        "t_team_member.user_id -> t_user",
+                        "t_team_target.team_id -> t_team")
+                .hasSize(19);
     }
 
     @Test

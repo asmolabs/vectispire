@@ -20,7 +20,9 @@ const OPERATION_LABELS: Record<string, string> = {
     LOGOUT: 'Sign out',
     TRIAGE: 'Triage',
     SCAN_TRIGGERED: 'Scan triggered',
-    POLICY_UPDATED: 'Policy changed'
+    POLICY_UPDATED: 'Policy changed',
+    TEAM_UPDATED: 'Team changed',
+    TEAM_ACCESS_CHANGED: 'Team access changed'
 };
 
 const PAGE_SIZE = 50;

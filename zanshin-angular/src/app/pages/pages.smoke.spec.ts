@@ -16,6 +16,7 @@ import { RuleSets } from './rule-sets/rule-sets';
 import { ScanDetailPage } from './scans/scan-detail';
 import { Security } from './security/security';
 import { SshKeys } from './ssh-keys/ssh-keys';
+import { Teams } from './teams/teams';
 import { Users } from './users/users';
 
 /**
@@ -87,6 +88,7 @@ describe('every screen', () => {
         ['API keys', ApiKeys],
         ['SSH keys', SshKeys],
         ['Users', Users],
+        ['Teams', Teams],
         ['Audit log', AuditLog],
         ['Semgrep rules', RuleSets]
     ];

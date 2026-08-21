@@ -31,6 +31,8 @@ import {
     InventoryResults,
     IssueDetail,
     SignInMethods,
+    TeamSummary,
+    TeamTargetAssignment,
     OllamaCheck,
     OwaspReport,
     HistoryRepository,
@@ -340,6 +342,39 @@ export class ApiService {
 
     deleteApiKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/api-keys/${id}`);
+    }
+
+    teams(): Observable<TeamSummary[]> {
+        return this.http.get<TeamSummary[]>('/api/v1/teams');
+    }
+
+    createTeam(team: { name: string; description?: string | null }): Observable<TeamSummary> {
+        return this.http.post<TeamSummary>('/api/v1/teams', team);
+    }
+
+    updateTeam(id: number, patch: { name?: string; description?: string | null }): Observable<TeamSummary> {
+        return this.http.patch<TeamSummary>(`/api/v1/teams/${id}`, patch);
+    }
+
+    deleteTeam(id: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/teams/${id}`);
+    }
+
+    teamMembers(id: number): Observable<number[]> {
+        return this.http.get<number[]>(`/api/v1/teams/${id}/members`);
+    }
+
+    /** Replaced wholesale: a server that only added would make a removal silently do nothing. */
+    setTeamMembers(id: number, userIds: number[]): Observable<number[]> {
+        return this.http.put<number[]>(`/api/v1/teams/${id}/members`, userIds);
+    }
+
+    teamTargets(id: number): Observable<TeamTargetAssignment[]> {
+        return this.http.get<TeamTargetAssignment[]>(`/api/v1/teams/${id}/targets`);
+    }
+
+    setTeamTargets(id: number, targets: TeamTargetAssignment[]): Observable<TeamTargetAssignment[]> {
+        return this.http.put<TeamTargetAssignment[]>(`/api/v1/teams/${id}/targets`, targets);
     }
 
     auditLog(filters: AuditFilters = {}): Observable<Page<AuditEntry>> {

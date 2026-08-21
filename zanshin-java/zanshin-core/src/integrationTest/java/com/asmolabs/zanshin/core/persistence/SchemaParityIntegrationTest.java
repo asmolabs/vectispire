@@ -85,7 +85,7 @@ class SchemaParityIntegrationTest {
         // an empty metamodel, which is how an architecture check reports green having looked at
         // nothing — and it is written out so that adding an entity without a table fails here
         // rather than the first time somebody queries it.
-        assertThat(entityManager.getMetamodel().getEntities()).hasSize(22);
+        assertThat(entityManager.getMetamodel().getEntities()).hasSize(25);
     }
 
     @Test

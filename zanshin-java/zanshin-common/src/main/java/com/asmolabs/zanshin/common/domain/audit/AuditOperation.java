@@ -44,6 +44,24 @@ public enum AuditOperation {
     TICKET_CREATED,
     GATE_POLICY_UPDATED,
 
+    /**
+     * A team was created, renamed or deleted.
+     *
+     * <p>Audited for the same reason as a role change: it decides what a group of people can
+     * read. Deleting a team is the sharpest of the three — every member loses everything the
+     * team owned, in one gesture, and the entry is what says who made it.
+     */
+    TEAM_UPDATED,
+
+    /**
+     * A team's members or targets changed.
+     *
+     * <p>Separate from {@link #TEAM_UPDATED} because it is the frequent one and the interesting
+     * one: adding a member grants that person everything the team owns, and adding a target
+     * grants it to everybody already in the team. Both are quiet gestures with wide reach.
+     */
+    TEAM_ACCESS_CHANGED,
+
     /** Without it, sweeping every endpoint leaves no trace at all. */
     ACCESS_DENIED,
 

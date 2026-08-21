@@ -68,3 +68,4 @@ databaseChangeLog:
   - include: { file: db/changelog/003-triage-events.yaml }
   - include: { file: db/changelog/004-components.yaml }
   - include: { file: db/changelog/005-session-token-hash.yaml }
+  - include: { file: db/changelog/006-teams.yaml }
