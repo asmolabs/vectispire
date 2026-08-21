@@ -13,6 +13,15 @@ import org.springframework.data.repository.query.Param;
 public interface Users extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
 
+    /**
+     * The account bound to an identity provider's subject.
+     *
+     * <p>The column predates single sign-on by a whole implementation and was written by nothing;
+     * it is unique, which is what makes it usable as an identity rather than a note.
+     */
+    Optional<UserEntity> findByKeycloakId(String keycloakId);
+
+
     List<UserEntity> findAllByOrderByUsernameAsc();
 
     /**

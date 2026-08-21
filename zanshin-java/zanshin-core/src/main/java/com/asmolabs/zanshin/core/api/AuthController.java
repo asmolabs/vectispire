@@ -7,18 +7,25 @@ import com.asmolabs.zanshin.common.domain.users.AccountRules;
 import com.asmolabs.zanshin.core.api.security.OpenToAnonymous;
 import com.asmolabs.zanshin.core.api.security.PasswordChangeGate;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.OidcConfiguration;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
+import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.repositories.UserSessions;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.AuthService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
+import java.util.Optional;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,6 +47,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
+    /** Absent when no issuer is configured: single sign-on is optional, and absent when off. */
+    private final Optional<ClientRegistrationRepository> providers;
+
     private final AuthService auth;
     private final AuditLogService audit;
     private final Users users;
@@ -47,7 +57,13 @@ public class AuthController {
     private final Clock clock;
 
     public AuthController(
-            AuthService auth, AuditLogService audit, Users users, UserSessions sessions, Clock clock) {
+            AuthService auth,
+            AuditLogService audit,
+            Users users,
+            UserSessions sessions,
+            Optional<ClientRegistrationRepository> providers,
+            Clock clock) {
+        this.providers = providers;
         this.auth = auth;
         this.audit = audit;
         this.users = users;
@@ -96,6 +112,85 @@ public class AuthController {
             case AuthService.Outcome.Success success -> new LoginResponse(
                     success.session().getToken(), success.session().getExpiresAt(), summaryOf(success.user()));
         };
+    }
+
+    /**
+     * @param configured whether an identity provider is wired at all — the screen offers the
+     *     button only then, because an optional feature that is off should be absent rather than
+     *     present and refusing
+     */
+    public record SignInMethods(boolean configured, String label) {}
+
+    /**
+     * What this deployment accepts as a way in.
+     *
+     * <p>Readable without a session, on purpose and with nothing sensitive in it: the login
+     * screen has to render the right buttons before anybody is authenticated, and "this instance
+     * has single sign-on" is not a secret — the redirect it produces is public by construction.
+     */
+    @OpenToAnonymous
+    @GetMapping("/methods")
+    public SignInMethods methods() {
+        return new SignInMethods(providers.isPresent(), providers.map(this::labelOf).orElse(null));
+    }
+
+    /**
+     * Exchanges the one-time hand-off cookie for the session token.
+     *
+     * <p><b>Why a cookie and an exchange rather than a token in the URL.</b> The usual shortcut
+     * puts the token in the redirect's fragment, which never reaches a server — and does reach
+     * the browser's history, where a session token outlives the tab. The cookie is
+     * {@code HttpOnly}, lives sixty seconds, and is deleted here: the application reads it once,
+     * through a request the interceptor will carry from then on.
+     */
+    @OpenToAnonymous
+    @PostMapping("/session/exchange")
+    public LoginResponse exchange(HttpServletRequest request, HttpServletResponse response) {
+        String token = handoffToken(request);
+        if (token == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No sign-on to complete.");
+        }
+        clearHandoff(response, request.isSecure());
+
+        SessionEntity session = auth.resolve("Bearer " + token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "This sign-on has expired."));
+        UserEntity user = users.findById(session.getUserId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
+
+        return new LoginResponse(session.getToken(), session.getExpiresAt(), summaryOf(user));
+    }
+
+    private static String handoffToken(HttpServletRequest request) {
+        if (request.getCookies() == null) {
+            return null;
+        }
+        for (Cookie cookie : request.getCookies()) {
+            if (OidcConfiguration.HANDOFF_COOKIE.equals(cookie.getName()) && !cookie.getValue().isBlank()) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** Deleted whether or not it was usable: a hand-off cookie is worth one attempt. */
+    private static void clearHandoff(HttpServletResponse response, boolean secure) {
+        Cookie cleared = new Cookie(OidcConfiguration.HANDOFF_COOKIE, "");
+        cleared.setHttpOnly(true);
+        cleared.setPath("/");
+        cleared.setMaxAge(0);
+        cleared.setSecure(secure);
+        response.addCookie(cleared);
+    }
+
+    private String labelOf(ClientRegistrationRepository repository) {
+        if (repository instanceof Iterable<?> registrations) {
+            for (Object registration : registrations) {
+                if (registration instanceof ClientRegistration client) {
+                    return client.getClientName();
+                }
+            }
+        }
+        return "single sign-on";
     }
 
     @RequiresAccount

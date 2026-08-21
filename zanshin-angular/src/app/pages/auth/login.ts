@@ -5,6 +5,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
+import type { SignInMethods } from '../../core/api.models';
 import { ApiService } from '@/app/core/api.service';
 import { SessionStore } from '@/app/core/session.store';
 
@@ -35,6 +36,63 @@ export class Login {
     password = '';
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
+
+    /** Null until the server has said which ways in this deployment accepts. */
+    readonly methods = signal<SignInMethods | null>(null);
+
+    constructor() {
+        this.api.signInMethods().subscribe({
+            next: (methods) => this.methods.set(methods),
+            // A deployment that cannot answer offers the password form alone, which is the
+            // conservative default: showing a button that leads nowhere is worse than hiding one.
+            error: () => this.methods.set(null)
+        });
+
+        // A refused or failed sign-on comes back here as a redirect, and its reason travels in
+        // the query rather than being lost with the tab that was replaced.
+        const parameters = new URLSearchParams(window.location.search);
+        if (parameters.get('sso') === 'complete') {
+            this.completeSignIn();
+        } else if (parameters.get('sso') === 'refused') {
+            this.error.set(parameters.get('reason') ?? 'Single sign-on was refused.');
+        } else if (parameters.get('sso') === 'failed') {
+            this.error.set('Single sign-on did not complete. The provider refused the exchange.');
+        }
+    }
+
+    /**
+     * Picks up the session the sign-on just produced.
+     *
+     * <p>The hand-off cookie is {@code HttpOnly}, so this screen cannot see it and does not try:
+     * it asks the server, which reads it once and deletes it. A refusal here is not a failed
+     * sign-on but an expired one — sixty seconds is the whole life of that cookie.
+     */
+    private completeSignIn(): void {
+        this.loading.set(true);
+        this.api.completeSignIn().subscribe({
+            next: (response) => {
+                this.session.open(response.token, response.user);
+                this.loading.set(false);
+                void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'],
+                    { replaceUrl: true });
+            },
+            error: () => {
+                this.loading.set(false);
+                this.error.set('This sign-on could not be completed. Try again.');
+            }
+        });
+    }
+
+    /**
+     * Leaves the application for the provider.
+     *
+     * <p>A real navigation, and the one place one is right: this is not a request for data, it is
+     * handing the browser to another origin so it can come back with an authorization code. The
+     * session that results is fetched afterwards by the exchange.
+     */
+    signInWithProvider(): void {
+        window.location.href = '/oauth2/authorization/oidc';
+    }
 
     submit(): void {
         if (this.loading()) return;

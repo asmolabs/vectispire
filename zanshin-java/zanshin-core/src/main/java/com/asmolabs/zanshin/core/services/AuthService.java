@@ -182,6 +182,23 @@ public class AuthService {
         sessions.deleteByUserId(userId);
     }
 
+    /**
+     * A session for somebody an identity provider vouched for.
+     *
+     * <p><b>The same session a password produces, deliberately.</b> Everything downstream — the
+     * bearer filter, the principal, the visibility restriction, the audit trail, the absolute and
+     * idle lifetimes, the rule that a role change closes the sessions — reads a row of
+     * {@code t_session} and nothing else. A second kind of session for federated users would
+     * mean re-deciding all of that a second time, and the two answers would drift.
+     *
+     * <p>No throttle here: the counter protects a password, and there is no password to guess.
+     * The provider owns that side, and a failed sign-on never reaches this method.
+     */
+    @Transactional
+    public SessionEntity openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
+        return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
+    }
+
     private SessionEntity openSession(UserEntity user, LoginRequest request, Instant now) {
         SessionEntity session = new SessionEntity();
         session.setToken(Sessions.newToken());

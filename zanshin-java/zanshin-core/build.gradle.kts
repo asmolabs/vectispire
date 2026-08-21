@@ -88,6 +88,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // The OIDC client, for the optional single sign-on. `oauth2-client` and not
+    // `oauth2-resource-server`: Keycloak authenticates, and Zanshin still issues its own session
+    // — see `OidcConfiguration` for why the token is not validated on every request instead.
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     // **In `zanshin-core` and not in the domain beside the other exports**, deliberately. The

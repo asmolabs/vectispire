@@ -77,6 +77,12 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // to do something it refuses.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/login").permitAll()
+                        // Both are pre-authentication by construction: one says which buttons
+                        // the login screen should offer, the other trades a one-time cookie the
+                        // browser just received for the session it stands for. Neither can
+                        // require the session it is on the way to producing.
+                        .requestMatchers("/api/v1/auth/methods").permitAll()
+                        .requestMatchers("/api/v1/auth/session/exchange").permitAll()
                         // The agent protocol authenticates by API key, resolved by the filter
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()

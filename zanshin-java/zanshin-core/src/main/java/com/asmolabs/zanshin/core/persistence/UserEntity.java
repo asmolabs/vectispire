@@ -24,6 +24,7 @@ public class UserEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
+
     @Column(name = "username", length = 255, nullable = false, unique = true)
     private String username;
 

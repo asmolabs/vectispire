@@ -69,8 +69,8 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("exactly one route is open to anonymous callers, and it is the login")
-    void onlyLoginIsOpen() {
+    @DisplayName("three routes are open to anonymous callers, and each has a reason")
+    void onlyTheWaysInAreOpen() {
         List<String> open = new ArrayList<>();
         mappings.getHandlerMethods().forEach((info, handler) -> {
             if (isOurs(handler) && carries(handler, OpenToAnonymous.class)) {
@@ -78,9 +78,23 @@ class RouteAuthorizationTest extends ApiTestBase {
             }
         });
 
-        // A second one is not forbidden — it is a review conversation, and this failing is how
-        // the conversation starts.
-        assertThat(open).containsExactly("[/api/v1/auth/login]");
+        // A further one is not forbidden — it is a review conversation, and this failing is how
+        // the conversation starts. The three below are the ways in, and each is anonymous because
+        // it runs *before* there is a session to present:
+        //
+        //   login            — the password exchange itself.
+        //   methods          — which buttons the login screen should offer. Nothing sensitive: an
+        //                      instance having single sign-on is public by construction, since
+        //                      the redirect it produces is.
+        //   session/exchange — trades the one-time hand-off cookie the browser just received for
+        //                      the session it stands for. It cannot require the session it is on
+        //                      the way to producing, and the cookie is the credential.
+        //
+        // Listed rather than counted, so a fourth still starts the conversation.
+        assertThat(open).containsExactlyInAnyOrder(
+                "[/api/v1/auth/login]",
+                "[/api/v1/auth/methods]",
+                "[/api/v1/auth/session/exchange]");
     }
 
     @Test

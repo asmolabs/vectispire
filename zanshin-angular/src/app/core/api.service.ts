@@ -30,6 +30,7 @@ import {
     HistoryDossier,
     InventoryResults,
     IssueDetail,
+    SignInMethods,
     OllamaCheck,
     OwaspReport,
     HistoryRepository,
@@ -225,6 +226,20 @@ export class ApiService {
      */
     issue(id: number): Observable<IssueDetail> {
         return this.http.get<IssueDetail>(`/api/v1/issues/${id}`);
+    }
+
+    signInMethods(): Observable<SignInMethods> {
+        return this.http.get<SignInMethods>('/api/v1/auth/methods');
+    }
+
+    /**
+     * Trades the one-time hand-off cookie for the session it stands for.
+     *
+     * <p>`withCredentials` is what makes it work: the cookie is host-only and would not be sent
+     * otherwise, and the sign-on would succeed while the application still showed a login screen.
+     */
+    completeSignIn(): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>('/api/v1/auth/session/exchange', {}, { withCredentials: true });
     }
 
     downloadDocument(path: string): Observable<HttpResponse<Blob>> {

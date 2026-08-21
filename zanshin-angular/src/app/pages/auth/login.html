@@ -24,6 +24,26 @@
 
                     <p-button type="submit" label="Sign in" styleClass="w-full" [loading]="loading()" />
                 </form>
+
+                @if (methods()?.configured) {
+                    <!--
+                        Offered only when an issuer is configured. An optional feature that is off
+                        should be absent, not present and refusing — and the password form stays
+                        beside it on purpose: it is the way in when the provider is unreachable,
+                        and without it a broken realm locks everybody out.
+                    -->
+                    <div class="flex items-center gap-3 my-5">
+                        <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
+                        <span class="text-muted-color text-sm">or</span>
+                        <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
+                    </div>
+                    <p-button
+                        [label]="methods()!.label ?? 'Single sign-on'"
+                        icon="pi pi-shield"
+                        severity="secondary"
+                        styleClass="w-full"
+                        (onClick)="signInWithProvider()" />
+                }
             </div>
         </div>
     </div>

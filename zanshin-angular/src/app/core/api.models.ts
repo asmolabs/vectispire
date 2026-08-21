@@ -698,3 +698,10 @@ export interface IssueDetail extends Issue {
     decisions: HistoryDecision[];
     isDirectDependency: boolean | null;
 }
+
+/** Which ways in this deployment accepts. Read before anybody is authenticated. */
+export interface SignInMethods {
+    /** False when no issuer is configured: the button is then absent, not disabled. */
+    configured: boolean;
+    label: string | null;
+}

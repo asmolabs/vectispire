@@ -5,7 +5,12 @@ import { catchError, throwError } from 'rxjs';
 import { SessionStore } from './session.store';
 
 /** The calls where a 401 is not a verdict about the session. */
-const NOT_A_SESSION_VERDICT = ['/api/v1/auth/change-password'];
+const NOT_A_SESSION_VERDICT = [
+    // Nothing pending to complete, which is the ordinary answer on a page nobody signed on
+    // from — not a verdict on a session that may well be open.
+    '/api/v1/auth/session/exchange',
+    '/api/v1/auth/change-password'
+];
 
 /**
  * Puts the token on every request, and handles the 401 in one place.
