@@ -24,6 +24,13 @@ const SCOPES = [
     { value: 'agent', label: 'Agent', hint: 'Claim and run scans. This scope executes code: grant it only to an agent.' }
 ];
 
+/** One side of the target list, or nothing at all: a missing or non-array side means that kind of
+ *  target simply is not offered, which is the degraded-but-usable state the form expects. */
+function optionsOf(rows: { id: number; label: string }[] | undefined, prefix: string, kind: string) {
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => ({ label: `${prefix} — ${row.label}`, value: `${kind}:${row.id}` }));
+}
+
 @Component({
     selector: 'app-api-keys',
     standalone: true,
@@ -56,10 +63,13 @@ export class ApiKeys {
     constructor() {
         this.reload();
         this.api.apiKeyTargets().subscribe({
+            // Each side is read defensively: an `error:` handler catches an HTTP failure, not an
+            // exception thrown here, so a payload missing one of the two arrays used to escape as
+            // an uncaught TypeError instead of taking the degraded path promised below.
             next: (targets) => {
                 this.targetOptions.set([
-                    ...targets.repositories.map((row) => ({ label: `Repository — ${row.label}`, value: `repository:${row.id}` })),
-                    ...targets.containers.map((row) => ({ label: `Container — ${row.label}`, value: `container:${row.id}` }))
+                    ...optionsOf(targets?.repositories, 'Repository', 'repository'),
+                    ...optionsOf(targets?.containers, 'Container', 'container')
                 ]);
             },
             // Silent: without the list the field stays empty and the key covers every target.
