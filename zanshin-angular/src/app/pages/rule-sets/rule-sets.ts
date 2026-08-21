@@ -70,13 +70,38 @@ import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core
                         (change)="pick($event)"
                         class="text-sm"
                     />
+                    <!--
+                        A second input, because the directory attribute and a plain multiple
+                        selection cannot live on the same one: the browser offers a directory
+                        picker or a file picker, never both. The hint used to claim folder
+                        selection worked here while that attribute was absent, so it did not.
+                    -->
+                    <label for="rule-set-folder" class="font-medium mt-2">…or a folder</label>
+                    <input
+                        id="rule-set-folder"
+                        type="file"
+                        multiple
+                        webkitdirectory="true"
+                        (change)="pick($event)"
+                        class="text-sm"
+                    />
                     <small class="text-muted-color">
-                        YAML only. Selecting a folder works in most browsers. Nothing is sent until you upload.
+                        YAML only. A folder is walked whole and everything that is not a rule file is left
+                        behind — said below, never in silence. Nothing is sent until you upload.
                     </small>
                 </div>
 
                 @if (picked().length > 0) {
-                    <p class="m-0 text-sm">{{ picked().length }} file(s) selected.</p>
+                    <p class="m-0 text-sm">
+                        {{ picked().length }} file(s) selected.
+                        @if (ignored() > 0) {
+                            <!-- Named rather than dropped quietly: an operator who believes a
+                                  folder went up whole would count on coverage that is not there. -->
+                            <span class="text-muted-color">
+                                {{ ignored() }} non-YAML file(s) in the selection were left out.
+                            </span>
+                        }
+                    </p>
                 }
 
                 <div>
@@ -294,6 +319,9 @@ export class RuleSets {
 
     readonly sets = signal<RuleSetSummary[]>([]);
     readonly picked = signal<{ name: string; content: string }[]>([]);
+
+    /** How many files in the selection were not YAML. Shown, never merely dropped. */
+    readonly ignored = signal(0);
     readonly candidate = signal<RuleSetSummary | null>(null);
     readonly impact = signal<RuleSetImpact | null>(null);
     /** The upstream catalogue: what came back, and what was chosen from it. */
@@ -388,10 +416,21 @@ export class RuleSets {
         const files = Array.from(input.files ?? []);
         this.error.set(null);
 
+        // **Filtered here, and the count of what was dropped is shown.** The server refuses the
+        // whole upload on the first non-YAML file, deliberately: forty files selected and
+        // thirty-eight stored is coverage somebody believes they have and does not. That rule is
+        // right for a hand-picked selection and makes a folder impossible — a rule repository
+        // holds a README, a licence and a CI configuration, so the upload was refused before it
+        // began. Dropping them here is not the same silence: the operator chose a directory, not
+        // those files, and the number left out is on the screen.
+        const yaml = files.filter((file) => /\.ya?ml$/i.test(file.name));
+        this.ignored.set(files.length - yaml.length);
+
         try {
-            this.picked.set(await Promise.all(files.map(async (file) => ({ name: file.name, content: await file.text() }))));
+            this.picked.set(await Promise.all(yaml.map(async (file) => ({ name: file.name, content: await file.text() }))));
         } catch {
             this.picked.set([]);
+            this.ignored.set(0);
             this.error.set('One of the selected files could not be read.');
         }
     }
@@ -405,6 +444,7 @@ export class RuleSets {
             next: (stored) => {
                 this.uploading.set(false);
                 this.picked.set([]);
+                this.ignored.set(0);
                 this.name = '';
                 // Stored, not active. Saying so is the point: an operator who assumed the
                 // upload took effect would wait for coverage that is not there.

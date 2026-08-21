@@ -3,6 +3,7 @@ package com.asmolabs.zanshin.common.scanning.scanners;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.scanning.ContainerRun;
 import com.asmolabs.zanshin.common.scanning.ContainerRunner;
+import com.asmolabs.zanshin.common.scanning.ScannerFailureException;
 import com.asmolabs.zanshin.common.scanning.Workspace;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
@@ -63,53 +64,96 @@ public final class SastScanner {
     public record SastFinding(
             String ruleId, String category, Severity severity, String confidence, String file, int line, String message) {}
 
-    /** The findings, or empty if the analysis did not really happen. */
+    /**
+     * The findings, or empty when the tool ended well and covered too little to be read.
+     *
+     * <p><b>A failure is thrown, not returned empty.</b> Both cases used to arrive here as an
+     * absent result, so a refused rule file, a timeout and a thin report were one indistinguishable
+     * outcome — and the caller could only describe it as "did not run, or covered too few files".
+     * A {@link ScannerFailureException} carries what actually happened, and the step records it.
+     */
     public Optional<List<SastFinding>> scan(Workspace workspace, String subPath) {
         // `rules/semgrep`, not `rules`: the workspace also carries the secrets scanner's
         // configuration, and pointing at the parent directory would walk a tree that is not
         // this tool's.
         String rules = ContainerPaths.rules("semgrep");
 
-        try {
-            ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
-                            image,
-                            List.of(
-                                    "semgrep",
-                                    "scan",
-                                    "--config=" + rules,
-                                    "--no-rewrite-rule-ids",
-                                    // **The target does not choose what gets looked at.** The
-                                    // tool honours the analysed tree's `.gitignore` by default —
-                                    // and that tree is a clone of the scanned repository, hence
-                                    // written by whoever is being audited. A committed `*`
-                                    // excluded everything, and the step returned an empty
-                                    // success.
-                                    "--no-git-ignore",
-                                    "--json",
-                                    "--metrics=off",
-                                    "--disable-version-check",
-                                    "--quiet",
-                                    "--timeout=30",
-                                    "--timeout-threshold=3",
-                                    "--max-target-bytes=1000000",
-                                    "--max-memory=1500",
-                                    "--jobs=2",
-                                    ContainerPaths.source(subPath)),
-                            List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
-                            LABEL)
-                    .runningAsRoot());
+        ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
+                        image,
+                        List.of(
+                                "semgrep",
+                                "scan",
+                                "--config=" + rules,
+                                "--no-rewrite-rule-ids",
+                                // **The target does not choose what gets looked at.** The tool
+                                // honours the analysed tree's `.gitignore` by default — and that
+                                // tree is a clone of the scanned repository, hence written by
+                                // whoever is being audited. A committed `*` excluded everything,
+                                // and the step returned an empty success.
+                                "--no-git-ignore",
+                                "--json",
+                                "--metrics=off",
+                                "--disable-version-check",
+                                "--quiet",
+                                "--timeout=30",
+                                "--timeout-threshold=3",
+                                "--max-target-bytes=1000000",
+                                "--max-memory=1500",
+                                "--jobs=2",
+                                ContainerPaths.source(subPath)),
+                        List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
+                        LABEL)
+                .runningAsRoot());
 
-            Optional<JsonNode> payload = ContainerRunner.parseJson(result, LABEL, List.of(0));
-            if (payload.isEmpty() || mostlyFailed(payload.get())) {
-                return Optional.empty();
-            }
-            return Optional.of(findings(payload.get(), subPath));
-        } catch (RuntimeException failure) {
-            // Covers the timeout too, which is raised by the container wait rather than by
-            // reading: this is the first scanner for which the global timeout is a plausible
-            // normal outcome on a large repository, and a run that timed out knows nothing
-            // about the code.
+        // **The refusal is read before the exit code is judged.** Semgrep reports a bad
+        // configuration on *stdout*, inside the JSON, and leaves stderr empty — so the generic
+        // "exited with 7" carries no output at all and does not name the file. That cost a
+        // bisection through 1118 rule files to answer a question the scanner had already
+        // answered.
+        if (result.exitCode() != 0) {
+            throw ScannerFailureException.exited(LABEL, result.exitCode(), diagnosis(result));
+        }
+
+        Optional<JsonNode> payload = ContainerRunner.parseJson(result, LABEL, List.of(0));
+        if (payload.isEmpty() || mostlyFailed(payload.get())) {
+            // The one outcome that is genuinely "we cannot tell": the tool ended well and its
+            // report covers too little to be read as a clean tree. Absent, and the caller says so.
             return Optional.empty();
+        }
+        return Optional.of(findings(payload.get(), subPath));
+    }
+
+    /**
+     * What the tool said about its own failure, wherever it put it.
+     *
+     * <p>A refused configuration produces {@code "errors": [{"type": "InvalidRuleSchemaError"},
+     * {"message": "invalid configuration file found (1 configs were invalid)"}]} on stdout and
+     * nothing on stderr. Reporting the empty stream would be reporting that the scanner said
+     * nothing, which is the opposite of what happened.
+     */
+    private static String diagnosis(ContainerRunner.ContainerResult result) {
+        String stderr = result.stderr() == null ? "" : result.stderr().strip();
+        try {
+            JsonNode payload = ContainerRunner.parseJson(
+                            new ContainerRunner.ContainerResult(result.stdout(), "", 0), LABEL, List.of(0))
+                    .orElse(null);
+            if (payload == null || !payload.path("errors").isArray()) {
+                return stderr;
+            }
+            StringBuilder said = new StringBuilder();
+            for (JsonNode error : payload.path("errors")) {
+                String type = error.path("type").asText("");
+                String message = error.path("message").asText("");
+                if (!type.isBlank() || !message.isBlank()) {
+                    said.append(said.isEmpty() ? "" : "; ").append(type.isBlank() ? message : type)
+                            .append(type.isBlank() || message.isBlank() ? "" : ": " + message);
+                }
+            }
+            return said.isEmpty() ? stderr : said.toString();
+        } catch (RuntimeException unreadable) {
+            // The payload is whatever a failing scanner happened to print. If it cannot be read
+            // as JSON, the other stream is still better than nothing.
+            return stderr;
         }
     }
 

@@ -110,7 +110,7 @@ public class RuleSetService {
     /** A set by the hash an executor holds, for the fetch route. */
     @Transactional(readOnly = true)
     public Optional<SemgrepRuleSetEntity> byHash(String contentHash) {
-        return ruleSets.findByContentHash(contentHash);
+        return ruleSets.findFirstByContentHashOrderByIdAsc(contentHash);
     }
 
     /** The rules of a stored set, decoded. */

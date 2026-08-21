@@ -65,8 +65,39 @@ public final class RuleCatalogue {
      * 88 of them at the commit this was written against — and a name-based exclusion list is one
      * more thing to keep in step with somebody else's repository. A file Semgrep would not accept
      * as a configuration has no business in a rule set.
+     *
+     * <p><b>Content alone was not enough, and the reason is worth keeping.</b> Ten fixtures in
+     * this upstream reach Semgrep as configurations it refuses, and <b>one refused file makes it
+     * exit 7 and analyse nothing at all</b> — the whole SAST step produced an empty result on
+     * every target, for every scan, until this was found. The ten split into two kinds, and only
+     * one of them is detectable by reading the file:
+     *
+     * <ul>
+     *   <li>A Kubernetes {@code ClusterRole} manifest declares {@code rules:} too — that is the
+     *       field holding its permissions — so
+     *       {@code legacy-api-clusterrole-excessive-permissions.test.yaml} looked like a rule
+     *       file. Requiring a rule id settles it: {@code id} is mandatory in Semgrep's schema,
+     *       and a {@code ClusterRole}'s rules carry {@code apiGroups} and {@code verbs}.
+     *   <li>The other nine are fixtures of the <em>rule-linting</em> rules — {@code
+     *       duplicate-id.test.yaml}, {@code empty-message.test.yaml}, {@code
+     *       metadata-confidence-incorrect-value.test.yaml}. They are <b>deliberately malformed
+     *       rule files</b>, because that is what a fixture for a rule that lints rules has to be.
+     *       No amount of reading distinguishes them from a rule file that is merely wrong.
+     * </ul>
+     *
+     * <p>Hence the name check as well, which the first version of this class argued against on
+     * the grounds that a name-based exclusion is one more thing to keep in step with somebody
+     * else's repository. That argument was right about the cost and wrong about the alternative:
+     * {@code .test.yaml} is the upstream's own convention for a fixture, and the content it
+     * describes is by design indistinguishable from the thing it tests.
      */
     private static final Pattern DECLARES_RULES = Pattern.compile("(?m)^rules:");
+
+    /** Mandatory in every Semgrep rule; absent from anything that merely borrows the word. */
+    private static final Pattern DECLARES_A_RULE_ID = Pattern.compile("(?m)^\\s*-?\\s*id:\\s*\\S");
+
+    /** The upstream's convention for a rule's test input, in the upstream's own filenames. */
+    private static final Pattern TEST_FIXTURE = Pattern.compile("(?i)\\.test\\.ya?ml$");
 
     /**
      * Directories that are not a language, and would otherwise be offered as one.
@@ -161,7 +192,10 @@ public final class RuleCatalogue {
     }
 
     private static boolean isRule(Entry entry) {
-        return YAML.matcher(entry.path()).find() && DECLARES_RULES.matcher(entry.content()).find();
+        return YAML.matcher(entry.path()).find()
+                && !TEST_FIXTURE.matcher(entry.path()).find()
+                && DECLARES_RULES.matcher(entry.content()).find()
+                && DECLARES_A_RULE_ID.matcher(entry.content()).find();
     }
 
     private static String topLevelOf(String path) {

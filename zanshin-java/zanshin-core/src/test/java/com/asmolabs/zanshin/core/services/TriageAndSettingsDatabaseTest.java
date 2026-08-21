@@ -38,6 +38,9 @@ class TriageAndSettingsDatabaseTest extends ZanshinContextTest {
     @Autowired
     private Issues issues;
 
+    @Autowired
+    private com.asmolabs.zanshin.core.repositories.RuleSets ruleSets;
+
     @Test
     @DisplayName("a decision is written, review date included")
     void aDecisionIsStored() {
@@ -131,5 +134,39 @@ class TriageAndSettingsDatabaseTest extends ZanshinContextTest {
         issue.setLastSeenAt(Instant.now());
         issue.setTimesSeen(1);
         return issues.save(issue).getId();
+    }
+
+    /**
+     * <b>The content hash is not unique, and the lookup used to assume it was.</b> Importing the
+     * same catalogue selection twice stores two byte-identical rows; a derived {@code Optional}
+     * finder then raised "Query did not return a unique result: 2 results were returned", and
+     * that reached an operator as a failed SAST step on every scan of every target — the moment
+     * they re-imported a set, which is the ordinary way to pick up a fix.
+     */
+    @Test
+    @DisplayName("a rule set re-imported under the same content answers the lookup instead of throwing")
+    void duplicateContentHashesDoNotBreakTheFetch() {
+        String hash = "d".repeat(64);
+        long first = storeRuleSet(hash, "first import").getId();
+        storeRuleSet(hash, "same content, imported again");
+
+        // Either row serves — the hash *is* the content, so they are identical by construction.
+        // The order only makes the answer deterministic.
+        assertThat(ruleSets.findFirstByContentHashOrderByIdAsc(hash))
+                .get()
+                .extracting(com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity::getId)
+                .isEqualTo(first);
+    }
+
+    private com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity storeRuleSet(String hash, String name) {
+        var entity = new com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity();
+        entity.setName(name);
+        entity.setFiles("[]");
+        entity.setContentHash(hash);
+        entity.setRuleCount(0);
+        entity.setFileCount(0);
+        entity.setSizeBytes(2L);
+        entity.setUploadedAt(Instant.now());
+        return ruleSets.save(entity);
     }
 }

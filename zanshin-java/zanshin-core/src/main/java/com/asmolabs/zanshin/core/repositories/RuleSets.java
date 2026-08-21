@@ -19,7 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
 public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
     Optional<SemgrepRuleSetEntity> findByIsActiveTrue();
 
-    Optional<SemgrepRuleSetEntity> findByContentHash(String contentHash);
+    /**
+     * A set by the hash of its content — <b>first match, and the hash is not unique</b>.
+     *
+     * <p>Importing the same catalogue selection twice stores two rows: they carry the same files
+     * and therefore the same hash, and differ only by who imported them and when. That metadata
+     * is worth keeping, so the duplicate is not prevented — but the lookup has to survive it.
+     * Declared as a plain {@code Optional} it did not: Spring Data raised "Query did not return a
+     * unique result: 2 results were returned", which reached an operator as a failed SAST step on
+     * every scan, from the moment a set was re-imported.
+     *
+     * <p>Which row answers cannot change what is scanned: the hash <em>is</em> the content, so
+     * two rows sharing one are byte-identical by construction. Ordering by id only makes the
+     * choice deterministic rather than incidental.
+     */
+    Optional<SemgrepRuleSetEntity> findFirstByContentHashOrderByIdAsc(String contentHash);
 
     /**
      * The listing, without the files.
