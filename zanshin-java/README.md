@@ -136,13 +136,40 @@ asserts the twenty foreign keys are really there.
 destroy referential integrity on `t_team_member` and `t_team_target`, which are access-control
 tables. It applies cleanly, on every engine, and says nothing.
 
-So: **do not add a column to a table other tables reference.** Add a table instead — a new one
-has nothing pointing at it yet, and the extra join is cheaper than the class of defect. When
-there is no alternative, the assertion in `ChangelogTest` is what tells you: it lists the keys by
-name, which is why it asserts keys rather than columns, and why a new referencing table has to be
-added to that list rather than left to be covered "by the count". This is the one place where the
-single-changelog trade bites hardest — the tidy change is the dangerous one, and only running it
-on SQLite says so.
+So: **do not add a column to a table other tables reference.** Two ways out, in order of
+preference.
+
+Add a **table** instead — a new one has nothing pointing at it yet, and the extra join is
+cheaper than the class of defect. `t_team_webhook` exists for exactly this reason, and gained a
+second one on the way: a webhook URL is a bearer capability that has no business being carried by
+every query over teams.
+
+When a column really is the right shape, write the **SQL by hand** rather than `addColumn`:
+
+```yaml
+# What runs is what is written — which is the one property this trap costs, and the reason
+# the alternative to Liquibase was weighed and rejected. See decision 0011.
+- changeSet:
+    id: 008-example
+    author: zanshin
+    changes:
+      - sql:
+          dbms: sqlite
+          sql: alter table t_team add column example varchar(50)
+      - sql:
+          dbms: "postgresql,mysql,mariadb"
+          sql: alter table t_team add column example varchar(50)
+```
+
+SQLite performs that natively and leaves every referencing key intact — measured, not assumed.
+And whichever way out is taken, the assertion in `ChangelogTest` is what tells you: it lists the
+keys **by name**, which is why it asserts keys rather than columns, and why a new referencing
+table has to be added to that list rather than left to be covered "by the count".
+
+This is the one place where the single-changelog trade bites hardest — the tidy change is the
+dangerous one, and only running it on SQLite says so. Why the trade is kept anyway, and what
+Flyway would and would not have prevented, is
+[decision 0011](../docs/architecture/decisions/0011-liquibase-rather-than-flyway.md).
 
 **Strict parity is split in two, deliberately.** `ChangelogTest` proves the changelog applies
 and that the twenty foreign keys exist, on SQLite, in a second. It does not compare column types
