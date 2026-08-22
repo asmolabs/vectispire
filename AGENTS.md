@@ -35,6 +35,12 @@ jar that ships and Grype fails on a fixable High finding, and `npm audit` blocks
 dependencies. It uses the scanner digests `ScannerImages` pins, so the same scanner version
 audits Zanshin as audits its targets.
 
+A **`v*` tag** runs [`release.yml`](.github/workflows/release.yml): the suites on the tagged tree,
+then the jar and its SBOM signed with Sigstore keyless and published. It **verifies the signature
+it just made** before uploading anything, with the same command a consumer runs — a signature
+nobody has checked is a signature that does not work. `workflow_dispatch` exercises the whole path
+and publishes nothing.
+
 ## Before you change anything
 
 **Read [`docs/architecture/`](docs/architecture/) first.** Documents 01 to 04 describe the
