@@ -393,11 +393,21 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   repository read the whole deployment's severity counts beside a posture that was correctly
   narrowed. Fixed with this change, and worth recording as the shape of the mistake: every read
   path was asking `Visibility` except the one that returned numbers rather than rows.
-- **Restricted visibility is off by default.** `TARGET_VISIBILITY` ships as `everyone`, so an
-  update changes nothing for an existing deployment — and a deployment that never changes it has
-  no partitioning at all. Teams and per-account assignment both do nothing until it is switched
-  to `assigned`, which is a setting an administrator has to know exists. The screen says which
-  mode is in force; nothing forces the choice.
+- **Restricted visibility is now on for a new installation, and still off for an upgrade.** The
+  catalog's default stays `everyone`, because that is what an *absent row* has to be worth: an
+  upgrade that switched a running deployment to `assigned` would blank every
+  non-administrator's screens overnight, and nobody connects an empty backlog to a release note.
+  What changed is that a database with **no account in it** — the one moment at which nothing can
+  be broken, because nothing has been configured yet — is written `assigned` explicitly, as a row
+  like any operator's choice. `FirstInstallDefaults` holds that, `BootstrapService` calls it from
+  inside the same empty-users-table condition that guards the first account (two beans each
+  deciding "is this install new" would race the account's creation), and it **never overwrites**:
+  an operator who chose `everyone` before creating their first account keeps it across restarts.
+  `FirstInstallDefaultsDatabaseTest` checks the row reaches `t_setting` *and* that
+  `VisibilityService` reads it, which is the pair that a correct log line and no partitioning
+  would satisfy separately. What remains open is the upgrade: an existing deployment still has no
+  partitioning until an administrator switches it, and the screen saying which mode is in force
+  is the most a compatible default can do.
 - **The audit log is in the database it watches**, unless a mirror is configured — and the
   default is unconfigured. A deployment that sets no `ZANSHIN_AUDIT_MIRROR` still has one copy
   and one set of credentials protecting it; the verification screen says so, which is the most

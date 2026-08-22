@@ -123,10 +123,12 @@ public enum Setting {
     TARGET_VISIBILITY("target_visibility", SettingType.TEXT, Section.ACCESS,
             "What a non-administrator sees",
             "\"everyone\" means every signed-in account sees every target — the behaviour of a deployment "
-                    + "that has never thought about it, and the default so that updating changes nothing. "
-                    + "\"assigned\" means an account sees only the targets an administrator has assigned to it, "
-                    + "and an account with no assignment sees nothing. Administrators always see everything: "
-                    + "somebody has to be able to make the assignments.",
+                    + "that has never thought about it, and the value an **upgrade** keeps so that nothing "
+                    + "blanks overnight. \"assigned\" means an account sees only the targets an administrator "
+                    + "has assigned to it, and an account with no assignment sees nothing. Administrators "
+                    + "always see everything: somebody has to be able to make the assignments. **A new "
+                    + "installation is created with \"assigned\"** — the safe value is written into the table "
+                    + "when the database is empty, which is the one moment it cannot break anything.",
             "everyone"),
 
     TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,

@@ -63,6 +63,7 @@ the same commit that violates it; a missing dependency cannot.
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
+| A new installation starts partitioned, an upgrade does not, and neither undoes a choice | `FirstInstallDefaultsTest`, `FirstInstallDefaultsDatabaseTest`, `BootstrapServiceTest` |
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
 | A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
