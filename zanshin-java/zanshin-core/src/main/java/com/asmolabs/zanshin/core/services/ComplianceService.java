@@ -116,9 +116,15 @@ public class ComplianceService {
         return issues.count(new IssueFilters(
                 IssueState.OPEN.wireName(),
                 severity == null ? null : severity.wireName(),
-                null, null, null, null,
+                null,
+                null,
+                null,
+                null,
+                false,
                 isKev != null && isKev,
-                false, null,
-                true, Map.of(), allowed).toSpecification());
+                null,
+                true,
+                Map.of(),
+                allowed).toSpecification());
     }
 }
