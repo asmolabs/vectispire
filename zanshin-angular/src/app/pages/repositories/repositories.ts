@@ -13,11 +13,12 @@ import { ApiService } from '../../core/api.service';
 import type { MonitoredRepository } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
+import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields],
     templateUrl: './repositories.html'
 })
 export class Repositories {
@@ -37,7 +38,11 @@ export class Repositories {
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '' };
+    form = { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null as number | null, scanCron: '' };
+
+    /** Exposed to the template: the list says what each target's schedule is, because a
+     *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
+    readonly scheduleLabel = scheduleLabel;
 
     /** The row being edited, or null when the dialog is adding one. */
     readonly editing = signal<MonitoredRepository | null>(null);
@@ -92,9 +97,11 @@ export class Repositories {
                   branch: repository.branch,
                   name: repository.name ?? '',
                   subPath: repository.subPath ?? '',
-                  requiredAgentLabel: repository.requiredAgentLabel ?? ''
+                  requiredAgentLabel: repository.requiredAgentLabel ?? '',
+                  scanIntervalMinutes: repository.scanIntervalMinutes,
+                  scanCron: repository.scanCron ?? ''
               }
-            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '' };
+            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -111,7 +118,15 @@ export class Repositories {
             branch: this.form.branch.trim() || 'main',
             name: this.form.name.trim() || blank,
             subPath: this.form.subPath.trim() || blank,
-            required_agent_label: this.form.requiredAgentLabel.trim() || blank
+            required_agent_label: this.form.requiredAgentLabel.trim() || blank,
+            // **Zero, not `undefined`, when the field was cleared on the update path.** The server
+            // reads absent as "leave alone", so `undefined` would keep the old interval while the
+            // form showed nothing — the operator would think they had switched the schedule off
+            // and the scans would carry on. Zero is what `Schedules` reads as "manual only".
+            scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
+            // Always sent, empty included: the empty string is the only value the update path
+            // distinguishes from "leave alone", so it is the only way to remove an expression.
+            scanCron: this.form.scanCron.trim()
         };
 
         this.saving.set(true);

@@ -45,6 +45,7 @@
                             } @else {
                                 <span>nothing outstanding</span>
                             }
+                            · <span>{{ scheduleLabel(container) }}</span>
                         </div>
                     </div>
 
@@ -56,6 +57,8 @@
                                 <p-button icon="pi pi-play" [text]="true" [rounded]="true"
                                           [ariaLabel]="'Run a scan of ' + container.reference"
                                           [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
+                                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                                          [ariaLabel]="'Edit ' + container.reference" (onClick)="openForm(container)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
                                           [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
                             </div>
@@ -70,7 +73,7 @@
     </ng-template>
 </p-dataview>
 
-<p-dialog header="Add an image" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="editing() ? 'Edit this image' : 'Add an image'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
@@ -94,13 +97,16 @@
                 its deployment key. Left empty, any agent may take it.
             </small>
         </div>
+        <app-schedule-fields idPrefix="container" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
         @if (formError(); as message) {
+            <!-- The server's wording is what names the rejected cron field by field; a generic
+                 "invalid" would send somebody back to guessing. -->
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
     </div>
     <ng-template #footer>
         <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button label="Add" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="editing() ? 'Save' : 'Add'" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 
