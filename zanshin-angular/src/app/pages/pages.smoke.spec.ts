@@ -73,6 +73,8 @@ describe('every screen', () => {
             };
         }
         if (url.endsWith('/rule-sets')) return { ruleSets: [] };
+        // ApiKeysController.Targets: two named lists, not a collection.
+        if (url.endsWith('/api-keys/targets')) return { repositories: [], containers: [] };
         if (url.includes('/audit-log/operation-types')) return [];
         // Everything else in this application is a collection.
         return [];

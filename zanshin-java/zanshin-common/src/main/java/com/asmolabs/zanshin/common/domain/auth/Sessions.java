@@ -9,7 +9,6 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.bouncycastle.util.Arrays;
 
 /**
  * A session's rules.
@@ -47,16 +46,6 @@ public final class Sessions {
 
         public static final Policy DEFAULT = new Policy(Duration.ofHours(12), Duration.ofMinutes(60));
     }
-
-    public record Session(
-            String token,
-            long userId,
-            String username,
-            String role,
-            Instant createdAt,
-            Instant lastSeenAt,
-            /* The account must change its password before reaching anything else. */
-            boolean mustChangePassword) {}
 
     /**
      * The two causes of closure are told apart because the operator tuning the durations needs
@@ -125,21 +114,6 @@ public final class Sessions {
 
     public static boolean isActive(Instant createdAt, Instant lastSeenAt, Instant now, Policy policy) {
         return stateOf(createdAt, lastSeenAt, now, policy) == State.ACTIVE;
-    }
-
-    /**
-     * Compares two tokens in constant time.
-     *
-     * <p>An ordinary comparison stops at the first differing byte, and its duration reveals how
-     * many bytes were already right. Hardly exploitable across a network, and closing the door
-     * costs one method call.
-     */
-    public static boolean tokensMatch(String candidate, String expected) {
-        if (candidate == null || expected == null) {
-            return false;
-        }
-        return Arrays.constantTimeAreEqual(
-                candidate.getBytes(StandardCharsets.UTF_8), expected.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

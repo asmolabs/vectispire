@@ -45,7 +45,9 @@ public class OutboxService {
     private static final String STATUS_FAILED = "failed";
 
     private final Outbox messages;
-    private final NotificationService notifications;
+    /** Every destination this deployment can reach, injected rather than enumerated here. */
+    private final List<NotificationChannel> channels;
+
     private final ObjectMapper json;
     private final Clock clock;
 
@@ -58,12 +60,12 @@ public class OutboxService {
 
     public OutboxService(
             Outbox messages,
-            NotificationService notifications,
+            List<NotificationChannel> channels,
             ObjectMapper json,
             Clock clock,
             TransactionTemplate transactions) {
         this.messages = messages;
-        this.notifications = notifications;
+        this.channels = channels;
         this.json = json;
         this.clock = clock;
         this.transactions = transactions;
@@ -145,6 +147,7 @@ public class OutboxService {
                 transactions.executeWithoutResult(status -> abandon(message, attempts, at, gone));
                 abandoned++;
                 continue;
+                channelFor(message).deliver(payloadOf(message));
             } catch (JsonProcessingException | RuntimeException error) {
                 if (Boolean.TRUE.equals(
                         transactions.execute(status -> settleFailure(message, attempts, at, error)))) {
@@ -228,10 +231,26 @@ public class OutboxService {
      * tolerance is what would make the mistake silent.
      */
     private NotificationPayload payloadOf(OutboxMessageEntity message) throws JsonProcessingException {
-        if (!TYPE_SCAN_DELTA.equals(message.getMessageType())) {
+        if (channels.stream().noneMatch(channel -> channel.type().equals(message.getMessageType()))) {
             throw new IllegalStateException(
                     "Outbox message " + message.getId() + " has unknown type " + message.getMessageType());
         }
         return json.readValue(message.getPayload(), NotificationPayload.class);
+    }
+
+    /**
+     * The destination a row is for.
+     *
+     * <p><b>The three types share one payload shape and differ only in where they go.</b> That
+     * conflates "what this message is" with "where it is bound", and the alternative — a second
+     * column — would mean recreating the table on SQLite for a distinction the routing column
+     * already carries. Written down because the next message shape will have to choose again.
+     */
+    private NotificationChannel channelFor(OutboxMessageEntity message) {
+        return channels.stream()
+                .filter(channel -> channel.type().equals(message.getMessageType()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No channel handles outbox type " + message.getMessageType()));
     }
 }

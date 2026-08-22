@@ -80,6 +80,21 @@ public enum Setting {
                     + "explicitly allowed.",
             "", Sensitivity.SECRET),
 
+    TEAMS_WEBHOOK_URL("notification_teams_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Microsoft Teams webhook URL",
+            "The URL of a Teams **workflow** — \"when a Teams webhook request is received\" in Power Automate. "
+                    + "The old Office 365 connector was retired, and a workflow is what replaces it. Zanshin posts "
+                    + "an Adaptive Card, so nothing has to be mapped in the designer. Empty disables it; it can run "
+                    + "beside the generic webhook and the e-mail rather than instead of them.",
+            "", Sensitivity.SECRET),
+
+    MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
+            "E-mail recipients",
+            "Comma-separated. Empty disables e-mail. The server itself is configured with `ZANSHIN_MAIL_HOST` and "
+                    + "its companions: a mail relay is deployment infrastructure, not something to retype on a "
+                    + "settings screen, and its password has no business in a table this application can export.",
+            ""),
+
     NOTIFICATION_MIN_SEVERITY("notification_min_severity", SettingType.SEVERITY, Section.NOTIFICATIONS,
             "Minimum severity notified",
             "Nothing new above this threshold, no message. One notification per scan teaches people to filter "

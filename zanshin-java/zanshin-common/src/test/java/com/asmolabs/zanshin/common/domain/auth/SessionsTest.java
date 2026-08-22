@@ -78,15 +78,6 @@ class SessionsTest {
     }
 
     @Test
-    @DisplayName("token comparison does not depend on how much of it was right")
-    void tokensMatchConstantTime() {
-        assertThat(Sessions.tokensMatch("abc", "abc")).isTrue();
-        assertThat(Sessions.tokensMatch("abc", "abd")).isFalse();
-        assertThat(Sessions.tokensMatch("abc", "abcd")).isFalse();
-        assertThat(Sessions.tokensMatch(null, "abc")).isFalse();
-    }
-
-    @Test
     @DisplayName("extracts a bearer token")
     void extractsBearerToken() {
         assertThat(Sessions.bearerToken("Bearer abc123")).contains("abc123");

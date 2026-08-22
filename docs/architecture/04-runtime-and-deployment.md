@@ -226,10 +226,9 @@ What actually reduces the privilege, in ascending order of what it costs to run:
 | `DOCKER_HOST` | read by the Docker client, so the daemon can be a filtering proxy instead of the socket. See the section above for the exact surface, and for what it does not buy |
 | `ZANSHIN_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
 | `ZANSHIN_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
-| `ZANSHIN_SCAN_LEASE_SECONDS`, `ZANSHIN_SCAN_MAX_ATTEMPTS` | the lease and the takeover budget described above |
-| `ZANSHIN_LEADER_LEASE_SECONDS` | how long the tick's holder keeps it without renewing |
+| `ZANSHIN_QUEUE_LEASE`, `ZANSHIN_QUEUE_MAX_ATTEMPTS` | the lease and the takeover budget described above |
+| `ZANSHIN_LEADER_LEASE` | how long the tick's holder keeps it without renewing |
 | migration | Liquibase applies the changelog at startup, under the leader lease, so one instance migrates and the others wait |
-| `ZANSHIN_*_IMAGE` | replace a pinned analyzer image, to update it |
 | `ZANSHIN_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
 
 Three variables earlier versions needed are gone, and are listed here because their

@@ -97,6 +97,9 @@ dependencies {
     // `oauth2-resource-server`: Keycloak authenticates, and Zanshin still issues its own session
     // — see `OidcConfiguration` for why the token is not validated on every request instead.
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    // The mail sender. Its own starter rather than a raw JavaMail dependency: the retry, the
+    // encoding and the session handling are the parts nobody should rewrite.
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     // **In `zanshin-core` and not in the domain beside the other exports**, deliberately. The

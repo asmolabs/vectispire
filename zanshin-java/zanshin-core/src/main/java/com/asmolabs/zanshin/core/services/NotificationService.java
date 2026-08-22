@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
  * with no webhook, and the payload testable with no clock.
  */
 @Service
-public class NotificationService {
+public class NotificationService implements NotificationChannel {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -101,6 +101,23 @@ public class NotificationService {
      * setting written straight into the database must not become an unchecked destination.
      */
     public void deliver(NotificationPayload payload, Long teamId) {
+    @Override
+    public String type() {
+        return OutboxService.TYPE_SCAN_DELTA;
+    }
+
+    /**
+     * <b>The generic webhook is a channel like the other two</b>, and keeps the legacy type: rows
+     * queued before Teams and mail existed still carry {@code scan_delta}, and they must keep
+     * routing here rather than becoming messages of an unknown kind.
+     */
+    @Override
+    public boolean isConfigured() {
+        return !webhookUrl().isBlank();
+    }
+
+    @Override
+    public void deliver(NotificationPayload payload) {
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;

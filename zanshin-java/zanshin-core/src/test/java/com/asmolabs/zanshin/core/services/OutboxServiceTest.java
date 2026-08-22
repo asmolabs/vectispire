@@ -48,12 +48,15 @@ class OutboxServiceTest {
     void wire() {
         messages = mock(Outbox.class);
         notifications = mock(NotificationService.class);
+        // The relay routes on the outbox type, so the mock has to answer the one it was queued
+        // under — otherwise every row looks like a message no channel handles.
+        when(notifications.type()).thenReturn(OutboxService.TYPE_SCAN_DELTA);
 
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         service = new OutboxService(
-                messages, notifications, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC),
+                messages, List.of(notifications), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC),
                 new TransactionTemplate(manager));
 
         when(messages.save(any())).thenAnswer(call -> call.getArgument(0));
@@ -196,6 +199,52 @@ class OutboxServiceTest {
         message.setStatus("pending");
         message.setAttempts(attempts);
         message.setCreatedAt(NOW.minusSeconds(600));
+        return message;
+    }
+
+    @Test
+    @DisplayName("a row is delivered to the destination its type names, not to the first channel")
+    void theTypeRoutesTheRow() {
+        NotificationChannel teams = mock(NotificationChannel.class);
+        when(teams.type()).thenReturn("scan_delta_teams");
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications, teams), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(queued("scan_delta_teams")));
+
+        routed.relay(10);
+
+        // The point of one row per destination: a retry must reach the one that failed, and only
+        // that one. Delivering to every channel would re-send to the two that succeeded.
+        verify(teams).deliver(any());
+        verify(notifications, org.mockito.Mockito.never()).deliver(any());
+    }
+
+    @Test
+    @DisplayName("a row whose type no channel handles is an error, not a silent skip")
+    void anUnknownTypeIsRefused() {
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(queued("scan_delta_carrier_pigeon")));
+
+        // The message stays pending and the failure is recorded. A skipped row would sit in the
+        // table for ever, counted as neither sent nor failed.
+        assertThat(service.relay(10).sent()).isZero();
+    }
+
+    private PlatformTransactionManager transactionManager() {
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        return manager;
+    }
+
+    private com.asmolabs.zanshin.core.persistence.OutboxMessageEntity queued(String type) {
+        var message = new com.asmolabs.zanshin.core.persistence.OutboxMessageEntity();
+        message.setId(java.util.UUID.randomUUID());
+        message.setMessageType(type);
+        message.setPayload("{\"scan_id\":34,\"message_id\":\"msg-1\"}");
+        message.setStatus("pending");
+        message.setAttempts(0);
+        message.setCreatedAt(NOW);
         return message;
     }
 }
