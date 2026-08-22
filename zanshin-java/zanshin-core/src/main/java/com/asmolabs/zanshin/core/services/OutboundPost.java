@@ -2,9 +2,11 @@ package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.zanshin.common.domain.notifications.WebhookSignature;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +60,28 @@ public class OutboundPost {
         postForResponse(url, body, policy, label);
     }
 
+    /**
+     * Posts JSON with a signature over <b>the bytes actually sent</b>.
+     *
+     * <p><b>Why the signing happens here and not at the caller.</b> This class owns the
+     * serialization, so a caller that signed its own {@code writeValueAsString} would be signing a
+     * string this method is free to produce differently — a mapper setting, a module, a Jackson
+     * upgrade. The result is a signature that verifies nowhere, from two call sites that both read
+     * correctly, and it fails at the receiver rather than here. It is the same shape as validating
+     * one URL and connecting to another, which is what {@code PinnedHttpSender} exists to stop.
+     *
+     * @param secret the shared secret, decrypted. Blank sends the message unsigned, which is what
+     *     a deployment that has configured none keeps doing
+     * @param at stamped into the signature and into a header of its own. Passed in rather than read
+     *     from a clock here, so a test can pin the whole scheme
+     */
+    public void postSignedJson(
+            String url, Object body, OutboundPolicy policy, String label, String secret, Instant at) {
+
+        String encoded = encode(body);
+        postEncoded(url, encoded, policy, label, WebhookSignature.headers(secret, at, encoded), TIMEOUT);
+    }
+
     /** The body, for the callers that need the answer — a ticket's identifier, a model's reply. */
     public String postForResponse(String url, Object body, OutboundPolicy policy, String label) {
         return postForResponse(url, body, policy, label, Map.of());
@@ -83,12 +107,26 @@ public class OutboundPost {
             String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers,
             Duration timeout) {
 
-        String encoded;
+        return postEncoded(url, encode(body), policy, label, headers, timeout);
+    }
+
+    /**
+     * The one place a body becomes a string.
+     *
+     * <p>Shared with {@link #postSignedJson} so that what is signed and what is sent cannot be two
+     * serializations of the same object.
+     */
+    private String encode(Object body) {
         try {
-            encoded = json.writeValueAsString(body);
+            return json.writeValueAsString(body);
         } catch (JsonProcessingException impossible) {
             throw new IllegalStateException("Payload could not be serialized", impossible);
         }
+    }
+
+    private String postEncoded(
+            String url, String encoded, OutboundPolicy policy, String label, Map<String, String> headers,
+            Duration timeout) {
 
         PinnedHttpSender.Response response = sender.send(
                 guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);

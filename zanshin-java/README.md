@@ -69,6 +69,7 @@ the same commit that violates it; a missing dependency cannot.
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
 | A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
 | A team's findings are announced in its channel, not in everybody's | `TeamNotificationRoutingTest` |
+| A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |

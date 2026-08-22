@@ -88,6 +88,16 @@ public enum Setting {
                     + "beside the generic webhook and the e-mail rather than instead of them.",
             "", Sensitivity.SECRET),
 
+    WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Webhook signing secret",
+            "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
+                    + "Zanshin sent from one sent by whoever learned the URL. An `X-Zanshin-Signature` header "
+                    + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
+                    + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
+                    + "arrives and will ignore it. Empty means unsigned, which is what every existing "
+                    + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route.",
+            "", Sensitivity.SECRET),
+
     MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
             "E-mail recipients",
             "Comma-separated. Empty disables e-mail. The server itself is configured with `ZANSHIN_MAIL_HOST` and "

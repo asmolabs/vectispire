@@ -48,6 +48,11 @@ class SettingTest {
                         // Same reasoning, and if anything sharper: a Teams workflow URL needs no
                         // credential at all — whoever holds it posts into the channel as Zanshin.
                         Setting.TEAMS_WEBHOOK_URL,
+                        // The signing secret is the sharpest case in this list: whoever reads it
+                        // can produce a message every receiver accepts as Zanshin's — including
+                        // "no new vulnerabilities". It is the one value here whose disclosure
+                        // turns a protection into a forgery tool.
+                        Setting.WEBHOOK_SIGNING_SECRET,
                         Setting.TICKET_BASE_URL,
                         Setting.TICKET_TOKEN,
                         Setting.AI_REVIEW_OLLAMA_URL);

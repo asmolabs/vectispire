@@ -15,6 +15,9 @@ import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,10 +38,18 @@ class NotificationServiceTest {
         // No team channel in this suite: it is about what to say and to whom by default. The
         // routing has its own.
         teamWebhooks = mock(TeamWebhooks.class);
-        service = new NotificationService(settings, post, teamWebhooks);
+        service = new NotificationService(
+                settings,
+                post,
+                teamWebhooks,
+                mock(EncryptionService.class),
+                Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("https://hooks.example.com/z");
         when(settings.get(Setting.NOTIFICATION_MIN_SEVERITY)).thenReturn("high");
+        // Unsigned: signing has its own suite, and a secret here would make every assertion
+        // about the payload depend on a decryption it does not care about.
+        when(settings.get(Setting.WEBHOOK_SIGNING_SECRET)).thenReturn("");
         when(settings.isEnabled(Setting.NOTIFY_ON_KEV)).thenReturn(true);
         when(settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)).thenReturn(false);
     }
@@ -86,7 +97,14 @@ class NotificationServiceTest {
         service.deliver(payload(), null);
 
         // An operator fixing a typo must not have to re-run a scan to flush what is pending.
-        verify(post).postJson(eq("https://corrected.example.com/z"), any(), eq(OutboundPolicy.PUBLIC_ONLY), anyString());
+        verify(post)
+                .postSignedJson(
+                        eq("https://corrected.example.com/z"),
+                        any(),
+                        eq(OutboundPolicy.PUBLIC_ONLY),
+                        anyString(),
+                        anyString(),
+                        any());
     }
 
     @Test
@@ -96,7 +114,9 @@ class NotificationServiceTest {
 
         service.deliver(payload(), null);
 
-        verify(post).postJson(anyString(), any(), eq(OutboundPolicy.INTERNAL_ALLOWED), anyString());
+        verify(post)
+                .postSignedJson(
+                        anyString(), any(), eq(OutboundPolicy.INTERNAL_ALLOWED), anyString(), anyString(), any());
     }
 
     private static NotificationPayload payload() {

@@ -169,6 +169,42 @@ what concerns the targets it owns; the global webhook keeps receiving everything
 the security team's feed and narrowing it would be a silent change to what an existing
 deployment is told.
 
+**And a receiver can now tell a message Zanshin sent from one somebody who learned the URL sent.**
+The URL is a bearer capability — that is why no route returns it — and this closes the other half:
+`X-Zanshin-Signature` carries HMAC-SHA256 over `<unix seconds>.<exact body>`, with the timestamp
+also travelling in `X-Zanshin-Timestamp`. The timestamp is **inside** the signature deliberately: a
+receiver needs it to reject a replay, and one that is not covered by the MAC is one an attacker
+rewrites freely, which makes the replay window their choice and the header decorative. Replay
+*within* the window is closed by something already there — every payload carries a `messageId`,
+because delivery is at-least-once and a receiver dedupes on it anyway.
+
+**Who this actually helps, stated rather than implied.** A receiver has to check the signature for
+it to be worth anything, and Slack, Teams and Discord will not: they accept whatever reaches an
+incoming webhook. So it is for the case the setting names first — a script, a bus, or a gateway of
+your own. Signing a message bound for Slack costs one header and buys nothing; it is signed anyway,
+because a rule about which destinations get a header is a rule that is wrong the day somebody puts
+a gateway in front of Slack.
+
+Three properties make it more than a header. **The signature covers the bytes actually written**:
+`OutboundPost` owns the serialization, so signing happens there rather than at a caller whose own
+`writeValueAsString` a mapper setting or a Jackson upgrade could make differ — the same failure as
+validating one URL and connecting to another, and it would surface at the receiver rather than
+here. **A configured secret that cannot be decrypted refuses to send**, which is the opposite of
+what an undecryptable tracker token does, and the asymmetry is the point: a disabled tracker claims
+nothing, whereas sending *unsigned* is a security control switching itself off after an
+encryption-key rotation, on a deployment that turned it on deliberately. And **no secret means no
+header at all** rather than a MAC under an empty key, which would look like authentication and be
+reproducible by anyone.
+
+The secret is stored encrypted, bound to its own setting row, and never returned by any route —
+the screen shows *whether* messages are signed. That state is read from the stored row rather than
+by decrypting it: an undecryptable secret is still a configured one, and reporting "not configured"
+would send an operator to set it again, which is the single action that destroys the secret their
+receivers still hold. **One secret for every destination is the accepted limit of this form.** A
+team's receiver holding it could forge into another team's channel — if it also learned that URL,
+which nothing discloses. Closing that means a secret per destination, and therefore a column on
+`t_team_webhook`.
+
 Three details are load-bearing. **One queued message per destination**, not one carrying a list:
 a channel that is unreachable has to be retried on its own, where a single row would let one
 broken workspace hold back every other team's notification — or mark the lot delivered because
@@ -461,7 +497,25 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   there too — blocking on what ships, reporting on the development tree — so "it reports
   nothing" is a measurement rather than a belief. Medium findings with fixes (jackson-databind,
   log4j-api, both BOM-managed) are printed and block nobody.
-- **Releases are not signed, and there is no release pipeline to sign them in.** Publishing a
-  signed artifact and its SBOM would be the next step for anybody consuming Zanshin as a
-  binary; writing the signing before the publishing would be inventing a process the project
-  does not have.
+- **Releases are now published and signed, and the pipeline is the thing that was missing.** A
+  `v*` tag runs the suites on the tagged tree — not "it passed on main last week", which is a
+  different statement — builds the jar, catalogues it with the Syft digest `ScannerImages` pins,
+  refuses to publish a **fixable** High, and signs the jar and its SBOM with **Sigstore keyless**.
+  There is no signing key: the signature is minted against the workflow's own OIDC identity, so
+  what it attests is `.github/workflows/release.yml` in this repository on that tag rather than
+  "somebody who holds a key". A stolen repository secret cannot produce one, which is most of the
+  reason for choosing keyless over a stored key.
+
+  Two details carry the weight. **The signature is verified in the job that made it**, with the
+  same command a consumer runs, before anything is uploaded — a signature nobody has ever checked
+  is a signature that does not work, and hearing about it from a consumer is hearing about it too
+  late. And **the verifying identity is per-workflow-file and per-tag**, not per-repository:
+  matching the repository alone would accept a signature minted by any workflow anybody can add to
+  it, including in a pull request. The command, and what each of its flags pins, is in
+  [`GETTING_STARTED.md`](../GETTING_STARTED.md#8-verifying-a-release).
+
+  What remains open: the release job is not itself reproducible — two runs of the same tag produce
+  jars that need not be byte-identical — so a signature attests who built it and not that anybody
+  else could rebuild it. And the third-party actions it uses are pinned by tag rather than by
+  digest, unlike the scanner images; a tag is mutable, and for this job that is the weakest link
+  named here.

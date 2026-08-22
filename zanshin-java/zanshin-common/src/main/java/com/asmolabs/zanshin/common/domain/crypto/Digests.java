@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.macs.HMac;
+import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.util.encoders.Hex;
 
 /**
@@ -93,6 +95,33 @@ public final class Digests {
         byte[] out = new byte[digest.getDigestSize()];
         digest.doFinal(out, 0);
         return out;
+    }
+
+    /**
+     * HMAC-SHA256, lowercase hex.
+     *
+     * <p><b>Keyed, and therefore not interchangeable with {@link #sha256Hex(String)}.</b> The two
+     * sit together because the provider argument above applies identically — the MAC that decides
+     * whether a webhook receiver believes a message must not depend on which providers the JVM
+     * was started with — and because keeping them enumerable in one class is what makes "what do
+     * we authenticate with, and where" a find-usages.
+     *
+     * <p>They are named apart on purpose. A plain digest over a secret and a message is <em>not</em>
+     * a MAC: {@code sha256(secret || message)} is extensible, and a receiver verifying it accepts
+     * a message somebody appended to. The distinction is invisible at a call site, which is why
+     * there is a method for it rather than a convention.
+     *
+     * @param key the shared secret's bytes. Any length — HMAC hashes a key longer than the block
+     *     and pads a shorter one, so no rule about key size belongs at the call site
+     */
+    public static String hmacSha256Hex(byte[] key, String message) {
+        HMac mac = new HMac(new SHA256Digest());
+        mac.init(new KeyParameter(key));
+        byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
+        mac.update(bytes, 0, bytes.length);
+        byte[] out = new byte[mac.getMacSize()];
+        mac.doFinal(out, 0);
+        return Hex.toHexString(out);
     }
 
     /**
