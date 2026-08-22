@@ -64,6 +64,9 @@ describe('every screen', () => {
         if (url.endsWith('/quality/overview')) {
             return { openCount: 0, ruleCount: 0, topRules: [], topFiles: [], topRepositories: [] };
         }
+        // Before `/dashboard`, which this URL does not end with: an empty series is a fresh
+        // install, and the mean is absent rather than zero on purpose.
+        if (url.endsWith('/dashboard/trends')) return { points: [], mean_days_to_resolve: null, resolved_in_window: 0 };
         if (url.endsWith('/dashboard')) {
             return {
                 posture: { failingCount: 0, totalCount: 0, kevCount: 0, neverScannedCount: 0, lastScanFailedCount: 0 },

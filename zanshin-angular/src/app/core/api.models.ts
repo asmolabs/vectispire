@@ -104,6 +104,18 @@ export interface TriageRequest {
     expires_in_days?: number | null;
 }
 
+/**
+ * The same decision on many issues.
+ *
+ * Its own type rather than `TriageRequest & { ids }`: the single-issue route would then accept an
+ * `ids` field it silently ignores, which is the mistake the API deliberately avoided by keeping
+ * two records.
+ */
+export interface BulkTriageRequest extends TriageRequest {
+    /** At most 500 — the server refuses a longer batch rather than truncating it. */
+    ids: number[];
+}
+
 export interface GateViolation {
     rule: 'kev' | 'severity';
     issueId: number;
@@ -199,6 +211,24 @@ export interface NewRepository {
      * makes the URL unique, deliberately, because a monorepo holds several projects.
      */
     subPath?: string;
+    /**
+     * How often to rescan, in minutes. Absent or zero: this target is scanned only when somebody
+     * asks for it.
+     *
+     * **Zero rather than `null` to clear it on the update path.** The server reads an absent
+     * field as "leave alone", so `null` would keep whatever interval the row already carries
+     * while the form showed the field empty — and the operator would go on believing they had
+     * turned the schedule off.
+     */
+    scanIntervalMinutes?: number | null;
+    /**
+     * A five-field cron expression, which **wins over the interval** when both are set.
+     *
+     * The empty string clears it, and that is deliberate: it is the only value the update path
+     * distinguishes from "leave alone", so sending nothing would make an expression impossible
+     * to remove once saved.
+     */
+    scanCron?: string;
     /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
 }
@@ -219,6 +249,16 @@ export interface MonitoredContainer {
     tag: string;
     /** Computed by the server: the form a registry expects. */
     reference: string;
+    scanIntervalMinutes: number | null;
+    scanCron: string | null;
+    /**
+     * The label an agent must carry to scan this image, or `null` for any agent.
+     *
+     * The server has always sent it; it was missing here while there was no way to edit an image,
+     * and a dialog that cannot read the current value cannot prefill it — which on a route whose
+     * absent fields mean "leave alone" would quietly show an empty box over a live requirement.
+     */
+    requiredAgentLabel: string | null;
     lastScan: LastScan | null;
     openIssues: number;
 }
@@ -227,6 +267,9 @@ export interface NewContainer {
     registry?: string;
     image_name: string;
     tag: string;
+    /** As on a repository, and with the same precedence: the expression wins over the interval. */
+    scanIntervalMinutes?: number | null;
+    scanCron?: string;
     /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
 }
@@ -423,6 +466,30 @@ export interface DashboardOverview {
         error: string | null;
         createdAt: string | null;
     }[];
+}
+
+/** One day of the backlog. `open` is the standing total that evening; `opened` and `resolved`
+ *  are what moved that day. */
+export interface TrendPoint {
+    /** An ISO date in UTC, as the server formats it — the axis has to mean the same thing in
+     *  two timezones. */
+    day: string;
+    open: number;
+    opened: number;
+    resolved: number;
+}
+
+/** The backlog over time. Snake case on two fields because the server names them that way. */
+export interface Trends {
+    points: TrendPoint[];
+    /**
+     * `null` when nothing was resolved in the window, and **not** zero: zero reads as
+     * "everything is fixed the day it appears", the opposite of "there is nothing to measure".
+     */
+    mean_days_to_resolve: number | null;
+    /** The population behind the mean. An average with no denominator is a number people quote
+     *  and should not. */
+    resolved_in_window: number;
 }
 
 /** Un agent, tel que l'administration le voit. */

@@ -55,6 +55,51 @@
         </p-card>
     </div>
 
+    <!--
+        Everything else on this page is a snapshot, so the question a security officer is actually
+        asked — is this getting better or worse — had no answer anywhere in the product. The counts
+        say how much; only a series says which direction.
+    -->
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <span>Backlog over time</span>
+                <div class="flex gap-2">
+                    @for (choice of windows; track choice.value) {
+                        <p-button [label]="choice.label" size="small" [outlined]="window() !== choice.value" (onClick)="loadTrends(choice.value)" />
+                    }
+                </div>
+            </div>
+        </ng-template>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div class="lg:col-span-3">
+                @if (trendError(); as message) {
+                    <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+                } @else if (trends(); as series) {
+                    @if (series.points.length === 0) {
+                        <p class="text-muted-color m-0">No issue has been recorded yet: there is no history to plot.</p>
+                    } @else {
+                        <p-chart type="line" [data]="chartData()" [options]="chartOptions()" height="18rem" />
+                    }
+                } @else {
+                    <p class="text-muted-color m-0">Loading the trend…</p>
+                }
+            </div>
+
+            <!--
+                The average and its population side by side, deliberately: "12.4 days" over three
+                issues and over three hundred are two different statements, and only one of them
+                belongs in a report.
+            -->
+            <div class="flex flex-col justify-center">
+                <div class="text-muted-color text-sm">Mean time to resolve</div>
+                <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
+                <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
+            </div>
+        </div>
+    </p-card>
+
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <p-card styleClass="xl:col-span-1">
             <ng-template #title>Issues to handle</ng-template>

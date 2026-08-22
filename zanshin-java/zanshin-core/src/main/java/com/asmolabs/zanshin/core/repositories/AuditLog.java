@@ -37,6 +37,17 @@ public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
     List<AuditLogEntity> findRecent(Limit limit);
 
     /**
+     * Whether an operation has been recorded since an instant.
+     *
+     * <p><b>Read as bookkeeping, not only as history.</b> The weekly digest asks this to decide
+     * whether one has already gone out — so the append-only log is what stops two instances, or two
+     * restarts inside an hour, from sending the same report twice. Keeping a last-sent timestamp
+     * elsewhere would put the same fact in two places, and the copy an operator can edit would be
+     * the one that decided.
+     */
+    long countByOperationTypeAndTimestampGreaterThanEqual(String operationType, java.time.Instant since);
+
+    /**
      * Rewrites one entry's hashes. Used by the rebuild, and by nothing else.
      *
      * <p>A targeted update rather than a save: loading the entity would let a dirty check

@@ -12,7 +12,9 @@ import {
     AuditEntry,
     AuditFilters,
     AuditVerification,
+    BulkTriageRequest,
     DashboardOverview,
+    Trends,
     Issue,
     RuleSetImpact,
     RuleSetSummary,
@@ -93,8 +95,25 @@ export class ApiService {
         return this.http.post<Issue>(`/api/v1/issues/${issueId}/triage`, request);
     }
 
+    /**
+     * The same decision on every issue in the batch.
+     *
+     * All or nothing: the server checks every id before writing the first, so a refusal means
+     * nothing was triaged. A caller that retried "the rest" after a failure would be inventing
+     * a partial outcome the API does not produce.
+     */
+    triageMany(request: BulkTriageRequest): Observable<Issue[]> {
+        return this.http.post<Issue[]>('/api/v1/issues/triage', request);
+    }
+
     dashboard(): Observable<DashboardOverview> {
         return this.http.get<DashboardOverview>('/api/v1/dashboard');
+    }
+
+    /** The backlog over time. `days` is clamped server-side to 1..365, so no check here would
+     *  add anything but a second opinion about the ceiling. */
+    trends(days: number): Observable<Trends> {
+        return this.http.get<Trends>('/api/v1/dashboard/trends', { params: new HttpParams().set('days', days) });
     }
 
     securityOverview(): Observable<SecurityOverview> {
@@ -329,6 +348,17 @@ export class ApiService {
 
     createContainer(container: NewContainer): Observable<MonitoredContainer> {
         return this.http.post<MonitoredContainer>('/api/v1/containers', container);
+    }
+
+    /**
+     * Changes a monitored image, the row and its scan history staying put.
+     *
+     * `Partial`, because the server reads an absent field as "leave alone": a screen that edits
+     * two fields sends two fields. The one exception is the interval, where `null` is already
+     * "leave alone" and switching a rescan off is spelled `0` — see `ContainersController.update`.
+     */
+    updateContainer(id: number, changes: Partial<NewContainer>): Observable<MonitoredContainer> {
+        return this.http.patch<MonitoredContainer>(`/api/v1/containers/${id}`, changes);
     }
 
     deleteContainer(id: number): Observable<void> {

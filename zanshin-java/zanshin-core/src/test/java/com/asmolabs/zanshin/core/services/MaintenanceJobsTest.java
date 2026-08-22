@@ -37,6 +37,7 @@ class MaintenanceJobsTest {
     private InventoryBackfill backfill;
     private SchedulerService scheduler;
     private IssueTriageService triage;
+    private PostureDigestService digest;
     private MaintenanceJobs jobs;
 
     @BeforeEach
@@ -48,11 +49,12 @@ class MaintenanceJobsTest {
         backfill = mock(InventoryBackfill.class);
         scheduler = mock(SchedulerService.class);
         triage = mock(IssueTriageService.class);
+        digest = mock(PostureDigestService.class);
 
         when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0));
         when(triage.expireStale()).thenReturn(List.of());
 
-        jobs = new MaintenanceJobs(retention, outbox, tickets, sessions, backfill, scheduler, triage);
+        jobs = new MaintenanceJobs(retention, outbox, tickets, sessions, backfill, scheduler, triage, digest);
     }
 
     @Test
@@ -116,5 +118,16 @@ class MaintenanceJobsTest {
         // Not a number chosen here: the policy owns it, and two answers to "how many per pass"
         // would drift.
         verify(outbox).relay(OutboxRetry.MAX_PER_PASS);
+    }
+
+    @Test
+    @DisplayName("the hourly turn offers to send the weekly report")
+    void theWeeklyReportIsOffered() {
+        jobs.hourlyMaintenance();
+
+        // A weekly report has no queue — it is derived from the database, so a failed send is
+        // recomputed next turn — which makes this call the only thing that makes the feature
+        // exist. Exactly the shape `expireStale` had while its javadoc claimed this tick ran it.
+        verify(digest).runOnce();
     }
 }

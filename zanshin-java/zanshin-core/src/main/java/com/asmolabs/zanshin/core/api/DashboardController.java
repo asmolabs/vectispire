@@ -6,6 +6,7 @@ import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.zanshin.common.domain.trends.BacklogTrend;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
@@ -17,7 +18,11 @@ import com.asmolabs.zanshin.core.services.GateService;
 import com.asmolabs.zanshin.core.services.SlaService;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +30,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -43,6 +49,15 @@ public class DashboardController {
 
     private static final int RECENT_SCANS = 8;
 
+    /**
+     * The longest series this route will draw.
+     *
+     * <p>A ceiling because the window is also the number of days iterated over every issue in
+     * scope: `days=100000` is not an attack, it is a client asking for "everything" without
+     * knowing what everything costs.
+     */
+    private static final int MAX_TREND_DAYS = 365;
+
     private final GateService gate;
     private final Issues issues;
     private final Scans scans;
@@ -51,19 +66,24 @@ public class DashboardController {
     private final VisibilityService visibility;
     private final SlaService sla;
 
+    /** Injected rather than {@code Instant.now()}, so a test can pin what "today" means. */
+    private final Clock clock;
+
     public DashboardController(
             GateService gate,
             Issues issues,
             Scans scans,
             TargetNaming naming,
             VisibilityService visibility,
-            SlaService sla) {
+            SlaService sla,
+            Clock clock) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
         this.naming = naming;
         this.visibility = visibility;
         this.sla = sla;
+        this.clock = clock;
     }
 
     /**
@@ -133,6 +153,75 @@ public class DashboardController {
                         .map(DashboardController::failingOf)
                         .toList(),
                 recentScans());
+    }
+
+    /** @param day an ISO date, UTC — the axis has to mean the same thing in two timezones */
+    public record TrendPoint(String day, long open, long opened, long resolved) {}
+
+    /**
+     * @param meanDaysToResolve null when nothing was resolved in the window. <b>Not zero</b>: zero
+     *     reads as "everything is fixed the day it appears", which is the opposite of "there is
+     *     nothing to measure"
+     * @param resolvedInWindow the population behind the mean, so a reader can see whether it rests
+     *     on three issues or three hundred — an average with no denominator is a number people
+     *     quote and should not
+     */
+    public record Trends(
+            List<TrendPoint> points,
+            @JsonProperty("mean_days_to_resolve") Double meanDaysToResolve,
+            @JsonProperty("resolved_in_window") int resolvedInWindow) {}
+
+    /**
+     * The backlog over time.
+     *
+     * <p><b>Why this route exists.</b> Everything else on this screen is a snapshot, so the
+     * question a security officer is actually asked — is this getting better or worse — had no
+     * answer anywhere in the product. The counts say how much; only a series says which direction.
+     *
+     * <p><b>Narrowed by visibility like every other read.</b> Stated because the one aggregate that
+     * ever leaked here was the one that returned numbers rather than rows, and the shape of that
+     * mistake is exactly this: a series feels like a chart rather than like data somebody owns.
+     *
+     * <p><b>All the date arithmetic is in {@link BacklogTrend}, not in SQL.</b> Four engines spell
+     * date truncation four ways, and the grouped query that is wrong would be wrong on the engine
+     * nobody develops on. The database returns two timestamps per issue; the buckets are counted
+     * in a pure function with its own suite.
+     *
+     * <p>The cost is loading those two timestamps for the issues in scope rather than aggregating
+     * server-side — accepted, and named here so the next person knows what to change if it starts
+     * to hurt: a projection, then a cache, and only then a dialect-specific {@code group by}.
+     */
+    @GetMapping("/trends")
+    public Trends trends(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @RequestParam(required = false, defaultValue = "90") int days) {
+
+        // Clamped rather than refused: a chart is not a place to fail a request over a query
+        // string, and the ceiling exists because the window is also the number of days iterated.
+        int window = Math.clamp(days, 1, MAX_TREND_DAYS);
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+
+        LocalDate to = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+        LocalDate from = to.minusDays(window - 1L);
+
+        // Every issue, not only the open ones: an issue resolved inside the window has to be
+        // counted as open on the days before it was resolved, or the curve would start at today's
+        // backlog and pretend the history was always this good.
+        List<BacklogTrend.Lifespan> lifespans = issues
+                .findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification())
+                .stream()
+                .map(issue -> new BacklogTrend.Lifespan(issue.getFirstSeenAt(), issue.getResolvedAt()))
+                .toList();
+
+        BacklogTrend.Series series = BacklogTrend.over(lifespans, from, to);
+        return new Trends(
+                series.points().stream()
+                        .map(point -> new TrendPoint(
+                                point.day().toString(), point.open(), point.opened(), point.resolved()))
+                        .toList(),
+                series.meanDaysToResolve().orElse(null),
+                series.resolvedInWindow());
     }
 
     /**
