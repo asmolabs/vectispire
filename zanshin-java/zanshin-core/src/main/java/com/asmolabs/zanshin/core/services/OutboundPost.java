@@ -4,12 +4,8 @@ import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,9 +15,9 @@ import org.springframework.stereotype.Service;
  * on any failure</b>. Its callers are behind an outbox or a retry, and a swallowed failure
  * there is a failure never retried.
  *
- * <p>The response body is not read: the receiver has nothing to tell us, and a proxy can return
- * a several-kilobyte error page. Redirects are refused for the reason given in {@link
- * OutboundJson} — a validated webhook answering 302 would otherwise reach any internal address.
+ * <p>Redirects are refused for the reason given in {@link OutboundJson} — a validated webhook
+ * answering 302 would otherwise reach any internal address — and the connection is pinned to the
+ * address the guard checked, which is what {@link PinnedHttpSender} is for.
  */
 @Service
 public class OutboundPost {
@@ -37,17 +33,14 @@ public class OutboundPost {
      */
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    private final HttpClient http;
+    private final PinnedHttpSender sender;
     private final OutboundUrlGuard guard;
     private final ObjectMapper json;
 
-    public OutboundPost(OutboundUrlGuard guard, ObjectMapper json) {
+    public OutboundPost(PinnedHttpSender sender, OutboundUrlGuard guard, ObjectMapper json) {
+        this.sender = sender;
         this.guard = guard;
         this.json = json;
-        this.http = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .connectTimeout(TIMEOUT)
-                .build();
     }
 
     /**
@@ -67,26 +60,29 @@ public class OutboundPost {
 
     /** The body, for the callers that need the answer — a ticket's identifier, a model's reply. */
     public String postForResponse(String url, Object body, OutboundPolicy policy, String label) {
-        return postForResponse(url, body, policy, label, HttpRequest.newBuilder());
+        return postForResponse(url, body, policy, label, Map.of());
     }
 
-    /** @param prepared a builder already carrying the headers this destination needs, typically authentication */
+    /** @param headers what this destination needs beyond the content type, typically authentication */
     public String postForResponse(
-            String url, Object body, OutboundPolicy policy, String label, HttpRequest.Builder prepared) {
-        return postForResponse(url, body, policy, label, prepared, TIMEOUT);
+            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers) {
+        return postForResponse(url, body, policy, label, headers, TIMEOUT);
     }
 
     /**
+     * @param headers plain pairs rather than a client's request builder. The builder used to be
+     *     {@code java.net.http.HttpRequest.Builder}, which made every caller needing one
+     *     authentication header import the JDK's HTTP client — and pinned this signature to a
+     *     client that turned out to have no resolver hook. A header is a header.
      * @param timeout for a destination whose normal answer takes longer than a webhook's. Taken
-     *     alongside the builder rather than as its own overload: a five-argument form would sit
-     *     next to the one taking a builder, and a mock matching on {@code any()} could not tell
+     *     alongside the headers rather than as its own overload: a five-argument form would sit
+     *     next to the one taking headers, and a mock matching on {@code any()} could not tell
      *     them apart — which is a compile error in the tests and a coin toss at a call site.
      */
     public String postForResponse(
-            String url, Object body, OutboundPolicy policy, String label, HttpRequest.Builder prepared,
+            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers,
             Duration timeout) {
 
-        String validated = guard.validate(url, policy, label);
         String encoded;
         try {
             encoded = json.writeValueAsString(body);
@@ -94,24 +90,12 @@ public class OutboundPost {
             throw new IllegalStateException("Payload could not be serialized", impossible);
         }
 
-        HttpRequest request = prepared
-                .uri(URI.create(validated))
-                .timeout(timeout)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(encoded))
-                .build();
+        PinnedHttpSender.Response response = sender.send(
+                guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);
 
-        try {
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.statusCode() + ".");
-            }
-            return response.body();
-        } catch (IOException unreachable) {
-            throw new OutboundJson.OutboundFailureException(label + ": " + unreachable.getMessage(), unreachable);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new OutboundJson.OutboundFailureException(label + ": interrupted.", interrupted);
+        if (response.status() / 100 != 2) {
+            throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");
         }
+        return response.body();
     }
 }

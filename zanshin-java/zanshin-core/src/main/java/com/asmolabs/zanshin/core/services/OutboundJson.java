@@ -6,11 +6,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +20,10 @@ import org.springframework.stereotype.Service;
  * cancelled the whole URL guard — and the fix is the same here, expressed as a client that
  * never redirects rather than as a rule somebody has to remember.
  *
+ * <p><b>And the connection goes to the address that was checked</b>, not to a second lookup of
+ * the same name — see {@link PinnedHttpSender} for the window that closes and why the JDK's
+ * client could not close it.
+ *
  * <p><b>Bounded in time.</b> Without a deadline a silent server holds a scan open for as long
  * as it likes, and the scan's lease lapses while its worker is alive and waiting.
  */
@@ -31,17 +32,14 @@ public class OutboundJson {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    private final HttpClient http;
+    private final PinnedHttpSender sender;
     private final OutboundUrlGuard guard;
     private final ObjectMapper json;
 
-    public OutboundJson(OutboundUrlGuard guard, ObjectMapper json) {
+    public OutboundJson(PinnedHttpSender sender, OutboundUrlGuard guard, ObjectMapper json) {
+        this.sender = sender;
         this.guard = guard;
         this.json = json;
-        this.http = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .connectTimeout(TIMEOUT)
-                .build();
     }
 
     /**
@@ -55,29 +53,23 @@ public class OutboundJson {
      * @param label what the operator would call this destination, for the message they will read
      */
     public Optional<JsonNode> get(String url, OutboundPolicy policy, String label) {
-        String validated = guard.validate(url, policy, label);
-        HttpRequest request = HttpRequest.newBuilder(URI.create(validated))
-                .timeout(TIMEOUT)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+        PinnedHttpSender.Response response = sender.send(
+                guard.validateAndResolve(url, policy, label),
+                Map.of("Accept", "application/json"),
+                null,
+                TIMEOUT,
+                label);
 
+        if (response.status() == 404) {
+            return Optional.empty();
+        }
+        if (response.status() / 100 != 2) {
+            throw new OutboundFailureException(label + ": HTTP " + response.status() + ".");
+        }
         try {
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 404) {
-                return Optional.empty();
-            }
-            if (response.statusCode() / 100 != 2) {
-                throw new OutboundFailureException(label + ": HTTP " + response.statusCode() + ".");
-            }
             return Optional.of(json.readTree(response.body()));
-        } catch (IOException | UncheckedIOException unreachable) {
-            throw new OutboundFailureException(label + ": " + unreachable.getMessage(), unreachable);
-        } catch (InterruptedException interrupted) {
-            // Restore the flag: swallowing it leaves a thread that will not notice the next
-            // shutdown request either.
-            Thread.currentThread().interrupt();
-            throw new OutboundFailureException(label + ": interrupted.", interrupted);
+        } catch (IOException | UncheckedIOException unreadable) {
+            throw new OutboundFailureException(label + ": " + unreadable.getMessage(), unreadable);
         }
     }
 

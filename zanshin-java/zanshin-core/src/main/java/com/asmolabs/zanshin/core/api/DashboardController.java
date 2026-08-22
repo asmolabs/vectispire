@@ -4,14 +4,17 @@ import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
 import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
 import com.asmolabs.zanshin.common.domain.issues.FindingType;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
+import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
 import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.services.GateService;
+import com.asmolabs.zanshin.core.services.SlaService;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import java.time.Instant;
@@ -46,26 +49,39 @@ public class DashboardController {
     private final TargetNaming naming;
 
     private final VisibilityService visibility;
+    private final SlaService sla;
 
     public DashboardController(
-            GateService gate, Issues issues, Scans scans, TargetNaming naming, VisibilityService visibility) {
+            GateService gate,
+            Issues issues,
+            Scans scans,
+            TargetNaming naming,
+            VisibilityService visibility,
+            SlaService sla) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
         this.naming = naming;
         this.visibility = visibility;
+        this.sla = sla;
     }
 
     /**
      * @param neverScannedCount a target nobody has scanned passes every policy: its lack of
      *     findings is not a lack of problems. Its own figure, therefore
+     * @param overdueCount open issues past their remediation window — the figure a security
+     *     officer is asked for, and the only one on this record that is about <em>time</em>
+     *     rather than about quantity. Zero when every window is disabled, which is
+     *     indistinguishable here from "nothing is late": the remediation section of the settings
+     *     screen is where that distinction lives
      */
     public record Posture(
             int failingCount,
             int totalCount,
             long kevCount,
             long neverScannedCount,
-            long lastScanFailedCount) {}
+            long lastScanFailedCount,
+            long overdueCount) {}
 
     public record FailingTarget(
             String kind, Long targetId, String name, boolean observed, List<GateVerdict.Violation> violations) {}
@@ -108,8 +124,9 @@ public class DashboardController {
                         posture.totalCount(),
                         posture.kevCount(),
                         posture.neverScannedCount(),
-                        posture.lastScanFailedCount()),
-                backlogBySeverity(),
+                        posture.lastScanFailedCount(),
+                        sla.countOverdue(allowed)),
+                backlogBySeverity(allowed),
                 issues.countByStateAndType(IssueState.OPEN.wireName(), FindingType.QUALITY.wireName()),
                 posture.targets().stream()
                         .filter(target -> !target.passed())
@@ -118,10 +135,31 @@ public class DashboardController {
                 recentScans());
     }
 
-    private Map<String, Long> backlogBySeverity() {
+    /**
+     * The open backlog per severity, <b>within what the caller may see</b>.
+     *
+     * <p>It was a single grouped query with no visibility clause, which made this the one figure
+     * on a narrowed dashboard that counted everything: a reader assigned to one repository read
+     * the whole deployment's severity breakdown beside a posture that was correctly narrowed.
+     * Aggregates are not exempt — "how much is there that I am not shown" is information too.
+     *
+     * <p>The cost is one indexed count per severity instead of one grouped scan. That is the
+     * price of the filter being expressed once, in {@link IssueFilters}, rather than a second
+     * time in a hand-written {@code group by} that would have to grow its own visibility clause.
+     */
+    private Map<String, Long> backlogBySeverity(Visibility allowed) {
         Map<String, Long> counts = new HashMap<>();
-        for (Object[] row : issues.countOpenBySeverity(IssueState.OPEN.wireName())) {
-            counts.put((String) row[0], ((Number) row[1]).longValue());
+        for (Severity severity : Severity.values()) {
+            long count = issues.count(new IssueFilters(
+                            IssueState.OPEN.wireName(),
+                            severity.wireName(),
+                            null, null, null, null, false, false, null, allowed)
+                    .toSpecification());
+            if (count > 0) {
+                // Absent rather than zero, as the grouped query left it: the screen reads this as
+                // a map and a zero would add a row for every severity nobody has.
+                counts.put(severity.wireName(), count);
+            }
         }
         return counts;
     }

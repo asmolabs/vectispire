@@ -124,7 +124,7 @@ public class AiReviewService {
                         "stream", false),
                 policy(),
                 "Ollama",
-                java.net.http.HttpRequest.newBuilder(),
+                Map.of(),
                 timeout());
 
         try {

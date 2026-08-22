@@ -14,6 +14,7 @@ import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,13 +25,17 @@ class NotificationServiceTest {
 
     private SettingsService settings;
     private OutboundPost post;
+    private TeamWebhooks teamWebhooks;
     private NotificationService service;
 
     @BeforeEach
     void wire() {
         settings = mock(SettingsService.class);
         post = mock(OutboundPost.class);
-        service = new NotificationService(settings, post);
+        // No team channel in this suite: it is about what to say and to whom by default. The
+        // routing has its own.
+        teamWebhooks = mock(TeamWebhooks.class);
+        service = new NotificationService(settings, post, teamWebhooks);
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("https://hooks.example.com/z");
         when(settings.get(Setting.NOTIFICATION_MIN_SEVERITY)).thenReturn("high");
@@ -78,7 +83,7 @@ class NotificationServiceTest {
     void theDestinationIsValidatedAtSendTime() {
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("https://corrected.example.com/z");
 
-        service.deliver(payload());
+        service.deliver(payload(), null);
 
         // An operator fixing a typo must not have to re-run a scan to flush what is pending.
         verify(post).postJson(eq("https://corrected.example.com/z"), any(), eq(OutboundPolicy.PUBLIC_ONLY), anyString());
@@ -89,7 +94,7 @@ class NotificationServiceTest {
     void thePolicyFollowsTheSetting() {
         when(settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)).thenReturn(true);
 
-        service.deliver(payload());
+        service.deliver(payload(), null);
 
         verify(post).postJson(anyString(), any(), eq(OutboundPolicy.INTERNAL_ALLOWED), anyString());
     }

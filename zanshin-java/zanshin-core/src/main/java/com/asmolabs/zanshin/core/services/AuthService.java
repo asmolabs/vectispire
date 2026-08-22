@@ -61,7 +61,12 @@ public class AuthService {
     /** A login's outcome, and what the caller must write to the audit log. */
     public sealed interface Outcome {
 
-        record Success(SessionEntity session, UserEntity user) implements Outcome {}
+        /**
+         * @param issued the row, plus the clear token — which exists nowhere else. The store
+         *     holds its hash, so this record is the only chance the caller has to send it; there
+         *     is no reading it back afterwards.
+         */
+        record Success(IssuedSession issued, UserEntity user) implements Outcome {}
 
         /**
          * Wrong password, unknown account, or a deactivated one.
@@ -73,6 +78,17 @@ public class AuthService {
 
         record Blocked(Duration retryAfter) implements Outcome {}
     }
+
+    /**
+     * A session that has just been opened: the row, and the token the client must be given.
+     *
+     * <p>The two travel together for the length of one request and then part: the token goes out
+     * over HTTPS and is forgotten, the row stays with only its hash. Any caller that needs to
+     * *identify* the session later — to revoke it, or to spare it — uses
+     * {@link SessionEntity#getTokenHash()}; only a caller handing the session to its owner uses
+     * {@link #token()}.
+     */
+    public record IssuedSession(SessionEntity session, String token) {}
 
     /**
      * @param audit returned rather than written here, so this service does not depend on the
@@ -128,7 +144,7 @@ public class AuthService {
         attempts.deleteByCounterKey(clientKey);
 
         UserEntity found = user.orElseThrow();
-        SessionEntity session = openSession(found, request, now);
+        IssuedSession session = openSession(found, request, now);
         return new LoginResult(
                 new Outcome.Success(session, found),
                 AuditLogService.Record.of(
@@ -149,7 +165,11 @@ public class AuthService {
             return Optional.empty();
         }
 
-        Optional<SessionEntity> found = sessions.findById(token.get());
+        // The presented token is hashed before it touches the store: what is indexed is the
+        // hash, and a caller who somehow read the table would hold hashes of tokens rather than
+        // tokens. This is the line that makes that true — a `findById(token)` here would still
+        // work for every legitimate caller, and would quietly restore the old property.
+        Optional<SessionEntity> found = sessions.findById(Sessions.hashOf(token.get()));
         if (found.isEmpty()) {
             return Optional.empty();
         }
@@ -157,7 +177,7 @@ public class AuthService {
         SessionEntity session = found.get();
         Instant now = clock.instant();
         if (!Sessions.isActive(session.getCreatedAt(), session.getLastSeenAt(), now, policy)) {
-            sessions.deleteById(session.getToken());
+            sessions.deleteById(session.getTokenHash());
             return Optional.empty();
         }
 
@@ -165,10 +185,17 @@ public class AuthService {
         return Optional.of(sessions.save(session));
     }
 
-    /** A real logout: the row disappears and the token is worth nothing. */
+    /**
+     * A real logout: the row disappears and the token is worth nothing.
+     *
+     * <p>Takes the row rather than the token because the row is what every caller has — the
+     * bearer filter and the logout route both hold a resolved session — and because a
+     * {@code revoke(String)} would accept either the token or its hash, one of which silently
+     * revokes nothing.
+     */
     @Transactional
-    public void revoke(String token) {
-        sessions.deleteById(token);
+    public void revoke(SessionEntity session) {
+        sessions.deleteById(session.getTokenHash());
     }
 
     /**
@@ -195,20 +222,21 @@ public class AuthService {
      * The provider owns that side, and a failed sign-on never reaches this method.
      */
     @Transactional
-    public SessionEntity openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
+    public IssuedSession openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
         return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
     }
 
-    private SessionEntity openSession(UserEntity user, LoginRequest request, Instant now) {
+    private IssuedSession openSession(UserEntity user, LoginRequest request, Instant now) {
+        Sessions.IssuedToken minted = Sessions.issue();
         SessionEntity session = new SessionEntity();
-        session.setToken(Sessions.newToken());
+        session.setTokenHash(minted.hash());
         session.setUserId(user.getId());
         session.setCreatedAt(now);
         session.setLastSeenAt(now);
         session.setExpiresAt(now.plus(policy.absoluteLifetime()));
         session.setUserAgent(clip(request.userAgent()));
         session.setIpAddress(request.ipAddress());
-        return sessions.save(session);
+        return new IssuedSession(sessions.save(session), minted.token());
     }
 
     private List<Instant> occurrences(String counterKey, Instant since) {

@@ -17,12 +17,21 @@
  * Exécuté par `npm test` avant la suite unitaire : c'est une vérification de
  * fichiers, elle n'a pas besoin d'un navigateur.
  */
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const failures = [];
+
+/** Tous les fichiers d'une arborescence, récursivement. */
+function* walk(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) yield* walk(path);
+        else yield path;
+    }
+}
 
 function check(label, relativePath, test) {
     const path = join(root, relativePath);
@@ -47,6 +56,31 @@ for (const file of ['src/index.html', 'src/assets/styles.scss']) {
         const external = withoutComments.match(/https?:\/\/[^\s"')]+/g);
         return external ? `référence(s) externe(s) : ${[...new Set(external)].join(', ')}` : null;
     });
+}
+
+// **Et les gabarits de composants, parce que c'est là que la fuite s'est produite.**
+// Ce script ne lisait que la coquille ci-dessus ; deux pages héritées du template
+// Sakai — `auth/access.html` et `auth/error.html` — tiraient chacune une illustration
+// de `primefaces.org/cdn`, et rien ne le voyait. La CSP les refuse : la page s'affiche,
+// le texte est là, l'image manque, et personne n'ouvre jamais ces deux écrans-là.
+//
+// Seules les positions de ressource sont examinées — `src`, `srcset`, `url()`, et
+// `href` sur un `<link>`. Un `xmlns="http://www.w3.org/2000/svg"` n'est pas une
+// requête, une URL dans un `placeholder` est un exemple montré à l'utilisateur, et un
+// `<a href>` vers un avis de sécurité est une navigation que la CSP ne gouverne pas :
+// les refuser tous ferait de cette règle celle qu'on désactive.
+const templates = [...walk(join(root, 'src', 'app'))].filter((path) => path.endsWith('.html'));
+if (templates.length === 0) failures.push('aucune ressource tierce : aucun gabarit trouvé, la règle ne vérifierait rien');
+for (const path of templates) {
+    const content = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    const external = [
+        ...content.matchAll(/\b(?:src|srcset)\s*=\s*["'](https?:\/\/[^"']+)/g),
+        ...content.matchAll(/url\(\s*['"]?(https?:\/\/[^)'"]+)/g),
+        ...content.matchAll(/<link\b[^>]*\bhref\s*=\s*["'](https?:\/\/[^"']+)/g),
+    ].map((match) => match[1]);
+    if (external.length) {
+        failures.push(`aucune ressource tierce : ${path.slice(root.length + 1)} référence ${[...new Set(external)].join(', ')}`);
+    }
 }
 
 // Les polices déclarées doivent exister et être de vrais woff2 : un `@font-face`

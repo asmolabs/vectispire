@@ -31,6 +31,7 @@ public class AuditLogService {
     private static final int DESCRIPTION_MAX_LENGTH = 255;
 
     private final AuditLog entries;
+    private final AuditMirror mirror;
     private final Clock clock;
 
     /**
@@ -50,8 +51,9 @@ public class AuditLogService {
      */
     private final AtomicLong lastIssued = new AtomicLong(Long.MIN_VALUE);
 
-    public AuditLogService(AuditLog entries, Clock clock) {
+    public AuditLogService(AuditLog entries, AuditMirror mirror, Clock clock) {
         this.entries = entries;
+        this.mirror = mirror;
         this.clock = clock;
     }
 
@@ -102,6 +104,16 @@ public class AuditLogService {
             row.setEntryHash(AuditChain.computeEntryHash(chainEntry(row)));
 
             entries.save(row);
+
+            // **Mirrored before this transaction commits, deliberately.** A rollback after the
+            // line is written leaves the mirror holding an entry the table never kept, which
+            // `verifyAgainstMirror` reports as unrecorded — noise. Writing after the commit
+            // instead would leave the opposite: an action that rolled the transaction back could
+            // keep an entry out of the mirror entirely, which is the case the mirror exists for.
+            // Noise that can be explained beats a hole that cannot.
+            if (!mirror.append(mirrored(row))) {
+                log.error("Audit entry {} is in the table but not in the mirror", row.getId());
+            }
         } catch (RuntimeException failed) {
             // See the class note: never at the expense of the action being described. Logged at
             // error level, because a log that stops recording in silence is worse than one that
@@ -126,6 +138,64 @@ public class AuditLogService {
         return AuditChain.verifyChain(entries.findAllByOrderByTimestampAscIdAsc().stream()
                 .map(AuditLogService::verifiable)
                 .toList());
+    }
+
+    /**
+     * What the table and the mirror say about each other.
+     *
+     * @param configured false when no mirror is set up — reported rather than hidden, because
+     *     "0 missing" from a mirror that does not exist reads as reassurance and is not
+     * @param missingFromTable entries the mirror holds and the table does not: <b>the case the
+     *     chain cannot see</b>. Deleting the last entry, or the tip of a branch, leaves a chain
+     *     that verifies perfectly — nobody descends from what was removed. Here it is one
+     *     subtraction
+     * @param missingFromMirror entries the table holds and the mirror does not: written before
+     *     the mirror was configured, written while its disk was full, or inserted by somebody
+     *     who had the database and not the file. The three are not distinguishable from here,
+     *     and saying so is the honest report
+     */
+    public record MirrorComparison(boolean configured, int missingFromTable, int missingFromMirror) {}
+
+    /**
+     * Compares the two copies.
+     *
+     * <p>By entry hash, which is what makes the comparison cheap and exact: the hash covers
+     * every field the entry is made of, so two copies of one entry agree on it and two different
+     * entries cannot.
+     *
+     * <p>Multiset semantics, not set: the same entry appearing twice in the mirror and once in
+     * the table is a difference worth one, not zero. A duplicate line is how a retried write
+     * shows up, and it should not hide a deletion.
+     */
+    @Transactional(readOnly = true)
+    public MirrorComparison verifyAgainstMirror() {
+        if (!mirror.configured()) {
+            return new MirrorComparison(false, 0, 0);
+        }
+
+        java.util.Map<String, Integer> inMirror = new java.util.HashMap<>();
+        for (String hash : mirror.entryHashes()) {
+            inMirror.merge(hash, 1, Integer::sum);
+        }
+
+        int missingFromMirror = 0;
+        for (AuditLogEntity row : entries.findAllByOrderByTimestampAscIdAsc()) {
+            String hash = row.getEntryHash();
+            if (hash == null || hash.isBlank()) {
+                // Predates the chaining: it has no hash to compare, and counting it as missing
+                // would report an alarm about entries nobody ever claimed were covered.
+                continue;
+            }
+            Integer remaining = inMirror.get(hash);
+            if (remaining == null || remaining == 0) {
+                missingFromMirror++;
+            } else {
+                inMirror.put(hash, remaining - 1);
+            }
+        }
+
+        int missingFromTable = inMirror.values().stream().mapToInt(Integer::intValue).sum();
+        return new MirrorComparison(true, missingFromTable, missingFromMirror);
     }
 
     /**
@@ -163,6 +233,22 @@ public class AuditLogService {
                 row.getIpAddress(),
                 row.getUserAgent(),
                 row.getDescription());
+    }
+
+    private static AuditMirror.Entry mirrored(AuditLogEntity row) {
+        return new AuditMirror.Entry(
+                String.valueOf(row.getId()),
+                // The canonical form the hash itself uses, so the mirror and the table cannot
+                // disagree about an instant merely because one of them printed it differently.
+                com.asmolabs.zanshin.common.domain.crypto.Digests.canonical(row.getTimestamp()),
+                row.getOperationType(),
+                row.getResourceId(),
+                row.getUserId(),
+                row.getIpAddress(),
+                row.getUserAgent(),
+                row.getDescription(),
+                row.getPreviousHash(),
+                row.getEntryHash());
     }
 
     private static AuditChain.VerifiableEntry verifiable(AuditLogEntity row) {

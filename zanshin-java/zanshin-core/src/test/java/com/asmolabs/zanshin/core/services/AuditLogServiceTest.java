@@ -34,7 +34,10 @@ class AuditLogServiceTest {
     void wire() {
         stored.clear();
         entries = mock(AuditLog.class);
-        service = new AuditLogService(entries, Clock.fixed(NOW, ZoneOffset.UTC));
+        // No mirror here on purpose: this suite is about the chain the table carries. The
+        // second copy has its own suite, and mixing the two would make a chain failure and a
+        // mirror failure look alike.
+        service = new AuditLogService(entries, new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC));
 
         // The fake assigns an identifier, because the database does: the column is
         // `@GeneratedValue`, and a fake that leaves it null tests a row shape production never

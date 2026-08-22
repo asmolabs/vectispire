@@ -87,7 +87,7 @@ class OutboxServiceTest {
     @DisplayName("a failure schedules the next attempt rather than losing the message")
     void aFailureIsRetried() {
         due(pending(0));
-        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any());
+        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
 
         assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 1, 0));
         verify(messages).recordAttempt(eq(ID), eq(1), anyString(), eq("pending"), any(Instant.class));
@@ -97,7 +97,7 @@ class OutboxServiceTest {
     @DisplayName("the last attempt abandons the message and says so")
     void theLastAttemptGivesUp() {
         due(pending(OutboxRetry.MAX_ATTEMPTS - 1));
-        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any());
+        doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
 
         assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 0, 1));
         // Failed, with no next attempt: a message circulating for ever would hide the outage
@@ -115,7 +115,7 @@ class OutboxServiceTest {
         doThrow(new OutboundJson.OutboundFailureException("boom"))
                 .doNothing()
                 .when(notifications)
-                .deliver(any());
+                .deliver(any(), any());
 
         assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 1, 0));
     }
@@ -155,7 +155,7 @@ class OutboxServiceTest {
 
         ArgumentCaptor<NotificationPayload> delivered = ArgumentCaptor.forClass(NotificationPayload.class);
         service.relay(20);
-        verify(notifications).deliver(delivered.capture());
+        verify(notifications).deliver(delivered.capture(), org.mockito.ArgumentMatchers.isNull());
 
         // The relay parses the stored text back into the record before posting it, so every field
         // the record does not declare is dropped — and the mapper is configured not to complain
@@ -179,7 +179,7 @@ class OutboxServiceTest {
         // succeed and produce zeroes — a webhook announcing that nothing happened. Failing the
         // message keeps it in the queue where somebody can see it.
         assertThat(service.relay(20).failed()).isEqualTo(1);
-        verify(notifications, never()).deliver(any());
+        verify(notifications, never()).deliver(any(), any());
     }
 
     private static NotificationPayload.NotifiableIssue issue() {

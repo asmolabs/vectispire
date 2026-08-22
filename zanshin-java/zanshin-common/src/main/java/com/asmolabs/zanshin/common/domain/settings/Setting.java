@@ -2,6 +2,8 @@ package com.asmolabs.zanshin.common.domain.settings;
 
 import com.asmolabs.zanshin.common.domain.aireview.AiReview;
 import com.asmolabs.zanshin.common.domain.eol.LifeCycle;
+import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
+import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
 import com.asmolabs.zanshin.common.domain.retention.RetentionPolicy;
 import com.asmolabs.zanshin.common.domain.tickets.TicketProvider;
@@ -207,7 +209,40 @@ public enum Setting {
             "Allow a remote Ollama",
             "Off by default, and it is the most consequential setting on this screen: turning it on allows "
                     + "source code to be sent to a public host.",
-            "false");
+            "false"),
+
+    // **The four windows, and the reason each is a setting rather than a constant.** A
+    // remediation policy is written by an organisation, not by a tool: the numbers below are the
+    // shape most published ones have, and every deployment has its own. What they must not be is
+    // absent — an SLA nobody set is an SLA nobody is measured against.
+    //
+    // Zero disables a severity. The help text says so on every one of them, because the other
+    // reading — zero as "due immediately" — turns clearing a field into a backlog entirely in
+    // breach, from a gesture that looked like switching something off.
+    SLA_CRITICAL_DAYS("sla_critical_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Critical: days to remediate",
+            "Counted from when the issue was **first seen**, never from the last scan — otherwise a target "
+                    + "scanned nightly would reset every deadline every night and nothing would ever be late. "
+                    + "Zero disables the deadline for this severity. **No window blocks a gate**: being late is "
+                    + "reported to people, not used to stop a deployment that might carry the fix.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.CRITICAL).orElseThrow().toDays())),
+
+    SLA_HIGH_DAYS("sla_high_days", SettingType.INTEGER, Section.REMEDIATION,
+            "High: days to remediate",
+            "As above: from the first sighting, zero to disable, and it blocks nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.HIGH).orElseThrow().toDays())),
+
+    SLA_MEDIUM_DAYS("sla_medium_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Medium: days to remediate",
+            "As above: from the first sighting, zero to disable, and it blocks nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.MEDIUM).orElseThrow().toDays())),
+
+    SLA_LOW_DAYS("sla_low_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Low: days to remediate",
+            "As above. Negligible and unknown severities carry no window at all and are not settable: neither "
+                    + "describes work anybody schedules, and a deadline on either would fill the report with "
+                    + "lateness that means nothing.",
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.LOW).orElseThrow().toDays()));
 
     /** The group the screen files a setting under. */
     public enum Section {
@@ -216,6 +251,7 @@ public enum Setting {
         ENRICHMENT("Enrichment"),
         END_OF_LIFE("End of life"),
         SOURCE_CODE("Source code analysis"),
+        REMEDIATION("Remediation deadlines"),
         RETENTION("Retention"),
         NOTIFICATIONS("Notifications"),
         LICENSES("Licenses"),

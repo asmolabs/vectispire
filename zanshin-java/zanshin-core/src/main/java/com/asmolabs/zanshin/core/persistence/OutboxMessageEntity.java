@@ -50,6 +50,17 @@ public class OutboxMessageEntity implements Persistable<UUID> {
     @Column(name = "payload", nullable = false)
     private String payload;
 
+    /**
+     * Which team's channel this message is for, or {@code null} for the global webhook.
+     *
+     * <p><b>The team and not the URL.</b> The destination is resolved at send time so that fixing
+     * a typo flushes the queue instead of requiring a re-scan, and so that a URL written straight
+     * into the database is still validated before anything is posted to it. A resolved URL on this
+     * row would freeze both.
+     */
+    @Column(name = "team_id")
+    private Long teamId;
+
     @Column(name = "status", length = 20, nullable = false)
     private String status;
 
@@ -91,6 +102,14 @@ public class OutboxMessageEntity implements Persistable<UUID> {
 
     public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public Long getTeamId() {
+        return teamId;
+    }
+
+    public void setTeamId(Long teamId) {
+        this.teamId = teamId;
     }
 
     public String getStatus() {

@@ -7,6 +7,17 @@
                     <span class="text-muted-color font-medium">Application security analysis</span>
                 </div>
 
+                @if (methods() && !methods()!.password) {
+                    <!--
+                        This deployment delegates authentication to its provider, so there is no
+                        password to type. Drawn as a sentence rather than as a disabled form: a
+                        greyed-out field invites people to look for the way to enable it.
+                    -->
+                    <p-message severity="secondary" [closable]="false" styleClass="w-full mb-4">
+                        Sign in through {{ methods()!.label ?? 'your identity provider' }}. This deployment does not
+                        accept passwords.
+                    </p-message>
+                } @else {
                 <form (ngSubmit)="submit()">
                     <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
                     <input pInputText id="username" name="username" type="text" autocomplete="username" class="w-full mb-6" [(ngModel)]="username" />
@@ -24,19 +35,22 @@
 
                     <p-button type="submit" label="Sign in" styleClass="w-full" [loading]="loading()" />
                 </form>
+                }
 
                 @if (methods()?.configured) {
                     <!--
                         Offered only when an issuer is configured. An optional feature that is off
                         should be absent, not present and refusing — and the password form stays
-                        beside it on purpose: it is the way in when the provider is unreachable,
-                        and without it a broken realm locks everybody out.
+                        beside it unless this deployment closed that door deliberately, because it
+                        is the way in when the provider is unreachable.
                     -->
-                    <div class="flex items-center gap-3 my-5">
-                        <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
-                        <span class="text-muted-color text-sm">or</span>
-                        <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
-                    </div>
+                    @if (methods()!.password) {
+                        <div class="flex items-center gap-3 my-5">
+                            <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
+                            <span class="text-muted-color text-sm">or</span>
+                            <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
+                        </div>
+                    }
                     <p-button
                         [label]="methods()!.label ?? 'Single sign-on'"
                         icon="pi pi-shield"

@@ -6,12 +6,18 @@ import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
+import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
+import com.asmolabs.zanshin.core.persistence.TeamTargetEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.persistence.UserTargetEntity;
+import com.asmolabs.zanshin.core.repositories.TeamMembers;
+import com.asmolabs.zanshin.core.repositories.TeamTargets;
 import com.asmolabs.zanshin.core.repositories.UserTargets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +31,23 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Administrators always see everything.</b> Not a convenience: somebody has to be able to
  * make the assignments, and an administrator who cannot see a target cannot assign it.
+ *
+ * <h2>Two ways to be allowed, and why both</h2>
+ *
+ * <p>An account sees the <b>union</b> of what its teams own and what was assigned to it
+ * directly. The union is right here and the intersection is right one method below, which is
+ * worth stating because the two are easy to swap:
+ *
+ * <ul>
+ *   <li><b>Team plus direct assignment: union.</b> They answer the same question — what may this
+ *       person read — from two directions. A team is the organisation; a direct assignment is
+ *       the exception a team cannot express, one contractor on one repository. Intersecting them
+ *       would mean joining a team <em>narrows</em> what somebody already had, so an
+ *       administrator adding a team member would silently revoke.
+ *   <li><b>Account and credential: intersection</b> ({@link #of(UserEntity, Visibility)}). Those
+ *       answer different questions — who is this, and what is this key for. A narrow key held by
+ *       a broad account must stay narrow.
+ * </ul>
  */
 @Service
 public class VisibilityService {
@@ -34,10 +57,18 @@ public class VisibilityService {
 
     private final SettingsService settings;
     private final UserTargets assignments;
+    private final TeamMembers memberships;
+    private final TeamTargets teamTargets;
 
-    public VisibilityService(SettingsService settings, UserTargets assignments) {
+    public VisibilityService(
+            SettingsService settings,
+            UserTargets assignments,
+            TeamMembers memberships,
+            TeamTargets teamTargets) {
         this.settings = settings;
         this.assignments = assignments;
+        this.memberships = memberships;
+        this.teamTargets = teamTargets;
     }
 
     public VisibilityMode mode() {
@@ -83,11 +114,29 @@ public class VisibilityService {
             return Visibility.everything();
         }
 
-        List<ScanTarget> assigned = new ArrayList<>();
+        // A set, not a list: a repository owned by two of the account's teams, or by a team and
+        // directly, would otherwise be counted twice — harmless for `permits` and wrong for
+        // anybody who reads the size of what a query was narrowed to.
+        Set<ScanTarget> visible = new LinkedHashSet<>();
+
         for (UserTargetEntity row : assignments.findByUserId(user.getId())) {
-            targetOf(row.getId().targetKind(), row.getId().targetId()).ifPresent(assigned::add);
+            targetOf(row.getId().targetKind(), row.getId().targetId()).ifPresent(visible::add);
         }
-        return Visibility.only(assigned);
+
+        List<Long> teams = memberships.findByUserId(user.getId()).stream()
+                .map(membership -> membership.getId().teamId())
+                .toList();
+        // **The guard, not an optimisation.** `in ()` is a syntax error on some engines and
+        // matches every row on others, and "matches everything" here means an account in no team
+        // sees the entire backlog. One `if` decides which of those two an unassigned account
+        // gets, so it is not left to the driver.
+        if (!teams.isEmpty()) {
+            for (TeamTargetEntity row : teamTargets.findByTeamIdIn(teams)) {
+                targetOf(row.getId().targetKind(), row.getId().targetId()).ifPresent(visible::add);
+            }
+        }
+
+        return Visibility.only(new ArrayList<>(visible));
     }
 
     /**

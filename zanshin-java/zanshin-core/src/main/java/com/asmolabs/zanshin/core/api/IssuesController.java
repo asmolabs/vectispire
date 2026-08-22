@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
+import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
 import com.asmolabs.zanshin.common.domain.issues.Triage;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.common.domain.issues.VexJustification;
@@ -19,6 +20,7 @@ import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.TriageEvents;
 import com.asmolabs.zanshin.core.services.TriageHistory;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.SlaService;
 import com.asmolabs.zanshin.core.services.TargetNaming;
 import com.asmolabs.zanshin.core.services.IssueTriageService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
@@ -26,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.Period;
 import java.util.List;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
@@ -72,6 +75,7 @@ public class IssuesController {
     private final IssueTriageService triage;
     private final AuditLogService audit;
     private final VisibilityService visibility;
+    private final SlaService sla;
 
     public IssuesController(
             Issues issues,
@@ -80,7 +84,8 @@ public class IssuesController {
             TargetNaming naming,
             IssueTriageService triage,
             AuditLogService audit,
-            VisibilityService visibility) {
+            VisibilityService visibility,
+            SlaService sla) {
         this.issues = issues;
         this.findings = findings;
         this.events = events;
@@ -88,6 +93,7 @@ public class IssuesController {
         this.triage = triage;
         this.audit = audit;
         this.visibility = visibility;
+        this.sla = sla;
     }
 
     public record Page(List<BacklogEntry> items, long total, int limit, int offset) {}
@@ -107,6 +113,10 @@ public class IssuesController {
             // The dashboard has linked here since the first version. Nothing read it, so the
             // most actionable figure on that screen opened the whole backlog instead.
             @RequestParam(name = "is_kev", required = false, defaultValue = "false") boolean onlyKev,
+            // **The figure on the dashboard has to lead somewhere.** A count of overdue issues
+            // that opens the whole backlog is the defect `is_kev` had: the most actionable number
+            // on the screen linked to a list nobody could narrow.
+            @RequestParam(required = false, defaultValue = "false") boolean overdue,
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset) {
@@ -126,6 +136,10 @@ public class IssuesController {
                 onlyDirect,
                 onlyKev,
                 search,
+                // Asking for the overdue also excludes what triage settled: a dismissed issue is
+                // not late, and a list that showed it would disagree with the figure that led here.
+                overdue,
+                overdue ? sla.overdueThresholds() : java.util.Map.of(),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
@@ -148,12 +162,21 @@ public class IssuesController {
     private List<BacklogEntry> named(List<IssueEntity> page) {
         TargetNaming.Names names = naming.forIds(
                 idsOf(page, IssueEntity::getRepoId), idsOf(page, IssueEntity::getContainerId));
+        // The policy read once for the page, not once per row: it is four settings reads, and
+        // fifty rows would make it two hundred.
+        RemediationSla policy = sla.policy();
 
         return page.stream()
-                .map(issue -> new BacklogEntry(
-                        issue,
-                        names.kindOf(issue.getContainerId()),
-                        names.of(issue.getRepoId(), issue.getContainerId())))
+                .map(issue -> {
+                    var assessment = sla.assess(policy, issue);
+                    return new BacklogEntry(
+                            issue,
+                            names.kindOf(issue.getContainerId()),
+                            names.of(issue.getRepoId(), issue.getContainerId()),
+                            assessment.map(RemediationSla.Assessment::dueAt).orElse(null),
+                            assessment.map(found -> found.state().name().toLowerCase(Locale.ROOT)).orElse(null),
+                            assessment.map(RemediationSla.Assessment::days).orElse(null));
+                })
                 .toList();
     }
 

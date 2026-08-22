@@ -1,7 +1,6 @@
 package com.asmolabs.zanshin.core.api.security;
 
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.AuthService;
@@ -161,7 +160,7 @@ public class OidcConfiguration {
                         oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
                         oidc.getPreferredUsername() == null ? oidc.getEmail() : oidc.getPreferredUsername());
 
-                SessionEntity session = auth.openFederatedSession(
+                AuthService.IssuedSession session = auth.openFederatedSession(
                         user, request.getHeader("User-Agent"), request.getRemoteAddr());
 
                 audit.record(new AuditLogService.Record(
@@ -172,7 +171,9 @@ public class OidcConfiguration {
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent")));
 
-                response.addCookie(handoff(session.getToken(), request.isSecure()));
+                // The clear token, straight from the mint into the one-time cookie: the row it
+                // belongs to holds only its hash, so this is the sole copy in existence.
+                response.addCookie(handoff(session.token(), request.isSecure()));
                 // Back to the sign-in screen rather than to the application, and the marker says
                 // why: that screen is where the browser would land anyway — the token is not in
                 // memory yet, so the first API call answers 401 and the interceptor sends it

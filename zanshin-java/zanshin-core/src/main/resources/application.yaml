@@ -56,6 +56,30 @@ zanshin:
     absolute-lifetime: ${ZANSHIN_SESSION_LIFETIME:12h}
     idle-lifetime: ${ZANSHIN_SESSION_IDLE:60m}
 
+  oidc:
+    # **Whether a password may still be exchanged for a session.** False delegates
+    # authentication entirely to the identity provider — which is how Zanshin gets a second
+    # factor without implementing enrolment, recovery codes and a reset path of its own.
+    #
+    # Honoured only when `ZANSHIN_OIDC_ISSUER` is set. Asked for without a provider, password
+    # sign-in stays on and says so in the log: closing the only door that works locks everybody
+    # out of a tool that holds every watched repository's deployment key. The way back from a
+    # realm that has become unreachable is this variable and a restart, by whoever can reach the
+    # process — not a button in the interface, which the attacker this protects against would
+    # also be able to press.
+    password-login: ${ZANSHIN_PASSWORD_LOGIN:true}
+
+  audit:
+    # **A second copy of the audit log, outside the database it watches.** Empty means off, and
+    # `/audit-log/verify` says so rather than leaving the operator to assume otherwise. Off is
+    # the default because writing to a path unasked fails on a read-only container filesystem,
+    # and a control that warns on every start is one people learn to ignore.
+    #
+    # Point it at a path a log collector already ships: the mirror's worth is not that a file is
+    # unforgeable — it is not — but that erasing an entry then takes two edits in two media, and
+    # the second copy is usually off the host within seconds.
+    mirror-path: ${ZANSHIN_AUDIT_MIRROR:}
+
   encryption:
     # The environment variable names are kept short and unprefixed on purpose: this is the one
     # value an operator has to set before the application is useful, and it is the first line

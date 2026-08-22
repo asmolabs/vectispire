@@ -37,8 +37,8 @@ public interface UserSessions extends JpaRepository<SessionEntity, String> {
      */
     @Transactional
     @Modifying(clearAutomatically = true)
-    @Query("delete from SessionEntity s where s.userId = :userId and s.token <> :keep")
-    int deleteByUserIdExcept(@Param("userId") Long userId, @Param("keep") String keep);
+    @Query("delete from SessionEntity s where s.userId = :userId and s.tokenHash <> :keep")
+    int deleteByUserIdExcept(@Param("userId") Long userId, @Param("keep") String tokenHashToKeep);
 
     /**
      * How many live sessions each account has, for the administration screen.
@@ -48,7 +48,7 @@ public interface UserSessions extends JpaRepository<SessionEntity, String> {
      * used, and applying it to a count would make the number change while nobody did anything.
      */
     @Query("""
-            select s.userId, count(s.token) from SessionEntity s
+            select s.userId, count(s.tokenHash) from SessionEntity s
              where s.expiresAt > :asOf
              group by s.userId""")
     List<Object[]> countActiveByUser(@Param("asOf") Instant asOf);

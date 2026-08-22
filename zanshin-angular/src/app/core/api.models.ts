@@ -59,6 +59,18 @@ export interface Issue {
     isDirectDependency: boolean | null;
     ticketRef: string | null;
     ticketUrl: string | null;
+    /** When this issue's remediation window closes; null when none applies — a severity with no
+     *  window, or an issue already settled or closed.
+     *
+     *  **Computed by the server**, like the gate verdict. Deriving it here from the policy would
+     *  be a second implementation of the deadline, and the two would disagree the day it moves. */
+    slaDueAt: string | null;
+    /** `on_time`, `due_soon` or `overdue`; null with no deadline. A state and not a date to
+     *  compare, so "late" means the same thing on this screen, in an export and in a report. */
+    slaState: 'on_time' | 'due_soon' | 'overdue' | null;
+    /** Days until due, **negative when late**. One signed field: "3 days late" and "due in 12
+     *  days" are one measurement read from opposite sides. */
+    slaDays: number | null;
 }
 
 export interface Page<T> {
@@ -73,6 +85,9 @@ export interface IssueFilters {
     severity?: string;
     type?: string;
     is_kev?: boolean;
+    /** Open, not settled, and past the window its severity carries. The server owns the
+     *  thresholds: sending dates from here would be a second copy of the policy. */
+    overdue?: boolean;
     triage_status?: string;
     repository_id?: number;
     container_id?: number;
@@ -302,6 +317,27 @@ export interface IssuedApiKey {
     secret: string;
 }
 
+/** A team: the grouping that makes restricted visibility administrable. */
+export interface TeamSummary {
+    id: number;
+    name: string;
+    description: string | null;
+    /** On the list so the screen can say "four people, two repositories" without one request
+     *  per team — and so that a team owning nothing, which grants nothing, is visible at a
+     *  glance rather than by opening it. */
+    memberCount: number;
+    targetCount: number;
+    /** Whether the team has its own notification channel — **not the URL**. A webhook URL is a
+     *  bearer capability: whoever reads it can post where the team awaits Zanshin's alerts, so no
+     *  route returns it and this screen cannot display it back. */
+    notified: boolean;
+}
+
+export interface TeamTargetAssignment {
+    kind: string;
+    id: number;
+}
+
 export interface ApiKeyTargets {
     repositories: { id: number; label: string }[];
     containers: { id: number; label: string }[];
@@ -335,8 +371,20 @@ export interface AuditVerification {
     /** Entries predating the chaining: neither a proof nor an alarm. */
     unverifiable: number;
     verified: number;
+    /** The chain holds **and** nothing the mirror kept has left the table. */
     intact: boolean;
     broken: string | null;
+    /** Whether a copy outside this database is configured at all. `false` is a state to show,
+     *  not a detail to hide: "nothing missing" from a mirror that does not exist reads as
+     *  reassurance and is not. */
+    mirrored: boolean;
+    /** Entries the mirror holds and the table does not — the deletion the chain cannot see,
+     *  since nothing descends from the last entry written. */
+    missingFromTable: number;
+    /** Entries the table holds and the mirror does not: written before the mirror existed,
+     *  written while it could not be reached, or inserted by somebody who had the database and
+     *  not the file. */
+    missingFromMirror: number;
 }
 
 /** What the dashboard shows. None of these figures is its own: the posture comes from the
@@ -348,6 +396,9 @@ export interface DashboardOverview {
         kevCount: number;
         neverScannedCount: number;
         lastScanFailedCount: number;
+        /** Open issues past their remediation window. Zero also means "every window disabled",
+         *  which the remediation section of the settings screen is where to check. */
+        overdueCount: number;
     };
     /** Outside quality, deliberately. */
     backlogBySeverity: Record<string, number>;
@@ -704,4 +755,11 @@ export interface SignInMethods {
     /** False when no issuer is configured: the button is then absent, not disabled. */
     configured: boolean;
     label: string | null;
+    /** False when this deployment delegates authentication entirely to the provider — so the
+     *  second factor is the realm's, and Zanshin never sees a password. The form is then hidden
+     *  rather than shown and refused: an input that cannot work is worse than no input.
+     *
+     *  Always true when no provider is configured, whatever was asked for: the server refuses to
+     *  close the only door that works. */
+    password: boolean;
 }

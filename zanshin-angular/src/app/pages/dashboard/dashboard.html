@@ -8,7 +8,7 @@
 }
 
 @if (data(); as overview) {
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
         <p-card>
             <div class="text-muted-color text-sm">Failing targets</div>
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
@@ -31,6 +31,19 @@
             <!-- The figure easiest to mistake for good news: a target with no finding
                  is not a target with no problem. -->
             <div class="text-sm text-muted-color">No finding for want of observation</div>
+        </p-card>
+
+        <p-card>
+            <!--
+                The only figure here about time rather than quantity, and the one a security
+                officer is asked for. It links to the list it counts — the same clause on the
+                server produces both, so the number and the rows cannot disagree.
+            -->
+            <div class="text-muted-color text-sm">Past their remediation deadline</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.overdueCount > 0">
+                {{ overview.posture.overdueCount }}
+            </div>
+            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">See what is late</a>
         </p-card>
 
         <p-card>

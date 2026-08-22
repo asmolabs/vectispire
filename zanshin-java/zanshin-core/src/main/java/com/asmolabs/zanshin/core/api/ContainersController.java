@@ -7,6 +7,9 @@ import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.targets.ImageReference;
 import com.asmolabs.zanshin.core.api.RepositoriesController.LastScan;
 import com.asmolabs.zanshin.core.api.RepositoriesController.QueuedScan;
+import com.asmolabs.zanshin.common.domain.teams.TeamRules;
+import com.asmolabs.zanshin.core.repositories.TeamTargets;
+import com.asmolabs.zanshin.core.repositories.UserTargets;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.ContainerEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
@@ -53,9 +56,16 @@ public class ContainersController {
     private final AuditLogService audit;
     private final VisibilityService visibility;
 
+    private final UserTargets userTargets;
+    private final TeamTargets teamTargets;
+
     public ContainersController(
             Containers containers, Scans scans, Issues issues, ScanTriggerService trigger, AuditLogService audit,
-            VisibilityService visibility) {
+            VisibilityService visibility,
+            UserTargets userTargets,
+            TeamTargets teamTargets) {
+        this.userTargets = userTargets;
+        this.teamTargets = teamTargets;
         this.containers = containers;
         this.scans = scans;
         this.issues = issues;
@@ -176,6 +186,11 @@ public class ContainersController {
         ContainerEntity container = containers.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Image not found."));
 
+        // Cleared first, for the reason spelled out on the repository's deletion: these rows
+        // cascade from nothing, and a reused identifier turns a stale one into access to a
+        // different image.
+        userTargets.deleteByTarget(TeamRules.KIND_CONTAINER, id);
+        teamTargets.deleteByTarget(TeamRules.KIND_CONTAINER, id);
         containers.deleteById(id);
         record(principal, request, AuditOperation.SETTING_UPDATED, id,
                 "Image deleted: " + referenceOf(container).format());

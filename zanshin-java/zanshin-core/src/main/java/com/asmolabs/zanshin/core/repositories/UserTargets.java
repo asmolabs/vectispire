@@ -25,4 +25,19 @@ public interface UserTargets extends JpaRepository<UserTargetEntity, UserTargetE
     @Modifying(clearAutomatically = true)
     @Query("delete from UserTargetEntity t where t.id.userId = :userId")
     int deleteByUserId(@Param("userId") Long userId);
+
+    /**
+     * Every account's claim on one target, dropped — for when the target itself is deleted.
+     *
+     * <p><b>Not housekeeping: identifier reuse.</b> There is no foreign key to cascade through,
+     * because {@code (target_kind, target_id)} points into one of two tables. SQLite reuses a
+     * freed {@code rowid} when the deleted row was the highest, so a stale assignment naming
+     * repository 5 would grant access to <em>the next</em> repository 5 — a different
+     * repository, to an account nobody assigned it to. On the three server engines a sequence
+     * makes that unlikely rather than impossible.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("delete from UserTargetEntity t where t.id.targetKind = :kind and t.id.targetId = :targetId")
+    int deleteByTarget(@Param("kind") String kind, @Param("targetId") Long targetId);
 }

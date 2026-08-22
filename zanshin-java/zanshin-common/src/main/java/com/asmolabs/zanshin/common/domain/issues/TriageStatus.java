@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.common.domain.issues;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -47,6 +48,16 @@ public enum TriageStatus {
 
     public String wireName() {
         return name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The statuses that leave an issue in the way, by wire name.
+     *
+     * <p>Derived from {@link #isSettled()} rather than listed: a second list could disagree with
+     * the flag, and the disagreement would decide whether a dismissed issue counts as late.
+     */
+    public static List<String> unsettledWireNames() {
+        return Arrays.stream(values()).filter(status -> !status.isSettled()).map(TriageStatus::wireName).toList();
     }
 
     public static Optional<TriageStatus> fromWireName(String value) {

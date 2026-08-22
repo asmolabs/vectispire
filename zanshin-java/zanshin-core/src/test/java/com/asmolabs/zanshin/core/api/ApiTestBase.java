@@ -113,15 +113,19 @@ abstract class ApiTestBase extends ZanshinContextTest {
         user.setUpdatedAt(now);
         UserEntity saved = users.save(user);
 
+        // Minted exactly the way the application mints one — the hash in the row, the token
+        // returned to the caller. A test that stored the token would pass while the production
+        // path stored a hash, and would be testing a store that no longer exists.
+        Sessions.IssuedToken minted = Sessions.issue();
         SessionEntity session = new SessionEntity();
-        session.setToken(Sessions.newToken());
+        session.setTokenHash(minted.hash());
         session.setUserId(saved.getId());
         session.setCreatedAt(now);
         session.setLastSeenAt(now);
         session.setExpiresAt(now.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
         sessions.save(session);
 
-        return session.getToken();
+        return minted.token();
     }
 
     protected MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request, String token) {

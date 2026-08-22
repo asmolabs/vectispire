@@ -13,6 +13,7 @@ import com.asmolabs.zanshin.core.repositories.IssueFilters;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
+import com.asmolabs.zanshin.core.services.SlaService;
 import com.asmolabs.zanshin.core.services.ExportProperties;
 import com.asmolabs.zanshin.core.services.GateService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
@@ -58,13 +59,17 @@ public class ExportsController {
     private final VisibilityService visibility;
     private final Clock clock;
 
+    private final SlaService sla;
+
     public ExportsController(
             Issues issues,
             GateService gate,
             TargetNaming naming,
             ExportProperties properties,
             VisibilityService visibility,
-            Clock clock) {
+            Clock clock,
+            SlaService sla) {
+        this.sla = sla;
         this.issues = issues;
         this.gate = gate;
         this.naming = naming;
@@ -162,7 +167,8 @@ public class ExportsController {
                         posture.policy().describeSource(),
                         posture.lastScan().map(SecurityOverview.LatestScan::createdAt).orElse(null),
                         clock.instant()),
-                exportable(kind, id, state));
+                exportable(kind, id, state),
+                sla.policy());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".pdf"))

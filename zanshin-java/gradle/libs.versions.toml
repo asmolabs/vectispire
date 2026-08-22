@@ -4,12 +4,21 @@ springBoot = "4.1.0"
 archunit = "1.4.1"
 junit = "6.0.1"
 assertj = "3.27.6"
-postgresql = "42.7.9"
+postgresql = "42.7.12"
 mariadb = "3.5.7"
 mysql = "9.5.0"
 sqlite = "3.51.0.0"
 bouncycastle = "1.85"
 dockerJava = "3.7.1"
+# **Raised above what the Spring Boot BOM and docker-java ask for, for named advisories.**
+# The BOM manages 5.6.1/5.4.2, and Zanshin's own SBOM scan reports fixable High findings
+# against both — GHSA-v3jc-474w-2wm6 and GHSA-hf6x-8p5f-cgmf on httpcore5, GHSA-hjcp-jmpx-g3qm
+# on httpclient5. Gradle resolves to the highest of the declared version and the platform
+# constraint, so naming them here is what raises them. Drop these two lines when the BOM
+# catches up: an override kept past its usefulness is how a dependency silently stops
+# following upstream.
+apacheHttpClient5 = "5.6.3"
+apacheHttpCore5 = "5.4.3"
 jgit = "7.7.1.202607240634-r"
 pdfbox = "3.0.6"
 
@@ -31,6 +40,9 @@ bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "boun
 bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
 docker-java-transport = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "dockerJava" }
+apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "apacheHttpClient5" }
+apache-httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref = "apacheHttpCore5" }
+apache-httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", version.ref = "apacheHttpCore5" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 hibernate-community-dialects = { module = "org.hibernate.orm:hibernate-community-dialects" }
 # Apache-2.0, and a drawing API rather than an HTML engine: the alternative that renders HTML

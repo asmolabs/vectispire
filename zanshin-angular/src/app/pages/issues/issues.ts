@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +41,7 @@ const VEX_JUSTIFICATIONS = [
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
+    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
     templateUrl: './issues.html'
 })
 export class Issues {
@@ -130,6 +131,9 @@ export class Issues {
         if (params.get('severity')) this.severity = params.get('severity');
         if (params.get('state')) this.state = params.get('state')!;
         if (params.get('is_kev') === 'true') this.targetFilters.is_kev = true;
+        // The same arrangement for the deadline figure: the dashboard links here, and a link
+        // this screen does not read is a filter that silently does nothing.
+        if (params.get('overdue') === 'true') this.targetFilters.overdue = true;
 
         this.loadTargets();
         this.reload(0);
@@ -203,6 +207,45 @@ export class Issues {
         if (severity === 'medium') return 'warn';
         if (severity === 'low') return 'info';
         return 'secondary';
+    }
+
+    /**
+     * The deadline, in words.
+     *
+     * The state comes from the server and is not re-derived here: this only turns it into a
+     * phrase. A screen computing lateness from `slaDueAt` would be a second implementation of
+     * the policy, and the two would part company the day a window moves.
+     */
+    slaLabel(issue: Issue): string | null {
+        if (!issue.slaState || issue.slaDays === null) return null;
+        if (issue.slaState === 'overdue') {
+            const late = Math.abs(issue.slaDays);
+            return late === 0 ? 'late today' : `${late} day${late === 1 ? '' : 's'} late`;
+        }
+        // "due in 0 days" reads worse than "due today", and the zero is a real case: the last
+        // day of a window rounds to it.
+        return issue.slaDays === 0 ? 'due today' : `due in ${issue.slaDays} days`;
+    }
+
+    slaColour(issue: Issue): 'danger' | 'warn' | 'secondary' {
+        if (issue.slaState === 'overdue') return 'danger';
+        if (issue.slaState === 'due_soon') return 'warn';
+        return 'secondary';
+    }
+
+    /**
+     * Whether a dismissal's review date is close enough to plan for.
+     *
+     * A week, the same horizon the remediation deadline uses: two different warning windows on
+     * one screen would be two ideas of "soon" for a reader to reconcile.
+     *
+     * The expiry itself happens on the server, hourly — this only colours the date. A screen
+     * deciding that a decision has lapsed would disagree with the gate, which reads the row.
+     */
+    reviewIsImminent(issue: Issue): boolean {
+        if (!issue.triageExpiresAt) return false;
+        const dueInDays = (new Date(issue.triageExpiresAt).getTime() - Date.now()) / 86_400_000;
+        return dueInDays <= 7;
     }
 
     triageColour(status: string): 'success' | 'danger' | 'warn' | 'secondary' {
