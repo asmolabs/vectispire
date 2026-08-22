@@ -40,7 +40,13 @@ public class EncryptionService {
     private final List<EncryptionKey> decryptionKeys;
     private final SecretCipher cipher = new SecretCipher();
 
-    public EncryptionService(EncryptionProperties properties) {
+    public EncryptionService(EncryptionProperties configured) {
+        // **Files are read here, and a failure stops the application.** This is the only place
+        // that can refuse: `EncryptionService` tolerating a missing key is what makes a broken
+        // secret mount look like a fresh installation, so the refusal has to happen before that
+        // tolerance applies. See `SecretFile`.
+        EncryptionProperties properties = configured.resolved();
+
         this.encryptionKey = properties.key().filter(secret -> !secret.isBlank()).map(EncryptionKey::derive);
         if (encryptionKey.isEmpty()) {
             log.warn(

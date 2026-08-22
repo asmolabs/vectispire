@@ -30,6 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Only on an empty table.</b> The settings are ignored as soon as an account exists:
  * without that condition they would be a permanent back door, re-armable by restarting the
  * process with the right variable set.
+ *
+ * <p><b>That same condition is the only reliable "this install is new".</b> An empty users table
+ * is the one moment at which a safe default cannot break anything, because nothing has been
+ * configured against the permissive one — so {@link FirstInstallDefaults} is called from here
+ * rather than from a listener of its own. Two beans each deciding for themselves whether the
+ * database is fresh would race the account creation below and get opposite answers depending on
+ * which {@code ApplicationReadyEvent} listener Spring happened to run first.
  */
 @Service
 public class BootstrapService {
@@ -38,11 +45,17 @@ public class BootstrapService {
 
     private final Users users;
     private final BootstrapProperties properties;
+    private final FirstInstallDefaults firstInstallDefaults;
     private final Clock clock;
 
-    public BootstrapService(Users users, BootstrapProperties properties, Clock clock) {
+    public BootstrapService(
+            Users users,
+            BootstrapProperties properties,
+            FirstInstallDefaults firstInstallDefaults,
+            Clock clock) {
         this.users = users;
         this.properties = properties;
+        this.firstInstallDefaults = firstInstallDefaults;
         this.clock = clock;
     }
 
@@ -57,6 +70,12 @@ public class BootstrapService {
         if (users.count() > 0) {
             return Optional.empty();
         }
+
+        // **Before every return below, not after the account is created.** A fresh install whose
+        // bootstrap credentials are unset or refused is still a fresh install, and it is the one
+        // that most needs the safe value: it will be configured by hand later, by somebody who
+        // never saw a release note about visibility.
+        firstInstallDefaults.apply();
 
         String username = properties.username().map(String::trim).orElse("");
         String password = properties.password().orElse("");

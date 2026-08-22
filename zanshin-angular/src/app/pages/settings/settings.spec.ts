@@ -54,6 +54,7 @@ describe('the settings screen', () => {
 
         http.expectOne('/api/v1/settings').flush(CATALOGUE);
         http.expectOne('/api/v1/settings/ticket-token').flush({ configured: false });
+        http.expectOne('/api/v1/settings/webhook-secret').flush({ configured: false });
         fixture.detectChanges();
     });
 
@@ -87,6 +88,18 @@ describe('the settings screen', () => {
         // would hide it until the first report failed on another screen.
         expect(fixture.nativeElement.textContent).toContain('is not installed there');
         expect(fixture.componentInstance.testingOllama()).toBe(false);
+    });
+
+    it('keeps no copy of the webhook secret once it is saved', () => {
+        fixture.componentInstance.webhookSecretInput = 'a-signing-key';
+        fixture.componentInstance.saveWebhookSecret();
+        http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' }).flush({ configured: true });
+        fixture.detectChanges();
+
+        // The server never sends it back, so the field is the only place it could still be read —
+        // and anyone who reads it can sign a message Zanshin did not send.
+        expect(fixture.componentInstance.webhookSecretInput).toBe('');
+        expect(fixture.componentInstance.webhookSecretConfigured()).toBe(true);
     });
 
     it('treats a failed check as an answer about the configuration', () => {

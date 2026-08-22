@@ -34,8 +34,10 @@ Three environment variables matter before the first run:
 |---|---|
 | `ZANSHIN_DB_URL` | `jdbc:postgresql://localhost:5432/zanshin` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/zanshin` |
 | `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / empty |
-| `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set |
+| `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set. In production prefer `ENCRYPTION_KEY_FILE` |
+| `ENCRYPTION_KEY_FILE` | *none* — a path to a file holding the key instead, which is what a Docker or Kubernetes secret mounts. Keeps the value out of `/proc/<pid>/environ`, `docker inspect` and an orchestrator's logs. Setting it *and* `ENCRYPTION_KEY` is refused; a path that does not resolve stops the application rather than starting with no key |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` | *none* — the same list from a file, comma- or newline-separated, so a rotation does not have to put the old key back into the environment |
 | `ZANSHIN_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `ZANSHIN_OIDC_ISSUER` is set: it would leave no way in |
 | `ZANSHIN_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 
@@ -119,7 +121,44 @@ The integration suites start their own database and **do not skip** when one is 
 a run without Docker fails loudly rather than reporting green having verified nothing.
 
 
-## 8. Troubleshooting
+## 8. Verifying a release
+
+Each release carries four files: the jar, its SBOM, and a Sigstore bundle for each. Verify before
+running anything — a security tool you took on trust is a contradiction.
+
+```bash
+cosign verify-blob \
+  --bundle zanshin-1.0.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/Asmo1973/Zanshin/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  zanshin-1.0.0.jar
+```
+
+**Each part of that command pins something, and dropping any of them gives back most of what
+signing was for.**
+
+- `--certificate-identity` names the **workflow file and the tag**, not the repository. Matching
+  the repository alone would accept a signature minted by any workflow anybody can add to it,
+  including one added in a pull request.
+- `--certificate-oidc-issuer` says the identity came from GitHub's token service. Without it, an
+  identity string that merely *looks* like the one above is enough.
+- The `--bundle` carries the certificate and the signature together, so there is no second file to
+  lose and no step at which an unverified certificate is substituted.
+
+Replace the tag in both places when verifying another version: the identity is per-tag by design,
+so a bundle from one release does not verify a file from another.
+
+There is **no signing key** — Sigstore keyless signs with the workflow's own OIDC identity. That is
+the property worth understanding: there is no key in anybody's custody to steal, rotate, or explain,
+and what a signature attests is "this workflow, in this repository, on this tag". A stolen
+repository secret cannot produce one. A change to `release.yml` itself can, which is why the
+identity a verifier pins includes its path.
+
+The same command with the SBOM's filenames verifies the SBOM. It is worth doing: an SBOM is what
+somebody feeds to their own scanner, and an unsigned one is a list of dependencies anybody can
+rewrite before you read it.
+
+## 9. Troubleshooting
 
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.

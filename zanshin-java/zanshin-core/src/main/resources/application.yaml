@@ -85,9 +85,19 @@ zanshin:
     # value an operator has to set before the application is useful, and it is the first line
     # of every install guide.
     key: ${ENCRYPTION_KEY:}
+    # The same key from a file instead — what Docker and Kubernetes secrets actually mount, and
+    # what keeps the value out of /proc/<pid>/environ, `docker inspect` and an orchestrator's
+    # logs. Setting both this and the variable above is refused rather than resolved: see
+    # `EncryptionProperties`. A path that does not resolve stops the application, because a
+    # deployment with no key still serves every screen and would look like a fresh install.
+    key-file: ${ENCRYPTION_KEY_FILE:}
     # Comma-separated. Keys kept only for reading, so a rotation does not have to rewrite
     # every row before the new key takes effect.
     previous-keys: ${ZANSHIN_PREVIOUS_ENCRYPTION_KEYS:}
+    # A rotation is when two keys exist at once, and the old one still decrypts live rows — so it
+    # gets a file too, or moving the current key out of the environment would mean putting the
+    # previous one back in. Comma- or newline-separated.
+    previous-keys-file: ${ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE:}
 
   worker:
     # Empty labels on purpose: the built-in worker takes only work with no requirement. The

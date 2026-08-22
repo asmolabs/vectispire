@@ -11,6 +11,9 @@ import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
 import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,10 +48,18 @@ class TeamNotificationRoutingTest {
         settings = mock(SettingsService.class);
         post = mock(OutboundPost.class);
         webhooks = mock(TeamWebhooks.class);
-        service = new NotificationService(settings, post, webhooks);
+        service = new NotificationService(
+                settings,
+                post,
+                webhooks,
+                mock(EncryptionService.class),
+                Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn(GLOBAL);
         when(settings.get(Setting.NOTIFICATION_MIN_SEVERITY)).thenReturn("high");
+        // No signing secret: this suite is about the destination, and a stored one would make
+        // every assertion here depend on a decryption it does not care about.
+        when(settings.get(Setting.WEBHOOK_SIGNING_SECRET)).thenReturn("");
         when(settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)).thenReturn(false);
     }
 
@@ -140,7 +151,7 @@ class TeamNotificationRoutingTest {
     private String destination() {
         ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
         org.mockito.Mockito.verify(post, org.mockito.Mockito.atLeastOnce())
-                .postJson(url.capture(), any(), any(), anyString());
+                .postSignedJson(url.capture(), any(), any(), anyString(), anyString(), any());
         return url.getValue();
     }
 

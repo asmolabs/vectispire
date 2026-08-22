@@ -88,6 +88,16 @@ public enum Setting {
                     + "beside the generic webhook and the e-mail rather than instead of them.",
             "", Sensitivity.SECRET),
 
+    WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Webhook signing secret",
+            "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
+                    + "Zanshin sent from one sent by whoever learned the URL. An `X-Zanshin-Signature` header "
+                    + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
+                    + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
+                    + "arrives and will ignore it. Empty means unsigned, which is what every existing "
+                    + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route.",
+            "", Sensitivity.SECRET),
+
     MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
             "E-mail recipients",
             "Comma-separated. Empty disables e-mail. The server itself is configured with `ZANSHIN_MAIL_HOST` and "
@@ -123,10 +133,12 @@ public enum Setting {
     TARGET_VISIBILITY("target_visibility", SettingType.TEXT, Section.ACCESS,
             "What a non-administrator sees",
             "\"everyone\" means every signed-in account sees every target — the behaviour of a deployment "
-                    + "that has never thought about it, and the default so that updating changes nothing. "
-                    + "\"assigned\" means an account sees only the targets an administrator has assigned to it, "
-                    + "and an account with no assignment sees nothing. Administrators always see everything: "
-                    + "somebody has to be able to make the assignments.",
+                    + "that has never thought about it, and the value an **upgrade** keeps so that nothing "
+                    + "blanks overnight. \"assigned\" means an account sees only the targets an administrator "
+                    + "has assigned to it, and an account with no assignment sees nothing. Administrators "
+                    + "always see everything: somebody has to be able to make the assignments. **A new "
+                    + "installation is created with \"assigned\"** — the safe value is written into the table "
+                    + "when the database is empty, which is the one moment it cannot break anything.",
             "everyone"),
 
     TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,

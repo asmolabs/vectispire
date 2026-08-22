@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,10 +27,12 @@ class BootstrapServiceTest {
     private static final String STRONG_PASSWORD = "correct horse battery staple";
 
     private Users users;
+    private FirstInstallDefaults firstInstallDefaults;
 
     @BeforeEach
     void wire() {
         users = mock(Users.class);
+        firstInstallDefaults = mock(FirstInstallDefaults.class);
         when(users.save(any())).thenAnswer(call -> call.getArgument(0));
     }
 
@@ -86,10 +89,49 @@ class BootstrapServiceTest {
         assertThat(service("a", STRONG_PASSWORD).createFirstUser()).isEmpty();
     }
 
+    @Test
+    @DisplayName("an empty users table applies the safe defaults, because that is where 'new install' is known")
+    void appliesTheFirstInstallDefaults() {
+        when(users.count()).thenReturn(0L);
+
+        service("admin", STRONG_PASSWORD).createFirstUser();
+
+        // Asserted at this level and not inside FirstInstallDefaults, because no test of that
+        // class can see that nothing calls it. That is the defect shape `expireStale` already
+        // had: a service with passing tests and no caller.
+        verify(firstInstallDefaults).apply();
+    }
+
+    @Test
+    @DisplayName("credentials that are missing or refused still leave a fresh install partitioned")
+    void appliesTheDefaultsEvenWhenNoAccountIsCreated() {
+        when(users.count()).thenReturn(0L);
+
+        // The install that most needs the safe value: it will be configured by hand later, by
+        // somebody who never saw a release note about visibility.
+        assertThat(service(null, null).createFirstUser()).isEmpty();
+        assertThat(service("admin", "short").createFirstUser()).isEmpty();
+
+        verify(firstInstallDefaults, times(2)).apply();
+    }
+
+    @Test
+    @DisplayName("an existing deployment is not re-defaulted on restart")
+    void leavesAnExistingDeploymentAlone() {
+        when(users.count()).thenReturn(1L);
+
+        service("admin", STRONG_PASSWORD).createFirstUser();
+
+        // Switching an upgraded deployment to `assigned` would blank every non-administrator's
+        // screens, and nobody would connect the empty backlog to a release note.
+        verify(firstInstallDefaults, never()).apply();
+    }
+
     private BootstrapService service(String username, String password) {
         return new BootstrapService(
                 users,
                 new BootstrapProperties(Optional.ofNullable(username), Optional.ofNullable(password)),
+                firstInstallDefaults,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 }
