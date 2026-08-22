@@ -66,10 +66,46 @@ public final class ContainerRunner {
     }
 
     private static DockerClient defaultClient() {
-        DefaultDockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+        DefaultDockerClientConfig.Builder builder = DefaultDockerClientConfig.createDefaultConfigBuilder();
+        String explicitHost = resolveDockerHost();
+        if (explicitHost != null && !explicitHost.isBlank()) {
+            builder.withDockerHost(explicitHost);
+        }
+        DefaultDockerClientConfig config = builder.build();
         return DockerClientImpl.getInstance(
                 config,
                 new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost()).build());
+    }
+
+    /**
+     * Resolves the Docker or Podman daemon socket.
+     * Supports `ZANSHIN_DOCKER_HOST`, `DOCKER_HOST`, and Rootless Podman/Docker auto-detection.
+     */
+    public static String resolveDockerHost() {
+        String zanshinHost = System.getenv("ZANSHIN_DOCKER_HOST");
+        if (zanshinHost != null && !zanshinHost.isBlank()) {
+            return zanshinHost.trim();
+        }
+        String dockerHost = System.getenv("DOCKER_HOST");
+        if (dockerHost != null && !dockerHost.isBlank()) {
+            return dockerHost.trim();
+        }
+        String xdgRuntimeDir = System.getenv("XDG_RUNTIME_DIR");
+        if (xdgRuntimeDir != null && !xdgRuntimeDir.isBlank()) {
+            try {
+                Path podmanSock = Path.of(xdgRuntimeDir, "podman", "podman.sock");
+                if (Files.exists(podmanSock)) {
+                    return "unix://" + podmanSock.toString();
+                }
+                Path dockerSock = Path.of(xdgRuntimeDir, "docker.sock");
+                if (Files.exists(dockerSock)) {
+                    return "unix://" + dockerSock.toString();
+                }
+            } catch (Exception ignored) {
+                // Fall back to default
+            }
+        }
+        return null;
     }
 
     /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */

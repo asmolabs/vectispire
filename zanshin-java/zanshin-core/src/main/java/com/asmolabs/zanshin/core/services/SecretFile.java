@@ -35,7 +35,7 @@ import java.nio.file.Path;
  * message. An operator who wanted no key sets no variable at all; setting one is a statement that
  * there is a secret to read.
  */
-final class SecretFile {
+public final class SecretFile {
 
     private SecretFile() {}
 
@@ -54,7 +54,7 @@ final class SecretFile {
      * @throws IllegalStateException if the path does not resolve, cannot be read, or holds
      *     nothing but whitespace
      */
-    static String read(String path, String what) {
+    public static String read(String path, String what) {
         Path file;
         try {
             file = Path.of(path.trim());

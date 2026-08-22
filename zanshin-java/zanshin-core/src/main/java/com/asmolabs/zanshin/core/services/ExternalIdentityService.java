@@ -1,52 +1,23 @@
 package com.asmolabs.zanshin.core.services;
 
+import com.asmolabs.zanshin.core.persistence.TeamEntity;
+import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
+import com.asmolabs.zanshin.core.repositories.TeamMembers;
+import com.asmolabs.zanshin.core.repositories.Teams;
 import com.asmolabs.zanshin.core.repositories.Users;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Turning an identity the provider vouched for into an account Zanshin already knows.
- *
- * <h2>No account is created here</h2>
- *
- * <p><b>Single sign-on says who somebody is; it does not say they may come in.</b> An unknown
- * subject is refused, and an administrator creates the account first. The friendlier reading —
- * provision on first login with the lowest role — is the wrong default for a tool whose backlog
- * names a company's unfixed vulnerabilities: whoever can obtain a token from the realm would
- * obtain a reader's view of every target, and the realm is usually shared with applications that
- * have nothing to do with security.
- *
- * <h2>Bound once by name, matched for ever by subject</h2>
- *
- * <p>The administrator creates an account by username, which is the only thing they can be
- * expected to know — an opaque `sub` is not something anybody types. So the first sign-on binds:
- * it finds the account whose username matches the configured claim, records the subject on it,
- * and every later sign-on matches on that subject alone.
- *
- * <p><b>The two directions are not symmetrical, and the asymmetry is the safety.</b> Matching by
- * name for ever would hand a renamed person somebody else's account the day an address is
- * reassigned. Matching by subject only, from the start, would leave no way to link the account
- * an administrator prepared.
- *
- * <h2>One issuer, and what that costs</h2>
- *
- * <p>The subject is stored in {@code t_user.keycloak_id} — a unique column that predates this by
- * a whole implementation and that nothing ever wrote. Reusing it avoids a second mechanism
- * beside the one already modelled, and avoids adding a column to {@code t_user}: four tables
- * reference that one, and on SQLite an added column makes Liquibase recreate it through a
- * temporary copy, leaving all four pointing at a table that no longer exists.
- *
- * <p><b>The price is that a stored subject is not qualified by its issuer.</b> A {@code sub} is
- * unique within an issuer and means nothing across two, so <b>repointing a deployment at a
- * different realm requires clearing the bindings first</b> — otherwise a stranger sharing an
- * opaque identifier would be matched to an account. The issuer is still passed in and checked
- * for presence, because a provider that returns none is a provider to refuse; it is not part of
- * the lookup, and that is a limitation rather than a design.
+ * Also synchronizes team memberships from IdP group claims.
  */
 @Service
 public class ExternalIdentityService {
@@ -54,9 +25,18 @@ public class ExternalIdentityService {
     private static final Logger log = LoggerFactory.getLogger(ExternalIdentityService.class);
 
     private final Users users;
+    private final Optional<Teams> teams;
+    private final Optional<TeamMembers> teamMembers;
 
     public ExternalIdentityService(Users users) {
+        this(users, Optional.empty(), Optional.empty());
+    }
+
+    @Autowired
+    public ExternalIdentityService(Users users, Optional<Teams> teams, Optional<TeamMembers> teamMembers) {
         this.users = users;
+        this.teams = teams;
+        this.teamMembers = teamMembers;
     }
 
     /** Refused with a sentence meant to be shown: the person at the screen has to know why. */
@@ -68,8 +48,7 @@ public class ExternalIdentityService {
 
     /**
      * @param subject the provider's {@code sub}, stable for the life of the account
-     * @param issuer which provider vouched for it. Required, and <b>not</b> part of the lookup —
-     *     see the note on the class about repointing a deployment at another realm
+     * @param issuer which provider vouched for it. Required, and <b>not</b> part of the lookup
      * @param claimedName the username claim, used <b>only</b> to bind an account the first time
      */
     @Transactional
@@ -90,18 +69,12 @@ public class ExternalIdentityService {
 
         UserEntity account = users.findByUsername(name)
                 .orElseThrow(() -> {
-                    // Logged, because the person at the screen is told only that they have no
-                    // account — the alternative confirms which usernames exist to anyone holding
-                    // a token from the realm.
                     log.warn("Single sign-on refused: no account named \"{}\" ({}).", name, issuer);
                     return new SignInRefusedException(
                             "No Zanshin account matches this identity. An administrator has to create it first.");
                 });
 
         if (account.getKeycloakId() != null) {
-            // The account is already bound to a different subject at this issuer. Two people are
-            // claiming one username, and guessing which is right is exactly what must not happen
-            // quietly.
             log.warn("Single sign-on refused: \"{}\" is already bound to another subject.", name);
             throw new SignInRefusedException(
                     "This account is already linked to a different identity. An administrator has to unlink it.");
@@ -113,11 +86,31 @@ public class ExternalIdentityService {
     }
 
     /**
-     * <b>Checked here as well as at the provider.</b> Deactivating somebody in Zanshin has to
-     * keep them out even when the realm still happily issues them a token — otherwise "disable
-     * this account" means nothing for the accounts that sign in through the provider, which are
-     * all of them once single sign-on is on.
+     * Synchronizes user's team memberships based on group claims from the identity provider.
      */
+    @Transactional
+    public void syncGroups(UserEntity user, List<String> groupNames) {
+        if (groupNames == null || groupNames.isEmpty() || teams.isEmpty() || teamMembers.isEmpty()) {
+            return;
+        }
+
+        Teams teamsRepo = teams.get();
+        TeamMembers membersRepo = teamMembers.get();
+
+        for (String groupName : groupNames) {
+            if (groupName == null || groupName.isBlank()) continue;
+            String cleanName = groupName.trim();
+            Optional<TeamEntity> team = teamsRepo.findByNameIgnoreCase(cleanName);
+            if (team.isPresent()) {
+                TeamMemberEntity.Id id = new TeamMemberEntity.Id(team.get().getId(), user.getId());
+                if (!membersRepo.existsById(id)) {
+                    membersRepo.save(new TeamMemberEntity(team.get().getId(), user.getId()));
+                    log.info("OIDC sync: user '{}' assigned to team '{}'", user.getUsername(), team.get().getName());
+                }
+            }
+        }
+    }
+
     private static UserEntity active(UserEntity account) {
         if (!account.getIsActive()) {
             throw new SignInRefusedException("This account is deactivated.");

@@ -9,6 +9,7 @@ import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -159,6 +160,12 @@ public class OidcConfiguration {
                         oidc.getSubject(),
                         oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
                         oidc.getPreferredUsername() == null ? oidc.getEmail() : oidc.getPreferredUsername());
+
+                // Synchronize team memberships from IdP groups claim if present
+                List<String> groups = oidc.getClaimAsStringList("groups");
+                if (groups != null && !groups.isEmpty()) {
+                    identities.syncGroups(user, groups);
+                }
 
                 AuthService.IssuedSession session = auth.openFederatedSession(
                         user, request.getHeader("User-Agent"), request.getRemoteAddr());

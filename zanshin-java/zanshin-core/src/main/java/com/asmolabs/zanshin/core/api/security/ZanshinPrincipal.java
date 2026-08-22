@@ -72,6 +72,15 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
                 null, null, agent, credentialRestriction, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
     }
 
+    public static ZanshinPrincipal ofScimClient() {
+        return new ZanshinPrincipal(
+                null,
+                null,
+                null,
+                Visibility.everything(),
+                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + Role.ADMIN.name()), new SimpleGrantedAuthority("SCOPE_SCIM")));
+    }
+
     /** What the credential itself allows, before the account's own assignments narrow it further. */
     public Visibility credentialRestriction() {
         return credentialRestriction;

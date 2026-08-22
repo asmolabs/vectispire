@@ -191,11 +191,12 @@ public class AgentsController {
         }
     }
 
-    /** The result of a scan executed elsewhere. */
+    /** The result of a scan executed elsewhere, with optional cryptographic attestation signature. */
     @PostMapping("/jobs/{scanId}/result")
     public Map<String, Boolean> submitResult(
             @PathVariable long scanId,
             @RequestBody ScanArtifacts artifacts,
+            @RequestHeader(name = "X-Zanshin-Agent-Signature", required = false) String signature,
             @AuthenticationPrincipal ZanshinPrincipal principal) {
 
         AgentEntity agent = authenticate(principal);

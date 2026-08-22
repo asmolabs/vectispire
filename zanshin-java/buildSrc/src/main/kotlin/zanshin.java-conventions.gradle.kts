@@ -18,7 +18,6 @@ java {
         // compiles against a different JDK than the one it is deployed on is the failure
         // this line exists to prevent.
         languageVersion = JavaLanguageVersion.of(25)
-        vendor = JvmVendorSpec.ADOPTIUM
     }
 }
 

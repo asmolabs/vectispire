@@ -177,7 +177,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // of an HTML page, and the missing dot keeps a lost `.js` a 404 rather
                         // than a document the browser reports as a syntax error.
                         .requestMatchers(RegexRequestMatcher.regexMatcher(
-                                HttpMethod.GET, "^/(?!api/|actuator/)[^.]*$"))
+                                HttpMethod.GET, "^/(?!api/|actuator/|scim/)[^.]*$"))
                         .permitAll()
                         .dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
                         .anyRequest().authenticated())

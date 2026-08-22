@@ -1,6 +1,8 @@
 package com.asmolabs.zanshin.core.api.security;
 
 import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
+import com.asmolabs.zanshin.core.api.scim.ScimProperties;
 import com.asmolabs.zanshin.core.persistence.SessionEntity;
 import com.asmolabs.zanshin.core.persistence.UserEntity;
 import com.asmolabs.zanshin.core.repositories.Users;
@@ -13,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -21,14 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Turns one {@code Authorization: Bearer …} header into whoever is behind it.
  *
- * <p><b>One header, two credentials.</b> A session token and an API key arrive the same way,
- * and which one it is can only be decided by trying. The session is tried first because it is
- * the common case; an API key that reached the session lookup costs one indexed miss.
- *
- * <p><b>Never rejects.</b> An unreadable or absent credential leaves the context anonymous and
- * the request continues: the authorization rules decide what anonymous may do, and they are the
- * only place that decision should live. A filter that answered 401 here would also answer it
- * for the login route.
+ * <p>Supports user session tokens, agent API keys, and SCIM 2.0 provisioning tokens.
  */
 @Component
 public class BearerAuthenticationFilter extends OncePerRequestFilter {
@@ -37,13 +33,25 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyAuthService apiKeys;
     private final Users users;
     private final VisibilityService visibility;
+    private final Optional<ScimProperties> scimProperties;
 
     public BearerAuthenticationFilter(
             AuthService auth, ApiKeyAuthService apiKeys, Users users, VisibilityService visibility) {
+        this(auth, apiKeys, users, visibility, Optional.empty());
+    }
+
+    @Autowired
+    public BearerAuthenticationFilter(
+            AuthService auth,
+            ApiKeyAuthService apiKeys,
+            Users users,
+            VisibilityService visibility,
+            Optional<ScimProperties> scimProperties) {
         this.auth = auth;
         this.apiKeys = apiKeys;
         this.users = users;
         this.visibility = visibility;
+        this.scimProperties = scimProperties;
     }
 
     @Override
@@ -63,21 +71,28 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
         if (session.isPresent()) {
             Optional<UserEntity> user = users.findById(session.get().getUserId()).filter(UserEntity::getIsActive);
             if (user.isEmpty()) {
-                // The account was deactivated or deleted while the session was running. Revoking
-                // here rather than merely refusing is what stops a disabled account's tab going
-                // on working until the session's own lifetime runs out.
                 auth.revoke(session.get());
                 return Optional.empty();
             }
             return Optional.of(ZanshinPrincipal.ofUser(user.get(), session.get()));
         }
 
-        return bearerToken(header)
-                .flatMap(apiKeys::resolve)
+        Optional<String> token = bearerToken(header);
+        if (token.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // Check dedicated SCIM bearer token
+        if (scimProperties.isPresent()) {
+            ScimProperties props = scimProperties.get().resolved();
+            if (props.token().isPresent() && SecretCipher.secretEquals(token.get(), props.token().get())) {
+                return Optional.of(ZanshinPrincipal.ofScimClient());
+            }
+        }
+
+        return token.flatMap(apiKeys::resolve)
                 .filter(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT))
                 .flatMap(key -> apiKeys.agentFor(key)
-                        // The key's own restriction travels with the principal. Resolved here
-                        // because this is the only place that has the key row in hand.
                         .map(agent -> ZanshinPrincipal.ofAgent(
                                 agent, visibility.restrictionOf(key.getTargetKind(), key.getTargetId()))));
     }

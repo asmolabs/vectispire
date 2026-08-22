@@ -33,7 +33,7 @@ public class SpaForwarding implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addViewController("/{path:[^\\.]*}").setViewName("forward:/index.html");
-        registry.addViewController("/{path:^(?!api$|actuator$).*}/{sub:[^\\.]*}")
+        registry.addViewController("/{path:^(?!api$|actuator$|scim$).*}/{sub:[^\\.]*}")
                 .setViewName("forward:/index.html");
     }
 }

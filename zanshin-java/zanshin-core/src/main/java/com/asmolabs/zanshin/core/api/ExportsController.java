@@ -134,6 +134,34 @@ public class ExportsController {
     }
 
     /**
+     * The triage decisions as OASIS CSAF 2.0 (VEX profile).
+     */
+    @GetMapping("/issues.csaf.json")
+    public ResponseEntity<com.asmolabs.zanshin.common.domain.exports.CsafDocument> csaf(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @PathVariable String kind,
+            @PathVariable long id,
+            @RequestParam(required = false) String author) {
+        requireVisible(principal, kind, id);
+
+        String name = targetName(kind, id);
+        com.asmolabs.zanshin.common.domain.exports.CsafDocument document =
+                com.asmolabs.zanshin.common.domain.exports.CsafExport.build(
+                        exportable(kind, id, null),
+                        new com.asmolabs.zanshin.common.domain.exports.CsafExport.Options(
+                                name,
+                                author == null || author.isBlank() ? properties.vexAuthor() : author,
+                                properties.toolVersion(),
+                                properties.publicUrl().orElse("https://zanshin.internal"),
+                                clock.instant()));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".csaf.json"))
+                .contentType(MediaType.parseMediaType("application/vnd.oasis.csaf+json; version=2.0"))
+                .body(document);
+    }
+
+    /**
      * The posture, as something a person reads.
      *
      * <p>The other three exports go to machines — a code host, a downstream consumer, a

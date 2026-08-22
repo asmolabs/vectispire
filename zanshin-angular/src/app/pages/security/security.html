@@ -61,6 +61,8 @@
                                   (onClick)="download(target, 'issues.csv')" />
                         <p-button label="VEX" size="small" [text]="true" [disabled]="downloading() === target.targetId"
                                   (onClick)="download(target, 'vex')" />
+                        <p-button label="CSAF" size="small" [text]="true" [disabled]="downloading() === target.targetId"
+                                  (onClick)="download(target, 'issues.csaf.json')" />
                     </td>
                 </tr>
             </ng-template>
