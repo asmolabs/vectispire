@@ -1,9 +1,11 @@
 package com.asmolabs.zanshin.core.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -46,6 +48,9 @@ class TeamVisibilityTest extends ApiTestBase {
 
     @Autowired
     private SettingsService settings;
+
+    @Autowired
+    private com.asmolabs.zanshin.core.repositories.TeamWebhooks webhooks;
 
     @Test
     @DisplayName("a member sees what the team owns, and nothing else")
@@ -156,6 +161,52 @@ class TeamVisibilityTest extends ApiTestBase {
         // By the database's cascade, which is why the memberships and assignments are real
         // foreign keys and not a pair of columns.
         mvc.perform(authenticated(get("/api/v1/issues"), reader)).andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    @DisplayName("a channel is set, reported as set, and never read back")
+    void aChannelIsWriteOnly() throws Exception {
+        long team = createTeam(uniqueName());
+
+        mvc.perform(authenticated(put("/api/v1/teams/" + team + "/webhook"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("url", "https://hooks.example.invalid/backend"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notified").value(true));
+
+        // Whether, never which: a webhook URL is a bearer capability, and no route returns it.
+        // Asserted on the listing because that is the response an administration screen renders,
+        // and a field added there later would leak it without anybody noticing.
+        mvc.perform(authenticated(get("/api/v1/teams"), asAdmin()))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("hooks.example.invalid"))));
+
+        // And an empty value removes it rather than storing a blank destination.
+        mvc.perform(authenticated(put("/api/v1/teams/" + team + "/webhook"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("url", ""))))
+                .andExpect(jsonPath("$.notified").value(false));
+    }
+
+    @Test
+    @DisplayName("deleting the team takes its channel with it, cascade or no cascade")
+    void deletingTheTeamRemovesItsChannel() throws Exception {
+        long team = createTeam(uniqueName());
+        mvc.perform(authenticated(put("/api/v1/teams/" + team + "/webhook"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("url", "https://hooks.example.invalid/doomed"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(authenticated(delete("/api/v1/teams/" + team), asAdmin()))
+                .andExpect(status().isNoContent());
+
+        // **The row, not the response.** The schema cascades and this suite runs on SQLite, where
+        // a cascade is decoration unless `PRAGMA foreign_keys = ON` was issued — which nothing
+        // does. Measured on a real file before this was written: the row survived. It is not an
+        // access-control hole, since AUTOINCREMENT means no later team inherits the identifier,
+        // but it is a bearer capability outliving its owner in a table nothing purges and no
+        // screen shows.
+        assertThat(webhooks.findById(team)).isEmpty();
     }
 
     @Test

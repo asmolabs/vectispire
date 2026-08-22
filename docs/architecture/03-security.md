@@ -179,6 +179,14 @@ to it. And **a destination that has disappeared is abandoned rather than retried
 deleted while its notification waited deserves none of the twelve attempts the backoff policy
 grants, because nothing about waiting brings it back.
 
+Deleting a team removes its channel **explicitly**, like its memberships and its target
+assignments: the schema cascades, and on SQLite a cascade does nothing unless
+`PRAGMA foreign_keys = ON` was issued on the connection, which nothing does. Measured on a real
+file rather than assumed — the row survived. It is not an access-control hole, because
+`AUTOINCREMENT` means no later team inherits the identifier (checked too), but a bearer
+capability outliving its owner in a table nothing purges and no screen shows is exactly the kind
+of leftover that survives the rotation its deletion should have forced.
+
 The URL itself is never returned by any route: it is a bearer capability — whoever reads it can
 post in the channel where a team awaits Zanshin's alerts, which is where a forged message carries
 most weight — so the screen shows *whether* a team has a channel and cannot show *which*. The

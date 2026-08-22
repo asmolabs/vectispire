@@ -190,13 +190,20 @@ public class TeamsController {
     /**
      * Deletes a team.
      *
-     * <p>Its memberships and target assignments go first, <b>explicitly</b>, and that is not
-     * belt-and-braces. The schema declares them as cascading foreign keys and SQLite enforces
-     * foreign keys only when {@code PRAGMA foreign_keys = ON} has been issued on the connection —
-     * which nothing here does. On that engine the cascade is decoration: the team row would
-     * disappear and its membership rows would stay, so every member would keep seeing everything
-     * the team owned, through rows pointing at a team that no longer exists. Revocation may not
-     * depend on which of four engines is underneath.
+     * <p>Its memberships, its target assignments <b>and its channel</b> go first,
+     * <b>explicitly</b>, and that is not belt-and-braces. The schema declares them as cascading
+     * foreign keys and SQLite enforces foreign keys only when {@code PRAGMA foreign_keys = ON}
+     * has been issued on the connection — which nothing here does. On that engine the cascade is
+     * decoration: the team row would disappear and its membership rows would stay, so every
+     * member would keep seeing everything the team owned, through rows pointing at a team that no
+     * longer exists. Revocation may not depend on which of four engines is underneath.
+     *
+     * <p><b>The channel was the one that got forgotten</b>, and it was measured on a real SQLite
+     * file rather than assumed: deleting the team left the {@code t_team_webhook} row behind. It
+     * is not an access-control hole — {@code AUTOINCREMENT} means no later team inherits the
+     * identifier, which was checked too — but it is a <em>bearer capability</em> outliving its
+     * owner in a table no screen shows and nothing purges. Whoever reads that row can still post
+     * in the channel, and the URL survives the rotation its deletion should have forced.
      *
      * <p>That is also the sharpness of the gesture: every member loses, at once, everything the
      * team owned. The audit entry names the counts, because "deleted team Backend" and "deleted
@@ -216,6 +223,7 @@ public class TeamsController {
 
         memberships.deleteByTeamId(id);
         targets.deleteByTeamId(id);
+        webhooks.deleteById(id);
         teams.deleteById(id);
         record(principal, request, id, AuditOperation.TEAM_UPDATED,
                 "Team deleted: " + team.getName() + " (" + members + " member(s), " + owned + " target(s))");

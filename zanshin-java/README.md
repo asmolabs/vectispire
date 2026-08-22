@@ -67,6 +67,7 @@ the same commit that violates it; a missing dependency cannot.
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
 | A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
 | A team's findings are announced in its channel, not in everybody's | `TeamNotificationRoutingTest` |
+| Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
@@ -117,20 +118,34 @@ trade: less duplication, at the price of hiding where engines actually disagree 
 against `tinyint`, `timestamptz` against `datetime` — which is where every divergence found so
 far has been.
 
-The caveat proved out, and the executed checks are what caught it — five times over: SQLite silently creating no foreign keys,
+The caveat proved out, and the executed checks are what caught it — six times over: SQLite silently creating no foreign keys,
 `int` against `Long` identifiers, MySQL and MariaDB disagreeing with *each other* about
-booleans, SQLite refusing `AUTOINCREMENT` on anything but `INTEGER PRIMARY KEY`, and a SQLite
-timestamp that wrote fine and failed to read back — that last one invisible to any comparison
-of type names.
+booleans, SQLite refusing `AUTOINCREMENT` on anything but `INTEGER PRIMARY KEY`, a SQLite
+timestamp that wrote fine and failed to read back — that one invisible to any comparison of
+type names — and the trap below, which has now fired three times.
 
 Written the tidy way — `addForeignKeyConstraint` after the tables — the changelog applies
 **without complaint** on
 SQLite and creates no constraint at all: referential integrity on three engines out of four,
 and nothing saying so. `ChangelogTest` caught it in a second by running the thing, and now
-asserts the twelve foreign keys are really there.
+asserts the twenty foreign keys are really there.
+
+**The rule to know before writing changeset 008.** On SQLite, `addColumn` makes Liquibase
+**recreate** the table — and the recreation leaves every foreign key *pointing at it* aimed at a
+`<table>_temporary` that does not exist. Adding one nullable column to `t_team` was enough to
+destroy referential integrity on `t_team_member` and `t_team_target`, which are access-control
+tables. It applies cleanly, on every engine, and says nothing.
+
+So: **do not add a column to a table other tables reference.** Add a table instead — a new one
+has nothing pointing at it yet, and the extra join is cheaper than the class of defect. When
+there is no alternative, the assertion in `ChangelogTest` is what tells you: it lists the keys by
+name, which is why it asserts keys rather than columns, and why a new referencing table has to be
+added to that list rather than left to be covered "by the count". This is the one place where the
+single-changelog trade bites hardest — the tidy change is the dangerous one, and only running it
+on SQLite says so.
 
 **Strict parity is split in two, deliberately.** `ChangelogTest` proves the changelog applies
-and that the twelve foreign keys exist, on SQLite, in a second. It does not compare column types
+and that the twenty foreign keys exist, on SQLite, in a second. It does not compare column types
 against the entities: a first attempt did that on SQLite and was abandoned deliberately —
 SQLite has no types, only affinities, so `datetime` is stored as TEXT and a type-name comparison
 there measures Liquibase's naming choices rather than whether the mapping works. Strict
