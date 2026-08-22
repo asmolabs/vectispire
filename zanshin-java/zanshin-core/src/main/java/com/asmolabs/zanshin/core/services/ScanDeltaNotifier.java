@@ -36,13 +36,11 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
 
     public ScanDeltaNotifier(
             NotificationService notifications,
+            List<NotificationChannel> channels,
             OutboxService outbox,
             TargetNaming names,
             TeamTargets teamTargets,
             TeamWebhooks teamWebhooks) {
-            List<NotificationChannel> channels,
-            OutboxService outbox,
-            TargetNaming names) {
         this.notifications = notifications;
         this.channels = channels;
         this.outbox = outbox;
@@ -68,12 +66,21 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
                         notifiable(result.reopenedIssues()),
                         result.resolved())
                 .ifPresent(payload -> {
-                    // The global channel keeps receiving everything: it is the security team's
-                    // feed, and narrowing it would be a silent change to what an existing
-                    // deployment is told.
-                    if (!notifications.webhookUrl().isEmpty()) {
-                        outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, null);
-                    }
+                    // **One row per configured destination.** Delivering three from a single row
+                    // makes a partial failure unrepresentable: Teams accepted, the relay retries
+                    // because the mail server was down, and the channel receives the message
+                    // twice. Per-row is what lets the backoff be about one destination.
+                    //
+                    // A destination that is not configured is queued nothing, rather than queued
+                    // and failed — an outbox full of rows that can never leave is an outbox whose
+                    // age says nothing. The global channels keep receiving everything: they are
+                    // the security team's feed, and narrowing them would be a silent change to
+                    // what an existing deployment is told.
+                    channels.stream()
+                            .filter(NotificationChannel::isConfigured)
+                            .forEach(channel -> outbox.enqueue(payload, channel.type()));
+
+                    // And one webhook copy per owning team that has a channel of its own.
                     for (Long teamId : teamsToTell(scan)) {
                         outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, teamId);
                     }
@@ -105,17 +112,6 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
         return teamWebhooks.findByTeamIdIn(owners).stream()
                 .map(TeamWebhookEntity::getTeamId)
                 .toList();
-                // **One row per configured destination.** Delivering three from a single row makes
-                // a partial failure unrepresentable: Teams accepted, the relay retries because the
-                // mail server was down, and the channel receives the message twice. Per-row is what
-                // lets the backoff be about one destination.
-                //
-                // A destination that is not configured is queued nothing, rather than queued and
-                // failed — an outbox full of rows that can never leave is an outbox whose age says
-                // nothing.
-                .ifPresent(payload -> channels.stream()
-                        .filter(NotificationChannel::isConfigured)
-                        .forEach(channel -> outbox.enqueue(payload, channel.type())));
     }
 
     private static List<NotifiableIssue> notifiable(List<IssueEntity> issues) {

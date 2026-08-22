@@ -138,7 +138,7 @@ public class OutboxService {
         for (OutboxMessageEntity message : due) {
             int attempts = message.getAttempts() + 1;
             try {
-                notifications.deliver(payloadOf(message), message.getTeamId());
+                channelFor(message).deliver(payloadOf(message), message.getTeamId());
             } catch (NotificationService.GoneDestinationException gone) {
                 // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
                 // back a team somebody deleted, and twelve attempts would fill the log with an
@@ -147,7 +147,6 @@ public class OutboxService {
                 transactions.executeWithoutResult(status -> abandon(message, attempts, at, gone));
                 abandoned++;
                 continue;
-                channelFor(message).deliver(payloadOf(message));
             } catch (JsonProcessingException | RuntimeException error) {
                 if (Boolean.TRUE.equals(
                         transactions.execute(status -> settleFailure(message, attempts, at, error)))) {

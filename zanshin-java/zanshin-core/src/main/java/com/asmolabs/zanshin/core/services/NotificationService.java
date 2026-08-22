@@ -100,7 +100,6 @@ public class NotificationService implements NotificationChannel {
      * fixing a typo must not have to re-run a scan to flush the pending notifications, and a
      * setting written straight into the database must not become an unchecked destination.
      */
-    public void deliver(NotificationPayload payload, Long teamId) {
     @Override
     public String type() {
         return OutboxService.TYPE_SCAN_DELTA;
@@ -118,6 +117,11 @@ public class NotificationService implements NotificationChannel {
 
     @Override
     public void deliver(NotificationPayload payload) {
+        deliver(payload, null);
+    }
+
+    @Override
+    public void deliver(NotificationPayload payload, Long teamId) {
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;

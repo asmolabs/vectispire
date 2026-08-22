@@ -217,8 +217,10 @@ class OutboxServiceTest {
 
         // The point of one row per destination: a retry must reach the one that failed, and only
         // that one. Delivering to every channel would re-send to the two that succeeded.
-        verify(teams).deliver(any());
-        verify(notifications, org.mockito.Mockito.never()).deliver(any());
+        // The team the row is for travels with it: only the generic webhook reads it, but the
+        // relay has no business knowing which channel that is.
+        verify(teams).deliver(any(), isNull());
+        verify(notifications, org.mockito.Mockito.never()).deliver(any(), any());
     }
 
     @Test

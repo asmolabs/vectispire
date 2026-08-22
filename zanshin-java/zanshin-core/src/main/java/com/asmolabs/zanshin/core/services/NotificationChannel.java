@@ -29,4 +29,17 @@ public interface NotificationChannel {
     boolean isConfigured();
 
     void deliver(NotificationPayload payload);
+
+    /**
+     * Delivers a copy queued for one team's own channel.
+     *
+     * <p>Defaulted because only the generic webhook has per-team destinations: Teams and mail are
+     * configured once for the deployment, and a row for them never carries a team. Overriding is
+     * how a channel says it can be aimed somewhere else.
+     *
+     * @param teamId whose channel this copy is for, or {@code null} for the global destination
+     */
+    default void deliver(NotificationPayload payload, Long teamId) {
+        deliver(payload);
+    }
 }
