@@ -11,6 +11,7 @@ import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.AgentEntity;
 import com.asmolabs.zanshin.core.persistence.ApiKeyEntity;
+import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Agents;
 import com.asmolabs.zanshin.core.repositories.ApiKeysRepository;
 import com.asmolabs.zanshin.core.repositories.Scans;
@@ -43,6 +44,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.asmolabs.zanshin.core.repositories.Containers;
+import com.asmolabs.zanshin.core.repositories.GitRepositories;
+
 /**
  * Administering agents — separate from the protocol they speak.
  *
@@ -61,6 +65,8 @@ public class AgentsAdminController {
     private final Agents agents;
     private final ApiKeysRepository keys;
     private final Scans scans;
+    private final GitRepositories gitRepositories;
+    private final Containers containers;
     private final AuditLogService audit;
     private final WorkerProperties worker;
     private final TransactionTemplate transactions;
@@ -70,6 +76,8 @@ public class AgentsAdminController {
             Agents agents,
             ApiKeysRepository keys,
             Scans scans,
+            GitRepositories gitRepositories,
+            Containers containers,
             AuditLogService audit,
             WorkerProperties worker,
             TransactionTemplate transactions,
@@ -77,6 +85,8 @@ public class AgentsAdminController {
         this.agents = agents;
         this.keys = keys;
         this.scans = scans;
+        this.gitRepositories = gitRepositories;
+        this.containers = containers;
         this.audit = audit;
         this.worker = worker;
         this.transactions = transactions;
@@ -125,6 +135,164 @@ public class AgentsAdminController {
     public record DeclaredAgent(UUID id, String name, String secret) {}
 
     public record UnroutableLabel(String label, long queued) {}
+
+    public record RunningScanItem(
+            Long scanId,
+            String targetType,
+            Long targetId,
+            String targetName,
+            String branch,
+            String agentId,
+            String agentName,
+            Instant claimedAt,
+            long durationSeconds,
+            String requiredLabel) {}
+
+    public record PendingScanItem(
+            Long scanId,
+            String targetType,
+            Long targetId,
+            String targetName,
+            String branch,
+            String requiredLabel,
+            Instant queuedAt,
+            long waitDurationSeconds,
+            boolean isRoutable,
+            int positionInQueue) {}
+
+    public record QueueStats(
+            int totalAgents,
+            int onlineAgents,
+            int busyAgents,
+            int idleAgents,
+            long runningScansCount,
+            long pendingScansCount,
+            long scansCompleted24h,
+            long avgScanDurationSeconds) {}
+
+    public record AgentActivitySummary(
+            List<RunningScanItem> runningScans,
+            List<PendingScanItem> pendingScans,
+            QueueStats stats) {}
+
+    @GetMapping("/activity")
+    public AgentActivitySummary activity() {
+        Instant asOf = clock.instant();
+        Instant last24h = asOf.minus(Duration.ofHours(24));
+
+        List<AgentEntity> allAgents = agents.findAllByOrderByNameAsc();
+        Map<String, String> agentNames = new HashMap<>();
+        Set<String> activeAgentLabels = new HashSet<>();
+        int onlineCount = 0;
+
+        for (AgentEntity a : allAgents) {
+            agentNames.put(a.getId().toString(), a.getName());
+            if (isOnline(a, asOf)) {
+                onlineCount++;
+                if (Boolean.TRUE.equals(a.getEnabled())) {
+                    activeAgentLabels.addAll(AgentLabels.parse(a.getLabels()));
+                }
+            }
+        }
+        activeAgentLabels.addAll(AgentLabels.parse(worker.labels()));
+
+        Map<Long, String> repoNames = new HashMap<>();
+        gitRepositories.findAll().forEach(r -> {
+            String name = r.getName() != null && !r.getName().isBlank() ? r.getName() : r.getUrl();
+            repoNames.put(r.getId(), name != null ? name : "Repo #" + r.getId());
+        });
+
+        Map<Long, String> containerNames = new HashMap<>();
+        containers.findAll().forEach(c -> {
+            String name = c.getImageName() + (c.getTag() != null && !c.getTag().isBlank() ? ":" + c.getTag() : "");
+            containerNames.put(c.getId(), name);
+        });
+
+        List<ScanEntity> activeScans = scans.findByStatusInOrderByCreatedAtAsc(
+                List.of(ScanStatus.SCANNING.wireName(), ScanStatus.PENDING.wireName()));
+
+        List<RunningScanItem> runningItems = new ArrayList<>();
+        List<PendingScanItem> pendingItems = new ArrayList<>();
+        Set<String> busyAgentIds = new HashSet<>();
+        int pendingPos = 1;
+
+        for (ScanEntity scan : activeScans) {
+            String targetType = scan.getRepoId() != null ? "repository" : "container";
+            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
+            String targetName = scan.getRepoId() != null
+                    ? repoNames.getOrDefault(scan.getRepoId(), "Repository #" + scan.getRepoId())
+                    : containerNames.getOrDefault(scan.getContainerId(), "Container #" + scan.getContainerId());
+
+            if (ScanStatus.SCANNING.wireName().equals(scan.getStatus())) {
+                String agentId = scan.getClaimedBy();
+                String agentName = agentId != null
+                        ? agentNames.getOrDefault(agentId, agentId.equalsIgnoreCase("worker") || agentId.equalsIgnoreCase("built-in") ? "Built-in Worker" : "Agent " + agentId)
+                        : "Unknown Worker";
+                if (agentId != null) {
+                    busyAgentIds.add(agentId);
+                }
+                long durationSec = scan.getClaimedAt() != null
+                        ? Math.max(0, Duration.between(scan.getClaimedAt(), asOf).toSeconds())
+                        : 0;
+
+                runningItems.add(new RunningScanItem(
+                        scan.getId(),
+                        targetType,
+                        targetId,
+                        targetName,
+                        scan.getBranch(),
+                        agentId,
+                        agentName,
+                        scan.getClaimedAt() != null ? scan.getClaimedAt() : scan.getCreatedAt(),
+                        durationSec,
+                        scan.getRequiredAgentLabel()));
+            } else if (ScanStatus.PENDING.wireName().equals(scan.getStatus())) {
+                boolean isRoutable = scan.getRequiredAgentLabel() == null
+                        || scan.getRequiredAgentLabel().isBlank()
+                        || activeAgentLabels.contains(scan.getRequiredAgentLabel());
+
+                long waitSec = scan.getCreatedAt() != null
+                        ? Math.max(0, Duration.between(scan.getCreatedAt(), asOf).toSeconds())
+                        : 0;
+
+                pendingItems.add(new PendingScanItem(
+                        scan.getId(),
+                        targetType,
+                        targetId,
+                        targetName,
+                        scan.getBranch(),
+                        scan.getRequiredAgentLabel(),
+                        scan.getCreatedAt(),
+                        waitSec,
+                        isRoutable,
+                        pendingPos++));
+            }
+        }
+
+        int busyCount = 0;
+        for (AgentEntity a : allAgents) {
+            if (busyAgentIds.contains(a.getId().toString()) && isOnline(a, asOf)) {
+                busyCount++;
+            }
+        }
+        int idleCount = Math.max(0, onlineCount - busyCount);
+
+        long completed24h = scans.countByStatusAndCreatedAtAfter(ScanStatus.COMPLETED.wireName(), last24h);
+        Double avgDurationMs = scans.findAvgDurationMsByStatusAndCreatedAtAfter(ScanStatus.COMPLETED.wireName(), last24h);
+        long avgDurationSec = avgDurationMs != null ? Math.round(avgDurationMs / 1000.0) : 0;
+
+        QueueStats stats = new QueueStats(
+                allAgents.size(),
+                onlineCount,
+                busyCount,
+                idleCount,
+                runningItems.size(),
+                pendingItems.size(),
+                completed24h,
+                avgDurationSec);
+
+        return new AgentActivitySummary(runningItems, pendingItems, stats);
+    }
 
     @GetMapping
     public List<Summary> list() {

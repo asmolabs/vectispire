@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputNumberModule } from '@openng/optimus-ui/inputnumber';
@@ -20,6 +21,9 @@ const SEVERITIES = [
 ];
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { I18nService } from '../../core/i18n/i18n.service';
+
+export type SettingsTab = 'general' | 'scanners' | 'ai' | 'integrations' | 'threat-intel';
 
 @Component({
     selector: 'app-settings',
@@ -29,7 +33,32 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class Settings {
     private readonly api = inject(ApiService);
-    readonly severities = SEVERITIES;
+    private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
+    private readonly i18n = inject(I18nService);
+
+    readonly activeTab = signal<SettingsTab>('general');
+
+    readonly tabs = computed(() => {
+        this.i18n.translations();
+        return [
+            { id: 'general' as const, label: this.i18n.t('settings.tabs.general'), icon: 'pi pi-cog' },
+            { id: 'scanners' as const, label: this.i18n.t('settings.tabs.scanners'), icon: 'pi pi-sliders-h' },
+            { id: 'ai' as const, label: this.i18n.t('settings.tabs.ai'), icon: 'pi pi-sparkles' },
+            { id: 'integrations' as const, label: this.i18n.t('settings.tabs.integrations'), icon: 'pi pi-link' },
+            { id: 'threat-intel' as const, label: this.i18n.t('settings.tabs.threat_intel'), icon: 'pi pi-globe' }
+        ];
+    });
+
+    readonly severities = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('settings.severities.critical'), value: 'critical' },
+            { label: this.i18n.t('settings.severities.high'), value: 'high' },
+            { label: this.i18n.t('settings.severities.medium'), value: 'medium' },
+            { label: this.i18n.t('settings.severities.low'), value: 'low' }
+        ];
+    });
 
     readonly catalog = signal<SettingDefinition[]>([]);
     readonly values = signal<Record<string, string>>({});
@@ -160,7 +189,79 @@ export class Settings {
     });
 
     constructor() {
+        this.route.queryParamMap.subscribe((params) => {
+            const tab = params.get('tab') as SettingsTab | null;
+            if (tab === 'scanners' || tab === 'ai' || tab === 'integrations' || tab === 'threat-intel') {
+                this.activeTab.set(tab);
+            } else {
+                this.activeTab.set('general');
+            }
+        });
         this.reload();
+    }
+
+    selectTab(tab: SettingsTab): void {
+        this.activeTab.set(tab);
+        this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { tab: tab === 'general' ? null : tab },
+            queryParamsHandling: 'merge'
+        });
+    }
+
+    isSectionVisible(section: { name: string; settings: SettingDefinition[] }): boolean {
+        const tab = this.activeTab();
+        const firstKey = section.settings[0]?.key ?? '';
+        const lowerName = section.name.toLowerCase();
+
+        if (tab === 'general') {
+            return firstKey.startsWith('sla_') || firstKey.startsWith('retention_') || firstKey.startsWith('eol_')
+                || lowerName.includes('sla') || lowerName.includes('remediation') || lowerName.includes('retention') || lowerName.includes('end of life');
+        }
+        if (tab === 'scanners') {
+            return firstKey.startsWith('scanner_') || firstKey.startsWith('sast_') || firstKey.startsWith('source_code')
+                || lowerName.includes('scanner') || lowerName.includes('source code');
+        }
+        if (tab === 'ai') {
+            return firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai') || lowerName.includes('ollama');
+        }
+        if (tab === 'integrations') {
+            return firstKey.startsWith('ticket_') || firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')
+                || lowerName.includes('ticket') || lowerName.includes('notification');
+        }
+        if (tab === 'threat-intel') {
+            return firstKey.startsWith('enrichment_') || lowerName.includes('enrichment') || lowerName.includes('threat');
+        }
+        return false;
+    }
+
+    getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {
+        this.i18n.translations();
+        const firstKey = section.settings[0]?.key ?? '';
+        if (firstKey.startsWith('sla_')) return this.i18n.t('settings.sections.remediation_slas');
+        if (firstKey.startsWith('scanner_')) return this.i18n.t('settings.sections.scanner_engine');
+        if (firstKey.startsWith('eol_')) return this.i18n.t('settings.sections.end_of_life');
+        if (firstKey.startsWith('sast_') || firstKey.startsWith('source_code')) return this.i18n.t('settings.sections.source_code');
+        if (firstKey.startsWith('enrichment_')) return this.i18n.t('settings.sections.enrichment');
+        if (firstKey.startsWith('ai_review_')) return this.i18n.t('settings.sections.local_ai');
+        if (firstKey.startsWith('ticket_')) return this.i18n.t('settings.sections.ticketing');
+        if (firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')) return this.i18n.t('settings.sections.notifications');
+        if (firstKey.startsWith('retention_')) return this.i18n.t('settings.sections.retention');
+        return section.name;
+    }
+
+    getSettingLabel(setting: SettingDefinition): string {
+        this.i18n.translations();
+        const key = `settings.keys.${setting.key}.label`;
+        const translated = this.i18n.t(key);
+        return translated !== key ? translated : setting.label;
+    }
+
+    getSettingHelp(setting: SettingDefinition): string {
+        this.i18n.translations();
+        const key = `settings.keys.${setting.key}.help`;
+        const translated = this.i18n.t(key);
+        return translated !== key ? translated : setting.help;
     }
 
     set(key: string, value: string): void {

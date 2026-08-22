@@ -7,6 +7,7 @@ import {
     GatePolicyRequest,
     CataloguePreview,
     AgentSummary,
+    AgentActivitySummary,
     ApiKeySummary,
     ApiKeyTargets,
     AuditEntry,
@@ -260,6 +261,10 @@ export class ApiService {
 
     agents(): Observable<AgentSummary[]> {
         return this.http.get<AgentSummary[]>('/api/v1/admin/agents');
+    }
+
+    getAgentActivity(): Observable<AgentActivitySummary> {
+        return this.http.get<AgentActivitySummary>('/api/v1/admin/agents/activity');
     }
 
     /**

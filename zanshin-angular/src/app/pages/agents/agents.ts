@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -12,7 +12,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { AgentSummary, UnroutableLabel } from '../../core/api.models';
+import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
 const CREDENTIALS = [
     { label: 'Local keys', value: 'local', hint: 'The agent uses its own git credentials. Zanshin sends it no key.' },
@@ -31,11 +31,12 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './agents.html'
 })
-export class Agents {
+export class Agents implements OnInit, OnDestroy {
     private readonly api = inject(ApiService);
     readonly credentials = CREDENTIALS;
 
     readonly agents = signal<AgentSummary[]>([]);
+    readonly activity = signal<AgentActivitySummary | null>(null);
     readonly unroutable = signal<UnroutableLabel[]>([]);
     readonly loading = signal(true);
     readonly saving = signal(false);
@@ -50,22 +51,58 @@ export class Agents {
 
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
-    constructor() {
+    private timerHandle: any = null;
+
+    ngOnInit(): void {
         this.reload();
+        // Auto-refresh activity every 5 seconds to track running scans and pending queues live
+        this.timerHandle = setInterval(() => {
+            this.refreshActivity();
+        }, 5000);
+    }
+
+    ngOnDestroy(): void {
+        if (this.timerHandle) {
+            clearInterval(this.timerHandle);
+        }
     }
 
     hintFor(mode: string): string {
         return CREDENTIALS.find((entry) => entry.value === mode)?.hint ?? '';
     }
 
+    formatDuration(seconds: number): string {
+        if (!seconds || seconds <= 0) return '0s';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        if (m > 0) {
+            return `${m}m ${s}s`;
+        }
+        return `${s}s`;
+    }
+
+    getRunningScanForAgent(agentId: string): RunningScanItem | undefined {
+        return this.activity()?.runningScans.find((s) => s.agentId === agentId);
+    }
+
+    refreshActivity(): void {
+        this.api.getAgentActivity().subscribe({
+            next: (act) => this.activity.set(act),
+            error: () => {}
+        });
+    }
+
     reload(preserveError = false): void {
         this.loading.set(true);
-        // **Reloaded together, and the second one failing does not hide the first.** A missing
-        // warning is less serious than an empty screen, and the agent list is what the operator
-        // came for.
+
         this.api.unroutableLabels().subscribe({
             next: (blocked) => this.unroutable.set(blocked),
             error: () => this.unroutable.set([])
+        });
+
+        this.api.getAgentActivity().subscribe({
+            next: (act) => this.activity.set(act),
+            error: () => {}
         });
 
         this.api.agents().subscribe({
@@ -103,34 +140,35 @@ export class Agents {
         this.formVisible.set(true);
     }
 
-    submit(): void {
+    save(): void {
+        if (!this.form.name.trim()) {
+            this.formError.set('Name is required.');
+            return;
+        }
         this.saving.set(true);
-        this.api
-            .createAgent({
-                name: this.form.name.trim(),
-                description: this.form.description.trim() || undefined,
-                credentials_mode: this.form.credentialsMode,
-                labels: this.form.labels.trim() || undefined,
-                max_concurrent: this.form.maxConcurrent
-            })
-            .subscribe({
-                next: (issued) => {
-                    this.saving.set(false);
-                    this.formVisible.set(false);
-                    this.issuedSecret.set(issued.secret);
-                    this.secretVisible.set(true);
-                    this.reload();
-                },
-                error: (response) => {
-                    this.saving.set(false);
-                    this.formError.set(messageOf(response, 'Could not declare this agent.'));
-                }
-            });
+        this.formError.set(null);
+        this.api.createAgent({
+            name: this.form.name.trim(),
+            description: this.form.description.trim() || undefined,
+            credentials_mode: this.form.credentialsMode,
+            labels: this.form.labels.trim() || undefined,
+            max_concurrent: this.form.maxConcurrent
+        }).subscribe({
+            next: ({ secret }) => {
+                this.saving.set(false);
+                this.formVisible.set(false);
+                this.issuedSecret.set(secret);
+                this.secretVisible.set(true);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, 'Could not declare the agent.'));
+            }
+        });
     }
 
     dismissSecret(): void {
-        // Cleared from the model at the same time as from the screen: keeping it would leave
-        // accessible dans l'onglet ouvert.
         this.issuedSecret.set(null);
         this.secretVisible.set(false);
     }
@@ -143,19 +181,16 @@ export class Agents {
     confirmDelete(): void {
         const agent = this.pendingDelete();
         if (!agent) return;
-        this.saving.set(true);
         this.api.deleteAgent(agent.id).subscribe({
             next: () => {
-                this.saving.set(false);
                 this.deleteVisible.set(false);
+                this.pendingDelete.set(null);
                 this.reload();
             },
             error: (response) => {
-                this.saving.set(false);
                 this.deleteVisible.set(false);
-                // Notably "this agent is running N scans": the refusal carries the number.
-                this.error.set(messageOf(response, 'The deletion failed.'));
-                this.reload(true);
+                this.pendingDelete.set(null);
+                this.error.set(messageOf(response, 'Could not delete the agent.'));
             }
         });
     }

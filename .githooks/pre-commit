@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# Zanshin pre-commit hook:
+# Automatically computes and updates dependency lockfiles whenever build configurations change.
+#
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Staged files in this commit
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# 1. Check if any Gradle build/dependency files were modified
+GRADLE_CHANGED=$(echo "$STAGED_FILES" | grep -E 'zanshin-java/.*(\.gradle\.kts|libs\.versions\.toml|gradle\.properties)$' || true)
+
+if [ -n "$GRADLE_CHANGED" ]; then
+    echo "⚡ [pre-commit] Gradle build configuration change detected. Recalculating dependency write-locks..."
+    (
+        cd "$REPO_ROOT/zanshin-java"
+        ./gradlew --write-locks -q
+    )
+    # Stage any updated lockfiles
+    git add "$REPO_ROOT"/zanshin-java/**/gradle.lockfile "$REPO_ROOT"/zanshin-java/*.lockfile 2>/dev/null || true
+    echo "✅ [pre-commit] Gradle dependency lockfiles updated and staged."
+fi
+
+# 2. Check if package.json was modified
+NPM_CHANGED=$(echo "$STAGED_FILES" | grep -E '(^|/)package\.json$' || true)
+
+if [ -n "$NPM_CHANGED" ]; then
+    echo "⚡ [pre-commit] package.json change detected. Synchronizing package-lock.json..."
+    npm install --package-lock-only --ignore-scripts
+    git add "$REPO_ROOT/package-lock.json"
+    echo "✅ [pre-commit] package-lock.json updated and staged."
+fi
+
+exit 0

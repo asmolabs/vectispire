@@ -635,6 +635,49 @@ export interface AgentSummary {
     runningScans: number;
 }
 
+export interface RunningScanItem {
+    scanId: number;
+    targetType: 'repository' | 'container';
+    targetId: number;
+    targetName: string;
+    branch: string;
+    agentId: string | null;
+    agentName: string;
+    claimedAt: string;
+    durationSeconds: number;
+    requiredLabel: string | null;
+}
+
+export interface PendingScanItem {
+    scanId: number;
+    targetType: 'repository' | 'container';
+    targetId: number;
+    targetName: string;
+    branch: string;
+    requiredLabel: string | null;
+    queuedAt: string;
+    waitDurationSeconds: number;
+    isRoutable: boolean;
+    positionInQueue: number;
+}
+
+export interface QueueStats {
+    totalAgents: number;
+    onlineAgents: number;
+    busyAgents: number;
+    idleAgents: number;
+    runningScansCount: number;
+    pendingScansCount: number;
+    scansCompleted24h: number;
+    avgScanDurationSeconds: number;
+}
+
+export interface AgentActivitySummary {
+    runningScans: RunningScanItem[];
+    pendingScans: PendingScanItem[];
+    stats: QueueStats;
+}
+
 export interface NewAgent {
     name: string;
     description?: string;

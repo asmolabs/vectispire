@@ -70,7 +70,12 @@
     "agents": "Agents",
     "users": "Utilisateurs",
     "teams": "Équipes",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "settings_general": "Paramètres & SLA",
+    "settings_scanners": "Moteurs & Scanners",
+    "settings_ai": "Revue IA (Ollama)",
+    "settings_integrations": "Intégrations & SIEM",
+    "settings_threat_intel": "Threat Intelligence"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -334,17 +339,135 @@
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Ce que Zanshin surveille, ce qu'il conserve et ses canaux de notification.",
+    "subtitle": "Configuration globale de la plateforme, délais SLA, analyse et intégrations.",
     "save_btn": "Enregistrer",
     "settings_saved": "Paramètres enregistrés.",
     "test_connection": "Tester la connexion",
     "default_value_never_set": "Valeur par défaut — jamais modifiée.",
+    "tabs": {
+      "general": "Paramètres & SLA",
+      "scanners": "Moteurs & Scanners",
+      "ai": "Revue IA (Ollama)",
+      "integrations": "Intégrations & SIEM",
+      "threat_intel": "Threat Intelligence"
+    },
+    "severities": {
+      "critical": "Critique",
+      "high": "Élevé",
+      "medium": "Moyen",
+      "low": "Faible"
+    },
+    "sections": {
+      "remediation_slas": "Délais de remédiation SLA",
+      "scanner_engine": "Moteurs d'analyse & Concurrence",
+      "end_of_life": "Obsolescence & Fin de vie (EOL)",
+      "source_code": "Code source & SAST",
+      "enrichment": "Enrichissement & Threat Intelligence",
+      "local_ai": "Revue IA locale (Ollama)",
+      "ticketing": "Intégration Ticketing (Jira / GitHub / GitLab)",
+      "notifications": "Notifications & Alertes",
+      "retention": "Rétention & Purge des données"
+    },
+    "keys": {
+      "sla_critical_days": {
+        "label": "Délai SLA Critique (jours)",
+        "help": "Délai maximal autorisé pour corriger une vulnérabilité critique avant non-conformité."
+      },
+      "sla_high_days": {
+        "label": "Délai SLA Élevé (jours)",
+        "help": "Délai maximal autorisé pour corriger une vulnérabilité élevée avant non-conformité."
+      },
+      "sla_medium_days": {
+        "label": "Délai SLA Moyen (jours)",
+        "help": "Délai maximal recommandé pour corriger une vulnérabilité moyenne."
+      },
+      "sla_low_days": {
+        "label": "Délai SLA Faible (jours)",
+        "help": "Délai maximal indicatif pour corriger une vulnérabilité faible."
+      },
+      "enrichment_enabled": {
+        "label": "Enrichissement CISA KEV et scores EPSS",
+        "help": "Seuls les identifiants CVE sont transmis aux sources publiques — aucun code source ni SBOM ne quitte l'infrastructure."
+      },
+      "eol_detection_enabled": {
+        "label": "Détection des plateformes et frameworks obsolètes (EOL)",
+        "help": "Signale les environnements arrivés en fin de vie qui ne recevront plus de mises à jour de sécurité."
+      },
+      "eol_warn_days": {
+        "label": "Fenêtre d'avertissement avant fin de vie (jours)",
+        "help": "Délai d'anticipation avant l'échéance EOL pour déclencher un avertissement moyen."
+      },
+      "sast_enabled": {
+        "label": "Activer l'analyse statique du code (Semgrep)",
+        "help": "Scanne le code source à chaque analyse pour identifier les faiblesses applicatives et mauvaises pratiques."
+      },
+      "retention_keep_per_target": {
+        "label": "Nombre de scans bruts conservés par cible",
+        "help": "Conserve les sorties brutes et SBOMs des N derniers scans pour chaque cible (0 = illimité)."
+      },
+      "retention_max_age_days": {
+        "label": "Âge maximal des scans bruts (jours)",
+        "help": "Purge les sorties brutes et SBOMs des scans antérieurs à cette durée (0 = aucune purge)."
+      },
+      "notification_webhook_url": {
+        "label": "URL de Webhook générique",
+        "help": "Envoi de notifications JSON POST vers Slack, Mattermost, Discord ou un webhook sur mesure."
+      },
+      "notification_teams_url": {
+        "label": "URL de Webhook Microsoft Teams",
+        "help": "URL du workflow Power Automate Teams pour diffuser des fiches adaptatives enrichies."
+      },
+      "notification_webhook_secret": {
+        "label": "Secret de signature Webhook",
+        "help": "Signe chaque payload avec HMAC-SHA256 dans l'en-tête X-Zanshin-Signature (chiffré au repos)."
+      },
+      "ai_review_enabled": {
+        "label": "Activer la revue IA locale (Ollama)",
+        "help": "Permet d'évaluer le contexte et la sévérité réelle des failles localement sans fuite de données vers un cloud tiers."
+      },
+      "ai_review_ollama_url": {
+        "label": "URL de l'instance Ollama",
+        "help": "Adresse HTTP du serveur Ollama local ou d'entreprise (ex: http://localhost:11434)."
+      },
+      "ai_review_model": {
+        "label": "Modèle LLM pour la revue",
+        "help": "Identifiant du modèle installé dans Ollama (ex: llama3:8b, mistral, deepseek-r1:8b, qwen2.5-coder)."
+      },
+      "ai_review_prompt_context": {
+        "label": "Consignes et contexte d'évaluation pour l'IA",
+        "help": "Instructions contextuelles et règles de filtrage transmises au LLM pour affiner ses analyses."
+      },
+      "ticket_provider": {
+        "label": "Fournisseur de tickets d'incidents",
+        "help": "Plateforme cible pour l'export automatique : JIRA, GITHUB_ISSUES ou GITLAB_ISSUES."
+      },
+      "ticket_url": {
+        "label": "URL du serveur de tickets",
+        "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
+      },
+      "ticket_project": {
+        "label": "Projet ou Référentiel cible",
+        "help": "Clé du projet Jira (ex: SEC) ou chemin du dépôt (ex: organisation/depot)."
+      },
+      "ticket_label": {
+        "label": "Étiquette (label) des tickets créés",
+        "help": "Label apposé systématiquement sur tous les tickets créés (ex: zanshin-security)."
+      },
+      "scanner_concurrency": {
+        "label": "Nombre maximal d'analyses simultanées",
+        "help": "Nombre de conteneurs et dépôts analysés en parallèle par le moteur."
+      },
+      "scanner_docker_timeout_seconds": {
+        "label": "Délai d'expiration des conteneurs de scan (secondes)",
+        "help": "Timeout au-delà duquel l'exécution d'un scanner (Trivy, Syft, Semgrep) est interrompue."
+      }
+    },
     "ticket_token_title": "Jeton du gestionnaire de tickets",
-    "token_label": "Jeton",
+    "token_label": "Jeton d'accès",
     "token_saved": "enregistré",
     "token_none": "aucun",
     "token_placeholder": "Laisser vide pour conserver la valeur actuelle",
-    "token_hint": "Chiffré au repos (AES-256-GCM) comme une clé SSH : accorde les droits d'écriture sur le tracker. Ne peut plus être affiché — enregistrer une valeur vide le supprime.",
+    "token_hint": "Chiffré au repos (AES-256-GCM) comme une clé SSH. Ne peut plus être affiché une fois enregistré.",
     "siem_title": "Diffusion en temps réel SIEM & SOC (Format CEF)",
     "siem_enable": "Activer la diffusion d'événements",
     "siem_enable_desc": "Transmettre les incidents de sécurité critiques (fuites de secrets, KEV, SLA dépassés, échecs de gate) au format ArcSight CEF v0.1.",
@@ -388,8 +511,8 @@
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer cette clé ? Les dépôts associés échoueront lors de leur prochaine analyse."
   },
   "agents": {
-    "title": "Agents distants",
-    "subtitle": "Démons d'exécution isolés réclamant et exécutant les tâches d'analyse.",
+    "title": "Centre de contrôle des agents & File d'attente",
+    "subtitle": "Supervision en temps réel des démons d'exécution, des analyses en cours et de la file d'attente.",
     "declare_btn": "Déclarer un agent",
     "unroutable_notice": "analyse(s) requièrent le label, qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
     "agent": "Agent",
@@ -413,7 +536,30 @@
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer cet agent ?",
     "token_modal_title": "Identifiants de l'agent",
     "token_modal_desc": "Transmettez ce jeton d'initialisation au démon distant. Il ne sera plus réaffiché.",
-    "copy_token_btn": "Copier le jeton"
+    "copy_token_btn": "Copier le jeton",
+    "kpi_online": "Agents en ligne",
+    "kpi_busy": "Agents occupés",
+    "kpi_running": "Scans en cours",
+    "kpi_pending": "File d'attente",
+    "kpi_completed_24h": "Scans traités (24h)",
+    "kpi_avg_duration": "Durée moyenne",
+    "running_title": "Analyses en cours d'exécution",
+    "running_subtitle": "Tâches actuellement prises en charge et traitées par les agents.",
+    "no_running": "Aucune analyse en cours d'exécution.",
+    "pending_title": "File d'attente des analyses (Reste à faire)",
+    "pending_subtitle": "Analyses planifiées ou demandées en attente d'un agent disponible.",
+    "no_pending": "File d'attente vide — toutes les cibles sont à jour.",
+    "target": "Cible",
+    "branch": "Branche",
+    "assigned_agent": "Agent assigné",
+    "elapsed": "Durée écoulée",
+    "wait_time": "Temps d'attente",
+    "position": "Position",
+    "status_idle": "Disponible",
+    "status_busy": "En cours d'analyse",
+    "status_routable": "Prêt pour attribution",
+    "status_blocked": "Bloqué (aucun agent avec ce label)",
+    "agents_title": "Agents d'analyse enregistrés"
   },
   "api_keys": {
     "title": "Clés API",

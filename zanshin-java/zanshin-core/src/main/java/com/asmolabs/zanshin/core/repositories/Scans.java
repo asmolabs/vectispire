@@ -279,4 +279,11 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     @Modifying
     @Query("delete from ScanEntity s where s.id in :ids")
     void deleteByIdIn(@Param("ids") Collection<Long> ids);
+
+    List<ScanEntity> findByStatusInOrderByCreatedAtAsc(Collection<String> statuses);
+
+    long countByStatusAndCreatedAtAfter(String status, Instant after);
+
+    @Query("select avg(s.durationMs) from ScanEntity s where s.status = :status and s.createdAt >= :after and s.durationMs is not null")
+    Double findAvgDurationMsByStatusAndCreatedAtAfter(@Param("status") String status, @Param("after") Instant after);
 }

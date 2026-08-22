@@ -44,14 +44,6 @@ export class AppMenu {
             { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] }
         ];
 
-        if (this.session.isSecurityLead()) {
-            securityItems.push(
-                { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
-                { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
-                { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
-            );
-        }
-
         const sections: MenuItem[] = [
             {
                 label: this.i18n.t('menu.dashboard'),
@@ -74,16 +66,34 @@ export class AppMenu {
             }
         ];
 
-        if (this.session.isAdmin()) {
-            sections.push({
-                label: this.i18n.t('menu.administration'),
-                items: [
+        if (this.session.isAdmin() || this.session.isSecurityLead()) {
+            const adminItems: MenuItem[] = [];
+
+            if (this.session.isSecurityLead()) {
+                adminItems.push(
+                    { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
+                    { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
+                    { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
+                );
+            }
+
+            if (this.session.isAdmin()) {
+                adminItems.push(
                     { label: this.i18n.t('menu.api_keys'), icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
                     { label: this.i18n.t('menu.agents'), icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
                     { label: this.i18n.t('menu.users'), icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
                     { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
-                    { label: this.i18n.t('menu.settings'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
-                ]
+                    { label: this.i18n.t('menu.settings_general'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] },
+                    { label: this.i18n.t('menu.settings_scanners'), icon: 'pi pi-fw pi-sliders-h', routerLink: ['/settings'], queryParams: { tab: 'scanners' } },
+                    { label: this.i18n.t('menu.settings_ai'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/settings'], queryParams: { tab: 'ai' } },
+                    { label: this.i18n.t('menu.settings_integrations'), icon: 'pi pi-fw pi-link', routerLink: ['/settings'], queryParams: { tab: 'integrations' } },
+                    { label: this.i18n.t('menu.settings_threat_intel'), icon: 'pi pi-fw pi-globe', routerLink: ['/settings'], queryParams: { tab: 'threat-intel' } }
+                );
+            }
+
+            sections.push({
+                label: this.i18n.t('menu.administration'),
+                items: adminItems
             });
         }
 

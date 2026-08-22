@@ -1,9 +1,12 @@
-<div class="mb-4 flex items-start justify-between gap-4">
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div>
         <h1 class="text-2xl font-semibold m-0">{{ 'agents.title' | translate }}</h1>
         <p class="text-muted-color mt-1 mb-0">{{ 'agents.subtitle' | translate }}</p>
     </div>
-    <p-button [label]="'agents.declare_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
+    <div class="flex items-center gap-2">
+        <p-button icon="pi pi-refresh" severity="secondary" [outlined]="true" [loading]="loading()" (onClick)="reload()" />
+        <p-button [label]="'agents.declare_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
+    </div>
 </div>
 
 @if (error(); as message) {
@@ -17,7 +20,213 @@
     </p-message>
 }
 
+<!-- KPI Cards -->
+@if (activity()?.stats; as stats) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_online' | translate }}</div>
+                <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
+                    {{ stats.onlineAgents }} / {{ stats.totalAgents }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    <span class="text-green-600 dark:text-green-400 font-medium">{{ stats.idleAgents }} {{ 'agents.status_idle' | translate | lowercase }}</span> · 
+                    <span class="text-blue-600 dark:text-blue-400 font-medium">{{ stats.busyAgents }} {{ 'agents.status_busy' | translate | lowercase }}</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-600 dark:text-green-400 text-xl">
+                <i class="pi pi-server"></i>
+            </div>
+        </div>
+
+        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_running' | translate }}</div>
+                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                    {{ stats.runningScansCount }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.running_subtitle' | translate }}
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl">
+                <i class="pi pi-spin pi-spinner" [class.pi-spinner]="stats.runningScansCount > 0" [class.pi-bolt]="stats.runningScansCount === 0"></i>
+            </div>
+        </div>
+
+        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_pending' | translate }}</div>
+                <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                    {{ stats.pendingScansCount }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.pending_subtitle' | translate }}
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl">
+                <i class="pi pi-clock"></i>
+            </div>
+        </div>
+
+        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_completed_24h' | translate }}</div>
+                <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
+                    {{ stats.scansCompleted24h }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.kpi_avg_duration' | translate }} : <span class="font-medium text-surface-700 dark:text-surface-300">{{ formatDuration(stats.avgScanDurationSeconds) }}</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xl">
+                <i class="pi pi-check-circle"></i>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Section 1 : Analyses en cours d'exécution -->
+<p-card styleClass="mb-6">
+    <ng-template #title>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="pi pi-bolt text-blue-500 text-lg"></i>
+                <span>{{ 'agents.running_title' | translate }}</span>
+            </div>
+            @if (activity()?.runningScans?.length; as count) {
+                <p-tag [value]="count + ' en cours'" severity="info" />
+            }
+        </div>
+    </ng-template>
+
+    @if (activity()?.runningScans?.length) {
+        <p-table [value]="activity()!.runningScans" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'agents.target' | translate }}</th>
+                    <th>{{ 'agents.branch' | translate }}</th>
+                    <th>{{ 'agents.assigned_agent' | translate }}</th>
+                    <th>{{ 'agents.labels' | translate }}</th>
+                    <th>{{ 'agents.elapsed' | translate }}</th>
+                    <th class="text-right">{{ 'common.status' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-run>
+                <tr>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <i [class]="run.targetType === 'repository' ? 'pi pi-github text-primary' : 'pi pi-box text-purple-500'"></i>
+                            <span class="font-medium">{{ run.targetName }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="font-mono text-sm">{{ run.branch || '—' }}</span>
+                    </td>
+                    <td>
+                        <p-tag [value]="run.agentName" severity="secondary" icon="pi pi-server" />
+                    </td>
+                    <td>
+                        @if (run.requiredLabel) {
+                            <p-tag [value]="run.requiredLabel" severity="info" />
+                        } @else {
+                            <span class="text-muted-color text-sm">—</span>
+                        }
+                    </td>
+                    <td>
+                        <span class="font-medium text-blue-600 dark:text-blue-400">{{ formatDuration(run.durationSeconds) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <p-tag [value]="'agents.status_busy' | translate" severity="info" icon="pi pi-spin pi-spinner" />
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <div class="py-6 text-center text-muted-color flex flex-col items-center justify-center gap-2">
+            <i class="pi pi-check text-2xl text-green-500"></i>
+            <span>{{ 'agents.no_running' | translate }}</span>
+        </div>
+    }
+</p-card>
+
+<!-- Section 2 : File d'attente (Workload restant) -->
+<p-card styleClass="mb-6">
+    <ng-template #title>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="pi pi-clock text-amber-500 text-lg"></i>
+                <span>{{ 'agents.pending_title' | translate }}</span>
+            </div>
+            @if (activity()?.pendingScans?.length; as count) {
+                <p-tag [value]="count + ' en attente'" severity="warn" />
+            }
+        </div>
+    </ng-template>
+
+    @if (activity()?.pendingScans?.length) {
+        <p-table [value]="activity()!.pendingScans" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th class="w-16">{{ 'agents.position' | translate }}</th>
+                    <th>{{ 'agents.target' | translate }}</th>
+                    <th>{{ 'agents.branch' | translate }}</th>
+                    <th>{{ 'agents.labels' | translate }}</th>
+                    <th>{{ 'agents.wait_time' | translate }}</th>
+                    <th class="text-right">{{ 'common.status' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-pend>
+                <tr>
+                    <td>
+                        <span class="font-bold text-surface-500 dark:text-surface-400">#{{ pend.positionInQueue }}</span>
+                    </td>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <i [class]="pend.targetType === 'repository' ? 'pi pi-github text-primary' : 'pi pi-box text-purple-500'"></i>
+                            <span class="font-medium">{{ pend.targetName }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="font-mono text-sm">{{ pend.branch || '—' }}</span>
+                    </td>
+                    <td>
+                        @if (pend.requiredLabel) {
+                            <p-tag [value]="pend.requiredLabel" severity="info" />
+                        } @else {
+                            <span class="text-muted-color text-sm">—</span>
+                        }
+                    </td>
+                    <td>
+                        <span class="text-muted-color">{{ formatDuration(pend.waitDurationSeconds) }}</span>
+                    </td>
+                    <td class="text-right">
+                        @if (pend.isRoutable) {
+                            <p-tag [value]="'agents.status_routable' | translate" severity="success" icon="pi pi-clock" />
+                        } @else {
+                            <p-tag [value]="'agents.status_blocked' | translate" severity="danger" icon="pi pi-exclamation-circle" />
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <div class="py-6 text-center text-muted-color flex flex-col items-center justify-center gap-2">
+            <i class="pi pi-sparkles text-2xl text-primary"></i>
+            <span>{{ 'agents.no_pending' | translate }}</span>
+        </div>
+    }
+</p-card>
+
+<!-- Section 3 : Liste des Agents enregistrés -->
 <p-card>
+    <ng-template #title>
+        <div class="flex items-center gap-2">
+            <i class="pi pi-server text-primary text-lg"></i>
+            <span>{{ 'agents.agents_title' | translate }}</span>
+        </div>
+    </ng-template>
+
     <p-table [value]="agents()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
@@ -42,20 +251,29 @@
                     @if (!agent.enabled) {
                         <p-tag [value]="'agents.disabled_badge' | translate" severity="secondary" />
                     } @else if (agent.online) {
-                        <p-tag [value]="'agents.online_badge' | translate" severity="success" />
+                        @if (agent.runningScans > 0) {
+                            <p-tag [value]="'agents.status_busy' | translate" severity="info" icon="pi pi-spin pi-spinner" />
+                            @if (getRunningScanForAgent(agent.id); as run) {
+                                <div class="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium truncate max-w-xs">
+                                    {{ run.targetName }} ({{ formatDuration(run.durationSeconds) }})
+                                </div>
+                            }
+                        } @else {
+                            <p-tag [value]="'agents.status_idle' | translate" severity="success" icon="pi pi-check" />
+                        }
                     } @else {
                         <p-tag [value]="'agents.silent_badge' | translate" severity="warn" />
                     }
                     @if (agent.lastSeenAt) {
-                        <div class="text-sm text-muted-color mt-1">Seen {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
+                        <div class="text-xs text-muted-color mt-1">Seen {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
                     } @else {
-                        <div class="text-sm text-muted-color mt-1">Never announced</div>
+                        <div class="text-xs text-muted-color mt-1">Never announced</div>
                     }
                 </td>
                 <td>
                     @if (agent.hostname) {
                         <div class="text-sm">{{ agent.hostname }}</div>
-                        <div class="text-sm text-muted-color">{{ agent.platform }} · {{ agent.version }}</div>
+                        <div class="text-xs text-muted-color">{{ agent.platform }} · {{ agent.version }}</div>
                     } @else {
                         <span class="text-muted-color">—</span>
                     }
@@ -72,12 +290,12 @@
                 <td>
                     <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Delegated' : 'Local' }}</span>
                     @if (agent.credentialsMode === 'delegated') {
-                        <div class="text-sm" [class.text-muted-color]="agent.sealsCredentials">
+                        <div class="text-xs" [class.text-muted-color]="agent.sealsCredentials">
                             {{ agent.sealsCredentials ? 'Sealed end to end' : 'In clear under TLS' }}
                         </div>
                     }
                 </td>
-                <td class="text-right">{{ agent.runningScans }}</td>
+                <td class="text-right font-medium">{{ agent.runningScans }}</td>
                 <td class="text-right whitespace-nowrap">
                     <p-button [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
                               [ariaLabel]="(agent.enabled ? 'Disable ' : 'Re-enable ') + agent.name"
@@ -88,7 +306,7 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="6" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td></tr>
+            <tr><td colspan="7" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td></tr>
         </ng-template>
     </p-table>
 </p-card>
@@ -125,7 +343,7 @@
     </div>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="save()" />
     </ng-template>
 </p-dialog>
 
@@ -150,3 +368,4 @@
         <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
     </ng-template>
 </p-dialog>
+

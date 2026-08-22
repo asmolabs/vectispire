@@ -1,4 +1,4 @@
-<div class="mb-4 flex items-start justify-between gap-4">
+<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
     <div>
         <h1 class="text-2xl font-semibold m-0">{{ 'settings.title' | translate }}</h1>
         <p class="text-muted-color mt-1 mb-0">
@@ -8,6 +8,23 @@
     <p-button [label]="'settings.save_btn' | translate" icon="pi pi-check" [loading]="saving()" [disabled]="!dirty()" (onClick)="save()" />
 </div>
 
+<!-- Tabs Navigation -->
+<div class="flex flex-wrap gap-2 border-b border-surface-200 dark:border-surface-700 pb-3 mb-6">
+    @for (tab of tabs(); track tab.id) {
+        <button
+            type="button"
+            (click)="selectTab(tab.id)"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            [ngClass]="activeTab() === tab.id
+                ? 'bg-primary text-primary-contrast shadow-sm'
+                : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+        >
+            <i [class]="tab.icon"></i>
+            <span>{{ tab.label }}</span>
+        </button>
+    }
+</div>
+
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
@@ -15,66 +32,70 @@
     <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ 'settings.settings_saved' | translate }}</p-message>
 }
 
+<!-- Dynamic Configuration Sections -->
 @for (section of sections(); track section.name) {
-    <p-card styleClass="mb-4">
-        <ng-template #title>{{ section.name }}</ng-template>
+    @if (isSectionVisible(section)) {
+        <p-card styleClass="mb-4">
+            <ng-template #title>{{ getSectionTitle(section) }}</ng-template>
 
-        @if (isModelReview(section)) {
-            <div class="flex flex-wrap items-center gap-3 mb-4">
-                <p-button [label]="'settings.test_connection' | translate" icon="pi pi-bolt" severity="secondary" size="small"
-                          [loading]="testingOllama()" (onClick)="testOllama()" />
-                @if (ollama(); as check) {
-                    <p-message [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
-                               [closable]="false" styleClass="m-0">
-                        {{ check.detail }}
-                    </p-message>
-                }
-            </div>
-        }
-
-        <div class="flex flex-col gap-5">
-            @for (setting of section.settings; track setting.key) {
-                <div class="flex flex-col gap-2">
-                    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-                        <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ setting.label }}</label>
-
-                        <div class="shrink-0 w-full sm:w-auto">
-                            @switch (setting.type) {
-                                @case ('boolean') {
-                                    <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
-                                                    (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
-                                }
-                                @case ('integer') {
-                                    <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
-                                                   (ngModelChange)="set(setting.key, numberToText($event))"
-                                                   styleClass="w-32" inputStyleClass="w-full" />
-                                }
-                                @case ('severity') {
-                                    <p-select [inputId]="setting.key" [options]="severities" optionLabel="label" optionValue="value"
-                                              [ngModel]="values()[setting.key]" (ngModelChange)="set(setting.key, $event)"
-                                              [fluid]="true" styleClass="w-full sm:w-48" />
-                                }
-                                @default {
-                                    <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
-                                           [ngModel]="values()[setting.key]"
-                                           (ngModelChange)="set(setting.key, $event)" />
-                                }
-                            }
-                        </div>
-                    </div>
-
-                    <small class="text-muted-color max-w-3xl">{{ setting.help }}</small>
-
-                    @if (!setting.configured) {
-                        <small class="text-muted-color italic">{{ 'settings.default_value_never_set' | translate }}</small>
+            @if (isModelReview(section)) {
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <p-button [label]="'settings.test_connection' | translate" icon="pi pi-bolt" severity="secondary" size="small"
+                              [loading]="testingOllama()" (onClick)="testOllama()" />
+                    @if (ollama(); as check) {
+                        <p-message [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
+                                   [closable]="false" styleClass="m-0">
+                            {{ check.detail }}
+                        </p-message>
                     }
                 </div>
             }
-        </div>
-    </p-card>
+
+            <div class="flex flex-col gap-5">
+                @for (setting of section.settings; track setting.key) {
+                    <div class="flex flex-col gap-2">
+                        <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                            <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ getSettingLabel(setting) }}</label>
+
+                            <div class="shrink-0 w-full sm:w-auto">
+                                @switch (setting.type) {
+                                    @case ('boolean') {
+                                        <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                                        (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
+                                    }
+                                    @case ('integer') {
+                                        <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
+                                                       (ngModelChange)="set(setting.key, numberToText($event))"
+                                                       styleClass="w-32" inputStyleClass="w-full" />
+                                    }
+                                    @case ('severity') {
+                                        <p-select [inputId]="setting.key" [options]="severities()" optionLabel="label" optionValue="value"
+                                                  [ngModel]="values()[setting.key]" (ngModelChange)="set(setting.key, $event)"
+                                                  [fluid]="true" styleClass="w-full sm:w-48" />
+                                    }
+                                    @default {
+                                        <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
+                                               [ngModel]="values()[setting.key]"
+                                               (ngModelChange)="set(setting.key, $event)" />
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <small class="text-muted-color max-w-3xl">{{ getSettingHelp(setting) }}</small>
+
+                        @if (!setting.configured) {
+                            <small class="text-muted-color italic">{{ 'settings.default_value_never_set' | translate }}</small>
+                        }
+                    </div>
+                }
+            </div>
+        </p-card>
+    }
 }
 
-@if (sections().length > 0) {
+<!-- Integrations Tab Custom Cards -->
+@if (activeTab() === 'integrations') {
     <p-card styleClass="mb-4">
         <ng-template #title>{{ 'settings.ticket_token_title' | translate }}</ng-template>
         <div class="flex flex-col gap-2">
@@ -99,9 +120,7 @@
             </small>
         </div>
     </p-card>
-}
 
-@if (sections().length > 0) {
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex items-center gap-2">
@@ -169,8 +188,10 @@
             </div>
         </div>
     </p-card>
+}
 
-    <!-- Live Threat Intelligence Feed (CISA KEV & EPSS) -->
+<!-- Threat Intelligence Tab Custom Cards -->
+@if (activeTab() === 'threat-intel') {
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex items-center gap-2">
