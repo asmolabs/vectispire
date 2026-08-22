@@ -177,9 +177,12 @@ until when. A `pg_advisory_lock` answers no question after the fact.
 
 ## Still open
 
-- **No per-team partitioning at the account level.** An API key can be restricted to one
-  target; a *user* sees everything. This is the most visible limit for anyone wanting to
-  deploy Zanshin across several teams.
+- **Per-team partitioning exists, and is off by default.** This entry used to say a *user* sees
+  everything, and it was the first thing anybody evaluating Zanshin read — while teams, direct
+  per-account assignment and per-team notification channels had all been built. What remains true
+  is narrower and belongs to [03](03-security.md): `TARGET_VISIBILITY` ships as `everyone` so an
+  upgrade changes nothing, a **new** installation is created partitioned, and an existing
+  deployment has no partitioning until an administrator switches it.
 - **The Docker socket requirement is unconditional** for whichever process runs scans,
   which is what the abandoned seam had been meant to avoid
   ([0010](decisions/0010-one-scan-runner.md)). The mitigation is to move execution onto an
