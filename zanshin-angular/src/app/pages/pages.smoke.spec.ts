@@ -55,6 +55,7 @@ describe('every screen', () => {
     function emptyFor(url: string): Record<string, unknown> | unknown[] {
         if (url.endsWith('/settings')) return { settings: [] };
         if (url.endsWith('/ticket-token')) return { configured: false };
+        if (url.endsWith('/webhook-secret')) return { configured: false };
         if (url.endsWith('/issues')) return { items: [], total: 0, limit: 50, offset: 0 };
         if (url.endsWith('/audit-log')) return { items: [], total: 0, limit: 50, offset: 0 };
         if (url.endsWith('/security/overview')) {

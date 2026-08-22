@@ -39,6 +39,10 @@ export class Settings {
     readonly savingToken = signal(false);
     tokenInput = '';
 
+    readonly webhookSecretConfigured = signal(false);
+    readonly savingWebhookSecret = signal(false);
+    webhookSecretInput = '';
+
     /** What changed since loading. Drives the button, and sends only the delta. */
     private original: Record<string, string> = {};
 
@@ -155,10 +159,35 @@ export class Settings {
         });
     }
 
+    saveWebhookSecret(): void {
+        this.savingWebhookSecret.set(true);
+        this.error.set(null);
+        this.api.setWebhookSecret(this.webhookSecretInput).subscribe({
+            next: ({ configured }) => {
+                this.savingWebhookSecret.set(false);
+                this.webhookSecretConfigured.set(configured);
+                // Cleared from the model as well as from the field: this is the only thing that
+                // tells a receiver a message came from Zanshin, so anyone who reads it off the
+                // open tab can forge one.
+                this.webhookSecretInput = '';
+                this.saved.set(true);
+            },
+            error: (response) => {
+                this.savingWebhookSecret.set(false);
+                this.error.set(messageOf(response, 'Saving the secret failed.'));
+            }
+        });
+    }
+
     private reload(): void {
         this.api.ticketTokenState().subscribe({
             next: ({ configured }) => this.tokenConfigured.set(configured),
             error: () => this.tokenConfigured.set(false)
+        });
+
+        this.api.webhookSecretState().subscribe({
+            next: ({ configured }) => this.webhookSecretConfigured.set(configured),
+            error: () => this.webhookSecretConfigured.set(false)
         });
 
         this.api.settings().subscribe({

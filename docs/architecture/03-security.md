@@ -12,7 +12,7 @@ This document says where the boundaries are, what guards them, and what is still
 | Asset | Where | Consequence of a leak |
 |---|---|---|
 | SSH deployment keys | `ssh_key`, AES-GCM encrypted | read access to every watched repository |
-| `ENCRYPTION_KEY` | environment | decrypts **all** the keys above |
+| `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
 | Access to the Docker socket | process | root-equivalent on the host |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
 | Raw gitleaks reports | `scan.cves`, purged | **secrets in clear text** |
@@ -169,6 +169,42 @@ what concerns the targets it owns; the global webhook keeps receiving everything
 the security team's feed and narrowing it would be a silent change to what an existing
 deployment is told.
 
+**And a receiver can now tell a message Zanshin sent from one somebody who learned the URL sent.**
+The URL is a bearer capability — that is why no route returns it — and this closes the other half:
+`X-Zanshin-Signature` carries HMAC-SHA256 over `<unix seconds>.<exact body>`, with the timestamp
+also travelling in `X-Zanshin-Timestamp`. The timestamp is **inside** the signature deliberately: a
+receiver needs it to reject a replay, and one that is not covered by the MAC is one an attacker
+rewrites freely, which makes the replay window their choice and the header decorative. Replay
+*within* the window is closed by something already there — every payload carries a `messageId`,
+because delivery is at-least-once and a receiver dedupes on it anyway.
+
+**Who this actually helps, stated rather than implied.** A receiver has to check the signature for
+it to be worth anything, and Slack, Teams and Discord will not: they accept whatever reaches an
+incoming webhook. So it is for the case the setting names first — a script, a bus, or a gateway of
+your own. Signing a message bound for Slack costs one header and buys nothing; it is signed anyway,
+because a rule about which destinations get a header is a rule that is wrong the day somebody puts
+a gateway in front of Slack.
+
+Three properties make it more than a header. **The signature covers the bytes actually written**:
+`OutboundPost` owns the serialization, so signing happens there rather than at a caller whose own
+`writeValueAsString` a mapper setting or a Jackson upgrade could make differ — the same failure as
+validating one URL and connecting to another, and it would surface at the receiver rather than
+here. **A configured secret that cannot be decrypted refuses to send**, which is the opposite of
+what an undecryptable tracker token does, and the asymmetry is the point: a disabled tracker claims
+nothing, whereas sending *unsigned* is a security control switching itself off after an
+encryption-key rotation, on a deployment that turned it on deliberately. And **no secret means no
+header at all** rather than a MAC under an empty key, which would look like authentication and be
+reproducible by anyone.
+
+The secret is stored encrypted, bound to its own setting row, and never returned by any route —
+the screen shows *whether* messages are signed. That state is read from the stored row rather than
+by decrypting it: an undecryptable secret is still a configured one, and reporting "not configured"
+would send an operator to set it again, which is the single action that destroys the secret their
+receivers still hold. **One secret for every destination is the accepted limit of this form.** A
+team's receiver holding it could forge into another team's channel — if it also learned that URL,
+which nothing discloses. Closing that means a secret per destination, and therefore a column on
+`t_team_webhook`.
+
 Three details are load-bearing. **One queued message per destination**, not one carrying a list:
 a channel that is unreachable has to be retried on its own, where a single row would let one
 broken workspace hold back every other team's notification — or mark the lot delivered because
@@ -265,6 +301,35 @@ cloned with B's key, **with no error**. Decryption retries without context for o
 values and logs it. There is **no default key**: a published constant would have
 decrypted everybody's database. Rotation goes through
 `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS`.
+
+**And the key itself can come from a file rather than the environment.** A variable is readable by
+more things than an operator expects — `/proc/<pid>/environ`, `docker inspect`, an orchestrator's
+own logs, a crash dump, the `.env` a backup swept up — and this is the one value for which that
+matters absolutely rather than relatively: it decrypts every deployment key the installation
+holds. `ENCRYPTION_KEY_FILE` names a file instead, which is what Docker and Kubernetes secrets
+actually mount, with an owner and a mode. `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
+same reason and not for symmetry: an old key still decrypts live rows, and a rotation is precisely
+when two keys exist at once, so without it moving the current key out of the environment would
+mean putting the previous one back in.
+
+Three details are the difference between this and a decoration. **A path that does not
+resolve stops the application** — missing, unreadable, or a mount that is present and empty, which
+is the ordinary race on a cluster. Falling back would be catastrophic here *because*
+`EncryptionService` tolerates a missing key: it warns, keeps decrypting what is stored, and
+refuses to write anything new. A failed secret mount would therefore render every screen and be
+indistinguishable from a fresh install, until the day somebody saved an SSH key. **Both forms set
+at once is refused**, since nothing could then answer "which key is in force" without choosing one
+the operator did not — the same objection that keeps `ddl-auto` at `validate`. And **the file's
+content is trimmed while the variable's is not**: every way of writing a secret to a file appends
+a newline, and a key that differs by one invisible byte derives a different key and presents itself
+as "every stored secret is unreadable" — but trimming the *variable* would do that to deployments
+whose key already carries a stray space, so the two are deliberately not symmetric.
+
+`EncryptionKeyFileDatabaseTest` sets the variable by its real name and asks the wired service
+whether it has a key, because the unit suite proves the reading and would pass just as well with
+the property misspelled in `application.yaml`. It earned its place immediately: the first version
+read the empty string that `${ENCRYPTION_KEY:}` yields for an unset variable as "a value was
+supplied", and refused to start on every correct file-only configuration.
 
 **URL guard.** Two rules for two opposite needs, and that is the trap. For the webhook the
 risk is SSRF: private addresses are refused. For Ollama the risk is **exfiltration** — the
@@ -393,11 +458,21 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   repository read the whole deployment's severity counts beside a posture that was correctly
   narrowed. Fixed with this change, and worth recording as the shape of the mistake: every read
   path was asking `Visibility` except the one that returned numbers rather than rows.
-- **Restricted visibility is off by default.** `TARGET_VISIBILITY` ships as `everyone`, so an
-  update changes nothing for an existing deployment — and a deployment that never changes it has
-  no partitioning at all. Teams and per-account assignment both do nothing until it is switched
-  to `assigned`, which is a setting an administrator has to know exists. The screen says which
-  mode is in force; nothing forces the choice.
+- **Restricted visibility is now on for a new installation, and still off for an upgrade.** The
+  catalog's default stays `everyone`, because that is what an *absent row* has to be worth: an
+  upgrade that switched a running deployment to `assigned` would blank every
+  non-administrator's screens overnight, and nobody connects an empty backlog to a release note.
+  What changed is that a database with **no account in it** — the one moment at which nothing can
+  be broken, because nothing has been configured yet — is written `assigned` explicitly, as a row
+  like any operator's choice. `FirstInstallDefaults` holds that, `BootstrapService` calls it from
+  inside the same empty-users-table condition that guards the first account (two beans each
+  deciding "is this install new" would race the account's creation), and it **never overwrites**:
+  an operator who chose `everyone` before creating their first account keeps it across restarts.
+  `FirstInstallDefaultsDatabaseTest` checks the row reaches `t_setting` *and* that
+  `VisibilityService` reads it, which is the pair that a correct log line and no partitioning
+  would satisfy separately. What remains open is the upgrade: an existing deployment still has no
+  partitioning until an administrator switches it, and the screen saying which mode is in force
+  is the most a compatible default can do.
 - **The audit log is in the database it watches**, unless a mirror is configured — and the
   default is unconfigured. A deployment that sets no `ZANSHIN_AUDIT_MIRROR` still has one copy
   and one set of credentials protecting it; the verification screen says so, which is the most
@@ -422,7 +497,25 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   there too — blocking on what ships, reporting on the development tree — so "it reports
   nothing" is a measurement rather than a belief. Medium findings with fixes (jackson-databind,
   log4j-api, both BOM-managed) are printed and block nobody.
-- **Releases are not signed, and there is no release pipeline to sign them in.** Publishing a
-  signed artifact and its SBOM would be the next step for anybody consuming Zanshin as a
-  binary; writing the signing before the publishing would be inventing a process the project
-  does not have.
+- **Releases are now published and signed, and the pipeline is the thing that was missing.** A
+  `v*` tag runs the suites on the tagged tree — not "it passed on main last week", which is a
+  different statement — builds the jar, catalogues it with the Syft digest `ScannerImages` pins,
+  refuses to publish a **fixable** High, and signs the jar and its SBOM with **Sigstore keyless**.
+  There is no signing key: the signature is minted against the workflow's own OIDC identity, so
+  what it attests is `.github/workflows/release.yml` in this repository on that tag rather than
+  "somebody who holds a key". A stolen repository secret cannot produce one, which is most of the
+  reason for choosing keyless over a stored key.
+
+  Two details carry the weight. **The signature is verified in the job that made it**, with the
+  same command a consumer runs, before anything is uploaded — a signature nobody has ever checked
+  is a signature that does not work, and hearing about it from a consumer is hearing about it too
+  late. And **the verifying identity is per-workflow-file and per-tag**, not per-repository:
+  matching the repository alone would accept a signature minted by any workflow anybody can add to
+  it, including in a pull request. The command, and what each of its flags pins, is in
+  [`GETTING_STARTED.md`](../GETTING_STARTED.md#8-verifying-a-release).
+
+  What remains open: the release job is not itself reproducible — two runs of the same tag produce
+  jars that need not be byte-identical — so a signature attests who built it and not that anybody
+  else could rebuild it. And the third-party actions it uses are pinned by tag rather than by
+  digest, unlike the scanner images; a tag is mutable, and for this job that is the weakest link
+  named here.

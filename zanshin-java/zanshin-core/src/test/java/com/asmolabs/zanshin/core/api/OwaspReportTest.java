@@ -233,7 +233,8 @@ class OwaspReportTest extends ApiTestBase {
                     Mockito.mock(com.asmolabs.zanshin.core.services.SettingsService.class),
                     Mockito.mock(com.asmolabs.zanshin.core.services.TicketService.class),
                     Mockito.mock(com.asmolabs.zanshin.core.services.AuditLogService.class),
-                    ai);
+                    ai,
+                    Mockito.mock(com.asmolabs.zanshin.core.services.NotificationService.class));
         }
 
         @Test

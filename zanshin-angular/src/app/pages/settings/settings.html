@@ -131,6 +131,40 @@
     </p-card>
 }
 
+<!--
+    Same treatment as the token above, and for the same reason: encrypted at rest, never
+    returned, so "configured" or "absent" is all this screen can honestly say.
+-->
+@if (sections().length > 0) {
+    <p-card styleClass="mb-4">
+        <ng-template #title>Webhook signing secret</ng-template>
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                <label for="webhook-secret" class="font-medium min-w-0 flex-1">
+                    Secret
+                    @if (webhookSecretConfigured()) {
+                        <span class="text-green-600 text-sm font-normal">— saved</span>
+                    } @else {
+                        <span class="text-muted-color text-sm font-normal">— none</span>
+                    }
+                </label>
+                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                    <input pInputText id="webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
+                           [(ngModel)]="webhookSecretInput"
+                           placeholder="Leave empty to keep it unchanged" autocomplete="off" />
+                    <p-button label="Save" [loading]="savingWebhookSecret()" (onClick)="saveWebhookSecret()" />
+                </div>
+            </div>
+            <small class="text-muted-color max-w-3xl">
+                Signs every webhook message, global and per-team, so a receiver can verify it came
+                from Zanshin. Useful for a script, a bus or your own gateway, which can check it —
+                Slack, Teams and Discord accept whatever arrives and will ignore it. Empty means
+                the messages are sent unsigned.
+            </small>
+        </div>
+    </p-card>
+}
+
 @if (sections().length === 0 && !error()) {
     <p class="text-muted-color">Loading…</p>
 }

@@ -180,6 +180,14 @@ export class ApiService {
         return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-token', { token });
     }
 
+    webhookSecretState(): Observable<{ configured: boolean }> {
+        return this.http.get<{ configured: boolean }>('/api/v1/settings/webhook-secret');
+    }
+
+    setWebhookSecret(secret: string): Observable<{ configured: boolean }> {
+        return this.http.put<{ configured: boolean }>('/api/v1/settings/webhook-secret', { secret });
+    }
+
     /** What the upstream catalogue holds right now, and the licence text at that commit. */
     ruleCatalogue() {
         return this.http.get<CataloguePreview>('/api/v1/rule-sets/catalogue');

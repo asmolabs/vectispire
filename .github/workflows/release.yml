@@ -1,0 +1,152 @@
+name: Release
+
+# **What a release is, here.** A tag produces three files and a way to check them: the jar that
+# runs, the SBOM of that exact jar, and a Sigstore signature over each. Until now `03-security.md`
+# recorded that releases were unsigned and that there was no pipeline to sign them in — writing the
+# signing before the publishing would have been inventing a process the project does not have. This
+# is the publishing, with the signing in it from the start.
+#
+# **Keyless, and that is the point.** Sigstore signs with the workflow's own OIDC identity, so
+# there is no private key in a repository secret — no key to leak, to rotate, or to explain the
+# custody of. What a consumer verifies is not "somebody who holds a key" but "this workflow, in
+# this repository, on this tag". A stolen repository secret cannot produce that; a compromised
+# workflow file can, which is why the identity a verifier pins includes the workflow's path.
+#
+# **The signature is verified here, before anything is published.** A signature nobody has ever
+# checked is a signature that does not work, and finding that out from a consumer is finding it out
+# too late — the same reason `integrationTestAll` runs things rather than asserting about them.
+
+on:
+  push:
+    tags: ['v*']
+  # So the whole path can be exercised without minting a tag. It signs and verifies and publishes
+  # nothing: a release that only exists on a tag is a release whose version is not a decision
+  # somebody makes in a form.
+  workflow_dispatch:
+
+permissions:
+  # Creating the release and uploading to it.
+  contents: write
+  # **The whole of the keyless mechanism.** Without it cosign has no OIDC token to present and
+  # falls back to asking for a key, which in a runner means failing.
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # **The suites run before the artifact is built, on the tagged tree.** CI runs them on
+      # `main`, which is not the same statement: a tag can point anywhere, and "it passed on main
+      # last week" is not "this is what was tested".
+      - name: Build and test
+        working-directory: zanshin-java
+        run: ./gradlew build :zanshin-core:bootJar
+
+      - name: Name the artifact after the version
+        id: names
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # A dispatch has no tag. `0.0.0-dev` rather than the commit alone, so a file that escapes
+          # a dry run cannot be mistaken for a version somebody released.
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="0.0.0-dev+${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "jar=zanshin-$version.jar" >> "$GITHUB_OUTPUT"
+          echo "sbom=zanshin-$version.cdx.json" >> "$GITHUB_OUTPUT"
+          cp zanshin-java/zanshin-core/build/libs/zanshin-core.jar "zanshin-$version.jar"
+
+      # The same pinned Syft digest `ScannerImages` uses, for the reason the CI file gives: the
+      # product and its own release must agree on which cataloguer ran, and a floating tag makes
+      # "why does this SBOM differ" unanswerable.
+      - name: SBOM of the jar that ships
+        run: |
+          docker run --rm --network none -v "$PWD:/scan:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan "file:/scan/${{ steps.names.outputs.jar }}" -o cyclonedx-json > "${{ steps.names.outputs.sbom }}"
+          echo "components: $(grep -o '"bom-ref"' "${{ steps.names.outputs.sbom }}" | wc -l)"
+
+      # **The same gate as CI, applied to the thing being published.** `--only-fixed` for the
+      # reason decision 0005 gives: a gate nobody can satisfy is a gate somebody disables. What it
+      # does mean is that a release cannot ship a High finding for which a fix exists — which is
+      # the claim a security tool's own artifact has to be able to make.
+      - name: Refuse to publish a fixable High
+        run: |
+          docker run --rm -v "$PWD:/sbom:ro" \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            "sbom:/sbom/${{ steps.names.outputs.sbom }}" --only-fixed --fail-on high -o table
+
+      - uses: sigstore/cosign-installer@v3
+
+      # One bundle per file. The bundle carries the certificate and the signature together, so a
+      # verifier needs one extra file rather than three and cannot be handed a signature whose
+      # certificate went missing.
+      - name: Sign the jar and its SBOM
+        run: |
+          cosign sign-blob --yes \
+            --bundle "${{ steps.names.outputs.jar }}.cosign.bundle" \
+            "${{ steps.names.outputs.jar }}"
+          cosign sign-blob --yes \
+            --bundle "${{ steps.names.outputs.sbom }}.cosign.bundle" \
+            "${{ steps.names.outputs.sbom }}"
+
+      # **Verified before publishing, with the same command a consumer runs.** The identity is
+      # pinned to this workflow file on this ref, not merely to the repository: `--certificate-identity`
+      # matching anything in the org would accept a signature minted by any workflow anybody can add
+      # to it, which is most of what keyless signing is supposed to establish.
+      - name: Verify what was just signed
+        run: |
+          identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          for file in "${{ steps.names.outputs.jar }}" "${{ steps.names.outputs.sbom }}"; do
+            cosign verify-blob \
+              --bundle "$file.cosign.bundle" \
+              --certificate-identity "$identity" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "$file"
+          done
+
+      # `gh` rather than a third-party release action, deliberately: it ships with the runner and
+      # adds nobody to the set of people who can change what this job does. For a tool that audits
+      # other people's supply chains, its own release job is the worst possible place to pull in a
+      # dependency for convenience.
+      - name: Publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Zanshin ${{ steps.names.outputs.version }}" \
+            --notes-file - <<'NOTES'
+          **Verify before running anything from here.** The exact command, and what each part of it
+          pins, is in `docs/GETTING_STARTED.md` under "Verifying a release".
+
+          Signed with Sigstore keyless: what a signature attests is this repository's
+          `.github/workflows/release.yml` on this tag — not a key in somebody's custody, because
+          there is none to steal.
+          NOTES
+          gh release upload "$GITHUB_REF_NAME" \
+            "${{ steps.names.outputs.jar }}" \
+            "${{ steps.names.outputs.jar }}.cosign.bundle" \
+            "${{ steps.names.outputs.sbom }}" \
+            "${{ steps.names.outputs.sbom }}.cosign.bundle"
+
+      # A dry run keeps its output where it can be looked at, rather than proving the path works
+      # and leaving nothing behind.
+      - name: Keep the artifacts of a dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: zanshin-release-dry-run
+          path: |
+            zanshin-*.jar
+            zanshin-*.cdx.json
+            zanshin-*.cosign.bundle

@@ -5,9 +5,11 @@ import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
+import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
 import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
 import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -26,14 +28,70 @@ public class NotificationService implements NotificationChannel {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
+    /** The associated data binding the signing secret's ciphertext to its own setting row. */
+    private static final String SIGNING_SECRET_CONTEXT = "setting:notification_webhook_secret";
+
     private final SettingsService settings;
     private final OutboundPost post;
     private final TeamWebhooks teamWebhooks;
+    private final EncryptionService encryption;
+    private final Clock clock;
 
-    public NotificationService(SettingsService settings, OutboundPost post, TeamWebhooks teamWebhooks) {
+    public NotificationService(
+            SettingsService settings,
+            OutboundPost post,
+            TeamWebhooks teamWebhooks,
+            EncryptionService encryption,
+            Clock clock) {
         this.settings = settings;
         this.post = post;
         this.teamWebhooks = teamWebhooks;
+        this.encryption = encryption;
+        this.clock = clock;
+    }
+
+    /**
+     * The decrypted signing secret, or an empty string when none is configured.
+     *
+     * <p><b>Throws when a configured secret cannot be decrypted</b>, which is the opposite of what
+     * {@code TicketService} does with its token — and the difference is the point. An undecryptable
+     * tracker token disables ticket creation: fail-closed, nothing is claimed. An undecryptable
+     * signing secret, treated the same way, would send the message <em>unsigned</em>: the alert
+     * still arrives, the receiver that verifies rejects it, and the one that does not accepts a
+     * message Zanshin can no longer prove it sent. That is a security control switching itself off
+     * after an encryption-key rotation, silently, on a deployment that configured it deliberately.
+     *
+     * <p>So the delivery fails instead. The relay retries it, abandons it with a reason after the
+     * backoff, and the operator finds the sentence below — rather than finding nothing.
+     */
+    public String signingSecret() {
+        String stored = settings.get(Setting.WEBHOOK_SIGNING_SECRET).trim();
+        if (stored.isEmpty()) {
+            return stored;
+        }
+
+        SecretCipher.Decrypted secret = encryption.inspect(stored, SIGNING_SECRET_CONTEXT);
+        if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
+            throw new IllegalStateException(
+                    "A webhook signing secret is configured but cannot be decrypted by any configured key. "
+                            + "Refusing to send unsigned: a receiver that checks the signature would reject the "
+                            + "message and one that does not would accept an unprovable one. Restore the previous "
+                            + "encryption key, or clear the signing secret to send unsigned deliberately.");
+        }
+        return secret.plainText();
+    }
+
+    /** Stores the secret encrypted, bound to its own setting key. */
+    public void setSigningSecret(String rawSecret) {
+        String value = rawSecret == null ? "" : rawSecret.trim();
+        settings.set(
+                Setting.WEBHOOK_SIGNING_SECRET,
+                value.isEmpty() ? "" : encryption.encrypt(value, SIGNING_SECRET_CONTEXT));
+    }
+
+    /** Whether messages are signed, for a screen that must not show the secret itself. */
+    public boolean isSigning() {
+        return !settings.get(Setting.WEBHOOK_SIGNING_SECRET).trim().isEmpty();
     }
 
     public String webhookUrl() {
@@ -129,14 +187,23 @@ public class NotificationService implements NotificationChannel {
         String destination = destinationFor(teamId);
         String label = teamId == null ? "webhook URL" : "team webhook URL";
 
-        post.postJson(destination, payload, policy, label);
+        // Signed with one secret for the global channel and every team's, which is the accepted
+        // limit of this first form: a team's receiver holding the secret could forge a message to
+        // another team's channel — if it also learned that URL, which no route returns. A secret
+        // per destination would close it and needs a column on `t_team_webhook`.
+        String secret = signingSecret();
+
+        post.postSignedJson(destination, payload, policy, label, secret, clock.instant());
         log.info(
-                "Webhook notified for scan {} ({} new, {} reopened), message {}, destination {}.",
+                "Webhook notified for scan {} ({} new, {} reopened), message {}, destination {}, {}.",
                 payload.scanId(),
                 payload.newCount(),
                 payload.reopenedCount(),
                 payload.messageId(),
-                teamId == null ? "global" : "team " + teamId);
+                teamId == null ? "global" : "team " + teamId,
+                // Logged per delivery rather than at startup: the secret is a runtime setting, and
+                // "is this deployment signing" is the question somebody asks while reading this line.
+                secret.isEmpty() ? "unsigned" : "signed");
     }
 
     /**

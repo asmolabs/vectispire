@@ -57,6 +57,19 @@ public class SettingsService {
                 .orElseGet(setting::defaultValue);
     }
 
+    /**
+     * Whether the key has a row of its own, rather than falling back to the catalog's default.
+     *
+     * <p>Not the same question as {@link #get(Setting)} returning the default value: an operator
+     * may have deliberately written the value the catalog also proposes, and overwriting that is
+     * overwriting a decision. The distinction is what lets {@link FirstInstallDefaults} seed a
+     * fresh install without ever undoing a choice.
+     */
+    @Transactional(readOnly = true)
+    public boolean isStored(Setting setting) {
+        return settings.findById(setting.key()).isPresent();
+    }
+
     /** A boolean setting. Anything that is not {@code "true"} is false — the absent row included. */
     @Transactional(readOnly = true)
     public boolean isEnabled(Setting setting) {

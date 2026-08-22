@@ -56,6 +56,7 @@ the same commit that violates it; a missing dependency cannot.
 | A stored gate policy is what the verdict applies, and an empty threshold means the rule is off | `GatePoliciesRoutesTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
+| The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
@@ -64,10 +65,12 @@ the same commit that violates it; a missing dependency cannot.
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
+| A new installation starts partitioned, an upgrade does not, and neither undoes a choice | `FirstInstallDefaultsTest`, `FirstInstallDefaultsDatabaseTest`, `BootstrapServiceTest` |
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
 | A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
 | A team's findings are announced in its channel, not in everybody's | `TeamNotificationRoutingTest` |
+| A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |

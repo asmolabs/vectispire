@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.zanshin.common.domain.aireview.AiReview;
 import com.asmolabs.zanshin.core.services.AiReviewService;
 import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.NotificationService;
 import com.asmolabs.zanshin.core.services.SettingsService;
 import com.asmolabs.zanshin.core.services.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,13 +49,19 @@ public class SettingsController {
     private final TicketService tickets;
     private final AuditLogService audit;
     private final AiReviewService aiReview;
+    private final NotificationService notifications;
 
     public SettingsController(
-            SettingsService settings, TicketService tickets, AuditLogService audit, AiReviewService aiReview) {
+            SettingsService settings,
+            TicketService tickets,
+            AuditLogService audit,
+            AiReviewService aiReview,
+            NotificationService notifications) {
         this.settings = settings;
         this.tickets = tickets;
         this.audit = audit;
         this.aiReview = aiReview;
+        this.notifications = notifications;
     }
 
     /**
@@ -79,6 +86,8 @@ public class SettingsController {
     public record Catalog(List<SettingView> settings) {}
 
     public record TokenRequest(String token) {}
+
+    public record SecretRequest(String secret) {}
 
     /**
      * The catalog and the current values.
@@ -196,6 +205,52 @@ public class SettingsController {
     @GetMapping("/ticket-token")
     public Map<String, Boolean> ticketTokenState() {
         return Map.of("configured", !tickets.token().isEmpty());
+    }
+
+    /**
+     * The webhook signing secret, stored and never read back.
+     *
+     * <p>Its own route for the same reasons as the tracker token above: encrypted at rest, not
+     * renderable into a form, and an exception at every step of the generic path is an exception
+     * somebody eventually forgets.
+     */
+    @RequiresAdministrator
+    @PutMapping("/webhook-secret")
+    public Map<String, Boolean> setWebhookSigningSecret(
+            @RequestBody SecretRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        String secret = body == null || body.secret() == null ? "" : body.secret();
+        notifications.setSigningSecret(secret);
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                Setting.WEBHOOK_SIGNING_SECRET.key(),
+                // Never the value. Whoever reads this table could otherwise forge a message into
+                // every channel this deployment announces to — and the audit log is deliberately
+                // never purged, so it would outlive the secret's own rotation.
+                secret.isBlank()
+                        ? "Webhook signing secret cleared — messages are sent unsigned."
+                        : "Webhook signing secret stored — messages are signed.",
+                principal.user().map(user -> user.getUsername()).orElse(null),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return Map.of("configured", !secret.isBlank());
+    }
+
+    /**
+     * Whether messages are signed.
+     *
+     * <p>Reads the stored row rather than decrypting it: an undecryptable secret is still a
+     * configured one, and this screen must say "signing" where the delivery will say why it
+     * cannot — reporting "not configured" here would send an operator to set it again, which is
+     * the one action that destroys the secret their receivers still hold.
+     */
+    @GetMapping("/webhook-secret")
+    public Map<String, Boolean> webhookSigningSecretState() {
+        return Map.of("configured", notifications.isSigning());
     }
 
     /**
