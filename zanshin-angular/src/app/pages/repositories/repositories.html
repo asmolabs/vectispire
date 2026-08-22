@@ -49,6 +49,7 @@
                             } @else {
                                 <span>nothing outstanding</span>
                             }
+                            · <span>{{ scheduleLabel(repository) }}</span>
                         </div>
                     </div>
 
@@ -113,7 +114,10 @@
                 its deployment key. Left empty, any agent may take it.
             </small>
         </div>
+        <app-schedule-fields idPrefix="repository" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
         @if (formError(); as message) {
+            <!-- The server's wording is what names the rejected cron field by field; a generic
+                 "invalid" would send somebody back to guessing. -->
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
     </div>

@@ -13,11 +13,12 @@ import { ApiService } from '../../core/api.service';
 import type { MonitoredContainer } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
+import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
 @Component({
     selector: 'app-containers',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields],
     templateUrl: './containers.html'
 })
 export class Containers {
@@ -37,7 +38,14 @@ export class Containers {
     readonly pendingDelete = signal<MonitoredContainer | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '' };
+    form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null as number | null, scanCron: '' };
+
+    /** Exposed to the template: the list says what each image's schedule is, because a target
+     *  nobody rescans looks monitored until somebody reads the date of its last scan. */
+    readonly scheduleLabel = scheduleLabel;
+
+    /** The row being edited, or null when the dialog is adding one. */
+    readonly editing = signal<MonitoredContainer | null>(null);
 
     /**
      * Shortens a digest for display, the whole value staying in the tooltip.
@@ -94,34 +102,63 @@ export class Containers {
         });
     }
 
-    openForm(): void {
-        this.form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '' };
+    openForm(container?: MonitoredContainer): void {
+        this.editing.set(container ?? null);
+        this.form = container
+            ? {
+                  registry: container.registry ?? '',
+                  imageName: container.imageName,
+                  tag: container.tag,
+                  requiredAgentLabel: container.requiredAgentLabel ?? '',
+                  scanIntervalMinutes: container.scanIntervalMinutes,
+                  scanCron: container.scanCron ?? ''
+              }
+            : { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
 
     submit(): void {
+        const editing = this.editing();
+        // **Empty string and not `undefined` when editing.** On the create path an absent field
+        // means "no value"; on the update path the server reads absent as "leave alone", so a
+        // field the operator cleared has to be sent as empty or the clearing is silently
+        // dropped — the form would show it gone and the next scan would disagree.
+        const blank = editing ? '' : undefined;
+        const body = {
+            registry: this.form.registry.trim() || blank,
+            image_name: this.form.imageName.trim(),
+            tag: this.form.tag.trim() || 'latest',
+            required_agent_label: this.form.requiredAgentLabel.trim() || blank,
+            // **Zero, not `undefined`, when the field was cleared on the update path.** The server
+            // reads absent as "leave alone", so `undefined` would keep the old interval while the
+            // form showed nothing — the operator would think they had switched the rescan off and
+            // the registry would carry on being pulled. Zero is what `Schedules` reads as "manual
+            // only". `scanCron` needs no such trick: the empty string is distinguishable from
+            // absent, so it clears the expression on its own.
+            scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
+            // Always sent, empty included: the empty string is the only value the update path
+            // distinguishes from "leave alone", so it is the only way to remove an expression.
+            scanCron: this.form.scanCron.trim()
+        };
+
         this.saving.set(true);
-        this.api
-            .createContainer({
-                registry: this.form.registry.trim() || undefined,
-                image_name: this.form.imageName.trim(),
-                tag: this.form.tag.trim() || 'latest',
-                required_agent_label: this.form.requiredAgentLabel.trim() || undefined
-            })
-            .subscribe({
-                next: () => {
-                    this.saving.set(false);
-                    this.formVisible.set(false);
-                    this.reload();
-                },
-                error: (response) => {
-                    this.saving.set(false);
-                    // The server's message is the one that knows *why* — upper case refused,
-                    // malformed digest. Replacing it would lose the information.
-                    this.formError.set(messageOf(response, 'Could not add this image.'));
-                }
-            });
+        const call = editing ? this.api.updateContainer(editing.id, body) : this.api.createContainer(body);
+        call.subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.formVisible.set(false);
+                this.editing.set(null);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                // The server's message is the one that knows *why* — upper case refused,
+                // malformed digest, a cron field it could not read. Replacing it with a generic
+                // "error" would send somebody back to guessing.
+                this.formError.set(messageOf(response, editing ? 'Could not save this image.' : 'Could not add this image.'));
+            }
+        });
     }
 
     askDelete(container: MonitoredContainer): void {

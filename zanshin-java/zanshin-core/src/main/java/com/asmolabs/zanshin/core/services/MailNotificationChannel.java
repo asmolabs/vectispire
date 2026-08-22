@@ -91,6 +91,38 @@ public class MailNotificationChannel implements NotificationChannel {
                 to.size(), payload.scanId(), payload.messageId());
     }
 
+    /**
+     * Sends a message this channel did not build.
+     *
+     * <p>For the weekly posture report, which is not a scan delta and has no business being bent
+     * into {@link NotificationPayload} to reuse the path above — a payload with {@code scanId = 0}
+     * and a synthesised {@code text} is a shape that lies, and the next reader believes it.
+     *
+     * <p>It lives here rather than in the digest service because the relay, the sender address and
+     * the recipient list are this class's: a second place resolving "who receives Zanshin's mail"
+     * would drift from the settings screen the first time either was edited.
+     *
+     * <p><b>Throws on failure, like {@code deliver}.</b> Its caller has no queue — a digest is
+     * derived from the database and simply recomputed next tick — so the exception is what stops
+     * the send from being recorded as having happened.
+     */
+    public void sendText(String subject, String body) {
+        JavaMailSender mailer = sender.orElseThrow(() ->
+                new IllegalStateException("No mail relay is configured on this deployment."));
+        List<String> to = recipients();
+        if (to.isEmpty()) {
+            throw new IllegalStateException("No recipient is configured for e-mail notifications.");
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to.toArray(String[]::new));
+        message.setSubject(subject);
+        message.setText(body);
+        mailer.send(message);
+        log.info("Mail sent to {} recipient(s): {}", to.size(), subject);
+    }
+
     private List<String> recipients() {
         return Arrays.stream(settings.get(Setting.MAIL_RECIPIENTS).split(","))
                 .map(String::trim)

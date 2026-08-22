@@ -34,6 +34,7 @@ import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -159,6 +160,87 @@ public class ContainersController {
                 .orElseThrow();
     }
 
+    /**
+     * Changes a monitored image.
+     *
+     * <p>There was no such route: create, scan and delete were the whole surface, so correcting a
+     * cron expression on an image meant deleting the row — and its scan history and its triaged
+     * backlog with it. Offering the schedule field with no way to fix it is worse than not
+     * offering it.
+     *
+     * <p><b>Absent means unchanged, not cleared.</b> A {@code null} field is left alone and an
+     * empty string clears it, exactly as on {@link RepositoriesController#update}: with the
+     * opposite convention, a screen sending only the two fields it edits would silently erase the
+     * schedule and the agent label, and nothing would say so until a scan waited for an agent
+     * nobody requires any more.
+     *
+     * <p><b>The interval is the one field that cannot be cleared by emptiness</b>, because it is
+     * an {@code Integer} and not a string: {@code null} is already spoken for as "leave alone", so
+     * a caller switching a rescan off has to send {@code 0} — which is what {@code
+     * Schedules.intervalDue} reads as manual-only anyway. {@code scanCron} has no such problem,
+     * the empty string being distinguishable from absent, and does clear the expression. That
+     * asymmetry is the frontend's to honour: it sends zero, not nothing.
+     *
+     * <p><b>Changing the reference keeps the issues.</b> The fingerprint does not include the
+     * image, so the backlog attached to this row survives and now describes a different image —
+     * right for a tag that moved, wrong for repointing a row at an unrelated image. The audit
+     * entry records both references so the surprise has an explanation.
+     */
+    @RequiresAdministrator
+    @PatchMapping("/{id}")
+    public Summary update(
+            @PathVariable long id,
+            @RequestBody CreateRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        ContainerEntity container = containers
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException("No image with id " + id + "."));
+        Visibilities.requireVisible(
+                new ScanTarget.Container(id),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+
+        String previousReference = referenceOf(container).format();
+
+        // Validated as a whole and not field by field: a registry, a name and a tag are only
+        // legal together, and a reference reaching a `docker pull` unchecked is whatever the
+        // operator's daemon will fetch — as true of a row edited later as of a row added.
+        ImageReference reference = new ImageReference(
+                body.registry() != null ? optional(body.registry()) : container.getRegistry(),
+                body.imageName() != null ? trim(body.imageName()) : container.getImageName(),
+                body.tag() != null ? (trim(body.tag()).isEmpty() ? "latest" : trim(body.tag())) : container.getTag());
+        reference.validate().ifPresent(message -> {
+            throw new IllegalArgumentException(message);
+        });
+        container.setRegistry(reference.registry());
+        container.setImageName(reference.imageName());
+        container.setTag(reference.tag());
+
+        if (body.scanIntervalMinutes() != null) {
+            container.setScanIntervalMinutes(body.scanIntervalMinutes());
+        }
+        if (body.scanCron() != null) {
+            container.setScanCron(validatedCron(body.scanCron()));
+        }
+        if (body.requiredAgentLabel() != null) {
+            // Normalized on update as on create: "Production" here and "production" on the agent
+            // would never meet, and the scan would wait for an agent that is present.
+            container.setRequiredAgentLabel(
+                    AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
+        }
+
+        ContainerEntity saved = containers.save(container);
+        String moved = referenceOf(saved).format().equals(previousReference) ? "" : " (was " + previousReference + ")";
+        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
+                "Image updated: " + referenceOf(saved).format() + moved);
+
+        return list(principal).stream()
+                .filter(summary -> summary.id().equals(saved.getId()))
+                .findFirst()
+                .orElseThrow();
+    }
+
     @RequiresAdministrator
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
@@ -233,13 +315,22 @@ public class ContainersController {
         return new ImageReference(container.getRegistry(), container.getImageName(), container.getTag());
     }
 
+    /**
+     * A valid cron expression, {@code null}, or a 400 the operator can read.
+     *
+     * <p>The same wording as the repository route's: the two dialogs put the server's message
+     * straight on screen, and an operator who learned the expected format on one screen should
+     * not have to learn it again on the other.
+     */
     private static String validatedCron(String expression) {
         String trimmed = trim(expression);
         if (trimmed.isEmpty()) {
             return null;
         }
         if (!CronExpressions.isValid(trimmed)) {
-            throw new IllegalArgumentException("Unusable cron expression: \"" + trimmed + "\".");
+            throw new IllegalArgumentException(
+                    "Unusable cron expression: \"" + trimmed + "\". Expected five fields, for example "
+                            + "\"0 2 * * *\" (every day at 02:00) or \"0 */6 * * *\" (every six hours).");
         }
         return trimmed;
     }

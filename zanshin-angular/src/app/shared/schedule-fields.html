@@ -1,0 +1,46 @@
+<div class="flex flex-col gap-2">
+    <label [for]="idPrefix() + '-interval'" class="font-medium">
+        Rescan every <span class="text-muted-color font-normal">(minutes, optional)</span>
+    </label>
+    <p-inputnumber [inputId]="idPrefix() + '-interval'" [min]="0" [ngModel]="interval()"
+                   (ngModelChange)="interval.set($event)" suffix=" min" styleClass="w-full" />
+    <small class="text-muted-color">
+        Counted from the end of the last scheduled round, so it drifts: use a cron expression when
+        the hour matters.
+    </small>
+</div>
+
+<div class="flex flex-col gap-2">
+    <label [for]="idPrefix() + '-cron'" class="font-medium">
+        Cron expression <span class="text-muted-color font-normal">(optional)</span>
+    </label>
+    <input pInputText [id]="idPrefix() + '-cron'" [ngModel]="cron()" (ngModelChange)="cron.set($event)"
+           placeholder="0 2 * * *" />
+    <small class="text-muted-color">
+        Five fields — minute, hour, day of month, month, day of week. <span class="font-mono">0 2 * * *</span>
+        is every day at 02:00, <span class="font-mono">0 */6 * * *</span> every six hours. The server
+        refuses an expression it cannot read, so a mistake here is reported rather than saved.
+    </small>
+</div>
+
+@if (cronWins()) {
+    <!--
+        Shown rather than resolved by clearing the interval for them: the interval is kept on the
+        row, and clearing the expression later must return the target to it. Silently deleting a
+        value the operator typed is worse than telling them it is dormant.
+    -->
+    <p-message severity="info" [closable]="false">
+        Both are set, so <strong>the cron expression is what runs</strong>. The interval stays on the
+        target and takes over again if the expression is cleared.
+    </p-message>
+}
+@if (manualOnly()) {
+    <!--
+        The misunderstanding this prevents: two empty fields read as "the default schedule", and a
+        target nobody rescans looks monitored right up to the audit.
+    -->
+    <p-message severity="warn" [closable]="false">
+        Both are empty: this target is <strong>scanned only when somebody asks</strong>. There is no
+        default schedule.
+    </p-message>
+}

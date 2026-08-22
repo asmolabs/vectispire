@@ -9,12 +9,13 @@ import { InputIconModule } from '@openng/optimus-ui/inputicon';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
+import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '@/app/core/api.service';
-import { Issue, IssueFilters } from '@/app/core/api.models';
+import { Issue, TriageRequest } from '@/app/core/api.models';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 const VEX_JUSTIFICATIONS = [
@@ -37,11 +38,15 @@ const VEX_JUSTIFICATIONS = [
  * exported VEX document would be invalid. The field therefore appears only for that status, and
  * the button stays disabled while it is empty: better to prevent the submission than to explain
  * a refusal afterwards.
+ *
+ * **The same dialog decides one row or the selection.** Narrow to a CVE with the search, tick the
+ * page, decide once — the filters are the grouping, which is why there is no "group by CVE" here
+ * and no second route on the server either.
  */
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule],
+    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule, ToggleSwitchModule],
     templateUrl: './issues.html'
 })
 export class Issues {
@@ -58,6 +63,28 @@ export class Issues {
     severity: string | null = null;
     type: string | null = null;
     search = '';
+
+    /**
+     * The triage decision to narrow to.
+     *
+     * Named `triageFilter` and not `triageStatus` because the dialog below already owns that
+     * name: one field for the row being edited and the list being filtered would mean opening
+     * the dialog silently re-filters the list behind it.
+     */
+    triageFilter: string | null = null;
+
+    /**
+     * The three switches, held as ordinary fields and **read straight from the URL** on arrival.
+     *
+     * That is the whole point of them. The dashboard has linked here with `is_kev` and `overdue`
+     * since the first version, and this screen kept them in a private object the controls could
+     * not see: the list was narrowed and every filter on screen read "all", so the short list
+     * looked like the whole backlog having lost most of its rows. A control the link cannot
+     * light up contradicts the URL that opened it.
+     */
+    onlyDirect = false;
+    onlyKev = false;
+    overdue = false;
 
     /**
      * The selected target, as {@code repository:12} or {@code container:3}.
@@ -102,17 +129,34 @@ export class Issues {
     readonly triageError = signal<string | null>(null);
     private triaged: Issue | null = null;
 
+    /**
+     * The rows a bulk decision would apply to.
+     *
+     * Held here and not left to the table, because it has to be **cleared on every reload**: a
+     * selection that outlives the rows it was made on is a decision taken about issues the user
+     * is no longer looking at — change a filter, keep four ticks, dismiss four strangers.
+     */
+    readonly selected = signal<Issue[]>([]);
+
+    /**
+     * Whether the dialog is deciding on the selection or on one row.
+     *
+     * The same dialog for both on purpose: two dialogs would be two places where the VEX rule
+     * about a required justification lives, and the second one to be written is the one that
+     * forgets it.
+     */
+    private bulk = false;
+
     readonly justifications = VEX_JUSTIFICATIONS;
+
+    /** One list for the filter, the dialog and the row's label: three copies of the triage
+     *  vocabulary would drift, and the first symptom is a filter offering a status no row shows. */
     readonly triageOptions = [
         { label: 'Under review', value: 'under_review' },
         { label: 'Affected', value: 'affected' },
         { label: 'Not affected', value: 'not_affected' },
         { label: 'Fixed', value: 'fixed' }
     ];
-
-    /** The target filters come from the URL — that is what makes the Security screen's links
-     *  work, which the Reflex version produced without ever reading them. */
-    private readonly targetFilters: IssueFilters = {};
 
     constructor() {
         const params = this.route.snapshot.queryParamMap;
@@ -130,10 +174,14 @@ export class Issues {
         // failed — the page loaded, full of issues, simply not the ones that were asked for.
         if (params.get('severity')) this.severity = params.get('severity');
         if (params.get('state')) this.state = params.get('state')!;
-        if (params.get('is_kev') === 'true') this.targetFilters.is_kev = true;
+        // Into the controls, not into a hidden object: the filter has to apply *and* show as
+        // applied, or the screen disagrees with the link that opened it.
+        if (params.get('is_kev') === 'true') this.onlyKev = true;
         // The same arrangement for the deadline figure: the dashboard links here, and a link
         // this screen does not read is a filter that silently does nothing.
-        if (params.get('overdue') === 'true') this.targetFilters.overdue = true;
+        if (params.get('overdue') === 'true') this.overdue = true;
+        if (params.get('only_direct') === 'true') this.onlyDirect = true;
+        if (params.get('triage_status')) this.triageFilter = params.get('triage_status');
 
         this.loadTargets();
         this.reload(0);
@@ -165,16 +213,26 @@ export class Issues {
 
     reload(offset: number): void {
         this.loading.set(true);
+        // Dropped before the request, not after it: between the two the screen would offer
+        // "triage selected (4)" over rows that are on their way out, and a bulk decision taken in
+        // that window would land on whatever was ticked under the previous filter.
+        this.selected.set([]);
         this.offset.set(Math.max(0, offset));
         const [kind, id] = this.target?.split(':') ?? [];
         this.api
             .issues({
-                ...this.targetFilters,
                 repository_id: kind === 'repository' ? Number(id) : undefined,
                 container_id: kind === 'container' ? Number(id) : undefined,
                 state: this.state,
                 severity: this.severity ?? undefined,
                 type: this.type ?? undefined,
+                triage_status: this.triageFilter ?? undefined,
+                // Omitted rather than sent as `false`: the server treats these three as "act on
+                // true alone", so `only_direct=false` is a parameter that says nothing while
+                // making every request URL look like it carries a filter.
+                only_direct: this.onlyDirect || undefined,
+                is_kev: this.onlyKev || undefined,
+                overdue: this.overdue || undefined,
                 search: this.search || undefined,
                 limit: this.limit,
                 offset: this.offset()
@@ -260,6 +318,7 @@ export class Issues {
 
     openTriage(issue: Issue): void {
         this.triaged = issue;
+        this.bulk = false;
         this.triageStatus = issue.triageStatus;
         this.triageJustification = issue.triageJustification;
         this.triageComment = issue.triageComment ?? '';
@@ -268,20 +327,49 @@ export class Issues {
         this.triageOpen = true;
     }
 
+    /**
+     * The same decision on everything ticked.
+     *
+     * One CVE appears in forty repositories, and "not reachable in our configuration" is one
+     * judgement about one context, not forty. Deciding it forty times is how a backlog stops
+     * being triaged at all.
+     *
+     * The fields open on the defaults rather than on any row's current decision: a batch has no
+     * single "current" status, and pre-filling from the first tick would present one row's
+     * dismissal as the state of all of them.
+     */
+    openBulkTriage(): void {
+        if (this.selected().length === 0) return;
+        this.triaged = null;
+        this.bulk = true;
+        this.triageStatus = 'under_review';
+        this.triageJustification = null;
+        this.triageComment = '';
+        this.triageExpiresInDays = null;
+        this.triageError.set(null);
+        this.triageOpen = true;
+    }
+
+    /** The dialog says how wide the decision is, because "Save" looks identical for one row and
+     *  for forty — and one of the two is not undoable row by row. */
+    triageHeader(): string {
+        return this.bulk ? `Triage ${this.selected().length} selected issue(s)` : 'Triage this issue';
+    }
+
     /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
         return this.triageStatus !== 'not_affected' || !!this.triageJustification;
     }
 
     submitTriage(): void {
-        if (!this.triaged || !this.canSubmitTriage()) return;
+        if (!this.canSubmitTriage()) return;
+        if (this.bulk) {
+            this.submitBulkTriage();
+            return;
+        }
+        if (!this.triaged) return;
         this.api
-            .triage(this.triaged.id, {
-                status: this.triageStatus,
-                justification: this.triageJustification,
-                comment: this.triageComment || null,
-                expires_in_days: this.triageExpiresInDays || null
-            })
+            .triage(this.triaged.id, this.triageBody())
             .subscribe({
                 next: () => {
                     this.triageOpen = false;
@@ -289,5 +377,45 @@ export class Issues {
                 },
                 error: (response) => this.triageError.set(messageOf(response, 'The triage was refused.'))
             });
+    }
+
+    private triageBody(): TriageRequest {
+        return {
+            status: this.triageStatus,
+            justification: this.triageJustification,
+            comment: this.triageComment || null,
+            expires_in_days: this.triageExpiresInDays || null
+        };
+    }
+
+    /**
+     * The batch, and the one failure whose wording matters.
+     *
+     * The server checks every id before it writes the first, so a refusal means **nothing was
+     * triaged**. Its own 404 sentence is "Issue not found." — true, and read next to a list of
+     * forty ticks it invites the reader to assume the other thirty-nine went through. The count
+     * is stated here for that reason: a message that leaves a partial write plausible is worse
+     * than no message, because the reader stops rather than retrying.
+     *
+     * `reload` clears the selection on its way out, which is also what keeps a successful batch
+     * from staying ticked over rows whose triage column has just changed.
+     */
+    private submitBulkTriage(): void {
+        const ids = this.selected().map((issue) => issue.id);
+        if (ids.length === 0) return;
+        this.api.triageMany({ ids, ...this.triageBody() }).subscribe({
+            next: () => {
+                this.triageOpen = false;
+                this.reload(this.offset());
+            },
+            error: (response) => {
+                const refused = `None of the ${ids.length} selected issues were triaged: the batch is refused as a whole.`;
+                this.triageError.set(
+                    (response as { status?: number } | null)?.status === 404
+                        ? `${refused} One of them is no longer visible to you — reload the list and select again.`
+                        : `${refused} ${messageOf(response, 'The triage was refused.')}`
+                );
+            }
+        });
     }
 }

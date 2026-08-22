@@ -38,6 +38,7 @@ public class MaintenanceJobs {
     private final InventoryBackfill backfill;
     private final SchedulerService scheduler;
     private final IssueTriageService triage;
+    private final PostureDigestService digest;
 
     /**
      * One turn at a time, per job.
@@ -58,7 +59,8 @@ public class MaintenanceJobs {
             SessionCleanupService sessions,
             InventoryBackfill backfill,
             SchedulerService scheduler,
-            IssueTriageService triage) {
+            IssueTriageService triage,
+            PostureDigestService digest) {
         this.retention = retention;
         this.outbox = outbox;
         this.tickets = tickets;
@@ -66,6 +68,7 @@ public class MaintenanceJobs {
         this.backfill = backfill;
         this.scheduler = scheduler;
         this.triage = triage;
+        this.digest = digest;
     }
 
     /**
@@ -132,6 +135,16 @@ public class MaintenanceJobs {
             if (!expired.isEmpty()) {
                 log.info("Maintenance: {} triage decision(s) returned under review.", expired.size());
             }
+
+            // **Called from here, and asserted at this level.** A weekly report needs no queue —
+            // it is derived from the database, so a failed send is simply recomputed next turn —
+            // which means this call is the only thing that makes the feature exist. That is
+            // exactly the shape `expireStale` had when its javadoc claimed this tick ran it and
+            // nothing did.
+            //
+            // Hourly for a weekly job: the digest decides for itself whether one has gone out
+            // since Monday, so the tick only has to be more frequent than the period.
+            digest.runOnce();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
             if (cleaned.sessions() > 0 || cleaned.attempts() > 0) {

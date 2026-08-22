@@ -69,6 +69,10 @@ the same commit that violates it; a missing dependency cannot.
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
 | A lapsed acceptance really stops dismissing, because the tick runs it | `MaintenanceJobsTest` |
+| The five-field cron form the screens teach is the one the parser accepts | `CronExpressionsTest`, `SchedulerServiceTest` |
+| A bulk triage is all-or-nothing, checks visibility on every id, and records each transition | `BulkTriageRoutesTest` |
+| The backlog series is narrowed by visibility, like every other read | `TrendsRoutesTest`, `BacklogTrendTest` |
+| The weekly report goes out once a week, and a failed send is retried rather than recorded | `PostureDigestServiceTest`, `PostureDigestDatabaseTest`, `MaintenanceJobsTest` |
 | A team's findings are announced in its channel, not in everybody's | `TeamNotificationRoutingTest` |
 | A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
@@ -200,6 +204,16 @@ is populated, so an empty one now means a package was renamed or deleted, and th
 quiet is exactly how it would go unnoticed.
 
 ### Defects fixed rather than reproduced
+
+**The cron format nothing accepted.** Both controllers' 400 said `Expected five fields, for example
+"0 2 * * *"`, the schedule form on screen said the same — and the parser underneath was Spring's,
+which requires **six**, seconds first. The example in the error message was itself rejected, so an
+operator following the instructions could not save a schedule. It hid twice over: the fields were
+not editable from the interface at all, and an unusable expression becomes `CronSchedule.NEVER`
+rather than an error, so the target simply never ran — indistinguishable from one nobody had
+scheduled. `SchedulerServiceTest.cronTakesPrecedence` passed *because* of the bug: its expression
+parsed to NEVER, so the precedence it claimed to check was never exercised.
+
 
 Each of these was found by reading closely or by running the thing, and each would have been
 easy to carry forward unnoticed. The reasoning lives in the code; this is the index.

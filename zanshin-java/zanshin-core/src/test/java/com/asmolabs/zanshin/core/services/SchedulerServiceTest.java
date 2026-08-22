@@ -165,12 +165,32 @@ class SchedulerServiceTest {
     @DisplayName("a cron expression wins over the interval")
     void cronTakesPrecedence() {
         RepositoryEntity daily = repository(1, NOW.minusSeconds(30));
-        // The interval says "due"; the expression says "not until tomorrow at two". The
-        // expression is what the operator wrote down, so it decides.
-        daily.setScanCron("0 2 * * *");
+        // A one-minute interval last scheduled thirty seconds ago says "due". The expression says
+        // "not before three", and it is what the operator wrote down, so it decides.
+        //
+        // **This assertion used to prove nothing.** It read "0 2 * * *" against a parser that
+        // required six fields, so the expression became `CronSchedule.NEVER` — never due, for the
+        // wrong reason, and the precedence it claims to check was never exercised. Now that the
+        // five-field form parses, the hour has to be one the window does not contain: due-ness is
+        // measured from the last scheduled scan, not from now, so a daily 02:00 expression *is*
+        // due at 02:00 when the last run was 01:59:30.
+        daily.setScanCron("0 3 * * *");
         when(repositories.findAll()).thenReturn(List.of(daily));
 
         assertThat(scheduler.runOnce(NOW)).isZero();
+    }
+
+    @Test
+    @DisplayName("a cron expression that has come round does dispatch")
+    void cronCanBeDue() {
+        RepositoryEntity daily = repository(1, NOW.minusSeconds(30));
+        // The other half, and the one that catches a parser silently answering NEVER: an
+        // expression whose moment falls inside the window has to fire. Without this, "the target
+        // was never scanned" and "the schedule works" look identical.
+        daily.setScanCron("0 2 * * *");
+        when(repositories.findAll()).thenReturn(List.of(daily));
+
+        assertThat(scheduler.runOnce(NOW)).isEqualTo(1);
     }
 
     @Test

@@ -105,6 +105,16 @@ public enum Setting {
                     + "settings screen, and its password has no business in a table this application can export.",
             ""),
 
+    DIGEST_ENABLED("notification_digest_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Send a weekly posture report",
+            "Every other notification fires when something **appears**, which is right for an alert and wrong "
+                    + "for a report: on a quiet week nobody is told anything — and a quiet week is also the week a "
+                    + "target has silently not been scanned for twenty days. This says how much there is, which way "
+                    + "it is moving, and what was never examined, once a week, to the global webhook and the "
+                    + "e-mail recipients. Off by default: switching it on for an existing deployment would be a "
+                    + "silent change to what its channels receive.",
+            "false"),
+
     NOTIFICATION_MIN_SEVERITY("notification_min_severity", SettingType.SEVERITY, Section.NOTIFICATIONS,
             "Minimum severity notified",
             "Nothing new above this threshold, no message. One notification per scan teaches people to filter "

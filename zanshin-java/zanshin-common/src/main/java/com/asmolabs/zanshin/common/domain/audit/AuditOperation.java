@@ -83,7 +83,18 @@ public enum AuditOperation {
     RULE_SET_DEACTIVATED,
     AGENT_CREATED,
     AGENT_UPDATED,
-    AGENT_DELETED;
+    AGENT_DELETED,
+
+    /**
+     * A weekly posture report left the deployment.
+     *
+     * <p><b>This entry is also the bookkeeping.</b> The digest job asks "has one gone out since
+     * Monday" by looking for this operation, rather than keeping a last-sent timestamp of its own:
+     * the audit log is append-only and never purged, which is a stronger ledger than a settings row
+     * an operator can edit — and it means the answer to "why did two arrive" is visible to whoever
+     * asks, instead of living in a column no screen shows.
+     */
+    POSTURE_DIGEST_SENT;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {
