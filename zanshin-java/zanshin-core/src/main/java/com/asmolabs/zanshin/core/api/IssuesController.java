@@ -2,7 +2,9 @@ package com.asmolabs.zanshin.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
+import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
 import com.asmolabs.zanshin.common.domain.issues.Triage;
@@ -99,6 +101,27 @@ public class IssuesController {
     public record Page(List<BacklogEntry> items, long total, int limit, int offset) {}
 
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
+
+    /**
+     * @param ids the issues to decide on. Its own record rather than {@code TriageRequest} plus a
+     *     list parameter, so that the single-issue route cannot acquire an optional {@code ids}
+     *     field nobody notices is being ignored
+     */
+    public record BulkTriageRequest(
+            List<Long> ids,
+            String status,
+            String justification,
+            String comment,
+            @JsonProperty("expires_in_days") Integer expiresInDays) {}
+
+    /**
+     * The same ceiling as the list route returns.
+     *
+     * <p>Deliberately equal: a screen that can show 500 rows can decide on 500 rows, and a limit
+     * below what the list hands back would make "select all" an action the interface offers and
+     * the API refuses.
+     */
+    private static final int MAX_BULK_TRIAGE = 500;
 
     @GetMapping
     public Page list(
@@ -296,5 +319,67 @@ public class IssuesController {
                 request.getHeader("User-Agent")));
 
         return issue;
+    }
+
+    /**
+     * The same decision on many issues.
+     *
+     * <p>One CVE across forty repositories is one judgement about one context, and deciding it
+     * forty times is how a backlog stops being triaged at all. Composes with the filters rather
+     * than adding a second concept: narrow the list to an identifier, select what it returned,
+     * decide once. That is also why there is no "triage by CVE" route — it would be a second way
+     * of choosing rows, and it would not honour the visibility the list already applies.
+     *
+     * <p><b>Every identifier is checked before the first one is written.</b> Checking as it goes
+     * would let a batch containing one invisible issue triage the ones before it and then answer
+     * 404 — a partial write reported as a failure, which is the worst of the two.
+     */
+    @PostMapping("/triage")
+    public List<IssueEntity> triageMany(
+            @RequestBody BulkTriageRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        List<Long> ids = body == null || body.ids() == null ? List.of() : body.ids();
+        if (ids.isEmpty()) {
+            throw new InvalidTriageException("Select at least one issue to triage.");
+        }
+        // **Refused, not truncated.** Silently triaging the first 500 of 900 would report success
+        // for a decision that did not reach 400 issues, and the caller has no way to see which.
+        // The cap matches the list route's, so anything the screen can show, it can decide on.
+        if (ids.size() > MAX_BULK_TRIAGE) {
+            throw new InvalidTriageException(
+                    "Too many issues at once: " + ids.size() + ", the limit is " + MAX_BULK_TRIAGE + ".");
+        }
+
+        String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
+        Visibility visible = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        for (Long id : ids) {
+            Visibilities.requireVisible(issues.findById(id).orElse(null), visible);
+        }
+
+        List<IssueEntity> triaged = triage.triageAll(ids, new Triage.Request(
+                TriageStatus.fromWireName(body.status()).orElse(null),
+                actor,
+                VexJustification.fromWireName(body.justification()).orElse(null),
+                body.comment(),
+                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())));
+
+        // **One entry for the action, not one per issue.** The audit log is never purged, and a
+        // single dismissal of six hundred issues would bury every other entry around it. What is
+        // lost is not traceability: each issue carries its own recorded transition in the triage
+        // history, which is the document a compliance reader is handed. This entry says a bulk
+        // decision happened, by whom, and how wide it was — which is what the audit log is for.
+        audit.record(new AuditLogService.Record(
+                AuditOperation.ISSUE_TRIAGED,
+                ids.size() + " issues",
+                "Bulk triage \"" + body.status() + "\" on " + ids.size() + " issues"
+                        + (body.justification() == null ? "" : " (" + body.justification() + ")")
+                        + " — per-issue transitions are in each issue's triage history",
+                actor,
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return triaged;
     }
 }

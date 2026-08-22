@@ -8,15 +8,79 @@
         <p-select [(ngModel)]="type" [options]="types" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
         <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
                   placeholder="Target" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
+        <p-select [(ngModel)]="triageFilter" [options]="triageOptions" optionLabel="label" optionValue="value" (onChange)="reload(0)"
+                  placeholder="Triage" [showClear]="true" />
         <p-iconfield>
             <p-inputicon class="pi pi-search" />
             <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" placeholder="Identifier, package, file" />
         </p-iconfield>
     </div>
 
-    <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()">
+    <!--
+        Written as `[ngModel]` plus one `(ngModelChange)` rather than the banana-in-a-box with a
+        second change handler beside it: two listeners for one event on one element is a reload
+        whose ordering against the assignment is left to attribute order.
+
+        Switches rather than three more selects: each is one-way. "Not only exploited" is the
+        unfiltered backlog, so a clearable select would offer a "no" that means the same as its
+        own empty state — and the server acts on `true` alone, which is the same shape.
+    -->
+    <div class="flex flex-wrap gap-x-6 gap-y-3 mb-4">
+        <div class="flex items-center gap-2">
+            <p-toggleswitch inputId="filter-kev" [ngModel]="onlyKev"
+                            (ngModelChange)="onlyKev = $event; reload(0)" />
+            <label for="filter-kev" class="m-0">Actively exploited (KEV)</label>
+        </div>
+        <div class="flex items-center gap-2">
+            <p-toggleswitch inputId="filter-overdue" [ngModel]="overdue"
+                            (ngModelChange)="overdue = $event; reload(0)" />
+            <!--
+                "Past its deadline" and not "late": the server also drops what triage settled, so
+                this is not simply the age of the row. A label promising the wider set would make
+                the count on the dashboard look wrong.
+            -->
+            <label for="filter-overdue" class="m-0">Past its deadline</label>
+        </div>
+        <div class="flex items-center gap-2">
+            <p-toggleswitch inputId="filter-direct" [ngModel]="onlyDirect"
+                            (ngModelChange)="onlyDirect = $event; reload(0)" />
+            <label for="filter-direct" class="m-0">
+                Declared dependencies only
+                <span class="block text-muted-color text-sm">
+                    Hides transitive ones — and, on a target with no dependency graph, everything:
+                    an issue whose nature is unknown is not a direct one.
+                </span>
+            </label>
+        </div>
+    </div>
+
+    <!--
+        The bulk action sits above the table and not in a row menu: it acts on the ticks, and a
+        control whose scope is invisible from where it is pressed is how somebody dismisses more
+        than they meant to. It is absent, not disabled, while nothing is ticked — there is no
+        batch to explain.
+    -->
+    @if (selected().length > 0) {
+        <div class="flex items-center gap-3 mb-3">
+            <p-button [label]="'Triage selected (' + selected().length + ')'" size="small" (onClick)="openBulkTriage()" />
+            <span class="text-muted-color text-sm">One decision, written to every selected issue — or to none of them.</span>
+        </div>
+    }
+
+    <!--
+        `dataKey` is what makes a tick follow its row rather than its position: without it the
+        table matches selected rows by identity, and a reload of the same page would leave the
+        header checkbox lit over objects that no longer exist.
+    -->
+    <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()"
+             dataKey="id" selectionMode="multiple" [selection]="selected()" (selectionChange)="selected.set($event)">
         <ng-template #header>
             <tr>
+                <th style="width: 3rem">
+                    <!-- Selects the rows on screen, which is the page the server returned:
+                         a "select all 228" would tick rows nobody has read. -->
+                    <p-tableHeaderCheckbox ariaLabel="Select every issue on this page" />
+                </th>
                 <th>Issue</th>
                 <th>Type</th>
                 <th>Target</th>
@@ -30,6 +94,9 @@
         </ng-template>
         <ng-template #body let-issue>
             <tr>
+                <td>
+                    <p-tableCheckbox [value]="issue" [ariaLabel]="'Select ' + (issue.identifier ?? 'this issue')" />
+                </td>
                 <td>
                     <!-- The identifier is the handle: it is what somebody reads the row
                           for, so it is what opens the detail. -->
@@ -93,7 +160,7 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="9" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
         </ng-template>
     </p-table>
 
@@ -106,7 +173,7 @@
     </div>
 </div>
 
-<p-dialog header="Triage this issue" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="triageHeader()" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div>
             <label class="block font-medium mb-2">Decision</label>

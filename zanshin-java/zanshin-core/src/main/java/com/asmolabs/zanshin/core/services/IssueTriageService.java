@@ -52,6 +52,54 @@ public class IssueTriageService {
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new InvalidTriageException("Issue not found."));
 
+        return issues.save(apply(issue, decision));
+    }
+
+    /**
+     * The same decision on several issues, or on none.
+     *
+     * <p><b>Why this exists.</b> One CVE appears in forty repositories, and "not reachable in our
+     * configuration" is one judgement about one context — not forty. Deciding it forty times is
+     * how a backlog stops being triaged at all, which makes the whole tracking pointless: an
+     * untriaged backlog is a list, and a list is what Zanshin exists not to be.
+     *
+     * <p><b>All or nothing, in one transaction.</b> A partial success would leave the caller
+     * holding a decision that applied to an unknown subset — and the obvious recovery, sending it
+     * again, would re-triage what already succeeded and move every {@code triagedAt} it touched.
+     * So one bad identifier refuses the batch and names itself.
+     *
+     * <p><b>Each issue still gets its own history event.</b> That is the whole point of doing this
+     * here rather than with an {@code update … where id in (…)}: the triage history is what a
+     * compliance reader is handed, and a bulk decision that left forty issues changed with no
+     * recorded transition would be indistinguishable from forty rows somebody edited by hand.
+     *
+     * @param issueIds in the caller's order. Duplicates are not de-duplicated — a caller sending
+     *     the same id twice has a bug this method cannot fix by hiding it, and the second write
+     *     would produce a second history event from a state to itself
+     */
+    @Transactional
+    public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request) {
+        Triage.Decision decision = Triage.decide(request, clock.instant());
+
+        List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
+        for (Long issueId : issueIds) {
+            IssueEntity issue = issues.findById(issueId)
+                    // Names the identifier, because "Issue not found" about a batch of forty tells
+                    // the person triaging nothing they can act on.
+                    .orElseThrow(() -> new InvalidTriageException("Issue " + issueId + " not found."));
+            triaged.add(apply(issue, decision));
+        }
+        return issues.saveAll(triaged);
+    }
+
+    /**
+     * Writes one decision onto one issue, history included.
+     *
+     * <p>Shared by the single and the bulk route so that a decision cannot mean two things
+     * depending on how many issues it was applied to — the transition recorded, the expiry, the
+     * actor. Saving is the caller's, so a batch is one flush rather than N.
+     */
+    private IssueEntity apply(IssueEntity issue, Triage.Decision decision) {
         // **Read before the write, or the transition has no left half.** The whole value of the
         // history is "it was under review, it became accepted"; capturing the previous status
         // after the assignment would record a decision from a state to itself.
@@ -78,7 +126,7 @@ public class IssueTriageService {
                 decision.triagedAt(),
                 decision.expiresAt().orElse(null)));
 
-        return issues.save(issue);
+        return issue;
     }
 
     /**
