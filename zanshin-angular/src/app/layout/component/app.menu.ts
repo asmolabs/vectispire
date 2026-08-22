@@ -72,6 +72,7 @@ export class AppMenu {
                     { label: 'Users', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
                     { label: 'Teams', icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
                     { label: 'Audit log', icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
+                    { label: 'Gate policies', icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
                     { label: 'Semgrep rules', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
                     { label: 'Settings', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
                 ]

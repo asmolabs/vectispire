@@ -30,6 +30,7 @@ export const appRoutes: Routes = [
             { path: 'audit-log', loadComponent: () => import('./app/pages/audit-log/audit-log').then((m) => m.AuditLog) },
             { path: 'settings', loadComponent: () => import('./app/pages/settings/settings').then((m) => m.Settings) },
             { path: 'agents', loadComponent: () => import('./app/pages/agents/agents').then((m) => m.Agents) },
+            { path: 'gate-policies', loadComponent: () => import('./app/pages/gate-policies/gate-policies').then((m) => m.GatePolicies) },
             { path: 'rule-sets', loadComponent: () => import('./app/pages/rule-sets/rule-sets').then((m) => m.RuleSets) },
             { path: 'scans/:id', loadComponent: () => import('./app/pages/scans/scan-detail').then((m) => m.ScanDetailPage) },
             { path: 'security', loadComponent: () => import('./app/pages/security/security').then((m) => m.Security) },

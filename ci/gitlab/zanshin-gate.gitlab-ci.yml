@@ -1,0 +1,41 @@
+# Zanshin's gate as a GitLab job.
+#
+#   include:
+#     - remote: 'https://.../ci/gitlab/zanshin-gate.gitlab-ci.yml'
+#
+#   zanshin-gate:
+#     extends: .zanshin-gate
+#     variables:
+#       ZANSHIN_REPOSITORY_ID: "12"
+#
+# `ZANSHIN_URL` and `ZANSHIN_TOKEN` belong in the project's CI/CD variables, and the token
+# **masked**: it is a bearer credential for the whole control plane, and a job log is read by
+# everybody who can see the pipeline.
+
+.zanshin-gate:
+  stage: test
+  image: alpine:3.22
+  variables:
+    # Overridable per project. Empty means "not this kind of target".
+    ZANSHIN_REPOSITORY_ID: ""
+    ZANSHIN_CONTAINER_ID: ""
+    ZANSHIN_FAIL_ON_SEVERITY: ""
+    # `fail` blocks the pipeline when the gate cannot be asked at all. `warn` lets the build
+    # through ungated — availability over assurance, which is a decision somebody should make on
+    # purpose rather than inherit from a template.
+    ZANSHIN_ON_ERROR: "fail"
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      set -eu
+      target=""
+      if [ -n "$ZANSHIN_REPOSITORY_ID" ]; then target="--repository $ZANSHIN_REPOSITORY_ID"; fi
+      if [ -n "$ZANSHIN_CONTAINER_ID" ]; then target="--container $ZANSHIN_CONTAINER_ID"; fi
+      severity=""
+      if [ -n "$ZANSHIN_FAIL_ON_SEVERITY" ]; then severity="--fail-on-severity $ZANSHIN_FAIL_ON_SEVERITY"; fi
+      sh ci/zanshin-gate.sh $target $severity --on-error "$ZANSHIN_ON_ERROR"
+  # The gate reports a verdict about a backlog, not about this commit's diff: it is worth a
+  # failed pipeline and it is not worth blocking a hotfix at three in the morning. Teams that
+  # want the second behaviour set `allow_failure: false` in their own job.
+  allow_failure: true

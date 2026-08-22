@@ -2,6 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+    GatePolicies,
+    GatePolicy,
+    GatePolicyRequest,
     CataloguePreview,
     AgentSummary,
     ApiKeySummary,
@@ -96,6 +99,30 @@ export class ApiService {
 
     securityOverview(): Observable<SecurityOverview> {
         return this.http.get<SecurityOverview>('/api/v1/security/overview');
+    }
+
+    gatePolicies(): Observable<GatePolicies> {
+        return this.http.get<GatePolicies>('/api/v1/gate/policies');
+    }
+
+    /**
+     * Stores the global policy, or one target's override.
+     *
+     * `PUT` rather than `PATCH` because the server replaces the policy whole: sending four
+     * flags out of five would leave the fifth to a default, and "leave this alone" and "set it
+     * to false" differ by a build that fails.
+     */
+    saveGatePolicy(
+        scope: { kind: 'global' | 'repository' | 'container'; id: number | null },
+        policy: GatePolicyRequest
+    ): Observable<GatePolicy> {
+        const path = scope.kind === 'global' ? '/api/v1/gate/policies/global' : `/api/v1/gate/policies/${scope.kind}/${scope.id}`;
+        return this.http.put<GatePolicy>(path, policy);
+    }
+
+    /** Removes an override, so the target inherits the global policy again. */
+    removeGatePolicy(kind: 'repository' | 'container', id: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/gate/policies/${kind}/${id}`);
     }
 
     qualityOverview(): Observable<QualityOverview> {

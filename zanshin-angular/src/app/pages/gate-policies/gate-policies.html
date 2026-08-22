@@ -1,0 +1,211 @@
+<div class="card">
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+            <h5 class="mb-1">Gate policies</h5>
+            <p class="text-surface-500 dark:text-surface-400 m-0">
+                What fails a build. A pipeline asks <code>POST /api/v1/gate</code> for a verdict; these are the rules it
+                is judged against. A target follows the global policy unless it has one of its own.
+            </p>
+        </div>
+        <p-button label="Add an override" icon="pi pi-plus" severity="secondary" (onClick)="addOverride()" />
+    </div>
+
+    @if (error()) {
+        <p-message severity="error" styleClass="w-full mb-3">{{ error() }}</p-message>
+    }
+
+    <!-- The global policy, and the built-in beside it. Showing both is the only place the
+         difference between "not set" and "set to the same thing" is visible. -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <p-card>
+            <ng-template #title>
+                <div class="flex items-center justify-between gap-2">
+                    <span>Global policy</span>
+                    @if (globalPolicy()) {
+                        <p-tag severity="info" [value]="'version ' + globalPolicy()!.version" />
+                    } @else {
+                        <p-tag severity="warn" value="not set" />
+                    }
+                </div>
+            </ng-template>
+
+            @if (globalPolicy(); as policy) {
+                <ul class="list-none p-0 m-0 flex flex-col gap-2">
+                    <li><span class="font-medium">Threshold:</span> {{ describeThreshold(policy.fail_on_severity) }}</li>
+                    <li><span class="font-medium">Actively exploited:</span> {{ policy.fail_on_kev ? 'fails the build' : 'ignored' }}</li>
+                    <li><span class="font-medium">Fixable only:</span> {{ policy.fixable_only ? 'yes' : 'no' }}</li>
+                    <li><span class="font-medium">Triaged findings:</span> {{ policy.include_triaged ? 'counted' : 'not counted' }}</li>
+                    <li><span class="font-medium">Model review:</span> {{ policy.include_ai_review ? 'counted' : 'not counted' }}</li>
+                    @if (policy.note) {
+                        <li class="text-surface-500 dark:text-surface-400">“{{ policy.note }}”</li>
+                    }
+                    <li class="text-surface-500 dark:text-surface-400 text-sm">
+                        Set by {{ policy.created_by ?? 'an administrator' }} on {{ formatDate(policy.created_at) }}
+                    </li>
+                </ul>
+            } @else {
+                <p class="m-0">
+                    Nothing is stored, so the <strong>built-in</strong> policy applies to every target: fail at
+                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong>, and on anything
+                    actively exploited. Triaged findings and model review are excluded.
+                </p>
+            }
+
+            <ng-template #footer>
+                <p-button label="Edit the global policy" icon="pi pi-pencil" (onClick)="editGlobal()" />
+            </ng-template>
+        </p-card>
+
+        <p-card>
+            <ng-template #title>Built-in default</ng-template>
+            <p class="m-0 mb-3 text-surface-500 dark:text-surface-400">
+                What applies where nothing is stored — the code's own choice, kept visible so a stored policy is read
+                as a departure from something rather than as the only rule there is.
+            </p>
+            @if (builtIn(); as fallback) {
+                <ul class="list-none p-0 m-0 flex flex-col gap-2">
+                    <li><span class="font-medium">Threshold:</span> {{ describeThreshold(fallback.fail_on_severity) }}</li>
+                    <li><span class="font-medium">Actively exploited:</span> {{ fallback.fail_on_kev ? 'fails the build' : 'ignored' }}</li>
+                    <li><span class="font-medium">Triaged findings:</span> not counted — an argued exemption is the point of triage</li>
+                    <li><span class="font-medium">Model review:</span> not counted — a hostile repository can steer a local model</li>
+                </ul>
+            }
+        </p-card>
+    </div>
+
+    <h6 class="mb-2">Overrides</h6>
+    <p class="text-surface-500 dark:text-surface-400 mt-0 mb-3">
+        A target listed here is judged by its own rules. Removing an override does not relax anything by itself — the
+        target goes back to following the global policy.
+    </p>
+
+    <p-table [value]="overrides()" [paginator]="overrides().length > 10" [rows]="10" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>Target</th>
+                <th>Threshold</th>
+                <th>Exploited</th>
+                <th>Fixable only</th>
+                <th>Triaged</th>
+                <th>Model review</th>
+                <th>Version</th>
+                <th class="text-right">Actions</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-policy>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ policy.target_name ?? policy.kind + ' #' + policy.target_id }}</div>
+                    @if (policy.note) {
+                        <div class="text-surface-500 dark:text-surface-400 text-sm">“{{ policy.note }}”</div>
+                    }
+                </td>
+                <td>{{ describeThreshold(policy.fail_on_severity) }}</td>
+                <td>{{ policy.fail_on_kev ? 'fails' : '—' }}</td>
+                <td>{{ policy.fixable_only ? 'yes' : '—' }}</td>
+                <td>{{ policy.include_triaged ? 'counted' : '—' }}</td>
+                <td>{{ policy.include_ai_review ? 'counted' : '—' }}</td>
+                <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="editOverride(policy)" />
+                    <p-button icon="pi pi-trash" severity="danger" [text]="true" (onClick)="remove(policy)" />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="8">No target has rules of its own; every one follows the policy above.</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<p-dialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '34rem' }" [header]="'Policy for ' + scopeLabel">
+    <div class="flex flex-col gap-4">
+        @if (error()) {
+            <p-message severity="error" styleClass="w-full">{{ error() }}</p-message>
+        }
+
+        @if (scope.kind !== 'global' && scope.id === null) {
+            <div class="flex flex-col gap-2">
+                <label for="policy-target">Target</label>
+                <p-select
+                    inputId="policy-target"
+                    [options]="candidates()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [(ngModel)]="chosenTarget"
+                    placeholder="Choose a repository or container"
+                    styleClass="w-full"
+                />
+            </div>
+        }
+
+        <div class="flex flex-col gap-2">
+            <label for="policy-severity">Fail the build at</label>
+            <p-select
+                inputId="policy-severity"
+                [options]="severities"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="draft.failOnSeverity"
+                styleClass="w-full"
+            />
+            <small class="text-surface-500 dark:text-surface-400">
+                “No severity rule” is not the same as a low threshold: nothing fails on severity, and only the switches
+                below can fail a build.
+            </small>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-kev" [(ngModel)]="draft.failOnKev" />
+            <label for="policy-kev" class="m-0">
+                Fail on actively exploited findings
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    A medium exploited in the wild outranks a critical that never has been.
+                </span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-fixable" [(ngModel)]="draft.fixableOnly" />
+            <label for="policy-fixable" class="m-0">
+                Only count findings that have a fix
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    Reasonable as a choice, dangerous as a default: it tolerates an exploited vulnerability with no fix.
+                </span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-triaged" [(ngModel)]="draft.includeTriaged" />
+            <label for="policy-triaged" class="m-0">
+                Count findings that were triaged
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    Off by default — an argued exemption is what triage is for.
+                </span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-ai" [(ngModel)]="draft.includeAiReview" />
+            <label for="policy-ai" class="m-0">
+                Count the local model's review
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    Off by default: the model reads the repository's own source, and an invented “critical” would fail
+                    somebody's build.
+                </span>
+            </label>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="policy-note">Why (kept with the version)</label>
+            <input pInputText id="policy-note" name="policy-note" [(ngModel)]="draft.note" class="w-full" />
+        </div>
+    </div>
+
+    <ng-template #footer>
+        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="dialogVisible.set(false)" />
+        <p-button label="Save" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+    </ng-template>
+</p-dialog>

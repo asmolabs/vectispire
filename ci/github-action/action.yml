@@ -1,0 +1,52 @@
+name: Zanshin gate
+description: Fail the build when a target's backlog breaches the policy Zanshin holds for it.
+
+# A composite action rather than a container one: a Docker action would pull an image on every
+# run to execute a curl the runner already has, and would need this repository published
+# somewhere a workflow can pull from. The script travels with the repository that ships it.
+#
+# Copy `ci/` next to your workflow, or check this repository out with `actions/checkout` and
+# point `uses:` at `./ci/github-action`.
+
+inputs:
+  url:
+    description: The Zanshin control plane, e.g. https://zanshin.example.com
+    required: true
+  token:
+    description: An API key (Administration → API keys). Put it in a secret, never in the file.
+    required: true
+  repository-id:
+    description: The monitored repository's id. Give this or container-id, not both.
+    required: false
+  container-id:
+    description: The monitored container's id.
+    required: false
+  fail-on-severity:
+    description: >
+      Tighten the stored threshold for this build only. The server refuses a relaxation and
+      reports it rather than applying it, so this can never lower the bar the security team set.
+    required: false
+  on-error:
+    description: >
+      `fail` (default) or `warn`, for when the gate cannot be asked at all. `warn` lets a build
+      through ungated — which is a decision about availability, not about security.
+    required: false
+    default: fail
+
+runs:
+  using: composite
+  steps:
+    - name: Ask the gate
+      shell: sh
+      env:
+        ZANSHIN_URL: ${{ inputs.url }}
+        ZANSHIN_TOKEN: ${{ inputs.token }}
+      run: |
+        set -eu
+        target=""
+        if [ -n "${{ inputs.repository-id }}" ]; then target="--repository ${{ inputs.repository-id }}"; fi
+        if [ -n "${{ inputs.container-id }}" ]; then target="--container ${{ inputs.container-id }}"; fi
+        severity=""
+        if [ -n "${{ inputs.fail-on-severity }}" ]; then severity="--fail-on-severity ${{ inputs.fail-on-severity }}"; fi
+        # `$GITHUB_ACTION_PATH` is where this action was checked out — the script sits one level up.
+        sh "$GITHUB_ACTION_PATH/../zanshin-gate.sh" $target $severity --on-error "${{ inputs.on-error }}"

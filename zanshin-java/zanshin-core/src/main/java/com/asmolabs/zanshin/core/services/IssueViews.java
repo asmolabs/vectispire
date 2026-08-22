@@ -65,12 +65,33 @@ public final class IssueViews {
     public static StoredPolicy storedPolicy(GatePolicyEntity policy) {
         return new StoredPolicy(
                 new GatePolicy(
-                        Severity.of(policy.getFailOnSeverity()),
+                        thresholdOf(policy.getFailOnSeverity()),
                         policy.getFailOnKev(),
                         policy.getFixableOnly(),
                         policy.getIncludeTriaged(),
                         policy.getIncludeAiReview()),
                 policy.getVersion());
+    }
+
+    /**
+     * <b>An empty column stays {@code null}, and {@code null} is not {@code UNKNOWN}.</b>
+     *
+     * <p>No severity written means the severity rule is off — blocking on KEV alone is a
+     * policy somebody will want. {@code Severity.of} answers {@code UNKNOWN} for a missing
+     * value, and {@code UNKNOWN} ranks below every real severity: {@code isAtLeast(UNKNOWN)}
+     * holds for every issue, so the policy that switched the rule <em>off</em> would have
+     * failed every build instead, and the verdict would have named a threshold nobody set.
+     *
+     * <p>A value that is present and unreadable is the other case and keeps the safe reading:
+     * the rule stays on, at the built-in threshold. A row written by a later version, or by
+     * hand, must not turn into a gate that passes everything.
+     */
+    private static Severity thresholdOf(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return null;
+        }
+        Severity severity = Severity.of(stored);
+        return severity == Severity.UNKNOWN ? GatePolicy.BUILT_IN.failOnSeverity() : severity;
     }
 
     /**

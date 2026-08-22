@@ -763,3 +763,46 @@ export interface SignInMethods {
      *  close the only door that works. */
     password: boolean;
 }
+
+/**
+ * A stored gate policy, in the vocabulary the gate itself uses.
+ *
+ * **snake_case, unlike everything else on this file, and deliberately.** These field names are
+ * the ones a pipeline already sends to `POST /api/v1/gate` to tighten a verdict for one build;
+ * the screen that stores a policy and the build that overrides it are naming the same rules,
+ * and two spellings for one vocabulary is how a documented example stops working.
+ *
+ * `fail_on_severity` is `null` when the severity rule is switched off — which is not the same
+ * as absent, and not the same as a threshold of "unknown": it is the policy that blocks on
+ * actively exploited findings alone.
+ */
+export interface GatePolicy {
+    kind: 'global' | 'repository' | 'container' | 'built_in';
+    target_id: number | null;
+    target_name: string | null;
+    version: number;
+    fail_on_severity: string | null;
+    fail_on_kev: boolean;
+    fixable_only: boolean;
+    include_triaged: boolean;
+    include_ai_review: boolean;
+    note: string | null;
+    created_by: string | null;
+    created_at: string | null;
+}
+
+export interface GatePolicies {
+    policies: GatePolicy[];
+    /** What applies where nothing is stored — shown so an operator sees what they depart from. */
+    built_in: GatePolicy;
+}
+
+/** Every field is sent: the route replaces a policy whole and defaults nothing. */
+export interface GatePolicyRequest {
+    fail_on_severity: string;
+    fail_on_kev: boolean;
+    fixable_only: boolean;
+    include_triaged: boolean;
+    include_ai_review: boolean;
+    note: string | null;
+}

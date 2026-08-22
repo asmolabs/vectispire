@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.gate.GateIssue;
+import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
 import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
 import com.asmolabs.zanshin.common.domain.gate.PolicyGate;
 import com.asmolabs.zanshin.common.domain.gate.PolicyResolution;
@@ -21,6 +22,7 @@ import com.asmolabs.zanshin.core.repositories.GatePolicies;
 import com.asmolabs.zanshin.core.repositories.GitRepositories;
 import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,23 +45,54 @@ public class GateService {
 
     private static final String SCOPE_GLOBAL = "global";
 
+    /** What a global policy stores in a column the schema declares not-null. */
+    private static final long NO_TARGET = 0L;
+
     private final Issues issues;
     private final GatePolicies policies;
     private final GitRepositories repositories;
     private final Containers containers;
     private final Scans scans;
+    private final Clock clock;
 
     public GateService(
             Issues issues,
             GatePolicies policies,
             GitRepositories repositories,
             Containers containers,
-            Scans scans) {
+            Scans scans,
+            Clock clock) {
         this.issues = issues;
         this.policies = policies;
         this.repositories = repositories;
         this.containers = containers;
         this.scans = scans;
+        this.clock = clock;
+    }
+
+    /**
+     * Which policy a write is about: the global one, or one target's override.
+     *
+     * <p>A record rather than {@code ScanTarget} because the global scope is not a target, and
+     * modelling it as one — a repository with no id — is how {@code target_id = 0} ends up
+     * meaning two different things in two places.
+     */
+    public record PolicyScope(String kind, long id) {
+
+        public static PolicyScope global() {
+            return new PolicyScope(SCOPE_GLOBAL, NO_TARGET);
+        }
+
+        public static PolicyScope of(ScanTarget target) {
+            return switch (target) {
+                case ScanTarget.Repository repository -> new PolicyScope("repository", repository.id());
+                case ScanTarget.Container container -> new PolicyScope("container", container.id());
+            };
+        }
+
+        public boolean isGlobal() {
+            return SCOPE_GLOBAL.equals(kind);
+        }
     }
 
     public record Decision(GateVerdict verdict, ResolvedPolicy policy) {}
@@ -115,6 +148,85 @@ public class GateService {
                 Optional.ofNullable(byScope.get(SCOPE_GLOBAL + ":0")),
                 openIssuesByTarget(),
                 latestScans()));
+    }
+
+    /** Every policy somebody has stored, newest version of each scope, for the screen. */
+    @Transactional(readOnly = true)
+    public List<GatePolicyEntity> storedPolicies() {
+        return policies.findByIsActiveTrue();
+    }
+
+    /**
+     * Stores a policy for one scope, as a <b>new version</b>.
+     *
+     * <p>The previous one is superseded rather than updated, because a build that failed in
+     * March failed under rules somebody must still be able to read — the verdict returned to
+     * the pipeline carries the version number, and a row edited in place would make that
+     * number a lie.
+     *
+     * <p><b>The unique index is the authority on races</b>, not this method. Two administrators
+     * saving at the same moment both supersede and both insert; one of the two inserts collides
+     * with "at most one active per scope" and comes back as an error the screen shows. Reading
+     * the highest version and trusting it would silently keep the loser's policy instead.
+     */
+    @Transactional
+    public GatePolicyEntity store(PolicyScope scope, GatePolicy policy, String note, String author) {
+        requireScopeExists(scope);
+
+        policies.supersede(scope.kind(), scope.id());
+
+        GatePolicyEntity stored = new GatePolicyEntity();
+        stored.setTargetKind(scope.kind());
+        stored.setTargetId(scope.id());
+        stored.setVersion(policies.highestVersion(scope.kind(), scope.id()) + 1);
+        stored.setIsActive(true);
+        // Null, not "unknown": an absent threshold is the severity rule switched off, and
+        // `IssueViews.storedPolicy` reads it back that way.
+        stored.setFailOnSeverity(policy.failOnSeverity() == null ? null : policy.failOnSeverity().wireName());
+        stored.setFailOnKev(policy.failOnKev());
+        stored.setFixableOnly(policy.fixableOnly());
+        stored.setIncludeTriaged(policy.includeTriaged());
+        stored.setIncludeAiReview(policy.includeAiReview());
+        stored.setNote(note == null || note.isBlank() ? null : note.trim());
+        stored.setCreatedBy(author);
+        stored.setCreatedAt(clock.instant());
+        return policies.save(stored);
+    }
+
+    /**
+     * Removes one scope's policy, so it inherits again.
+     *
+     * <p>Superseded, never deleted, for the same reason a change is: the row says what a build
+     * was judged against, and removing an override is itself a decision worth being able to
+     * read afterwards.
+     *
+     * @return whether there was one to remove — the caller answers 404 rather than claiming a
+     *     change it did not make
+     */
+    @Transactional
+    public boolean clear(PolicyScope scope) {
+        return policies.supersede(scope.kind(), scope.id()) > 0;
+    }
+
+    /**
+     * A policy for a target that does not exist is a policy nothing will ever read.
+     *
+     * <p>Refused at the door rather than stored: the scope key is built from an id, so a typo
+     * writes a row that resolves for nobody, and the screen would show a rule an operator
+     * believes is protecting a repository.
+     */
+    private void requireScopeExists(PolicyScope scope) {
+        boolean exists = switch (scope.kind()) {
+            case SCOPE_GLOBAL -> true;
+            case "repository" -> repositories.existsById(scope.id());
+            case "container" -> containers.existsById(scope.id());
+            default -> throw new IllegalArgumentException(
+                    "Unknown policy scope: \"" + scope.kind() + "\". Use global, repository or container.");
+        };
+        if (!exists) {
+            throw new java.util.NoSuchElementException(
+                    "No " + scope.kind() + " with id " + scope.id() + ".");
+        }
     }
 
     private Map<ScanTarget, List<GateIssue>> openIssuesByTarget() {

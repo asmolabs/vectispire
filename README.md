@@ -199,24 +199,49 @@ curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/containers
 curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/repositories/1/scan
 curl -H "Authorization: Bearer $ZANSHIN_KEY" $ZANSHIN/api/v1/scans/42
 
-# Should this build fail?
+# Should this build fail? The tightening fields are **flat**, not nested under "policy":
+# an object the request record does not declare is ignored by the mapper, silently, and a
+# pipeline that sent one would run on the stored policy while believing it had raised the bar.
 curl -X POST -H "Authorization: Bearer $ZANSHIN_KEY" -H 'Content-Type: application/json' \
-     -d '{"repository_id": 1, "policy": {"fail_on_severity": "high", "fail_on_kev": true}}' \
+     -d '{"repository_id": 1, "fail_on_severity": "high", "fail_on_kev": true}' \
      $ZANSHIN/api/v1/gate
 ```
 
+Or, without writing the call yourself — [`ci/zanshin-gate.sh`](ci/zanshin-gate.sh), with a
+composite action in [`ci/github-action/`](ci/github-action/action.yml) and a GitLab template in
+[`ci/gitlab/`](ci/gitlab/zanshin-gate.gitlab-ci.yml):
+
+```yaml
+- uses: ./ci/github-action
+  with:
+    url: https://zanshin.example.com
+    token: ${{ secrets.ZANSHIN_TOKEN }}
+    repository-id: 12
+```
+
+It exits **0** when the gate passes, **1** when it fails, and **2** when it could not be asked at
+all — three codes rather than two, because a pipeline that reads "Zanshin was unreachable" as
+"your code is clean" has no gate on the day the control plane is down. `--on-error warn` is the
+other choice, and it says out loud that the build went through ungated.
+
 The gate returns HTTP 200 with `{"passed": false, "violations": [...]}` when the policy is violated — a violated policy is an answer, not a transport error, and pipelines treat the two differently. Issues already triaged as *not affected* or *fixed* don't fail a build unless you ask for `include_triaged`.
 
-The policy the gate applies is **the application's built-in default**, and the verdict says so —
-`describeSource()` returns *"the application's default policy"*. The schema and the resolution
-rules for a stored one are in place (`t_gate_policy`, versioned, scoped globally or per target,
-with an author and a note; a target's policy replaces the global one entirely rather than merging
-with it), and `GateService` reads them on every verdict. **Nothing writes them yet**: no route and
-no screen creates a policy, so the table stays empty and the built-in default always wins. Until
-that is built, the per-project bar is set by the `policy` object in the request — which can only
-tighten what applies, never loosen it.
+The policy the gate applies is **the one an administrator stored**, and the verdict says which:
+`policy.source` is `target`, `global` or the built-in default, with the `version` that was
+applied. Policies are written on **Administration → Gate policies** (`PUT
+/api/v1/gate/policies/global`, `PUT /api/v1/gate/policies/{kind}/{id}`), scoped globally or per
+target, versioned rather than edited — a build that failed in March failed under a row that is
+still there — and every change is audited as `GATE_POLICY_UPDATED`.
 
-A `policy` object in the request body is still accepted and can only make the rules **stricter**. Every field's strict direction is defined per field, since it does not mean "greater": a *lower* severity threshold is stricter; `fail_on_kev` and `include_triaged` are stricter when `true`; `fixable_only` is stricter when **`false`**, because `true` excludes issues with no published fix — which is exactly the case that needs a human decision, not a green build. Anything refused comes back in `policy.ignored_relaxations`, alongside the `source` and `version` actually applied.
+A target with no policy of its own follows the global one, and keeps following it when it
+changes; an override replaces it **entirely** rather than merging with it. Removing an override
+is a `DELETE` on the same path, and it restores inheritance rather than relaxing anything.
+
+`fail_on_severity: "none"` switches the severity rule off — block on actively exploited findings
+alone. It is not the same as a low threshold and not the same as the severity `unknown`, which
+ranks below everything and would fail every build.
+
+The tightening fields in the request body can only make the rules **stricter**. Every field's strict direction is defined per field, since it does not mean "greater": a *lower* severity threshold is stricter; `fail_on_kev` and `include_triaged` are stricter when `true`; `fixable_only` is stricter when **`false`**, because `true` excludes issues with no published fix — which is exactly the case that needs a human decision, not a green build. Anything refused comes back in `policy.ignored_relaxations`, alongside the `source` and `version` actually applied.
 
 Exports, all authenticated like every other route:
 

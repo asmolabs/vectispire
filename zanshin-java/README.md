@@ -53,6 +53,7 @@ the same commit that violates it; a missing dependency cannot.
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
+| A stored gate policy is what the verdict applies, and an empty threshold means the rule is off | `GatePoliciesRoutesTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
