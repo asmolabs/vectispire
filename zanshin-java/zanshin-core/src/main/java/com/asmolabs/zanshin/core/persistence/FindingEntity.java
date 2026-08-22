@@ -90,6 +90,13 @@ public class FindingEntity {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "reachability", length = 16, nullable = false)
+    private String reachability = "UNKNOWN";
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "reachable_symbols")
+    private String reachableSymbols;
+
     public Long getId() {
         return id;
     }
@@ -264,5 +271,21 @@ public class FindingEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getReachability() {
+        return reachability;
+    }
+
+    public void setReachability(String reachability) {
+        this.reachability = reachability != null ? reachability : "UNKNOWN";
+    }
+
+    public String getReachableSymbols() {
+        return reachableSymbols;
+    }
+
+    public void setReachableSymbols(String reachableSymbols) {
+        this.reachableSymbols = reachableSymbols;
     }
 }

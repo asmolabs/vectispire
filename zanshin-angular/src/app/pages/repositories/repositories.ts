@@ -8,17 +8,20 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { DataViewModule } from '@openng/optimus-ui/dataview';
+import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { MonitoredRepository } from '../../core/api.models';
+import type { MonitoredRepository, SecurityScorecard } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe],
     templateUrl: './repositories.html'
 })
 export class Repositories {
@@ -33,12 +36,24 @@ export class Repositories {
     readonly formVisible = signal(false);
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<MonitoredRepository | null>(null);
+    readonly scorecardVisible = signal(false);
+    readonly selectedScorecard = signal<SecurityScorecard | null>(null);
+    readonly copied = signal(false);
     /** La ligne dont le scan est en cours de mise en file. */
     readonly busy = signal<number | null>(null);
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null as number | null, scanCron: '' };
+    form = {
+        url: '',
+        branch: 'main',
+        name: '',
+        subPath: '',
+        requiredAgentLabel: '',
+        scanIntervalMinutes: null as number | null,
+        scanCron: '',
+        tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
+    };
 
     /** Exposed to the template: the list says what each target's schedule is, because a
      *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
@@ -75,6 +90,7 @@ export class Repositories {
     triggerScan(repository: MonitoredRepository): void {
         this.busy.set(repository.id);
         this.notice.set(null);
+        this.error.set(null);
         this.api.triggerRepositoryScan(repository.id).subscribe({
             next: () => {
                 this.busy.set(null);
@@ -99,9 +115,10 @@ export class Repositories {
                   subPath: repository.subPath ?? '',
                   requiredAgentLabel: repository.requiredAgentLabel ?? '',
                   scanIntervalMinutes: repository.scanIntervalMinutes,
-                  scanCron: repository.scanCron ?? ''
+                  scanCron: repository.scanCron ?? '',
+                  tier: repository.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
-            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '' };
+            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -119,6 +136,7 @@ export class Repositories {
             name: this.form.name.trim() || blank,
             subPath: this.form.subPath.trim() || blank,
             required_agent_label: this.form.requiredAgentLabel.trim() || blank,
+            tier: this.form.tier as any,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
             // form showed nothing — the operator would think they had switched the schedule off
@@ -170,5 +188,34 @@ export class Repositories {
         });
     }
 
+    openScorecard(repository: MonitoredRepository): void {
+        this.api.getRepositoryScorecard(repository.id).subscribe({
+            next: (card) => {
+                this.selectedScorecard.set(card);
+                this.copied.set(false);
+                this.scorecardVisible.set(true);
+            },
+            error: () => this.error.set('Failed to load scorecard for this repository.')
+        });
+    }
 
+    copyBadgeMarkdown(repoId: number): void {
+        const markdown = `[![Zanshin Security](${window.location.origin}/api/v1/scorecards/repositories/${repoId}/badge.svg)](${window.location.origin}/repositories)`;
+        navigator.clipboard.writeText(markdown).then(() => {
+            this.copied.set(true);
+            setTimeout(() => this.copied.set(false), 3000);
+        });
+    }
+
+    gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | 'secondary' {
+        switch (grade) {
+            case 'A_PLUS':
+            case 'A': return 'success';
+            case 'B':
+            case 'C': return 'warn';
+            case 'D':
+            case 'F': return 'danger';
+            default: return 'secondary';
+        }
+    }
 }

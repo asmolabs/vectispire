@@ -180,6 +180,22 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
 
     @Query("""
             select count(distinct i.filePath) from IssueEntity i
-             where i.state = :state and i.type = :type and i.filePath is not null""")
+              where i.state = :state and i.type = :type and i.filePath is not null""")
     long countDistinctFiles(@Param("state") String state, @Param("type") String type);
+
+    @Query("select i.id from IssueEntity i where i.containerId = :containerId")
+    List<Long> findIdsByContainerId(@Param("containerId") Long containerId);
+
+    @Query("select i.id from IssueEntity i where i.repoId = :repoId")
+    List<Long> findIdsByRepoId(@Param("repoId") Long repoId);
+
+    @Query("""
+            select i.id from IssueEntity i
+             where (i.containerId is not null and i.containerId not in (select c.id from ContainerEntity c))
+                or (i.repoId is not null and i.repoId not in (select r.id from RepositoryEntity r))""")
+    List<Long> findOrphanedIds();
+
+    @Modifying
+    @Query("delete from IssueEntity i where i.id in :ids")
+    void deleteByIdIn(@Param("ids") Collection<Long> ids);
 }

@@ -7,7 +7,27 @@
                     <span class="text-muted-color font-medium">Application security analysis</span>
                 </div>
 
-                @if (methods() && !methods()!.password) {
+                @if (mfaRequired()) {
+                    <div class="text-center mb-6">
+                        <i class="pi pi-shield text-primary text-4xl mb-2"></i>
+                        <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0">Two-Factor Authentication</h3>
+                        <p class="text-sm text-muted-color">Enter the 6-digit code from your authenticator app, or an emergency backup code.</p>
+                    </div>
+
+                    <form (ngSubmit)="verifyMfa()">
+                        <label for="mfaCode" class="block text-surface-900 dark:text-surface-0 text-sm font-medium mb-2">Authentication Code</label>
+                        <input pInputText id="mfaCode" name="mfaCode" type="text" autocomplete="one-time-code"
+                               class="w-full mb-4 text-center text-xl tracking-widest"
+                               placeholder="123456" [(ngModel)]="mfaCode" autofocus />
+
+                        @if (error()) {
+                            <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />
+                        }
+
+                        <p-button type="submit" label="Verify & Sign In" styleClass="w-full mb-3" [loading]="loading()" />
+                        <p-button type="button" label="Back to Login" severity="secondary" [outlined]="true" styleClass="w-full" (onClick)="cancelMfa()" />
+                    </form>
+                } @else if (methods() && !methods()!.password) {
                     <!--
                         This deployment delegates authentication to its provider, so there is no
                         password to type. Drawn as a sentence rather than as a disabled form: a

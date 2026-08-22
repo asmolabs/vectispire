@@ -13,6 +13,7 @@ import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { GatePolicy, GatePolicies as GatePoliciesResponse } from '../../core/api.models';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** What a save is about: the global policy, or one target's override. */
 interface Scope {
@@ -63,7 +64,8 @@ interface Draft {
         SelectModule,
         TableModule,
         TagModule,
-        ToggleSwitchModule
+        ToggleSwitchModule,
+        TranslatePipe
     ],
     templateUrl: './gate-policies.html'
 })

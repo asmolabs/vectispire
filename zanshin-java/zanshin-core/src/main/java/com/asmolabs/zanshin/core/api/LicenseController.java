@@ -1,0 +1,75 @@
+package com.asmolabs.zanshin.core.api;
+
+import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
+import com.asmolabs.zanshin.common.domain.licenses.LicenseEntry;
+import com.asmolabs.zanshin.common.domain.licenses.LicensePolicy;
+import com.asmolabs.zanshin.common.domain.licenses.LicenseSummary;
+import com.asmolabs.zanshin.core.api.security.RequiresAccount;
+import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
+import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
+import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.zanshin.core.services.LicenseGovernanceService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Controller exposing open source software license inventory and compliance policies.
+ */
+@RestController
+@RequestMapping("/api/v1/licenses")
+@RequiresAccount
+public class LicenseController {
+
+    private final LicenseGovernanceService licenseService;
+    private final AuditLogService audit;
+
+    public LicenseController(LicenseGovernanceService licenseService, AuditLogService audit) {
+        this.licenseService = licenseService;
+        this.audit = audit;
+    }
+
+    @GetMapping("/inventory")
+    public List<LicenseEntry> getInventory() {
+        return licenseService.getInventory();
+    }
+
+    @GetMapping("/summary")
+    public LicenseSummary getSummary() {
+        return licenseService.getSummary();
+    }
+
+    @GetMapping("/policy")
+    public LicensePolicy getPolicy() {
+        return licenseService.getPolicy();
+    }
+
+    @PutMapping("/policy")
+    @RequiresSecurityLead
+    public LicensePolicy updatePolicy(
+            @RequestBody LicensePolicy policy,
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            HttpServletRequest request) {
+
+        String username = principal != null && principal.user().isPresent()
+                ? principal.user().get().getUsername()
+                : "system";
+
+        LicensePolicy updated = licenseService.updatePolicy(policy);
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                "license_policy",
+                "Updated open source license compliance policy (disallowed=" + policy.disallowedCategories() + ")",
+                username,
+                request != null ? request.getRemoteAddr() : null,
+                request != null ? request.getHeader("User-Agent") : null));
+
+        return updated;
+    }
+}

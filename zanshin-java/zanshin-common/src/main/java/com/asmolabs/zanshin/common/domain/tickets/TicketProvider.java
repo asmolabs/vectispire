@@ -8,6 +8,7 @@ import java.util.Optional;
 public enum TicketProvider {
     NONE,
     GITLAB,
+    GITHUB,
     JIRA;
 
     public String wireName() {

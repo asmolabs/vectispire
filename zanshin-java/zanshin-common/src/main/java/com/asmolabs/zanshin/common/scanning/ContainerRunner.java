@@ -79,7 +79,7 @@ public final class ContainerRunner {
 
     /**
      * Resolves the Docker or Podman daemon socket.
-     * Supports `ZANSHIN_DOCKER_HOST`, `DOCKER_HOST`, and Rootless Podman/Docker auto-detection.
+     * Supports `ZANSHIN_DOCKER_HOST`, `DOCKER_HOST`, macOS (OrbStack, Docker Desktop, Colima) and Rootless Linux auto-detection.
      */
     public static String resolveDockerHost() {
         String zanshinHost = System.getenv("ZANSHIN_DOCKER_HOST");
@@ -90,20 +90,45 @@ public final class ContainerRunner {
         if (dockerHost != null && !dockerHost.isBlank()) {
             return dockerHost.trim();
         }
+        String userHome = System.getProperty("user.home", "");
+        if (!userHome.isBlank()) {
+            String[] userSockets = {
+                "/.orbstack/run/docker.sock",
+                "/.docker/run/docker.sock",
+                "/.colima/default/docker.sock",
+                "/.rd/docker.sock"
+            };
+            for (String subPath : userSockets) {
+                try {
+                    Path sock = Path.of(userHome, subPath);
+                    if (Files.exists(sock)) {
+                        return "unix://" + sock.toRealPath().toString();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
         String xdgRuntimeDir = System.getenv("XDG_RUNTIME_DIR");
         if (xdgRuntimeDir != null && !xdgRuntimeDir.isBlank()) {
             try {
                 Path podmanSock = Path.of(xdgRuntimeDir, "podman", "podman.sock");
                 if (Files.exists(podmanSock)) {
-                    return "unix://" + podmanSock.toString();
+                    return "unix://" + podmanSock.toRealPath().toString();
                 }
                 Path dockerSock = Path.of(xdgRuntimeDir, "docker.sock");
                 if (Files.exists(dockerSock)) {
-                    return "unix://" + dockerSock.toString();
+                    return "unix://" + dockerSock.toRealPath().toString();
                 }
             } catch (Exception ignored) {
                 // Fall back to default
             }
+        }
+        try {
+            Path varRun = Path.of("/var/run/docker.sock");
+            if (Files.exists(varRun)) {
+                return "unix://" + varRun.toRealPath().toString();
+            }
+        } catch (Exception ignored) {
         }
         return null;
     }

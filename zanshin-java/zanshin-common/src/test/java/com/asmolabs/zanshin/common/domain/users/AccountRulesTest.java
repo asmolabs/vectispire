@@ -65,6 +65,7 @@ class AccountRulesTest {
         @DisplayName("parses the vocabulary and refuses anything else")
         void parsesRoles() {
             assertThat(Role.of("ADMIN")).contains(Role.ADMIN);
+            assertThat(Role.of("CISO")).contains(Role.CISO);
             // Case-sensitive: the field has a fixed set of choices, and accepting `admin`
             // means accepting whatever else arrives in it.
             assertThat(Role.of("admin")).isEmpty();
@@ -76,7 +77,11 @@ class AccountRulesTest {
         void adminIsAProperty() {
             assertThat(Role.SUPERUSER.isAdministrative()).isTrue();
             assertThat(Role.ADMIN.isAdministrative()).isTrue();
+            assertThat(Role.CISO.isAdministrative()).isFalse();
             assertThat(Role.USER.isAdministrative()).isFalse();
+
+            assertThat(Role.CISO.hasGlobalSecurityScope()).isTrue();
+            assertThat(Role.USER.hasGlobalSecurityScope()).isFalse();
         }
     }
 

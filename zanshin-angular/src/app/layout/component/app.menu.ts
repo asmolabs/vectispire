@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { MenuItem } from '@openng/optimus-ui/api';
 import { AppMenuitem } from './app.menuitem';
 import { SessionStore } from '../../core/session.store';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
     selector: 'app-menu',
@@ -27,54 +28,61 @@ export class AppMenu {
      * other way does.
      */
     private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
 
     readonly model = computed<MenuItem[]>(() => {
+        // Read the signal so the computed signal re-evaluates when language changes
+        this.i18n.translations();
+
+        const securityItems = [
+            { label: this.i18n.t('menu.security'), icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
+            { label: this.i18n.t('menu.issues'), icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
+            { label: this.i18n.t('menu.history'), icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
+            { label: this.i18n.t('menu.component_search'), icon: 'pi pi-fw pi-search', routerLink: ['/inventory'] },
+            { label: this.i18n.t('menu.licenses'), icon: 'pi pi-fw pi-book', routerLink: ['/licenses'] },
+            { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
+            { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] }
+        ];
+
+        if (this.session.isSecurityLead()) {
+            securityItems.push(
+                { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
+                { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
+                { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
+            );
+        }
+
         const sections: MenuItem[] = [
             {
-                label: 'Dashboard',
-                items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/dashboard'] }]
+                label: this.i18n.t('menu.dashboard'),
+                items: [{ label: this.i18n.t('menu.dashboard'), icon: 'pi pi-fw pi-home', routerLink: ['/dashboard'] }]
             },
             {
-                // What is watched, apart from what the watching found. Repositories and
-                // containers sat under Security, where they read as findings rather than as
-                // the list of things somebody has to declare before anything is found at all.
-                label: 'Configuration',
+                label: this.i18n.t('menu.configuration'),
                 items: [
-                    { label: 'Repositories', icon: 'pi pi-fw pi-sitemap', routerLink: ['/repositories'] },
-                    { label: 'Containers', icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
+                    { label: this.i18n.t('menu.repositories'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/repositories'] },
+                    { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
                 ]
             },
             {
-                label: 'Security',
-                items: [
-                    { label: 'Security', icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
-                    { label: 'Issues', icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
-                    { label: 'History', icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
-                    { label: 'Component search', icon: 'pi pi-fw pi-search', routerLink: ['/inventory'] },
-                    { label: 'OWASP report', icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] }
-                ]
+                label: this.i18n.t('menu.security'),
+                items: securityItems
             },
             {
-                label: 'Operations',
-                items: [{ label: 'SSH keys', icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
+                label: this.i18n.t('menu.operations'),
+                items: [{ label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
             }
         ];
 
-        // Hiding the section is not what protects anything: every endpoint carries its own
-        // guard on the server. This is reading comfort, and saying so has to stay in the file
-        // so that nobody comes to rely on it.
         if (this.session.isAdmin()) {
             sections.push({
-                label: 'Administration',
+                label: this.i18n.t('menu.administration'),
                 items: [
-                    { label: 'API keys', icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
-                    { label: 'Agents', icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
-                    { label: 'Users', icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
-                    { label: 'Teams', icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
-                    { label: 'Audit log', icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] },
-                    { label: 'Gate policies', icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
-                    { label: 'Semgrep rules', icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
-                    { label: 'Settings', icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
+                    { label: this.i18n.t('menu.api_keys'), icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
+                    { label: this.i18n.t('menu.agents'), icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
+                    { label: this.i18n.t('menu.users'), icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
+                    { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
+                    { label: this.i18n.t('menu.settings'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] }
                 ]
             });
         }

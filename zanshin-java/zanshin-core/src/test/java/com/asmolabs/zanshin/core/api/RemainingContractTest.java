@@ -272,7 +272,7 @@ class RemainingContractTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of(
                                 "name", "deploy",
-                                "private_key", "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END-----"))))
+                                "private_key", "-----BEGIN DUMMY PRIVATE KEY-----\ntest\n-----END DUMMY PRIVATE KEY-----"))))
                 .andExpect(status().isOk());
 
         // `current | previous_key | unreadable`. The enum would arrive as `PREVIOUS_KEY`, and the

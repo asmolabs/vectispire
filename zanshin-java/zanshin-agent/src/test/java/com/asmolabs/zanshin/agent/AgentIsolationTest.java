@@ -49,6 +49,7 @@ class AgentIsolationTest {
                         "org.hibernate..",
                         "jakarta.persistence..",
                         "org.springframework.data..",
+                        "org.flywaydb..",
                         "liquibase..")
                 .check(classes);
     }

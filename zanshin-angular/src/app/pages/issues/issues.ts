@@ -43,10 +43,12 @@ const VEX_JUSTIFICATIONS = [
  * page, decide once — the filters are the grouping, which is why there is no "group by CVE" here
  * and no second route on the server either.
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule, ToggleSwitchModule],
+    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule, ToggleSwitchModule, TranslatePipe],
     templateUrl: './issues.html'
 })
 export class Issues {

@@ -52,14 +52,14 @@ docker run -d --name zanshin-db -p 5432:5432 \
   postgres:16-alpine
 ```
 
-The schema belongs to a **Liquibase changelog**, applied at startup:
+The schema belongs to **Flyway migrations**, applied at startup:
 
 ```bash
-# Liquibase applies the changelog at startup — there is no separate command to run.
-# A new change is a new changeset in zanshin-core/src/main/resources/db/changelog/.
+# Flyway applies migrations at startup — there is no separate command to run.
+# A new change is a new migration script in zanshin-core/src/main/resources/db/migration/<dialect>/.
 ```
 
-`synchronize` is off, deliberately: a schema synthesised from the entities is not the one
+`ddl-auto` is `validate`, deliberately: a schema synthesised from the entities is not the one
 production will receive, and testing against it would let a faulty migration through.
 
 There is no self-registration page, so the first account comes from the bootstrap
@@ -75,7 +75,7 @@ ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
 ## 5. Launching the application
 
 ```bash
-# Liquibase brings the schema up to date at startup; nothing to run by hand.
+# Flyway brings the schema up to date at startup; nothing to run by hand.
 cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8000
 npm --workspace @zanshin/frontend start              # UI on http://localhost:4200
 ```

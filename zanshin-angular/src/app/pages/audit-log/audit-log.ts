@@ -27,10 +27,12 @@ const OPERATION_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 50;
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-audit-log',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './audit-log.html'
 })
 export class AuditLog {

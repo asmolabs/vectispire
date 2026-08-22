@@ -1,10 +1,10 @@
 <div class="mb-4 flex items-start justify-between gap-4">
     <div>
-        <h1 class="text-2xl font-semibold m-0">Containers</h1>
-        <p class="text-muted-color mt-1 mb-0">The monitored container images and the state of their last scan.</p>
+        <h1 class="text-2xl font-semibold m-0">{{ 'containers.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'containers.subtitle' | translate }}</p>
     </div>
     @if (isAdmin()) {
-        <p-button label="Add an image" icon="pi pi-plus" (onClick)="openForm()" />
+        <p-button [label]="'containers.add_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
     }
 </div>
 
@@ -28,7 +28,16 @@
                 <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-t"
                      style="border-color: var(--surface-border)">
                     <div class="min-w-0">
-                        <div class="font-medium">{{ container.imageName }}</div>
+                        <div class="flex items-center gap-2">
+                            <div class="font-medium">{{ container.imageName }}</div>
+                            @if (container.tier === 'TIER_1_MISSION_CRITICAL') {
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">Tier 1 · Mission Critical</span>
+                            } @else if (container.tier === 'TIER_3_INTERNAL') {
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Tier 3 · Internal</span>
+                            } @else {
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Tier 2 · Operational</span>
+                            }
+                        </div>
                         <!--
                             Truncated with the whole value on hover: a digest reference is sixty
                             characters of hexadecimal that would push everything else off a phone,
@@ -79,6 +88,14 @@
             <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
             <input pInputText id="registry" [(ngModel)]="form.registry" placeholder="ghcr.io" />
             <small class="text-muted-color">Empty for the default registry.</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="tier" class="font-medium">Business Criticality Tier</label>
+            <select id="tier" [(ngModel)]="form.tier" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
+                <option value="TIER_1_MISSION_CRITICAL">🔴 Tier 1 — Mission Critical (SLA: Critical 3d | High 14d)</option>
+                <option value="TIER_2_BUSINESS_OPERATIONAL">🟡 Tier 2 — Business Operational (SLA: Critical 14d | High 30d)</option>
+                <option value="TIER_3_INTERNAL">🟢 Tier 3 — Internal / Lab (SLA: Critical 30d | High 60d)</option>
+            </select>
         </div>
         <div class="flex flex-col gap-2">
             <label for="image" class="font-medium">Image name</label>

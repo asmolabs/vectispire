@@ -4,7 +4,7 @@ import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.GatePolicyEntity;
 import com.asmolabs.zanshin.core.services.AuditLogService;
@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/gate/policies")
-@RequiresAdministrator
+@RequiresSecurityLead
 public class GatePoliciesController {
 
     private final GateService gate;

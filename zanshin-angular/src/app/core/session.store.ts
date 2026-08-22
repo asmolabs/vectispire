@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 
 /** The server writes them in upper case (`user.entity.ts`). */
 export const ADMIN_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN'];
+export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO'];
 import { AuthenticatedUser } from './api.models';
 
 /**
@@ -33,6 +34,8 @@ export class SessionStore {
      * button or as a button that answers 403.
      */
     readonly isAdmin = computed(() => ADMIN_ROLES.includes(this.role()));
+    readonly isSecurityLead = computed(() => SECURITY_LEAD_ROLES.includes(this.role()));
+    readonly isCiso = computed(() => this.role() === 'CISO');
     /** The account must change its password before reaching anything else. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);
 

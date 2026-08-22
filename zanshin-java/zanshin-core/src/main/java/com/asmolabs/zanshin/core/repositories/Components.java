@@ -41,5 +41,7 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
 
     void deleteByScanId(long scanId);
 
+    void deleteByScanIdIn(Collection<Long> scanIds);
+
     long countByScanIdIn(Collection<Long> scanIds);
 }

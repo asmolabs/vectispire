@@ -14,7 +14,7 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `zanshin-java/` — see [`zanshin-java/README.md`](zanshin-java/README.md) |
 | Frontend | Angular 21, Optimus UI, `zanshin-angular/` — see [`zanshin-angular/README.md`](zanshin-angular/README.md) |
-| Database | PostgreSQL (default), MySQL, MariaDB, SQLite — one Liquibase changelog, dialect differences as properties |
+| Database | PostgreSQL (default), MySQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
@@ -69,7 +69,7 @@ decrypts every deployment key Zanshin stores — see
   backlog ([0007](docs/architecture/decisions/0007-none-is-not-an-empty-list.md)). The same
   rule decides a scan's status — every step absent and something broken means the target was
   never examined, and `completed` would say the opposite.
-- **`ddl-auto` stays `validate`.** The schema belongs to the Liquibase changelog, and
+- **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, and
   `SchemaParityIntegrationTest` checks on four engines that the entities agree with it.
   Letting Hibernate reconcile the schema would mean two authorities for one schema, and the
   one that runs second wins silently.

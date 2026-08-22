@@ -3,6 +3,7 @@ package com.asmolabs.zanshin.core.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.SecretState;
 import java.util.List;
 import java.util.Optional;
@@ -16,18 +17,19 @@ class EncryptionServiceTest {
 
     // Deliberately 32-byte base64 keys rather than passphrases: scrypt costs a hundred
     // milliseconds per derivation, and this suite constructs a service per test.
-    private static final String CURRENT = "Y3VycmVudC1rZXktMzItYnl0ZXMtbG9uZy0xMjM0NQ==";
-    private static final String PREVIOUS = "cHJldmlvdXMta2V5LTMyLWJ5dGVzLWxvbmctMTIzNA==";
+    private static final String CURRENT = EncryptionKey.generate();
+    private static final String PREVIOUS = EncryptionKey.generate();
 
     @Test
     void roundTripsUnderTheCurrentKey() {
         EncryptionService service = service(CURRENT, List.of());
 
-        String encrypted = service.encrypt("-----BEGIN OPENSSH PRIVATE KEY-----", CONTEXT);
+        String secret = "ssh-rsa-test-private-key-material";
+        String encrypted = service.encrypt(secret, CONTEXT);
 
-        assertThat(encrypted).doesNotContain("BEGIN OPENSSH");
+        assertThat(encrypted).doesNotContain("test-private-key");
         assertThat(service.inspect(encrypted, CONTEXT))
-                .returns("-----BEGIN OPENSSH PRIVATE KEY-----", d -> d.plainText())
+                .returns(secret, d -> d.plainText())
                 .returns(SecretState.CURRENT, d -> d.state());
     }
 

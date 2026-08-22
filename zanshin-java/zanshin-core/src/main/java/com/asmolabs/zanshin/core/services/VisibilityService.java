@@ -110,7 +110,7 @@ public class VisibilityService {
             // answer to "who is this" being unanswerable is "nothing".
             return Visibility.only(List.of());
         }
-        if (mode() == VisibilityMode.EVERYONE || isAdministrative(user)) {
+        if (mode() == VisibilityMode.EVERYONE || hasGlobalScope(user)) {
             return Visibility.everything();
         }
 
@@ -159,8 +159,8 @@ public class VisibilityService {
                 .orElseGet(() -> Visibility.only(List.of()));
     }
 
-    private static boolean isAdministrative(UserEntity user) {
-        return Role.of(user.getRole()).map(Role::isAdministrative).orElse(false);
+    private static boolean hasGlobalScope(UserEntity user) {
+        return Role.of(user.getRole()).map(Role::hasGlobalSecurityScope).orElse(false);
     }
 
     private static Optional<ScanTarget> targetOf(String kind, Long id) {

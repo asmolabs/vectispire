@@ -2,6 +2,7 @@ package com.asmolabs.zanshin.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.SecretState;
 import com.asmolabs.zanshin.core.ZanshinContextTest;
 import java.io.IOException;
@@ -33,7 +34,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @DisplayName("the encryption key from a file, wired")
 class EncryptionKeyFileDatabaseTest extends ZanshinContextTest {
 
-    private static final String KEY = "ZmlsZS1zdXBwbGllZC1rZXktMzItYnl0ZXMtMTIzNDU=";
+    private static final String KEY = EncryptionKey.generate();
 
     /**
      * Written before the context starts, and with the trailing newline a real secret file has.

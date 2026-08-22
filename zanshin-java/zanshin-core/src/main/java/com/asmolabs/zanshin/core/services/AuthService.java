@@ -222,6 +222,11 @@ public class AuthService {
      * The provider owns that side, and a failed sign-on never reaches this method.
      */
     @Transactional
+    public IssuedSession openSessionForUser(UserEntity user, String userAgent, String ipAddress) {
+        return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
+    }
+
+    @Transactional
     public IssuedSession openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
         return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
     }

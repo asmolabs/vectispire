@@ -41,10 +41,12 @@ function themeColour(variable: string, fallback: string): string {
     return value || fallback;
 }
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, CardModule, ChartModule, MessageModule, TableModule, TagModule, LastScanTag],
+    imports: [CommonModule, RouterLink, ButtonModule, CardModule, ChartModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe],
     templateUrl: './dashboard.html'
 })
 export class Dashboard {

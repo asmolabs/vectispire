@@ -113,7 +113,7 @@ class ClientRequestContractTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of(
                                 "name", "deploy",
-                                "private_key", "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END-----",
+                                "private_key", "-----BEGIN DUMMY PRIVATE KEY-----\ntest\n-----END DUMMY PRIVATE KEY-----",
                                 "public_key", "ssh-ed25519 AAAA"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.publicKey").value("ssh-ed25519 AAAA"));

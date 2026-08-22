@@ -1,10 +1,11 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/core/auth.interceptor';
-import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withEnabledBlockingInitialNavigation, withInMemoryScrolling } from '@angular/router';
 import Aura from '@openng/optimus-ui-themes/aura';
 import { provideOptimus } from '@openng/optimus-ui/config';
 import { appRoutes } from './app.routes';
+import { I18nService } from './app/core/i18n/i18n.service';
 
 export const appConfig: ApplicationConfig = {
     providers: [
@@ -20,6 +21,10 @@ export const appConfig: ApplicationConfig = {
         ),
         provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
         provideZonelessChangeDetection(),
-        provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } })
+        provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),
+        provideAppInitializer(() => {
+            const i18n = inject(I18nService);
+            return i18n.init();
+        })
     ]
 };

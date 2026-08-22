@@ -16,6 +16,7 @@ import com.asmolabs.zanshin.core.repositories.UserSessions;
 import com.asmolabs.zanshin.core.repositories.Users;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.AuthService;
+import com.asmolabs.zanshin.core.services.TotpService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,6 +59,15 @@ public class AuthController {
     private final UserSessions sessions;
     private final Clock clock;
 
+    private final TotpService totp;
+    private final Map<String, MfaChallenge> mfaChallenges = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public record MfaChallenge(Long userId, Instant expiresAt, String userAgent, String ipAddress) {}
+
+    public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
+    public record MfaEnableRequest(String secret, String code) {}
+    public record MfaDisableRequest(String code) {}
+
     public AuthController(
             AuthService auth,
             AuditLogService audit,
@@ -65,6 +75,7 @@ public class AuthController {
             UserSessions sessions,
             Optional<ClientRegistrationRepository> providers,
             SignInMethodPolicy methods,
+            TotpService totp,
             Clock clock) {
         this.providers = providers;
         this.methods = methods;
@@ -72,15 +83,21 @@ public class AuthController {
         this.audit = audit;
         this.users = users;
         this.sessions = sessions;
+        this.totp = totp;
         this.clock = clock;
     }
 
     /** @param clientId the throttle's second counter. Never the IP alone — see {@link AuthService} */
     public record LoginRequest(String username, String password, @JsonProperty("client_id") String clientId) {}
 
-    public record LoginResponse(String token, Instant expiresAt, UserSummary user) {}
+    public record LoginResponse(
+            String token,
+            Instant expiresAt,
+            UserSummary user,
+            @JsonProperty("mfa_required") boolean mfaRequired,
+            @JsonProperty("mfa_token") String mfaToken) {}
 
-    public record UserSummary(String username, String displayName, String role, boolean mustChangePassword) {}
+    public record UserSummary(String username, String displayName, String role, boolean mustChangePassword, boolean mfaEnabled) {}
 
     public record ChangePasswordRequest(@JsonProperty("current_password") String currentPassword, @JsonProperty("new_password") String newPassword) {}
 
@@ -88,9 +105,6 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest body, HttpServletRequest request) {
         if (!methods.passwordAllowed()) {
-            // Audited, and refused before the password is looked at. An attempt on a door that
-            // is closed is exactly what somebody working from a stolen password list produces,
-            // and it is worth being able to find afterwards.
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_BLOCKED,
                     text(body == null ? null : body.username()),
@@ -98,8 +112,6 @@ public class AuthController {
                     text(body == null ? null : body.username()),
                     request.getRemoteAddr(),
                     request.getHeader("User-Agent")));
-            // 403 and not 401: the credentials were not judged, and a client that reads
-            // "unauthorized" tries again with another password. This door is closed to everyone.
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "Password sign-in is disabled here. Use single sign-on.");
         }
@@ -121,22 +133,106 @@ public class AuthController {
 
         return switch (result.outcome()) {
             case AuthService.Outcome.Blocked blocked ->
-                // 429 and not 401: the password was never judged, and the caller needs to know
-                // it has to wait rather than try again.
                 throw new ResponseStatusException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "Too many attempts. Try again in " + blocked.retryAfter().toSeconds() + "s.");
             case AuthService.Outcome.Invalid ignored ->
-                // One message for "unknown account" and for "wrong password": telling them apart
-                // hands whoever is probing the list of accounts that exist.
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
-            case AuthService.Outcome.Success success -> new LoginResponse(
-                    // The one moment the clear token exists outside the client: it is not stored,
-                    // so it cannot be read back for a second response.
-                    success.issued().token(),
-                    success.issued().session().getExpiresAt(),
-                    summaryOf(success.user()));
+            case AuthService.Outcome.Success success -> {
+                if (success.user().getMfaEnabled()) {
+                    String mfaToken = java.util.UUID.randomUUID().toString();
+                    mfaChallenges.put(
+                            mfaToken,
+                            new MfaChallenge(
+                                    success.user().getId(),
+                                    clock.instant().plusSeconds(300),
+                                    request.getHeader("User-Agent"),
+                                    request.getRemoteAddr()));
+                    yield new LoginResponse(null, null, null, true, mfaToken);
+                }
+                yield new LoginResponse(
+                        success.issued().token(),
+                        success.issued().session().getExpiresAt(),
+                        summaryOf(success.user()),
+                        false,
+                        null);
+            }
         };
+    }
+
+    @OpenToAnonymous
+    @PostMapping("/mfa/verify")
+    public LoginResponse verifyMfa(@RequestBody MfaVerifyRequest body, HttpServletRequest request) {
+        if (body == null || body.mfaToken() == null || body.code() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MFA token and verification code are required.");
+        }
+
+        MfaChallenge challenge = mfaChallenges.get(body.mfaToken());
+        if (challenge == null || clock.instant().isAfter(challenge.expiresAt())) {
+            mfaChallenges.remove(body.mfaToken());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "MFA challenge has expired or is invalid. Please sign in again.");
+        }
+
+        UserEntity user = users.findById(challenge.userId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
+
+        if (!totp.verify(user, body.code())) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_FAILURE,
+                    user.getUsername(),
+                    "Invalid MFA verification code attempt",
+                    user.getUsername(),
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent")));
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
+        }
+
+        mfaChallenges.remove(body.mfaToken());
+        AuthService.IssuedSession session = auth.openSessionForUser(user, challenge.userAgent(), challenge.ipAddress());
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.LOGIN_SUCCESS,
+                user.getUsername(),
+                "Signed in with MFA / TOTP: " + user.getUsername(),
+                user.getUsername(),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return new LoginResponse(
+                session.token(),
+                session.session().getExpiresAt(),
+                summaryOf(user),
+                false,
+                null);
+    }
+
+    @RequiresAccount
+    @PostMapping("/mfa/setup")
+    public TotpService.SetupResponse setupMfa(@AuthenticationPrincipal ZanshinPrincipal principal) {
+        return totp.setup(principal.requireUser());
+    }
+
+    @RequiresAccount
+    @PostMapping("/mfa/enable")
+    public TotpService.EnableResponse enableMfa(
+            @RequestBody MfaEnableRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal) {
+        if (body == null || body.secret() == null || body.code() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Secret and verification code are required.");
+        }
+        return totp.enable(principal.requireUser(), body.secret(), body.code());
+    }
+
+    @RequiresAccount
+    @PostMapping("/mfa/disable")
+    public Map<String, Boolean> disableMfa(
+            @RequestBody MfaDisableRequest body,
+            @AuthenticationPrincipal ZanshinPrincipal principal) {
+        if (body == null || body.code() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verification code is required to disable MFA.");
+        }
+        totp.disable(principal.requireUser(), body.code());
+        return Map.of("mfaEnabled", false);
     }
 
     /**
@@ -190,9 +286,7 @@ public class AuthController {
         UserEntity user = users.findById(session.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
 
-        // The token comes from the cookie, not from the row: the row holds a hash, and handing
-        // that back would be handing back something that authenticates nothing.
-        return new LoginResponse(token, session.getExpiresAt(), summaryOf(user));
+        return new LoginResponse(token, session.getExpiresAt(), summaryOf(user), false, null);
     }
 
     private static String handoffToken(HttpServletRequest request) {
@@ -297,7 +391,7 @@ public class AuthController {
 
     private static UserSummary summaryOf(UserEntity user) {
         return new UserSummary(
-                user.getUsername(), user.getDisplayName(), user.getRole(), user.getMustChangePassword());
+                user.getUsername(), user.getDisplayName(), user.getRole(), user.getMustChangePassword(), user.getMfaEnabled());
     }
 
     private static String clientId(LoginRequest body, HttpServletRequest request) {

@@ -77,6 +77,33 @@
                 <a [href]="detail.link" target="_blank" rel="noopener noreferrer">{{ detail.link }}</a>
             </p>
         }
+
+        @if (detail.reachability === 'REACHABLE') {
+            <div class="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div class="flex items-center gap-2 font-semibold text-red-700 dark:text-red-400">
+                    <i class="pi pi-bolt"></i>
+                    <span>Reachable & Exploitable (Active Call Path Detected)</span>
+                </div>
+                <p class="text-xs text-red-600 dark:text-red-300 mt-1 mb-0">
+                    This vulnerable dependency is actively imported and invoked within the codebase. Immediate remediation is prioritized.
+                </p>
+                @if (detail.reachableSymbols) {
+                    <div class="mt-2 text-xs font-mono bg-surface-0 dark:bg-surface-900 p-2 rounded border border-surface-200 dark:border-surface-700 text-surface-800 dark:text-surface-200">
+                        Call traces: {{ detail.reachableSymbols }}
+                    </div>
+                }
+            </div>
+        } @else if (detail.reachability === 'UNREACHABLE') {
+            <div class="mt-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div class="flex items-center gap-2 font-semibold text-green-700 dark:text-green-400">
+                    <i class="pi pi-shield"></i>
+                    <span>Unreachable / Dormant Dependency</span>
+                </div>
+                <p class="text-xs text-green-600 dark:text-green-300 mt-1 mb-0">
+                    Present in the dependency tree, but static analysis detected no direct call paths to this vulnerable component.
+                </p>
+            </div>
+        }
     </p-card>
 
     <p-card styleClass="mb-4">

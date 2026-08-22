@@ -105,6 +105,7 @@ class ArchitectureTest {
                         "org.hibernate..",
                         "java.sql..",
                         "javax.sql..",
+                        "org.flywaydb..",
                         "liquibase..",
                         // The scanning half of `zanshin-common` needs a Docker client; the
                         // domain half must never. A calculation that reached the daemon would

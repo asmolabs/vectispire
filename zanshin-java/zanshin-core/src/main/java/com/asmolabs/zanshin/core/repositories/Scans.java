@@ -263,4 +263,20 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
              where s.status = :status and s.requiredAgentLabel is not null
              group by s.requiredAgentLabel""")
     List<Object[]> countPendingByRequiredLabel(@Param("status") String status);
+
+    @Query("select s.id from ScanEntity s where s.containerId = :containerId")
+    List<Long> findIdsByContainerId(@Param("containerId") Long containerId);
+
+    @Query("select s.id from ScanEntity s where s.repoId = :repoId")
+    List<Long> findIdsByRepoId(@Param("repoId") Long repoId);
+
+    @Query("""
+            select s.id from ScanEntity s
+             where (s.containerId is not null and s.containerId not in (select c.id from ContainerEntity c))
+                or (s.repoId is not null and s.repoId not in (select r.id from RepositoryEntity r))""")
+    List<Long> findOrphanedIds();
+
+    @Modifying
+    @Query("delete from ScanEntity s where s.id in :ids")
+    void deleteByIdIn(@Param("ids") Collection<Long> ids);
 }

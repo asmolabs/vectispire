@@ -156,6 +156,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/repositories/*/badge.svg").permitAll()
                         // **The interface itself is not behind the token.** When the jar
                         // bundles the Angular build, these are the files that *ask* for a
                         // token; requiring one to fetch them means the sign-in screen answers
@@ -164,7 +165,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // every API call it then makes is authenticated as before.
                         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico",
                                 "/*.js", "/*.css", "/*.webmanifest", "/assets/**", "/fonts/**",
-                                "/media/**")
+                                "/media/**", "/i18n/**")
                         .permitAll()
                         // **The SPA's deep links, on the request and on the forward.**
                         // `SpaForwarding` sends `/security` to index.html — but the chain runs

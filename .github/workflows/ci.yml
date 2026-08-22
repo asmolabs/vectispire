@@ -19,6 +19,21 @@ on:
   pull_request:
 
 jobs:
+  # Secret detection gate: blocks commits containing known secret patterns (API keys, PEM blocks, etc.)
+  # Uses the exact pinned Gitleaks digest from ScannerImages.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for secrets
+        run: |
+          docker run --rm -v "$PWD:/code:ro" \
+            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source=/code --verbose
+
   # The control plane and the remote agent. This is the implementation of record.
   jvm:
     runs-on: ubuntu-latest

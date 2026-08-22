@@ -10,7 +10,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { OllamaCheck, SettingDefinition } from '../../core/api.models';
+import type { OllamaCheck, SettingDefinition, SiemConfig, SiemTestResult, ThreatIntelSyncStatus } from '../../core/api.models';
 
 const SEVERITIES = [
     { label: 'Critical', value: 'critical' },
@@ -42,6 +42,22 @@ export class Settings {
     readonly webhookSecretConfigured = signal(false);
     readonly savingWebhookSecret = signal(false);
     webhookSecretInput = '';
+
+    readonly siemConfig = signal<SiemConfig | null>(null);
+    readonly savingSiem = signal(false);
+    readonly testingSiem = signal(false);
+    readonly siemTestResult = signal<SiemTestResult | null>(null);
+    siemForm = {
+        enabled: false,
+        protocol: 'WEBHOOK' as const,
+        endpoint: '',
+        authHeader: '',
+        minSeverity: 'HIGH'
+    };
+
+    readonly threatIntelStatus = signal<ThreatIntelSyncStatus | null>(null);
+    readonly syncingThreatIntel = signal(false);
+    readonly threatIntelFeedback = signal<string | null>(null);
 
     /** What changed since loading. Drives the button, and sends only the delta. */
     private original: Record<string, string> = {};
@@ -83,6 +99,50 @@ export class Settings {
                     models: [],
                     detail: 'The connection test could not be run.'
                 });
+            }
+        });
+    }
+
+    saveSiemConfig(): void {
+        this.savingSiem.set(true);
+        this.error.set(null);
+        this.api.updateSiemConfig({
+            enabled: this.siemForm.enabled,
+            protocol: this.siemForm.protocol,
+            endpoint: this.siemForm.endpoint.trim(),
+            authHeader: this.siemForm.authHeader.trim() || undefined,
+            minSeverity: this.siemForm.minSeverity
+        }).subscribe({
+            next: (cfg) => {
+                this.savingSiem.set(false);
+                this.siemConfig.set(cfg);
+                this.saved.set(true);
+            },
+            error: (response) => {
+                this.savingSiem.set(false);
+                this.error.set(messageOf(response, 'Saving SIEM configuration failed.'));
+            }
+        });
+    }
+
+    testSiem(): void {
+        if (!this.siemForm.endpoint.trim()) {
+            this.siemTestResult.set({ success: false, message: 'Please provide an Endpoint URL first.', statusCode: 0 });
+            return;
+        }
+        this.testingSiem.set(true);
+        this.siemTestResult.set(null);
+        this.api.testSiemConnection({
+            endpoint: this.siemForm.endpoint.trim(),
+            authHeader: this.siemForm.authHeader.trim() || undefined
+        }).subscribe({
+            next: (res) => {
+                this.testingSiem.set(false);
+                this.siemTestResult.set(res);
+            },
+            error: () => {
+                this.testingSiem.set(false);
+                this.siemTestResult.set({ success: false, message: 'Connection test request failed.', statusCode: 0 });
             }
         });
     }
@@ -179,6 +239,22 @@ export class Settings {
         });
     }
 
+    syncThreatIntel(): void {
+        this.syncingThreatIntel.set(true);
+        this.threatIntelFeedback.set(null);
+        this.api.syncThreatIntel().subscribe({
+            next: (status) => {
+                this.syncingThreatIntel.set(false);
+                this.threatIntelStatus.set(status);
+                this.threatIntelFeedback.set(`Synchronized ${status.totalCves} CVEs (${status.totalKev} active CISA KEV). Re-evaluated ${status.backlogUpdatedCount} backlog issues.`);
+            },
+            error: () => {
+                this.syncingThreatIntel.set(false);
+                this.threatIntelFeedback.set('Failed to synchronize Threat Intelligence feed.');
+            }
+        });
+    }
+
     private reload(): void {
         this.api.ticketTokenState().subscribe({
             next: ({ configured }) => this.tokenConfigured.set(configured),
@@ -188,6 +264,25 @@ export class Settings {
         this.api.webhookSecretState().subscribe({
             next: ({ configured }) => this.webhookSecretConfigured.set(configured),
             error: () => this.webhookSecretConfigured.set(false)
+        });
+
+        this.api.getThreatIntelStatus().subscribe({
+            next: (status) => this.threatIntelStatus.set(status),
+            error: () => this.threatIntelStatus.set(null)
+        });
+
+        this.api.getSiemConfig().subscribe({
+            next: (cfg) => {
+                this.siemConfig.set(cfg);
+                this.siemForm = {
+                    enabled: cfg.enabled,
+                    protocol: (cfg.protocol as any) || 'WEBHOOK',
+                    endpoint: cfg.endpoint ?? '',
+                    authHeader: '',
+                    minSeverity: cfg.minSeverity || 'HIGH'
+                };
+            },
+            error: () => this.siemConfig.set(null)
         });
 
         this.api.settings().subscribe({

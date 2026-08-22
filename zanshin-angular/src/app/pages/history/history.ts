@@ -93,6 +93,21 @@ export class History {
         });
     }
 
+    downloadVex(scanId: number): void {
+        this.api.getScanVex(scanId).subscribe({
+            next: (vexDoc) => {
+                const blob = new Blob([JSON.stringify(vexDoc, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `scan-${scanId}-openvex.json`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            },
+            error: () => this.error.set('Could not download OpenVEX document for this scan.')
+        });
+    }
+
     severityOf(severity: string | null): 'danger' | 'warn' | 'secondary' {
         return SEVERITY_SEVERITY[severity ?? 'unknown'] ?? 'secondary';
     }

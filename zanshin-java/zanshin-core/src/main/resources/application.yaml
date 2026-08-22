@@ -17,8 +17,9 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
-  liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/{vendor}
 
 server:
   # The API and the agent protocol share it. Long polling holds a request open, which is why

@@ -112,11 +112,10 @@ dependencies {
     // the honest form anyway: this module uses it directly.
     implementation(libs.jgit)
     implementation(libs.pdfbox)
-    implementation(libs.liquibase.core)
-    // Spring Boot 4 split its autoconfigurations into modules: `liquibase-core` alone no longer
-    // brings the one that runs the changelog at startup. Without this the application boots,
-    // Hibernate validates against an empty database, and the failure reads "missing table".
-    implementation(libs.spring.boot.liquibase)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgresql)
+    implementation(libs.flyway.mysql)
+    implementation(libs.spring.boot.flyway)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.mariadb)

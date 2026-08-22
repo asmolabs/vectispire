@@ -3,6 +3,7 @@ package com.asmolabs.zanshin.core.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,8 +24,8 @@ import org.junit.jupiter.api.io.TempDir;
 @DisplayName("the encryption key, from a file")
 class EncryptionKeyFileTest {
 
-    private static final String KEY = "Y3VycmVudC1rZXktMzItYnl0ZXMtbG9uZy0xMjM0NQ==";
-    private static final String OLD_KEY = "b2xkLWtleS0zMi1ieXRlcy1sb25nLTEyMzQ1Njc4OQ==";
+    private static final String KEY = EncryptionKey.generate();
+    private static final String OLD_KEY = EncryptionKey.generate();
 
     @TempDir
     private Path directory;

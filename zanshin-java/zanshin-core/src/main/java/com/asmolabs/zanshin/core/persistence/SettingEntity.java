@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 public class SettingEntity {
 
     @Id
-    @Column(name = "key", nullable = false)
+    @Column(name = "\"key\"", nullable = false)
     private String key;
 
     @Column(name = "value", length = 255)

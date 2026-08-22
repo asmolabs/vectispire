@@ -41,7 +41,7 @@ If you need to read it one last time (to identify which provider to revoke it at
 instance), supply the old key explicitly, for the duration of the operation:
 
 ```bash
-ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="my-secret-encryption-key-32bytes" cd zanshin-java && ./gradlew :zanshin-core:bootRun
+ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<your-previous-key>" cd zanshin-java && ./gradlew :zanshin-core:bootRun
 ```
 
 To do, **in this order**:
@@ -77,7 +77,7 @@ administrator can trigger it from the *Users* page (resetting the password sets 
 automatically), or in one query:
 
 ```sql
-UPDATE "user" SET must_change_password = 1;
+UPDATE t_user SET must_change_password = 1;
 ```
 
 ### 1.3 The bootstrap password

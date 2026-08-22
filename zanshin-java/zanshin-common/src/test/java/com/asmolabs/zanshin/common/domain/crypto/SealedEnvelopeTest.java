@@ -23,10 +23,11 @@ class SealedEnvelopeTest {
     void sealsAndOpensForTheIntendedRecipient() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
 
-        String sealed = envelopes.seal(agent.publicKey(), "-----BEGIN OPENSSH PRIVATE KEY-----");
+        String testSecret = "test-envelope-secret-payload";
+        String sealed = envelopes.seal(agent.publicKey(), testSecret);
 
         assertThat(sealed).startsWith(SealedEnvelope.PREFIX);
-        assertThat(envelopes.open(agent, sealed)).contains("-----BEGIN OPENSSH PRIVATE KEY-----");
+        assertThat(envelopes.open(agent, sealed)).contains(testSecret);
     }
 
     @Test
@@ -78,8 +79,8 @@ class SealedEnvelopeTest {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
 
         assertThat(SealedEnvelope.isSealed(null)).isFalse();
-        assertThat(SealedEnvelope.isSealed("-----BEGIN OPENSSH PRIVATE KEY-----")).isFalse();
-        assertThat(envelopes.open(agent, "-----BEGIN OPENSSH PRIVATE KEY-----")).isEmpty();
+        assertThat(SealedEnvelope.isSealed("unsealed-plain-test-content")).isFalse();
+        assertThat(envelopes.open(agent, "unsealed-plain-test-content")).isEmpty();
     }
 
     @Test

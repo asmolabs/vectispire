@@ -43,6 +43,21 @@ import {
     HistoryRepository,
     ScanDetail,
     SecurityOverview,
+    ComplianceSummary,
+    ComplianceEvaluation,
+    MfaSetupResponse,
+    MfaEnableResponse,
+    IssueTicket,
+    InTotoAttestation,
+    LicenseEntry,
+    LicensePolicy,
+    LicenseSummary,
+    OpenVexDocument,
+    SecurityGrade,
+    SecurityScorecard,
+    SiemConfig,
+    SiemTestResult,
+    ThreatIntelSyncStatus,
     SettingDefinition,
     SshKeySummary,
     TriageRequest,
@@ -462,5 +477,101 @@ export class ApiService {
 
     verifyAuditChain(): Observable<AuditVerification> {
         return this.http.get<AuditVerification>('/api/v1/audit-log/verify');
+    }
+
+    complianceSummary(): Observable<ComplianceSummary> {
+        return this.http.get<ComplianceSummary>('/api/v1/compliance/summary');
+    }
+
+    complianceFramework(framework: string): Observable<ComplianceEvaluation> {
+        return this.http.get<ComplianceEvaluation>(`/api/v1/compliance/frameworks/${framework}`);
+    }
+
+    exportCompliancePdf(): Observable<HttpResponse<Blob>> {
+        return this.downloadDocument('/api/v1/compliance/export.pdf');
+    }
+
+    exportEvidenceBundle(): Observable<HttpResponse<Blob>> {
+        return this.downloadDocument('/api/v1/compliance/evidence-bundle.zip');
+    }
+
+    verifyMfa(mfaToken: string, code: string): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>('/api/v1/auth/mfa/verify', { mfa_token: mfaToken, code });
+    }
+
+    setupMfa(): Observable<MfaSetupResponse> {
+        return this.http.post<MfaSetupResponse>('/api/v1/auth/mfa/setup', {});
+    }
+
+    enableMfa(secret: string, code: string): Observable<MfaEnableResponse> {
+        return this.http.post<MfaEnableResponse>('/api/v1/auth/mfa/enable', { secret, code });
+    }
+
+    disableMfa(code: string): Observable<{ mfaEnabled: boolean }> {
+        return this.http.post<{ mfaEnabled: boolean }>('/api/v1/auth/mfa/disable', { code });
+    }
+
+    getIssueTickets(issueId: number): Observable<IssueTicket[]> {
+        return this.http.get<IssueTicket[]>(`/api/v1/issues/${issueId}/tickets`);
+    }
+
+    createIssueTicket(issueId: number, payload: { provider: string; ticketKey: string; ticketUrl: string }): Observable<IssueTicket> {
+        return this.http.post<IssueTicket>(`/api/v1/issues/${issueId}/tickets`, payload);
+    }
+
+    getScanAttestation(scanId: number): Observable<InTotoAttestation> {
+        return this.http.get<InTotoAttestation>(`/api/v1/attestations/scans/${scanId}`);
+    }
+
+    getSiemConfig(): Observable<SiemConfig> {
+        return this.http.get<SiemConfig>('/api/v1/siem/config');
+    }
+
+    updateSiemConfig(payload: { enabled: boolean; protocol: string; endpoint?: string; authHeader?: string; minSeverity: string }): Observable<SiemConfig> {
+        return this.http.put<SiemConfig>('/api/v1/siem/config', payload);
+    }
+
+    testSiemConnection(payload: { endpoint: string; authHeader?: string }): Observable<SiemTestResult> {
+        return this.http.post<SiemTestResult>('/api/v1/siem/test', payload);
+    }
+
+    getThreatIntelStatus(): Observable<ThreatIntelSyncStatus> {
+        return this.http.get<ThreatIntelSyncStatus>('/api/v1/threat-intel/status');
+    }
+
+    syncThreatIntel(): Observable<ThreatIntelSyncStatus> {
+        return this.http.post<ThreatIntelSyncStatus>('/api/v1/threat-intel/sync', {});
+    }
+
+    getScanVex(scanId: number): Observable<OpenVexDocument> {
+        return this.http.get<OpenVexDocument>(`/api/v1/vex/scans/${scanId}/openvex.json`);
+    }
+
+    getAggregateVex(): Observable<OpenVexDocument> {
+        return this.http.get<OpenVexDocument>('/api/v1/vex/aggregate.json');
+    }
+
+    getLicenseSummary(): Observable<LicenseSummary> {
+        return this.http.get<LicenseSummary>('/api/v1/licenses/summary');
+    }
+
+    getLicenseInventory(): Observable<LicenseEntry[]> {
+        return this.http.get<LicenseEntry[]>('/api/v1/licenses/inventory');
+    }
+
+    getLicensePolicy(): Observable<LicensePolicy> {
+        return this.http.get<LicensePolicy>('/api/v1/licenses/policy');
+    }
+
+    updateLicensePolicy(policy: LicensePolicy): Observable<LicensePolicy> {
+        return this.http.put<LicensePolicy>('/api/v1/licenses/policy', policy);
+    }
+
+    getRepositoryScorecard(repoId: number): Observable<SecurityScorecard> {
+        return this.http.get<SecurityScorecard>(`/api/v1/scorecards/repositories/${repoId}`);
+    }
+
+    getGlobalScorecard(): Observable<SecurityScorecard> {
+        return this.http.get<SecurityScorecard>('/api/v1/scorecards/global');
     }
 }

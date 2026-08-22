@@ -12,6 +12,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { TeamSummary, TeamTargetAssignment, UserSummary } from '../../core/api.models';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** A target, as the multiselect needs it: one option list across both kinds. */
 interface TargetOption {
@@ -43,7 +44,8 @@ interface TargetOption {
         MessageModule,
         MultiSelectModule,
         TableModule,
-        TagModule
+        TagModule,
+        TranslatePipe
     ],
     templateUrl: './teams.html'
 })

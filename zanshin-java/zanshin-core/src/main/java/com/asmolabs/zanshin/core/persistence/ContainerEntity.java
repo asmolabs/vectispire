@@ -41,6 +41,9 @@ public class ContainerEntity {
     @Column(name = "last_scheduled_scan_at")
     private Instant lastScheduledScanAt;
 
+    @Column(name = "tier", length = 32, nullable = false)
+    private String tier = "TIER_2_BUSINESS_OPERATIONAL";
+
     public Long getId() {
         return id;
     }
@@ -103,5 +106,13 @@ public class ContainerEntity {
 
     public void setLastScheduledScanAt(Instant lastScheduledScanAt) {
         this.lastScheduledScanAt = lastScheduledScanAt;
+    }
+
+    public String getTier() {
+        return tier;
+    }
+
+    public void setTier(String tier) {
+        this.tier = tier != null ? tier : "TIER_2_BUSINESS_OPERATIONAL";
     }
 }

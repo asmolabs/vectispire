@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 class AgentProtocolTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String PRIVATE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----";
+    private static final String PRIVATE_KEY = "test-agent-mock-private-key-material";
 
     private final SealedEnvelope envelopes = new SealedEnvelope();
     private final SealedEnvelope.KeyPair keyPair = envelopes.generateKeyPair();

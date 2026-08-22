@@ -42,6 +42,8 @@ export const appRoutes: Routes = [
             { path: 'history', loadComponent: () => import('./app/pages/history/history').then((m) => m.History) },
             { path: 'inventory', loadComponent: () => import('./app/pages/inventory/inventory').then((m) => m.Inventory) },
             { path: 'owasp', loadComponent: () => import('./app/pages/owasp/owasp').then((m) => m.Owasp) },
+            { path: 'compliance', loadComponent: () => import('./app/pages/compliance/compliance').then((m) => m.Compliance) },
+            { path: 'licenses', loadComponent: () => import('./app/pages/licenses/licenses').then((m) => m.Licenses) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
     },

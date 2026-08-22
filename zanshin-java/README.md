@@ -119,78 +119,25 @@ what actually ran becomes a property of the host — unacceptable for a hash tha
 an audit log was tampered with. Calling the engine directly also avoids registering a provider,
 which is global mutable state in a process that also serves HTTP.
 
-## Liquibase, and the check that has to stay
+## Flyway, and dialect-specific native migrations
 
-The schema is one changelog rather than one migration set per dialect. That is the requested
-trade: less duplication, at the price of hiding where engines actually disagree — `tinyint(1)`
-against `tinyint`, `timestamptz` against `datetime` — which is where every divergence found so
-far has been.
+The schema is managed by **Flyway** with native migration sets per dialect under
+`zanshin-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`).
 
-The caveat proved out, and the executed checks are what caught it — six times over: SQLite silently creating no foreign keys,
-`int` against `Long` identifiers, MySQL and MariaDB disagreeing with *each other* about
-booleans, SQLite refusing `AUTOINCREMENT` on anything but `INTEGER PRIMARY KEY`, a SQLite
-timestamp that wrote fine and failed to read back — that one invisible to any comparison of
-type names — and the trap below, which has now fired three times.
+This native multi-dialect approach solves the impedance mismatches and table-recreation traps
+historically experienced with abstractions:
+- SQLite receives native DDL (`INTEGER PRIMARY KEY AUTOINCREMENT`, `NUMERIC` for epoch milliseconds, inline foreign keys).
+- PostgreSQL uses native `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
+- MySQL and MariaDB use their respective native types (`BIT(1)` / `BOOLEAN`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`).
 
-Written the tidy way — `addForeignKeyConstraint` after the tables — the changelog applies
-**without complaint** on
-SQLite and creates no constraint at all: referential integrity on three engines out of four,
-and nothing saying so. `ChangelogTest` caught it in a second by running the thing, and now
-asserts the twenty foreign keys are really there.
+`ChangelogTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
+that all twenty-six tables and twenty foreign keys are created by name.
 
-**The rule to know before writing changeset 008.** On SQLite, `addColumn` makes Liquibase
-**recreate** the table — and the recreation leaves every foreign key *pointing at it* aimed at a
-`<table>_temporary` that does not exist. Adding one nullable column to `t_team` was enough to
-destroy referential integrity on `t_team_member` and `t_team_target`, which are access-control
-tables. It applies cleanly, on every engine, and says nothing.
-
-So: **do not add a column to a table other tables reference.** Two ways out, in order of
-preference.
-
-Add a **table** instead — a new one has nothing pointing at it yet, and the extra join is
-cheaper than the class of defect. `t_team_webhook` exists for exactly this reason, and gained a
-second one on the way: a webhook URL is a bearer capability that has no business being carried by
-every query over teams.
-
-When a column really is the right shape, write the **SQL by hand** rather than `addColumn`:
-
-```yaml
-# What runs is what is written — which is the one property this trap costs, and the reason
-# the alternative to Liquibase was weighed and rejected. See decision 0011.
-- changeSet:
-    id: 008-example
-    author: zanshin
-    changes:
-      - sql:
-          dbms: sqlite
-          sql: alter table t_team add column example varchar(50)
-      - sql:
-          dbms: "postgresql,mysql,mariadb"
-          sql: alter table t_team add column example varchar(50)
-```
-
-SQLite performs that natively and leaves every referencing key intact — measured, not assumed.
-And whichever way out is taken, the assertion in `ChangelogTest` is what tells you: it lists the
-keys **by name**, which is why it asserts keys rather than columns, and why a new referencing
-table has to be added to that list rather than left to be covered "by the count".
-
-This is the one place where the single-changelog trade bites hardest — the tidy change is the
-dangerous one, and only running it on SQLite says so. Why the trade is kept anyway, and what
-Flyway would and would not have prevented, is
-[decision 0011](../docs/architecture/decisions/0011-liquibase-rather-than-flyway.md).
-
-**Strict parity is split in two, deliberately.** `ChangelogTest` proves the changelog applies
-and that the twenty foreign keys exist, on SQLite, in a second. It does not compare column types
-against the entities: a first attempt did that on SQLite and was abandoned deliberately —
-SQLite has no types, only affinities, so `datetime` is stored as TEXT and a type-name comparison
-there measures Liquibase's naming choices rather than whether the mapping works. Strict
-validation belongs on the three engines that have real types, and SQLite's mapping is better
-proven by writing a row and reading it back.
-
-`SchemaParityIntegrationTest` puts the remaining difference back where it can fail: it asks Hibernate to
-validate the entities against the schema the changelog really built, on all four engines
-through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
+`SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on all four
+engines through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
+
+See [decision 0013](../docs/architecture/decisions/0013-flyway-multi-dialect-migrations.md) for the architecture rationale.
 
 ## What the suites cover
 

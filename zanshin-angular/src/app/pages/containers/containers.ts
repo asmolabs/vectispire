@@ -15,10 +15,12 @@ import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-containers',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields, TranslatePipe],
     templateUrl: './containers.html'
 })
 export class Containers {
@@ -38,7 +40,15 @@ export class Containers {
     readonly pendingDelete = signal<MonitoredContainer | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
-    form = { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null as number | null, scanCron: '' };
+    form = {
+        registry: '',
+        imageName: '',
+        tag: 'latest',
+        requiredAgentLabel: '',
+        scanIntervalMinutes: null as number | null,
+        scanCron: '',
+        tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
+    };
 
     /** Exposed to the template: the list says what each image's schedule is, because a target
      *  nobody rescans looks monitored until somebody reads the date of its last scan. */
@@ -68,11 +78,12 @@ export class Containers {
      *
      * The screen says so, because the wait that follows is not an ordinary button's — without
      * that sentence, the absence of an immediate change reads as a failure. For an image it is
-     * truer still than for a repository: it has to be pulled from the registry first.
+     * longer still: an agent with no cached layer pulls the whole image before it starts.
      */
     triggerScan(container: MonitoredContainer): void {
         this.busy.set(container.id);
         this.notice.set(null);
+        this.error.set(null);
         this.api.triggerContainerScan(container.id).subscribe({
             next: () => {
                 this.busy.set(null);
@@ -81,7 +92,6 @@ export class Containers {
             },
             error: (response) => {
                 this.busy.set(null);
-                // The server knows why — "a scan is already queued", most of the time.
                 this.error.set(messageOf(response, 'Could not queue this scan.'));
             }
         });
@@ -111,9 +121,10 @@ export class Containers {
                   tag: container.tag,
                   requiredAgentLabel: container.requiredAgentLabel ?? '',
                   scanIntervalMinutes: container.scanIntervalMinutes,
-                  scanCron: container.scanCron ?? ''
+                  scanCron: container.scanCron ?? '',
+                  tier: container.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
-            : { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '' };
+            : { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -130,6 +141,7 @@ export class Containers {
             image_name: this.form.imageName.trim(),
             tag: this.form.tag.trim() || 'latest',
             required_agent_label: this.form.requiredAgentLabel.trim() || blank,
+            tier: this.form.tier as any,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
             // form showed nothing — the operator would think they had switched the rescan off and

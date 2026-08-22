@@ -87,6 +87,13 @@ public class IssueEntity {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "reachability", length = 16, nullable = false)
+    private String reachability = "UNKNOWN";
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "reachable_symbols")
+    private String reachableSymbols;
+
     @Column(name = "state", length = 20, nullable = false)
     private String state;
 
@@ -247,7 +254,15 @@ public class IssueEntity {
         return isKev;
     }
 
+    public boolean isKev() {
+        return isKev;
+    }
+
     public void setIsKev(boolean isKev) {
+        this.isKev = isKev;
+    }
+
+    public void setKev(boolean isKev) {
         this.isKev = isKev;
     }
 
@@ -433,5 +448,21 @@ public class IssueEntity {
 
     public void setTicketUrl(String ticketUrl) {
         this.ticketUrl = ticketUrl;
+    }
+
+    public String getReachability() {
+        return reachability;
+    }
+
+    public void setReachability(String reachability) {
+        this.reachability = reachability != null ? reachability : "UNKNOWN";
+    }
+
+    public String getReachableSymbols() {
+        return reachableSymbols;
+    }
+
+    public void setReachableSymbols(String reachableSymbols) {
+        this.reachableSymbols = reachableSymbols;
     }
 }

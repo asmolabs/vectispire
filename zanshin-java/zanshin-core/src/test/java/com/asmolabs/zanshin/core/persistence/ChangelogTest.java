@@ -9,45 +9,37 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
-import liquibase.Liquibase;
-import liquibase.database.DatabaseFactory;
-import liquibase.database.jvm.JdbcConnection;
-import liquibase.resource.ClassLoaderResourceAccessor;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The changelog, executed rather than read.
+ * The schema migrations, executed rather than read.
  *
- * <p>A YAML file that parses is not a schema. This runs the whole thing against SQLite — the one
+ * <p>A SQL file that parses is not a schema. This runs the whole thing against SQLite — the one
  * engine that needs no daemon — so a typo in a type, a column named twice, or a foreign key
  * pointing at a table declared later fails here, in a second, instead of in the integration
  * campaign minutes later or in a deployment.
  *
- * <p>It proves the changelog is <em>coherent</em>, not that it is <em>portable</em>. Portability
+ * <p>It proves the migrations are <em>coherent</em>, not that they are <em>portable</em>. Portability
  * is what {@code SchemaParityIntegrationTest} is for, on all four engines, because the places
  * the engines disagree are exactly the places SQLite is most forgiving about.
  */
-@DisplayName("the schema changelog")
+@DisplayName("the schema migrations (Flyway)")
 class ChangelogTest {
 
-    private static final String MASTER = "db/changelog/db.changelog-master.yaml";
+    private static final String LOCATIONS = "classpath:db/migration/sqlite";
 
     @TempDir
     Path scratch;
 
-    private static void apply(Path database) throws Exception {
-        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database)) {
-            var target = DatabaseFactory.getInstance()
-                    .findCorrectDatabaseImplementation(new JdbcConnection(connection));
-            // `Liquibase.close()` closes the connection it was handed, so nothing may be read
-            // through it afterwards. Reopening is one line; sharing the handle is a test that
-            // fails on a closed connection and looks like a schema problem.
-            try (Liquibase liquibase = new Liquibase(MASTER, new ClassLoaderResourceAccessor(), target)) {
-                liquibase.update("");
-            }
-        }
+    private static void apply(Path database) {
+        Flyway flyway = Flyway.configure()
+                .dataSource("jdbc:sqlite:" + database, "", "")
+                .locations(LOCATIONS)
+                .load();
+        flyway.migrate();
     }
 
     private List<String> applyChangelog() throws Exception {
@@ -75,7 +67,7 @@ class ChangelogTest {
                         "t_leader_lease", "t_login_attempt", "t_outbox_message", "t_processed_message",
                         "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set",
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
-                        "t_team_webhook");
+                        "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy");
     }
 
     @Test
@@ -95,7 +87,7 @@ class ChangelogTest {
             for (String table : List.of(
                     "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
                     "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
-                    "t_team_member", "t_team_target", "t_team_webhook")) {
+                    "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket")) {
                 try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
                     while (rows.next()) {
                         references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -122,8 +114,9 @@ class ChangelogTest {
                         "t_team_member.team_id -> t_team",
                         "t_team_member.user_id -> t_user",
                         "t_team_target.team_id -> t_team",
-                        "t_team_webhook.team_id -> t_team")
-                .hasSize(20);
+                        "t_team_webhook.team_id -> t_team",
+                        "t_issue_ticket.issue_id -> t_issue")
+                .hasSize(21);
     }
 
     @Test

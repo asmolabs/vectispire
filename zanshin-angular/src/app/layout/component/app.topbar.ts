@@ -4,11 +4,13 @@ import { CommonModule } from '@angular/common';
 import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-topbar',
     standalone: true,
-    imports: [RouterModule, CommonModule, StyleClassModule, AppConfigurator],
+    imports: [RouterModule, CommonModule, StyleClassModule, AppConfigurator, TranslatePipe],
     template: ` <div class="layout-topbar">
         <div class="layout-topbar-logo-container">
             <button class="layout-menu-button layout-topbar-action" (click)="layoutService.onMenuToggle()">
@@ -29,7 +31,23 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 
         <div class="layout-topbar-actions">
             <div class="layout-config-menu">
-                <button type="button" class="layout-topbar-action" (click)="toggleDarkMode()" [attr.aria-label]="layoutService.isDarkTheme() ? 'Switch to the light theme' : 'Switch to the dark theme'">
+                <!-- Language Selector Toggle -->
+                <button
+                    type="button"
+                    class="layout-topbar-action font-semibold text-xs uppercase"
+                    (click)="toggleLanguage()"
+                    [attr.aria-label]="'topbar.language' | translate"
+                    [title]="'topbar.language' | translate"
+                >
+                    <span>{{ i18n.currentLang() === 'en' ? 'FR' : 'EN' }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    class="layout-topbar-action"
+                    (click)="toggleDarkMode()"
+                    [attr.aria-label]="layoutService.isDarkTheme() ? ('topbar.switch_light' | translate) : ('topbar.switch_dark' | translate)"
+                >
                     <i [ngClass]="{ 'pi ': true, 'pi-moon': layoutService.isDarkTheme(), 'pi-sun': !layoutService.isDarkTheme() }"></i>
                 </button>
                 <div class="relative">
@@ -41,7 +59,7 @@ import { LayoutService } from '@/app/layout/service/layout.service';
                         leaveToClass="hidden"
                         leaveActiveClass="animate-fadeout"
                         [hideOnOutsideClick]="true"
-                        aria-label="Apparence"
+                        [attr.aria-label]="'topbar.appearance' | translate"
                     >
                         <i class="pi pi-palette"></i>
                     </button>
@@ -70,11 +88,11 @@ import { LayoutService } from '@/app/layout/service/layout.service';
                 <div class="layout-topbar-menu-content">
                     <button type="button" class="layout-topbar-action" routerLink="/change-password">
                         <i class="pi pi-key"></i>
-                        <span>Password</span>
+                        <span>{{ 'topbar.password' | translate }}</span>
                     </button>
                     <button type="button" class="layout-topbar-action">
                         <i class="pi pi-sign-out"></i>
-                        <span>Sign out</span>
+                        <span>{{ 'topbar.sign_out' | translate }}</span>
                     </button>
                 </div>
             </div>
@@ -83,11 +101,17 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 })
 export class AppTopbar {
     layoutService = inject(LayoutService);
+    i18n = inject(I18nService);
 
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({
             ...state,
             darkTheme: !state.darkTheme
         }));
+    }
+
+    toggleLanguage() {
+        const next = this.i18n.currentLang() === 'en' ? 'fr' : 'en';
+        this.i18n.setLanguage(next);
     }
 }

@@ -15,9 +15,9 @@ knowing the alternative already tried.
 | [0007](0007-none-is-not-an-empty-list.md) | An analyzer that fails returns `None`, never `[]` | 2026-08-07 | accepted |
 | [0008](0008-postgresql-and-mysql.md) | Two database engines: PostgreSQL and MySQL | 2026-08-14 | **superseded by [0009](0009-four-engines.md)** |
 | [0009](0009-four-engines.md) | Four database engines, each one measured | 2026-08-16 | accepted |
-| [0010](0010-one-scan-runner.md) | One scan runner, and the agent is the seam | 2026-08-17 | accepted |
-| [0011](0011-liquibase-rather-than-flyway.md) | Liquibase stays, and structural DDL is written by hand | 2026-08-22 | accepted |
+| [0011](0011-liquibase-rather-than-flyway.md) | Liquibase stays, and structural DDL is written by hand | 2026-08-22 | **superseded by [0013](0013-flyway-multi-dialect-migrations.md)** |
 | [0012](0012-apache-2-0.md) | Apache-2.0, and the AGPL was the alternative | 2026-08-22 | accepted |
+| [0013](0013-flyway-multi-dialect-migrations.md) | Flyway with dialect-specific native migrations | 2026-08-22 | accepted |
 
 ## The register's rules
 

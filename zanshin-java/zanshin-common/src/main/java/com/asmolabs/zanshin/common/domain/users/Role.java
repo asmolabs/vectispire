@@ -15,18 +15,25 @@ import java.util.Optional;
  * grants or withholds administration.
  */
 public enum Role {
-    SUPERUSER(true),
-    ADMIN(true),
-    USER(false);
+    SUPERUSER(true, true),
+    ADMIN(true, true),
+    CISO(false, true),
+    USER(false, false);
 
     private final boolean administrative;
+    private final boolean globalSecurityScope;
 
-    Role(boolean administrative) {
+    Role(boolean administrative, boolean globalSecurityScope) {
         this.administrative = administrative;
+        this.globalSecurityScope = globalSecurityScope;
     }
 
     public boolean isAdministrative() {
         return administrative;
+    }
+
+    public boolean hasGlobalSecurityScope() {
+        return globalSecurityScope;
     }
 
     /**

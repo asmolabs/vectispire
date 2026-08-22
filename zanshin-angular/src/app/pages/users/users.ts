@@ -15,14 +15,17 @@ import type { UserSummary } from '../../core/api.models';
 
 const ROLES = [
     { label: 'User', value: 'USER' },
+    { label: 'CISO / Security Lead', value: 'CISO' },
     { label: 'Administrator', value: 'ADMIN' },
     { label: 'Superuser', value: 'SUPERUSER' }
 ];
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-users',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './users.html'
 })
 export class Users {

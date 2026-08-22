@@ -61,6 +61,15 @@ public class UserEntity {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
+    @Column(name = "mfa_enabled", nullable = false)
+    private boolean mfaEnabled = false;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "mfa_backup_codes")
+    private String mfaBackupCodes;
+
     public Long getId() {
         return id;
     }
@@ -163,5 +172,29 @@ public class UserEntity {
 
     public void setMustChangePassword(boolean mustChangePassword) {
         this.mustChangePassword = mustChangePassword;
+    }
+
+    public boolean getMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public String getTotpSecret() {
+        return totpSecret;
+    }
+
+    public void setTotpSecret(String totpSecret) {
+        this.totpSecret = totpSecret;
+    }
+
+    public String getMfaBackupCodes() {
+        return mfaBackupCodes;
+    }
+
+    public void setMfaBackupCodes(String mfaBackupCodes) {
+        this.mfaBackupCodes = mfaBackupCodes;
     }
 }

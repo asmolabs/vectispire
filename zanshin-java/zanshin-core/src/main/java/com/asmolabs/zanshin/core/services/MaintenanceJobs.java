@@ -39,6 +39,7 @@ public class MaintenanceJobs {
     private final SchedulerService scheduler;
     private final IssueTriageService triage;
     private final PostureDigestService digest;
+    private final TargetDeletionService targetDeletion;
 
     /**
      * One turn at a time, per job.
@@ -60,7 +61,8 @@ public class MaintenanceJobs {
             InventoryBackfill backfill,
             SchedulerService scheduler,
             IssueTriageService triage,
-            PostureDigestService digest) {
+            PostureDigestService digest,
+            TargetDeletionService targetDeletion) {
         this.retention = retention;
         this.outbox = outbox;
         this.tickets = tickets;
@@ -69,6 +71,7 @@ public class MaintenanceJobs {
         this.scheduler = scheduler;
         this.triage = triage;
         this.digest = digest;
+        this.targetDeletion = targetDeletion;
     }
 
     /**
@@ -153,6 +156,8 @@ public class MaintenanceJobs {
                         cleaned.sessions(),
                         cleaned.attempts());
             }
+
+            targetDeletion.purgeOrphanedTargetData();
             return null;
         });
     }

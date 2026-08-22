@@ -21,8 +21,7 @@ Apache License 2.0
   com.fasterxml.jackson.core:*              Jackson
   org.apache.pdfbox:pdfbox                  PDFBox
   org.apache.httpcomponents.client5:*       Apache HttpClient 5
-  org.apache.httpcomponents.core5:*         Apache HttpCore 5
-  org.liquibase:liquibase-core              Liquibase Core
+  org.flywaydb:*                            Flyway
   com.github.docker-java:*                  docker-java
   org.xerial:sqlite-jdbc                    SQLite JDBC driver
 

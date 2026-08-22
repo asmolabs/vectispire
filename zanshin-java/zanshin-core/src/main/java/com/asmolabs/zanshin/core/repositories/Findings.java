@@ -49,4 +49,10 @@ public interface Findings extends JpaRepository<FindingEntity, Long> {
     List<Object[]> sightingsOf(@Param("issueId") Long issueId, Limit limit);
 
     long countByScanId(Long scanId);
+
+    long countByScanIdAndSeverity(Long scanId, String severity);
+
+    void deleteByScanIdIn(java.util.Collection<Long> scanIds);
+
+    void deleteByIssueIdIn(java.util.Collection<Long> issueIds);
 }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
 import com.asmolabs.zanshin.common.domain.dependencies.Directness;
 import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
@@ -28,7 +29,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("opening a ticket with a tracker")
 class TicketServiceTest {
 
-    private static final String ENCRYPTION_KEY = "Y3VycmVudC1rZXktMzItYnl0ZXMtbG9uZy0xMjM0NQ==";
+    private static final String ENCRYPTION_KEY = EncryptionKey.generate();
 
     private SettingsService settings;
     private EncryptionService encryption;
@@ -47,7 +48,7 @@ class TicketServiceTest {
         when(settings.get(Setting.TICKET_BASE_URL)).thenReturn("https://gitlab.example.com/");
         when(settings.get(Setting.TICKET_PROJECT)).thenReturn("team/service");
         when(settings.get(Setting.TICKET_TOKEN))
-                .thenReturn(encryption.encrypt("glpat-secret", TicketService.TOKEN_CONTEXT));
+                .thenReturn(encryption.encrypt("mock-gitlab-api-token", TicketService.TOKEN_CONTEXT));
         when(settings.get(Setting.TICKET_LABELS)).thenReturn("zanshin,security");
         when(settings.isEnabled(Setting.TICKET_ALLOW_PRIVATE_URL)).thenReturn(true);
         when(post.validate(anyString(), any(), anyString())).thenAnswer(call -> call.getArgument(0));
@@ -71,7 +72,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("the token is stored encrypted, never in the clear")
     void theTokenIsEncryptedAtRest() {
-        service.setToken("glpat-new");
+        service.setToken("mock-updated-token");
 
         verify(settings).set(eq(Setting.TICKET_TOKEN), contains("v2:"));
     }

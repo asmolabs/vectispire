@@ -131,15 +131,12 @@ blob, precisely so that it keeps working after the purge.
 
 ## The migrations
 
-One Liquibase changelog under `zanshin-java/zanshin-core/src/main/resources/db/changelog/`,
-with dialect differences expressed as properties rather than as four parallel sets. Two rules
-learned by breaking something.
+Managed by Flyway under `zanshin-java/zanshin-core/src/main/resources/db/migration/{vendor}/`
+(`postgresql`, `mariadb`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring
+complete fidelity on each database engine. Two rules learned by breaking something.
 
 **A migration that has already been applied is a record, not code.** Rewriting it breaks
-fresh installations — this has happened before: a revision that rebuilt the
-SQLite tables from the *live* models instead of the real database, so a fresh install
-failed on a column the model had and the database did not yet. The narrow, safe exception
-is amending a *baseline*, which by construction only ever runs on an empty database.
+installations. Any new schema evolution is added as a new versioned migration script (`V8__...sql`).
 
 **What is invisible on SQLite is real elsewhere.** Six portability defects lived in this
 schema, all invisible both from SQLite and to a careful reading: a `BINARY` type

@@ -22,7 +22,7 @@ class SecretCipherTest {
         @Test
         @DisplayName("reads back what it wrote")
         void roundTrips() {
-            String secret = "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----";
+            String secret = "ssh-rsa-test-private-key-material-xyz";
             String sealed = cipher.encrypt(key, secret, SecretCipher.privateKeyContext("k1"));
 
             assertThat(cipher.decrypt(key, sealed, SecretCipher.privateKeyContext("k1"))).contains(secret);

@@ -33,4 +33,9 @@ public interface GatePolicies extends JpaRepository<GatePolicyEntity, Long> {
             update GatePolicyEntity p set p.isActive = null
              where p.targetKind = :kind and p.targetId = :id and p.isActive = true""")
     int supersede(@Param("kind") String targetKind, @Param("id") Long targetId);
+
+    @Transactional
+    @Modifying
+    @Query("delete from GatePolicyEntity p where p.targetKind = :kind and p.targetId = :id")
+    int deleteByTarget(@Param("kind") String targetKind, @Param("id") Long targetId);
 }

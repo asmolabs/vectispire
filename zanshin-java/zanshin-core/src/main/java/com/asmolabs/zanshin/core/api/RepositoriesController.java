@@ -16,10 +16,12 @@ import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
 import com.asmolabs.zanshin.common.domain.access.Visibility;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.zanshin.common.domain.targets.AssetTier;
 import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.CronExpressions;
 import com.asmolabs.zanshin.core.services.ScanTriggerService;
+import com.asmolabs.zanshin.core.services.TargetDeletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -58,6 +60,7 @@ public class RepositoriesController {
 
     private final UserTargets userTargets;
     private final TeamTargets teamTargets;
+    private final TargetDeletionService targetDeletion;
 
     public RepositoriesController(
             GitRepositories repositories,
@@ -67,7 +70,8 @@ public class RepositoriesController {
             AuditLogService audit,
             VisibilityService visibility,
             UserTargets userTargets,
-            TeamTargets teamTargets) {
+            TeamTargets teamTargets,
+            TargetDeletionService targetDeletion) {
         this.userTargets = userTargets;
         this.teamTargets = teamTargets;
         this.repositories = repositories;
@@ -76,6 +80,7 @@ public class RepositoriesController {
         this.trigger = trigger;
         this.audit = audit;
         this.visibility = visibility;
+        this.targetDeletion = targetDeletion;
     }
 
     public record LastScan(Long id, String status, Instant createdAt, String error) {}
@@ -93,7 +98,8 @@ public class RepositoriesController {
             UUID sshKeyId,
             Instant lastScheduledScanAt,
             LastScan lastScan,
-            long openIssues) {}
+            long openIssues,
+            String tier) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record CreateRequest(
@@ -104,7 +110,8 @@ public class RepositoriesController {
             Integer scanIntervalMinutes,
             String scanCron,
             @JsonProperty("required_agent_label") String requiredAgentLabel,
-            UUID sshKeyId) {}
+            UUID sshKeyId,
+            String tier) {}
 
     public record QueuedScan(Long id, String status) {}
 
@@ -131,7 +138,8 @@ public class RepositoriesController {
                         repository.getSshKeyId(),
                         repository.getLastScheduledScanAt(),
                         latest.get(repository.getId()),
-                        open.getOrDefault(repository.getId(), 0L)))
+                        open.getOrDefault(repository.getId(), 0L),
+                        repository.getTier()))
                 .toList();
     }
 
@@ -162,6 +170,7 @@ public class RepositoriesController {
         // never meet, and the scan would wait for an agent that is present.
         repository.setRequiredAgentLabel(AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
         repository.setSshKeyId(body.sshKeyId());
+        repository.setTier(body.tier() != null ? AssetTier.fromString(body.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
         RepositoryEntity saved = repositories.save(repository);
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + saved.getUrl());
@@ -232,6 +241,9 @@ public class RepositoriesController {
         if (body.sshKeyId() != null) {
             repository.setSshKeyId(body.sshKeyId());
         }
+        if (body.tier() != null) {
+            repository.setTier(AssetTier.fromString(body.tier()).name());
+        }
 
         RepositoryEntity saved = repositories.save(repository);
         String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + previousUrl + ")";
@@ -276,18 +288,7 @@ public class RepositoriesController {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
 
-        // Scans, findings and issues follow by cascade. That is intended: keeping the backlog of
-        // a target that no longer exists would have it counting towards the totals for ever with
-        // nobody able to act on it.
-        //
-        // The visibility rows do **not** follow by cascade — `(target_kind, target_id)` points
-        // into one of two tables, so there is no foreign key to cascade through — and leaving
-        // them is an access-control problem rather than clutter: SQLite reuses a freed `rowid`,
-        // so an assignment naming repository 5 would come to name the *next* repository 5. Both
-        // tables are cleared before the row goes.
-        userTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, id);
-        teamTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, id);
-        repositories.deleteById(id);
+        targetDeletion.deleteRepository(id);
         record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + repository.getUrl());
     }
 

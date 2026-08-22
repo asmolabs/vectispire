@@ -38,7 +38,7 @@ class VaultKmsProviderTest {
         guard = mock(OutboundUrlGuard.class);
         json = new ObjectMapper();
 
-        EncryptionKey key = EncryptionKey.derive("bWFzdGVyLWtleS0zMi1ieXRlcy1sb25nLXNlY3JldC0xMQ==");
+        EncryptionKey key = EncryptionKey.derive(EncryptionKey.generate());
         fallback = new LocalKmsProvider(Optional.of(key), List.of(key));
 
         provider = new VaultKmsProvider(

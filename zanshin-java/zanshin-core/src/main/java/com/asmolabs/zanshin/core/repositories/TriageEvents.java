@@ -43,4 +43,6 @@ public interface TriageEvents extends JpaRepository<TriageEventEntity, Long> {
             select count(e.id) from TriageEventEntity e, IssueEntity i
              where e.issueId = i.id and i.repoId = :repoId""")
     long countForRepository(@Param("repoId") long repoId);
+
+    void deleteByIssueIdIn(Collection<Long> issueIds);
 }

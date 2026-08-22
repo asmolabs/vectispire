@@ -34,8 +34,11 @@ export class Login {
 
     username = '';
     password = '';
+    mfaCode = '';
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
+    readonly mfaRequired = signal(false);
+    readonly mfaToken = signal<string | null>(null);
 
     /** Null until the server has said which ways in this deployment accepts. */
     readonly methods = signal<SignInMethods | null>(null);
@@ -71,10 +74,12 @@ export class Login {
         this.loading.set(true);
         this.api.completeSignIn().subscribe({
             next: (response) => {
-                this.session.open(response.token, response.user);
-                this.loading.set(false);
-                void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'],
-                    { replaceUrl: true });
+                if (response.token && response.user) {
+                    this.session.open(response.token, response.user);
+                    this.loading.set(false);
+                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'],
+                        { replaceUrl: true });
+                }
             },
             error: () => {
                 this.loading.set(false);
@@ -94,17 +99,57 @@ export class Login {
         window.location.href = '/oauth2/authorization/oidc';
     }
 
+    cancelMfa(): void {
+        this.mfaRequired.set(false);
+        this.mfaToken.set(null);
+        this.mfaCode = '';
+        this.error.set(null);
+    }
+
+    verifyMfa(): void {
+        if (this.loading() || !this.mfaToken() || !this.mfaCode.trim()) return;
+        this.loading.set(true);
+        this.error.set(null);
+
+        this.api.verifyMfa(this.mfaToken()!, this.mfaCode.trim()).subscribe({
+            next: (response) => {
+                if (response.token && response.user) {
+                    this.session.open(response.token, response.user);
+                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
+                }
+            },
+            error: (response: { status: number; error?: { message?: string } }) => {
+                this.loading.set(false);
+                this.error.set(response.error?.message ?? 'Invalid MFA verification code.');
+            }
+        });
+    }
+
     submit(): void {
+        if (this.mfaRequired()) {
+            this.verifyMfa();
+            return;
+        }
+
         if (this.loading()) return;
         this.loading.set(true);
         this.error.set(null);
 
         this.api.login(this.username, this.password, clientId()).subscribe({
             next: (response) => {
-                this.session.open(response.token, response.user);
-                // Un compte de provisionnement va d'abord changer son mot de passe : le
-                // laisser atteindre le reste viderait le drapeau de son sens.
-                void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
+                if (response.mfa_required) {
+                    this.loading.set(false);
+                    this.mfaRequired.set(true);
+                    this.mfaToken.set(response.mfa_token ?? null);
+                    return;
+                }
+
+                if (response.token && response.user) {
+                    this.session.open(response.token, response.user);
+                    // Un compte de provisionnement va d'abord changer son mot de passe : le
+                    // laisser atteindre le reste viderait le drapeau de son sens.
+                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
+                }
             },
             error: (response: { status: number; error?: { message?: string; retryAfterSeconds?: number } }) => {
                 this.loading.set(false);

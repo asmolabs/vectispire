@@ -22,4 +22,6 @@ public interface AiReviewResults extends JpaRepository<AiReviewResultEntity, Lon
              where r.scanId = s.id and s.repoId = :repoId
              order by r.createdAt desc, r.id desc""")
     List<AiReviewResultEntity> latestForRepository(@Param("repoId") long repoId, Limit limit);
+
+    void deleteByScanIdIn(java.util.Collection<Long> scanIds);
 }

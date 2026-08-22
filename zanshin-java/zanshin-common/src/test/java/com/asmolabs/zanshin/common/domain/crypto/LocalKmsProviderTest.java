@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Local KMS Provider")
 class LocalKmsProviderTest {
 
-    private static final String KEY_CURRENT = "bWFzdGVyLWtleS0zMi1ieXRlcy1sb25nLXNlY3JldC0xMQ==";
-    private static final String KEY_PREVIOUS = "bWFzdGVyLWtleS0zMi1ieXRlcy1sb25nLXNlY3JldC0yMg==";
+    private static final String KEY_CURRENT = EncryptionKey.generate();
+    private static final String KEY_PREVIOUS = EncryptionKey.generate();
 
     @Test
     @DisplayName("encrypts and decrypts with current key")

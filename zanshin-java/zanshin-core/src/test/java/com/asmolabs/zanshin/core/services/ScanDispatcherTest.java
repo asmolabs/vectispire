@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.zanshin.common.domain.agents.CredentialsMode;
+import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
 import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
@@ -50,8 +51,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 class ScanDispatcherTest {
 
     private static final UUID KEY_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
-    private static final String PRIVATE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----";
-    private static final String ENCRYPTION_KEY = "Y3VycmVudC1rZXktMzItYnl0ZXMtbG9uZy0xMjM0NQ==";
+    private static final String PRIVATE_KEY = "test-ssh-private-key-material";
+    private static final String ENCRYPTION_KEY = EncryptionKey.generate();
 
     private final SealedEnvelope envelopes = new SealedEnvelope();
 

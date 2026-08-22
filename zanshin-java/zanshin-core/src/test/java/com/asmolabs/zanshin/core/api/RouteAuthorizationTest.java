@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -37,7 +38,12 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class RouteAuthorizationTest extends ApiTestBase {
 
     private static final List<Class<? extends Annotation>> MARKERS =
-            List.of(RequiresAdministrator.class, RequiresAccount.class, RequiresAgentKey.class, OpenToAnonymous.class);
+            List.of(
+                    RequiresAdministrator.class,
+                    RequiresSecurityLead.class,
+                    RequiresAccount.class,
+                    RequiresAgentKey.class,
+                    OpenToAnonymous.class);
 
     /**
      * The MVC mapping by name: Actuator registers a second one for its own endpoints, and
@@ -94,7 +100,9 @@ class RouteAuthorizationTest extends ApiTestBase {
         assertThat(open).containsExactlyInAnyOrder(
                 "[/api/v1/auth/login]",
                 "[/api/v1/auth/methods]",
-                "[/api/v1/auth/session/exchange]");
+                "[/api/v1/auth/session/exchange]",
+                "[/api/v1/auth/mfa/verify]",
+                "[/api/v1/scorecards/repositories/{repoId}/badge.svg]");
     }
 
     @Test
@@ -124,6 +132,30 @@ class RouteAuthorizationTest extends ApiTestBase {
 
         mvc.perform(authenticated(
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users"),
+                        asCiso()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users"),
+                        asAdmin()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @DisplayName("security lead routes permit CISO and administrators, but refuse reader")
+    void securityLeadRoutesPermitCisoAndAdmin() throws Exception {
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
+                        asReader()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
+                        asCiso()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
                         asAdmin()))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
     }

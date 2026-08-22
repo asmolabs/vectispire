@@ -27,8 +27,10 @@ spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies"
 # Version managed by the Spring Boot BOM: pinning it here split it from what the
 # autoconfiguration module expects, which is the kind of mismatch that surfaces as a
 # ClassNotFoundError at startup rather than as a dependency conflict.
-liquibase-core = { module = "org.liquibase:liquibase-core" }
-spring-boot-liquibase = { module = "org.springframework.boot:spring-boot-liquibase" }
+flyway-core = { module = "org.flywaydb:flyway-core" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+flyway-mysql = { module = "org.flywaydb:flyway-mysql" }
+spring-boot-flyway = { module = "org.springframework.boot:spring-boot-flyway" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }

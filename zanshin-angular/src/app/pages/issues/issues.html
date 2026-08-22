@@ -1,6 +1,6 @@
 <div class="card">
-    <div class="font-semibold text-xl mb-1">Issues</div>
-    <p class="text-muted-color mb-4">What the scans found, followed from one scan to the next. An issue keeps its history and its triage decision.</p>
+    <div class="font-semibold text-xl mb-1">{{ 'issues.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'issues.subtitle' | translate }}</p>
 
     <div class="flex flex-wrap gap-3 mb-4">
         <p-select [(ngModel)]="state" [options]="states" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
@@ -104,6 +104,11 @@
                         {{ issue.identifier ?? '—' }}
                     </a>
                     @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
+                    @if (issue.reachability === 'REACHABLE') {
+                        <p-tag severity="danger" value="⚡ REACHABLE" styleClass="ml-1" />
+                    } @else if (issue.reachability === 'UNREACHABLE') {
+                        <p-tag severity="success" value="🛡️ UNREACHABLE" styleClass="ml-1" />
+                    }
                     <div class="text-muted-color text-sm">{{ issue.filePath ?? '—' }}</div>
                 </td>
                 <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>

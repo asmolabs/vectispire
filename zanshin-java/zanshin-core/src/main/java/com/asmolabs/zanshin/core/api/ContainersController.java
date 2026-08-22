@@ -5,6 +5,7 @@ import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
 import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.targets.ImageReference;
+import com.asmolabs.zanshin.common.domain.targets.AssetTier;
 import com.asmolabs.zanshin.core.api.RepositoriesController.LastScan;
 import com.asmolabs.zanshin.core.api.RepositoriesController.QueuedScan;
 import com.asmolabs.zanshin.common.domain.teams.TeamRules;
@@ -22,6 +23,7 @@ import com.asmolabs.zanshin.core.services.AuditLogService;
 import com.asmolabs.zanshin.core.services.VisibilityService;
 import com.asmolabs.zanshin.core.services.CronExpressions;
 import com.asmolabs.zanshin.core.services.ScanTriggerService;
+import com.asmolabs.zanshin.core.services.TargetDeletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -59,12 +61,14 @@ public class ContainersController {
 
     private final UserTargets userTargets;
     private final TeamTargets teamTargets;
+    private final TargetDeletionService targetDeletion;
 
     public ContainersController(
             Containers containers, Scans scans, Issues issues, ScanTriggerService trigger, AuditLogService audit,
             VisibilityService visibility,
             UserTargets userTargets,
-            TeamTargets teamTargets) {
+            TeamTargets teamTargets,
+            TargetDeletionService targetDeletion) {
         this.userTargets = userTargets;
         this.teamTargets = teamTargets;
         this.containers = containers;
@@ -73,6 +77,7 @@ public class ContainersController {
         this.trigger = trigger;
         this.audit = audit;
         this.visibility = visibility;
+        this.targetDeletion = targetDeletion;
     }
 
     public record Summary(
@@ -87,7 +92,8 @@ public class ContainersController {
             String requiredAgentLabel,
             Instant lastScheduledScanAt,
             LastScan lastScan,
-            long openIssues) {}
+            long openIssues,
+            String tier) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record CreateRequest(
@@ -96,7 +102,8 @@ public class ContainersController {
             String tag,
             Integer scanIntervalMinutes,
             String scanCron,
-            @JsonProperty("required_agent_label") String requiredAgentLabel) {}
+            @JsonProperty("required_agent_label") String requiredAgentLabel,
+            String tier) {}
 
     @GetMapping
     public List<Summary> list(@AuthenticationPrincipal ZanshinPrincipal principal) {
@@ -121,7 +128,8 @@ public class ContainersController {
                             container.getRequiredAgentLabel(),
                             container.getLastScheduledScanAt(),
                             latest.get(container.getId()),
-                            open.getOrDefault(container.getId(), 0L));
+                            open.getOrDefault(container.getId(), 0L),
+                            container.getTier());
                 })
                 .toList();
     }
@@ -150,6 +158,7 @@ public class ContainersController {
         container.setScanIntervalMinutes(body.scanIntervalMinutes());
         container.setScanCron(validatedCron(body.scanCron()));
         container.setRequiredAgentLabel(AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
+        container.setTier(body.tier() != null ? AssetTier.fromString(body.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
         ContainerEntity saved = containers.save(container);
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
@@ -229,6 +238,9 @@ public class ContainersController {
             container.setRequiredAgentLabel(
                     AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
         }
+        if (body.tier() != null) {
+            container.setTier(AssetTier.fromString(body.tier()).name());
+        }
 
         ContainerEntity saved = containers.save(container);
         String moved = referenceOf(saved).format().equals(previousReference) ? "" : " (was " + previousReference + ")";
@@ -268,12 +280,7 @@ public class ContainersController {
         ContainerEntity container = containers.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Image not found."));
 
-        // Cleared first, for the reason spelled out on the repository's deletion: these rows
-        // cascade from nothing, and a reused identifier turns a stale one into access to a
-        // different image.
-        userTargets.deleteByTarget(TeamRules.KIND_CONTAINER, id);
-        teamTargets.deleteByTarget(TeamRules.KIND_CONTAINER, id);
-        containers.deleteById(id);
+        targetDeletion.deleteContainer(id);
         record(principal, request, AuditOperation.SETTING_UPDATED, id,
                 "Image deleted: " + referenceOf(container).format());
     }

@@ -16,12 +16,157 @@ export interface AuthenticatedUser {
     displayName: string | null;
     role: string;
     mustChangePassword: boolean;
+    mfaEnabled?: boolean;
 }
 
 export interface LoginResponse {
-    token: string;
-    expiresAt: string;
-    user: AuthenticatedUser;
+    token?: string;
+    expiresAt?: string;
+    user?: AuthenticatedUser;
+    mfa_required?: boolean;
+    mfa_token?: string;
+}
+
+export interface MfaSetupResponse {
+    secret: string;
+    qrCodeUri: string;
+    issuer: string;
+}
+
+export interface MfaEnableResponse {
+    success: boolean;
+    backupCodes: string[];
+}
+
+export interface IssueTicket {
+    id: number;
+    issueId: number;
+    provider: 'JIRA' | 'GITHUB' | 'GITLAB';
+    ticketKey: string;
+    ticketUrl: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SiemConfig {
+    enabled: boolean;
+    protocol: 'WEBHOOK' | 'SYSLOG_UDP' | 'SYSLOG_TCP' | 'SYSLOG_TLS';
+    endpoint: string | null;
+    hasAuthHeader: boolean;
+    minSeverity: string;
+    updatedAt: string | null;
+    authHeader?: string;
+}
+
+export interface SiemTestResult {
+    success: boolean;
+    message: string;
+    statusCode: number;
+}
+
+export interface ThreatIntelSyncStatus {
+    lastSyncedAt: string | null;
+    totalCves: number;
+    totalKev: number;
+    status: string;
+    backlogUpdatedCount: number;
+}
+
+export interface OpenVexStatement {
+    vulnerability: { name: string };
+    products: string[];
+    status: 'not_affected' | 'affected' | 'fixed' | 'under_investigation';
+    justification?: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_exist';
+    impact_statement?: string;
+    action_statement?: string;
+    status_notes?: string;
+}
+
+export interface OpenVexDocument {
+    '@context': string;
+    '@id': string;
+    author: string;
+    role: string;
+    timestamp: string;
+    version: number;
+    tooling: string;
+    statements: OpenVexStatement[];
+}
+
+export type LicenseRiskCategory = 'PERMISSIVE' | 'WEAK_COPYLEFT' | 'STRONG_COPYLEFT' | 'FORBIDDEN' | 'UNKNOWN';
+
+export interface LicenseEntry {
+    packageName: string;
+    packageVersion: string;
+    purl: string | null;
+    license: string;
+    riskCategory: LicenseRiskCategory;
+    compliant: boolean;
+    violationReason: string | null;
+    targetId: number | null;
+    targetKind: string;
+    targetName: string;
+}
+
+export interface LicensePolicy {
+    disallowedCategories: LicenseRiskCategory[];
+    explicitlyAllowedLicenses: string[];
+    explicitlyDisallowedLicenses: string[];
+}
+
+export interface LicenseSummary {
+    totalDependencies: number;
+    uniqueLicenses: number;
+    nonCompliantCount: number;
+    breakdownByRisk: Record<LicenseRiskCategory, number>;
+}
+
+export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F';
+
+export interface SecurityScorecard {
+    targetId: number | null;
+    targetKind: string;
+    targetName: string;
+    score: number;
+    grade: SecurityGrade;
+    openCriticalCount: number;
+    openHighCount: number;
+    openKevCount: number;
+    overdueCount: number;
+    licenseViolationCount: number;
+    hasAttestation: boolean;
+    recommendations: string[];
+}
+
+export interface InTotoAttestation {
+    _type: string;
+    subject: { name: string; digest: Record<string, string> }[];
+    predicateType: string;
+    predicate: {
+        builder: { id: string; version: string };
+        invocation: {
+            scanId: number;
+            targetKind: string;
+            targetName: string;
+            branch: string;
+            commitSha: string | null;
+            timestamp: string;
+        };
+        policy: {
+            gatePassed: boolean;
+            violations: string[];
+            enforcedPolicy: string;
+        };
+        findings: {
+            critical: number;
+            high: number;
+            medium: number;
+            low: number;
+            total: number;
+        };
+        sbomDigestSha256: string | null;
+    };
 }
 
 export interface Issue {
@@ -59,6 +204,8 @@ export interface Issue {
     isDirectDependency: boolean | null;
     ticketRef: string | null;
     ticketUrl: string | null;
+    reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
+    reachableSymbols?: string | null;
     /** When this issue's remediation window closes; null when none applies — a severity with no
      *  window, or an issue already settled or closed.
      *
@@ -181,6 +328,8 @@ export interface QualityOverview {
     topTargets: Tally[];
 }
 
+export type AssetTier = 'TIER_1_MISSION_CRITICAL' | 'TIER_2_BUSINESS_OPERATIONAL' | 'TIER_3_INTERNAL';
+
 /** A monitored repository, with the state of its last scan. */
 export interface MonitoredRepository {
     id: number;
@@ -197,40 +346,18 @@ export interface MonitoredRepository {
     sshKeyId: string | null;
     lastScan: { id: number; status: string; createdAt: string | null; error: string | null } | null;
     openIssues: number;
+    tier?: AssetTier;
 }
 
 export interface NewRepository {
     url: string;
     branch: string;
     name?: string;
-    /**
-     * A directory inside the repository, when only part of it is a project.
-     *
-     * camelCase on the wire while its neighbours are snake_case — see `ClientContractTest`.
-     * The same repository can be registered more than once with different sub-paths: nothing
-     * makes the URL unique, deliberately, because a monorepo holds several projects.
-     */
     subPath?: string;
-    /**
-     * How often to rescan, in minutes. Absent or zero: this target is scanned only when somebody
-     * asks for it.
-     *
-     * **Zero rather than `null` to clear it on the update path.** The server reads an absent
-     * field as "leave alone", so `null` would keep whatever interval the row already carries
-     * while the form showed the field empty — and the operator would go on believing they had
-     * turned the schedule off.
-     */
     scanIntervalMinutes?: number | null;
-    /**
-     * A five-field cron expression, which **wins over the interval** when both are set.
-     *
-     * The empty string clears it, and that is deliberate: it is the only value the update path
-     * distinguishes from "leave alone", so sending nothing would make an expression impossible
-     * to remove once saved.
-     */
     scanCron?: string;
-    /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
+    tier?: AssetTier;
 }
 
 /** The state of a last scan, shared by repositories and containers. */
@@ -251,27 +378,20 @@ export interface MonitoredContainer {
     reference: string;
     scanIntervalMinutes: number | null;
     scanCron: string | null;
-    /**
-     * The label an agent must carry to scan this image, or `null` for any agent.
-     *
-     * The server has always sent it; it was missing here while there was no way to edit an image,
-     * and a dialog that cannot read the current value cannot prefill it — which on a route whose
-     * absent fields mean "leave alone" would quietly show an empty box over a live requirement.
-     */
     requiredAgentLabel: string | null;
     lastScan: LastScan | null;
     openIssues: number;
+    tier?: AssetTier;
 }
 
 export interface NewContainer {
     registry?: string;
     image_name: string;
     tag: string;
-    /** As on a repository, and with the same precedence: the expression wins over the interval. */
     scanIntervalMinutes?: number | null;
     scanCron?: string;
-    /** The label an agent must carry to scan this target. Empty: any agent will do. */
     required_agent_label?: string;
+    tier?: AssetTier;
 }
 
 /** Where a private key stands with respect to the configured encryption keys. */
@@ -873,3 +993,37 @@ export interface GatePolicyRequest {
     include_ai_review: boolean;
     note: string | null;
 }
+
+export interface ComplianceControlAssessment {
+    control: {
+        id: string;
+        name: string;
+        requirement: string;
+        category: string;
+    };
+    status: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+    scorePercentage: number;
+    details: string;
+    remediationGuidance: string;
+}
+
+export interface ComplianceEvaluation {
+    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS';
+    scorePercentage: number;
+    overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+    controls: ComplianceControlAssessment[];
+}
+
+export interface ComplianceSummary {
+    evaluations: ComplianceEvaluation[];
+    mttr: {
+        mttrBySeverityDays: Record<string, number>;
+        overallMttrDays: number | null;
+        resolvedCount: number;
+    };
+    overdueCount: number;
+    dueSoonCount: number;
+    totalMonitoredTargets: number;
+    passingGateTargets: number;
+}
+

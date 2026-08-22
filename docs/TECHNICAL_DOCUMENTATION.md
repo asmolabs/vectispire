@@ -14,11 +14,11 @@ pipeline or a remote agent uses.
 ```mermaid
 flowchart TB
     subgraph front["Angular front end — zanshin-angular/src/app/"]
-        Pages["Pages<br/>dashboard, securite, qualite, depots, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log"]
+        Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
     subgraph api["api/ — controllers, DTOs, guards"]
-        Routes["16 controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log,<br/>agents, agents-admin"]
+        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log,<br/>agents, agents-admin, teams, rule-sets, owasp"]
     end
 
     subgraph services["services/ — orchestration, transactions"]
@@ -29,15 +29,15 @@ flowchart TB
         Notify["NotificationService · OutboxService"]
         Ticket["TicketService · TicketSweepService"]
         Ops["SchedulerService · LeaderElectionService<br/>RetentionService · MaintenanceService"]
-        Auth["AuthService · PasswordService · SessionCleanupService<br/>ApiKeyAuthService · AuditLogService · SettingsService<br/>EncryptionService · BootstrapService"]
+        Auth["AuthService · PasswordService · SessionCleanupService<br/>ApiKeyAuthService · AuditLogService · SettingsService<br/>EncryptionService · BootstrapService · VisibilityService"]
     end
 
     subgraph repos["repositories/ — data access, no business rules"]
-        R["ScanRepository · IssueRepository · TargetRepository<br/>AuditLogRepository · SessionRepository"]
+        R["ScanRepository · IssueRepository · TargetRepository<br/>AuditLogRepository · SessionRepository · TeamRepository"]
     end
 
     subgraph persistence["persistence/ — entities, dialects, driver types"]
-        Ent["20 JPA entities · one Liquibase changelog"]
+        Ent["26 JPA entities · Flyway migrations"]
     end
 
     subgraph domain["domain/ — pure, depends on nothing"]
@@ -80,18 +80,16 @@ It depends on nothing but the JDK, BouncyCastle and Jackson.
 
 ## 2. Database schema
 
-The schema belongs to the **migrations**, under
-[`persistence/migrations/<dialect>/`](../zanshin-java/zanshin-core/src/main/resources/db/changelog/) — one set per
-engine, because the same intent is spelled differently on each. `synchronize` is `false`
-and stays that way: it would modify the database from the entities, at startup, with no
-trace and no review.
+The schema belongs to **Flyway migrations**, under
+[`src/main/resources/db/migration/{vendor}/`](../zanshin-java/zanshin-core/src/main/resources/db/migration/) — one native SQL set per
+engine (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` is `validate`
+and stays that way: Hibernate must never alter the schema at runtime.
 
 `ZANSHIN_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
 four pass the whole integration campaign
-([decision 0009](architecture/decisions/0009-four-engines.md)).
+([decision 0009](architecture/decisions/0009-four-engines.md), [decision 0013](architecture/decisions/0013-flyway-multi-dialect-migrations.md)).
 [`SchemaParityIntegrationTest`](../zanshin-java/zanshin-core/src/integrationTest/java/com/asmolabs/zanshin/core/persistence/SchemaParityIntegrationTest.java)
-asks on each engine the question `migration:generate` asks — "what would have to change for
-the database to look like the entities?" — whose right answer is "nothing".
+asks on each engine whether the entities and schema agree.
 
 ### The scan and issue model
 

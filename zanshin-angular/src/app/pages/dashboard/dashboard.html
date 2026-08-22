@@ -1,6 +1,6 @@
 <div class="mb-4">
-    <h1 class="text-2xl font-semibold m-0">Dashboard</h1>
-    <p class="text-muted-color mt-1 mb-0">The state of the watch, on one page.</p>
+    <h1 class="text-2xl font-semibold m-0">{{ 'dashboard.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'dashboard.subtitle' | translate }}</p>
 </div>
 
 @if (error(); as message) {
@@ -10,60 +10,48 @@
 @if (data(); as overview) {
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
         <p-card>
-            <div class="text-muted-color text-sm">Failing targets</div>
+            <div class="text-muted-color text-sm">{{ 'dashboard.failing_targets' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
                 {{ overview.posture.failingCount }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
             </div>
-            <a routerLink="/security" class="text-sm">See the posture</a>
+            <a routerLink="/security" class="text-sm">{{ 'dashboard.see_posture' | translate }}</a>
         </p-card>
 
         <p-card>
-            <div class="text-muted-color text-sm">Actively exploited vulnerabilities</div>
+            <div class="text-muted-color text-sm">{{ 'dashboard.actively_exploited' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">{{ overview.posture.kevCount }}</div>
-            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">See the KEV catalogue</a>
+            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">{{ 'dashboard.see_kev' | translate }}</a>
         </p-card>
 
         <p-card>
-            <div class="text-muted-color text-sm">Never scanned</div>
+            <div class="text-muted-color text-sm">{{ 'dashboard.never_scanned' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.neverScannedCount > 0">
                 {{ overview.posture.neverScannedCount }}
             </div>
-            <!-- The figure easiest to mistake for good news: a target with no finding
-                 is not a target with no problem. -->
-            <div class="text-sm text-muted-color">No finding for want of observation</div>
+            <div class="text-sm text-muted-color">{{ 'dashboard.no_finding_want_obs' | translate }}</div>
         </p-card>
 
         <p-card>
-            <!--
-                The only figure here about time rather than quantity, and the one a security
-                officer is asked for. It links to the list it counts — the same clause on the
-                server produces both, so the number and the rows cannot disagree.
-            -->
-            <div class="text-muted-color text-sm">Past their remediation deadline</div>
+            <div class="text-muted-color text-sm">{{ 'dashboard.past_remediation_deadline' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.overdueCount > 0">
                 {{ overview.posture.overdueCount }}
             </div>
-            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">See what is late</a>
+            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">{{ 'dashboard.see_what_is_late' | translate }}</a>
         </p-card>
 
         <p-card>
-            <div class="text-muted-color text-sm">Last scan failed</div>
+            <div class="text-muted-color text-sm">{{ 'dashboard.last_scan_failed' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="overview.posture.lastScanFailedCount > 0">
                 {{ overview.posture.lastScanFailedCount }}
             </div>
-            <div class="text-sm text-muted-color">Data possibly stale</div>
+            <div class="text-sm text-muted-color">{{ 'dashboard.data_possibly_stale' | translate }}</div>
         </p-card>
     </div>
 
-    <!--
-        Everything else on this page is a snapshot, so the question a security officer is actually
-        asked — is this getting better or worse — had no answer anywhere in the product. The counts
-        say how much; only a series says which direction.
-    -->
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <span>Backlog over time</span>
+                <span>{{ 'dashboard.backlog_over_time' | translate }}</span>
                 <div class="flex gap-2">
                     @for (choice of windows; track choice.value) {
                         <p-button [label]="choice.label" size="small" [outlined]="window() !== choice.value" (onClick)="loadTrends(choice.value)" />
@@ -78,22 +66,17 @@
                     <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
                 } @else if (trends(); as series) {
                     @if (series.points.length === 0) {
-                        <p class="text-muted-color m-0">No issue has been recorded yet: there is no history to plot.</p>
+                        <p class="text-muted-color m-0">{{ 'dashboard.no_issue_recorded' | translate }}</p>
                     } @else {
                         <p-chart type="line" [data]="chartData()" [options]="chartOptions()" height="18rem" />
                     }
                 } @else {
-                    <p class="text-muted-color m-0">Loading the trend…</p>
+                    <p class="text-muted-color m-0">{{ 'dashboard.loading_trend' | translate }}</p>
                 }
             </div>
 
-            <!--
-                The average and its population side by side, deliberately: "12.4 days" over three
-                issues and over three hundred are two different statements, and only one of them
-                belongs in a report.
-            -->
             <div class="flex flex-col justify-center">
-                <div class="text-muted-color text-sm">Mean time to resolve</div>
+                <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve' | translate }}</div>
                 <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
                 <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
             </div>
@@ -102,7 +85,7 @@
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <p-card styleClass="xl:col-span-1">
-            <ng-template #title>Issues to handle</ng-template>
+            <ng-template #title>{{ 'dashboard.open_backlog_severity' | translate }}</ng-template>
             <div class="flex flex-col gap-3">
                 @for (level of severities; track level.key) {
                     <div class="flex items-center justify-between">
@@ -114,9 +97,6 @@
                 }
             </div>
 
-            <!-- Separate, and said so: mixing quality into the security backlog would
-                 push this panel to four digits the day SAST is switched on, and nobody
-                 would look at it again. -->
             <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
                 <div class="flex items-center justify-between">
                     <span class="text-muted-color text-sm">Quality <span class="text-xs">(never blocks)</span></span>
@@ -126,18 +106,18 @@
         </p-card>
 
         <p-card styleClass="xl:col-span-2">
-            <ng-template #title>Failing targets</ng-template>
+            <ng-template #title>{{ 'dashboard.targets_in_failure' | translate }}</ng-template>
             @if (overview.failing.length === 0) {
-                <p class="text-muted-color m-0">No target violates its policy.</p>
+                <p class="text-muted-color m-0">{{ 'dashboard.no_target_failing' | translate }}</p>
                 @if (overview.posture.neverScannedCount > 0) {
                     <p class="text-muted-color text-sm mt-2 mb-0">
-                        {{ overview.posture.neverScannedCount }} target(s) have never been scanned: their compliance is not established.
+                        {{ overview.posture.neverScannedCount }} target(s) have never been scanned.
                     </p>
                 }
             } @else {
                 <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
                     <ng-template #header>
-                        <tr><th>Target</th><th>Rule at fault</th><th class="text-right">Items</th></tr>
+                        <tr><th>{{ 'dashboard.target' | translate }}</th><th>Rule at fault</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
                     </ng-template>
                     <ng-template #body let-target>
                         <tr>
@@ -153,7 +133,7 @@
                                     </div>
                                 }
                                 @if (target.violations.length > 3) {
-                                    <div class="text-sm text-muted-color mt-1">et {{ target.violations.length - 3 }} autre(s)</div>
+                                    <div class="text-sm text-muted-color mt-1">+ {{ target.violations.length - 3 }} more</div>
                                 }
                             </td>
                             <td class="text-right font-semibold">{{ target.violations.length }}</td>
@@ -165,10 +145,10 @@
     </div>
 
     <p-card styleClass="mt-4">
-        <ng-template #title>Recent scans</ng-template>
+        <ng-template #title>{{ 'dashboard.recent_scans' | translate }}</ng-template>
         <p-table [value]="overview.recentScans" styleClass="p-datatable-sm">
             <ng-template #header>
-                <tr><th>Target</th><th>State</th><th class="text-right">Findings</th></tr>
+                <tr><th>{{ 'dashboard.target' | translate }}</th><th>{{ 'common.status' | translate }}</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
             </ng-template>
             <ng-template #body let-scan>
                 <tr>
@@ -181,10 +161,10 @@
                 </tr>
             </ng-template>
             <ng-template #emptymessage>
-                <tr><td colspan="3" class="text-center text-muted-color py-6">No scan.</td></tr>
+                <tr><td colspan="3" class="text-center text-muted-color py-6">{{ 'dashboard.no_scans_run' | translate }}</td></tr>
             </ng-template>
         </p-table>
     </p-card>
 } @else if (loading()) {
-    <p class="text-muted-color">Loading…</p>
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
 }

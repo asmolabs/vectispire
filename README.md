@@ -136,7 +136,7 @@ the login throttle is counted in the database rather than in process memory. Wha
 
 - **PostgreSQL or MySQL** (`ZANSHIN_DB_URL`; the engine is read from the URL). Both keep a
   claimed scan from reaching two workers;
-- **nothing to run for the schema.** Liquibase applies the changelog at startup, and the
+- **nothing to run for the schema.** Flyway applies the migrations at startup, and the
   leader lease is what stops two instances migrating at once;
 - nothing else. Sessions live in the database, not in process memory, so a client that
   lands on the other instance stays signed in. No cache, no shared state service.
@@ -157,14 +157,14 @@ cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8
 npm --workspace @zanshin/frontend start            # UI on http://localhost:4200
 ```
 
-The schema is owned by a **Liquibase changelog** — `ddl-auto` is `validate`, deliberately: a
+The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
-against it would let a faulty changeset through. `SchemaParityIntegrationTest` asks Hibernate
-to validate the entities against the schema the changelog really built, on all four engines.
+against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
+to validate the entities against the schema Flyway really built, on all four engines.
 
 ```bash
-# Liquibase applies the changelog at startup — there is no separate command to run.
-# A new change is a new changeset in zanshin-core/src/main/resources/db/changelog/.
+# Flyway applies migrations at startup — there is no separate command to run.
+# A new change is a new migration script in zanshin-core/src/main/resources/db/migration/<dialect>/.
 ```
 
 ### Main pages
@@ -337,9 +337,9 @@ The database file is not part of the repository (it holds password hashes and en
 ### Choosing a database
 
 Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
-exercised by the full integration campaign**. There is **one changelog**, not one per engine:
-where the engines disagree the difference is a Liquibase property spelling the column type, so
-a table is declared once and the four truths stay in step by construction. Point `ZANSHIN_DB_URL`
+exercised by the full integration campaign**. Flyway applies native migrations per dialect
+under `db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`), ensuring complete
+fidelity and avoiding dialect impedance mismatches. Point `ZANSHIN_DB_URL`
 at the engine; it is read from the URL, and PostgreSQL is the default. A portability defect is
 invisible to reading and to a single engine; running all four is the only way it gets found, and
 it found several.

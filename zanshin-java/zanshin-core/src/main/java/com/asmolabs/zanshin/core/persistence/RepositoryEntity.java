@@ -55,6 +55,9 @@ public class RepositoryEntity {
     @Column(name = "ssh_key_id")
     private UUID sshKeyId;
 
+    @Column(name = "tier", length = 32, nullable = false)
+    private String tier = "TIER_2_BUSINESS_OPERATIONAL";
+
     public Long getId() {
         return id;
     }
@@ -133,5 +136,13 @@ public class RepositoryEntity {
 
     public void setSshKeyId(UUID sshKeyId) {
         this.sshKeyId = sshKeyId;
+    }
+
+    public String getTier() {
+        return tier;
+    }
+
+    public void setTier(String tier) {
+        this.tier = tier != null ? tier : "TIER_2_BUSINESS_OPERATIONAL";
     }
 }
