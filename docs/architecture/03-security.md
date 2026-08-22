@@ -12,7 +12,7 @@ This document says where the boundaries are, what guards them, and what is still
 | Asset | Where | Consequence of a leak |
 |---|---|---|
 | SSH deployment keys | `ssh_key`, AES-GCM encrypted | read access to every watched repository |
-| `ENCRYPTION_KEY` | environment | decrypts **all** the keys above |
+| `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
 | Access to the Docker socket | process | root-equivalent on the host |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
 | Raw gitleaks reports | `scan.cves`, purged | **secrets in clear text** |
@@ -265,6 +265,35 @@ cloned with B's key, **with no error**. Decryption retries without context for o
 values and logs it. There is **no default key**: a published constant would have
 decrypted everybody's database. Rotation goes through
 `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS`.
+
+**And the key itself can come from a file rather than the environment.** A variable is readable by
+more things than an operator expects — `/proc/<pid>/environ`, `docker inspect`, an orchestrator's
+own logs, a crash dump, the `.env` a backup swept up — and this is the one value for which that
+matters absolutely rather than relatively: it decrypts every deployment key the installation
+holds. `ENCRYPTION_KEY_FILE` names a file instead, which is what Docker and Kubernetes secrets
+actually mount, with an owner and a mode. `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
+same reason and not for symmetry: an old key still decrypts live rows, and a rotation is precisely
+when two keys exist at once, so without it moving the current key out of the environment would
+mean putting the previous one back in.
+
+Three details are the difference between this and a decoration. **A path that does not
+resolve stops the application** — missing, unreadable, or a mount that is present and empty, which
+is the ordinary race on a cluster. Falling back would be catastrophic here *because*
+`EncryptionService` tolerates a missing key: it warns, keeps decrypting what is stored, and
+refuses to write anything new. A failed secret mount would therefore render every screen and be
+indistinguishable from a fresh install, until the day somebody saved an SSH key. **Both forms set
+at once is refused**, since nothing could then answer "which key is in force" without choosing one
+the operator did not — the same objection that keeps `ddl-auto` at `validate`. And **the file's
+content is trimmed while the variable's is not**: every way of writing a secret to a file appends
+a newline, and a key that differs by one invisible byte derives a different key and presents itself
+as "every stored secret is unreadable" — but trimming the *variable* would do that to deployments
+whose key already carries a stray space, so the two are deliberately not symmetric.
+
+`EncryptionKeyFileDatabaseTest` sets the variable by its real name and asks the wired service
+whether it has a key, because the unit suite proves the reading and would pass just as well with
+the property misspelled in `application.yaml`. It earned its place immediately: the first version
+read the empty string that `${ENCRYPTION_KEY:}` yields for an unset variable as "a value was
+supplied", and refused to start on every correct file-only configuration.
 
 **URL guard.** Two rules for two opposite needs, and that is the trap. For the webhook the
 risk is SSRF: private addresses are refused. For Ollama the risk is **exfiltration** — the

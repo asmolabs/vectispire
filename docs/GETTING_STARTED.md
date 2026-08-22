@@ -34,8 +34,10 @@ Three environment variables matter before the first run:
 |---|---|
 | `ZANSHIN_DB_URL` | `jdbc:postgresql://localhost:5432/zanshin` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/zanshin` |
 | `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / empty |
-| `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set |
+| `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set. In production prefer `ENCRYPTION_KEY_FILE` |
+| `ENCRYPTION_KEY_FILE` | *none* — a path to a file holding the key instead, which is what a Docker or Kubernetes secret mounts. Keeps the value out of `/proc/<pid>/environ`, `docker inspect` and an orchestrator's logs. Setting it *and* `ENCRYPTION_KEY` is refused; a path that does not resolve stops the application rather than starting with no key |
 | `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
+| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` | *none* — the same list from a file, comma- or newline-separated, so a rotation does not have to put the old key back into the environment |
 | `ZANSHIN_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `ZANSHIN_OIDC_ISSUER` is set: it would leave no way in |
 | `ZANSHIN_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 

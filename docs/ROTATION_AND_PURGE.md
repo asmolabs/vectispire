@@ -121,6 +121,21 @@ long as a row still depends on the old one — the old key comes out of the envi
 no row shows it any more. Several previous keys can be listed, comma-separated, for an
 interrupted rotation.
 
+**In production both halves belong in files, not on that command line.** `ENCRYPTION_KEY_FILE`
+and `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` take paths — a Docker or Kubernetes secret mount —
+and keep the two keys out of `/proc/<pid>/environ`, `docker inspect`, the orchestrator's logs and
+this shell's history. The second variable exists precisely for this moment: a rotation is when two
+keys are live at once, and without it the old key — which still decrypts real rows — would have to
+go back into the environment to finish a rotation whose whole point was getting the new one out of
+it. The file holds the same list, comma- or newline-separated, one key per line being the readable
+form once it is no longer squeezed onto a shell line.
+
+Setting a variable *and* its `_FILE` form together is refused at startup rather than ranked, so
+the migration from one to the other is finished when you think it is. And a path that does not
+resolve stops the application instead of starting with no key — which matters here more than
+anywhere, because a deployment with no key goes on reading everything it stored and only refuses
+new writes: mid-rotation, that reads exactly like success.
+
 ---
 
 ## 2. Purging unreferenced objects at GitHub

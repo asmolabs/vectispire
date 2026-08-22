@@ -55,6 +55,7 @@ the same commit that violates it; a missing dependency cannot.
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
+| The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
