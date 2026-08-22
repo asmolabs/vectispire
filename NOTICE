@@ -1,0 +1,78 @@
+Zanshin
+Copyright 2026 Laurent Boucher
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.
+
+The copyright is held personally, not by an employer or by the Asmolabs
+organisation that hosts the repository. The `com.asmolabs.zanshin` package name
+is a namespace, not an assignment of rights.
+
+--------------------------------------------------------------------------------
+Third-party components distributed with Zanshin
+--------------------------------------------------------------------------------
+
+The application jar and the container image built from `Dockerfile` bundle the
+following components. Their own licenses apply to them, not Zanshin's.
+
+Apache License 2.0
+  org.springframework.boot:*                Spring Boot 4.1
+  org.springframework:*                     Spring Framework
+  org.hibernate.orm:*                       Hibernate ORM and community dialects
+  com.fasterxml.jackson.core:*              Jackson
+  org.apache.pdfbox:pdfbox                  PDFBox
+  org.apache.httpcomponents.client5:*       Apache HttpClient 5
+  org.apache.httpcomponents.core5:*         Apache HttpCore 5
+  org.liquibase:liquibase-core              Liquibase Core
+  com.github.docker-java:*                  docker-java
+  org.xerial:sqlite-jdbc                    SQLite JDBC driver
+
+BSD 3-Clause / Eclipse Distribution License 1.0
+  org.eclipse.jgit:*                        JGit and its Apache SSH transport
+  org.postgresql:postgresql                 PostgreSQL JDBC driver (BSD-2-Clause)
+
+MIT
+  org.bouncycastle:bcprov-jdk18on           Bouncy Castle provider
+  org.bouncycastle:bcpkix-jdk18on           Bouncy Castle PKIX
+
+LGPL-2.1
+  org.mariadb.jdbc:mariadb-java-client      MariaDB Connector/J
+
+GPL-2.0 WITH Universal-FOSS-Exception-1.0
+  com.mysql:mysql-connector-j               MySQL Connector/J
+
+  Two of the four JDBC drivers Zanshin ships are copyleft, and both are
+  `runtimeOnly` in the build: no compiled Zanshin class links against a driver,
+  and the connection is obtained through the JDBC API. MySQL Connector/J is
+  distributed under the GPL with Oracle's Universal FOSS Exception, whose list of
+  permitted licenses includes Apache-2.0 — which is what makes shipping it inside
+  an Apache-2.0 image lawful. Replacing that license with a copyleft-incompatible
+  one, or linking a driver at compile time, breaks that and is the reason this
+  paragraph exists rather than a bare list.
+
+--------------------------------------------------------------------------------
+Scanners invoked as containers
+--------------------------------------------------------------------------------
+
+Zanshin runs each scanner as an ephemeral container, by command line, in a
+separate process. It bundles none of them and links against none of them; the
+images are pulled at run time from their own publishers.
+
+  Syft, Grype           Anchore                   Apache-2.0
+  checkov               Prisma Cloud/Bridgecrew   Apache-2.0
+  gitleaks              Zachary Rice              MIT
+  Semgrep OSS           Semgrep, Inc.             LGPL-2.1
+
+The Semgrep *rules* are a separate question from the Semgrep engine, and the
+one place where a licence decides how the code is shaped. Zanshin bundles a
+single rule of its own and redistributes no third-party rule set. An operator
+who wants real coverage has Zanshin fetch `opengrep/opengrep-rules` — LGPL-2.1
+with a Commons Clause, accepted explicitly because that clause takes whoever
+adopts those rules out of open source in the OSI sense. The rules travel from
+their author to that installation; nothing containing them is shipped here.
+`semgrep/semgrep-rules` is refused outright, by constant rather than by
+convention, because its terms forbid distribution at all. See
+`RuleCatalogue` and decision 0006.
+
+Vulnerability and lifecycle data reached over the network — the EPSS scores
+(FIRST.org), the CISA KEV catalog and endoflife.date — is neither bundled nor
+redistributed, and carries its publishers' own terms of use.

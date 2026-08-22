@@ -69,6 +69,11 @@ RUN apk add --no-cache git openssh-client ca-certificates
 WORKDIR /app
 COPY --from=build /src/zanshin-core/build/libs/zanshin-core.jar app.jar
 
+# The image is a redistribution, so the licence and the notice travel with it: Apache-2.0
+# clause 4 asks for both in every copy, and an image that carries the code without them is
+# the non-compliance Zanshin exists to report on other people's containers.
+COPY LICENSE NOTICE ./
+
 # An unprivileged user. It still has to belong to the group that owns the Docker socket on the
 # host, which the deployment grants with `--group-add`.
 RUN addgroup -S zanshin && adduser -S -G zanshin zanshin

@@ -442,3 +442,16 @@ The import direction is enforced by `ArchitectureTest`:
 nothing of Hibernate or HTTP, which is what makes the rules that matter — a fingerprint, a
 gate verdict, a due date — testable without a database.
 
+
+## License
+
+Zanshin is licensed under the [Apache License 2.0](LICENSE) — patent grant included, and
+contributions are under the same terms without a CLA. [`NOTICE`](NOTICE) lists the
+third-party components the jar and the image bundle, including the two JDBC drivers that are
+copyleft; both are `runtimeOnly`, and moving either onto the compile classpath changes the
+legal position and not just the build file. The AGPL was the alternative and lost on
+adoption — [decision 0012](docs/architecture/decisions/0012-apache-2-0.md) says on what
+judgement, and what it would cost to reverse.
+
+The licence covers the code, not the name: Apache-2.0 grants no trademark rights, so a fork
+may use all of this and may not call itself Zanshin.

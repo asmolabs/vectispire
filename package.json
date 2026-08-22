@@ -2,6 +2,7 @@
     "name": "zanshin",
     "version": "0.1.0",
     "private": true,
+    "license": "Apache-2.0",
     "description": "Zanshin \u2014 application security analysis. Spring Boot control plane in zanshin-java/, Angular interface in zanshin-angular/.",
     "workspaces": [
         "zanshin-angular"
