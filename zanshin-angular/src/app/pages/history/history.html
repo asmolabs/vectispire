@@ -1,7 +1,7 @@
 <div class="mb-4">
-    <h1 class="text-2xl font-semibold m-0">History</h1>
+    <h1 class="text-2xl font-semibold m-0">{{ 'history.title' | translate }}</h1>
     <p class="text-muted-color mt-1 mb-0">
-        What each scan observed, on which version, and what was decided about it.
+        {{ 'history.subtitle' | translate }}
     </p>
 </div>
 
@@ -13,13 +13,13 @@
     <p-table [value]="repositories()" dataKey="id" styleClass="p-datatable-sm" [loading]="loadingList()">
         <ng-template #header>
             <tr>
-                <th>Repository</th>
-                <th style="width: 8rem">Branch</th>
-                <th style="width: 11rem">Version</th>
-                <th style="width: 6rem">Scans</th>
-                <th style="width: 7rem">Open</th>
-                <th style="width: 8rem">Decisions</th>
-                <th style="width: 11rem">Last scan</th>
+                <th>{{ 'history.repository' | translate }}</th>
+                <th style="width: 8rem">{{ 'history.branch' | translate }}</th>
+                <th style="width: 11rem">{{ 'history.version' | translate }}</th>
+                <th style="width: 6rem">{{ 'history.scans' | translate }}</th>
+                <th style="width: 7rem">{{ 'history.open' | translate }}</th>
+                <th style="width: 8rem">{{ 'history.decisions' | translate }}</th>
+                <th style="width: 11rem">{{ 'history.last_scan' | translate }}</th>
                 <th style="width: 7rem"></th>
             </tr>
         </ng-template>
@@ -37,9 +37,7 @@
                             <div class="text-sm text-muted-color">{{ repository.projectType }}</div>
                         }
                     } @else {
-                        <!-- Not "0" and not blank: a version nobody read is unknown, which is
-                             a different statement from a project that has none. -->
-                        <span class="text-muted-color">unknown</span>
+                        <span class="text-muted-color">{{ 'history.unknown_version' | translate }}</span>
                     }
                 </td>
                 <td>{{ repository.scanCount }}</td>
@@ -47,13 +45,13 @@
                 <td>{{ repository.decisions }}</td>
                 <td>{{ repository.lastScanAt ? (repository.lastScanAt | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
                 <td>
-                    <p-button label="Open" severity="secondary" size="small" (onClick)="open(repository)" />
+                    <p-button [label]="'history.open_btn' | translate" severity="secondary" size="small" (onClick)="open(repository)" />
                 </td>
             </tr>
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="8" class="text-muted-color">No repository yet.</td>
+                <td colspan="8" class="text-muted-color">{{ 'history.no_repo' | translate }}</td>
             </tr>
         </ng-template>
     </p-table>
@@ -64,19 +62,19 @@
         <ng-template #title>
             {{ file.repository.name }}
             <span class="text-muted-color font-normal text-sm">
-                — {{ file.scans.length }} scans, {{ file.repository.decisions }} decisions recorded
+                — {{ file.scans.length }} {{ 'history.scans' | translate | lowercase }}, {{ file.repository.decisions }} {{ 'history.decisions_recorded_count' | translate }}
             </span>
         </ng-template>
         <ng-template #subtitle>
             <div class="flex gap-2 mt-2">
                 <p-button
-                    label="Export PDF"
+                    [label]="'history.export_pdf' | translate"
                     icon="pi pi-file-pdf"
                     severity="secondary"
                     size="small"
                     (onClick)="download('pdf')" />
                 <p-button
-                    label="Export CSV"
+                    [label]="'history.export_csv' | translate"
                     icon="pi pi-file-excel"
                     severity="secondary"
                     size="small"
@@ -85,11 +83,8 @@
         </ng-template>
 
         @if (file.repository.decisions === 0) {
-            <!-- Said rather than left as a zero: an untriaged backlog and a history that
-                  predates the recording of decisions look identical on a counter. -->
             <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
-                No triage decision has been recorded for this target — either nothing has been triaged,
-                or the decisions predate the recording of this history.
+                {{ 'history.no_decisions_recorded' | translate }}
             </p-message>
         }
 
@@ -107,13 +102,11 @@
                     }
                 </div>
                 <div class="text-sm text-muted-color mt-1">
-                    {{ scan.branch }} · {{ scan.findingsCount }} findings ·
-                    {{ scan.newIssuesCount }} new · {{ scan.resolvedIssuesCount }} resolved
+                    {{ scan.branch }} · {{ scan.findingsCount }} {{ 'history.findings' | translate }} ·
+                    {{ scan.newIssuesCount }} {{ 'history.new_issues' | translate }} · {{ scan.resolvedIssuesCount }} {{ 'history.resolved_issues' | translate }}
                 </div>
 
                 @if (scan.error) {
-                    <!-- Shown even on a completed scan: this is where a step that looked at
-                          nothing is recorded, and omitting it presents a partial scan as full. -->
                     <p-message
                         [severity]="scan.status === 'failed' ? 'error' : 'warn'"
                         [closable]="false"
@@ -123,7 +116,7 @@
                 }
 
                 @if (scan.issues.length === 0) {
-                    <div class="text-sm text-muted-color mt-2">No issue observed by this scan.</div>
+                    <div class="text-sm text-muted-color mt-2">{{ 'history.no_issues_observed' | translate }}</div>
                 } @else {
                     <p-table
                         [value]="scan.issues"
@@ -133,11 +126,11 @@
                         [rows]="15">
                         <ng-template #header>
                             <tr>
-                                <th style="width: 7rem">Severity</th>
-                                <th style="width: 12rem">Identifier</th>
-                                <th>Component</th>
-                                <th style="width: 7rem">State</th>
-                                <th style="width: 10rem">Triage</th>
+                                <th style="width: 7rem">{{ 'history.severity' | translate }}</th>
+                                <th style="width: 12rem">{{ 'history.identifier' | translate }}</th>
+                                <th>{{ 'history.component' | translate }}</th>
+                                <th style="width: 7rem">{{ 'history.state' | translate }}</th>
+                                <th style="width: 10rem">{{ 'history.triage' | translate }}</th>
                             </tr>
                         </ng-template>
                         <ng-template #body let-issue>
@@ -161,15 +154,12 @@
                                                 ({{ decision.justification }})
                                             }
                                             @if (decision.actor) {
-                                                by {{ decision.actor }}
+                                                {{ 'history.by' | translate }} {{ decision.actor }}
                                             } @else {
-                                                <!-- A lapse is not somebody's decision. Naming an
-                                                      actor here would attribute an action to a
-                                                      person who did not take it. -->
-                                                <em>expired automatically</em>
+                                                <em>{{ 'history.expired_auto' | translate }}</em>
                                             }
                                             @if (decision.version) {
-                                                on {{ decision.version }}
+                                                {{ 'history.on' | translate }} {{ decision.version }}
                                             }
                                         </div>
                                         @if (decision.comment) {
@@ -178,7 +168,7 @@
                                             </div>
                                         }
                                     } @empty {
-                                        <div class="text-sm text-muted-color mt-1">no decision recorded</div>
+                                        <div class="text-sm text-muted-color mt-1">{{ 'history.no_decision_recorded' | translate }}</div>
                                     }
                                 </td>
                                 <td>{{ issue.state }}</td>

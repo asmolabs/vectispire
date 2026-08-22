@@ -1,8 +1,7 @@
 <div class="mb-4">
-    <h1 class="text-2xl font-semibold m-0">Semgrep rule sets</h1>
+    <h1 class="text-2xl font-semibold m-0">{{ 'rule_sets.title' | translate }}</h1>
     <p class="text-muted-color mt-1 mb-0">
-        Zanshin ships one rule; the public sets are not redistributable, so source-code coverage comes from a set you
-        install here. What you upload travels with every scan, including to remote agents.
+        {{ 'rule_sets.subtitle' | translate }}
     </p>
 </div>
 
@@ -14,16 +13,16 @@
 }
 
 <p-card styleClass="mb-4">
-    <ng-template #title>Upload a set</ng-template>
+    <ng-template #title>{{ 'rule_sets.upload_set_title' | translate }}</ng-template>
 
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="rule-set-name" class="font-medium">Name</label>
-            <input pInputText id="rule-set-name" [(ngModel)]="name" placeholder="opengrep-rules v1.0.0" />
+            <label for="rule-set-name" class="font-medium">{{ 'rule_sets.name_label' | translate }}</label>
+            <input pInputText id="rule-set-name" [(ngModel)]="name" [placeholder]="'rule_sets.name_placeholder' | translate" />
         </div>
 
         <div class="flex flex-col gap-2">
-            <label for="rule-set-files" class="font-medium">Rule files</label>
+            <label for="rule-set-files" class="font-medium">{{ 'rule_sets.rule_files_label' | translate }}</label>
             <input
                 id="rule-set-files"
                 type="file"
@@ -32,13 +31,7 @@
                 (change)="pick($event)"
                 class="text-sm"
             />
-            <!--
-                A second input, because the directory attribute and a plain multiple
-                selection cannot live on the same one: the browser offers a directory
-                picker or a file picker, never both. The hint used to claim folder
-                selection worked here while that attribute was absent, so it did not.
-            -->
-            <label for="rule-set-folder" class="font-medium mt-2">…or a folder</label>
+            <label for="rule-set-folder" class="font-medium mt-2">{{ 'rule_sets.or_folder' | translate }}</label>
             <input
                 id="rule-set-folder"
                 type="file"
@@ -48,19 +41,16 @@
                 class="text-sm"
             />
             <small class="text-muted-color">
-                YAML only. A folder is walked whole and everything that is not a rule file is left
-                behind — said below, never in silence. Nothing is sent until you upload.
+                {{ 'rule_sets.yaml_hint' | translate }}
             </small>
         </div>
 
         @if (picked().length > 0) {
             <p class="m-0 text-sm">
-                {{ picked().length }} file(s) selected.
+                {{ picked().length }} {{ 'rule_sets.files_selected' | translate }}
                 @if (ignored() > 0) {
-                    <!-- Named rather than dropped quietly: an operator who believes a
-                          folder went up whole would count on coverage that is not there. -->
                     <span class="text-muted-color">
-                        {{ ignored() }} non-YAML file(s) in the selection were left out.
+                        {{ ignored() }} {{ 'rule_sets.ignored_files' | translate }}
                     </span>
                 }
             </p>
@@ -68,7 +58,7 @@
 
         <div>
             <p-button
-                label="Upload"
+                [label]="'rule_sets.upload_btn' | translate"
                 icon="pi pi-upload"
                 [loading]="uploading()"
                 [disabled]="picked().length === 0 || !name.trim()"

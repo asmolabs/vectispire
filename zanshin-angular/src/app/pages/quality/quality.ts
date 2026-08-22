@@ -16,10 +16,13 @@ import { QualityOverview, Tally } from '@/app/core/api.models';
  * The banner says outright that these findings never fail a build. Without that sentence people
  * assume the opposite — and it is that assumption which gets a gate switched off.
  */
+import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+
 @Component({
     selector: 'zs-quality',
     standalone: true,
-    imports: [ButtonModule, MessageModule, RouterLink],
+    imports: [CommonModule, ButtonModule, MessageModule, RouterLink, TranslatePipe],
     templateUrl: './quality.html'
 })
 export class Quality {

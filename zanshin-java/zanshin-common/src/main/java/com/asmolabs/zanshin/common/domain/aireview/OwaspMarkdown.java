@@ -33,6 +33,7 @@ public final class OwaspMarkdown {
     private static final Pattern HEADING = Pattern.compile("^(#{1,4})\\s+(.*)$");
     private static final Pattern BULLET = Pattern.compile("^\\s*[-*+]\\s+(.*)$");
     private static final Pattern NUMBERED = Pattern.compile("^\\s*(\\d+)[.)]\\s+(.*)$");
+    private static final Pattern BLOCKQUOTE = Pattern.compile("^\\s*>\\s?(.*)$");
 
     /** What a block is. Deliberately few: this is a report, not a document format. */
     public enum Kind {
@@ -41,14 +42,27 @@ public final class OwaspMarkdown {
         CATEGORY,
         PARAGRAPH,
         BULLET,
-        NUMBERED
+        NUMBERED,
+        BLOCKQUOTE,
+        TABLE
     }
 
     /**
      * @param level 1 to 4 for a heading, 0 otherwise
      * @param marker the number of a numbered item, absent elsewhere
      */
-    public record Block(Kind kind, int level, String marker, String text) {}
+    public record Block(
+            Kind kind,
+            int level,
+            String marker,
+            String text,
+            List<String> headers,
+            List<List<String>> rows) {
+
+        public Block(Kind kind, int level, String marker, String text) {
+            this(kind, level, marker, text, null, null);
+        }
+    }
 
     public static List<Block> parse(String markdown) {
         if (markdown == null || markdown.isBlank()) {
@@ -57,18 +71,47 @@ public final class OwaspMarkdown {
 
         List<Block> blocks = new ArrayList<>();
         StringBuilder paragraph = new StringBuilder();
+        StringBuilder blockquote = new StringBuilder();
+        List<String> tableLines = new ArrayList<>();
+        boolean tableHasSeparator = false;
 
         for (String raw : markdown.split("\n", -1)) {
             String line = raw.stripTrailing();
 
             if (line.isBlank()) {
-                flush(blocks, paragraph);
+                flushParagraph(blocks, paragraph);
+                flushBlockquote(blocks, blockquote);
+                flushTable(blocks, tableLines, tableHasSeparator);
+                tableHasSeparator = false;
                 continue;
+            }
+
+            if (isTableRow(line)) {
+                flushParagraph(blocks, paragraph);
+                flushBlockquote(blocks, blockquote);
+                if (isTableSeparator(line)) {
+                    tableHasSeparator = true;
+                } else {
+                    tableLines.add(line);
+                }
+                continue;
+            } else if (!tableLines.isEmpty()) {
+                flushTable(blocks, tableLines, tableHasSeparator);
+                tableHasSeparator = false;
+            }
+
+            Matcher quote = BLOCKQUOTE.matcher(line);
+            if (quote.matches()) {
+                flushParagraph(blocks, paragraph);
+                blockquote.append(blockquote.isEmpty() ? "" : " ").append(quote.group(1).strip());
+                continue;
+            } else if (!blockquote.isEmpty()) {
+                flushBlockquote(blocks, blockquote);
             }
 
             Matcher heading = HEADING.matcher(line.strip());
             if (heading.matches()) {
-                flush(blocks, paragraph);
+                flushParagraph(blocks, paragraph);
                 String text = strip(heading.group(2));
                 blocks.add(new Block(
                         isCategory(text) ? Kind.CATEGORY : Kind.HEADING,
@@ -80,14 +123,14 @@ public final class OwaspMarkdown {
 
             Matcher bullet = BULLET.matcher(line);
             if (bullet.matches()) {
-                flush(blocks, paragraph);
+                flushParagraph(blocks, paragraph);
                 blocks.add(new Block(Kind.BULLET, 0, null, strip(bullet.group(1))));
                 continue;
             }
 
             Matcher numbered = NUMBERED.matcher(line);
             if (numbered.matches()) {
-                flush(blocks, paragraph);
+                flushParagraph(blocks, paragraph);
                 blocks.add(new Block(Kind.NUMBERED, 0, numbered.group(1), strip(numbered.group(2))));
                 continue;
             }
@@ -98,16 +141,71 @@ public final class OwaspMarkdown {
             // unused — visible immediately on the PDF, and just as wrong on screen.
             paragraph.append(paragraph.isEmpty() ? "" : " ").append(line.strip());
         }
-        flush(blocks, paragraph);
+        flushParagraph(blocks, paragraph);
+        flushBlockquote(blocks, blockquote);
+        flushTable(blocks, tableLines, tableHasSeparator);
         return List.copyOf(blocks);
     }
 
-    private static void flush(List<Block> blocks, StringBuilder paragraph) {
+    private static void flushParagraph(List<Block> blocks, StringBuilder paragraph) {
         if (paragraph.isEmpty()) {
             return;
         }
         blocks.add(new Block(Kind.PARAGRAPH, 0, null, strip(paragraph.toString())));
         paragraph.setLength(0);
+    }
+
+    private static void flushBlockquote(List<Block> blocks, StringBuilder blockquote) {
+        if (blockquote.isEmpty()) {
+            return;
+        }
+        blocks.add(new Block(Kind.BLOCKQUOTE, 0, null, strip(blockquote.toString())));
+        blockquote.setLength(0);
+    }
+
+    private static void flushTable(List<Block> blocks, List<String> tableLines, boolean hasSeparator) {
+        if (tableLines.isEmpty()) {
+            return;
+        }
+        if (hasSeparator && tableLines.size() >= 1) {
+            List<String> headers = parseCells(tableLines.get(0));
+            List<List<String>> rows = new ArrayList<>();
+            for (int i = 1; i < tableLines.size(); i++) {
+                rows.add(parseCells(tableLines.get(i)));
+            }
+            blocks.add(new Block(Kind.TABLE, 0, null, "", headers, rows));
+        } else {
+            for (String line : tableLines) {
+                blocks.add(new Block(Kind.PARAGRAPH, 0, null, strip(line)));
+            }
+        }
+        tableLines.clear();
+    }
+
+    private static boolean isTableRow(String line) {
+        String trimmed = line.trim();
+        return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length() > 2;
+    }
+
+    private static boolean isTableSeparator(String line) {
+        String trimmed = line.trim();
+        return trimmed.matches("^\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)+\\|?$");
+    }
+
+    private static List<String> parseCells(String line) {
+        String trimmed = line.trim();
+        if (trimmed.startsWith("|")) {
+            trimmed = trimmed.substring(1);
+        }
+        if (trimmed.endsWith("|")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        String[] parts = trimmed.split("\\|", -1);
+        List<String> cells = new ArrayList<>();
+        for (String part : parts) {
+            cells.add(strip(part.trim()));
+        }
+        return List.copyOf(cells);
     }
 
     private static boolean isCategory(String heading) {

@@ -1,15 +1,15 @@
 <div class="card">
-    <div class="font-semibold text-xl mb-1">Quality</div>
-    <p class="text-muted-color mb-4">What source analysis reports about how the code is written, rather than about how safe it is.</p>
+    <div class="font-semibold text-xl mb-1">{{ 'quality.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'quality.subtitle' | translate }}</p>
 
     <p-message severity="info" styleClass="w-full mb-4"
-        text="These findings never fail a build. They are visible, exportable, and have no say in the continuous-integration gate." />
+        [text]="'quality.quality_notice' | translate" />
 
     @if (overview(); as data) {
         <div class="flex flex-wrap gap-6 mb-6">
-            <div><span class="text-2xl font-medium">{{ data.openCount }}</span><span class="text-muted-color ml-2">open findings</span></div>
-            <div><span class="text-2xl font-medium">{{ data.ruleCount }}</span><span class="text-muted-color ml-2">distinct rules</span></div>
-            <div><span class="text-2xl font-medium">{{ data.fileCount }}</span><span class="text-muted-color ml-2">files affected</span></div>
+            <div><span class="text-2xl font-medium">{{ data.openCount }}</span><span class="text-muted-color ml-2">{{ 'quality.open_findings' | translate }}</span></div>
+            <div><span class="text-2xl font-medium">{{ data.ruleCount }}</span><span class="text-muted-color ml-2">{{ 'quality.distinct_rules' | translate }}</span></div>
+            <div><span class="text-2xl font-medium">{{ data.fileCount }}</span><span class="text-muted-color ml-2">{{ 'quality.files_affected' | translate }}</span></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -27,14 +27,14 @@
                             </div>
                         </div>
                     } @empty {
-                        <div class="text-muted-color text-sm">No finding.</div>
+                        <div class="text-muted-color text-sm">{{ 'quality.no_finding' | translate }}</div>
                     }
                 </div>
             }
         </div>
 
         <div class="mt-6">
-            <p-button label="See every quality finding" [text]="true" [routerLink]="['/issues']" [queryParams]="{ type: 'quality' }" />
+            <p-button [label]="'quality.see_every_finding' | translate" [text]="true" [routerLink]="['/issues']" [queryParams]="{ type: 'quality' }" />
         </div>
     } @else if (error()) {
         <p-message severity="error" [text]="error()!" styleClass="w-full" />

@@ -22,10 +22,12 @@ import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
  * differently each time; hanging it off every scan would make the queue unpredictable and fill
  * the table with reports nobody read.
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-owasp',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule],
+    imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
     templateUrl: './owasp.html'
 })
 export class Owasp {

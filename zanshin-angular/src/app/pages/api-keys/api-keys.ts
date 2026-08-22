@@ -31,10 +31,12 @@ function optionsOf(rows: { id: number; label: string }[] | undefined, prefix: st
     return rows.map((row) => ({ label: `${prefix} — ${row.label}`, value: `${kind}:${row.id}` }));
 }
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-api-keys',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './api-keys.html'
 })
 export class ApiKeys {

@@ -9,7 +9,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ApiService } from '../../core/api.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import type { LicenseEntry, LicensePolicy, LicenseRiskCategory, LicenseSummary } from '../../core/api.models';
+import type { MonitoredContainer, MonitoredRepository, LicenseEntry, LicensePolicy, LicenseRiskCategory, LicenseSummary } from '../../core/api.models';
 
 @Component({
     selector: 'app-licenses',
@@ -23,11 +23,25 @@ export class Licenses {
     readonly summary = signal<LicenseSummary | null>(null);
     readonly inventory = signal<LicenseEntry[]>([]);
     readonly policy = signal<LicensePolicy | null>(null);
+    readonly repos = signal<MonitoredRepository[]>([]);
+    readonly containers = signal<MonitoredContainer[]>([]);
     readonly loading = signal<boolean>(true);
     readonly error = signal<string | null>(null);
 
+    readonly selectedTarget = signal<string>('ALL');
     readonly selectedRisk = signal<string>('ALL');
     readonly selectedCompliance = signal<string>('ALL');
+
+    readonly targetOptions = computed(() => {
+        const options: { label: string; value: string }[] = [{ label: 'All targets / Toutes les cibles', value: 'ALL' }];
+        for (const r of this.repos()) {
+            options.push({ label: `Repository: ${r.displayName || r.name}`, value: `repo:${r.id}` });
+        }
+        for (const c of this.containers()) {
+            options.push({ label: `Container: ${c.reference}`, value: `container:${c.id}` });
+        }
+        return options;
+    });
 
     readonly filteredInventory = computed(() => {
         let items = this.inventory();
@@ -46,6 +60,23 @@ export class Licenses {
     });
 
     constructor() {
+        this.loadTargets();
+        this.loadData();
+    }
+
+    loadTargets(): void {
+        this.api.repositories().subscribe({
+            next: (r) => this.repos.set(r),
+            error: () => {}
+        });
+        this.api.containers().subscribe({
+            next: (c) => this.containers.set(c),
+            error: () => {}
+        });
+    }
+
+    onTargetChange(target: string): void {
+        this.selectedTarget.set(target);
         this.loadData();
     }
 
@@ -53,7 +84,16 @@ export class Licenses {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.getLicenseSummary().subscribe({
+        let repoId: number | undefined;
+        let containerId: number | undefined;
+        const target = this.selectedTarget();
+        if (target.startsWith('repo:')) {
+            repoId = Number(target.substring(5));
+        } else if (target.startsWith('container:')) {
+            containerId = Number(target.substring(10));
+        }
+
+        this.api.getLicenseSummary(repoId, containerId).subscribe({
             next: (s) => this.summary.set(s),
             error: () => this.error.set('Failed to load license summary.')
         });
@@ -63,7 +103,7 @@ export class Licenses {
             error: () => {}
         });
 
-        this.api.getLicenseInventory().subscribe({
+        this.api.getLicenseInventory(repoId, containerId).subscribe({
             next: (inv) => {
                 this.inventory.set(inv);
                 this.loading.set(false);

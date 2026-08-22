@@ -1,38 +1,27 @@
 <div class="mb-4 flex items-start justify-between gap-4">
     <div>
-        <h1 class="text-2xl font-semibold m-0">Settings</h1>
+        <h1 class="text-2xl font-semibold m-0">{{ 'settings.title' | translate }}</h1>
         <p class="text-muted-color mt-1 mb-0">
-            What Zanshin looks at, what it keeps, and what it announces.
+            {{ 'settings.subtitle' | translate }}
         </p>
     </div>
-    <p-button label="Save" icon="pi pi-check" [loading]="saving()" [disabled]="!dirty()" (onClick)="save()" />
+    <p-button [label]="'settings.save_btn' | translate" icon="pi pi-check" [loading]="saving()" [disabled]="!dirty()" (onClick)="save()" />
 </div>
 
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 @if (saved()) {
-    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">Settings saved.</p-message>
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ 'settings.settings_saved' | translate }}</p-message>
 }
 
-<!--
-    Rendered from the server's catalogue, sections included: adding a setting on the
-    server makes it appear here without touching this file, and the screen cannot offer
-    a key that no service reads.
--->
 @for (section of sections(); track section.name) {
     <p-card styleClass="mb-4">
         <ng-template #title>{{ section.name }}</ng-template>
 
         @if (isModelReview(section)) {
-            <!--
-                A test button, because the alternative is finding out from a failed report.
-                Every field here — the URL, whether a remote one is allowed, the model's
-                name — is only exercised when something asks for a review, which is minutes
-                later and on another screen.
-            -->
             <div class="flex flex-wrap items-center gap-3 mb-4">
-                <p-button label="Test the connection" icon="pi pi-bolt" severity="secondary" size="small"
+                <p-button [label]="'settings.test_connection' | translate" icon="pi pi-bolt" severity="secondary" size="small"
                           [loading]="testingOllama()" (onClick)="testOllama()" />
                 @if (ollama(); as check) {
                     <p-message [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
@@ -46,11 +35,6 @@
         <div class="flex flex-col gap-5">
             @for (setting of section.settings; track setting.key) {
                 <div class="flex flex-col gap-2">
-                    <!--
-                        flex-wrap and min-w-0 on the label: without both, a flex item will
-                        not go below the width of its content, so a long label and a
-                        fixed-width field neither shrink nor wrap — they overflow the card.
-                    -->
                     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                         <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ setting.label }}</label>
 
@@ -61,8 +45,6 @@
                                                     (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
                                 }
                                 @case ('integer') {
-                                    <!-- styleClass dresses the host, inputStyleClass the field itself:
-                                         without the second, the field keeps its own width and leaves the box. -->
                                     <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
                                                    (ngModelChange)="set(setting.key, numberToText($event))"
                                                    styleClass="w-32" inputStyleClass="w-full" />
@@ -81,12 +63,10 @@
                         </div>
                     </div>
 
-                    <!-- The explanation says above all what the setting does *not* do:
-                         that is the part an operator cannot guess. -->
                     <small class="text-muted-color max-w-3xl">{{ setting.help }}</small>
 
                     @if (!setting.configured) {
-                        <small class="text-muted-color italic">Default value — never set.</small>
+                        <small class="text-muted-color italic">{{ 'settings.default_value_never_set' | translate }}</small>
                     }
                 </div>
             }
@@ -94,68 +74,54 @@
     </p-card>
 }
 
-<!--
-    The token has a card of its own, outside the catalogue: it is encrypted at rest and
-    cannot be read back. The screen can therefore only say "configured" or "absent", and
-    mixing it in with the other fields would suggest that an empty field means
-    "no token" when it means "we cannot show it to you".
--->
 @if (sections().length > 0) {
     <p-card styleClass="mb-4">
-        <ng-template #title>Ticket tracker token</ng-template>
+        <ng-template #title>{{ 'settings.ticket_token_title' | translate }}</ng-template>
         <div class="flex flex-col gap-2">
             <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                 <label for="ticket-token" class="font-medium min-w-0 flex-1">
-                    Token
+                    {{ 'settings.token_label' | translate }}
                     @if (tokenConfigured()) {
-                        <span class="text-green-600 text-sm font-normal">— saved</span>
+                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.token_saved' | translate }}</span>
                     } @else {
-                        <span class="text-muted-color text-sm font-normal">— none</span>
+                        <span class="text-muted-color text-sm font-normal">— {{ 'settings.token_none' | translate }}</span>
                     }
                 </label>
-                <!-- Field *and* button: this is the widest row on the screen, and so the
-                     first to leave the card when the window narrows. -->
                 <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
                     <input pInputText id="ticket-token" type="password" class="w-full sm:w-96 max-w-full"
                            [(ngModel)]="tokenInput"
-                           placeholder="Leave empty to keep it unchanged" autocomplete="off" />
-                    <p-button label="Save" [loading]="savingToken()" (onClick)="saveToken()" />
+                           [placeholder]="'settings.token_placeholder' | translate" autocomplete="off" />
+                    <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
                 </div>
             </div>
             <small class="text-muted-color max-w-3xl">
-                Encrypted at rest, like an SSH key: it grants write access to the tracker, which
-                is another class of secret than a URL. It cannot be shown again — saving an empty
-                value erases it.
+                {{ 'settings.token_hint' | translate }}
             </small>
         </div>
     </p-card>
 }
 
-<!--
-    Same treatment as the token above, and for the same reason: encrypted at rest, never
-    returned, so "configured" or "absent" is all this screen can honestly say.
--->
 @if (sections().length > 0) {
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex items-center gap-2">
                 <i class="pi pi-shield text-primary text-xl"></i>
-                <span>SIEM & SOC Real-Time Event Streaming (CEF)</span>
+                <span>{{ 'settings.siem_title' | translate }}</span>
             </div>
         </ng-template>
 
         <div class="flex flex-col gap-4">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <div class="font-medium">Enable Event Streaming</div>
-                    <small class="text-muted-color">Forward high-priority security incidents (secret leaks, KEV, SLA breaches, gate failures) in ArcSight CEF v0.1 format.</small>
+                    <div class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
+                    <small class="text-muted-color">{{ 'settings.siem_enable_desc' | translate }}</small>
                 </div>
                 <p-toggleswitch [(ngModel)]="siemForm.enabled" />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4" style="border-color: var(--surface-border)">
                 <div class="flex flex-col gap-2">
-                    <label for="siem-protocol" class="font-medium">Protocol / Target Type</label>
+                    <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
                     <select id="siem-protocol" [(ngModel)]="siemForm.protocol" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
                         <option value="WEBHOOK">HTTPS Webhook / Splunk HEC / Sentinel Collector</option>
                         <option value="SYSLOG_UDP">Syslog (UDP)</option>
@@ -165,7 +131,7 @@
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label for="siem-min-sev" class="font-medium">Minimum Forwarded Severity</label>
+                    <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
                     <select id="siem-min-sev" [(ngModel)]="siemForm.minSeverity" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
                         <option value="CRITICAL">Critical Only (P1 / KEV & Secret Leaks)</option>
                         <option value="HIGH">High & Above (Default)</option>
@@ -176,19 +142,19 @@
             </div>
 
             <div class="flex flex-col gap-2">
-                <label for="siem-endpoint" class="font-medium">Collector Endpoint URL</label>
+                <label for="siem-endpoint" class="font-medium">{{ 'settings.siem_endpoint' | translate }}</label>
                 <input pInputText id="siem-endpoint" [(ngModel)]="siemForm.endpoint" placeholder="https://siem-collector.internal.corp/api/v1/cef-receiver" />
-                <small class="text-muted-color">Must point to a trusted internal or public SIEM collector.</small>
+                <small class="text-muted-color">{{ 'settings.siem_endpoint_hint' | translate }}</small>
             </div>
 
             <div class="flex flex-col gap-2">
                 <label for="siem-auth" class="font-medium">
-                    Authorization Header <span class="text-muted-color font-normal">(optional)</span>
+                    {{ 'settings.siem_auth' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
                     @if (siemConfig()?.hasAuthHeader) {
-                        <span class="text-green-600 text-sm font-normal">— saved token present</span>
+                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.siem_auth_saved' | translate }}</span>
                     }
                 </label>
-                <input pInputText id="siem-auth" type="password" [(ngModel)]="siemForm.authHeader" placeholder="Bearer <token> or Splunk <hec_token> (leave empty to keep current)" autocomplete="off" />
+                <input pInputText id="siem-auth" type="password" [(ngModel)]="siemForm.authHeader" [placeholder]="'settings.siem_auth_placeholder' | translate" autocomplete="off" />
             </div>
 
             @if (siemTestResult(); as res) {
@@ -198,8 +164,8 @@
             }
 
             <div class="flex flex-wrap gap-3 pt-2">
-                <p-button label="Save SIEM Configuration" icon="pi pi-save" [loading]="savingSiem()" (onClick)="saveSiemConfig()" />
-                <p-button label="Test Connection (Ping)" icon="pi pi-bolt" severity="secondary" [outlined]="true" [loading]="testingSiem()" (onClick)="testSiem()" />
+                <p-button [label]="'settings.siem_save_btn' | translate" icon="pi pi-save" [loading]="savingSiem()" (onClick)="saveSiemConfig()" />
+                <p-button [label]="'settings.siem_test_btn' | translate" icon="pi pi-bolt" severity="secondary" [outlined]="true" [loading]="testingSiem()" (onClick)="testSiem()" />
             </div>
         </div>
     </p-card>
@@ -209,34 +175,34 @@
         <ng-template #title>
             <div class="flex items-center gap-2">
                 <i class="pi pi-bolt text-red-500 text-xl"></i>
-                <span>Live Threat Intelligence Feed (CISA KEV & EPSS)</span>
+                <span>{{ 'settings.threat_intel_title' | translate }}</span>
             </div>
         </ng-template>
 
         <div class="flex flex-col gap-4">
             <p class="text-sm text-muted-color m-0">
-                Continuous ingestion of active exploitation catalogues (CISA Known Exploited Vulnerabilities) and EPSS exploit probability scores. Reclassifies dormant backlog issues into urgent P0 incidents as soon as active attacks are observed in the wild.
+                {{ 'settings.threat_intel_desc' | translate }}
             </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t pt-4" style="border-color: var(--surface-border)">
                 <div class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                    <span class="text-xs text-muted-color uppercase font-semibold">Feed Status</span>
+                    <span class="text-xs text-muted-color uppercase font-semibold">{{ 'settings.feed_status' | translate }}</span>
                     <div class="text-base font-bold mt-1 text-green-600 dark:text-green-400">
                         {{ threatIntelStatus()?.status ?? 'SYNCED' }}
                     </div>
                 </div>
 
                 <div class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                    <span class="text-xs text-muted-color uppercase font-semibold">Active CISA KEV Exploits</span>
+                    <span class="text-xs text-muted-color uppercase font-semibold">{{ 'settings.active_cisa_kev' | translate }}</span>
                     <div class="text-base font-bold mt-1 text-surface-900 dark:text-surface-0">
                         {{ threatIntelStatus()?.totalKev ?? 0 }} CVEs
                     </div>
                 </div>
 
                 <div class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
-                    <span class="text-xs text-muted-color uppercase font-semibold">Last Synchronized</span>
+                    <span class="text-xs text-muted-color uppercase font-semibold">{{ 'settings.last_sync' | translate }}</span>
                     <div class="text-sm font-medium mt-1 text-surface-700 dark:text-surface-300">
-                        {{ (threatIntelStatus()?.lastSyncedAt | date: 'dd/MM/yyyy HH:mm') ?? 'Never' }}
+                        {{ (threatIntelStatus()?.lastSyncedAt | date: 'dd/MM/yyyy HH:mm') ?? ('settings.never' | translate) }}
                     </div>
                 </div>
             </div>
@@ -248,12 +214,12 @@
             }
 
             <div class="pt-2">
-                <p-button label="Synchronize Threat Intel Feed Now" icon="pi pi-refresh" [loading]="syncingThreatIntel()" (onClick)="syncThreatIntel()" />
+                <p-button [label]="'settings.sync_now_btn' | translate" icon="pi pi-refresh" [loading]="syncingThreatIntel()" (onClick)="syncThreatIntel()" />
             </div>
         </div>
     </p-card>
 }
 
 @if (sections().length === 0 && !error()) {
-    <p class="text-muted-color">Loading…</p>
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
 }

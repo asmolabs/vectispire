@@ -16,6 +16,12 @@ rules:
     metadata:
       category: security
       confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      subcategory:
+        - vuln
+      technology:
+        - python
     message: >-
       `eval` runs the string it is given. If that string comes from a request, a file or an
       environment variable, the caller chooses the code that runs. Use `ast.literal_eval`

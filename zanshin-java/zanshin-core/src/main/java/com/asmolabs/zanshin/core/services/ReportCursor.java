@@ -195,13 +195,122 @@ final class ReportCursor {
         newPage();
     }
 
+    /**
+     * Measures and wraps text into lines fitting within {@code maxWidth}.
+     */
+    static List<String> wrap(String value, Font font, float maxWidth) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+
+        for (String word : value.trim().split("\\s+")) {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (widthOf(candidate, font) <= maxWidth || line.isEmpty()) {
+                line.setLength(0);
+                line.append(candidate);
+                if (widthOf(candidate, font) > maxWidth) {
+                    lines.add(line.toString());
+                    line.setLength(0);
+                }
+                continue;
+            }
+            lines.add(line.toString());
+            line.setLength(0);
+            line.append(word);
+        }
+        if (!line.isEmpty()) {
+            lines.add(line.toString());
+        }
+        return lines;
+    }
+
+    /**
+     * Renders a 2-column table row with independent line-wrapping in each column.
+     */
+    void tableRow2(String col1, String col2, float col1Width, Font font1, Font font2, Color color1, Color color2) {
+        float col2Width = CONTENT_WIDTH - col1Width - 16;
+        List<String> col1Lines = wrap(col1, font1, col1Width);
+        List<String> col2Lines = wrap(col2, font2, col2Width);
+        int lineCount = Math.max(col1Lines.size(), col2Lines.size());
+        if (lineCount == 0) {
+            return;
+        }
+
+        float rowHeight = lineCount * LINE;
+        if (y < MARGIN + rowHeight) {
+            try {
+                newPage();
+            } catch (IOException failed) {
+                throw new UncheckedIOException(failed);
+            }
+        }
+
+        float startY = y;
+        for (int i = 0; i < col1Lines.size(); i++) {
+            y = startY - i * LINE;
+            write(MARGIN, col1Lines.get(i), font1, color1);
+        }
+        for (int i = 0; i < col2Lines.size(); i++) {
+            y = startY - i * LINE;
+            write(MARGIN + col1Width + 16, col2Lines.get(i), font2, color2);
+        }
+        y = startY - rowHeight - LINE * 0.25f;
+    }
+
+    /**
+     * Renders a styled callout / blockquote with proper height and left accent bar.
+     */
+    void callout(String text, Font font, Color bgColor, Color accentColor) {
+        float textWidth = CONTENT_WIDTH - 24;
+        List<String> lines = wrap(text, font, textWidth);
+        if (lines.isEmpty()) {
+            return;
+        }
+        float blockHeight = lines.size() * LINE + LINE * 0.6f;
+        if (y < MARGIN + blockHeight) {
+            try {
+                newPage();
+            } catch (IOException failed) {
+                throw new UncheckedIOException(failed);
+            }
+        }
+
+        try {
+            // Background box
+            stream.setNonStrokingColor(bgColor);
+            stream.addRect(MARGIN, y - blockHeight + LINE * 0.75f, CONTENT_WIDTH, blockHeight);
+            stream.fill();
+
+            // Left accent bar
+            stream.setNonStrokingColor(accentColor);
+            stream.addRect(MARGIN, y - blockHeight + LINE * 0.75f, 3.5f, blockHeight);
+            stream.fill();
+            stream.setNonStrokingColor(Color.BLACK);
+        } catch (IOException failed) {
+            throw new UncheckedIOException(failed);
+        }
+
+        y -= LINE * 0.3f;
+        for (String line : lines) {
+            write(MARGIN + 12, line, font);
+            y -= LINE;
+        }
+        y -= LINE * 0.4f;
+    }
+
     private void write(float x, String value, Font font) {
+        write(x, value, font, pending);
+    }
+
+    private void write(float x, String value, Font font, Color color) {
         try {
             if (y < MARGIN + LINE) {
                 newPage();
             }
             stream.beginText();
-            stream.setNonStrokingColor(pending == null ? Color.BLACK : pending);
+            stream.setNonStrokingColor(color == null ? Color.BLACK : color);
             stream.setFont(font.font(), font.size());
             stream.newLineAtOffset(x, y);
             // Standard-14 fonts are WinAnsi: a character outside it throws while writing, and a

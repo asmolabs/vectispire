@@ -70,9 +70,9 @@ public class ComplianceService {
         long low = countOpen(Severity.LOW, null, allowed);
         long kev = countOpen(null, true, allowed);
         long overdue = sla.countOverdue(allowed);
-        long secrets = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.SECRET.wireName(), null, null, null, false, false, null, allowed).toSpecification());
-        long sast = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.QUALITY.wireName(), null, null, null, false, false, null, allowed).toSpecification());
-        long iac = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.IAC.wireName(), null, null, null, false, false, null, allowed).toSpecification());
+        long secrets = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.SECRET.wireName(), null, null, null, false, false, null, true, Map.of(), allowed).toSpecification());
+        long sast = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.QUALITY.wireName(), null, null, null, false, false, null, true, Map.of(), allowed).toSpecification());
+        long iac = issues.count(new IssueFilters(IssueState.OPEN.wireName(), null, FindingType.IAC.wireName(), null, null, null, false, false, null, true, Map.of(), allowed).toSpecification());
 
         int withSbom = (int) scans.findAll().stream()
                 .filter(s -> s.getSbom() != null && !s.getSbom().isBlank())
@@ -118,6 +118,7 @@ public class ComplianceService {
                 severity == null ? null : severity.wireName(),
                 null, null, null, null,
                 isKev != null && isKev,
-                false, null, allowed).toSpecification());
+                false, null,
+                true, Map.of(), allowed).toSpecification());
     }
 }

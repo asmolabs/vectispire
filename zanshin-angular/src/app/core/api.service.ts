@@ -551,12 +551,18 @@ export class ApiService {
         return this.http.get<OpenVexDocument>('/api/v1/vex/aggregate.json');
     }
 
-    getLicenseSummary(): Observable<LicenseSummary> {
-        return this.http.get<LicenseSummary>('/api/v1/licenses/summary');
+    getLicenseSummary(repoId?: number, containerId?: number): Observable<LicenseSummary> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repo_id', repoId);
+        if (containerId) params = params.set('container_id', containerId);
+        return this.http.get<LicenseSummary>('/api/v1/licenses/summary', { params });
     }
 
-    getLicenseInventory(): Observable<LicenseEntry[]> {
-        return this.http.get<LicenseEntry[]>('/api/v1/licenses/inventory');
+    getLicenseInventory(repoId?: number, containerId?: number): Observable<LicenseEntry[]> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repo_id', repoId);
+        if (containerId) params = params.set('container_id', containerId);
+        return this.http.get<LicenseEntry[]>('/api/v1/licenses/inventory', { params });
     }
 
     getLicensePolicy(): Observable<LicensePolicy> {

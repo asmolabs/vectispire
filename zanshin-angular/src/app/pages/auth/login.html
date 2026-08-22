@@ -4,75 +4,60 @@
             <div class="w-full bg-surface-0 dark:bg-surface-900 py-16 px-8 sm:px-16" style="border-radius: 53px">
                 <div class="text-center mb-8">
                     <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-2">Zanshin</div>
-                    <span class="text-muted-color font-medium">Application security analysis</span>
+                    <span class="text-muted-color font-medium">{{ 'auth.login_subtitle' | translate }}</span>
                 </div>
 
                 @if (mfaRequired()) {
                     <div class="text-center mb-6">
                         <i class="pi pi-shield text-primary text-4xl mb-2"></i>
-                        <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0">Two-Factor Authentication</h3>
-                        <p class="text-sm text-muted-color">Enter the 6-digit code from your authenticator app, or an emergency backup code.</p>
+                        <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0">{{ 'auth.mfa_title' | translate }}</h3>
+                        <p class="text-sm text-muted-color">{{ 'auth.mfa_desc' | translate }}</p>
                     </div>
 
                     <form (ngSubmit)="verifyMfa()">
-                        <label for="mfaCode" class="block text-surface-900 dark:text-surface-0 text-sm font-medium mb-2">Authentication Code</label>
+                        <label for="mfaCode" class="block text-surface-900 dark:text-surface-0 text-sm font-medium mb-2">{{ 'auth.mfa_code_label' | translate }}</label>
                         <input pInputText id="mfaCode" name="mfaCode" type="text" autocomplete="one-time-code"
                                class="w-full mb-4 text-center text-xl tracking-widest"
                                placeholder="123456" [(ngModel)]="mfaCode" autofocus />
 
                         @if (error()) {
-                            <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />
+                            <p-message severity="error" styleClass="w-full mb-4">{{ error() }}</p-message>
                         }
 
-                        <p-button type="submit" label="Verify & Sign In" styleClass="w-full mb-3" [loading]="loading()" />
-                        <p-button type="button" label="Back to Login" severity="secondary" [outlined]="true" styleClass="w-full" (onClick)="cancelMfa()" />
+                        <p-button type="submit" [label]="'auth.mfa_verify_btn' | translate" styleClass="w-full mb-3" [loading]="loading()" />
+                        <p-button type="button" [label]="'auth.mfa_back_btn' | translate" severity="secondary" [outlined]="true" styleClass="w-full" (onClick)="cancelMfa()" />
                     </form>
                 } @else if (methods() && !methods()!.password) {
-                    <!--
-                        This deployment delegates authentication to its provider, so there is no
-                        password to type. Drawn as a sentence rather than as a disabled form: a
-                        greyed-out field invites people to look for the way to enable it.
-                    -->
                     <p-message severity="secondary" [closable]="false" styleClass="w-full mb-4">
-                        Sign in through {{ methods()!.label ?? 'your identity provider' }}. This deployment does not
-                        accept passwords.
+                        {{ 'auth.sso_desc' | translate }}
                     </p-message>
                 } @else {
                 <form (ngSubmit)="submit()">
-                    <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
+                    <label for="username" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">{{ 'auth.username_label' | translate }}</label>
                     <input pInputText id="username" name="username" type="text" autocomplete="username" class="w-full mb-6" [(ngModel)]="username" />
 
-                    <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
-                    <!-- Enter is bound explicitly: p-password wraps its own input and the key
-                         never reached the form's submit — signing in from the keyboard did not
-                         work, which nobody sees without trying it. -->
+                    <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">{{ 'auth.password_label' | translate }}</label>
                     <p-password id="password" name="password" [(ngModel)]="password" [toggleMask]="true" [feedback]="false"
                                 styleClass="mb-4" [fluid]="true" (keyup.enter)="submit()" />
 
                     @if (error()) {
-                        <p-message severity="error" [text]="error()!" styleClass="w-full mb-4" />
+                        <p-message severity="error" styleClass="w-full mb-4">{{ error() }}</p-message>
                     }
 
-                    <p-button type="submit" label="Sign in" styleClass="w-full" [loading]="loading()" />
+                    <p-button type="submit" [label]="'auth.signin_btn' | translate" styleClass="w-full" [loading]="loading()" />
                 </form>
                 }
 
                 @if (methods()?.configured) {
-                    <!--
-                        Offered only when an issuer is configured. An optional feature that is off
-                        should be absent, not present and refusing — and the password form stays
-                        beside it unless this deployment closed that door deliberately, because it
-                        is the way in when the provider is unreachable.
-                    -->
                     @if (methods()!.password) {
                         <div class="flex items-center gap-3 my-5">
                             <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
-                            <span class="text-muted-color text-sm">or</span>
+                            <span class="text-muted-color text-sm">{{ 'auth.or_divider' | translate }}</span>
                             <div class="flex-1 border-t" style="border-color: var(--surface-border)"></div>
                         </div>
                     }
                     <p-button
-                        [label]="methods()!.label ?? 'Single sign-on'"
+                        [label]="methods()!.label ?? ('auth.sso_btn' | translate)"
                         icon="pi pi-shield"
                         severity="secondary"
                         styleClass="w-full"

@@ -18,10 +18,12 @@ const MINIMUM_LENGTH = 12;
  * no business in the rest of the application, and showing it a clickable sidebar would be an
  * invitation to go around this screen.
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-change-password',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, MessageModule, PasswordModule],
+    imports: [CommonModule, FormsModule, ButtonModule, MessageModule, PasswordModule, TranslatePipe],
     templateUrl: './change-password.html'
 })
 export class ChangePassword {

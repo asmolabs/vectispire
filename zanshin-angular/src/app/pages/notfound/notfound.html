@@ -20,44 +20,38 @@
                </svg>
                <div style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, color-mix(in srgb, var(--primary-color), transparent 60%) 10%, var(--surface-ground) 30%)">
                    <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20 flex flex-col items-center" style="border-radius: 53px">
-                       <span class="text-primary font-bold text-3xl">404</span>
-                       <h1 class="text-surface-900 dark:text-surface-0 font-bold text-3xl lg:text-5xl mb-2">Page not found</h1>
-                       <div class="text-surface-600 dark:text-surface-200 mb-8">This address matches no Zanshin screen.</div>
+                        <span class="text-primary font-bold text-3xl">404</span>
+                        <h1 class="text-surface-900 dark:text-surface-0 font-bold text-3xl lg:text-5xl mb-2">{{ 'auth.notfound_title' | translate }}</h1>
+                        <div class="text-surface-600 dark:text-surface-200 mb-8">{{ 'auth.notfound_desc' | translate }}</div>
 
-                       <!--
-                           Three destinations that actually exist, rather than the template's
-                           demonstration links — all three of which pointed at the root under
-                           some fake Latin. An error page offering dead links teaches people to
-                           stop reading error pages.
-                       -->
-                       <a routerLink="/security" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
-                           <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                               <i class="pi pi-fw pi-shield text-2xl!"></i>
-                           </span>
-                           <span class="ml-6 flex flex-col">
-                               <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0 block">Security</span>
-                               <span class="text-surface-600 dark:text-surface-200 lg:text-xl">Each target's verdict, and what tips it over.</span>
-                           </span>
-                       </a>
-                       <a routerLink="/issues" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
-                           <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                               <i class="pi pi-fw pi-exclamation-triangle text-2xl!"></i>
-                           </span>
-                           <span class="ml-6 flex flex-col">
-                               <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Issues</span>
-                               <span class="text-surface-600 dark:text-surface-200 lg:text-xl">The backlog, filterable by severity, type and triage.</span>
-                           </span>
-                       </a>
-                       <a routerLink="/repositories" class="w-full flex items-center mb-8 py-8 border-surface-300 dark:border-surface-500 border-b">
-                           <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
-                               <i class="pi pi-fw pi-sitemap text-2xl!"></i>
-                           </span>
-                           <span class="ml-6 flex flex-col">
-                               <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">Repositories &amp; Scans</span>
-                               <span class="text-surface-600 dark:text-surface-200 lg:text-xl">The monitored targets and the history of their scans.</span>
-                           </span>
-                       </a>
-                       <p-button label="Back to the dashboard" routerLink="/" />
+                        <a routerLink="/security" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
+                            <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
+                                <i class="pi pi-fw pi-shield text-2xl!"></i>
+                            </span>
+                            <span class="ml-6 flex flex-col">
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0 block">{{ 'menu.security' | translate }}</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">{{ 'security.subtitle' | translate }}</span>
+                            </span>
+                        </a>
+                        <a routerLink="/issues" class="w-full flex items-center py-8 border-surface-300 dark:border-surface-500 border-b">
+                            <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
+                                <i class="pi pi-fw pi-exclamation-triangle text-2xl!"></i>
+                            </span>
+                            <span class="ml-6 flex flex-col">
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">{{ 'menu.issues' | translate }}</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">{{ 'issues.subtitle' | translate }}</span>
+                            </span>
+                        </a>
+                        <a routerLink="/repositories" class="w-full flex items-center mb-8 py-8 border-surface-300 dark:border-surface-500 border-b">
+                            <span class="flex justify-center items-center border-2 border-primary text-primary rounded-border" style="height: 3.5rem; width: 3.5rem">
+                                <i class="pi pi-fw pi-sitemap text-2xl!"></i>
+                            </span>
+                            <span class="ml-6 flex flex-col">
+                                <span class="text-surface-900 dark:text-surface-0 lg:text-xl font-medium mb-0">{{ 'menu.repositories' | translate }}</span>
+                                <span class="text-surface-600 dark:text-surface-200 lg:text-xl">{{ 'repositories.subtitle' | translate }}</span>
+                            </span>
+                        </a>
+                        <p-button [label]="'auth.notfound_back_btn' | translate" routerLink="/" />
                    </div>
                </div>
            </div>

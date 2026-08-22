@@ -1,31 +1,30 @@
 <div class="mb-4">
-    <h1 class="text-2xl font-semibold m-0">Component search</h1>
+    <h1 class="text-2xl font-semibold m-0">{{ 'inventory.title' | translate }}</h1>
     <p class="text-muted-color mt-1 mb-0">
-        Which of our projects ship a library, in which version — and in which release of ours.
+        {{ 'inventory.subtitle' | translate }}
     </p>
 </div>
 
 <p-card styleClass="mb-4">
     <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
         <div class="flex flex-col gap-1">
-            <label for="name" class="text-sm text-muted-color">Library</label>
+            <label for="name" class="text-sm text-muted-color">{{ 'inventory.library_label' | translate }}</label>
             <input
                 pInputText
                 id="name"
                 [(ngModel)]="name"
                 (keyup.enter)="search()"
-                placeholder="log4j-core, or org.apache.logging"
+                [placeholder]="'inventory.library_placeholder' | translate"
                 class="w-full sm:min-w-[22rem]" />
         </div>
         <div class="flex flex-col gap-1">
-            <label for="version" class="text-sm text-muted-color">Version (exact, optional)</label>
-            <input pInputText id="version" [(ngModel)]="version" (keyup.enter)="search()" placeholder="2.14.1" />
+            <label for="version" class="text-sm text-muted-color">{{ 'inventory.version_label' | translate }}</label>
+            <input pInputText id="version" [(ngModel)]="version" (keyup.enter)="search()" [placeholder]="'inventory.version_placeholder' | translate" />
         </div>
-        <p-button label="Search" icon="pi pi-search" (onClick)="search()" [loading]="loading()" />
+        <p-button [label]="'inventory.search_btn' | translate" icon="pi pi-search" (onClick)="search()" [loading]="loading()" />
     </div>
     <p class="text-sm text-muted-color mt-3 mb-0">
-        The name matches loosely, on the component or its package URL. The version, when given, matches
-        exactly — <span class="font-medium">2.14.1</span> is not <span class="font-medium">2.14.10</span>.
+        {{ 'inventory.search_help' | translate }}
     </p>
 </p-card>
 
@@ -36,14 +35,12 @@
 @if (searched()) {
     <p-card>
         <ng-template #title>
-            {{ occurrences().length }} occurrence{{ occurrences().length === 1 ? '' : 's' }}
+            {{ occurrences().length }} {{ (occurrences().length === 1 ? 'inventory.occurrences_single' : 'inventory.occurrences_plural') | translate }}
         </ng-template>
 
         @if (truncated()) {
-            <!-- Said rather than left to be inferred from a full page: a capped list read
-                  as complete is a wrong answer to "is that all of them". -->
             <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full">
-                More occurrences than can be shown — narrow the search by version.
+                {{ 'inventory.truncated_warn' | translate }}
             </p-message>
         }
 
@@ -56,12 +53,12 @@
             [rowsPerPageOptions]="[25, 50, 100]">
             <ng-template #header>
                 <tr>
-                    <th>Library</th>
-                    <th style="width: 9rem">Version</th>
-                    <th style="width: 8rem">Origin</th>
-                    <th>Project</th>
-                    <th style="width: 10rem">Project version</th>
-                    <th style="width: 11rem">Scanned</th>
+                    <th>{{ 'inventory.library' | translate }}</th>
+                    <th style="width: 9rem">{{ 'inventory.version' | translate }}</th>
+                    <th style="width: 8rem">{{ 'inventory.origin' | translate }}</th>
+                    <th>{{ 'inventory.project' | translate }}</th>
+                    <th style="width: 10rem">{{ 'inventory.project_version' | translate }}</th>
+                    <th style="width: 11rem">{{ 'inventory.scanned' | translate }}</th>
                 </tr>
             </ng-template>
             <ng-template #body let-row>
@@ -75,13 +72,11 @@
                     <td>{{ row.componentVersion ?? '—' }}</td>
                     <td>
                         @if (row.direct === true) {
-                            <p-tag value="direct" severity="warn" />
+                            <p-tag [value]="'inventory.direct' | translate" severity="warn" />
                         } @else if (row.direct === false) {
-                            <p-tag value="transitive" severity="secondary" />
+                            <p-tag [value]="'inventory.transitive' | translate" severity="secondary" />
                         } @else {
-                            <!-- Not "transitive": some ecosystems ship no dependency graph,
-                                  and a default would state something nothing established. -->
-                            <span class="text-muted-color text-sm">unknown</span>
+                            <span class="text-muted-color text-sm">{{ 'inventory.unknown' | translate }}</span>
                         }
                     </td>
                     <td>{{ row.targetName }} <span class="text-muted-color text-sm">· {{ row.branch }}</span></td>
@@ -89,7 +84,7 @@
                         @if (row.projectVersion) {
                             <span class="font-medium">{{ row.projectVersion }}</span>
                         } @else {
-                            <span class="text-muted-color">unknown</span>
+                            <span class="text-muted-color">{{ 'inventory.unknown' | translate }}</span>
                         }
                     </td>
                     <td>{{ row.scannedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
@@ -98,8 +93,7 @@
             <ng-template #emptymessage>
                 <tr>
                     <td colspan="6" class="text-muted-color">
-                        No scan has catalogued this component. That is not "we do not use it": a target
-                        never scanned since the inventory existed has none.
+                        {{ 'inventory.no_results' | translate }}
                     </td>
                 </tr>
             </ng-template>

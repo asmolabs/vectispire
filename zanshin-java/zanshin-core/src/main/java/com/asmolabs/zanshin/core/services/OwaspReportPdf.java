@@ -172,6 +172,28 @@ public final class OwaspReportPdf {
                     cursor.up();
                     cursor.paragraph(block.text(), ReportCursor.HELVETICA_10, 18);
                 }
+                case BLOCKQUOTE -> {
+                    cursor.gap();
+                    cursor.callout(block.text(), ReportCursor.HELVETICA_9, BAND, ACCENT);
+                }
+                case TABLE -> {
+                    cursor.gap();
+                    if (block.headers() != null && !block.headers().isEmpty()) {
+                        String h1 = block.headers().get(0);
+                        String h2 = block.headers().size() > 1 ? block.headers().get(1) : "";
+                        cursor.tableRow2(h1, h2, 160, ReportCursor.HELVETICA_BOLD_9, ReportCursor.HELVETICA_BOLD_9, ACCENT, ACCENT);
+                        cursor.rule(MUTED);
+                    }
+                    if (block.rows() != null) {
+                        for (List<String> row : block.rows()) {
+                            if (row.size() >= 2) {
+                                cursor.tableRow2(row.get(0), row.get(1), 160, ReportCursor.HELVETICA_BOLD_9, ReportCursor.HELVETICA_9, INK, INK);
+                            } else if (!row.isEmpty()) {
+                                cursor.paragraph(row.get(0), ReportCursor.HELVETICA_9, 0);
+                            }
+                        }
+                    }
+                }
                 case PARAGRAPH -> cursor.paragraph(block.text(), ReportCursor.HELVETICA_10, 0);
             }
         }

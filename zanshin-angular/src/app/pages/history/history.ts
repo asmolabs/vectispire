@@ -39,10 +39,13 @@ const TRIAGE_LABELS: Record<string, string> = {
  * The exports are on this page rather than behind a menu because they are the point of it: what
  * gets handed to an auditor is a file, not a URL into an application they cannot log into.
  */
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-history',
     standalone: true,
-    imports: [CommonModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, SelectModule],
+    imports: [CommonModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, SelectModule, TranslatePipe],
     templateUrl: './history.html'
 })
 export class History {

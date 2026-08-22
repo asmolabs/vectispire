@@ -19,10 +19,12 @@ const SEVERITIES = [
     { label: 'Low', value: 'low' }
 ];
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-settings',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, ToggleSwitchModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, ToggleSwitchModule, TranslatePipe],
     templateUrl: './settings.html'
 })
 export class Settings {

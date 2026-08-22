@@ -1,14 +1,12 @@
 @if (scan(); as detail) {
     <div class="mb-4">
-        <a routerLink="/repositories" class="text-sm">← Repositories</a>
-        <h1 class="text-2xl font-semibold m-0 mt-1">Scan #{{ detail.id }} — {{ detail.targetName }}</h1>
+        <a routerLink="/repositories" class="text-sm">{{ 'scans.back_to_repos' | translate }}</a>
+        <h1 class="text-2xl font-semibold m-0 mt-1">{{ 'scans.scan_title' | translate }} #{{ detail.id }} — {{ detail.targetName }}</h1>
         <p class="text-muted-color mt-1 mb-0">
             {{ detail.branch }} · {{ detail.createdAt | date: 'dd/MM/yyyy HH:mm' }}
             @if (detail.durationMs) {
                 · {{ seconds(detail.durationMs) }} s
             }
-            <!-- Only when the tree carried a manifest this could read. A blank "Version:"
-                  label would suggest the project has none, which is not what was found. -->
             @if (detail.projectType) {
                 · {{ detail.projectType }}
                 @if (detail.projectVersion) {
@@ -19,9 +17,6 @@
     </div>
 
     @if (detail.error) {
-        <!-- Shown even on a completed scan: this is where the steps that looked at
-              nothing are recorded, and without this line an operator would believe the
-              scan complete. -->
         <p-message [severity]="detail.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
             {{ detail.error }}
         </p-message>
@@ -29,19 +24,19 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <p-card>
-            <div class="text-muted-color text-sm">State</div>
+            <div class="text-muted-color text-sm">{{ 'scans.state' | translate }}</div>
             <div class="mt-2"><app-last-scan [scan]="detail" /></div>
         </p-card>
         <p-card>
-            <div class="text-muted-color text-sm">Findings</div>
+            <div class="text-muted-color text-sm">{{ 'scans.findings' | translate }}</div>
             <div class="text-3xl font-semibold mt-1">{{ detail.findingsCount }}</div>
         </p-card>
         <p-card>
-            <div class="text-muted-color text-sm">New issues</div>
+            <div class="text-muted-color text-sm">{{ 'scans.new_issues' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.newIssuesCount > 0">{{ detail.newIssuesCount }}</div>
         </p-card>
         <p-card>
-            <div class="text-muted-color text-sm">Resolved issues</div>
+            <div class="text-muted-color text-sm">{{ 'scans.resolved_issues' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.resolvedIssuesCount > 0">
                 {{ detail.resolvedIssuesCount }}
             </div>
@@ -49,11 +44,9 @@
     </div>
 
     @if (detail.hasSbom) {
-        <!-- The flag existed and led nowhere: the payload announced an SBOM the interface
-              offered no way to fetch. -->
         <div class="mb-4">
             <p-button
-                label="Download SBOM"
+                [label]="'scans.download_sbom' | translate"
                 icon="pi pi-download"
                 severity="secondary"
                 size="small"
@@ -84,10 +77,10 @@
             [rowsPerPageOptions]="[25, 50, 100]">
             <ng-template #header>
                 <tr>
-                    <th style="width: 9rem">Type</th>
-                    <th style="width: 7rem">Severity</th>
-                    <th>Finding</th>
-                    <th>Location</th>
+                    <th style="width: 9rem">{{ 'issues.filter_type' | translate }}</th>
+                    <th style="width: 7rem">{{ 'issues.filter_severity' | translate }}</th>
+                    <th>{{ 'dashboard.findings' | translate }}</th>
+                    <th>{{ 'issues.location' | translate }}</th>
                 </tr>
             </ng-template>
             <ng-template #body let-finding>
@@ -111,7 +104,7 @@
                                 @if (finding.fixVersions) {
                                     · <span class="text-green-600">fixed in {{ finding.fixVersions }}</span>
                                 } @else {
-                                    · <span class="text-muted-color">no published fix</span>
+                                    · <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
                                 }
                             </div>
                         }
@@ -126,12 +119,12 @@
                 </tr>
             </ng-template>
             <ng-template #emptymessage>
-                <tr><td colspan="4" class="text-center text-muted-color py-6">No finding.</td></tr>
+                <tr><td colspan="4" class="text-center text-muted-color py-6">{{ 'quality.no_finding' | translate }}</td></tr>
             </ng-template>
         </p-table>
     </p-card>
 } @else if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
 } @else {
-    <p class="text-muted-color">Loading…</p>
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
 }

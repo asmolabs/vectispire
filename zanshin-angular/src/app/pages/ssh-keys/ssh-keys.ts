@@ -39,10 +39,12 @@ const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'suc
     }
 };
 
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-ssh-keys',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule, TextareaModule, TooltipModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule, TextareaModule, TooltipModule, TranslatePipe],
     templateUrl: './ssh-keys.html'
 })
 export class SshKeys {

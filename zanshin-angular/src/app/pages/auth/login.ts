@@ -21,10 +21,13 @@ import { SessionStore } from '@/app/core/session.store';
  * whoever probes it. A rate-limiter block, on the other hand, is announced: that is something
  * the person needs to know, so that they know waiting is enough.
  */
+import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+
 @Component({
     selector: 'zs-login',
     standalone: true,
-    imports: [FormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule],
+    imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule, TranslatePipe],
     templateUrl: './login.html'
 })
 export class Login {

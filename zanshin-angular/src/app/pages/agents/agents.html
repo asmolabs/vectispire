@@ -1,21 +1,15 @@
 <div class="mb-4 flex items-start justify-between gap-4">
     <div>
-        <h1 class="text-2xl font-semibold m-0">Agents</h1>
-        <p class="text-muted-color mt-1 mb-0">The remote workers that run the scans.</p>
+        <h1 class="text-2xl font-semibold m-0">{{ 'agents.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'agents.subtitle' | translate }}</p>
     </div>
-    <p-button label="Declare an agent" icon="pi pi-plus" (onClick)="openForm()" />
+    <p-button [label]="'agents.declare_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
 </div>
 
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<!--
-    **The wait would be silent without this.** A target labelled "customer" while no
-    enabled agent carries that label queues its scans, where they stay for ever: the
-    Repositories page says "queued", which is true and explains nothing. Here the cause
-    is named and the fix is one field away.
--->
 @for (blocked of unroutable(); track blocked.label) {
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
         {{ blocked.queued }} scan(s) require the label "{{ blocked.label }}", which no enabled agent carries.
@@ -27,12 +21,12 @@
     <p-table [value]="agents()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
-                <th>Agent</th>
-                <th>State</th>
-                <th>Machine</th>
-                <th>Labels</th>
-                <th>Identifiants</th>
-                <th class="text-right">Scans</th>
+                <th>{{ 'agents.agent' | translate }}</th>
+                <th>{{ 'agents.state' | translate }}</th>
+                <th>{{ 'agents.machine' | translate }}</th>
+                <th>{{ 'agents.labels' | translate }}</th>
+                <th>{{ 'agents.credentials' | translate }}</th>
+                <th class="text-right">{{ 'agents.scans' | translate }}</th>
                 <th class="w-1"></th>
             </tr>
         </ng-template>
@@ -45,18 +39,12 @@
                     }
                 </td>
                 <td>
-                    <!--
-                        "Online" means seen recently, not enabled. An enabled agent that
-                        has been silent for an hour is the case that matters: the queue
-                        fills, nobody drains it, and nothing else on the screen would
-                        say so.
-                    -->
                     @if (!agent.enabled) {
-                        <p-tag value="Disabled" severity="secondary" />
+                        <p-tag [value]="'agents.disabled_badge' | translate" severity="secondary" />
                     } @else if (agent.online) {
-                        <p-tag value="Online" severity="success" />
+                        <p-tag [value]="'agents.online_badge' | translate" severity="success" />
                     } @else {
-                        <p-tag value="Silent" severity="warn" />
+                        <p-tag [value]="'agents.silent_badge' | translate" severity="warn" />
                     }
                     @if (agent.lastSeenAt) {
                         <div class="text-sm text-muted-color mt-1">Seen {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
@@ -78,18 +66,11 @@
                             <p-tag [value]="label" severity="info" styleClass="mr-1" />
                         }
                     } @else {
-                        <!-- With no label, it only takes targets that require none. -->
                         <span class="text-muted-color text-sm">Unlabelled targets</span>
                     }
                 </td>
                 <td>
                     <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Delegated' : 'Local' }}</span>
-                    <!--
-                        Shown only for delegated credentials: that is the only case where a
-                        key leaves. An operator who believes they are sealing while their
-                        agent is an older version would have no other way of noticing, and
-                        the key would cross their reverse proxy in clear.
-                    -->
                     @if (agent.credentialsMode === 'delegated') {
                         <div class="text-sm" [class.text-muted-color]="agent.sealsCredentials">
                             {{ agent.sealsCredentials ? 'Sealed end to end' : 'In clear under TLS' }}
@@ -107,33 +88,31 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="6" class="text-center text-muted-color py-6">No agent declared. Scans are run by the built-in worker.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td></tr>
         </ng-template>
     </p-table>
 </p-card>
 
-<p-dialog header="Declare an agent" [(visible)]="formVisible" [modal]="true" [style]="{ width: '34rem' }">
+<p-dialog [header]="'agents.modal_title' | translate" [(visible)]="formVisible" [modal]="true" [style]="{ width: '34rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="name" class="font-medium">Name</label>
-            <input pInputText id="name" [(ngModel)]="form.name" placeholder="runner-brussels-1" />
+            <label for="name" class="font-medium">{{ 'agents.name_label' | translate }}</label>
+            <input pInputText id="name" [(ngModel)]="form.name" [placeholder]="'agents.name_placeholder' | translate" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="description" class="font-medium">Description <span class="text-muted-color font-normal">(optional)</span></label>
-            <input pInputText id="description" [(ngModel)]="form.description" />
+            <label for="description" class="font-medium">{{ 'agents.desc_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
+            <input pInputText id="description" [(ngModel)]="form.description" [placeholder]="'agents.desc_placeholder' | translate" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="mode" class="font-medium">Git credentials</label>
+            <label for="mode" class="font-medium">{{ 'agents.credentials' | translate }}</label>
             <p-select id="mode" [options]="credentials" optionLabel="label" optionValue="value" [(ngModel)]="form.credentialsMode" styleClass="w-full" />
             <small class="text-muted-color">{{ hintFor(form.credentialsMode) }}</small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="labels" class="font-medium">Labels</label>
-            <input pInputText id="labels" [(ngModel)]="form.labels" placeholder="production, customer-network" />
+            <label for="labels" class="font-medium">{{ 'agents.labels_label' | translate }}</label>
+            <input pInputText id="labels" [(ngModel)]="form.labels" [placeholder]="'agents.labels_placeholder' | translate" />
             <small class="text-muted-color">
-                What this agent can reach. A repository or an image may require a label:
-                only the agents carrying it will receive its scans — and its deployment key.
-                With no label, this agent only takes targets that require none.
+                {{ 'agents.labels_hint' | translate }}
             </small>
         </div>
         <div class="flex flex-col gap-2">
@@ -145,31 +124,29 @@
         }
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button label="Declare" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 
-<!-- The key exists here only, as for API keys. -->
-<p-dialog header="Agent declared" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+<p-dialog [header]="'agents.token_modal_title' | translate" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-        Copy this key now: it is stored only as a hash and cannot be shown again.
-        Give it to the agent through the <span class="font-mono">ZANSHIN_API_KEY</span> variable.
+        {{ 'agents.token_modal_desc' | translate }}
     </p-message>
     <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSecret() }}</div>
     <ng-template #footer>
-        <p-button label="I have copied the key" (onClick)="dismissSecret()" />
+        <p-button [label]="'common.confirm' | translate" (onClick)="dismissSecret()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog header="Delete this agent?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+<p-dialog [header]="'common.delete' | translate" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
     @if (pendingDelete(); as agent) {
         <p class="m-0">
-            <span class="font-medium">{{ agent.name }}</span> and its API key will be deleted. The agent will no longer be able to claim a scan.
+            <span class="font-medium">{{ agent.name }}</span> — {{ 'agents.delete_confirm' | translate }}
         </p>
     }
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
     </ng-template>
 </p-dialog>

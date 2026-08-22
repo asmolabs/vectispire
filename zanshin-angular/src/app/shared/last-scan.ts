@@ -19,30 +19,34 @@ import type { LastScan } from '../core/api.models';
  * hiding it behind a reassuring label, but it translated nothing. Seen on screen, not in
  * review.
  */
-const STATUS_LABELS: Record<string, { label: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
-    pending: { label: 'Queued', severity: 'info' },
-    scanning: { label: 'Running', severity: 'info' },
-    completed: { label: 'Completed', severity: 'success' },
-    failed: { label: 'Failed', severity: 'danger' },
-    cancelled: { label: 'Cancelled', severity: 'warn' }
+import { inject } from '@angular/core';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { I18nService } from '../core/i18n/i18n.service';
+
+const STATUS_KEYS: Record<string, { key: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
+    pending: { key: 'scans.status_queued', severity: 'info' },
+    scanning: { key: 'scans.status_running', severity: 'info' },
+    completed: { key: 'scans.status_completed', severity: 'success' },
+    failed: { key: 'scans.status_failed', severity: 'danger' },
+    cancelled: { key: 'scans.status_cancelled', severity: 'warn' }
 };
 
 @Component({
     selector: 'app-last-scan',
     standalone: true,
-    imports: [CommonModule, TagModule],
+    imports: [CommonModule, TagModule, TranslatePipe],
     templateUrl: './last-scan.html'
 })
 export class LastScanTag {
+    private readonly i18n = inject(I18nService);
     readonly scan = input.required<LastScan | null>();
 
-    /** Closed table: a status outside the vocabulary is shown raw rather than hidden behind
-     *  a reassuring label. */
     label(status: string): string {
-        return STATUS_LABELS[status]?.label ?? status;
+        const item = STATUS_KEYS[status];
+        return item ? this.i18n.t(item.key) : status;
     }
 
     severity(status: string): 'success' | 'warn' | 'danger' | 'info' {
-        return STATUS_LABELS[status]?.severity ?? 'info';
+        return STATUS_KEYS[status]?.severity ?? 'info';
     }
 }

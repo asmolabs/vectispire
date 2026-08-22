@@ -36,10 +36,12 @@ const TRIAGE_LABELS: Record<string, string> = {
  * Those two answer the questions a row provokes and cannot settle: "is this still there in the
  * release we shipped" and "why is this dismissed".
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-issue-detail',
     standalone: true,
-    imports: [CommonModule, RouterLink, CardModule, TableModule, TagModule, MessageModule],
+    imports: [CommonModule, RouterLink, CardModule, TableModule, TagModule, MessageModule, TranslatePipe],
     templateUrl: './issue-detail.html'
 })
 export class IssueDetailPage {

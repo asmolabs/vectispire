@@ -21,10 +21,12 @@ import type { InventoryOccurrence } from '../../core/api.models';
  * The project version travels beside the component version, and the two are labelled apart:
  * confusing them is the one mistake that makes the answer useless.
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-inventory',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, InputTextModule],
+    imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, InputTextModule, TranslatePipe],
     templateUrl: './inventory.html'
 })
 export class Inventory {

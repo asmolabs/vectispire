@@ -884,10 +884,12 @@ export interface InventoryResults {
  * the audited repository, and handing that to `innerHTML` would be an injection path.
  */
 export interface OwaspBlock {
-    kind: 'HEADING' | 'CATEGORY' | 'PARAGRAPH' | 'BULLET' | 'NUMBERED';
+    kind: 'HEADING' | 'CATEGORY' | 'PARAGRAPH' | 'BULLET' | 'NUMBERED' | 'BLOCKQUOTE' | 'TABLE';
     level: number;
     marker: string | null;
     text: string;
+    headers?: string[] | null;
+    rows?: string[][] | null;
 }
 
 export interface OwaspReport {

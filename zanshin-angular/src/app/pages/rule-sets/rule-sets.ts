@@ -31,10 +31,12 @@ import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core
  * The files are read in the browser and posted as JSON. No archive is sent, so there is no
  * archive to extract server-side and no path traversal to defend against.
  */
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 @Component({
     selector: 'app-rule-sets',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './rule-sets.html'
 })
 export class RuleSets {

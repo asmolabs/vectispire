@@ -56,14 +56,18 @@ class OwaspMarkdownTest {
     }
 
     @Test
-    @DisplayName("an unrecognised construct becomes a paragraph rather than disappearing")
-    void nothingIsDropped() {
-        // A construct that vanishes is a report quietly missing a sentence — and nobody counts
-        // the paragraphs of a document a model wrote.
-        List<Block> blocks = OwaspMarkdown.parse("> A quotation the prompt never asked for.\n\n| a | table |");
+    @DisplayName("blockquotes and markdown tables are structured into dedicated blocks")
+    void quotesAndTablesAreStructured() {
+        List<Block> blocks = OwaspMarkdown.parse(
+                "> Important caveat: Silence is not safety.\n\n| Category | Why |\n|---|---|\n| A01 | No scanner |");
 
-        assertThat(blocks).hasSize(2).allMatch(block -> block.kind() == Kind.PARAGRAPH);
-        assertThat(blocks.getFirst().text()).contains("A quotation the prompt never asked for.");
+        assertThat(blocks).hasSize(2);
+        assertThat(blocks.get(0).kind()).isEqualTo(Kind.BLOCKQUOTE);
+        assertThat(blocks.get(0).text()).isEqualTo("Important caveat: Silence is not safety.");
+
+        assertThat(blocks.get(1).kind()).isEqualTo(Kind.TABLE);
+        assertThat(blocks.get(1).headers()).containsExactly("Category", "Why");
+        assertThat(blocks.get(1).rows()).containsExactly(List.of("A01", "No scanner"));
     }
 
     @Test

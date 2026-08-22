@@ -62,7 +62,17 @@
         <ng-template #title>
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <span>{{ 'licenses.inventory_title' | translate }}</span>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <select
+                        [ngModel]="selectedTarget()"
+                        (ngModelChange)="onTargetChange($event)"
+                        class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                    >
+                        @for (opt of targetOptions(); track opt.value) {
+                            <option [value]="opt.value">{{ opt.label }}</option>
+                        }
+                    </select>
+
                     <select
                         [ngModel]="selectedRisk()"
                         (ngModelChange)="selectedRisk.set($event)"

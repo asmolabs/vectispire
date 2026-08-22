@@ -8,6 +8,10 @@ import { ApiService } from '@/app/core/api.service';
 import { saveDocument } from '@/app/core/download';
 import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 
+import { CommonModule } from '@angular/common';
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+
 /**
  * The security posture — the gate's verdict, shown at last.
  *
@@ -22,7 +26,7 @@ import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 @Component({
     selector: 'zs-security',
     standalone: true,
-    imports: [TableModule, TagModule, ButtonModule, MessageModule, RouterLink],
+    imports: [CommonModule, TableModule, TagModule, ButtonModule, MessageModule, RouterLink, TranslatePipe],
     templateUrl: './security.html'
 })
 export class Security {
@@ -58,10 +62,12 @@ export class Security {
         return Number.isNaN(at.getTime()) ? value : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
     }
 
+    private readonly i18n = inject(I18nService);
+
     observationLabel(target: TargetPosture): string {
-        if (target.observation === 'never_scanned') return 'Never scanned';
-        if (target.observation === 'last_scan_failed') return 'Last scan failed';
-        return 'Scan in progress';
+        if (target.observation === 'never_scanned') return this.i18n.t('security.never_scanned_badge');
+        if (target.observation === 'last_scan_failed') return this.i18n.t('security.last_scan_failed_badge');
+        return this.i18n.t('security.scan_in_progress');
     }
 
     /**

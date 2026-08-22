@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,13 +36,17 @@ public class LicenseController {
     }
 
     @GetMapping("/inventory")
-    public List<LicenseEntry> getInventory() {
-        return licenseService.getInventory();
+    public List<LicenseEntry> getInventory(
+            @RequestParam(name = "repo_id", required = false) Long repoId,
+            @RequestParam(name = "container_id", required = false) Long containerId) {
+        return licenseService.getInventory(repoId, containerId);
     }
 
     @GetMapping("/summary")
-    public LicenseSummary getSummary() {
-        return licenseService.getSummary();
+    public LicenseSummary getSummary(
+            @RequestParam(name = "repo_id", required = false) Long repoId,
+            @RequestParam(name = "container_id", required = false) Long containerId) {
+        return licenseService.getSummary(repoId, containerId);
     }
 
     @GetMapping("/policy")
