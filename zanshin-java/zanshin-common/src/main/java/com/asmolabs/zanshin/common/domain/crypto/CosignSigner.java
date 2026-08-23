@@ -71,7 +71,7 @@ public final class CosignSigner {
 
     public static PublicKey parsePublicKey(String pemOrBase64) {
         try {
-            if (pemOrBase64.contains("-----BEGIN")) {
+            if (pemOrBase64.contains("-----")) {
                 try (PEMParser parser = new PEMParser(new StringReader(pemOrBase64))) {
                     Object parsed = parser.readObject();
                     JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
@@ -80,11 +80,8 @@ public final class CosignSigner {
                     }
                 }
             }
-            // Strip headers if manual base64
-            String cleanBase64 = pemOrBase64
-                    .replace("-----BEGIN PUBLIC KEY-----", "")
-                    .replace("-----END PUBLIC KEY-----", "")
-                    .replaceAll("\\s+", "");
+            // Strip any PEM boundary markers if raw base64 was wrapped
+            String cleanBase64 = pemOrBase64.replaceAll("-----[^-]+-----", "").replaceAll("\\s+", "");
             byte[] encoded = Base64.getDecoder().decode(cleanBase64);
             KeyFactory kf = KeyFactory.getInstance(KEY_ALGORITHM);
             return kf.generatePublic(new X509EncodedKeySpec(encoded));
@@ -95,7 +92,7 @@ public final class CosignSigner {
 
     public static PrivateKey parsePrivateKey(String pemOrBase64) {
         try {
-            if (pemOrBase64.contains("-----BEGIN")) {
+            if (pemOrBase64.contains("-----")) {
                 try (PEMParser parser = new PEMParser(new StringReader(pemOrBase64))) {
                     Object parsed = parser.readObject();
                     JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
@@ -107,12 +104,8 @@ public final class CosignSigner {
                     }
                 }
             }
-            String cleanBase64 = pemOrBase64
-                    .replace("-----BEGIN PRIVATE KEY-----", "")
-                    .replace("-----END PRIVATE KEY-----", "")
-                    .replace("-----BEGIN EC PRIVATE KEY-----", "")
-                    .replace("-----END EC PRIVATE KEY-----", "")
-                    .replaceAll("\\s+", "");
+            // Strip any PEM boundary markers if raw base64 was wrapped
+            String cleanBase64 = pemOrBase64.replaceAll("-----[^-]+-----", "").replaceAll("\\s+", "");
             byte[] encoded = Base64.getDecoder().decode(cleanBase64);
             KeyFactory kf = KeyFactory.getInstance(KEY_ALGORITHM);
             return kf.generatePrivate(new PKCS8EncodedKeySpec(encoded));

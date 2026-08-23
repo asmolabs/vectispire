@@ -47,6 +47,7 @@ export const appRoutes: Routes = [
             { path: 'blast-radius', loadComponent: () => import('./app/pages/blast-radius/blast-radius').then((m) => m.BlastRadius) },
             { path: 'notifications', loadComponent: () => import('./app/pages/notifications/notifications').then((m) => m.Notifications) },
             { path: 'licenses', loadComponent: () => import('./app/pages/licenses/licenses').then((m) => m.Licenses) },
+            { path: 'attack-surface', loadComponent: () => import('./app/pages/attack-surface/attack-surface').then((m) => m.AttackSurface) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
     },

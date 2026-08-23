@@ -1183,3 +1183,129 @@ export interface NotificationTestResult {
     testedAt: string;
 }
 
+export interface AiVulnerabilityAdvice {
+    identifier: string;
+    title: string;
+    summaryExplanation: string;
+    exploitMechanics: string;
+    exposureAssessment: string;
+    remediation: {
+        fixAction: string;
+        suggestedVersion: string;
+        codeSnippetOrDiff: string;
+        cliCommand: string;
+    };
+    vexSuggestion: {
+        status: string;
+        justification: string;
+        impactStatement: string;
+        actionStatement: string;
+    };
+    references: string[];
+}
+
+export interface LicenseConflict {
+    packageName: string;
+    packageVersion: string;
+    licenseExpression: string;
+    riskCategory: string;
+    targetKind: string;
+    targetName: string;
+    compatibility: 'COMPATIBLE' | 'CONDITIONAL' | 'INCOMPATIBLE_BLOCKING';
+    legalRiskExplanation: string;
+    remediationAdvice: string;
+}
+
+export interface CompatibilityCell {
+    targetLicenseType: string;
+    dependencyLicenseCategory: string;
+    compatibility: string;
+    ruleDescription: string;
+}
+
+export interface PostureTrendAnalytics {
+    windowDays: number;
+    overallMttrDays?: number;
+    mttrBySeverity: Record<string, number>;
+    totalOpenedInWindow: number;
+    totalResolvedInWindow: number;
+    netResolutionRatePercentage: number;
+    dailySeries: Array<{
+        date: string;
+        openBacklog: number;
+        newlyDiscovered: number;
+        newlyResolved: number;
+        rollingMttrDays?: number;
+    }>;
+    targetScoreboard: Array<{
+        targetId: number;
+        targetKind: string;
+        targetName: string;
+        openCritical: number;
+        openHigh: number;
+        openMedium: number;
+        openLow: number;
+        totalResolved: number;
+        targetMttrDays?: number;
+        securityScore: number;
+        maturityGrade: string;
+    }>;
+}
+
+export interface ApiEndpointView {
+    id: number;
+    scanId: number;
+    repositoryId: number;
+    method: string;
+    path: string;
+    authRequired: boolean;
+    authType: string | null;
+    visibility: 'PUBLIC' | 'INTERNAL' | 'UNKNOWN';
+    filePath: string | null;
+    lineNumber: number | null;
+    framework: string | null;
+    operationId: string | null;
+    summary: string | null;
+    tags: string | null;
+    shadowStatus: 'DOCUMENTED' | 'SHADOW_API' | 'UNDOCUMENTED' | 'HIGH_RISK_EXPOSURE';
+    createdAt: string;
+}
+
+export interface ApiContractView {
+    id: number;
+    repositoryId: number;
+    scanId: number | null;
+    contractPath: string;
+    format: string | null;
+    title: string | null;
+    version: string | null;
+    endpointsCount: number;
+    createdAt: string;
+}
+
+export interface AttackSurfaceSummary {
+    totalEndpoints: number;
+    publicEndpoints: number;
+    internalEndpoints: number;
+    unauthenticatedEndpoints: number;
+    shadowEndpoints: number;
+    sensitiveUnprotectedEndpoints: number;
+}
+
+export interface RepositoryApisOverview {
+    repositoryId: number;
+    endpoints: ApiEndpointView[];
+    contracts: ApiContractView[];
+    summary: AttackSurfaceSummary;
+}
+
+export interface GlobalAttackSurface {
+    totalEndpoints: number;
+    publicEndpoints: number;
+    internalEndpoints: number;
+    unauthenticatedEndpoints: number;
+    shadowEndpoints: number;
+    sensitiveUnprotectedEndpoints: number;
+    frameworks: string[];
+    highRiskEndpoints: ApiEndpointView[];
+}

@@ -99,5 +99,14 @@ class LicenseGovernanceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/licenses/inventory"), adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.packageName == 'mysql:mysql-connector-j')].compliant").value(true));
+
+        // 6. Query cross-license compatibility matrix and conflicts
+        mvc.perform(authenticated(get("/api/v1/licenses/matrix"), adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").isNumber());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts?proprietary=true"), adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'mysql:mysql-connector-j')].compatibility").value("INCOMPATIBLE_BLOCKING"));
     }
 }

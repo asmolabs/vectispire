@@ -57,87 +57,236 @@
         </div>
     }
 
-    <!-- Inventory Card -->
-    <p-card>
-        <ng-template #title>
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <span>{{ 'licenses.inventory_title' | translate }}</span>
-                <div class="flex flex-wrap items-center gap-2">
-                    <select
-                        [ngModel]="selectedTarget()"
-                        (ngModelChange)="onTargetChange($event)"
-                        class="p-inputtext p-component text-sm py-1 px-2 rounded"
-                    >
-                        @for (opt of targetOptions(); track opt.value) {
-                            <option [value]="opt.value">{{ opt.label }}</option>
-                        }
-                    </select>
+    <!-- Sub-navigation Tabs -->
+    <div class="flex items-center gap-2 border-b border-surface-200 dark:border-surface-700 pb-2">
+        <button
+            pButton
+            [text]="activeTab() !== 'inventory'"
+            [outlined]="activeTab() === 'inventory'"
+            icon="pi pi-list"
+            label="Inventaire & Politiques"
+            size="small"
+            (click)="setTab('inventory')"
+        ></button>
+        <button
+            pButton
+            [text]="activeTab() !== 'conflicts'"
+            [outlined]="activeTab() === 'conflicts'"
+            icon="pi pi-exclamation-triangle"
+            label="Conflits de Licences & Copyleft"
+            size="small"
+            severity="warn"
+            (click)="setTab('conflicts')"
+        >
+            @if (blockingConflictsCount() > 0) {
+                <span class="ml-2 px-1.5 py-0.5 text-xs bg-red-600 text-white rounded-full font-bold">{{ blockingConflictsCount() }}</span>
+            }
+        </button>
+        <button
+            pButton
+            [text]="activeTab() !== 'matrix'"
+            [outlined]="activeTab() === 'matrix'"
+            icon="pi pi-table"
+            label="Matrice de Compatibilité Légale"
+            size="small"
+            (click)="setTab('matrix')"
+        ></button>
+    </div>
 
-                    <select
-                        [ngModel]="selectedRisk()"
-                        (ngModelChange)="selectedRisk.set($event)"
-                        class="p-inputtext p-component text-sm py-1 px-2 rounded"
-                    >
-                        <option value="ALL">All Risk Levels</option>
-                        <option value="PERMISSIVE">Permissive Only</option>
-                        <option value="WEAK_COPYLEFT">Weak Copyleft</option>
-                        <option value="STRONG_COPYLEFT">Strong Copyleft / Viral</option>
-                        <option value="FORBIDDEN">Forbidden</option>
-                    </select>
+    <!-- TAB 1: INVENTORY & POLICIES -->
+    @if (activeTab() === 'inventory') {
+        <!-- Inventory Card -->
+        <p-card>
+            <ng-template #title>
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <span>{{ 'licenses.inventory_title' | translate }}</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select
+                            [ngModel]="selectedTarget()"
+                            (ngModelChange)="onTargetChange($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            @for (opt of targetOptions(); track opt.value) {
+                                <option [value]="opt.value">{{ opt.label }}</option>
+                            }
+                        </select>
 
-                    <select
-                        [ngModel]="selectedCompliance()"
-                        (ngModelChange)="selectedCompliance.set($event)"
-                        class="p-inputtext p-component text-sm py-1 px-2 rounded"
-                    >
-                        <option value="ALL">All Compliance Statuses</option>
-                        <option value="COMPLIANT">Compliant Only</option>
-                        <option value="NON_COMPLIANT">Non-Compliant (Violations)</option>
-                    </select>
+                        <select
+                            [ngModel]="selectedRisk()"
+                            (ngModelChange)="selectedRisk.set($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            <option value="ALL">All Risk Levels</option>
+                            <option value="PERMISSIVE">Permissive Only</option>
+                            <option value="WEAK_COPYLEFT">Weak Copyleft</option>
+                            <option value="STRONG_COPYLEFT">Strong Copyleft / Viral</option>
+                            <option value="FORBIDDEN">Forbidden</option>
+                        </select>
+
+                        <select
+                            [ngModel]="selectedCompliance()"
+                            (ngModelChange)="selectedCompliance.set($event)"
+                            class="p-inputtext p-component text-sm py-1 px-2 rounded"
+                        >
+                            <option value="ALL">All Compliance Statuses</option>
+                            <option value="COMPLIANT">Compliant Only</option>
+                            <option value="NON_COMPLIANT">Non-Compliant (Violations)</option>
+                        </select>
+                    </div>
+                </div>
+            </ng-template>
+
+            <p-table [value]="filteredInventory()" [loading]="loading()" styleClass="p-datatable-sm" [paginator]="true" [rows]="15">
+                <ng-template #header>
+                    <tr>
+                        <th>Component</th>
+                        <th>Version</th>
+                        <th>License (SPDX)</th>
+                        <th>Risk Category</th>
+                        <th>Target</th>
+                        <th>Compliance</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-item>
+                    <tr>
+                        <td class="font-medium font-mono text-sm">{{ item.packageName }}</td>
+                        <td class="text-surface-500 text-sm">{{ item.packageVersion }}</td>
+                        <td>
+                            <span class="font-semibold text-sm">{{ item.license }}</span>
+                        </td>
+                        <td>
+                            <p-tag [severity]="riskSeverity(item.riskCategory)" [value]="item.riskCategory" />
+                        </td>
+                        <td>
+                            <div class="text-sm">{{ item.targetName }}</div>
+                        </td>
+                        <td>
+                            @if (item.compliant) {
+                                <p-tag severity="success" value="COMPLIANT" />
+                            } @else {
+                                <p-tag severity="danger" value="VIOLATION" [title]="item.violationReason ?? 'Disallowed license'" />
+                            }
+                        </td>
+                    </tr>
+                </ng-template>
+                <ng-template #emptymessage>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted-color py-6">
+                            No open source licenses match these filters.
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
+
+    <!-- TAB 2: COPYLEFT CONFLICTS & LEGAL RISK -->
+    @if (activeTab() === 'conflicts') {
+        <div class="flex flex-col gap-6">
+            <!-- Settings banner -->
+            <div class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <i class="pi pi-balance-scale text-amber-500 text-2xl"></i>
+                    <div>
+                        <h4 class="font-bold text-sm">Mode d'Analyse Juridique & Contamination Virale</h4>
+                        <p class="text-xs text-muted-color">Détecte les clauses copyleft qui obligent légalement à publier le code source propriétaire.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-surface-0 dark:bg-surface-900 px-3 py-1.5 rounded-lg border border-surface-200 dark:border-surface-700">
+                    <span class="text-xs font-semibold">Produit Propriétaire / Commercial</span>
+                    <p-toggleswitch [ngModel]="proprietaryMode()" (ngModelChange)="toggleProprietary($event)" />
                 </div>
             </div>
-        </ng-template>
 
-        <p-table [value]="filteredInventory()" [loading]="loading()" styleClass="p-datatable-sm" [paginator]="true" [rows]="15">
-            <ng-template #header>
-                <tr>
-                    <th>Component</th>
-                    <th>Version</th>
-                    <th>License (SPDX)</th>
-                    <th>Risk Category</th>
-                    <th>Target</th>
-                    <th>Compliance</th>
-                </tr>
+            <!-- Conflicts Table -->
+            <p-card>
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>Conflits & Risques de Licences Détectés ({{ conflicts().length }})</span>
+                        <p-tag [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'" [value]="blockingConflictsCount() > 0 ? (blockingConflictsCount() + ' Conflit(s) Bloquant(s)') : 'Aucun conflit bloquant'" />
+                    </div>
+                </ng-template>
+
+                <p-table [value]="conflicts()" styleClass="p-datatable-sm" [paginator]="true" [rows]="10">
+                    <ng-template #header>
+                        <tr>
+                            <th>Dépendance</th>
+                            <th>Licence</th>
+                            <th>Compatibilité</th>
+                            <th>Cible</th>
+                            <th>Explication Juridique</th>
+                            <th>Conseil de Remédiation</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template #body let-conflict>
+                        <tr [class.bg-red-50]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'" [class.dark:bg-red-950/20]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'">
+                            <td class="font-mono text-xs font-bold">{{ conflict.packageName }} <span class="text-muted-color font-normal">({{ conflict.packageVersion }})</span></td>
+                            <td>
+                                <p-tag [value]="conflict.licenseExpression" [severity]="riskSeverity(conflict.riskCategory)" />
+                            </td>
+                            <td>
+                                <p-tag [value]="conflict.compatibility" [severity]="compatSeverity(conflict.compatibility)" />
+                            </td>
+                            <td class="text-xs">{{ conflict.targetName }}</td>
+                            <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">{{ conflict.legalRiskExplanation }}</td>
+                            <td class="text-xs font-medium text-purple-700 dark:text-purple-300 max-w-xs">
+                                <i class="pi pi-arrow-circle-right text-xs mr-1"></i>{{ conflict.remediationAdvice }}
+                            </td>
+                        </tr>
+                    </ng-template>
+                    <ng-template #emptymessage>
+                        <tr>
+                            <td colspan="6" class="text-center text-muted-color py-8">
+                                <i class="pi pi-check-circle text-emerald-500 text-3xl mb-2"></i>
+                                <p class="font-semibold">Aucun conflit juridique de licence détecté dans le périmètre analysé.</p>
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
+            </p-card>
+        </div>
+    }
+
+    <!-- TAB 3: MATRIX RULES -->
+    @if (activeTab() === 'matrix') {
+        <p-card>
+            <ng-template #title>
+                <span>Règles de Compatibilité Croisée des Licences Open Source</span>
             </ng-template>
-            <ng-template #body let-item>
-                <tr>
-                    <td class="font-medium font-mono text-sm">{{ item.packageName }}</td>
-                    <td class="text-surface-500 text-sm">{{ item.packageVersion }}</td>
-                    <td>
-                        <span class="font-semibold text-sm">{{ item.license }}</span>
-                    </td>
-                    <td>
-                        <p-tag [severity]="riskSeverity(item.riskCategory)" [value]="item.riskCategory" />
-                    </td>
-                    <td>
-                        <div class="text-sm">{{ item.targetName }}</div>
-                    </td>
-                    <td>
-                        @if (item.compliant) {
-                            <p-tag severity="success" value="COMPLIANT" />
-                        } @else {
-                            <p-tag severity="danger" value="VIOLATION" [title]="item.violationReason ?? 'Disallowed license'" />
-                        }
-                    </td>
-                </tr>
-            </ng-template>
-            <ng-template #emptymessage>
-                <tr>
-                    <td colspan="6" class="text-center text-muted-color py-6">
-                        No open source licenses match these filters.
-                    </td>
-                </tr>
-            </ng-template>
-        </p-table>
-    </p-card>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30">
+                    <h5 class="font-bold text-emerald-800 dark:text-emerald-300 text-sm mb-1">Permissive (MIT, Apache 2.0, BSD)</h5>
+                    <p class="text-xs text-emerald-700 dark:text-emerald-400">Intégration libre dans les logiciels propriétaires ou open source. Exige uniquement la conservation des notices de copyright.</p>
+                </div>
+                <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30">
+                    <h5 class="font-bold text-amber-800 dark:text-amber-300 text-sm mb-1">Copyleft Faible (LGPL, MPL, EPL)</h5>
+                    <p class="text-xs text-amber-700 dark:text-amber-400">Liaison dynamique autorisée sans contamination du code appelant. Toute modification directe de la bibliothèque doit rester open source.</p>
+                </div>
+                <div class="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/30">
+                    <h5 class="font-bold text-red-800 dark:text-red-300 text-sm mb-1">Copyleft Fort / Viral (GPL, AGPL, SSPL)</h5>
+                    <p class="text-xs text-red-700 dark:text-red-400">Contamination totale : tout logiciel combiné lié statiquement ou dynamiquement doit être rendu public sous la même licence GPL/AGPL.</p>
+                </div>
+            </div>
+
+            <p-table [value]="matrixRules()" styleClass="p-datatable-sm">
+                <ng-template #header>
+                    <tr>
+                        <th>Contexte Produit Cible</th>
+                        <th>Catégorie de Licence Dépendance</th>
+                        <th>Verdict Compatibilité</th>
+                        <th>Règle Juridique Appliquée</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-rule>
+                    <tr>
+                        <td class="font-semibold text-xs">{{ rule.targetLicenseType }}</td>
+                        <td><p-tag [value]="rule.dependencyLicenseCategory" [severity]="riskSeverity(rule.dependencyLicenseCategory)" /></td>
+                        <td><p-tag [value]="rule.compatibility" [severity]="compatSeverity(rule.compatibility)" /></td>
+                        <td class="text-xs text-surface-600 dark:text-surface-300">{{ rule.ruleDescription }}</td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
 </div>

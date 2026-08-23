@@ -67,7 +67,8 @@ class ChangelogTest {
                         "t_leader_lease", "t_login_attempt", "t_outbox_message", "t_processed_message",
                         "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set",
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
-                        "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy");
+                        "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
+                        "t_api_endpoint", "t_api_contract");
     }
 
     @Test

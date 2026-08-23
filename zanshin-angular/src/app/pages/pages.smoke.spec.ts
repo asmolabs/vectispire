@@ -18,6 +18,7 @@ import { Security } from './security/security';
 import { SshKeys } from './ssh-keys/ssh-keys';
 import { Teams } from './teams/teams';
 import { Users } from './users/users';
+import { AttackSurface } from './attack-surface/attack-surface';
 
 /**
  * Every screen mounts, renders, and survives an empty server.
@@ -79,6 +80,33 @@ describe('every screen', () => {
         if (url.endsWith('/rule-sets')) return { ruleSets: [] };
         // ApiKeysController.Targets: two named lists, not a collection.
         if (url.endsWith('/api-keys/targets')) return { repositories: [], containers: [] };
+        if (url.endsWith('/attack-surface')) {
+            return {
+                totalEndpoints: 0,
+                publicEndpoints: 0,
+                internalEndpoints: 0,
+                unauthenticatedEndpoints: 0,
+                shadowEndpoints: 0,
+                sensitiveUnprotectedEndpoints: 0,
+                frameworks: [],
+                highRiskEndpoints: []
+            };
+        }
+        if (url.includes('/apis')) {
+            return {
+                repositoryId: 1,
+                endpoints: [],
+                contracts: [],
+                summary: {
+                    totalEndpoints: 0,
+                    publicEndpoints: 0,
+                    internalEndpoints: 0,
+                    unauthenticatedEndpoints: 0,
+                    shadowEndpoints: 0,
+                    sensitiveUnprotectedEndpoints: 0
+                }
+            };
+        }
         if (url.includes('/audit-log/operation-types')) return [];
         // Everything else in this application is a collection.
         return [];
@@ -96,7 +124,8 @@ describe('every screen', () => {
         ['Users', Users],
         ['Teams', Teams],
         ['Audit log', AuditLog],
-        ['Semgrep rules', RuleSets]
+        ['Semgrep rules', RuleSets],
+        ['Attack surface', AttackSurface]
     ];
 
     it.each(SCREENS)('%s renders against an empty server', (_name, component) => {

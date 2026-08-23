@@ -71,7 +71,13 @@ import {
     EpssPrioritizedIssue,
     ThreatIntelRecord,
     NotificationChannelStatus,
-    NotificationTestResult
+    NotificationTestResult,
+    AiVulnerabilityAdvice,
+    LicenseConflict,
+    CompatibilityCell,
+    PostureTrendAnalytics,
+    GlobalAttackSurface,
+    RepositoryApisOverview
 } from './api.models';
 
 /**
@@ -655,4 +661,53 @@ export class ApiService {
     testNotificationChannel(channelType: string): Observable<NotificationTestResult> {
         return this.http.post<NotificationTestResult>(`/api/v1/notifications/test/${encodeURIComponent(channelType)}`, {});
     }
+
+    getAiAdvisorStatus(): Observable<{ enabled: boolean; selectedModel: string; ollamaUrl: string; availableModels: string[] }> {
+        return this.http.get<{ enabled: boolean; selectedModel: string; ollamaUrl: string; availableModels: string[] }>('/api/v1/ai-advisor/status');
+    }
+
+    explainIssueWithAi(issueId: number): Observable<AiVulnerabilityAdvice> {
+        return this.http.post<AiVulnerabilityAdvice>(`/api/v1/ai-advisor/explain/issue/${issueId}`, {});
+    }
+
+    explainCveWithAi(cveId: string, pkg?: string, currentVer?: string, fixVer?: string, reachability?: string): Observable<AiVulnerabilityAdvice> {
+        let params = new HttpParams();
+        if (pkg) params = params.set('packageName', pkg);
+        if (currentVer) params = params.set('currentVersion', currentVer);
+        if (fixVer) params = params.set('fixVersion', fixVer);
+        if (reachability) params = params.set('reachability', reachability);
+        return this.http.post<AiVulnerabilityAdvice>(`/api/v1/ai-advisor/explain/cve/${encodeURIComponent(cveId)}`, {}, { params });
+    }
+
+    getLicenseConflicts(repoId?: number, containerId?: number, proprietary = true): Observable<LicenseConflict[]> {
+        let params = new HttpParams().set('proprietary', proprietary);
+        if (repoId) params = params.set('repo_id', repoId);
+        if (containerId) params = params.set('container_id', containerId);
+        return this.http.get<LicenseConflict[]>('/api/v1/licenses/conflicts', { params });
+    }
+
+    getLicenseCompatibilityMatrix(): Observable<CompatibilityCell[]> {
+        return this.http.get<CompatibilityCell[]>('/api/v1/licenses/matrix');
+    }
+
+    getPostureAnalytics(days = 30): Observable<PostureTrendAnalytics> {
+        const params = new HttpParams().set('days', days);
+        return this.http.get<PostureTrendAnalytics>('/api/v1/dashboard/posture-analytics', { params });
+    }
+
+    getAttackSurface(): Observable<GlobalAttackSurface> {
+        return this.http.get<GlobalAttackSurface>('/api/v1/attack-surface');
+    }
+
+    getRepositoryApis(repositoryId: number): Observable<RepositoryApisOverview> {
+        return this.http.get<RepositoryApisOverview>(`/api/v1/repositories/${repositoryId}/apis`);
+    }
+
+    exportSynthesizedOpenApi(repositoryId: number): Observable<HttpResponse<Blob>> {
+        return this.http.get(`/api/v1/repositories/${repositoryId}/apis/export/openapi`, {
+            observe: 'response',
+            responseType: 'blob'
+        });
+    }
 }
+

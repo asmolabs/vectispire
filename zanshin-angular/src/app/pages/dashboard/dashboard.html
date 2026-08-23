@@ -75,13 +75,118 @@
                 }
             </div>
 
-            <div class="flex flex-col justify-center">
-                <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve' | translate }}</div>
-                <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
-                <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
+            <div class="flex flex-col justify-center gap-4">
+                <div>
+                    <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve' | translate }} (Global)</div>
+                    <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
+                    <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
+                </div>
+
+                @if (postureAnalytics(); as pa) {
+                    <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
+                        <div class="text-xs uppercase font-semibold text-muted-color">MTTR par Sévérité</div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center">
+                                <span class="font-bold text-red-600 dark:text-red-400">Critique</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['CRITICAL'] != null ? pa.mttrBySeverity['CRITICAL'] + 'j' : '—' }}</span>
+                            </div>
+                            <div class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center">
+                                <span class="font-bold text-amber-600 dark:text-amber-400">Élevée</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['HIGH'] != null ? pa.mttrBySeverity['HIGH'] + 'j' : '—' }}</span>
+                            </div>
+                            <div class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center">
+                                <span class="font-bold text-blue-600 dark:text-blue-400">Moyenne</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['MEDIUM'] != null ? pa.mttrBySeverity['MEDIUM'] + 'j' : '—' }}</span>
+                            </div>
+                            <div class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center">
+                                <span class="font-semibold text-muted-color">Faible</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['LOW'] != null ? pa.mttrBySeverity['LOW'] + 'j' : '—' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 pt-2 border-t border-surface-200 dark:border-surface-700 flex justify-between items-center text-xs">
+                            <span class="text-muted-color">Vélocité de Remédiation :</span>
+                            <span class="font-bold" [class.text-emerald-600]="pa.netResolutionRatePercentage >= 80" [class.text-amber-600]="pa.netResolutionRatePercentage < 80">
+                                {{ pa.netResolutionRatePercentage }}% ({{ pa.totalResolvedInWindow }} résolues / {{ pa.totalOpenedInWindow }} ouvertes)
+                            </span>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     </p-card>
+
+    <!-- Target Security Maturity Scoreboard -->
+    @if (postureAnalytics()?.targetScoreboard?.length) {
+        <p-card>
+            <ng-template #title>
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <i class="pi pi-trophy text-amber-500"></i>
+                        Scoreboard de Maturité & Posture de Sécurité des Cibles
+                    </span>
+                    <span class="text-xs text-muted-color font-normal">Calculé sur les délais MTTR et le stock d'anomalies ouvertes</span>
+                </div>
+            </ng-template>
+
+            <p-table [value]="postureAnalytics()!.targetScoreboard" styleClass="p-datatable-sm" [paginator]="true" [rows]="5">
+                <ng-template #header>
+                    <tr>
+                        <th>Cible</th>
+                        <th>Rang / Grade</th>
+                        <th>Score Sécurité</th>
+                        <th class="text-center">Critiques Ouvertes</th>
+                        <th class="text-center">Élevées Ouvertes</th>
+                        <th class="text-center">Résolues</th>
+                        <th class="text-right">MTTR Moyen</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-target>
+                    <tr>
+                        <td>
+                            <div class="font-bold text-sm">{{ target.targetName }}</div>
+                            <div class="text-xs text-muted-color">{{ target.targetKind }}</div>
+                        </td>
+                        <td>
+                            <p-tag [value]="'Grade ' + target.maturityGrade" [severity]="gradeSeverity(target.maturityGrade)" />
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold font-mono text-sm">{{ target.securityScore }}/100</span>
+                                <div class="w-16 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-purple-600 rounded-full" [style.width.%]="target.securityScore"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            @if (target.openCritical > 0) {
+                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300">
+                                    {{ target.openCritical }}
+                                </span>
+                            } @else {
+                                <span class="text-xs text-muted-color">0</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (target.openHigh > 0) {
+                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
+                                    {{ target.openHigh }}
+                                </span>
+                            } @else {
+                                <span class="text-xs text-muted-color">0</span>
+                            }
+                        </td>
+                        <td class="text-center font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            {{ target.totalResolved }}
+                        </td>
+                        <td class="text-right font-mono text-xs">
+                            {{ target.targetMttrDays != null ? (target.targetMttrDays + ' jours') : '—' }}
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <p-card styleClass="xl:col-span-1">

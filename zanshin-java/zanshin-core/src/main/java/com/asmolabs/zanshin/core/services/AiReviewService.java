@@ -1,8 +1,10 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.aireview.AiReview;
+import com.asmolabs.zanshin.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
 import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.zanshin.core.persistence.IssueEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -144,6 +146,67 @@ public class AiReviewService {
         // A zero or a negative would mean "no timeout" to the HTTP client on some JDKs and throw
         // on others. The default is the honest reading of a value that cannot be a duration.
         return java.time.Duration.ofSeconds(seconds > 0 ? seconds : AiReview.DEFAULT_TIMEOUT_SECONDS);
+    }
+
+    public AiVulnerabilityAdvice explainVulnerability(IssueEntity issue) {
+        String id = issue.getIdentifier() != null ? issue.getIdentifier() : "VULN-" + issue.getId();
+        String pkg = issue.getPackageName();
+        String ver = issue.getPackageVersion();
+        String fix = issue.getFixVersions();
+        String reachability = issue.getReachability() != null ? issue.getReachability() : "UNKNOWN";
+        boolean isKev = issue.isKev();
+        Double epss = issue.getEpssScore();
+
+        if (isEnabled()) {
+            try {
+                String prompt = String.format(
+                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, Reachability: %s, KEV: %s, EPSS: %s. Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"not_affected|affected|under_investigation\",\"vex_justification\":\"code_not_reachable|vulnerable_code_cannot_be_controlled_by_adversary\",\"vex_statement\":\"...\"}",
+                        id, pkg, ver, fix, reachability, isKev, epss);
+
+                String rawResponse = post.postForResponse(
+                        validatedUrl() + "/api/chat",
+                        Map.of(
+                                "model", selectedModel(),
+                                "messages", List.of(
+                                        Map.of("role", "system", "content", "You are an AppSec assistant. Respond ONLY with valid JSON without markdown wrapping."),
+                                        Map.of("role", "user", "content", prompt)),
+                                "stream", false),
+                        policy(),
+                        "Ollama",
+                        Map.of(),
+                        timeout());
+
+                JsonNode root = json.readTree(rawResponse).path("message").path("content");
+                String text = root.asText("");
+                if (text.startsWith("```")) {
+                    text = text.replaceFirst("^```[a-zA-Z]*\\s*", "").replaceFirst("```\\s*$", "").trim();
+                }
+                JsonNode parsed = json.readTree(text);
+                if (parsed != null && parsed.isObject()) {
+                    return new AiVulnerabilityAdvice(
+                            id,
+                            "Analyse IA pour " + id + " (" + (pkg != null ? pkg : "composant") + ")",
+                            parsed.path("summary").asText(""),
+                            parsed.path("mechanics").asText(""),
+                            parsed.path("exposure").asText(""),
+                            new AiVulnerabilityAdvice.RemediationAdvice(
+                                    parsed.path("fix_action").asText("Mettre à jour vers " + (fix != null ? fix : "la version corrigée")),
+                                    fix != null ? fix : "version corrigée",
+                                    parsed.path("code_snippet").asText(""),
+                                    parsed.path("cli_command").asText("")),
+                            new AiVulnerabilityAdvice.VexSuggestion(
+                                    parsed.path("vex_status").asText("under_investigation"),
+                                    parsed.path("vex_justification").asText("vulnerable_code_cannot_be_controlled_by_adversary"),
+                                    parsed.path("vex_statement").asText(""),
+                                    "Appliquer le patch correctif."),
+                            List.of("https://nvd.nist.gov/vuln/detail/" + id, "https://www.first.org/epss"));
+                }
+            } catch (Exception e) {
+                log.info("Ollama inference not available or failed, falling back to deterministic advice: {}", e.getMessage());
+            }
+        }
+
+        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, reachability, isKev, epss);
     }
 
     private OutboundPolicy policy() {

@@ -138,4 +138,53 @@ Le moteur de conformité évalue en continu 5 référentiels majeurs :
   - `GET /api/v1/notifications/channels` : Liste des canaux configurés et événements abonnés.
   - `POST /api/v1/notifications/test/{channelType}` : Déclenchement d'un test d'envoi immédiat avec diagnostic.
 
+---
+
+## 8. Assistant de Triage IA Local & Explicabilité des Vulnérabilités
+
+- **Moteur d'Explicabilité (`AiReviewService`, `AiAdvisorController`)** :
+  - Fournit une vulgarisation technique en français, détaille le scénario d'exploitation exact, analyse l'exposition réelle (reachability statique), génère les commandes CLI de mise à jour (`mvn`, `npm`, etc.) et propose une justification VEX formelle.
+  - Fonctionnement hybride : inférence locale Ollama (zéro fuite de code vers des tiers) ou génération heuristique déterministe hors-ligne instantanée.
+- **Endpoints API** :
+  - `GET /api/v1/ai-advisor/status` : État du modèle local (Ollama) et modèles disponibles.
+  - `POST /api/v1/ai-advisor/explain/issue/{issueId}` : Analyse complète et suggestion VEX pour une anomalie identifiée.
+  - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : Analyse à la volée d'une CVE avec paramètres optionnels de version.
+
+---
+
+## 9. Matrice des Risques Juridiques & Conflits de Licences (Copyleft)
+
+- **Moteur de Compatibilité (`LicenseConflictMatrix`, `LicenseGovernanceService`)** :
+  - Cartographie les compatibilités croisées entre licences open source (Permissif, Copyleft Faible, Copyleft Fort / Viral, Interdit).
+  - Détecte les risques de contamination virale (ex: composant GPL-3.0 ou AGPL-3.0 intégré dans une application propriétaire obligeant légalement à la divulgation du code source).
+  - Formule les conseils de remédiation juridique (remplacement par alternative MIT/Apache ou isolation en liaison dynamique).
+- **Endpoints API** :
+  - `GET /api/v1/licenses/conflicts?proprietary=true` : Liste des incompatibilités et violations de licences par cible.
+  - `GET /api/v1/licenses/matrix` : Matrice de référence des règles d'interopérabilité juridique.
+
+---
+
+## 10. Tableau de Bord de Posture & Tendances MTTR Multi-Sévérités
+
+- **Moteur d'Analytics de Posture (`PostureTrendAnalytics`, `DashboardController`)** :
+  - Calcule en pur Java (indépendant du dialecte SQL) le MTTR moyen par palier de sévérité (Critique, Élevé, Moyen, Faible) sur 30j/90j/365j.
+  - Suivi de la vélocité nette de remédiation (Net Burndown: nombre de résolutions vs découvertes).
+  - Scoreboard de maturité sécurité par cible : classement de `A` à `F` et score 0-100 calculé selon le stock d'anomalies ouvertes et les délais de résolution.
+- **Endpoints API** :
+---
+
+## 11. Découverte de la Surface d'Attaque & Inventaire des APIs Exposées
+
+- **Moteur d'Extraction Statique d'APIs (`ApiDiscoveryScanner`, `ApiInventoryService`)** :
+  - Détection automatique et statique sans AST lourd des endpoints HTTP pour Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`), et Go Gin (`r.GET`, `group.POST`).
+  - Analyseur de spécifications et contrats OpenAPI 3.0 / Swagger 2.0 (JSON et YAML).
+  - Découverte des règles d'exposition publique via Kubernetes Ingress.
+- **Détection des Shadow APIs & Risques OWASP API Security** :
+  - Identification des **Shadow APIs** (APIs non documentées actives dans le code source mais absentes des spécifications contractuelles).
+  - Alerte sur les routes sensibles sans authentification (ex: `/admin`, `/actuator`, `/debug`, `/metrics`, `/env`) alignées sur les risques OWASP API Top 10 (BOLA, Broken Authentication, Improper Asset Management).
+  - Export synthétisé de spécifications OpenAPI 3.0.3 pour les applications legacy non documentées.
+- **Endpoints API** :
+  - `GET /api/v1/attack-surface` : Résumé global de la surface d'attaque, inventaire des frameworks et endpoints à haut risque.
+  - `GET /api/v1/repositories/{id}/apis` : Inventaire complet des routes, contrats et dérive Shadow API d'un dépôt.
+  - `GET /api/v1/repositories/{id}/apis/export/openapi` : Export dynamique du schéma OpenAPI 3.0.3 d'un dépôt.
 

@@ -446,4 +446,46 @@ Two rules the harness enforces on itself:
   - `GET /api/v1/notifications/channels`: Overview of configured channels and subscribed events.
   - `POST /api/v1/notifications/test/{channelType}`: Immediate simulated delivery test with diagnostic results.
 
+## 10. Local AI Vulnerability & Triage Explainer Advisor
 
+- **Explainer & Remediation Engine (`AiReviewService`, `AiAdvisorController`)**:
+  - Generates contextual vulnerability explanations, exploit mechanics analysis, static reachability exposure verdict, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements.
+  - Dual-mode operation: Local Ollama model inference (zero third-party data leakage) or instantaneous deterministic heuristic fallback.
+- **REST Endpoints**:
+  - `GET /api/v1/ai-advisor/status`: Status of the local AI inference engine and available models.
+  - `POST /api/v1/ai-advisor/explain/issue/{issueId}`: Contextual explanation and VEX statement for a persisted issue.
+  - `POST /api/v1/ai-advisor/explain/cve/{cveId}`: On-the-fly explanation for any CVE identifier with optional package metadata.
+
+## 11. Open Source License Legal Risk & Copyleft Matrix
+
+- **Cross-Compatibility & Viral Contamination Matrix (`LicenseConflictMatrix`, `LicenseGovernanceService`)**:
+  - Identifies viral copyleft risks (GPL-3.0, AGPL-3.0) that legally mandate disclosing proprietary source code upon distribution.
+  - Classifies dynamic linking requirements for weak copyleft (LGPL, MPL, EPL) and permissive attribution notices (MIT, Apache-2.0, BSD).
+  - Actionable legal remediation guidance per target (replacement recommendations or component architectural isolation).
+- **REST Endpoints**:
+  - `GET /api/v1/licenses/conflicts?proprietary=true`: Detailed list of detected legal incompatibilities and risk justifications.
+  - `GET /api/v1/licenses/matrix`: Official cross-license compatibility reference rules.
+
+## 12. Security Posture Trends & Multi-Echelon MTTR Analytics
+
+- **Posture Analytics Engine (`PostureTrendAnalytics`, `DashboardController`)**:
+  - Pure Java calendar-day calculation of Mean Time to Remediate (MTTR) broken down by severity echelon (Critical, High, Medium, Low).
+  - Net burndown resolution velocity KPI tracking resolution speed against discovery rate.
+  - Target Maturity Scoreboard ranking repositories and containers with Grades (`A` to `F`) and 0-100 posture scores.
+- **REST Endpoints**:
+  - `GET /api/v1/dashboard/posture-analytics?days=30`: Aggregated MTTR by severity, net burndown rate, daily time series, and target maturity rankings.
+
+## 13. Attack Surface Discovery & Exposed API Inventory
+
+- **Static API & Route Extraction Engine (`ApiDiscoveryScanner`, `ApiInventoryService`)**:
+  - AST-free, regex-based static analysis discovering HTTP endpoints across Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`), and Go Gin (`r.GET`, `group.POST`).
+  - OpenAPI 3.0 / Swagger 2.0 specification parser (`ApiContract`) reading JSON/YAML contracts.
+  - Kubernetes Ingress route extractor mapping public hostname paths directly to discovered services.
+- **Shadow API & Attack Surface Drift Detection**:
+  - Automatically identifies **Shadow APIs** (active HTTP endpoints discovered in source code but missing from OpenAPI specifications).
+  - Flags **Sensitive Unprotected Endpoints** (e.g. unauthenticated `/admin`, `/actuator`, `/debug`, `/metrics`, `/env` routes) mapped to OWASP API Security Top 10 risks (API1: BOLA, API2: Broken Authentication, API9: Improper Asset Management).
+  - Dynamically synthesizes compliant OpenAPI 3.0.3 specifications from discovered code routes for undocumented legacy services.
+- **REST Endpoints**:
+  - `GET /api/v1/attack-surface`: Global cross-repository attack surface summary, frameworks inventory, and high-risk exposed endpoints.
+  - `GET /api/v1/repositories/{id}/apis`: Discovered endpoints, contracts, and shadow API status for a repository.
+  - `GET /api/v1/repositories/{id}/apis/export/openapi`: Synthesized OpenAPI 3.0.3 specification export for a repository.

@@ -109,6 +109,19 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.points.length()").value(1));
     }
 
+    @Test
+    @DisplayName("GET /api/v1/dashboard/posture-analytics returns full MTTR by severity and target scoreboard")
+    void returnsPostureAnalytics() throws Exception {
+        long target = repository("https://example.invalid/analytics.git");
+        issue(target, "CVE-ANALYTICS-1", Duration.ofDays(10), Duration.ofDays(2));
+
+        mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.windowDays").value(30))
+                .andExpect(jsonPath("$.totalResolvedInWindow").value(1))
+                .andExpect(jsonPath("$.targetScoreboard").isArray());
+    }
+
     private long repository(String url) {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);

@@ -7,6 +7,7 @@ import com.asmolabs.zanshin.common.domain.issues.IssueState;
 import com.asmolabs.zanshin.common.domain.issues.Severity;
 import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
 import com.asmolabs.zanshin.common.domain.trends.BacklogTrend;
+import com.asmolabs.zanshin.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.IssueFilters;
@@ -222,6 +223,35 @@ public class DashboardController {
                         .toList(),
                 series.meanDaysToResolve().orElse(null),
                 series.resolvedInWindow());
+    }
+
+    @GetMapping("/posture-analytics")
+    public PostureTrendAnalytics postureAnalytics(
+            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @RequestParam(required = false, defaultValue = "30") int days) {
+
+        int window = Math.clamp(days, 7, MAX_TREND_DAYS);
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+
+        List<com.asmolabs.zanshin.core.persistence.IssueEntity> allIssues = issues
+                .findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification());
+
+        List<Long> repoIds = allIssues.stream().map(com.asmolabs.zanshin.core.persistence.IssueEntity::getRepoId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> containerIds = allIssues.stream().map(com.asmolabs.zanshin.core.persistence.IssueEntity::getContainerId).filter(java.util.Objects::nonNull).distinct().toList();
+        TargetNaming.Names names = naming.forIds(repoIds, containerIds);
+
+        List<PostureTrendAnalytics.IssueObservation> observations = allIssues.stream()
+                .map(i -> new PostureTrendAnalytics.IssueObservation(
+                        i.getRepoId() != null ? i.getRepoId() : i.getContainerId(),
+                        i.getRepoId() != null ? "REPOSITORY" : "CONTAINER",
+                        names.of(i.getRepoId(), i.getContainerId()),
+                        i.getSeverity() != null ? i.getSeverity() : "MEDIUM",
+                        i.getFirstSeenAt(),
+                        i.getResolvedAt()))
+                .toList();
+
+        return PostureTrendAnalytics.calculate(window, clock.instant(), observations);
     }
 
     /**

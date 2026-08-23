@@ -1,5 +1,6 @@
 package com.asmolabs.zanshin.core.services;
 
+import com.asmolabs.zanshin.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.zanshin.common.domain.licenses.LicenseEntry;
 import com.asmolabs.zanshin.common.domain.licenses.LicensePolicy;
 import com.asmolabs.zanshin.common.domain.licenses.LicenseRiskCategory;
@@ -339,5 +340,30 @@ public class LicenseGovernanceService {
                 : Set.of();
 
         return new LicensePolicy(disallowed, allowed, dis);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(Long repoId, Long containerId, boolean isProprietaryTarget) {
+        List<LicenseEntry> inventory = getInventory(repoId, containerId);
+        List<LicenseConflictMatrix.LicenseConflict> conflicts = new ArrayList<>();
+
+        for (LicenseEntry entry : inventory) {
+            LicenseConflictMatrix.LicenseConflict eval = LicenseConflictMatrix.evaluate(
+                    entry.packageName(),
+                    entry.packageVersion(),
+                    entry.license(),
+                    entry.targetKind(),
+                    entry.targetName(),
+                    isProprietaryTarget);
+
+            if (eval.compatibility() != LicenseConflictMatrix.Compatibility.COMPATIBLE) {
+                conflicts.add(eval);
+            }
+        }
+        return conflicts;
+    }
+
+    public List<LicenseConflictMatrix.CompatibilityCell> getCompatibilityRules() {
+        return LicenseConflictMatrix.getStandardCompatibilityRules();
     }
 }

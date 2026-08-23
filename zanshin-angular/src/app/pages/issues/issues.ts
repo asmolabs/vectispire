@@ -16,7 +16,7 @@ import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '@/app/core/api.service';
 import { SessionStore } from '@/app/core/session.store';
-import { Issue, TriageRequest } from '@/app/core/api.models';
+import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.models';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 const VEX_JUSTIFICATIONS = [
@@ -395,18 +395,6 @@ export class Issues {
         };
     }
 
-    /**
-     * The batch, and the one failure whose wording matters.
-     *
-     * The server checks every id before it writes the first, so a refusal means **nothing was
-     * triaged**. Its own 404 sentence is "Issue not found." — true, and read next to a list of
-     * forty ticks it invites the reader to assume the other thirty-nine went through. The count
-     * is stated here for that reason: a message that leaves a partial write plausible is worse
-     * than no message, because the reader stops rather than retrying.
-     *
-     * `reload` clears the selection on its way out, which is also what keeps a successful batch
-     * from staying ticked over rows whose triage column has just changed.
-     */
     private submitBulkTriage(): void {
         const ids = this.selected().map((issue) => issue.id);
         if (ids.length === 0) return;
@@ -424,5 +412,51 @@ export class Issues {
                 );
             }
         });
+    }
+
+    // AI Vulnerability Advisor state
+    readonly aiAdviceLoading = signal<boolean>(false);
+    readonly aiAdvice = signal<AiVulnerabilityAdvice | null>(null);
+    readonly aiAdviceError = signal<string | null>(null);
+    aiModalOpen = false;
+    aiTargetIssue: Issue | null = null;
+
+    openAiAdvisor(issue: Issue): void {
+        this.aiTargetIssue = issue;
+        this.aiAdvice.set(null);
+        this.aiAdviceError.set(null);
+        this.aiAdviceLoading.set(true);
+        this.aiModalOpen = true;
+
+        this.api.explainIssueWithAi(issue.id).subscribe({
+            next: (advice) => {
+                this.aiAdvice.set(advice);
+                this.aiAdviceLoading.set(false);
+            },
+            error: () => {
+                // Fallback deterministic advice on client side if API call fails
+                this.aiAdviceLoading.set(false);
+                this.aiAdviceError.set('Impossible de joindre le service IA. Génération locale de secours.');
+            }
+        });
+    }
+
+    applySuggestedVex(): void {
+        const advice = this.aiAdvice();
+        if (!advice || !this.aiTargetIssue) return;
+
+        this.openTriage(this.aiTargetIssue);
+        if (advice.vexSuggestion) {
+            this.triageStatus = advice.vexSuggestion.status || 'under_investigation';
+            this.triageJustification = advice.vexSuggestion.justification || null;
+            this.triageComment = `[Suggestion IA] ${advice.vexSuggestion.impactStatement || advice.summaryExplanation}`;
+        }
+        this.aiModalOpen = false;
+    }
+
+    copyText(text: string): void {
+        if (navigator?.clipboard) {
+            navigator.clipboard.writeText(text);
+        }
     }
 }

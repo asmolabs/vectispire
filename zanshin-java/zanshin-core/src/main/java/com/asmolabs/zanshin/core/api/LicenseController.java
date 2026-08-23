@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.api;
 
 import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
+import com.asmolabs.zanshin.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.zanshin.common.domain.licenses.LicenseEntry;
 import com.asmolabs.zanshin.common.domain.licenses.LicensePolicy;
 import com.asmolabs.zanshin.common.domain.licenses.LicenseSummary;
@@ -76,5 +77,18 @@ public class LicenseController {
                 request != null ? request.getHeader("User-Agent") : null));
 
         return updated;
+    }
+
+    @GetMapping("/conflicts")
+    public List<LicenseConflictMatrix.LicenseConflict> getConflicts(
+            @RequestParam(name = "repo_id", required = false) Long repoId,
+            @RequestParam(name = "container_id", required = false) Long containerId,
+            @RequestParam(name = "proprietary", defaultValue = "true") boolean proprietary) {
+        return licenseService.evaluateConflicts(repoId, containerId, proprietary);
+    }
+
+    @GetMapping("/matrix")
+    public List<LicenseConflictMatrix.CompatibilityCell> getCompatibilityMatrix() {
+        return licenseService.getCompatibilityRules();
     }
 }
