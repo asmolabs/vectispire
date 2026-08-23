@@ -76,3 +76,29 @@ export ZANSHIN_AI_REVIEW_ENABLED=true
 export ZANSHIN_AI_REVIEW_URL=http://localhost:11434
 export ZANSHIN_AI_REVIEW_MODEL=llama3.2
 ```
+
+---
+
+## 7. Déploiement Conteneurisé avec Docker & Docker Compose
+
+Pour exécuter la suite complète (Base PostgreSQL + Control Plane Zanshin + Agent optionnel) en une seule commande :
+
+```bash
+# Copier et ajuster les variables d'environnement
+cp .env.example .env
+
+# Lancer la stack (PostgreSQL + Zanshin Control Plane sur http://localhost:8000)
+docker compose up -d
+
+# Lancer avec un agent distant déporté (profile with-agent)
+docker compose --profile with-agent up -d
+```
+
+**Construction des images Docker personnalisées :**
+```bash
+# Image Control Plane (Backend + Frontend intégré)
+npm run docker:build          # ou docker build -t zanshin:latest .
+
+# Image Agent distant déporté
+npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t zanshin-agent:latest .
+```

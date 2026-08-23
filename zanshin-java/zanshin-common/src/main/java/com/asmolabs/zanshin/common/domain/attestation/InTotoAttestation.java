@@ -72,7 +72,7 @@ public record InTotoAttestation(
                         : Map.of("sha256", "0000000000000000000000000000000000000000000000000000000000000000"));
 
         Predicate predicate = new Predicate(
-                new Builder("https://github.com/asmolabs/zanshin", "0.1.0"),
+                new Builder("https://github.com/asmolabs/zanshin", "0.9.0"),
                 new Invocation(scanId, targetKind, targetName, branch, commitSha, timestamp),
                 new PolicyAssessment(gatePassed, violations != null ? violations : List.of(), policyName),
                 findings,

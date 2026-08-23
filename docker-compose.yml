@@ -1,0 +1,76 @@
+services:
+  # --- Database (PostgreSQL) -----------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: zanshin-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zanshin}
+      POSTGRES_USER: ${POSTGRES_USER:-zanshin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zanshin_secure_db_pass}
+    volumes:
+      - zanshin_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zanshin} -d ${POSTGRES_DB:-zanshin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - zanshin-net
+
+  # --- Zanshin Control Plane (Spring Boot Backend + Angular UI) -----------------------------
+  control-plane:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zanshin:latest
+    container_name: zanshin-control-plane
+    ports:
+      - "${ZANSHIN_PORT:-8000}:8000"
+    environment:
+      ZANSHIN_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-zanshin}
+      ZANSHIN_DB_USER: ${POSTGRES_USER:-zanshin}
+      ZANSHIN_DB_PASSWORD: ${POSTGRES_PASSWORD:-zanshin_secure_db_pass}
+      ZANSHIN_ENCRYPTION_KEY: ${ZANSHIN_ENCRYPTION_KEY:-dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcyEh}
+      ZANSHIN_BOOTSTRAP_USERNAME: ${ZANSHIN_BOOTSTRAP_USERNAME:-admin}
+      ZANSHIN_BOOTSTRAP_PASSWORD: ${ZANSHIN_BOOTSTRAP_PASSWORD:-AdminZanshin2026!}
+      ZANSHIN_EMBEDDED_WORKER: ${ZANSHIN_EMBEDDED_WORKER:-true}
+    volumes:
+      # Sibling container scanner execution (Syft, Grype, Semgrep, Gitleaks)
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zanshin-net
+
+  # --- Optional: Remote Agent (for isolated container worker nodes) --------------------------
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: zanshin-agent:latest
+    container_name: zanshin-agent
+    profiles:
+      - with-agent
+    environment:
+      ZANSHIN_URL: http://control-plane:8000
+      ZANSHIN_AGENT_TOKEN: ${ZANSHIN_AGENT_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zanshin-net
+
+volumes:
+  zanshin_data:
+    name: zanshin_data
+
+networks:
+  zanshin-net:
+    name: zanshin-net
+    driver: bridge

@@ -1,0 +1,34 @@
+# Zanshin Remote Agent: dials out to the control plane and runs scanner containers locally.
+#
+#   docker build -f Dockerfile.agent -t zanshin-agent .
+#   docker run --rm \
+#     -e ZANSHIN_URL=http://control-plane:8000 \
+#     -e ZANSHIN_AGENT_TOKEN=... \
+#     -v /var/run/docker.sock:/var/run/docker.sock \
+#     zanshin-agent
+
+# --- Build Stage -------------------------------------------------------------------------
+FROM eclipse-temurin:25-jdk-alpine AS build
+
+WORKDIR /src
+COPY zanshin-java/gradle/ gradle/
+COPY zanshin-java/gradlew zanshin-java/settings.gradle.kts zanshin-java/build.gradle.kts ./
+COPY zanshin-java/buildSrc/ buildSrc/
+RUN mkdir -p zanshin-common zanshin-core zanshin-agent && ./gradlew --no-daemon help
+
+COPY zanshin-java/ ./
+RUN ./gradlew --no-daemon :zanshin-agent:bootJar -x test
+
+# --- Runtime Stage -----------------------------------------------------------------------
+FROM eclipse-temurin:25-jre-alpine
+
+RUN apk add --no-cache git openssh-client ca-certificates
+
+WORKDIR /app
+COPY --from=build /src/zanshin-agent/build/libs/zanshin-agent.jar app.jar
+COPY LICENSE NOTICE ./
+
+RUN addgroup -S zanshin && adduser -S -G zanshin zanshin
+USER zanshin
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

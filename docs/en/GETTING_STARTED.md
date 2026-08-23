@@ -84,6 +84,27 @@ The first start creates a SUPERUSER from `ZANSHIN_BOOTSTRAP_USERNAME` and
 `ZANSHIN_BOOTSTRAP_PASSWORD` when the user table is empty. Once an account exists, both
 variables are ignored.
 
+### 5.1 Docker Compose Deployment (All-in-One)
+
+You can launch the complete Zanshin stack (PostgreSQL + Control Plane + Optional Remote Agent) in a single command:
+
+```bash
+# 1. Copy and adjust environment variables
+cp .env.example .env
+
+# 2. Launch PostgreSQL + Zanshin Control Plane on http://localhost:8000
+docker compose up -d
+
+# 3. Optional: Launch with a dedicated remote agent
+docker compose --profile with-agent up -d
+```
+
+**Building Container Images:**
+```bash
+npm run docker:build          # or docker build -t zanshin:latest .
+npm run docker:build:agent    # or docker build -f Dockerfile.agent -t zanshin-agent:latest .
+```
+
 
 ## 6. Optional: AI code review (Ollama)
 
