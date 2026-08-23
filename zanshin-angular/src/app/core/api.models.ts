@@ -1072,3 +1072,114 @@ export interface ComplianceSummary {
     passingGateTargets: number;
 }
 
+export interface GraphNode {
+    id: string;
+    label: string;
+    type: 'TARGET' | 'PACKAGE' | 'CVE';
+    version: string | null;
+    ecosystem: string | null;
+    riskScore: number;
+    isDirect: boolean;
+    cves: string[];
+}
+
+export interface GraphEdge {
+    source: string;
+    target: string;
+    relationship: string;
+}
+
+export interface DependencyGraph {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+}
+
+export interface TargetImpact {
+    targetId: number;
+    targetKind: 'REPOSITORY' | 'CONTAINER';
+    targetName: string;
+    targetContext: string;
+    sourceFile: string;
+    purl: string | null;
+    packageName: string;
+    packageVersion: string;
+    isDirect: boolean;
+    cves: string[];
+    reachability: string;
+    scanId: number;
+}
+
+export interface TopImpactPackage {
+    packageName: string;
+    ecosystem: string;
+    affectedTargetsCount: number;
+    directUsages: number;
+    transitiveUsages: number;
+    totalCves: number;
+    maxCvss: number;
+    blastRadiusScore: number;
+}
+
+export interface BlastRadiusReport {
+    query: string;
+    queryType: 'PACKAGE' | 'CVE';
+    totalTargetsAffected: number;
+    directUsages: number;
+    transitiveUsages: number;
+    totalAssociatedCves: number;
+    blastRadiusScore: number;
+    targets: TargetImpact[];
+    graph: DependencyGraph;
+}
+
+export interface ThreatIntelRecord {
+    cveId: string;
+    isKev: boolean;
+    epssScore: number | null;
+    epssPercentile: number | null;
+    dateAdded: string | null;
+    notes: string | null;
+}
+
+export interface EpssPrioritizedIssue {
+    issueId: number;
+    identifier: string;
+    title: string;
+    severity: string;
+    cvssScore: number | null;
+    epssScore: number | null;
+    epssPercentile: number | null;
+    isKev: boolean;
+    reachability: string;
+    targetName: string;
+    targetKind: string;
+    priorityScore: number;
+    priorityTier: 'CRITICAL_ARMED' | 'HIGH_PROBABLE' | 'MEDIUM_THEORETICAL' | 'LOW_PROBABILITY';
+    recommendedAction: string;
+}
+
+export interface EpssFleetSummary {
+    totalVulnerabilities: number;
+    activeKevCount: number;
+    highEpssCount: number;
+    reachableEpssCount: number;
+    averageFleetEpss: number;
+    topPriorities: EpssPrioritizedIssue[];
+    breakdownByTier: Record<string, number>;
+}
+
+export interface NotificationChannelStatus {
+    type: string;
+    name: string;
+    destination: string;
+    configured: boolean;
+    supportedEvents: string[];
+}
+
+export interface NotificationTestResult {
+    type: string;
+    success: boolean;
+    message: string;
+    testedAt: string;
+}
+

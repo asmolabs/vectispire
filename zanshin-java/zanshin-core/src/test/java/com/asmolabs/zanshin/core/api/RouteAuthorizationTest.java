@@ -102,7 +102,8 @@ class RouteAuthorizationTest extends ApiTestBase {
                 "[/api/v1/auth/methods]",
                 "[/api/v1/auth/session/exchange]",
                 "[/api/v1/auth/mfa/verify]",
-                "[/api/v1/scorecards/repositories/{repoId}/badge.svg]");
+                "[/api/v1/scorecards/repositories/{repoId}/badge.svg]",
+                "[/api/v1/crypto/public-key.pub]");
     }
 
     @Test

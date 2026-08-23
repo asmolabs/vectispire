@@ -47,6 +47,29 @@
             ></button>
             <button
                 pButton
+                icon="pi pi-code"
+                class="p-button-outlined"
+                label="CycloneDX VEX"
+                [loading]="exportingCycloneDx()"
+                (click)="exportCycloneDx()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-key"
+                class="p-button-outlined"
+                label="Clé Cosign (.pub)"
+                [loading]="downloadingPubKey()"
+                (click)="downloadPublicKey()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-verified"
+                class="p-button-outlined"
+                label="Vérifier Signature"
+                (click)="openVerifier()"
+            ></button>
+            <button
+                pButton
                 icon="pi pi-shield"
                 class="p-button-primary"
                 [label]="'compliance.export_bundle' | translate"
@@ -193,10 +216,10 @@
     }
 
     <!-- VEX Import Dialog -->
-    <p-dialog header="Importer un document VEX amont (OpenVEX / CSAF)" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
+    <p-dialog header="Importer un document VEX amont (OpenVEX / CSAF / CycloneDX)" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
         <div class="flex flex-col gap-4">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
-                Téléversez ou collez une déclaration officielle <strong>OpenVEX</strong> ou <strong>CSAF 2.0</strong> fournie par un éditeur tiers ou un mainteneur open-source. Les vulnérabilités concernées seront automatiquement classées en <em>not_affected</em> avec la justification de l'éditeur.
+                Téléversez ou collez une déclaration officielle <strong>OpenVEX</strong>, <strong>CSAF 2.0</strong> ou <strong>CycloneDX VEX (1.5/1.6)</strong> fournie par un éditeur tiers ou un mainteneur open-source. Les vulnérabilités concernées seront automatiquement classées en <em>not_affected</em> avec la justification de l'éditeur.
             </p>
 
             <div>
@@ -220,6 +243,59 @@
         <ng-template #footer>
             <button pButton label="Annuler" class="p-button-text" (click)="importOpen.set(false)"></button>
             <button pButton icon="pi pi-check" label="Ingérer et appliquer" [loading]="importing()" [disabled]="!importJson.trim()" (click)="submitIngestVex()"></button>
+        </ng-template>
+    </p-dialog>
+
+    <!-- Cosign / Sigstore Verification Dialog -->
+    <p-dialog header="Vérificateur Cryptographique Cosign / Sigstore" [(visible)]="verifyOpen" [modal]="true" [style]="{ width: '42rem' }" [appendTo]="'body'">
+        <div class="flex flex-col gap-4">
+            <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
+                Vérifiez la signature cryptographique (ECDSA P-256 / SHA256withECDSA) d'un SBOM, d'une attestation in-toto ou du manifeste de preuves pour garantir son intégrité et sa non-répudiation.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">1. Fichier de charge utile (ex: manifest.json)</label>
+                    <input type="file" (change)="onVerifyPayloadSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
+                    <textarea rows="4" [(ngModel)]="verifyPayload" placeholder="Ou coller le contenu du fichier..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">2. Fichier de signature (ex: manifest.json.sig)</label>
+                    <input type="file" (change)="onVerifySigSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
+                    <textarea rows="4" [(ngModel)]="verifySignature" placeholder="Ou coller la signature Base64..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">3. Clé publique PEM (optionnel — utilise la clé active du serveur par défaut)</label>
+                <textarea rows="2" [(ngModel)]="verifyPublicKey" placeholder="-----BEGIN PUBLIC KEY----- ..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+            </div>
+
+            @if (verifyResult()) {
+                <div class="p-3 rounded-lg border flex items-center gap-3" [class.bg-emerald-50]="verifyResult()!.valid" [class.border-emerald-200]="verifyResult()!.valid" [class.text-emerald-800]="verifyResult()!.valid" [class.bg-rose-50]="!verifyResult()!.valid" [class.border-rose-200]="!verifyResult()!.valid" [class.text-rose-800]="!verifyResult()!.valid">
+                    <i class="pi text-xl" [class.pi-check-circle]="verifyResult()!.valid" [class.pi-times-circle]="!verifyResult()!.valid"></i>
+                    <div class="text-xs">
+                        <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
+                        <p class="text-[11px] opacity-75 my-0">Algorithme: {{ verifyResult()!.algorithm }} | Key ID: {{ verifyResult()!.keyId }}</p>
+                    </div>
+                </div>
+            }
+
+            @if (verifyError()) {
+                <p-message severity="error" [text]="verifyError()!"></p-message>
+            }
+
+            @if (cosignCliInfo()?.commands?.cosignVerifyManifest) {
+                <div class="bg-surface-900 text-surface-100 p-3 rounded text-xs font-mono">
+                    <p class="text-surface-400 text-[11px] mb-1">Commande CLI Cosign équivalente :</p>
+                    <code>{{ cosignCliInfo().commands.cosignVerifyManifest }}</code>
+                </div>
+            }
+        </div>
+
+        <ng-template #footer>
+            <button pButton label="Fermer" class="p-button-text" (click)="verifyOpen.set(false)"></button>
+            <button pButton icon="pi pi-verified" label="Vérifier l'intégrité" [loading]="verifying()" [disabled]="!verifyPayload.trim() || !verifySignature.trim()" (click)="submitVerification()"></button>
         </ng-template>
     </p-dialog>
 </div>

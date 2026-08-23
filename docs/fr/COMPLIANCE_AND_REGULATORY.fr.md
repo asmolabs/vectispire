@@ -161,29 +161,36 @@ Zanshin produit des paquets de preuves directement opposables aux auditeurs exte
 1. **Rapport PDF Exécutif (`/api/v1/compliance/export.pdf`)** :
    - Synthèse de la posture, scores par référentiel, détail des 20 contrôles et plan de remédiation priorisé.
 2. **Paquet de Preuves Certifié (`/api/v1/compliance/evidence-bundle.zip`)** :
-   - `manifest.json` : Empreintes SHA-256 de chaque artefact de preuve inclus.
+   - `manifest.json` & `manifest.json.sig` : Manifeste d'audit scellé et sa signature détachée Cosign (ECDSA P-256).
+   - `00_zanshin_public_key.pub` : Clé publique PEM de l'instance pour vérification indépendante.
    - `01_compliance_frameworks.json` : Évaluations continues des 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA).
    - `02_immutable_audit_log.jsonl` : Journal d'audit scellé HMAC-SHA256.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
-   - `04_in_toto_attestation.json` : Attestations cryptographiques in-toto de conformité de build.
-   - `05_openvex_advisory.json` : Avis VEX OpenVEX v0.2.0 (conformité EU CRA / EO 14028).
-   - `06_csaf_2_0_vex.json` : Avis standardisé OASIS CSAF 2.0 (ANSSI / BSI / CISA).
+   - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE (RFC 9615).
+   - `05_openvex_advisory.json` & `.sig` : Avis VEX OpenVEX v0.2.0 et signature Cosign.
+   - `06_csaf_2_0_vex.json` & `.sig` : Avis standardisé OASIS CSAF 2.0 et signature Cosign.
    - `07_license_compliance.json` : Inventaire des licences et analyse de risque copyleft.
+   - `08_cyclonedx_1_5_vex.json` & `.sig` : SBOM CycloneDX 1.5 enrichi et signature Cosign.
 
 ---
 
-## 6. Interopérabilité VEX & Échange B2B (OpenVEX & CSAF 2.0)
+## 6. Interopérabilité VEX & Échange B2B (OpenVEX, CSAF 2.0 & CycloneDX VEX)
 
-### Ingestion VEX Amont (*Upstream Suppression Cascade*)
-Zanshin permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source :
-- **Endpoint API** : `POST /api/v1/vex/ingest`
+Zanshin supporte le triptyque complet des formats VEX mondiaux :
+
+### 1. Ingestion Multi-Formats Amont (*Upstream Suppression Cascade*)
+Zanshin permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX 1.5/1.6 VEX** :
+- **Endpoint API** : `POST /api/v1/vex/ingest` (détection automatique du format JSON).
 - **Interface Web** : Bouton `Importer VEX` sur `/compliance`.
-- **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non compilé ou mitigation en ligne), Zanshin classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
+- **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non exécutable ou mitigation en ligne), Zanshin classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
 
-### Export Standardisé OASIS CSAF 2.0
-En complément d'OpenVEX, Zanshin génère des avis de sécurité au format **OASIS CSAF 2.0 (profil VEX)** :
+### 2. Export Standardisé OASIS CSAF 2.0
 - `GET /api/v1/csaf/scans/{scanId}/csaf.json` : Avis CSAF par scan de release.
 - `GET /api/v1/csaf/aggregate.json` : Avis CSAF agrégé de l'ensemble du parc applicatif.
+
+### 3. Export CycloneDX 1.5/1.6 BOM-Linked VEX
+- `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json` : SBOM de la cible avec analyse VEX par composant.
+- `GET /api/v1/cyclonedx/aggregate.json` : Inventaire agrégé du parc avec statut de justification VEX intégré.
 
 ---
 
@@ -201,3 +208,18 @@ Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (
 
 3. **Double Validation & Piste d'Audit** :
    - L'approbation par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN` consigne un événement d'audit scellé avec l'origine `"approval"`.
+
+---
+
+## 8. Signature Cryptographique des Preuves (Cosign & DSSE RFC 9615)
+
+Zanshin intègre une signature numérique de niveau **SLSA 3 / Sigstore** garantissant la non-répudiation des livrables :
+
+- **Paire de clés de signature** : ECDSA P-256 (courbe `secp256r1`) avec condensé SHA-256.
+- **Export Clé Publique** : `GET /api/v1/crypto/public-key.pub` (téléchargeable publiquement pour audit).
+- **Enveloppes DSSE** : Attestations in-toto empaquetées au standard Dead Simple Signing Envelope (`application/vnd.in-toto+json`).
+- **Signatures Détachées Cosign** : Tous les SBOMs et avis VEX de l'archive Evidence Vault sont accompagnés de leur signature `.sig`.
+- **Vérification CLI** :
+  ```bash
+  cosign verify-blob --key zanshin-signing-key.pub --signature manifest.json.sig manifest.json
+  ```

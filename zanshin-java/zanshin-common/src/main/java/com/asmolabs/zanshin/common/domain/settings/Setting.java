@@ -88,6 +88,16 @@ public enum Setting {
                     + "beside the generic webhook and the e-mail rather than instead of them.",
             "", Sensitivity.SECRET),
 
+    SLACK_WEBHOOK_URL("notification_slack_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Slack webhook URL",
+            "Incoming webhook URL for posting interactive Slack Block Kit cards. Empty disables it.",
+            "", Sensitivity.SECRET),
+
+    DISCORD_WEBHOOK_URL("notification_discord_url", SettingType.TEXT, Section.NOTIFICATIONS,
+            "Discord webhook URL",
+            "Webhook URL for posting Discord Rich Embed cards. Empty disables it.",
+            "", Sensitivity.SECRET),
+
     WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
             "Webhook signing secret",
             "Signs every webhook message — the global one and each team's — so a receiver can tell a message "

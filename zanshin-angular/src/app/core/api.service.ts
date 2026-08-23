@@ -64,7 +64,14 @@ import {
     TriageRequest,
     UserList,
     UserPatch,
-    UserSummary
+    UserSummary,
+    BlastRadiusReport,
+    TopImpactPackage,
+    EpssFleetSummary,
+    EpssPrioritizedIssue,
+    ThreatIntelRecord,
+    NotificationChannelStatus,
+    NotificationTestResult
 } from './api.models';
 
 /**
@@ -564,7 +571,15 @@ export class ApiService {
         return this.http.get<unknown>('/api/v1/csaf/aggregate.json');
     }
 
-    ingestVex(doc: OpenVexDocument): Observable<unknown> {
+    getScanCycloneDx(scanId: number): Observable<unknown> {
+        return this.http.get<unknown>(`/api/v1/cyclonedx/scans/${scanId}/cyclonedx-vex.json`);
+    }
+
+    getAggregateCycloneDx(): Observable<unknown> {
+        return this.http.get<unknown>('/api/v1/cyclonedx/aggregate.json');
+    }
+
+    ingestVex(doc: unknown): Observable<unknown> {
         return this.http.post<unknown>('/api/v1/vex/ingest', doc);
     }
 
@@ -596,5 +611,48 @@ export class ApiService {
 
     getGlobalScorecard(): Observable<SecurityScorecard> {
         return this.http.get<SecurityScorecard>('/api/v1/scorecards/global');
+    }
+
+    getPublicKeyPem(): Observable<string> {
+        return this.http.get('/api/v1/crypto/public-key.pub', { responseType: 'text' });
+    }
+
+    verifyCryptoSignature(payload: string, signature: string, publicKey?: string): Observable<{ valid: boolean; keyId: string; algorithm: string; message: string }> {
+        return this.http.post<{ valid: boolean; keyId: string; algorithm: string; message: string }>('/api/v1/crypto/verify', { payload, signature, publicKey });
+    }
+
+    getCosignCliHelper(): Observable<any> {
+        return this.http.get<any>('/api/v1/crypto/cosign-cli-helper');
+    }
+
+    exploreBlastRadius(query?: string): Observable<BlastRadiusReport> {
+        let params = new HttpParams();
+        if (query) params = params.set('q', query);
+        return this.http.get<BlastRadiusReport>('/api/v1/blast-radius/explore', { params });
+    }
+
+    getTopBlastRadius(limit = 10): Observable<TopImpactPackage[]> {
+        const params = new HttpParams().set('limit', limit);
+        return this.http.get<TopImpactPackage[]>('/api/v1/blast-radius/top-impact', { params });
+    }
+
+    getEpssPriorities(): Observable<EpssFleetSummary> {
+        return this.http.get<EpssFleetSummary>('/api/v1/epss/priorities');
+    }
+
+    lookupEpssCve(cveId: string): Observable<ThreatIntelRecord> {
+        return this.http.get<ThreatIntelRecord>(`/api/v1/epss/cve/${encodeURIComponent(cveId)}`);
+    }
+
+    syncEpss(): Observable<ThreatIntelSyncStatus> {
+        return this.http.post<ThreatIntelSyncStatus>('/api/v1/epss/sync', {});
+    }
+
+    getNotificationChannels(): Observable<NotificationChannelStatus[]> {
+        return this.http.get<NotificationChannelStatus[]>('/api/v1/notifications/channels');
+    }
+
+    testNotificationChannel(channelType: string): Observable<NotificationTestResult> {
+        return this.http.post<NotificationTestResult>(`/api/v1/notifications/test/${encodeURIComponent(channelType)}`, {});
     }
 }

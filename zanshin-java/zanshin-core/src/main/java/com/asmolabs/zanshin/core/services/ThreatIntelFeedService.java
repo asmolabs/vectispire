@@ -144,6 +144,24 @@ public class ThreatIntelFeedService {
         return new ThreatIntelSyncStatus(now, catalog.size(), kevCount, "SYNCED", updatedIssuesCount);
     }
 
+    public Optional<ThreatIntelRecord> lookupCve(String cveId) {
+        if (cveId == null || cveId.isBlank()) return Optional.empty();
+        Optional<ThreatIntelEntity> entity = intelRepo.findByCveIdIgnoreCase(cveId.trim());
+        if (entity.isPresent()) {
+            ThreatIntelEntity e = entity.get();
+            return Optional.of(new ThreatIntelRecord(
+                    e.getCveId(),
+                    e.isKev(),
+                    e.getEpssScore(),
+                    e.getEpssPercentile(),
+                    e.getDateAdded(),
+                    "Database synchronized record"));
+        }
+        return getKnownThreatIntelFeed().stream()
+                .filter(r -> r.cveId().equalsIgnoreCase(cveId.trim()))
+                .findFirst();
+    }
+
     private List<ThreatIntelRecord> getKnownThreatIntelFeed() {
         Instant past = Instant.parse("2024-01-01T00:00:00Z");
         return List.of(

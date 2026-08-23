@@ -122,21 +122,25 @@ $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Scor
 Zanshin exports cryptographically sealed evidence packages ready for external auditors:
 - **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 5 frameworks, 20 controls, and prioritized remediation roadmap.
 - **Evidence Bundle ZIP (`/api/v1/compliance/evidence-bundle.zip`)**:
-  - `manifest.json`: SHA-256 digests of all bundled evidence artifacts.
+  - `manifest.json` & `manifest.json.sig`: Sealed evidence manifest with detached Cosign signature (ECDSA P-256).
+  - `00_zanshin_public_key.pub`: Active instance public key for independent auditor verification.
   - `01_compliance_frameworks.json`: Continuous compliance assessments across NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA.
   - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
-  - `04_in_toto_attestation.json`: Cryptographic in-toto build provenance attestations.
-  - `05_openvex_advisory.json`: OpenVEX v0.2.0 document (EU CRA / EO 14028).
-  - `06_csaf_2_0_vex.json`: Standardized OASIS CSAF 2.0 security advisory (ANSSI / BSI / CISA).
+  - `04_attestations/`: in-toto attestations and signed DSSE envelopes (RFC 9615).
+  - `05_openvex_advisory.json` & `.sig`: OpenVEX v0.2.0 document and detached signature.
+  - `06_csaf_2_0_vex.json` & `.sig`: Standardized OASIS CSAF 2.0 security advisory and signature.
   - `07_license_compliance.json`: License inventory & copyleft governance.
+  - `08_cyclonedx_1_5_vex.json` & `.sig`: CycloneDX 1.5 SBOM with BOM-linked VEX statements and signature.
 
 ---
 
-## 5. VEX Interoperability (OpenVEX & OASIS CSAF 2.0)
+## 5. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)
 
-- **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier OpenVEX / CSAF statements, cascading automated triage for unaffected components without manual intervention.
-- **OASIS CSAF 2.0 Export (`/api/v1/csaf/...`)**: Generates automated machine-readable security advisories for scans and aggregate inventory.
+Zanshin supports the full trio of international VEX standards:
+- **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier **OpenVEX**, **CSAF 2.0**, and **CycloneDX 1.5/1.6 VEX** statements, cascading automated triage for unaffected components with full audit provenance.
+- **OASIS CSAF 2.0 Export (`/api/v1/csaf/...`)**: Generates automated machine-readable security advisories for release scans and aggregate fleet inventory.
+- **CycloneDX 1.5/1.6 BOM-Linked VEX Export (`/api/v1/cyclonedx/...`)**: Generates industry-standard CycloneDX SBOMs enriched with component-level VEX analysis and justification.
 
 ---
 
@@ -145,3 +149,18 @@ Zanshin exports cryptographically sealed evidence packages ready for external au
 To satisfy strict DORA and ISO 27001 requirements:
 - **`SECURITY_CHAMPION` Role**: Delegated security leads can approve risk acceptances.
 - **`PENDING_APPROVAL` Status**: Any exemption requested by standard users blocks CI/CD quality gates until dual-approved by a Security Champion, CISO, or Admin.
+
+---
+
+## 7. Cryptographic Artifact Signing (Cosign & DSSE RFC 9615)
+
+Zanshin integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic signing for all software supply chain artifacts:
+
+- **Key Pair**: ECDSA P-256 (`secp256r1`) with SHA-256 digest.
+- **Public Key Endpoint**: `GET /api/v1/crypto/public-key.pub` (publicly accessible for automated auditor verification).
+- **DSSE Envelopes**: in-toto attestations packaged into RFC 9615 Dead Simple Signing Envelopes (`application/vnd.in-toto+json`).
+- **Detached Cosign Signatures**: All SBOM and VEX deliverables in Evidence Vault carry companion `.sig` files.
+- **CLI Verification**:
+  ```bash
+  cosign verify-blob --key zanshin-signing-key.pub --signature manifest.json.sig manifest.json
+  ```

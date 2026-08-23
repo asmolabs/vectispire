@@ -136,4 +136,61 @@ class VexRoutesTest extends ApiTestBase {
         assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
         assertThat(updated.getTriageComment()).contains("Spring Security Team");
     }
+
+    @Test
+    @DisplayName("ingests upstream CycloneDX 1.5 BOM-linked VEX advisory and cascades triage")
+    void ingestsUpstreamCycloneDxVex() throws Exception {
+        String token = asAdmin();
+
+        com.asmolabs.zanshin.core.persistence.IssueEntity issue = new com.asmolabs.zanshin.core.persistence.IssueEntity();
+        issue.setFingerprint("fp-upstream-cdx-test");
+        issue.setIdentifier("CVE-2023-8888");
+        issue.setType("vulnerability");
+        issue.setPackageName("log4j-core");
+        issue.setPackageVersion("2.14.0");
+        issue.setState("open");
+        issue.setSeverity("critical");
+        issue.setTriageStatus("under_review");
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        issuesRepo.save(issue);
+
+        String cycloneDxVexPayload = """
+                {
+                  "bomFormat": "CycloneDX",
+                  "specVersion": "1.5",
+                  "serialNumber": "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+                  "version": 1,
+                  "metadata": {
+                    "tools": [ { "name": "Apache Security Team" } ]
+                  },
+                  "vulnerabilities": [
+                    {
+                      "id": "CVE-2023-8888",
+                      "analysis": {
+                        "state": "not_affected",
+                        "justification": "vulnerable_code_not_in_execute_path",
+                        "detail": "JNDI lookup feature is completely disabled in runtime profile."
+                      },
+                      "affects": [ { "ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.0" } ]
+                    }
+                  ]
+                }
+                """;
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/vex/ingest")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content(cycloneDxVexPayload),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statementsProcessed").value(1))
+                .andExpect(jsonPath("$.triagedIssues").value(1))
+                .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-8888"));
+
+        com.asmolabs.zanshin.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
+        assertThat(updated.getTriageComment()).contains("Apache Security Team");
+    }
 }

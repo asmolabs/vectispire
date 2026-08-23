@@ -101,9 +101,9 @@ Chaque scanner s'exécute dans un conteneur éphémère Docker sous isolation st
 
 Le moteur de conformité évalue en continu 5 référentiels majeurs :
 - **NIS 2 Directive**, **DORA**, **ISO/IEC 27001:2022**, **PCI-DSS v4.0**, et **Cyber Resilience Act (EU CRA)**.
-- **Export OASIS CSAF 2.0** (`/api/v1/csaf/aggregate.json`) et **OpenVEX v0.2.0** (`/api/v1/exports/vex/openvex.json`).
-- **Ingestion VEX Amont** (`POST /api/v1/vex/ingest`) pour l'extinction automatisée des vulnérabilités certifiées par les mainteneurs.
-- **Coffre de Preuves Scellé** (`/api/v1/compliance/evidence-bundle.zip`) incluant attestations in-toto, SBOM, SARIF, et piste d'audit cryptographique.
+- **Export OASIS CSAF 2.0** (`/api/v1/csaf/aggregate.json`), **CycloneDX 1.5 BOM-Linked VEX** (`/api/v1/cyclonedx/aggregate.json`), et **OpenVEX v0.2.0** (`/api/v1/vex/aggregate.json`).
+- **Ingestion VEX Amont Multi-Formats** (`POST /api/v1/vex/ingest`) pour l'extinction automatisée des vulnérabilités certifiées par les mainteneurs (OpenVEX / CSAF / CycloneDX).
+- **Coffre de Preuves Scellé** (`/api/v1/compliance/evidence-bundle.zip`) incluant attestations in-toto, SBOMs, CSAF, OpenVEX, CycloneDX VEX, et piste d'audit cryptographique.
 
 ---
 
@@ -111,3 +111,31 @@ Le moteur de conformité évalue en continu 5 référentiels majeurs :
 
 - **Rôle `SECURITY_CHAMPION`** : Délégué sécurité d'équipe habilité à statuer sur les exemptions techniques.
 - **Statut `PENDING_APPROVAL`** : Blocage préventif des Gates CI/CD sur toute dérogation initiée par un développeur jusqu'à validation par un pair qualifié.
+
+---
+
+## 6. Graphe de Dépendances & Rayon d'Impact (Blast Radius)
+
+- **Moteur d'Impact (`BlastRadiusService`)** : Corrèle en mémoire l'arbre relationnel Cible (Dépôt Git / Conteneur) $\rightarrow$ Dépendance (Directe / Transitive) $\rightarrow$ CVE.
+- **Calcul du Score de Rayon d'Impact** : Score 0-100 pondéré par la dispersion dans le parc, le caractère direct de l'inclusion, et le score CVSS maximal.
+- **Endpoints API** :
+  - `GET /api/v1/blast-radius/explore?q={package|CVE}` : Arbre relationnel et inventaire des cibles touchées.
+  - `GET /api/v1/blast-radius/top-impact?limit=10` : Palmarès des composants à plus fort risque organisationnel.
+
+---
+
+## 7. Centre de Notifications Multi-Canaux & Outbox Transactionnelle
+
+- **Canaux Supportés** :
+  - **Slack** (`SlackNotificationChannel`, `SlackBlockKit`) : Alertes interactives formatées en blocs Block Kit.
+  - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`) : Adaptive Cards version 1.4 acheminées via Power Automate Workflow.
+  - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`) : Rich Embeds avec couleur contextuelle selon sévérité.
+  - **Email** (`MailNotificationChannel`) : Diffusion MIME/HTML sur listes de distribution.
+  - **Webhook Générique / SIEM** (`NotificationService`) : JSON POST universel avec signature cryptographique HMAC-SHA256 (`X-Zanshin-Signature`).
+- **Garanties Transactionnelles** :
+  - Les messages sont écrits dans `t_outbox_message` dans la même transaction que le résultat de scan, avec politique de retry et backoff exponentiel isolé par canal.
+- **Endpoints API** :
+  - `GET /api/v1/notifications/channels` : Liste des canaux configurés et événements abonnés.
+  - `POST /api/v1/notifications/test/{channelType}` : Déclenchement d'un test d'envoi immédiat avec diagnostic.
+
+

@@ -1,6 +1,7 @@
 package com.asmolabs.zanshin.core.services;
 
 import com.asmolabs.zanshin.common.domain.access.Visibility;
+import com.asmolabs.zanshin.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.zanshin.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.zanshin.common.domain.audit.AuditChain;
 import com.asmolabs.zanshin.common.domain.compliance.EvidenceBundleManifest;
@@ -16,7 +17,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Builds certified, cryptographically-sealed evidence bundles for regulatory compliance audits
- * (ISO/IEC 27001 A.8.8, DORA Article 10, NIS 2, SOC 2).
+ * (ISO/IEC 27001 A.8.8, DORA Article 10, NIS 2, SOC 2, and EU CRA).
  */
 @Service
 public class EvidenceVaultService {
@@ -44,7 +44,9 @@ public class EvidenceVaultService {
     private final AttestationService attestationService;
     private final VexGeneratorService vexService;
     private final CsafGeneratorService csafService;
+    private final CycloneDxGeneratorService cycloneDxService;
     private final LicenseGovernanceService licenseService;
+    private final SigningKeyService signingKeyService;
     private final ObjectMapper json;
 
     public EvidenceVaultService(
@@ -56,7 +58,9 @@ public class EvidenceVaultService {
             AttestationService attestationService,
             VexGeneratorService vexService,
             CsafGeneratorService csafService,
-            LicenseGovernanceService licenseService) {
+            CycloneDxGeneratorService cycloneDxService,
+            LicenseGovernanceService licenseService,
+            SigningKeyService signingKeyService) {
         this.compliance = compliance;
         this.auditService = auditService;
         this.auditLogRepo = auditLogRepo;
@@ -65,7 +69,9 @@ public class EvidenceVaultService {
         this.attestationService = attestationService;
         this.vexService = vexService;
         this.csafService = csafService;
+        this.cycloneDxService = cycloneDxService;
         this.licenseService = licenseService;
+        this.signingKeyService = signingKeyService;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -78,10 +84,16 @@ public class EvidenceVaultService {
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
             List<EvidenceFileEntry> entries = new ArrayList<>();
 
+            // 0. Public Key (Cosign / Sigstore Verification)
+            byte[] pubKeyBytes = signingKeyService.getPublicKeyPem().getBytes(StandardCharsets.UTF_8);
+            addZipEntry(zip, entries, "00_zanshin_public_key.pub",
+                    "Zanshin ECDSA P-256 public key for verifying Cosign signatures and DSSE envelopes",
+                    pubKeyBytes);
+
             // 1. Compliance Frameworks evaluation
             byte[] complianceBytes = json.writeValueAsBytes(compliance.getSummary(Visibility.everything()));
             addZipEntry(zip, entries, "01_compliance_frameworks.json",
-                    "Continuous compliance assessments for NIS 2, DORA, ISO 27001, and PCI-DSS",
+                    "Continuous compliance assessments for NIS 2, DORA, ISO 27001, PCI-DSS, and EU CRA",
                     complianceBytes);
 
             // 2. Immutable Audit Log
@@ -104,7 +116,7 @@ public class EvidenceVaultService {
                     "Security triage, risk acceptance overrides, and false-positive justifications",
                     triageBytes);
 
-            // 4. In-toto Supply Chain Attestations
+            // 4. In-toto Supply Chain Attestations & DSSE Envelopes
             List<ScanEntity> completedScans = scansRepo.findAll().stream()
                     .filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
                     .limit(20)
@@ -116,21 +128,33 @@ public class EvidenceVaultService {
                     addZipEntry(zip, entries, "04_attestations/scan_" + scan.getId() + "_in_toto.json",
                             "in-toto v0.1 supply chain provenance and gate verdict for scan " + scan.getId(),
                             attestationBytes);
+
+                    // Signed DSSE Envelope
+                    DsseEnvelope dsse = signingKeyService.wrapAndSignDsse(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, attestationBytes);
+                    byte[] dsseBytes = json.writeValueAsBytes(dsse);
+                    addZipEntry(zip, entries, "04_attestations/scan_" + scan.getId() + "_in_toto.dsse.json",
+                            "Signed DSSE envelope (RFC 9615) for scan " + scan.getId(),
+                            dsseBytes);
                 } catch (Exception ignored) {}
             }
 
-            // 5. OpenVEX v0.2.0 Exploitability Advisory
-            // 5. OpenVEX v0.2.0 document
+            // 5. OpenVEX v0.2.0 document & detached signature
             byte[] vexBytes = json.writeValueAsBytes(vexService.generateAggregate());
             addZipEntry(zip, entries, "05_openvex_advisory.json",
                     "OpenVEX v0.2.0 Vulnerability Exploitability eXchange document (CRA / EO 14028)",
                     vexBytes);
+            addZipEntry(zip, entries, "05_openvex_advisory.json.sig",
+                    "Cosign detached ECDSA signature for OpenVEX advisory",
+                    signingKeyService.sign(vexBytes).getBytes(StandardCharsets.UTF_8));
 
-            // 6. OASIS CSAF 2.0 VEX Advisory
+            // 6. OASIS CSAF 2.0 VEX Advisory & detached signature
             byte[] csafBytes = json.writeValueAsBytes(csafService.generateAggregate());
             addZipEntry(zip, entries, "06_csaf_2_0_vex.json",
                     "OASIS CSAF 2.0 Common Security Advisory Framework VEX document (ANSSI / BSI / CISA)",
                     csafBytes);
+            addZipEntry(zip, entries, "06_csaf_2_0_vex.json.sig",
+                    "Cosign detached ECDSA signature for CSAF 2.0 advisory",
+                    signingKeyService.sign(csafBytes).getBytes(StandardCharsets.UTF_8));
 
             // 7. Open Source License Governance & Copyleft Compliance
             byte[] licenseBytes = json.writeValueAsBytes(licenseService.getSummary());
@@ -138,7 +162,16 @@ public class EvidenceVaultService {
                     "Open Source License Inventory, Copyleft Risk Analysis, and Governance Policy",
                     licenseBytes);
 
-            // 5. Verification & Manifest
+            // 8. CycloneDX 1.5 BOM-Linked VEX Advisory & detached signature
+            byte[] cdxBytes = json.writeValueAsBytes(cycloneDxService.generateAggregate());
+            addZipEntry(zip, entries, "08_cyclonedx_1_5_vex.json",
+                    "CycloneDX 1.5 Software Bill of Materials with BOM-Linked VEX analysis (OWASP)",
+                    cdxBytes);
+            addZipEntry(zip, entries, "08_cyclonedx_1_5_vex.json.sig",
+                    "Cosign detached ECDSA signature for CycloneDX 1.5 SBOM/VEX",
+                    signingKeyService.sign(cdxBytes).getBytes(StandardCharsets.UTF_8));
+
+            // 9. Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
@@ -154,6 +187,13 @@ public class EvidenceVaultService {
             ZipEntry manifestEntry = new ZipEntry("manifest.json");
             zip.putNextEntry(manifestEntry);
             zip.write(manifestBytes);
+            zip.closeEntry();
+
+            // 10. Manifest signature (Cosign detached signature)
+            String manifestSig = signingKeyService.sign(manifestBytes);
+            ZipEntry sigEntry = new ZipEntry("manifest.json.sig");
+            zip.putNextEntry(sigEntry);
+            zip.write(manifestSig.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
         }
 

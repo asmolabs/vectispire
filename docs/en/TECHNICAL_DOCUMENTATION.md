@@ -18,13 +18,13 @@ flowchart TB
     end
 
     subgraph api["api/ — controllers, DTOs, guards"]
-        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, vex, agents, agents-admin, teams, rule-sets, owasp"]
+        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, agents-admin, teams, rule-sets, owasp"]
     end
 
     subgraph services["services/ — orchestration, transactions"]
         Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
         Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
-        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService"]
+        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService"]
         Enrich["EnrichmentService · EolService · LicenseService"]
         Ai["AiReviewService"]
         Notify["NotificationService · OutboxService"]
@@ -42,7 +42,7 @@ flowchart TB
     end
 
     subgraph domain["domain/ — pure, depends on nothing"]
-        D["fingerprint · gate · audit chain · exports · csaf · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
+        D["fingerprint · gate · audit chain · exports · csaf · cyclonedx · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
     end
 
     subgraph scanning["scanning/ — runs containers, no database"]
@@ -423,3 +423,27 @@ Two rules the harness enforces on itself:
 - **A concurrency guarantee not executed against a real server is not a guarantee.** Ten
   concurrent claimants against a real engine is what revealed that six of them came back
   empty-handed while twenty scans waited — invisible on SQLite and to a careful reading.
+
+## 8. Dependency Graph & Blast Radius Explorer
+
+- **Blast Radius Analysis Engine (`BlastRadiusService`)**: In-memory relational mapping linking Target (Git repository / Container image) $\rightarrow$ Package dependency (Direct vs Transitive) $\rightarrow$ CVE security advisories.
+- **Organizational Risk Scoring**: 0-100 score weighing fleet target dispersion, direct vs transitive inclusion, reachability call graph, and peak CVSS score.
+- **REST Endpoints**:
+  - `GET /api/v1/blast-radius/explore?q={package|CVE}`: Full node/edge dependency graph and impacted target breakdown.
+  - `GET /api/v1/blast-radius/top-impact?limit=10`: Top highest blast radius packages across the enterprise.
+
+## 9. Multi-Channel Notification Hub & Transactional Outbox
+
+- **Supported Notification Channels**:
+  - **Slack** (`SlackNotificationChannel`, `SlackBlockKit`): Interactive Block Kit cards with header, findings breakdown, and direct deep links.
+  - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`): Adaptive Cards v1.4 sent via Power Automate workflows.
+  - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`): Rich Embeds with dynamic severity color codes.
+  - **Email** (`MailNotificationChannel`): Multipart HTML/text delivery to distribution lists.
+  - **Generic Webhook / SIEM** (`NotificationService`): Standard JSON POST with HMAC-SHA256 signature verification (`X-Zanshin-Signature`).
+- **Resiliency & Outbox Guarantee**:
+  - Outbox rows are inserted into `t_outbox_message` in the exact transaction that reconciles scan results. Deliveries use capped exponential backoff with per-destination isolation.
+- **REST Endpoints**:
+  - `GET /api/v1/notifications/channels`: Overview of configured channels and subscribed events.
+  - `POST /api/v1/notifications/test/{channelType}`: Immediate simulated delivery test with diagnostic results.
+
+

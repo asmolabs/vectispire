@@ -143,3 +143,6 @@ flowchart TB
    - ✅ *Delivered*: Live KPI cards, active running scan timers, and queue routability alerts on `/agents`.
 3. **Certified Compliance Evidence Export**:
    - ✅ *Delivered*: Executive PDF generation and sealed ZIP evidence bundles for external auditors.
+4. **Real-World Exploitability Prioritization (FIRST.org EPSS & CISA KEV)**:
+   - ✅ *Delivered*: Risk matrix combining CVSS, EPSS (30-day exploit probability & percentile), code reachability, and CISA KEV status on `/epss`.
+

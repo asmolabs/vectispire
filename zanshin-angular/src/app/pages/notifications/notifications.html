@@ -1,0 +1,126 @@
+<div class="p-6 max-w-7xl mx-auto flex flex-col gap-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0 flex items-center gap-3">
+                <i class="pi pi-bell text-primary-500 text-2xl"></i>
+                Centre de Notifications &amp; Webhooks
+            </h1>
+            <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+                Alertez vos équipes en temps réel sur <strong>Slack</strong>, <strong>Microsoft Teams</strong>, <strong>Discord</strong>, <strong>Email</strong> ou <strong>Webhooks SIEM</strong>.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a pButton label="Paramètres des Webhooks" icon="pi pi-cog" class="p-button-outlined" routerLink="/settings"></a>
+            <button pButton label="Rafraîchir" icon="pi pi-refresh" class="p-button-secondary" (click)="loadChannels()" [loading]="loading()"></button>
+        </div>
+    </div>
+
+    @if (error()) {
+        <p-message severity="error" [text]="error()!"></p-message>
+    }
+
+    @if (loading()) {
+        <div class="flex justify-center items-center py-16">
+            <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+        </div>
+    }
+
+    @if (!loading()) {
+        <!-- Channels Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @for (c of channels(); track c.type) {
+                <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between gap-4">
+                    <div>
+                        <!-- Card Header -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <i [class]="getChannelIcon(c.type)" class="text-xl"></i>
+                                <span class="font-bold text-base text-surface-900 dark:text-surface-0">{{ c.name }}</span>
+                            </div>
+                            @if (c.configured) {
+                                <p-tag severity="success" value="Configuré"></p-tag>
+                            } @else {
+                                <p-tag severity="secondary" value="Inactif"></p-tag>
+                            }
+                        </div>
+
+                        <!-- Destination URL or Recipient -->
+                        <div class="mt-3">
+                            <span class="text-xs text-surface-500 block">Destination :</span>
+                            @if (c.configured) {
+                                <span class="font-mono text-xs text-surface-800 dark:text-surface-200 break-all bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded block mt-0.5">
+                                    {{ c.destination }}
+                                </span>
+                            } @else {
+                                <span class="text-xs text-surface-400 italic block mt-0.5">
+                                    Non renseigné (à configurer dans Paramètres)
+                                </span>
+                            }
+                        </div>
+
+                        <!-- Supported Events -->
+                        <div class="mt-4">
+                            <span class="text-xs text-surface-500 block mb-1.5 font-semibold">Événements abonnés :</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="px-2 py-0.5 text-[10px] rounded bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold">
+                                    Échec de Quality Gate
+                                </span>
+                                <span class="px-2 py-0.5 text-[10px] rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold">
+                                    CISA KEV / EPSS Critique
+                                </span>
+                                <span class="px-2 py-0.5 text-[10px] rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold">
+                                    Scan Delta (Nouvelles failles)
+                                </span>
+                                <span class="px-2 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold">
+                                    Demande 4-Yeux
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Footer / Actions -->
+                    <div class="border-t border-surface-100 dark:border-surface-800 pt-3 flex flex-col gap-2">
+                        <div class="flex justify-end">
+                            <button
+                                pButton
+                                [label]="'Tester l\'envoi'"
+                                icon="pi pi-send"
+                                class="p-button-sm p-button-outlined"
+                                [disabled]="!c.configured || testingChannel() === c.type"
+                                [loading]="testingChannel() === c.type"
+                                (click)="testChannel(c.type)"
+                            ></button>
+                        </div>
+
+                        <!-- Test result notification banner -->
+                        @if (testResults()[c.type]; as res) {
+                            @if (res.success) {
+                                <div class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5">
+                                    <i class="pi pi-check-circle text-emerald-600"></i>
+                                    <span>{{ res.message }}</span>
+                                </div>
+                            } @else {
+                                <div class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5">
+                                    <i class="pi pi-times-circle text-rose-600"></i>
+                                    <span>{{ res.message }}</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Architecture & Outbox Resiliency Info Box -->
+        <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50 flex flex-col gap-2">
+            <h3 class="text-sm font-bold text-surface-900 dark:text-surface-0 flex items-center gap-2">
+                <i class="pi pi-shield text-indigo-500"></i>
+                Garanties de Livraison &amp; Architecture Transactionnelle
+            </h3>
+            <p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+                Les alertes Zanshin sont enregistrées dans une <strong>table d'Outbox transactionnelle</strong> au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de <strong>backoff exponentiel</strong> en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par <strong>HMAC-SHA256</strong> (en-tête <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Zanshin-Signature</code>).
+            </p>
+        </div>
+    }
+</div>

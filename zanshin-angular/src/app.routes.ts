@@ -43,6 +43,9 @@ export const appRoutes: Routes = [
             { path: 'inventory', loadComponent: () => import('./app/pages/inventory/inventory').then((m) => m.Inventory) },
             { path: 'owasp', loadComponent: () => import('./app/pages/owasp/owasp').then((m) => m.Owasp) },
             { path: 'compliance', loadComponent: () => import('./app/pages/compliance/compliance').then((m) => m.Compliance) },
+            { path: 'epss', loadComponent: () => import('./app/pages/epss/epss').then((m) => m.Epss) },
+            { path: 'blast-radius', loadComponent: () => import('./app/pages/blast-radius/blast-radius').then((m) => m.BlastRadius) },
+            { path: 'notifications', loadComponent: () => import('./app/pages/notifications/notifications').then((m) => m.Notifications) },
             { path: 'licenses', loadComponent: () => import('./app/pages/licenses/licenses').then((m) => m.Licenses) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
