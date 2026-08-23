@@ -56,14 +56,14 @@ Le schéma est géré par **Flyway** (`src/main/resources/db/migration/{vendor}/
 ## 5. Lancement de l'Application
 
 ```bash
-# Lancement de l'API Backend (Port 8000)
-cd zanshin-java && ./gradlew :zanshin-core:bootRun
+# Lancement de l'API Backend (Port 3100 pour le proxy Angular de développement)
+cd zanshin-java && ./gradlew :zanshin-core:bootRun --args='--server.port=3100'
 
 # Lancement de l'Interface Angular (Port 4200)
 npm --workspace @zanshin/frontend start
 ```
 
-Accédez ensuite à l'interface sur `http://localhost:4200`.
+Accédez ensuite à l'interface sur `http://localhost:4200` (le proxy redirige `/api` vers `http://localhost:3100`).
 Connectez-vous avec l'utilisateur `admin` et changez le mot de passe initial.
 
 ---

@@ -10,6 +10,7 @@ import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
 import com.asmolabs.zanshin.common.domain.issues.Triage;
 import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
 import com.asmolabs.zanshin.common.domain.issues.VexJustification;
+import com.asmolabs.zanshin.common.domain.users.Role;
 import com.asmolabs.zanshin.core.api.security.RequiresAccount;
 import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
 import com.asmolabs.zanshin.core.persistence.IssueEntity;
@@ -296,6 +297,10 @@ public class IssuesController {
             HttpServletRequest request) {
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
+        boolean canApprove = principal.user()
+                .flatMap(user -> Role.of(user.getRole()))
+                .map(Role::canApproveTriage)
+                .orElse(true);
         // Checked before the write, and 404 rather than 403 — see `Visibilities`.
         Visibilities.requireVisible(
                 issues.findById(id).orElse(null),
@@ -305,7 +310,8 @@ public class IssuesController {
                 actor,
                 VexJustification.fromWireName(body.justification()).orElse(null),
                 body.comment(),
-                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())));
+                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())),
+                canApprove);
 
         // A triage can dismiss a finding: that is a security decision, and it belongs in the
         // audit trail as much as a role change does.
@@ -353,6 +359,10 @@ public class IssuesController {
         }
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
+        boolean canApprove = principal.user()
+                .flatMap(user -> Role.of(user.getRole()))
+                .map(Role::canApproveTriage)
+                .orElse(true);
         Visibility visible = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         for (Long id : ids) {
             Visibilities.requireVisible(issues.findById(id).orElse(null), visible);
@@ -363,7 +373,8 @@ public class IssuesController {
                 actor,
                 VexJustification.fromWireName(body.justification()).orElse(null),
                 body.comment(),
-                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())));
+                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())),
+                canApprove);
 
         // **One entry for the action, not one per issue.** The audit log is never purged, and a
         // single dismissal of six hundred issues would bury every other entry around it. What is

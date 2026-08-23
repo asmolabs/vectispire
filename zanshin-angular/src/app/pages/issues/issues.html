@@ -185,7 +185,7 @@
             <p-select [(ngModel)]="triageStatus" [options]="triageOptions" optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
         </div>
 
-        @if (triageStatus === 'not_affected') {
+        @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
             <div>
                 <label class="block font-medium mb-2">{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label>
                 <p-select [(ngModel)]="triageJustification" [options]="justifications" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" appendTo="body" />

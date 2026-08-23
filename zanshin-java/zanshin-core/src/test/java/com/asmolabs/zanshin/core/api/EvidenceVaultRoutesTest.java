@@ -44,6 +44,8 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
                 "manifest.json",
                 "01_compliance_frameworks.json",
                 "02_immutable_audit_log.jsonl",
-                "03_triage_and_exemptions.json");
+                "03_triage_and_exemptions.json",
+                "05_openvex_advisory.json",
+                "06_csaf_2_0_vex.json");
     }
 }

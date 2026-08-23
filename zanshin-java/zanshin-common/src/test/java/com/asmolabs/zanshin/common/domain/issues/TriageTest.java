@@ -19,13 +19,17 @@ class TriageTest {
     class Decide {
 
         @Test
-        @DisplayName("not_affected without a justification is refused, because VEX requires one")
-        void notAffectedNeedsAJustification() {
+        @DisplayName("not_affected and pending_approval without a justification are refused, because VEX requires one")
+        void notAffectedAndPendingApprovalNeedJustification() {
             // Without one the statement carries no information, and an exported document
             // containing it would be invalid.
-            Triage.Request request = new Triage.Request(TriageStatus.NOT_AFFECTED, "alice", null, null, null);
+            Triage.Request notAffected = new Triage.Request(TriageStatus.NOT_AFFECTED, "alice", null, null, null);
+            assertThatThrownBy(() -> Triage.decide(notAffected, NOW))
+                    .isInstanceOf(InvalidTriageException.class)
+                    .hasMessageContaining("VEX requirement");
 
-            assertThatThrownBy(() -> Triage.decide(request, NOW))
+            Triage.Request pending = new Triage.Request(TriageStatus.PENDING_APPROVAL, "alice", null, null, null);
+            assertThatThrownBy(() -> Triage.decide(pending, NOW))
                     .isInstanceOf(InvalidTriageException.class)
                     .hasMessageContaining("VEX requirement");
         }
@@ -34,7 +38,7 @@ class TriageTest {
         @DisplayName("the other statuses need no justification")
         void otherStatusesAreFree() {
             for (TriageStatus status : TriageStatus.values()) {
-                if (status == TriageStatus.NOT_AFFECTED) {
+                if (status == TriageStatus.NOT_AFFECTED || status == TriageStatus.PENDING_APPROVAL) {
                     continue;
                 }
                 assertThat(Triage.decide(new Triage.Request(status, "alice", null, null, null), NOW).status())
@@ -157,6 +161,10 @@ class TriageTest {
                     .contains(VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH);
             assertThat(VexJustification.fromWireName("we looked and it is fine")).isEmpty();
             assertThat(VexJustification.fromWireName(null)).isEmpty();
+
+            assertThat(TriageStatus.fromWireName("pending_approval")).contains(TriageStatus.PENDING_APPROVAL);
+            assertThat(TriageStatus.PENDING_APPROVAL.isSettled()).isFalse();
+            assertThat(TriageStatus.unsettledWireNames()).contains("pending_approval", "under_review", "affected");
         }
     }
 }

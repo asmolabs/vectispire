@@ -34,7 +34,7 @@ public enum VexStatus {
             case NOT_AFFECTED -> NOT_AFFECTED;
             case AFFECTED -> AFFECTED;
             case FIXED -> FIXED;
-            case UNDER_REVIEW -> UNDER_INVESTIGATION;
+            case UNDER_REVIEW, PENDING_APPROVAL -> UNDER_INVESTIGATION;
         };
     }
 }

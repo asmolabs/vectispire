@@ -100,6 +100,11 @@ abstract class ApiTestBase extends ZanshinContextTest {
         return tokenFor("ciso-" + System.nanoTime(), Role.CISO, false);
     }
 
+    /** A live session for a Security Champion account. */
+    protected String asSecurityChampion() {
+        return tokenFor("champion-" + System.nanoTime(), Role.SECURITY_CHAMPION, false);
+    }
+
     /** An account that still has to change its password — the state most routes must refuse. */
     protected String asPendingPasswordChange() {
         return tokenFor("pending-" + System.nanoTime(), Role.ADMIN, true);

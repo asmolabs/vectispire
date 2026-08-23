@@ -18,7 +18,7 @@ class ComplianceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/compliance/summary"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.evaluations").isArray())
-                .andExpect(jsonPath("$.evaluations.length()").value(4))
+                .andExpect(jsonPath("$.evaluations.length()").value(5))
                 .andExpect(jsonPath("$.evaluations[0].framework").value("NIS_2"))
                 .andExpect(jsonPath("$.evaluations[0].controls").isArray());
     }

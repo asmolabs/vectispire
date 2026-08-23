@@ -20,7 +20,7 @@ class ComplianceEngineTest {
 
         List<ComplianceEvaluation> results = ComplianceEngine.evaluateAll(cleanPosture);
 
-        assertThat(results).hasSize(4);
+        assertThat(results).hasSize(5);
         for (ComplianceEvaluation eval : results) {
             assertThat(eval.overallStatus()).isEqualTo(ComplianceControl.Status.COMPLIANT);
             assertThat(eval.scorePercentage()).isEqualTo(100);
@@ -39,7 +39,7 @@ class ComplianceEngineTest {
 
         List<ComplianceEvaluation> results = ComplianceEngine.evaluateAll(flawedPosture);
 
-        assertThat(results).hasSize(4);
+        assertThat(results).hasSize(5);
         for (ComplianceEvaluation eval : results) {
             assertThat(eval.scorePercentage()).isLessThan(70);
             assertThat(eval.overallStatus()).isEqualTo(ComplianceControl.Status.NON_COMPLIANT);

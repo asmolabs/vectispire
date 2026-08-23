@@ -26,6 +26,8 @@ public class IssueTriageService {
     /** What took the decision, for a report that must not attribute a lapse to a person. */
     private static final String MANUAL = "manual";
 
+    private static final String APPROVAL = "approval";
+
     private static final String EXPIRY = "expiry";
 
     private final Issues issues;
@@ -45,9 +47,13 @@ public class IssueTriageService {
      */
     @Transactional
     public IssueEntity triage(long issueId, Triage.Request request) {
-        // Validated **before** loading the issue: a malformed request must not cost a query,
-        // and the message does not depend on the target existing.
-        Triage.Decision decision = Triage.decide(request, clock.instant());
+        return triage(issueId, request, true);
+    }
+
+    @Transactional
+    public IssueEntity triage(long issueId, Triage.Request request, boolean canApprove) {
+        Triage.Request effectiveRequest = resolveRequest(request, canApprove);
+        Triage.Decision decision = Triage.decide(effectiveRequest, clock.instant());
 
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new InvalidTriageException("Issue not found."));
@@ -57,53 +63,46 @@ public class IssueTriageService {
 
     /**
      * The same decision on several issues, or on none.
-     *
-     * <p><b>Why this exists.</b> One CVE appears in forty repositories, and "not reachable in our
-     * configuration" is one judgement about one context — not forty. Deciding it forty times is
-     * how a backlog stops being triaged at all, which makes the whole tracking pointless: an
-     * untriaged backlog is a list, and a list is what Zanshin exists not to be.
-     *
-     * <p><b>All or nothing, in one transaction.</b> A partial success would leave the caller
-     * holding a decision that applied to an unknown subset — and the obvious recovery, sending it
-     * again, would re-triage what already succeeded and move every {@code triagedAt} it touched.
-     * So one bad identifier refuses the batch and names itself.
-     *
-     * <p><b>Each issue still gets its own history event.</b> That is the whole point of doing this
-     * here rather than with an {@code update … where id in (…)}: the triage history is what a
-     * compliance reader is handed, and a bulk decision that left forty issues changed with no
-     * recorded transition would be indistinguishable from forty rows somebody edited by hand.
-     *
-     * @param issueIds in the caller's order. Duplicates are not de-duplicated — a caller sending
-     *     the same id twice has a bug this method cannot fix by hiding it, and the second write
-     *     would produce a second history event from a state to itself
      */
     @Transactional
     public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request) {
-        Triage.Decision decision = Triage.decide(request, clock.instant());
+        return triageAll(issueIds, request, true);
+    }
+
+    @Transactional
+    public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request, boolean canApprove) {
+        Triage.Request effectiveRequest = resolveRequest(request, canApprove);
+        Triage.Decision decision = Triage.decide(effectiveRequest, clock.instant());
 
         List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
         for (Long issueId : issueIds) {
             IssueEntity issue = issues.findById(issueId)
-                    // Names the identifier, because "Issue not found" about a batch of forty tells
-                    // the person triaging nothing they can act on.
                     .orElseThrow(() -> new InvalidTriageException("Issue " + issueId + " not found."));
             triaged.add(apply(issue, decision));
         }
         return issues.saveAll(triaged);
     }
 
+    private static Triage.Request resolveRequest(Triage.Request request, boolean canApprove) {
+        if (!canApprove && request != null && request.status() == TriageStatus.NOT_AFFECTED) {
+            // A non-approver requesting NOT_AFFECTED creates a PENDING_APPROVAL exemption request
+            return new Triage.Request(
+                    TriageStatus.PENDING_APPROVAL,
+                    request.actor(),
+                    request.justification(),
+                    request.comment(),
+                    request.expiresIn());
+        }
+        return request;
+    }
+
     /**
      * Writes one decision onto one issue, history included.
-     *
-     * <p>Shared by the single and the bulk route so that a decision cannot mean two things
-     * depending on how many issues it was applied to — the transition recorded, the expiry, the
-     * actor. Saving is the caller's, so a batch is one flush rather than N.
      */
     private IssueEntity apply(IssueEntity issue, Triage.Decision decision) {
-        // **Read before the write, or the transition has no left half.** The whole value of the
-        // history is "it was under review, it became accepted"; capturing the previous status
-        // after the assignment would record a decision from a state to itself.
         String previous = issue.getTriageStatus();
+        String origin = (TriageStatus.PENDING_APPROVAL.wireName().equals(previous)
+                && decision.status() == TriageStatus.NOT_AFFECTED) ? APPROVAL : MANUAL;
 
         issue.setTriageStatus(decision.status().wireName());
         issue.setTriageJustification(
@@ -113,8 +112,6 @@ public class IssueTriageService {
         issue.setTriagedAt(decision.triagedAt());
         issue.setTriageExpiresAt(decision.expiresAt().orElse(null));
 
-        // Written in the same transaction as the decision: a history missing the change it is
-        // supposed to prove is worse than no history, because nothing says it is missing.
         events.save(event(
                 issue,
                 previous,
@@ -122,7 +119,7 @@ public class IssueTriageService {
                 decision.justification() == null ? null : decision.justification().wireName(),
                 decision.comment(),
                 decision.triagedBy(),
-                MANUAL,
+                origin,
                 decision.triagedAt(),
                 decision.expiresAt().orElse(null)));
 

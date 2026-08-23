@@ -43,6 +43,7 @@ public class EvidenceVaultService {
     private final Scans scansRepo;
     private final AttestationService attestationService;
     private final VexGeneratorService vexService;
+    private final CsafGeneratorService csafService;
     private final LicenseGovernanceService licenseService;
     private final ObjectMapper json;
 
@@ -54,6 +55,7 @@ public class EvidenceVaultService {
             Scans scansRepo,
             AttestationService attestationService,
             VexGeneratorService vexService,
+            CsafGeneratorService csafService,
             LicenseGovernanceService licenseService) {
         this.compliance = compliance;
         this.auditService = auditService;
@@ -62,6 +64,7 @@ public class EvidenceVaultService {
         this.scansRepo = scansRepo;
         this.attestationService = attestationService;
         this.vexService = vexService;
+        this.csafService = csafService;
         this.licenseService = licenseService;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
@@ -117,14 +120,21 @@ public class EvidenceVaultService {
             }
 
             // 5. OpenVEX v0.2.0 Exploitability Advisory
+            // 5. OpenVEX v0.2.0 document
             byte[] vexBytes = json.writeValueAsBytes(vexService.generateAggregate());
             addZipEntry(zip, entries, "05_openvex_advisory.json",
                     "OpenVEX v0.2.0 Vulnerability Exploitability eXchange document (CRA / EO 14028)",
                     vexBytes);
 
-            // 6. Open Source License Governance & Copyleft Compliance
+            // 6. OASIS CSAF 2.0 VEX Advisory
+            byte[] csafBytes = json.writeValueAsBytes(csafService.generateAggregate());
+            addZipEntry(zip, entries, "06_csaf_2_0_vex.json",
+                    "OASIS CSAF 2.0 Common Security Advisory Framework VEX document (ANSSI / BSI / CISA)",
+                    csafBytes);
+
+            // 7. Open Source License Governance & Copyleft Compliance
             byte[] licenseBytes = json.writeValueAsBytes(licenseService.getSummary());
-            addZipEntry(zip, entries, "06_license_compliance.json",
+            addZipEntry(zip, entries, "07_license_compliance.json",
                     "Open Source License Inventory, Copyleft Risk Analysis, and Governance Policy",
                     licenseBytes);
 

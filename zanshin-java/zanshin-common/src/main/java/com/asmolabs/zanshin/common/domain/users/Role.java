@@ -15,17 +15,20 @@ import java.util.Optional;
  * grants or withholds administration.
  */
 public enum Role {
-    SUPERUSER(true, true),
-    ADMIN(true, true),
-    CISO(false, true),
-    USER(false, false);
+    SUPERUSER(true, true, true),
+    ADMIN(true, true, true),
+    CISO(false, true, true),
+    SECURITY_CHAMPION(false, false, true),
+    USER(false, false, false);
 
     private final boolean administrative;
     private final boolean globalSecurityScope;
+    private final boolean canApproveTriage;
 
-    Role(boolean administrative, boolean globalSecurityScope) {
+    Role(boolean administrative, boolean globalSecurityScope, boolean canApproveTriage) {
         this.administrative = administrative;
         this.globalSecurityScope = globalSecurityScope;
+        this.canApproveTriage = canApproveTriage;
     }
 
     public boolean isAdministrative() {
@@ -34,6 +37,10 @@ public enum Role {
 
     public boolean hasGlobalSecurityScope() {
         return globalSecurityScope;
+    }
+
+    public boolean canApproveTriage() {
+        return canApproveTriage;
     }
 
     /**

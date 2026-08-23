@@ -1,0 +1,147 @@
+# Regulatory Compliance Calculation Engine
+
+Zanshin's regulatory compliance module (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) continuously and automatically evaluates your organization's security posture against five major international regulatory frameworks:
+
+- **NIS 2 Directive** (EU 2022/2555 — Cybersecurity Risk-Management & Supply Chain Security)
+- **DORA** (EU 2022/2554 — Digital Operational Resilience Act for Financial Entities)
+- **ISO/IEC 27001:2022** (Information Security Management Systems — Annex A Controls)
+- **PCI-DSS v4.0** (Payment Card Industry Data Security Standard)
+- **Cyber Resilience Act (EU CRA)** (European Cyber Resilience Act for Digital Products)
+
+---
+
+## 1. Supported Frameworks & Controls
+
+| Framework | Control Code | Title | Assessment Category |
+|---|---|---|---|
+| **NIS 2** | `NIS2-ART21-VULN` | Vulnerability Handling & Remediation | `VULNERABILITY_MANAGEMENT` |
+| **NIS 2** | `NIS2-ART21-SUPPLY` | Supply Chain Security & Software Bill of Materials | `SUPPLY_CHAIN` |
+| **NIS 2** | `NIS2-ART21-CRYPTO` | Cryptography & Secrets Management | `SECRETS_MANAGEMENT` |
+| **NIS 2** | `NIS2-ART21-GOV` | Security Governance & Gate Enforcement | `GOVERNANCE` |
+| **DORA** | `DORA-ART09-ICT` | ICT Risk Management & Continuous Testing | `VULNERABILITY_MANAGEMENT` |
+| **DORA** | `DORA-ART11-THIRD` | Third-Party ICT Risk & Dependency Governance | `SUPPLY_CHAIN` |
+| **DORA** | `DORA-ART13-SECRETS` | Access Control & Secret Leakage Prevention | `SECRETS_MANAGEMENT` |
+| **DORA** | `DORA-ART16-INCIDENT` | Audit Trail & Evidence Retention | `AUDIT_AND_LOGGING` |
+| **ISO 27001** | `ISO-A.8.8` | Management of Technical Vulnerabilities | `VULNERABILITY_MANAGEMENT` |
+| **ISO 27001** | `ISO-A.8.28` | Secure Coding Practices | `SECURE_CODING` |
+| **ISO 27001** | `ISO-A.8.9` | Configuration & Infrastructure-as-Code Security | `INFRASTRUCTURE_AS_CODE` |
+| **ISO 27001** | `ISO-A.5.15` | Access Control & Secrets Protection | `SECRETS_MANAGEMENT` |
+| **PCI-DSS** | `PCI-REQ-6.3` | Security in Software Development | `SECURE_CODING` |
+| **PCI-DSS** | `PCI-REQ-6.4` | Public Vulnerability Remediation | `VULNERABILITY_MANAGEMENT` |
+| **PCI-DSS** | `PCI-REQ-6.5` | Protection against Software Flaws & Secrets | `SECRETS_MANAGEMENT` |
+| **PCI-DSS** | `PCI-REQ-10.2` | Audit Log Implementation | `AUDIT_AND_LOGGING` |
+| **EU CRA** | `CRA-ART11-NOTIF` | 24h CSIRT / ENISA Notification for Actively Exploited Flaws (KEV/EPSS) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM Delivery (CycloneDX & SPDX) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-LIFECYCLE` | Component Security Support & End-of-Life Tracking (EOL) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-VULN` | Continuous Vulnerability Remediation & Security Updates | `VULNERABILITY_MANAGEMENT` |
+
+---
+
+## 2. Assessment Categories & Mathematical Scoring Formulas
+
+Each compliance control maps to an evaluation category evaluated with strict, deterministic rules:
+
+### ① Vulnerability Management (`VULNERABILITY_MANAGEMENT`)
+Base score starts at **100 points**, with progressive deductions:
+$$\text{Score} = \max\Big(0,\; 100 - P_{\text{critical}} - P_{\text{kev}} - P_{\text{sla}} - P_{\text{high}}\Big)$$
+
+- **Open Critical CVEs**: $-20\text{ pts}$ per finding (capped at $-50\text{ pts}$):
+  $$P_{\text{critical}} = \min(50,\, N_{\text{critical}} \times 20)$$
+- **CISA KEV (Actively exploited vulnerabilities)**: $-15\text{ pts}$ per finding (capped at $-30\text{ pts}$):
+  $$P_{\text{kev}} = \min(30,\, N_{\text{kev}} \times 15)$$
+- **SLA Breaches (Overdue)**: $-10\text{ pts}$ per overdue finding (capped at $-40\text{ pts}$):
+  $$P_{\text{sla}} = \min(40,\, N_{\text{overdue}} \times 10)$$
+- **High Severity Backlog**: If $N_{\text{high}} > 5$, a fixed deduction of $-10\text{ pts}$ is applied.
+
+---
+
+### ② Supply Chain Security & SBOM (`SUPPLY_CHAIN`)
+Evaluates active Software Bill of Materials (SBOM) generation via Syft/Grype across monitored repositories and containers:
+$$\text{Score} = \text{round}\left(\frac{N_{\text{targets with active SBOM}}}{N_{\text{total monitored targets}}} \times 100\right)$$
+
+---
+
+### ③ Secrets Management (`SECRETS_MANAGEMENT`)
+- **0 exposed plaintext secrets**: $\text{Score} = 100$, Status = **`COMPLIANT`**.
+- **$\ge 1$ plaintext secret** (API token, private key, credential):
+  $$\text{Score} = \max(0,\; 100 - N_{\text{secrets}} \times 25)$$
+  **Status = `NON_COMPLIANT` immediately.** Any leaked secret triggers non-compliance.
+
+---
+
+### ④ Secure Coding Practices / SAST (`SECURE_CODING`)
+Evaluates static code analysis findings detected by Semgrep on custom source code:
+- If 0 SAST flaws: $\text{Score} = 100$.
+- If SAST flaws present:
+  $$\text{Score} = \max(20,\; 100 - N_{\text{sast}} \times 5)$$
+
+---
+
+### ⑤ Infrastructure-as-Code Security (`INFRASTRUCTURE_AS_CODE`)
+Evaluates deployment and cloud manifest misconfigurations (Terraform, Kubernetes, Dockerfile):
+- If 0 IaC misconfigurations: $\text{Score} = 100$.
+- If IaC misconfigurations present:
+  $$\text{Score} = \max(30,\; 100 - N_{\text{iac}} \times 10)$$
+
+---
+
+### ⑥ Governance & Quality Gate Enforcement (`GOVERNANCE`)
+Measures the ratio of monitored targets satisfying blocking release Gate policies:
+$$\text{Score} = \text{round}\left(\frac{N_{\text{gate passing targets}}}{N_{\text{total targets}}} \times 100\right)$$
+
+---
+
+### ⑦ Tamper-Evident Audit Logging (`AUDIT_AND_LOGGING`)
+Verifies cryptographic HMAC-SHA256 hash-chain integrity of all audit log entries:
+- **Chain intact and verified**: $\text{Score} = 100$, Status = **`COMPLIANT`**.
+- **Tampering or broken chain detected**: $\text{Score} = 0$, Status = **`NON_COMPLIANT`**.
+
+---
+
+## 3. Status Determination & Aggregation
+
+### Control Status Thresholds
+$$\text{Control Status} = \begin{cases} 
+\text{COMPLIANT} & \text{if } \text{Score} \ge 90 \\
+\text{PARTIAL} & \text{if } 60 \le \text{Score} < 90 \\
+\text{NON\_COMPLIANT} & \text{if } \text{Score} < 60 
+\end{cases}$$
+
+### Framework Overall Score
+$$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Control}_i)\right)$$
+
+### Framework Overall Status
+1. **`NON_COMPLIANT`**: If **any single control** fails ($N_{\text{non\_compliant}} > 0$) OR if overall score $< 70\%$.
+2. **`PARTIAL`**: If no controls fail completely, but at least one control is partial ($N_{\text{partial}} > 0$) OR if overall score $< 95\%$.
+3. **`COMPLIANT`**: Only when **100% of controls are compliant** AND overall score $\ge 95\%$.
+
+---
+
+## 4. Certified Audit Evidence Vault
+
+Zanshin exports cryptographically sealed evidence packages ready for external auditors:
+- **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 5 frameworks, 20 controls, and prioritized remediation roadmap.
+- **Evidence Bundle ZIP (`/api/v1/compliance/evidence-bundle.zip`)**:
+  - `manifest.json`: SHA-256 digests of all bundled evidence artifacts.
+  - `01_compliance_frameworks.json`: Continuous compliance assessments across NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA.
+  - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
+  - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
+  - `04_in_toto_attestation.json`: Cryptographic in-toto build provenance attestations.
+  - `05_openvex_advisory.json`: OpenVEX v0.2.0 document (EU CRA / EO 14028).
+  - `06_csaf_2_0_vex.json`: Standardized OASIS CSAF 2.0 security advisory (ANSSI / BSI / CISA).
+  - `07_license_compliance.json`: License inventory & copyleft governance.
+
+---
+
+## 5. VEX Interoperability (OpenVEX & OASIS CSAF 2.0)
+
+- **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier OpenVEX / CSAF statements, cascading automated triage for unaffected components without manual intervention.
+- **OASIS CSAF 2.0 Export (`/api/v1/csaf/...`)**: Generates automated machine-readable security advisories for scans and aggregate inventory.
+
+---
+
+## 6. Four-Eyes Risk Exemption Governance
+
+To satisfy strict DORA and ISO 27001 requirements:
+- **`SECURITY_CHAMPION` Role**: Delegated security leads can approve risk acceptances.
+- **`PENDING_APPROVAL` Status**: Any exemption requested by standard users blocks CI/CD quality gates until dual-approved by a Security Champion, CISO, or Admin.

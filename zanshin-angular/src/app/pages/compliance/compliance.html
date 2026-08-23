@@ -24,11 +24,26 @@
             ></button>
             <button
                 pButton
+                icon="pi pi-upload"
+                class="p-button-outlined"
+                label="Importer VEX"
+                (click)="openImport()"
+            ></button>
+            <button
+                pButton
                 icon="pi pi-file-code"
                 class="p-button-outlined"
                 [label]="'compliance.export_vex' | translate"
                 [loading]="exportingVex()"
                 (click)="exportOpenVex()"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-file"
+                class="p-button-outlined"
+                label="CSAF 2.0"
+                [loading]="exportingCsaf()"
+                (click)="exportCsaf()"
             ></button>
             <button
                 pButton
@@ -98,14 +113,14 @@
                     <i class="pi pi-check-circle text-blue-500 text-xl"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">4</span>
-                    <span class="text-xs text-surface-500">NIS 2, DORA, ISO, PCI</span>
+                    <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">{{ summary()!.evaluations.length }}</span>
+                    <span class="text-xs text-surface-500">NIS 2, DORA, ISO, PCI, CRA</span>
                 </div>
             </div>
         </div>
 
         <!-- Framework Cards Selector -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-2">
             @for (fw of summary()!.evaluations; track fw.framework) {
                 <div
                     (click)="selectFramework(fw.framework)"
@@ -116,8 +131,8 @@
                 >
                     <div class="flex items-start justify-between gap-2">
                         <div>
-                            <span class="font-bold text-surface-900 dark:text-surface-0 text-base">{{ fw.framework.replace('_', ' ') }}</span>
-                            <p class="text-xs text-surface-500 mt-1 line-clamp-2">{{ fw.framework === 'NIS_2' ? 'NIS 2 Directive' : fw.framework === 'DORA' ? 'DORA (EU 2022/2554)' : fw.framework === 'ISO_27001' ? 'ISO/IEC 27001:2022' : 'PCI-DSS v4.0' }}</p>
+                            <span class="font-bold text-surface-900 dark:text-surface-0 text-base">{{ frameworkLabel(fw.framework) }}</span>
+                            <p class="text-xs text-surface-500 mt-1 line-clamp-2">{{ frameworkDesc(fw.framework) }}</p>
                         </div>
                         <p-tag [value]="fw.overallStatus" [severity]="statusSeverity(fw.overallStatus)"></p-tag>
                     </div>
@@ -135,7 +150,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
                     <div>
                         <h2 class="text-xl font-bold text-surface-900 dark:text-surface-0">
-                            {{ activeEvaluation()!.framework.replace('_', ' ') }} — {{ 'compliance.controls_breakdown' | translate }}
+                            {{ frameworkLabel(activeEvaluation()!.framework) }} — {{ 'compliance.controls_breakdown' | translate }}
                         </h2>
                         <p class="text-sm text-surface-500 mt-1">{{ 'compliance.controls_desc' | translate }}</p>
                     </div>
@@ -176,4 +191,35 @@
             </div>
         }
     }
+
+    <!-- VEX Import Dialog -->
+    <p-dialog header="Importer un document VEX amont (OpenVEX / CSAF)" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
+        <div class="flex flex-col gap-4">
+            <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
+                Téléversez ou collez une déclaration officielle <strong>OpenVEX</strong> ou <strong>CSAF 2.0</strong> fournie par un éditeur tiers ou un mainteneur open-source. Les vulnérabilités concernées seront automatiquement classées en <em>not_affected</em> avec la justification de l'éditeur.
+            </p>
+
+            <div>
+                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Sélectionner un fichier JSON</label>
+                <input type="file" accept=".json,application/json" (change)="onFileSelected($event)" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Ou coller le contenu JSON direct</label>
+                <textarea rows="8" [(ngModel)]="importJson" class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0" placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'></textarea>
+            </div>
+
+            @if (importSuccess()) {
+                <p-message severity="success" [text]="importSuccess()!"></p-message>
+            }
+            @if (importError()) {
+                <p-message severity="error" [text]="importError()!"></p-message>
+            }
+        </div>
+
+        <ng-template #footer>
+            <button pButton label="Annuler" class="p-button-text" (click)="importOpen.set(false)"></button>
+            <button pButton icon="pi pi-check" label="Ingérer et appliquer" [loading]="importing()" [disabled]="!importJson.trim()" (click)="submitIngestVex()"></button>
+        </ng-template>
+    </p-dialog>
 </div>

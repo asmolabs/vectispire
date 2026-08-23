@@ -15,6 +15,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '@/app/core/api.service';
+import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest } from '@/app/core/api.models';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
@@ -54,6 +55,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 export class Issues {
     private readonly api = inject(ApiService);
     private readonly route = inject(ActivatedRoute);
+
+    readonly session = inject(SessionStore);
 
     readonly limit = 50;
     readonly issues = signal<Issue[]>([]);
@@ -155,6 +158,7 @@ export class Issues {
      *  vocabulary would drift, and the first symptom is a filter offering a status no row shows. */
     readonly triageOptions = [
         { label: 'Under review', value: 'under_review' },
+        { label: 'Pending approval', value: 'pending_approval' },
         { label: 'Affected', value: 'affected' },
         { label: 'Not affected', value: 'not_affected' },
         { label: 'Fixed', value: 'fixed' }
@@ -311,6 +315,7 @@ export class Issues {
     triageColour(status: string): 'success' | 'danger' | 'warn' | 'secondary' {
         if (status === 'not_affected' || status === 'fixed') return 'success';
         if (status === 'affected') return 'danger';
+        if (status === 'pending_approval') return 'warn';
         return 'secondary';
     }
 
@@ -360,7 +365,7 @@ export class Issues {
 
     /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
-        return this.triageStatus !== 'not_affected' || !!this.triageJustification;
+        return (this.triageStatus !== 'not_affected' && this.triageStatus !== 'pending_approval') || !!this.triageJustification;
     }
 
     submitTriage(): void {

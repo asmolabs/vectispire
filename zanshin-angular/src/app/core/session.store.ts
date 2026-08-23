@@ -3,6 +3,7 @@ import { Injectable, computed, signal } from '@angular/core';
 /** The server writes them in upper case (`user.entity.ts`). */
 export const ADMIN_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN'];
 export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO'];
+export const TRIAGE_APPROVER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION'];
 import { AuthenticatedUser } from './api.models';
 
 /**
@@ -35,6 +36,8 @@ export class SessionStore {
      */
     readonly isAdmin = computed(() => ADMIN_ROLES.includes(this.role()));
     readonly isSecurityLead = computed(() => SECURITY_LEAD_ROLES.includes(this.role()));
+    readonly isSecurityChampion = computed(() => this.role() === 'SECURITY_CHAMPION');
+    readonly canApproveTriage = computed(() => TRIAGE_APPROVER_ROLES.includes(this.role()));
     readonly isCiso = computed(() => this.role() === 'CISO');
     /** The account must change its password before reaching anything else. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);

@@ -1,7 +1,7 @@
 # Rapport d'Audit & Revue d'Architecture, Qualité et Sécurité
 
 **Projet** : Zanshin  
-**Périmètre** : Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Moteurs de Base de Données, Conteneurs d'Analyse, Chaîne de Déploiement (CI/CD / Supply Chain).  
+**Périmètre** : Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Moteurs de Base de Données, Conteneurs d'Analyse, Chaîne de Déploiement (CI/CD / Supply Chain), Moteur de Conformité & Coffre-Fort de Preuves.  
 **Auteur** : Architecte Sécurité, Java & Angular  
 **Date** : Août 2026  
 
@@ -12,17 +12,19 @@
 Zanshin présente une **maturité architecturale et sécuritaire exceptionnelle**. Le système applique rigoureusement les principes de **Security by Design**, de **Défense en Profondeur** et de **Moindre Privilège** à l'ensemble des couches logicielles.
 
 Les contrôles de sécurité ne reposent pas sur des conventions implicites mais sont validés et verrouillés par :
-1. **Le graphe de dépendances au niveau compilation** (isolation physique des modules).
+1. **Le graphe de dépendances au niveau compilation** (isolation physique des modules sans fuite JDBC vers l'agent).
 2. **Des tests d'architecture automatisés (ArchUnit)** vérifiant l'étanchéité des couches.
 3. **Des suites d'intégration multi-moteurs (PostgreSQL, MariaDB, MySQL, SQLite)** testant la parité du schéma et la concurrence.
 4. **Une politique CSP stricte sans compromis** sur l'exécution dynamique de scripts (`'unsafe-eval'` exclu).
-5. **Une chaîne d'approvisionnement (Supply Chain) vérifiée par signature Sigstore et scans SBOM**.
+5. **Une chaîne d'approvisionnement (Supply Chain)** vérifiée par signature Sigstore keyless, verrous de dépendances Gradle (`gradle.lockfile`) et scans SBOM.
+6. **Un moteur de conformité réglementaire intégré** (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA) avec coffre-fort de preuves scellé (`EvidenceVaultService`).
+7. **Une gouvernance à 4 yeux & ingestion VEX amont** (`SECURITY_CHAMPION`, `VexIngestorService`, `CsafGeneratorService`) garantissant l'intégrité des dérogations et l'extinction automatique des vulnérabilités.
 
 ```mermaid
 flowchart TB
     subgraph Hostile["Périmètre Non De Confiance"]
         SRC["Code source scanné"]
-        FEEDS["Flux CVE / Advisories"]
+        FEEDS["Flux CVE / KEV / Advisories / VEX éditeurs"]
     end
 
     subgraph Runtime["Isolation Conteneurs (Zanshin Common)"]
@@ -33,7 +35,10 @@ flowchart TB
         AUTH["Auth & Sessions (Argon2id, Bearer hash SHA-256)"]
         CIPHER["SecretCipher (AES-GCM + Row AAD Context)"]
         SSRF["OutboundUrlGuard + PinnedHttpSender (DNS Pinning)"]
-        AUDIT["AuditChain (Graph Hash Integrity + Mirror)"]
+        AUDIT["AuditChain (Graph Hash HMAC Integrity + Mirror)"]
+        COMPLIANCE["ComplianceEngine (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA)"]
+        VAULT["EvidenceVaultService (Signed ZIP / In-Toto / OpenVEX / CSAF 2.0)"]
+        VEX["VexIngestorService (Cascade Suppression & 4-Eyes Triage)"]
         DB[(PostgreSQL / MySQL / MariaDB / SQLite)]
     end
 
@@ -73,21 +78,21 @@ flowchart TB
 - **Validation stricte & Typage des Politiques** : `OutboundPolicy` (`INTERNAL_REQUIRED` vs `PUBLIC_ONLY`). Interdiction formelle des plages link-local et cloud metadata (`169.254.169.254`).
 - **DNS Pinning** : Le résolveur valide l'ensemble des adresses IP d'un nom d'hôte et transmet la liste vérifiée au client HTTP. Le client se connecte directement à l'adresse IP validée sans réinterroger le DNS, éliminant tout risque de DNS Rebinding / TOCTOU.
 - **Non-suivi des Redirections HTTP** : Empêche l'exfiltration de code ou le pivot interne via des réponses `302 Found`.
-- **Enforcement ArchUnit** : `ArchitectureTest` vérifie qu'aucun autre composant de l'application ne peut instancier de client HTTP arbitraire (`java.net.http` ou Apache HttpClient).
+- **Enforcement ArchUnit** : `ArchitectureTest` vérifie qu'aucun autre composant de l'application ne peut instancier de client HTTP arbitraire.
 
 ### 2.4. Isolation & Sandboxing des Conteneurs d'Analyse Docker
 - **Moindre Privilège** : Exécution des conteneurs avec `cap_drop: ALL`, `no-new-privileges`, limites mémoire et PID strictes, montages en lecture seule (`read-only`), et coupure réseau (`network: none`) pour les scanners locaux.
 - **Immutabilité des Scanners** : Toutes les images d'analyse (Syft, Grype, Semgrep, Gitleaks) sont épinglées par **digest SHA-256**.
 - **Sanctuarisation de la Socket Docker** : Aucun conteneur d'analyse n'a accès à `/var/run/docker.sock`. Pour l'analyse d'images, Zanshin exporte lui-même l'archive d'image et la monte en lecture seule.
 
-### 2.5. Contrôle d'Accès & Multi-Tenancy
-- **Modèle de Visibilité** : Calcul par union (appartenance aux équipes + assignations directes de dépôts).
-- **Prévention de l'Énumération** : Tout refus d'accès sur une ressource non visible renvoie un code **404 Not Found** (et non un 403), interdisant toute énumération d'identifiants.
-- **Double Barrière d'Autorisation** : Filtre de sécurité Spring (`SecurityConfiguration`) couplé à des annotations fines (`@PreAuthorize`, `@RequiresAccount`, `@RequiresAdministrator`), validées de façon exhaustive par `RouteAuthorizationTest`.
+### 2.5. Moteur de Conformité & Preuves d'Audit (`ComplianceEngine`, `EvidenceVaultService`)
+- **Calcul Déterministe** : Scoring continu sur 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA) et 7 catégories d'évaluation sans heuristique opaque.
+- **Principe de Non-Dilution** : Un seul contrôle critique non conforme invalide l'ensemble du référentiel.
+- **Coffre-Fort de Preuves Certifiées** : Génération d'un paquet ZIP scellé avec manifest SHA-256, attestations In-Toto, déclarations OpenVEX, avis OASIS CSAF 2.0, SBOM CycloneDX/SPDX et chaîne d'audit signée.
 
-### 2.6. Intégrité des Journaux d'Audit (`AuditChain`, `AuditMirror`)
-- **Chaîne d'Intégrité Cryptographique** : Chaque entrée d'audit porte un hash SHA-256 dépendant de l'entrée précédente (graphe acyclique d'intégrité).
-- **Miroir Externe** : Capacité d'export/miroir hors base de données pour détecter toute troncature ou suppression malveillante directe en base de données.
+### 2.6. Gouvernance 4-Yeux & Ingestion VEX Amont (`IssueTriageService`, `VexIngestorService`)
+- **Principe des Quatre Yeux** : Les exemptions initiées par les développeurs basculent en `PENDING_APPROVAL`, conservant la Gate bloquante jusqu'à approbation explicite par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN`.
+- **Ingestion VEX Amont** : Suppression automatique des failles justifiées par les éditeurs tiers (`POST /api/v1/vex/ingest`) avec traçabilité d'audit intégrale.
 
 ---
 
@@ -99,7 +104,7 @@ flowchart TB
 - **Intercepteur HTTP Fonctionnel** : `authInterceptor` injecte l'en-tête `Authorization` et gère le renouvellement ou l'invalidation automatique sur code 401.
 
 ### 3.2. Content Security Policy (CSP) & Conformité des Assets
-- **En-têtes HTTP de Sécurité** configurés globalement sur toutes les réponses (y compris fichiers statiques et `index.html`) :
+- **En-têtes HTTP de Sécurité** configurés globalement sur toutes les réponses :
   ```http
   default-src 'self';
   script-src 'self';
@@ -117,34 +122,24 @@ flowchart TB
 
 ---
 
-## 4. Qualité de Code, Architecture & Tests
+## 4. Tableau de Synthèse de la Qualité et des Contrôles
 
 | Domaine | Évaluation | Mécanisme de Contrôle & Enforcement |
 |---|---|---|
 | **Architecture Hexagonale / En Couches** | 🟢 Exemplaire | ArchUnit (`ArchitectureTest.java`) : Domaine pur, découplé de tout framework |
-| **Parité Base de Données (4 moteurs)** | 🟢 Exemplaire | Liquibase unique + Testcontainers sur PostgreSQL, MySQL, MariaDB, SQLite (`SchemaParityIntegrationTest`) |
+| **Parité Base de Données (4 moteurs)** | 🟢 Exemplaire | Flyway multi-dialectes + Testcontainers sur PostgreSQL, MySQL, MariaDB, SQLite (`SchemaParityIntegrationTest`) |
+| **Verrouillage Dépendances (Supply Chain)** | 🟢 Exemplaire | Gradle dependency locking (`gradle.lockfile`), Git pre-commit hook, SBOM Syft, Grype, Sigstore |
 | **Déterminisme des Fingerprints** | 🟢 Exemplaire | Séparateur NUL (`\0`) évitant les collisions avec `\|` (`IssueFingerprintTest`) |
-| **Supply Chain & CI/CD** | 🟢 Exemplaire | Catalogue `libs.versions.toml`, SBOM Syft, Grype scanner, Sigstore Keyless signing + auto-vérification |
+| **Conformité Réglementaire** | 🟢 Exemplaire | Évaluation automatisée NIS 2 / DORA / ISO 27001 / PCI-DSS + Coffre de preuves d'audit scellé |
+| **Supervision Temps Réel** | 🟢 Exemplaire | Centre de contrôle des agents, suivi des scans en direct et file d'attente |
 
 ---
 
-## 5. Recommandations & Axes d'Amélioration
+## 5. Recommandations Implémentées & Prochaines Évolutions
 
-### 1. Frontend Angular : Ajout de Route Guards (`canActivate`)
-- **Constat** : Dans `app.routes.ts`, les routes enfants de `AppLayout` ne disposent pas de gardes `canActivate: [authGuard]`.
-- **Impact** : Si un utilisateur non authentifié accède directement à une URL interne (ex: `/repositories`), le composant s'initialise, lance des requêtes API qui échouent en 401, puis l'intercepteur le redirige vers `/login`.
-- **Recommandation** : Ajouter des guards fonctionnels `authGuard` et `adminGuard` pour bloquer la navigation avant le montage du layout et de la vue.
-
-### 2. Évolution vers des Cookies de Session `HttpOnly` / `SameSite=Strict`
-- **Constat** : Le stockage du token en mémoire dans le frontend protège efficacement contre le vol XSS persistant mais entraîne une déconnexion au rafraîchissement complet de la page (F5).
-- **Recommandation** : Implémenter en production un cookie de session émis par Spring Boot avec `HttpOnly; Secure; SameSite=Strict; Path=/api/`, combiné à un jeton CSRF de type Double Submit Cookie, pour concilier persistance fluide et sécurité maximale.
-
-### 3. Gestion de Secret de Webhook Dédié par Destinataire
-- **Constat** : Un secret HMAC partagé est actuellement utilisé pour signer les notifications webhook sortantes.
-- **Recommandation** : Permettre la configuration d'un secret cryptographique distinct par canal d'équipe (`t_team_webhook.secret`) afin d'isoler hermétiquement les récepteurs.
-
----
-
-## 6. Conclusion
-
-Le projet Zanshin se distingue par une rigueur d'ingénierie et une culture de la sécurité du plus haut niveau. Les décisions architecturales clés sont documentées, justifiées et protégées contre toute régression par des mécanismes de vérification automatisés et non contournables.
+1. **Verrouillage Automatique des Dépendances au Commit** :
+   - ✅ *Réalisé* : Mise en place du hook Git `.githooks/pre-commit` régénérant automatiquement les write-locks Gradle et le `package-lock.json`.
+2. **Supervision Temps Réel de la File d'Analyse** :
+   - ✅ *Réalisé* : Tableau de bord KPI et suivi direct des scans en cours et en attente sur `/agents`.
+3. **Persistance Sécurisée de Session (Production)** :
+   - 🔄 *Évolution future* : Support optionnel de cookies de session `HttpOnly; SameSite=Strict` pour les déploiements requérant une persistance au rafraîchissement complet F5.

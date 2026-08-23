@@ -1053,7 +1053,7 @@ export interface ComplianceControlAssessment {
 }
 
 export interface ComplianceEvaluation {
-    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS';
+    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS' | 'EU_CRA';
     scorePercentage: number;
     overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
     controls: ComplianceControlAssessment[];

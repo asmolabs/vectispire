@@ -19,6 +19,7 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 
 const TRIAGE_LABELS: Record<string, string> = {
     under_review: 'Under review',
+    pending_approval: 'Pending approval',
     not_affected: 'Not affected',
     affected: 'Affected',
     fixed: 'Fixed',

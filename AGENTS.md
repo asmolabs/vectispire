@@ -101,3 +101,8 @@ composition itself, which is the only level at which that class of defect is vis
 **Never skip silently.** There is no "skip if the database is missing" guard in the
 integration suite, deliberately: a suite that skips itself reports green without checking
 anything.
+
+**Documentation stays in sync across languages.** Whenever regulatory frameworks, security
+roles, VEX/CSAF formats, triage workflows, or API contracts evolve, update both `docs/fr/` and
+`docs/en/` simultaneously. A feature without documentation is invisible to auditors and teams.
+

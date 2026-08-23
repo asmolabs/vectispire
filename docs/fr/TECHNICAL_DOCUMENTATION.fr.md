@@ -13,16 +13,17 @@ Le système est découpé en deux composants distincts :
 ```mermaid
 flowchart TB
     subgraph front["Frontend Angular — zanshin-angular/src/app/"]
-        Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams,<br/>gate-policies, rule-sets, history, inventory, owasp"]
+        Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
     subgraph api["api/ — Contrôleurs, DTOs, Guards"]
-        Routes["Contrôleurs REST<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log,<br/>agents, agents-admin, teams, rule-sets, owasp"]
+        Routes["Contrôleurs REST<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, vex, agents, agents-admin, teams, rule-sets, owasp"]
     end
 
     subgraph services["services/ — Métier, Orchestration, Transactions"]
         Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
-        Issue["IssueSyncService / IssueTriageService"]
+        Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
+        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService"]
         Enrich["EnrichmentService · EolService · LicenseService"]
         Ai["AiReviewService"]
         Notify["NotificationService · OutboxService"]
@@ -40,7 +41,7 @@ flowchart TB
     end
 
     subgraph domain["domain/ — Domaine Pur, Sans Dépendance Framework"]
-        D["fingerprint · gate · audit chain · exports · triage<br/>url-guard · crypto · retention · scheduling · …"]
+        D["fingerprint · gate · audit chain · exports · csaf · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
     end
 
     subgraph scanning["scanning/ — Exécution Conteneurs (Docker)"]
@@ -93,3 +94,20 @@ Chaque scanner s'exécute dans un conteneur éphémère Docker sous isolation st
 - Montages en lecture seule (`read-only`).
 - Réseau coupé (`network: none`) pour les scanners d'analyse locale.
 - Images épinglées par digest SHA-256 immuable.
+
+---
+
+## 4. Conformité Réglementaire & Preuves d'Audit
+
+Le moteur de conformité évalue en continu 5 référentiels majeurs :
+- **NIS 2 Directive**, **DORA**, **ISO/IEC 27001:2022**, **PCI-DSS v4.0**, et **Cyber Resilience Act (EU CRA)**.
+- **Export OASIS CSAF 2.0** (`/api/v1/csaf/aggregate.json`) et **OpenVEX v0.2.0** (`/api/v1/exports/vex/openvex.json`).
+- **Ingestion VEX Amont** (`POST /api/v1/vex/ingest`) pour l'extinction automatisée des vulnérabilités certifiées par les mainteneurs.
+- **Coffre de Preuves Scellé** (`/api/v1/compliance/evidence-bundle.zip`) incluant attestations in-toto, SBOM, SARIF, et piste d'audit cryptographique.
+
+---
+
+## 5. Gouvernance 4-Yeux & Rôles
+
+- **Rôle `SECURITY_CHAMPION`** : Délégué sécurité d'équipe habilité à statuer sur les exemptions techniques.
+- **Statut `PENDING_APPROVAL`** : Blocage préventif des Gates CI/CD sur toute dérogation initiée par un développeur jusqu'à validation par un pair qualifié.

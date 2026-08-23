@@ -216,7 +216,7 @@
   },
   "compliance": {
     "title": "Regulatory Compliance & Security Posture",
-    "subtitle": "Continuous assessment against NIS 2, DORA, ISO/IEC 27001, and PCI-DSS standards",
+    "subtitle": "Continuous assessment against NIS 2, DORA, ISO/IEC 27001, PCI-DSS, and EU CRA standards",
     "export_pdf": "Export Audit Report (PDF)",
     "export_vex": "Export OpenVEX Advisory (.json)",
     "export_bundle": "Download Evidence Vault (ZIP)",

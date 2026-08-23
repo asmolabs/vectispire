@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { DialogModule } from '@openng/optimus-ui/dialog';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -14,7 +16,7 @@ import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.mod
 @Component({
     selector: 'app-compliance',
     standalone: true,
-    imports: [CommonModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, DialogModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './compliance.html'
 })
 export class Compliance {
@@ -28,14 +30,31 @@ export class Compliance {
     readonly exporting = signal<boolean>(false);
     readonly exportingBundle = signal<boolean>(false);
     readonly exportingVex = signal<boolean>(false);
+    readonly exportingCsaf = signal<boolean>(false);
     readonly error = signal<string | null>(null);
+
+    // VEX Ingest
+    readonly importOpen = signal<boolean>(false);
+    readonly importing = signal<boolean>(false);
+    importJson = '';
+    readonly importSuccess = signal<string | null>(null);
+    readonly importError = signal<string | null>(null);
 
     readonly frameworks = [
         { key: 'NIS_2', label: 'NIS 2 Directive', desc: 'EU 2022/2555 — Supply Chain & Vulnerability Mgmt' },
         { key: 'DORA', label: 'DORA', desc: 'EU 2022/2554 — Digital Operational Resilience' },
         { key: 'ISO_27001', label: 'ISO/IEC 27001:2022', desc: 'Annex A Information Security Controls' },
-        { key: 'PCI_DSS', label: 'PCI-DSS v4.0', desc: 'Payment Card Security Standard' }
+        { key: 'PCI_DSS', label: 'PCI-DSS v4.0', desc: 'Payment Card Security Standard' },
+        { key: 'EU_CRA', label: 'Cyber Resilience Act (EU CRA)', desc: 'EU Digital Products Security & 24h CSIRT Notification' }
     ];
+
+    frameworkLabel(key: string): string {
+        return this.frameworks.find((f) => f.key === key)?.label ?? key.replace('_', ' ');
+    }
+
+    frameworkDesc(key: string): string {
+        return this.frameworks.find((f) => f.key === key)?.desc ?? key;
+    }
 
     readonly activeEvaluation = computed<ComplianceEvaluation | null>(() => {
         const s = this.summary();
@@ -112,6 +131,71 @@ export class Compliance {
                 this.exportingVex.set(false);
             }
         });
+    }
+
+    exportCsaf(): void {
+        this.exportingCsaf.set(true);
+        this.api.getAggregateCsaf().subscribe({
+            next: (csafDoc) => {
+                const blob = new Blob([JSON.stringify(csafDoc, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'zanshin-aggregate-csaf.json';
+                a.click();
+                window.URL.revokeObjectURL(url);
+                this.exportingCsaf.set(false);
+            },
+            error: () => {
+                this.error.set('Failed to export OASIS CSAF 2.0 advisory.');
+                this.exportingCsaf.set(false);
+            }
+        });
+    }
+
+    openImport(): void {
+        this.importJson = '';
+        this.importSuccess.set(null);
+        this.importError.set(null);
+        this.importOpen.set(true);
+    }
+
+    onFileSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.importJson = e.target?.result as string;
+        };
+        reader.readAsText(file);
+    }
+
+    submitIngestVex(): void {
+        if (!this.importJson.trim()) return;
+        this.importing.set(true);
+        this.importSuccess.set(null);
+        this.importError.set(null);
+
+        try {
+            const parsed = JSON.parse(this.importJson);
+            this.api.ingestVex(parsed).subscribe({
+                next: (res: any) => {
+                    this.importing.set(false);
+                    const count = res?.triagedIssues ?? 0;
+                    const applied = (res?.appliedCves ?? []).join(', ');
+                    this.importSuccess.set(`Document VEX ingéré avec succès : ${count} vulnérabilité(s) classée(s) automatiquement (${applied || 'aucune correspondance'}).`);
+                    this.loadSummary();
+                },
+                error: (err) => {
+                    this.importing.set(false);
+                    this.importError.set(err?.error?.message ?? 'Erreur lors de l\'ingestion du document VEX.');
+                }
+            });
+        } catch (e: any) {
+            this.importing.set(false);
+            this.importError.set('Format JSON invalide : ' + e.message);
+        }
     }
 
     statusSeverity(status: string): 'success' | 'warn' | 'danger' {

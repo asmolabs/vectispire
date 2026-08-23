@@ -22,6 +22,9 @@ public enum TriageStatus {
     /** Judged to apply. It counts, which is the point of saying so. */
     AFFECTED(false),
 
+    /** Exemption or dismissal requested, awaiting approval by a Security Champion or CISO. Still counts against a gate. */
+    PENDING_APPROVAL(false),
+
     /** Argued not to apply. Settled: it stops failing builds. */
     NOT_AFFECTED(true),
 

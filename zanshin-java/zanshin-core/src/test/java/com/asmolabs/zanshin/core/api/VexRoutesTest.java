@@ -11,6 +11,7 @@ import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
 import com.asmolabs.zanshin.core.persistence.ScanEntity;
 import com.asmolabs.zanshin.core.repositories.Findings;
 import com.asmolabs.zanshin.core.repositories.GitRepositories;
+import com.asmolabs.zanshin.core.repositories.Issues;
 import com.asmolabs.zanshin.core.repositories.Scans;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,9 @@ class VexRoutesTest extends ApiTestBase {
 
     @Autowired
     private Findings findingsRepo;
+
+    @Autowired
+    private Issues issuesRepo;
 
     @Test
     @DisplayName("generates valid OpenVEX v0.2.0 advisory for completed scan")
@@ -78,5 +82,58 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.['@context']").value("https://openvex.dev/ns/v0.2.0"))
                 .andExpect(jsonPath("$.author").value("Zanshin ASPM Control Plane"));
+    }
+
+    @Test
+    @DisplayName("ingests upstream OpenVEX advisory and cascades automated triage")
+    void ingestsUpstreamOpenVex() throws Exception {
+        String token = asAdmin();
+
+        com.asmolabs.zanshin.core.persistence.IssueEntity issue = new com.asmolabs.zanshin.core.persistence.IssueEntity();
+        issue.setFingerprint("fp-upstream-test-1");
+        issue.setIdentifier("CVE-2023-9999");
+        issue.setType("vulnerability");
+        issue.setPackageName("spring-core");
+        issue.setPackageVersion("6.0.0");
+        issue.setState("open");
+        issue.setSeverity("critical");
+        issue.setTriageStatus("under_review");
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        issuesRepo.save(issue);
+
+        String openVexPayload = """
+                {
+                  "@context": "https://openvex.dev/ns/v0.2.0",
+                  "@id": "https://vendor.example.com/vex/2026-001",
+                  "author": "Spring Security Team",
+                  "timestamp": "2026-08-23T00:00:00Z",
+                  "version": 1,
+                  "statements": [
+                    {
+                      "vulnerability": { "name": "CVE-2023-9999" },
+                      "products": [ "pkg:maven/org.springframework/spring-core@6.0.0" ],
+                      "status": "not_affected",
+                      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+                      "impact_statement": "Spring Core default configuration does not expose deserializer endpoint."
+                    }
+                  ]
+                }
+                """;
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/vex/ingest")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content(openVexPayload),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statementsProcessed").value(1))
+                .andExpect(jsonPath("$.triagedIssues").value(1))
+                .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-9999"));
+
+        com.asmolabs.zanshin.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
+        assertThat(updated.getTriageComment()).contains("Spring Security Team");
     }
 }

@@ -14,16 +14,17 @@ pipeline or a remote agent uses.
 ```mermaid
 flowchart TB
     subgraph front["Angular front end — zanshin-angular/src/app/"]
-        Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams,<br/>gate-policies, rule-sets, history, inventory, owasp"]
+        Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
     subgraph api["api/ — controllers, DTOs, guards"]
-        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log,<br/>agents, agents-admin, teams, rule-sets, owasp"]
+        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, vex, agents, agents-admin, teams, rule-sets, owasp"]
     end
 
     subgraph services["services/ — orchestration, transactions"]
         Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
-        Issue["IssueSyncService / IssueTriageService"]
+        Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
+        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService"]
         Enrich["EnrichmentService · EolService · LicenseService"]
         Ai["AiReviewService"]
         Notify["NotificationService · OutboxService"]
@@ -41,7 +42,7 @@ flowchart TB
     end
 
     subgraph domain["domain/ — pure, depends on nothing"]
-        D["fingerprint · gate · audit chain · exports · triage<br/>url-guard · crypto · retention · scheduling · …"]
+        D["fingerprint · gate · audit chain · exports · csaf · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
     end
 
     subgraph scanning["scanning/ — runs containers, no database"]

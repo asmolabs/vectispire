@@ -66,6 +66,7 @@ class AccountRulesTest {
         void parsesRoles() {
             assertThat(Role.of("ADMIN")).contains(Role.ADMIN);
             assertThat(Role.of("CISO")).contains(Role.CISO);
+            assertThat(Role.of("SECURITY_CHAMPION")).contains(Role.SECURITY_CHAMPION);
             // Case-sensitive: the field has a fixed set of choices, and accepting `admin`
             // means accepting whatever else arrives in it.
             assertThat(Role.of("admin")).isEmpty();
@@ -78,10 +79,16 @@ class AccountRulesTest {
             assertThat(Role.SUPERUSER.isAdministrative()).isTrue();
             assertThat(Role.ADMIN.isAdministrative()).isTrue();
             assertThat(Role.CISO.isAdministrative()).isFalse();
+            assertThat(Role.SECURITY_CHAMPION.isAdministrative()).isFalse();
             assertThat(Role.USER.isAdministrative()).isFalse();
 
             assertThat(Role.CISO.hasGlobalSecurityScope()).isTrue();
+            assertThat(Role.SECURITY_CHAMPION.hasGlobalSecurityScope()).isFalse();
             assertThat(Role.USER.hasGlobalSecurityScope()).isFalse();
+
+            assertThat(Role.CISO.canApproveTriage()).isTrue();
+            assertThat(Role.SECURITY_CHAMPION.canApproveTriage()).isTrue();
+            assertThat(Role.USER.canApproveTriage()).isFalse();
         }
     }
 

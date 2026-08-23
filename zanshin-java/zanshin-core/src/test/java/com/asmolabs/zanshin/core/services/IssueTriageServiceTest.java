@@ -89,6 +89,46 @@ class IssueTriageServiceTest {
     }
 
     @Test
+    @DisplayName("a non-approver requesting not_affected transitions the issue to pending_approval")
+    void nonApproverCreatesPendingApprovalRequest() {
+        IssueEntity issue = issue(TriageStatus.UNDER_REVIEW, null);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        IssueEntity triaged = service.triage(1L, new Triage.Request(
+                TriageStatus.NOT_AFFECTED, "bob_dev", VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST,
+                "Mitigation in gateway.", Period.ofDays(30)), false);
+
+        assertThat(triaged.getTriageStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(triaged.getTriagedBy()).isEqualTo("bob_dev");
+
+        var event = recorded();
+        assertThat(event.getFromStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(event.getActor()).isEqualTo("bob_dev");
+        assertThat(event.getOrigin()).isEqualTo("manual");
+    }
+
+    @Test
+    @DisplayName("an approver settling a pending_approval issue records the origin as approval")
+    void approverSettlesPendingApproval() {
+        IssueEntity issue = issue(TriageStatus.PENDING_APPROVAL, null);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        IssueEntity approved = service.triage(1L, new Triage.Request(
+                TriageStatus.NOT_AFFECTED, "carol_champion", VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST,
+                "Reviewed and confirmed.", Period.ofDays(30)), true);
+
+        assertThat(approved.getTriageStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+        assertThat(approved.getTriagedBy()).isEqualTo("carol_champion");
+
+        var event = recorded();
+        assertThat(event.getFromStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+        assertThat(event.getActor()).isEqualTo("carol_champion");
+        assertThat(event.getOrigin()).isEqualTo("approval");
+    }
+
+    @Test
     @DisplayName("an expiry is recorded as a decision nobody took")
     void expiryIsRecordedWithoutAnActor() {
         IssueEntity dismissed = issue(TriageStatus.NOT_AFFECTED, NOW.minusSeconds(1));

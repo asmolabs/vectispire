@@ -22,9 +22,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class VexController {
 
     private final VexGeneratorService vexService;
+    private final com.asmolabs.zanshin.core.services.VexIngestorService vexIngestor;
 
-    public VexController(VexGeneratorService vexService) {
+    public VexController(
+            VexGeneratorService vexService,
+            com.asmolabs.zanshin.core.services.VexIngestorService vexIngestor) {
         this.vexService = vexService;
+        this.vexIngestor = vexIngestor;
     }
 
     @GetMapping(value = "/scans/{scanId}/openvex.json", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -43,5 +47,11 @@ public class VexController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zanshin-aggregate-openvex.json\"")
                 .body(doc);
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping(value = "/ingest", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.asmolabs.zanshin.core.services.VexIngestorService.IngestionResult ingestOpenVex(
+            @org.springframework.web.bind.annotation.RequestBody OpenVexDocument doc) {
+        return vexIngestor.ingestOpenVex(doc);
     }
 }

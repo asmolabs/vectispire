@@ -556,6 +556,18 @@ export class ApiService {
         return this.http.get<OpenVexDocument>('/api/v1/vex/aggregate.json');
     }
 
+    getScanCsaf(scanId: number): Observable<unknown> {
+        return this.http.get<unknown>(`/api/v1/csaf/scans/${scanId}/csaf.json`);
+    }
+
+    getAggregateCsaf(): Observable<unknown> {
+        return this.http.get<unknown>('/api/v1/csaf/aggregate.json');
+    }
+
+    ingestVex(doc: OpenVexDocument): Observable<unknown> {
+        return this.http.post<unknown>('/api/v1/vex/ingest', doc);
+    }
+
     getLicenseSummary(repoId?: number, containerId?: number): Observable<LicenseSummary> {
         let params = new HttpParams();
         if (repoId) params = params.set('repo_id', repoId);

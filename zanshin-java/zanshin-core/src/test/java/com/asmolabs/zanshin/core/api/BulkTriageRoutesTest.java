@@ -85,6 +85,47 @@ class BulkTriageRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a reader requesting not_affected marks issues as pending_approval, while a security champion settles them")
+    void readerRequestsPendingApprovalAndChampionSettles() throws Exception {
+        long target = repository("https://example.invalid/4eyes.git");
+        long first = issue(target, "CVE-4EYES-1");
+
+        // 1. Reader requests exemption
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Waiting for champion review"))),
+                        asReader()))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(first))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .isEqualTo(TriageStatus.PENDING_APPROVAL.wireName()));
+
+        // 2. Security Champion approves exemption
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Approved by champion"))),
+                        asSecurityChampion()))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(first))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .isEqualTo(TriageStatus.NOT_AFFECTED.wireName()));
+    }
+
+    @Test
     @DisplayName("one bad identifier refuses the whole batch rather than half-applying it")
     void isAllOrNothing() throws Exception {
         long target = repository("https://example.invalid/partial.git");

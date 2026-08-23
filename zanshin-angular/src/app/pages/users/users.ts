@@ -15,6 +15,7 @@ import type { UserSummary } from '../../core/api.models';
 
 const ROLES = [
     { label: 'User', value: 'USER' },
+    { label: 'Security Champion', value: 'SECURITY_CHAMPION' },
     { label: 'CISO / Security Lead', value: 'CISO' },
     { label: 'Administrator', value: 'ADMIN' },
     { label: 'Superuser', value: 'SUPERUSER' }

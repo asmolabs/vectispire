@@ -216,7 +216,7 @@
   },
   "compliance": {
     "title": "Conformité réglementaire & Posture de sécurité",
-    "subtitle": "Évaluation continue selon les référentiels NIS 2, DORA, ISO/IEC 27001 et PCI-DSS",
+    "subtitle": "Évaluation continue selon les référentiels NIS 2, DORA, ISO/IEC 27001, PCI-DSS et EU CRA",
     "export_pdf": "Exporter le rapport d'audit (PDF)",
     "export_vex": "Exporter l'avis OpenVEX (.json)",
     "export_bundle": "Télécharger le coffre de preuves (ZIP)",

@@ -104,7 +104,32 @@ public enum ComplianceFramework {
                             "PCI-REQ-10.2",
                             "Audit Log Implementation",
                             "Automated audit trails must record security-relevant events and access modifications.",
-                            ComplianceControl.Category.AUDIT_AND_LOGGING)));
+                            ComplianceControl.Category.AUDIT_AND_LOGGING))),
+
+    EU_CRA(
+            "Cyber Resilience Act (EU CRA)",
+            "EU Cyber Resilience Act — Mandatory Cybersecurity Requirements for Digital Products",
+            List.of(
+                    new ComplianceControl(
+                            "CRA-ART11-NOTIF",
+                            "ENISA / CSIRT 24h Exploited Vulnerability Notification",
+                            "Actively exploited vulnerabilities (CISA KEV / EPSS > 0.5) must be identified for mandatory 24h reporting.",
+                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
+                    new ComplianceControl(
+                            "CRA-ART10-SBOM",
+                            "Machine-Readable SBOM Delivery",
+                            "All distributed software and container images must provide an active, machine-readable SBOM.",
+                            ComplianceControl.Category.SUPPLY_CHAIN),
+                    new ComplianceControl(
+                            "CRA-ART10-LIFECYCLE",
+                            "Security Support & End-of-Life Tracking",
+                            "Third-party packages and base images must be monitored for active security support and end-of-life status.",
+                            ComplianceControl.Category.SUPPLY_CHAIN),
+                    new ComplianceControl(
+                            "CRA-ART10-VULN",
+                            "Continuous Vulnerability Handling & Security Updates",
+                            "Zero unmitigated critical vulnerabilities and automated security patch availability.",
+                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT)));
 
     private final String title;
     private final String description;

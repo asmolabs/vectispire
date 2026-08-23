@@ -50,11 +50,12 @@ public final class Triage {
         if (request.status() == null) {
             throw new InvalidTriageException("A triage decision needs a status.");
         }
-        // VEX **requires** a justification for `not_affected`: without one the statement carries
-        // no information, and an exported document containing it would be invalid.
-        if (request.status() == TriageStatus.NOT_AFFECTED && request.justification() == null) {
+        // VEX **requires** a justification for `not_affected` (and exemptions pending approval):
+        // without one the statement carries no information, and an exported document containing it would be invalid.
+        if ((request.status() == TriageStatus.NOT_AFFECTED || request.status() == TriageStatus.PENDING_APPROVAL)
+                && request.justification() == null) {
             throw new InvalidTriageException(
-                    "A justification is required for the \"not affected\" status (VEX requirement).");
+                    "A justification is required for this triage status (VEX requirement).");
         }
 
         return new Decision(

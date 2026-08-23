@@ -18,6 +18,8 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);
 
+    List<IssueEntity> findByIdentifier(String identifier);
+
     /**
      * The open issues of one target, restricted to the types a scan actually looked at.
      *

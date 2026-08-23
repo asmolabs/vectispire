@@ -76,8 +76,8 @@ ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
 
 ```bash
 # Flyway brings the schema up to date at startup; nothing to run by hand.
-cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8000
-npm --workspace @zanshin/frontend start              # UI on http://localhost:4200
+cd zanshin-java && ./gradlew :zanshin-core:bootRun --args='--server.port=3100'   # API on http://localhost:3100 (for Angular dev proxy)
+npm --workspace @zanshin/frontend start                                         # UI on http://localhost:4200 (proxies /api to 3100)
 ```
 
 The first start creates a SUPERUSER from `ZANSHIN_BOOTSTRAP_USERNAME` and
