@@ -1,16 +1,16 @@
-# Zanshin — Angular UI
+# Veriscape — Angular UI
 
-Zanshin's user interface: fifteen screens over the HTTP API that
-[`zanshin-java/`](../zanshin-java/) serves.
+Veriscape's user interface: fifteen screens over the HTTP API that
+[`veriscape-java/`](../veriscape-java/) serves.
 
 ```bash
-npm start                 # from the root, serves on http://localhost:4200
+npm start                 # from the root, serves on http://localhost:4280
 npm run build
 npm test                  # asset check + Vitest suite
 ```
 
-The dev server proxies `/api` to `http://localhost:3100` (see `proxy.conf.json`). The
-control plane defaults to port 8000, so start it with `ZANSHIN_PORT=3100` — or change the
+The dev server proxies `/api` to `http://localhost:3180` (see `proxy.conf.json`). The
+control plane defaults to port 3180, so start it with `VERISCAPE_PORT=3180` — or change the
 proxy. They only have to agree.
 
 ## The stack, and why

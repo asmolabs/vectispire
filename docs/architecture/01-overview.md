@@ -186,7 +186,7 @@ until when. A `pg_advisory_lock` answers no question after the fact.
 - **The Docker socket requirement is unconditional** for whichever process runs scans,
   which is what the abandoned seam had been meant to avoid
   ([0010](decisions/0010-one-scan-runner.md)). The mitigation is to move execution onto an
-  agent so the network-exposed process does not hold the socket — see the `ZANSHIN_ROLE`
+  agent so the network-exposed process does not hold the socket — see the `VERISCAPE_ROLE`
   item in [04](04-runtime-and-deployment.md).
 - **No reachability analysis** (call graph, taint). A vulnerability in a dependency that
   is never called is counted like any other. That is heavy work, deliberately out of

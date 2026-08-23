@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-# Ask Zanshin whether this build should fail.
+# Ask Veriscape whether this build should fail.
 #
 # The control plane has answered this question since the first release — POST /api/v1/gate
 # returns a verdict, the violations behind it, and the policy it applied — and nothing called
@@ -8,18 +8,18 @@
 # lines that were missing between the two.
 #
 # Usage:
-#   ZANSHIN_URL=https://zanshin.example.com \
-#   ZANSHIN_TOKEN=zsk_… \
-#   ./zanshin-gate.sh --repository 12
+#   VERISCAPE_URL=https://veriscape.example.com \
+#   VERISCAPE_TOKEN=zsk_… \
+#   ./veriscape-gate.sh --repository 12
 #
-#   ./zanshin-gate.sh --container 4 --fail-on-severity critical
+#   ./veriscape-gate.sh --container 4 --fail-on-severity critical
 #
 # Exit codes, and they are three rather than two on purpose:
 #   0  the gate passed
 #   1  the gate failed — findings above the policy
 #   2  the gate could not be asked — network, credential, unknown target
 #
-# **2 is not 1.** A pipeline that treats "Zanshin was unreachable" as "your code is clean" has
+# **2 is not 1.** A pipeline that treats "Veriscape was unreachable" as "your code is clean" has
 # no gate at all on the day the control plane is down; one that treats it as a failed build
 # blocks every team for a reason none of them can fix. Which of the two you want is a decision,
 # so it is `--on-error`, and its default is to block: a gate that fails open is a gate that
@@ -52,15 +52,18 @@ while [ $# -gt 0 ]; do
         --on-error) on_error="$2"; shift 2 ;;
         --quiet) quiet="yes"; shift ;;
         -h|--help) usage ;;
-        *) echo "zanshin-gate: unknown argument \"$1\"" >&2; usage ;;
+        *) echo "veriscape-gate: unknown argument \"$1\"" >&2; usage ;;
     esac
 done
 
-: "${ZANSHIN_URL:?set ZANSHIN_URL to the control plane, e.g. https://zanshin.example.com}"
-: "${ZANSHIN_TOKEN:?set ZANSHIN_TOKEN to an API key (Administration → API keys)}"
+VERISCAPE_URL="${VERISCAPE_URL:-${ZANSHIN_URL:-}}"
+VERISCAPE_TOKEN="${VERISCAPE_TOKEN:-${ZANSHIN_TOKEN:-}}"
+
+: "${VERISCAPE_URL:?set VERISCAPE_URL to the control plane, e.g. https://veriscape.example.com}"
+: "${VERISCAPE_TOKEN:?set VERISCAPE_TOKEN to an API key (Administration → API keys)}"
 
 if [ -z "$target_kind" ]; then
-    echo "zanshin-gate: give --repository <id> or --container <id>." >&2
+    echo "veriscape-gate: give --repository <id> or --container <id>." >&2
     exit 2
 fi
 
@@ -90,20 +93,20 @@ trap 'rm -f "$response_file"' EXIT
 # `|| status="000"` rather than a second `echo`: curl already prints 000 on a transport
 # failure, and appending one would make the status neither "200" nor "000".
 status=$(curl --silent --show-error --location \
-    --max-time "${ZANSHIN_TIMEOUT:-30}" \
+    --max-time "${VERISCAPE_TIMEOUT:-${ZANSHIN_TIMEOUT:-30}}" \
     --write-out '%{http_code}' \
     --output "$response_file" \
-    --header "Authorization: Bearer $ZANSHIN_TOKEN" \
+    --header "Authorization: Bearer $VERISCAPE_TOKEN" \
     --header 'Content-Type: application/json' \
     --data "$body" \
-    "${ZANSHIN_URL%/}/api/v1/gate") || status="000"
+    "${VERISCAPE_URL%/}/api/v1/gate") || status="000"
 
 if [ "$status" != "200" ]; then
-    echo "zanshin-gate: the gate could not be asked (HTTP $status)." >&2
+    echo "veriscape-gate: the gate could not be asked (HTTP $status)." >&2
     if [ -s "$response_file" ]; then sed -e 's/^/  /' "$response_file" >&2; fi
-    if [ "$status" = "000" ]; then echo "  The control plane did not answer at all: $ZANSHIN_URL" >&2; fi
+    if [ "$status" = "000" ]; then echo "  The control plane did not answer at all: $VERISCAPE_URL" >&2; fi
     if [ "$on_error" = "warn" ]; then
-        echo "zanshin-gate: --on-error=warn, so the build continues **ungated**." >&2
+        echo "veriscape-gate: --on-error=warn, so the build continues **ungated**." >&2
         exit 0
     fi
     exit 2
@@ -121,20 +124,20 @@ if command -v jq >/dev/null 2>&1; then
     ignored=$(jq -r '.ignored_relaxations | join(", ")' "$response_file")
 
     if [ -z "$quiet" ]; then
-        printf 'Zanshin gate: %s policy (version %s), threshold %s, %s issue(s) considered.\n' \
+        printf 'Veriscape gate: %s policy (version %s), threshold %s, %s issue(s) considered.\n' \
             "$source" "$version" "$threshold" "$evaluated"
     fi
 
     # Said out loud, never dropped: a pipeline that asked for a looser rule and was refused has
     # to learn that its request did nothing, or it will believe the gate is configured.
-    if [ -n "$ignored" ]; then echo "Zanshin gate: relaxation(s) refused and ignored: $ignored" >&2; fi
+    if [ -n "$ignored" ]; then echo "Veriscape gate: relaxation(s) refused and ignored: $ignored" >&2; fi
 
     if [ "$passed" = "true" ]; then
-        if [ -z "$quiet" ]; then echo "Zanshin gate: passed."; fi
+        if [ -z "$quiet" ]; then echo "Veriscape gate: passed."; fi
         exit 0
     fi
 
-    echo "Zanshin gate: FAILED." >&2
+    echo "Veriscape gate: FAILED." >&2
     # The field is `package`, not `packageName`: it can only reach the wire through an
     # annotation, and the view says so.
     jq -r '.violations[] | "  [\(.severity // "unknown")] \(.identifier // "issue #\(.issueId)") \(.package // "") — \(.reason)\(if .fixVersions then " (fixed in \(.fixVersions))" else "" end)"' \
@@ -143,9 +146,9 @@ if command -v jq >/dev/null 2>&1; then
 fi
 
 if grep -q '"passed":true' "$response_file"; then
-    if [ -z "$quiet" ]; then echo "Zanshin gate: passed. (Install jq for the detail.)"; fi
+    if [ -z "$quiet" ]; then echo "Veriscape gate: passed. (Install jq for the detail.)"; fi
     exit 0
 fi
-echo "Zanshin gate: FAILED. (Install jq for the detail.)" >&2
+echo "Veriscape gate: FAILED. (Install jq for the detail.)" >&2
 cat "$response_file" >&2
 exit 1

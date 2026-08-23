@@ -246,10 +246,10 @@ re-evaluated on **every request** rather than on page load. A missing or unreada
 counts as expired — failing open would make the control decorative, and the cost of failing
 closed is one re-login.
 
-**A second factor, delegated rather than built.** Zanshin holds a deployment key for every
-repository it watches, and a password is one factor. `ZANSHIN_PASSWORD_LOGIN=false` closes the
+**A second factor, delegated rather than built.** Veriscape holds a deployment key for every
+repository it watches, and a password is one factor. `VERISCAPE_PASSWORD_LOGIN=false` closes the
 password door, so single sign-on carries whatever the realm requires — including an MFA
-requirement Zanshin never implements, never stores a secret for, and never has to write a
+requirement Veriscape never implements, never stores a secret for, and never has to write a
 recovery path around. What blocked that delegation before was that the password stayed
 available beside the provider: the realm's strongest requirement was optional in practice.
 
@@ -300,14 +300,14 @@ database copied repository B's encrypted key into repository A's row, and A was 
 cloned with B's key, **with no error**. Decryption retries without context for older
 values and logs it. There is **no default key**: a published constant would have
 decrypted everybody's database. Rotation goes through
-`ZANSHIN_PREVIOUS_ENCRYPTION_KEYS`.
+`VERISCAPE_PREVIOUS_ENCRYPTION_KEYS`.
 
 **And the key itself can come from a file rather than the environment.** A variable is readable by
 more things than an operator expects — `/proc/<pid>/environ`, `docker inspect`, an orchestrator's
 own logs, a crash dump, the `.env` a backup swept up — and this is the one value for which that
 matters absolutely rather than relatively: it decrypts every deployment key the installation
 holds. `ENCRYPTION_KEY_FILE` names a file instead, which is what Docker and Kubernetes secrets
-actually mount, with an owner and a mode. `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
+actually mount, with an owner and a mode. `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
 same reason and not for symmetry: an old key still decrypts live rows, and a rotation is precisely
 when two keys exist at once, so without it moving the current key out of the environment would
 mean putting the previous one back in.
@@ -375,7 +375,7 @@ declared unverifiable rather than back-hashed: backfilling hashes would be manuf
 evidence.
 
 **And there can now be a second copy, outside the database the log watches.**
-`ZANSHIN_AUDIT_MIRROR` names a path; each entry is appended there as one JSON line, in the
+`VERISCAPE_AUDIT_MIRROR` names a path; each entry is appended there as one JSON line, in the
 canonical form the hash covers, so the two copies are comparable field by field. It is not
 that a file is unforgeable — it is not. It is that erasing an entry now takes **two edits in
 two media with two sets of permissions**, and the mirror is normally shipped off the host by a
@@ -474,7 +474,7 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   partitioning until an administrator switches it, and the screen saying which mode is in force
   is the most a compatible default can do.
 - **The audit log is in the database it watches**, unless a mirror is configured — and the
-  default is unconfigured. A deployment that sets no `ZANSHIN_AUDIT_MIRROR` still has one copy
+  default is unconfigured. A deployment that sets no `VERISCAPE_AUDIT_MIRROR` still has one copy
   and one set of credentials protecting it; the verification screen says so, which is the most
   a default-off control can do.
 - **The Docker socket stays mounted** in the default deployment. Only remote agents take

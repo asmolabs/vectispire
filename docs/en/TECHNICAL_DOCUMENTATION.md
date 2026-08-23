@@ -5,15 +5,25 @@ pipeline's runtime flow. For features and quick start, see [`README.md`](../READ
 the reasoning behind the structural choices, see [`docs/architecture/`](architecture/) and
 its [decision register](architecture/decisions/).
 
+---
+
+### Origin & Philosophy of the Name: *Veriscape*
+
+The name **Veriscape** is the synthesis of two pillars of software supply chain security:
+- **`Veritas`** *(Latin for "Truth")*: Cryptographic evidence and provable reality. An audit statement without proof is an assumption. Veriscape generates signed in-toto attestations, DSSE Cosign signatures, deterministic SBOMs, and verifiable VEX statements (CSAF 2.0, OpenVEX, CycloneDX) with tamper-evident audit logs.
+- **`Landscape`** *(The Full Posture & Attack Surface)*: A continuous, connected ASPM perspective — mapping multi-tier dependency call trees, measuring blast radius propagation, tracking open-source license copyleft conflicts, and calculating remediation velocity (MTTR) across repositories and container fleets.
+
+---
+
 ## 1. Layered architecture
 
-Two artifacts, built by different toolchains: a Spring Boot control plane in `zanshin-java/`
-and an Angular front end in `zanshin-angular/` that talks to it over the same HTTP API a CI
+Two artifacts, built by different toolchains: a Spring Boot control plane in `veriscape-java/`
+and an Angular front end in `veriscape-angular/` that talks to it over the same HTTP API a CI
 pipeline or a remote agent uses.
 
 ```mermaid
 flowchart TB
-    subgraph front["Angular front end — zanshin-angular/src/app/"]
+    subgraph front["Angular front end — veriscape-angular/src/app/"]
         Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
@@ -82,14 +92,14 @@ It depends on nothing but the JDK, BouncyCastle and Jackson.
 ## 2. Database schema
 
 The schema belongs to **Flyway migrations**, under
-[`src/main/resources/db/migration/{vendor}/`](../zanshin-java/zanshin-core/src/main/resources/db/migration/) — one native SQL set per
+[`src/main/resources/db/migration/{vendor}/`](../veriscape-java/veriscape-core/src/main/resources/db/migration/) — one native SQL set per
 engine (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` is `validate`
 and stays that way: Hibernate must never alter the schema at runtime.
 
-`ZANSHIN_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
+`VERISCAPE_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
 four pass the whole integration campaign
 ([decision 0009](architecture/decisions/0009-four-engines.md), [decision 0013](architecture/decisions/0013-flyway-multi-dialect-migrations.md)).
-[`SchemaParityIntegrationTest`](../zanshin-java/zanshin-core/src/integrationTest/java/com/asmolabs/zanshin/core/persistence/SchemaParityIntegrationTest.java)
+[`SchemaParityIntegrationTest`](../veriscape-java/veriscape-core/src/integrationTest/java/com/asmolabs/zanshin/core/persistence/SchemaParityIntegrationTest.java)
 asks on each engine whether the entities and schema agree.
 
 ### The scan and issue model
@@ -292,10 +302,10 @@ Points that are not obvious from the diagram:
   Semgrep honours the analyzed tree's `.gitignore` unless told otherwise — in both cases
   the audited repository would decide what is looked for in it.
 - **Rules are copied into the scan's workspace.** Counter-intuitive but mandatory: volume
-  paths are resolved by the Docker *daemon*, so a directory inside Zanshin's own image is
+  paths are resolved by the Docker *daemon*, so a directory inside Veriscape's own image is
   invisible to the sibling scanner container. See
-  [`RulePlacement`](../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/RulePlacement.java), which also
-  merges the operator's `ZANSHIN_SEMGREP_RULES_DIR`.
+  [`RulePlacement`](../veriscape-java/veriscape-common/src/main/java/com/asmolabs/zanshin/common/scanning/RulePlacement.java), which also
+  merges the operator's `VERISCAPE_SEMGREP_RULES_DIR`.
 - **Secrets, IaC and SAST never run on a container image.** They look in source code;
   declaring them scanned would silently resolve that target's whole history for those
   types. They stay `null`.

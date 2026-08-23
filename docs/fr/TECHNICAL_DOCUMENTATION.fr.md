@@ -4,15 +4,23 @@ Ce document décrit l'architecture interne de Veriscape, son modèle de données
 
 ---
 
+### Origine & Philosophie du Nom : *Veriscape*
+
+Le nom **Veriscape** est la fusion de deux piliers fondamentaux de la gouvernance de sécurité logicielle :
+- **`Veritas`** *(latin pour la Vérité)* : La plateforme repose sur la **preuve cryptographique et la vérité vérifiable**. Un rapport d'audit sans signature est une simple déclaration d'intention. Veriscape génère des attestations in-toto, des signatures DSSE Cosign, des SBOMs déterministes et des avis VEX opposables (CSAF 2.0, OpenVEX, CycloneDX) avec traçabilité scellée.
+- **`Landscape`** *(la Cartographie & Posture globale)* : Offre une **vue panoramique continue** de l'exposition globale (ASPM) — graphe de dépendances multi-niveaux, calcul du rayon d'impact (*Blast Radius*), matrice des conflits de licences copyleft, et vélocité de remédiation MTTR sur l'ensemble des dépôts et parcs de conteneurs.
+
+---
+
 ## 1. Architecture en Couches
 
 Le système est découpé en deux composants distincts :
-- Le **Control Plane** (Spring Boot 4.1 / JDK 25) dans `zanshin-java/`.
-- L'**Interface Web** (Angular 21 / Optimus UI) dans `zanshin-angular/`.
+- Le **Control Plane** (Spring Boot 4.1 / JDK 25) dans `veriscape-java/`.
+- L'**Interface Web** (Angular 21 / Optimus UI) dans `veriscape-angular/`.
 
 ```mermaid
 flowchart TB
-    subgraph front["Frontend Angular — zanshin-angular/src/app/"]
+    subgraph front["Frontend Angular — veriscape-angular/src/app/"]
         Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 

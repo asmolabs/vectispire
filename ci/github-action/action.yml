@@ -1,5 +1,5 @@
-name: Zanshin gate
-description: Fail the build when a target's backlog breaches the policy Zanshin holds for it.
+name: Veriscape gate
+description: Fail the build when a target's backlog breaches the policy Veriscape holds for it.
 
 # A composite action rather than a container one: a Docker action would pull an image on every
 # run to execute a curl the runner already has, and would need this repository published
@@ -10,7 +10,7 @@ description: Fail the build when a target's backlog breaches the policy Zanshin 
 
 inputs:
   url:
-    description: The Zanshin control plane, e.g. https://zanshin.example.com
+    description: The Veriscape control plane, e.g. https://veriscape.example.com
     required: true
   token:
     description: An API key (Administration → API keys). Put it in a secret, never in the file.
@@ -39,8 +39,8 @@ runs:
     - name: Ask the gate
       shell: sh
       env:
-        ZANSHIN_URL: ${{ inputs.url }}
-        ZANSHIN_TOKEN: ${{ inputs.token }}
+        VERISCAPE_URL: ${{ inputs.url }}
+        VERISCAPE_TOKEN: ${{ inputs.token }}
       run: |
         set -eu
         target=""
@@ -49,4 +49,4 @@ runs:
         severity=""
         if [ -n "${{ inputs.fail-on-severity }}" ]; then severity="--fail-on-severity ${{ inputs.fail-on-severity }}"; fi
         # `$GITHUB_ACTION_PATH` is where this action was checked out — the script sits one level up.
-        sh "$GITHUB_ACTION_PATH/../zanshin-gate.sh" $target $severity --on-error "${{ inputs.on-error }}"
+        sh "$GITHUB_ACTION_PATH/../veriscape-gate.sh" $target $severity --on-error "${{ inputs.on-error }}"

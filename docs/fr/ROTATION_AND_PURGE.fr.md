@@ -21,7 +21,7 @@ Lors de la rotation d'une clé SSH privée de déploiement :
    ```bash
    openssl rand -base64 32
    ```
-2. Configurer la nouvelle clé dans `ZANSHIN_ENCRYPTION_KEY` et placer l'ancienne clé dans `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` pour permettre la transition et le ré-encodage fluide.
+2. Configurer la nouvelle clé dans `ENCRYPTION_KEY` et placer l'ancienne clé dans `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` pour permettre la transition et le ré-encodage fluide.
 
 ### 1.3 Mots de Passe Utilisateurs
 Pour forcer le changement de mot de passe à la prochaine connexion d'un utilisateur :

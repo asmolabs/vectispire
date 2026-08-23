@@ -56,7 +56,7 @@ believed.
 runs scans. That is what 0001 set out to avoid, and it is worth stating plainly rather
 than letting it be discovered: the mitigation is not an alternative engine, it is moving
 execution onto an agent so the network-exposed process does not hold the socket. See the
-open item on `ZANSHIN_ROLE` in [04](../04-runtime-and-deployment.md).
+open item on `VERISCAPE_ROLE` in [04](../04-runtime-and-deployment.md).
 
 **Adding an analysis step is now an edit to `ScanRunner`**, not a new implementation. In
 practice that is what every step added since 0001 has been — secrets, IaC, SAST were all

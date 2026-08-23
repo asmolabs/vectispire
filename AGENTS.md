@@ -1,10 +1,10 @@
 # Agents
 
-Veriscape is a **Spring Boot 4 / JDK 25** control plane in [`zanshin-java/`](zanshin-java/) with an
-**Angular 21** interface in [`zanshin-angular/`](zanshin-angular/). They talk over HTTP and are
+Veriscape is a **Spring Boot 4 / JDK 25** control plane in [`veriscape-java/`](veriscape-java/) with an
+**Angular 21** interface in [`veriscape-angular/`](veriscape-angular/). They talk over HTTP and are
 built by different toolchains: Gradle for the backend, npm for the frontend.
 
-Read [`zanshin-java/README.md`](zanshin-java/README.md) before working there. It carries the
+Read [`veriscape-java/README.md`](veriscape-java/README.md) before working there. It carries the
 module graph, what each guarantee is enforced by, and the index of the defects that were fixed
 rather than reproduced.
 
@@ -12,14 +12,14 @@ rather than reproduced.
 
 | | |
 |---|---|
-| Backend | Spring Boot 4.1, JDK 25, Gradle, `zanshin-java/` — see [`zanshin-java/README.md`](zanshin-java/README.md) |
-| Frontend | Angular 21, Optimus UI, `zanshin-angular/` — see [`zanshin-angular/README.md`](zanshin-angular/README.md) |
+| Backend | Spring Boot 4.1, JDK 25, Gradle, `veriscape-java/` — see [`veriscape-java/README.md`](veriscape-java/README.md) |
+| Frontend | Angular 21, Optimus UI, `veriscape-angular/` — see [`veriscape-angular/README.md`](veriscape-angular/README.md) |
 | Database | PostgreSQL (default), MySQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
-cd zanshin-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd zanshin-java && ./gradlew integrationTestAll   # four engines, needs Docker
+cd veriscape-java && ./gradlew build                # compile, unit, architecture and HTTP suites
+cd veriscape-java && ./gradlew integrationTestAll   # four engines, needs Docker
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface

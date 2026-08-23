@@ -32,14 +32,14 @@ Three environment variables matter before the first run:
 
 | Variable | Default |
 |---|---|
-| `ZANSHIN_DB_URL` | `jdbc:postgresql://localhost:5432/zanshin` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/zanshin` |
-| `ZANSHIN_DB_USER` / `ZANSHIN_DB_PASSWORD` | `zanshin` / empty |
+| `VERISCAPE_DB_URL` | `jdbc:postgresql://localhost:5432/veriscape` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/veriscape` |
+| `VERISCAPE_DB_USER` / `VERISCAPE_DB_PASSWORD` | `veriscape` / empty |
 | `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set. In production prefer `ENCRYPTION_KEY_FILE` |
 | `ENCRYPTION_KEY_FILE` | *none* — a path to a file holding the key instead, which is what a Docker or Kubernetes secret mounts. Keeps the value out of `/proc/<pid>/environ`, `docker inspect` and an orchestrator's logs. Setting it *and* `ENCRYPTION_KEY` is refused; a path that does not resolve stops the application rather than starting with no key |
-| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
-| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` | *none* — the same list from a file, comma- or newline-separated, so a rotation does not have to put the old key back into the environment |
-| `ZANSHIN_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `ZANSHIN_OIDC_ISSUER` is set: it would leave no way in |
-| `ZANSHIN_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
+| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` | *none* — comma-separated older keys, tried for decryption only |
+| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS_FILE` | *none* — the same list from a file, comma- or newline-separated, so a rotation does not have to put the old key back into the environment |
+| `VERISCAPE_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `VERISCAPE_OIDC_ISSUER` is set: it would leave no way in |
+| `VERISCAPE_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 
 
 ## 4. Database
@@ -47,8 +47,8 @@ Three environment variables matter before the first run:
 PostgreSQL or MySQL 8. In development a container is the shortest path:
 
 ```bash
-docker run -d --name zanshin-db -p 5432:5432 \
-  -e POSTGRES_USER=zanshin -e POSTGRES_PASSWORD=zanshin -e POSTGRES_DB=zanshin \
+docker run -d --name veriscape-db -p 5432:5432 \
+  -e POSTGRES_USER=veriscape -e POSTGRES_PASSWORD=veriscape -e POSTGRES_DB=veriscape \
   postgres:16-alpine
 ```
 
@@ -56,7 +56,7 @@ The schema belongs to **Flyway migrations**, applied at startup:
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
-# A new change is a new migration script in zanshin-core/src/main/resources/db/migration/<dialect>/.
+# A new change is a new migration script in veriscape-core/src/main/resources/db/migration/<dialect>/.
 ```
 
 `ddl-auto` is `validate`, deliberately: a schema synthesised from the entities is not the one
@@ -67,8 +67,8 @@ variables — set them before the first start and the SUPERUSER is created when 
 table is empty:
 
 ```bash
-ZANSHIN_BOOTSTRAP_USERNAME=admin
-ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
+VERISCAPE_BOOTSTRAP_USERNAME=admin
+VERISCAPE_BOOTSTRAP_PASSWORD=<at least 8 characters>
 ```
 
 
@@ -76,17 +76,17 @@ ZANSHIN_BOOTSTRAP_PASSWORD=<at least 8 characters>
 
 ```bash
 # Flyway brings the schema up to date at startup; nothing to run by hand.
-cd zanshin-java && ./gradlew :zanshin-core:bootRun --args='--server.port=3100'   # API on http://localhost:3100 (for Angular dev proxy)
-npm --workspace @zanshin/frontend start                                         # UI on http://localhost:4200 (proxies /api to 3100)
+cd veriscape-java && ./gradlew :veriscape-core:bootRun --args='--server.port=3180'   # API on http://localhost:3180 (for Angular dev proxy)
+npm --workspace @veriscape/frontend start                                         # UI on http://localhost:4280 (proxies /api to 3180)
 ```
 
-The first start creates a SUPERUSER from `ZANSHIN_BOOTSTRAP_USERNAME` and
-`ZANSHIN_BOOTSTRAP_PASSWORD` when the user table is empty. Once an account exists, both
+The first start creates a SUPERUSER from `VERISCAPE_BOOTSTRAP_USERNAME` and
+`VERISCAPE_BOOTSTRAP_PASSWORD` when the user table is empty. Once an account exists, both
 variables are ignored.
 
 ### 5.1 Docker Compose Deployment (All-in-One)
 
-You can launch the complete Zanshin stack (PostgreSQL + Control Plane + Optional Remote Agent) in a single command:
+You can launch the complete Veriscape stack (PostgreSQL + Control Plane + Optional Remote Agent) in a single command:
 
 ```bash
 # 1. Copy and adjust environment variables
@@ -184,7 +184,7 @@ rewrite before you read it.
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
-- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
+- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
 - **An SSH key shows "Illisible" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; [`ROTATION_AND_PURGE.md`](ROTATION_AND_PURGE.md) has the procedure.
 - **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
 - **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.

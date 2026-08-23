@@ -1,11 +1,11 @@
 {
-    "name": "zanshin",
-    "version": "0.9.0",
+    "name": "veriscape",
+    "version": "1.0.0",
     "private": true,
     "license": "Apache-2.0",
-    "description": "Zanshin \u2014 application security analysis. Spring Boot control plane in zanshin-java/, Angular interface in zanshin-angular/.",
+    "description": "Veriscape \u2014 application security analysis. Spring Boot control plane in veriscape-java/, Angular interface in veriscape-angular/.",
     "workspaces": [
-        "zanshin-angular"
+        "veriscape-angular"
     ],
     "engines": {
         "node": ">=22 <25"
@@ -14,9 +14,9 @@
         "build": "npm run build --workspaces --if-present",
         "test": "npm run test --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
-        "start": "npm run start --workspace @zanshin/frontend",
-        "docker:build": "docker build -t zanshin:latest .",
-        "docker:build:agent": "docker build -f Dockerfile.agent -t zanshin-agent:latest .",
+        "start": "npm run start --workspace @veriscape/frontend",
+        "docker:build": "docker build -t veriscape:latest .",
+        "docker:build:agent": "docker build -f Dockerfile.agent -t veriscape-agent:latest .",
         "docker:up": "docker compose up -d",
         "docker:down": "docker compose down",
         "prepare": "git config core.hooksPath .githooks || true"

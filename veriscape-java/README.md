@@ -1,12 +1,12 @@
-# Zanshin on the JVM
+# Veriscape on the JVM
 
-Zanshin's control plane and its remote agent: **Spring Boot 4.1 / JDK 25**, built with Gradle.
-The Angular interface lives in [`zanshin-angular/`](../zanshin-angular/) and reaches this over
+Veriscape's control plane and its remote agent: **Spring Boot 4.1 / JDK 25**, built with Gradle.
+The Angular interface lives in [`veriscape-angular/`](../veriscape-angular/) and reaches this over
 HTTP.
 
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
-./gradlew :zanshin-common:integrationTest   # the scanner containers, needs Docker
+./gradlew :veriscape-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: postgres)
 ./gradlew integrationTest -Pdialect=mariadb
 ./gradlew integrationTestAll         # all four
@@ -15,12 +15,12 @@ HTTP.
 ## Three modules, and why three
 
 ```
-  zanshin-core  ──┐
-                  ├──►  zanshin-common     domain calculations + scan execution
-  zanshin-agent ──┘
+  veriscape-core  ──┐
+                    ├──►  veriscape-common     domain calculations + scan execution
+  veriscape-agent ──┘
 ```
 
-`zanshin-common` holds what both sides must agree on: the calculations that *decide* — issue
+`veriscape-common` holds what both sides must agree on: the calculations that *decide* — issue
 fingerprint, gate verdict, audit chain, export formats — and the scan execution that turns a
 checkout into artifacts. Both halves are needed by both sides: the agent fingerprints the
 findings it reports, and the control plane runs the same scanners in its built-in worker. Two

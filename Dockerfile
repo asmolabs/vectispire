@@ -1,12 +1,12 @@
-# Zanshin as one image: the Spring Boot control plane with the Angular interface inside it.
+# Veriscape as one image: the Spring Boot control plane with the Angular interface inside it.
 #
-#   docker build -t zanshin .
-#   docker run --rm -p 8000:8000 \
-#     -e ZANSHIN_DB_URL=jdbc:postgresql://db:5432/zanshin \
-#     -e ZANSHIN_DB_USER=zanshin -e ZANSHIN_DB_PASSWORD=... \
+#   docker build -t veriscape .
+#   docker run --rm -p 3180:3180 \
+#     -e VERISCAPE_DB_URL=jdbc:postgresql://db:5432/veriscape \
+#     -e VERISCAPE_DB_USER=veriscape -e VERISCAPE_DB_PASSWORD=... \
 #     -e ENCRYPTION_KEY=... \
 #     -v /var/run/docker.sock:/var/run/docker.sock \
-#     zanshin
+#     veriscape
 #
 # **One origin, and that is the reason for the shape.** The interface is served by the same
 # process that serves the API, so there is no proxy to configure, no CORS, and no pair of
@@ -19,7 +19,7 @@
 #
 # **The Docker socket is mounted, and that is the trade-off to know.** The built-in worker runs
 # the scanners as sibling containers; reaching that socket is equivalent to root on the host.
-# A deployment that cannot accept it should set `ZANSHIN_EMBEDDED_WORKER=false` and give the
+# A deployment that cannot accept it should set `VERISCAPE_EMBEDDED_WORKER=false` and give the
 # work to a remote agent instead — which is the whole reason agents exist (decision 0003).
 
 # --- The interface -----------------------------------------------------------------------

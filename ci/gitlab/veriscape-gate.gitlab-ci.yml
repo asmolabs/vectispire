@@ -1,40 +1,40 @@
-# Zanshin's gate as a GitLab job.
+# Veriscape's gate as a GitLab job.
 #
 #   include:
-#     - remote: 'https://.../ci/gitlab/zanshin-gate.gitlab-ci.yml'
+#     - remote: 'https://.../ci/gitlab/veriscape-gate.gitlab-ci.yml'
 #
-#   zanshin-gate:
-#     extends: .zanshin-gate
+#   veriscape-gate:
+#     extends: .veriscape-gate
 #     variables:
-#       ZANSHIN_REPOSITORY_ID: "12"
+#       VERISCAPE_REPOSITORY_ID: "12"
 #
-# `ZANSHIN_URL` and `ZANSHIN_TOKEN` belong in the project's CI/CD variables, and the token
+# `VERISCAPE_URL` and `VERISCAPE_TOKEN` belong in the project's CI/CD variables, and the token
 # **masked**: it is a bearer credential for the whole control plane, and a job log is read by
 # everybody who can see the pipeline.
 
-.zanshin-gate:
+.veriscape-gate:
   stage: test
   image: alpine:3.22
   variables:
     # Overridable per project. Empty means "not this kind of target".
-    ZANSHIN_REPOSITORY_ID: ""
-    ZANSHIN_CONTAINER_ID: ""
-    ZANSHIN_FAIL_ON_SEVERITY: ""
+    VERISCAPE_REPOSITORY_ID: ""
+    VERISCAPE_CONTAINER_ID: ""
+    VERISCAPE_FAIL_ON_SEVERITY: ""
     # `fail` blocks the pipeline when the gate cannot be asked at all. `warn` lets the build
     # through ungated — availability over assurance, which is a decision somebody should make on
     # purpose rather than inherit from a template.
-    ZANSHIN_ON_ERROR: "fail"
+    VERISCAPE_ON_ERROR: "fail"
   before_script:
     - apk add --no-cache curl jq
   script:
     - |
       set -eu
       target=""
-      if [ -n "$ZANSHIN_REPOSITORY_ID" ]; then target="--repository $ZANSHIN_REPOSITORY_ID"; fi
-      if [ -n "$ZANSHIN_CONTAINER_ID" ]; then target="--container $ZANSHIN_CONTAINER_ID"; fi
+      if [ -n "$VERISCAPE_REPOSITORY_ID" ]; then target="--repository $VERISCAPE_REPOSITORY_ID"; fi
+      if [ -n "$VERISCAPE_CONTAINER_ID" ]; then target="--container $VERISCAPE_CONTAINER_ID"; fi
       severity=""
-      if [ -n "$ZANSHIN_FAIL_ON_SEVERITY" ]; then severity="--fail-on-severity $ZANSHIN_FAIL_ON_SEVERITY"; fi
-      sh ci/zanshin-gate.sh $target $severity --on-error "$ZANSHIN_ON_ERROR"
+      if [ -n "$VERISCAPE_FAIL_ON_SEVERITY" ]; then severity="--fail-on-severity $VERISCAPE_FAIL_ON_SEVERITY"; fi
+      sh ci/veriscape-gate.sh $target $severity --on-error "$VERISCAPE_ON_ERROR"
   # The gate reports a verdict about a backlog, not about this commit's diff: it is worth a
   # failed pipeline and it is not worth blocking a hotfix at three in the morning. Teams that
   # want the second behaviour set `allow_failure: false` in their own job.

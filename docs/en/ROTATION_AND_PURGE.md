@@ -41,7 +41,7 @@ If you need to read it one last time (to identify which provider to revoke it at
 instance), supply the old key explicitly, for the duration of the operation:
 
 ```bash
-ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<your-previous-key>" cd zanshin-java && ./gradlew :zanshin-core:bootRun
+VERISCAPE_PREVIOUS_ENCRYPTION_KEYS="<your-previous-key>" cd veriscape-java && ./gradlew :veriscape-core:bootRun
 ```
 
 To do, **in this order**:
@@ -51,10 +51,10 @@ To do, **in this order**:
    before generation: it is what stops the access.
 2. **Generate** a new pair:
    ```bash
-   ssh-keygen -t ed25519 -C "zanshin-deploy" -f ~/zanshin-deploy
+   ssh-keygen -t ed25519 -C "veriscape-deploy" -f ~/veriscape-deploy
    ```
    Ed25519 rather than RSA: shorter, and it is the recommended default today.
-3. **Set `ENCRYPTION_KEY`** in Zanshin's environment *before* saving the new key —
+3. **Set `ENCRYPTION_KEY`** in Veriscape's environment *before* saving the new key —
    otherwise the application refuses to encrypt (that is the safeguard in place, and it is
    doing exactly its job here):
    ```bash
@@ -82,7 +82,7 @@ UPDATE t_user SET must_change_password = 1;
 
 ### 1.3 The bootstrap password
 
-If `ZANSHIN_BOOTSTRAP_PASSWORD` was filled in a compose file, an environment file or a CI
+If `VERISCAPE_BOOTSTRAP_PASSWORD` was filled in a compose file, an environment file or a CI
 variable, it must be changed there too — and it is now provisional by construction: the
 account created with it has to change its password at first login.
 
@@ -111,8 +111,8 @@ by hand.
 
 ```bash
 ENCRYPTION_KEY="<new key>" \
-ZANSHIN_PREVIOUS_ENCRYPTION_KEYS="<old key>" \
-cd zanshin-java && ./gradlew :zanshin-core:bootRun
+VERISCAPE_PREVIOUS_ENCRYPTION_KEYS="<old key>" \
+cd veriscape-java && ./gradlew :veriscape-core:bootRun
 ```
 
 The old key is used **for decryption only**: every write goes under the new one. Values
@@ -122,7 +122,7 @@ no row shows it any more. Several previous keys can be listed, comma-separated, 
 interrupted rotation.
 
 **In production both halves belong in files, not on that command line.** `ENCRYPTION_KEY_FILE`
-and `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE` take paths — a Docker or Kubernetes secret mount —
+and `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS_FILE` take paths — a Docker or Kubernetes secret mount —
 and keep the two keys out of `/proc/<pid>/environ`, `docker inspect`, the orchestrator's logs and
 this shell's history. The second variable exists precisely for this moment: a rotation is when two
 keys are live at once, and without it the old key — which still decrypts real rows — would have to

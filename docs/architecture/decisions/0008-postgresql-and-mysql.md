@@ -23,7 +23,7 @@ not by re-reading an earlier analysis of them.
 
 ## Decision
 
-`ZANSHIN_DB_DIALECT` is `postgres` or `mysql`. Both are supported and **both pass the full
+`VERISCAPE_DB_DIALECT` is `postgres` or `mysql`. Both are supported and **both pass the full
 integration campaign** — 249 tests, each engine started in turn by testcontainers with its
 own set of migrations.
 

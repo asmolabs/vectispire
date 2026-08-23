@@ -22,7 +22,7 @@ Three sources, in this order.
 **Zanshin's own rules**, written here, with no third-party license: about forty, Python /
 JS-TS / Java, security and quality. Few in number and high in signal.
 
-**A directory supplied by the operator** (`ZANSHIN_SEMGREP_RULES_DIR`), merged with the
+**A directory supplied by the operator** (`VERISCAPE_SEMGREP_RULES_DIR`), merged with the
 previous one. That is where the rules they choose land.
 
 **A fetch script** (`scripts/fetch_semgrep_rules.py`) that pulls `opengrep-rules` at a
@@ -71,7 +71,7 @@ living inside Zanshin's image is invisible to the sibling Semgrep container.
 > three broken by the port:
 >
 > - **Zanshin's own rules**: one rule, not "about forty, Python / JS-TS / Java".
-> - **`ZANSHIN_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
+> - **`VERISCAPE_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
 >   and read nowhere in the code. Implemented on 2026-08-17 in
 >   `RulePlacement`, with a directory that cannot be read now failing SAST
 >   rather than letting the scan run with the bundled rules alone.

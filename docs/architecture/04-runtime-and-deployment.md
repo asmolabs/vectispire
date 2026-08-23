@@ -6,7 +6,7 @@
 mode: it is what lets someone try Zanshin in a quarter of an hour, which is what decides
 whether a free tool gets adopted. Everything that follows is optional.
 
-To be set explicitly — `ZANSHIN_DB_DIALECT=sqlite` — because the code's default is
+To be set explicitly — `VERISCAPE_DB_DIALECT=sqlite` — because the code's default is
 PostgreSQL, which is what a lasting deployment wants. This shape was in fact **announced
 without existing** for the whole of the port: the dialect was listed among the supported
 engines, its driver was not installed, and no connection was possible. All four engines
@@ -22,7 +22,7 @@ Works **even on SQLite**, because an agent never touches the database.
 
 ## What the engine tells you at startup, and why
 
-[`001-baseline.yaml`](../../zanshin-java/zanshin-core/src/main/resources/db/changelog/001-baseline.yaml)
+[`001-baseline.yaml`](../../veriscape-java/veriscape-core/src/main/resources/db/changelog/001-baseline.yaml)
 declares what each engine can and cannot do, and the startup path emits a warning for
 every capability that is missing, each one naming the consequence rather than the
 capability. Saying it early beats letting the problem be discovered as a corrupted
@@ -38,7 +38,7 @@ database or as users logged out at random.
 
 These are warnings, not refusals. An earlier design additionally refused to boot a second
 instance on SQLite, detecting its peer through the built-in agent rows; that guard, and
-the `ZANSHIN_ALLOW_MULTI_INSTANCE_SQLITE` escape hatch that muted it, were not carried
+the `VERISCAPE_ALLOW_MULTI_INSTANCE_SQLITE` escape hatch that muted it, were not carried
 over by the port. **Nothing currently stops you from pointing two instances at one SQLite
 file**, and the consequence is data corruption rather than slowness. See "still open".
 
@@ -124,7 +124,7 @@ a few percent. And the main reason remains the trust boundary
 ([decision 0003](decisions/0003-long-polling-for-agents.md)).
 
 **The queue is routed by label.** A target can require a label, and only agents carrying
-it see its scans — `ZANSHIN_WORKER_LABELS` on the executor side. Without this, any
+it see its scans — `VERISCAPE_WORKER_LABELS` on the executor side. Without this, any
 registered agent claimed any scan, which defeats the point of placing an agent in a
 less-trusted segment.
 
@@ -219,22 +219,22 @@ What actually reduces the privilege, in ascending order of what it costs to run:
 
 | Variable | What it decides |
 |---|---|
-| `ZANSHIN_DB_URL`, `ZANSHIN_DB_USER`, `ZANSHIN_DB_PASSWORD` | where the data lives. A **JDBC** URL — `jdbc:postgresql://…`, `jdbc:mysql://…` — from which the driver and the dialect follow; there is no separate dialect variable |
+| `VERISCAPE_DB_URL`, `VERISCAPE_DB_USER`, `VERISCAPE_DB_PASSWORD` | where the data lives. A **JDBC** URL — `jdbc:postgresql://…`, `jdbc:mysql://…` — from which the driver and the dialect follow; there is no separate dialect variable |
 | `ENCRYPTION_KEY` | without it, nothing can be encrypted. No default value |
-| `ZANSHIN_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
-| `ZANSHIN_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
+| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
+| `VERISCAPE_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
 | `DOCKER_HOST` | read by the Docker client, so the daemon can be a filtering proxy instead of the socket. See the section above for the exact surface, and for what it does not buy |
-| `ZANSHIN_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
-| `ZANSHIN_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
-| `ZANSHIN_QUEUE_LEASE`, `ZANSHIN_QUEUE_MAX_ATTEMPTS` | the lease and the takeover budget described above |
-| `ZANSHIN_LEADER_LEASE` | how long the tick's holder keeps it without renewing |
+| `VERISCAPE_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
+| `VERISCAPE_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
+| `VERISCAPE_QUEUE_LEASE`, `VERISCAPE_QUEUE_MAX_ATTEMPTS` | the lease and the takeover budget described above |
+| `VERISCAPE_LEADER_LEASE` | how long the tick's holder keeps it without renewing |
 | migration | Flyway applies migrations at startup, under the leader lease, so one instance migrates and the others wait |
-| `ZANSHIN_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
+| `VERISCAPE_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
 
 Three variables earlier versions needed are gone, and are listed here because their
 absence is the answer to "where did it go": ~~`REDIS_URL`~~ (the API is stateless, the
-session lives in the database), ~~`ZANSHIN_ALLOWED_ORIGINS`~~ (there is no websocket to
-authorize any more), and ~~`ZANSHIN_AUTO_MIGRATE`~~ (migrations are an explicit step).
+session lives in the database), ~~`VERISCAPE_ALLOWED_ORIGINS`~~ (there is no websocket to
+authorize any more), and ~~`VERISCAPE_AUTO_MIGRATE`~~ (migrations are an explicit step).
 
 ## Still open
 
@@ -242,7 +242,7 @@ authorize any more), and ~~`ZANSHIN_AUTO_MIGRATE`~~ (migrations are an explicit 
   live peer through the built-in agent rows and refused to boot; the port did not carry
   the guard over. The failure mode is corruption, not slowness, which makes this the
   heaviest item on this list.
-- **`ZANSHIN_ROLE`** (separating a `web` role from an `agent` role in one artifact) is
+- **`VERISCAPE_ROLE`** (separating a `web` role from an `agent` role in one artifact) is
   described and not done. Remote agents cover the real need; the remaining gain would be
   taking the Docker client out of the network-exposed process.
 - **Capability-based routing** does not exist. Label-based routing does, which covers the
