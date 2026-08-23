@@ -17,15 +17,13 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                 <i class="pi pi-bars"></i>
             </button>
             <a class="layout-topbar-logo" routerLink="/dashboard">
-                <!-- "Zanshin": the awareness that remains after the action. An open eye
-                     inside a shield — a scan is not a state, it is a watch that
-                     continues. -->
+                <!-- "Veriscape": Veritas (cryptographic truth) + Landscape (attack surface and SBOM posture). -->
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M20 2.5 4.5 8.2v11.3c0 9.1 6.3 15.9 15.5 18 9.2-2.1 15.5-8.9 15.5-18V8.2L20 2.5Z" stroke="var(--primary-color)" stroke-width="2.6" stroke-linejoin="round" fill="none" />
                     <path d="M11 19.4c2.4-3.6 5.4-5.4 9-5.4s6.6 1.8 9 5.4c-2.4 3.6-5.4 5.4-9 5.4s-6.6-1.8-9-5.4Z" stroke="var(--primary-color)" stroke-width="2.2" stroke-linejoin="round" fill="none" />
                     <circle cx="20" cy="19.4" r="2.6" fill="var(--primary-color)" />
                 </svg>
-                <span>ZANSHIN</span>
+                <span>VERISCAPE</span>
             </a>
         </div>
 

@@ -47,10 +47,10 @@ import java.util.Map;
 public final class WebhookSignature {
 
     /** {@code sha256=<hex>}, prefixed so a second algorithm can be added without ambiguity. */
-    public static final String SIGNATURE_HEADER = "X-Zanshin-Signature";
+    public static final String SIGNATURE_HEADER = "X-Veriscape-Signature";
 
     /** Unix seconds. Covered by the signature — see the class comment. */
-    public static final String TIMESTAMP_HEADER = "X-Zanshin-Timestamp";
+    public static final String TIMESTAMP_HEADER = "X-Veriscape-Timestamp";
 
     private static final String ALGORITHM_PREFIX = "sha256=";
 

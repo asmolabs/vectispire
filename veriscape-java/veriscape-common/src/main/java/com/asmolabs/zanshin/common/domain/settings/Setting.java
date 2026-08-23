@@ -101,7 +101,7 @@ public enum Setting {
     WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
             "Webhook signing secret",
             "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
-                    + "Zanshin sent from one sent by whoever learned the URL. An `X-Zanshin-Signature` header "
+                    + "Veriscape sent from one sent by whoever learned the URL. An `X-Veriscape-Signature` header "
                     + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
                     + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
                     + "arrives and will ignore it. Empty means unsigned, which is what every existing "

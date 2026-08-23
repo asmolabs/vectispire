@@ -1,6 +1,6 @@
-# Zanshin — Technical Documentation
+# Veriscape — Technical Documentation
 
-This document describes Zanshin's internal architecture, its database schema, and the scan
+This document describes Veriscape's internal architecture, its database schema, and the scan
 pipeline's runtime flow. For features and quick start, see [`README.md`](../README.md). For
 the reasoning behind the structural choices, see [`docs/architecture/`](architecture/) and
 its [decision register](architecture/decisions/).

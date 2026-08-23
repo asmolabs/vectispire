@@ -1,6 +1,6 @@
-# Documentation Technique — Zanshin
+# Documentation Technique — Veriscape
 
-Ce document décrit l'architecture interne de Zanshin, son modèle de données, et le flux d'exécution du pipeline d'analyse de sécurité.
+Ce document décrit l'architecture interne de Veriscape, son modèle de données, et le flux d'exécution du pipeline d'analyse de sécurité.
 
 ---
 

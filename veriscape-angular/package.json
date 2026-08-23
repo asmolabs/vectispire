@@ -1,11 +1,11 @@
 {
-    "name": "@zanshin/frontend",
-    "version": "0.9.0",
+    "name": "@veriscape/frontend",
+    "version": "1.0.0",
     "private": true,
     "license": "Apache-2.0",
     "scripts": {
         "ng": "ng",
-        "start": "ng serve",
+        "start": "ng serve --port 4280",
         "build": "ng build",
         "watch": "ng build --watch --configuration development",
         "format": "prettier --write \"src/**/*.{ts,html,scss,css}\" --cache",

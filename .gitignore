@@ -11,14 +11,14 @@ dist/
 .angular/
 coverage/
 *.tsbuildinfo
-zanshin-angular/openapi.json
+veriscape-angular/openapi.json
 
 # macOS
 .DS_Store
 
 
 # Gradle build output for the JVM port
-zanshin-java/**/build/
-zanshin-java/**/.gradle/
+veriscape-java/**/build/
+veriscape-java/**/.gradle/
 **/bin/**
 *.class

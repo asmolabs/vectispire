@@ -31,11 +31,11 @@ WORKDIR /src
 # Manifests first: the install layer is rebuilt only when dependencies change, not on every
 # edit to a component.
 COPY package.json package-lock.json ./
-COPY zanshin-angular/package.json zanshin-angular/
+COPY veriscape-angular/package.json veriscape-angular/
 RUN npm ci --ignore-scripts
 
-COPY zanshin-angular/ zanshin-angular/
-RUN npm run build --workspace @zanshin/frontend
+COPY veriscape-angular/ veriscape-angular/
+RUN npm run build --workspace @veriscape/frontend
 
 # --- The jar -----------------------------------------------------------------------------
 FROM eclipse-temurin:25-jdk-alpine AS build
@@ -43,21 +43,19 @@ FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /src
 # The wrapper and the build definition before the sources, for the same layering reason: the
 # dependency resolution is what takes time, and it does not depend on the code.
-COPY zanshin-java/gradle/ gradle/
-COPY zanshin-java/gradlew zanshin-java/settings.gradle.kts zanshin-java/build.gradle.kts ./
-COPY zanshin-java/buildSrc/ buildSrc/
+COPY veriscape-java/gradle/ gradle/
+COPY veriscape-java/gradlew veriscape-java/settings.gradle.kts veriscape-java/build.gradle.kts ./
+COPY veriscape-java/buildSrc/ buildSrc/
 # The empty module directories exist only so that this warm-up can run: `settings.gradle.kts`
-# declares three projects and Gradle refuses to configure one whose directory is missing. The
-# COPY below replaces them. Without this step the dependency download repeats on every change
-# to a source file, which is most of the build time.
-RUN mkdir -p zanshin-common zanshin-core zanshin-agent && ./gradlew --no-daemon help
+# declares three projects and Gradle refuses to configure one whose directory is missing.
+RUN mkdir -p veriscape-common veriscape-core veriscape-agent && ./gradlew --no-daemon help
 
-COPY zanshin-java/ ./
-COPY --from=ui /src/zanshin-angular/dist/zanshin/browser /ui
+COPY veriscape-java/ ./
+COPY --from=ui /src/veriscape-angular/dist/zanshin/browser /ui
 
 # `-PuiDist` rather than `-Pui`: the interface is already built, and asking Gradle to build it
 # again here is what would drag Node into this stage.
-RUN ./gradlew --no-daemon :zanshin-core:bootJar -PuiDist=/ui -x test
+RUN ./gradlew --no-daemon :veriscape-core:bootJar -PuiDist=/ui -x test
 
 # --- The image that runs -----------------------------------------------------------------
 FROM eclipse-temurin:25-jre-alpine

@@ -17,7 +17,7 @@ plugins {
  * timeout and a redirect policy — and nothing else.
  */
 dependencies {
-    implementation(project(":zanshin-common"))
+    implementation(project(":veriscape-common"))
     implementation(platform(libs.spring.boot.bom))
     testImplementation(platform(libs.spring.boot.bom))
     implementation("org.springframework.boot:spring-boot-starter")

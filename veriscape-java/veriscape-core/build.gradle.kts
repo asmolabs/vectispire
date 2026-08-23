@@ -47,7 +47,7 @@ plugins {
  * dev proxy from production, makes `connect-src 'self'` true rather than aspirational, and
  * makes a deployment one artifact instead of two that have to agree on a port.
  */
-val uiSource = layout.projectDirectory.dir("../../zanshin-angular")
+val uiSource = layout.projectDirectory.dir("../../veriscape-angular")
 val uiOutput = layout.buildDirectory.dir("angular")
 
 val buildUi by tasks.registering(Exec::class) {
@@ -81,7 +81,7 @@ if (prebuiltUi.isPresent || project.hasProperty("ui")) {
 }
 
 dependencies {
-    implementation(project(":zanshin-common"))
+    implementation(project(":veriscape-common"))
     implementation(platform(libs.spring.boot.bom))
     testImplementation(platform(libs.spring.boot.bom))
 

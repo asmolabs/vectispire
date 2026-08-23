@@ -9,7 +9,7 @@ export type SupportedLanguage = 'en' | 'fr';
 })
 export class I18nService {
     private readonly http = inject(HttpClient);
-    private readonly STORAGE_KEY = 'zanshin_lang';
+    private readonly STORAGE_KEY = 'veriscape_lang';
 
     readonly supportedLanguages: readonly SupportedLanguage[] = ['en', 'fr'];
     readonly currentLang = signal<SupportedLanguage>('en');

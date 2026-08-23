@@ -1,6 +1,6 @@
 # Agents
 
-Zanshin is a **Spring Boot 4 / JDK 25** control plane in [`zanshin-java/`](zanshin-java/) with an
+Veriscape is a **Spring Boot 4 / JDK 25** control plane in [`zanshin-java/`](zanshin-java/) with an
 **Angular 21** interface in [`zanshin-angular/`](zanshin-angular/). They talk over HTTP and are
 built by different toolchains: Gradle for the backend, npm for the frontend.
 
@@ -33,7 +33,7 @@ mean portability was checked.
 CI also runs a **`supply-chain`** job that no local command mirrors: Syft builds an SBOM of the
 jar that ships and Grype fails on a fixable High finding, and `npm audit` blocks on production
 dependencies. It uses the scanner digests `ScannerImages` pins, so the same scanner version
-audits Zanshin as audits its targets.
+audits Veriscape as audits its targets.
 
 A **`v*` tag** runs [`release.yml`](.github/workflows/release.yml): the suites on the tagged tree,
 then the jar and its SBOM signed with Sigstore keyless and published. It **verifies the signature

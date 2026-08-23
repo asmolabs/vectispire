@@ -1,6 +1,6 @@
-# Zanshin
+# Veriscape
 
-Zanshin is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
+Veriscape is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
 
 Built with [Spring Boot](https://spring.io/projects/spring-boot) on JDK 25 and [Angular](https://angular.dev) over PostgreSQL.
 
