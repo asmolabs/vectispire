@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.zanshin.common.domain.cyclonedx.CycloneDxDocument.*;
-import com.asmolabs.zanshin.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
+import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,17 +69,17 @@ public class CycloneDxGeneratorService {
         }
 
         Component rootApp = new Component(
-                "urn:zanshin:inventory:aggregate",
+                "urn:vectispire:inventory:aggregate",
                 "application",
-                "com.asmolabs.zanshin",
-                "zanshin-monitored-fleet",
+                "com.asmolabs.vectispire",
+                "vectispire-monitored-fleet",
                 "1.0.0",
                 null,
                 null);
 
         Metadata metadata = new Metadata(
                 Instant.now(),
-                List.of(new Tool("AsmoLabs", "Zanshin", "0.9.0")),
+                List.of(new Tool("AsmoLabs", "Vectispire", "0.9.0")),
                 rootApp);
 
         return new CycloneDxDocument(
@@ -129,9 +129,9 @@ public class CycloneDxGeneratorService {
 
         String targetName = scan.getRepoId() != null ? "repo-" + scan.getRepoId() : "container-" + scan.getContainerId();
         Component scanTarget = new Component(
-                "urn:zanshin:target:" + targetName,
+                "urn:vectispire:target:" + targetName,
                 "application",
-                "zanshin",
+                "vectispire",
                 targetName,
                 scan.getVersion() != null ? scan.getVersion() : "latest",
                 null,
@@ -139,7 +139,7 @@ public class CycloneDxGeneratorService {
 
         Metadata metadata = new Metadata(
                 scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now(),
-                List.of(new Tool("AsmoLabs", "Zanshin", "0.9.0")),
+                List.of(new Tool("AsmoLabs", "Vectispire", "0.9.0")),
                 scanTarget);
 
         return new CycloneDxDocument(
@@ -235,7 +235,7 @@ public class CycloneDxGeneratorService {
         return new Analysis(
                 cdxState,
                 justification,
-                comment != null && !comment.isBlank() ? comment : "Evaluated by Zanshin VEX Engine",
+                comment != null && !comment.isBlank() ? comment : "Evaluated by Vectispire VEX Engine",
                 responses.isEmpty() ? null : responses);
     }
 

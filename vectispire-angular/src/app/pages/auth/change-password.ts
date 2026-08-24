@@ -59,7 +59,7 @@ export class ChangePassword {
             error: (response: { status: number; error?: { message?: string } }) => {
                 this.loading.set(false);
                 if (response.status === 0) {
-                    this.error.set('Server unreachable. Check that Zanshin is running.');
+                    this.error.set('Server unreachable. Check that Vectispire is running.');
                 } else {
                     // The server distinguishes "current password wrong" (401) from "new
                     // password refused" (400); its message says which one.

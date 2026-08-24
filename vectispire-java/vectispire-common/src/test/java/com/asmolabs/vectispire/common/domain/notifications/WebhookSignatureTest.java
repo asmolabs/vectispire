@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p><b>These assertions are a contract with code that does not live here.</b> A receiver — a
  * script, a bus, a gateway — reimplements this from the documentation, so a change that keeps
- * Zanshin self-consistent still breaks every verifier in the field, silently, as a rejected
+ * Vectispire self-consistent still breaks every verifier in the field, silently, as a rejected
  * message somebody blames on the network. The literal values below are what makes that change
  * loud.
  */

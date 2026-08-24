@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.persistence.ComponentEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Components;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,7 +61,7 @@ class InventoryTest extends ApiTestBase {
         // The reason this feature is not a filter over issues: on the day a vulnerability is
         // published no scanner knows about it, so the backlog is silent on exactly the component
         // being asked about. No issue is seeded here on purpose.
-        long scanId = seedScan(seedRepository("Zanshin"), "0.1.0");
+        long scanId = seedScan(seedRepository("Vectispire"), "0.1.0");
         seedComponent(scanId, "jackson-databind", "2.17.0", "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.0", false);
 
         mvc.perform(authenticated(get("/api/v1/inventory/search?name=jackson"), asAdmin()))

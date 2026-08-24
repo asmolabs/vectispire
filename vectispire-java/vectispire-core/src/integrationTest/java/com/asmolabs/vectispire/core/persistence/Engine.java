@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.persistence;
+package com.asmolabs.vectispire.core.persistence;
 
 import java.nio.file.Path;
 import java.util.Locale;
@@ -49,7 +49,7 @@ public enum Engine {
 
     /** The engine named by {@code -Pdialect}, defaulting to the one deployments use. */
     public static Engine selected() {
-        String name = System.getProperty("zanshin.db.dialect", "postgres").toUpperCase(Locale.ROOT);
+        String name = System.getProperty("vectispire.db.dialect", "postgres").toUpperCase(Locale.ROOT);
         try {
             return valueOf(name);
         } catch (IllegalArgumentException unknown) {
@@ -84,16 +84,16 @@ public enum Engine {
         // holds it, roughly one run in three. An intermittent failure whose cause is the
         // application competing with its own test is the least debuggable kind there is, and it
         // reads as a flaky engine rather than as this.
-        registry.add("zanshin.worker.enabled", () -> "false");
-        registry.add("zanshin.jobs.relay-interval", () -> "24h");
-        registry.add("zanshin.jobs.scheduler-interval", () -> "24h");
-        registry.add("zanshin.jobs.maintenance-interval", () -> "24h");
+        registry.add("vectispire.worker.enabled", () -> "false");
+        registry.add("vectispire.jobs.relay-interval", () -> "24h");
+        registry.add("vectispire.jobs.scheduler-interval", () -> "24h");
+        registry.add("vectispire.jobs.maintenance-interval", () -> "24h");
         // The interval alone was not enough, and that is the whole lesson: `fixedDelay` spaces
         // the runs that *follow* and lets the first one fire the moment the context is ready.
         // The lease was taken in the middle of the test asserting who held it, on two runs in
         // five, and the message named a random instance id nobody could trace to a scheduler.
-        registry.add("zanshin.jobs.initial-delay", () -> "24h");
-        registry.add("zanshin.worker.initial-delay", () -> "24h");
+        registry.add("vectispire.jobs.initial-delay", () -> "24h");
+        registry.add("vectispire.worker.initial-delay", () -> "24h");
 
         container.ifPresentOrElse(
                 started -> {
@@ -114,7 +114,7 @@ public enum Engine {
 
     /** Where SQLite keeps its file for a run. Fresh each time, so nothing carries over. */
     public static Path sqliteFile() {
-        Path file = Path.of(System.getProperty("java.io.tmpdir"), "zanshin-campaign.db");
+        Path file = Path.of(System.getProperty("java.io.tmpdir"), "vectispire-campaign.db");
         file.toFile().delete();
         return file;
     }

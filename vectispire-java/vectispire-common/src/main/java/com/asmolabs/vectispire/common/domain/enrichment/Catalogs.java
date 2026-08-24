@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.enrichment;
+package com.asmolabs.vectispire.common.domain.enrichment;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Reading the two public catalogs Zanshin enriches findings from.
+ * Reading the two public catalogs Vectispire enriches findings from.
  *
  * <p>Metadata only leaves the machine: CVE identifiers, never code and never a SBOM.
  */

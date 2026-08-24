@@ -56,8 +56,8 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-VECTISPIRE_URL="${VECTISPIRE_URL:-${VERISCAPE_URL:-${ZANSHIN_URL:-}}}"
-VECTISPIRE_TOKEN="${VECTISPIRE_TOKEN:-${VERISCAPE_TOKEN:-${ZANSHIN_TOKEN:-}}}"
+VECTISPIRE_URL="${VECTISPIRE_URL:-}"
+VECTISPIRE_TOKEN="${VECTISPIRE_TOKEN:-}"
 
 : "${VECTISPIRE_URL:?set VECTISPIRE_URL to the control plane, e.g. https://vectispire.example.com}"
 : "${VECTISPIRE_TOKEN:?set VECTISPIRE_TOKEN to an API key (Administration → API keys)}"
@@ -78,7 +78,7 @@ response_file=$(mktemp)
 trap 'rm -f "$response_file"' EXIT
 
 status=$(curl --silent --show-error --location \
-    --max-time "${VECTISPIRE_TIMEOUT:-${VERISCAPE_TIMEOUT:-${ZANSHIN_TIMEOUT:-30}}}" \
+    --max-time "${VECTISPIRE_TIMEOUT:-30}" \
     --write-out '%{http_code}' \
     --output "$response_file" \
     --header "Authorization: Bearer $VECTISPIRE_TOKEN" \

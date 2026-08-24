@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,7 +27,7 @@ public class PasswordChangeInterceptor implements HandlerInterceptor {
         }
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (!(authentication instanceof ZanshinPrincipal principal)) {
+        if (!(authentication instanceof VectispirePrincipal principal)) {
             return true;
         }
         boolean pending = principal.user().map(user -> user.getMustChangePassword()).orElse(false);

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.trends;
+package com.asmolabs.vectispire.common.domain.trends;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;

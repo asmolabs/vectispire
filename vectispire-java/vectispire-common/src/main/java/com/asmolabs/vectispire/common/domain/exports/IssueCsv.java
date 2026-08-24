@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;

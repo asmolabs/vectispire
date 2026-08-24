@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.agents;
+package com.asmolabs.vectispire.common.domain.agents;
 
 import java.util.Locale;
 import java.util.Optional;

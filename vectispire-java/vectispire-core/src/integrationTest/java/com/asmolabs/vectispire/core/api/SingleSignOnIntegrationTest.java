@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.ZanshinApplication;
-import com.asmolabs.zanshin.core.persistence.Engine;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.io.IOException;
 import java.net.CookieManager;
 import java.net.URI;
@@ -60,15 +60,15 @@ import org.testcontainers.utility.DockerImageName;
  * subject changes under it reports on something nobody chose. {@code latest} moving is how a
  * suite starts failing for a reason unrelated to the commit that failed it.
  */
-@SpringBootTest(classes = ZanshinApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = VectispireApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DisplayName("signing in through an identity provider")
 class SingleSignOnIntegrationTest {
 
     private static final DockerImageName KEYCLOAK = DockerImageName.parse(
             "quay.io/keycloak/keycloak@sha256:5fdbf2dbb5897cc34e82de49d13e23db011f9925089dbc555fc095f2c8bc1dac");
 
-    private static final String REALM = "zanshin";
-    private static final String CLIENT_ID = "zanshin-ui";
+    private static final String REALM = "vectispire";
+    private static final String CLIENT_ID = "vectispire-ui";
     private static final String CLIENT_SECRET = "test-secret";
     private static final String PERSON = "alice";
     private static final String PASSWORD = "correct horse battery staple";
@@ -108,9 +108,9 @@ class SingleSignOnIntegrationTest {
         // The issuer the application discovers from, and the one Keycloak will put in the token
         // it issues — the same string, or the identity would be rejected as coming from
         // somewhere else.
-        registry.add("zanshin.oidc.issuer", () -> issuer());
-        registry.add("zanshin.oidc.client-id", () -> CLIENT_ID);
-        registry.add("zanshin.oidc.client-secret", () -> CLIENT_SECRET);
+        registry.add("vectispire.oidc.issuer", () -> issuer());
+        registry.add("vectispire.oidc.client-id", () -> CLIENT_ID);
+        registry.add("vectispire.oidc.client-secret", () -> CLIENT_SECRET);
     }
 
     /**
@@ -167,13 +167,13 @@ class SingleSignOnIntegrationTest {
     }
 
     @Test
-    @DisplayName("a prepared account signs in, and comes back with a Zanshin session")
+    @DisplayName("a prepared account signs in, and comes back with a Vectispire session")
     void theWholeFlow() throws Exception {
         // 1. The application hands the browser to the provider.
         HttpResponse<String> toProvider = browse(HttpRequest.newBuilder(URI.create(app("/oauth2/authorization/oidc"))));
 
         // The client and the scopes are built here, and a wrong one fails at the provider rather
-        // than in Zanshin — which is why asserting on the redirect is worth a line.
+        // than in Vectispire — which is why asserting on the redirect is worth a line.
         assertThat(toProvider.uri().toString()).contains("/realms/" + REALM + "/protocol/openid-connect/auth");
         assertThat(toProvider.uri().toString()).contains("client_id=" + CLIENT_ID);
         assertThat(toProvider.uri().toString()).contains("scope=openid");
@@ -184,7 +184,7 @@ class SingleSignOnIntegrationTest {
                 .POST(HttpRequest.BodyPublishers.ofString(
                         "username=" + PERSON + "&password=" + encode(PASSWORD) + "&credentialId=")));
 
-        // 3. Back at Zanshin, which exchanged the code server-side and minted a session.
+        // 3. Back at Vectispire, which exchanged the code server-side and minted a session.
         assertThat(afterLogin.uri().toString())
                 .describedAs("the sign-on ends on the screen that completes it")
                 .contains("/login?sso=complete");
@@ -211,10 +211,10 @@ class SingleSignOnIntegrationTest {
     }
 
     @Test
-    @DisplayName("an identity with no Zanshin account is refused, and says so")
+    @DisplayName("an identity with no Vectispire account is refused, and says so")
     void anUnpreparedIdentityIsRefused() throws Exception {
         // The decision this feature was built around: single sign-on says who somebody is, not
-        // that they may come in. Alice exists in the realm and, here, not in Zanshin.
+        // that they may come in. Alice exists in the realm and, here, not in Vectispire.
         users.deleteAll();
 
         HttpResponse<String> toProvider = browse(HttpRequest.newBuilder(URI.create(app("/oauth2/authorization/oidc"))));

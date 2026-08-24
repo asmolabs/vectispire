@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.apis;
+package com.asmolabs.vectispire.common.domain.apis;
 
 public enum ShadowApiStatus {
     /** Present in code and declared in OpenAPI contract. */

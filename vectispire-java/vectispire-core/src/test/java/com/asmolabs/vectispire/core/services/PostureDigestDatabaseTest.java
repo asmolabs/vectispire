@@ -1,19 +1,19 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.AuditLog;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * itself rather than a timestamp this service keeps, so it can only be checked against a database.
  */
 @DisplayName("the weekly posture report")
-class PostureDigestDatabaseTest extends ZanshinContextTest {
+class PostureDigestDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private PostureDigestService digest;
@@ -107,8 +107,8 @@ class PostureDigestDatabaseTest extends ZanshinContextTest {
                 .count();
     }
 
-    private com.asmolabs.zanshin.core.persistence.AuditLogEntity entry() {
-        var row = new com.asmolabs.zanshin.core.persistence.AuditLogEntity();
+    private com.asmolabs.vectispire.core.persistence.AuditLogEntity entry() {
+        var row = new com.asmolabs.vectispire.core.persistence.AuditLogEntity();
         row.setOperationType(AuditOperation.POSTURE_DIGEST_SENT.wireName());
         row.setResourceId("earlier-this-week");
         row.setDescription("Weekly posture report sent");

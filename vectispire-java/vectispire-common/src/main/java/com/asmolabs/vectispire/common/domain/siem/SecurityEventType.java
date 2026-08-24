@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.siem;
+package com.asmolabs.vectispire.common.domain.siem;
 
 /**
  * High-priority security incident and governance events forwarded to SOC/SIEM systems.

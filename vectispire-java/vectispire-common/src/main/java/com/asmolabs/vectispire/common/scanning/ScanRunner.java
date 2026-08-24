@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
-import com.asmolabs.zanshin.common.scanning.scanners.DependencyScanner;
-import com.asmolabs.zanshin.common.scanning.scanners.IacScanner;
-import com.asmolabs.zanshin.common.scanning.scanners.SastScanner;
-import com.asmolabs.zanshin.common.scanning.scanners.ScannerImages;
-import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.IacScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.SastScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -43,7 +43,7 @@ public final class ScanRunner {
      * runs on both sides and the two sides answer differently. A remote agent in
      * {@code CredentialsMode.LOCAL} is supposed to use its own git access — that is the whole
      * meaning of the mode — while the built-in worker runs inside the control plane, where
-     * borrowing the host's identity would let any target added to Zanshin be cloned with it.
+     * borrowing the host's identity would let any target added to Vectispire be cloned with it.
      */
     private final GitClone.WithoutKey withoutKey;
     private final Clock clock;
@@ -164,7 +164,7 @@ public final class ScanRunner {
 
         // **A workspace, now.** None was needed while the cataloguer read the image from the
         // registry with the Docker socket mounted; that mount was precisely the problem. The
-        // image is exported into this workspace by Zanshin, and the cataloguer sees one
+        // image is exported into this workspace by Vectispire, and the cataloguer sees one
         // read-only file.
         Workspace.withWorkspace(workspace -> {
             step(artifacts, "dependencies", () -> {

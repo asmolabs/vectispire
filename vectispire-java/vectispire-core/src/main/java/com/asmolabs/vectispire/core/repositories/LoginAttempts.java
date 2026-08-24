@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
+import com.asmolabs.vectispire.core.persistence.LoginAttemptEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

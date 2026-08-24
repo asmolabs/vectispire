@@ -1,21 +1,21 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Proof that a webhook message came from this Zanshin.
+ * Proof that a webhook message came from this Vectispire.
  *
  * <h2>What it is for</h2>
  *
  * <p>A webhook URL is a <b>bearer capability</b>: whoever knows it can post into the channel where
- * a team waits for Zanshin's alerts, which is exactly where a forged message carries most weight —
- * "no new vulnerabilities" is a lie somebody has an interest in telling. Zanshin already refuses to
+ * a team waits for Vectispire's alerts, which is exactly where a forged message carries most weight —
+ * "no new vulnerabilities" is a lie somebody has an interest in telling. Vectispire already refuses to
  * return the URL from any route for that reason. This closes the other half: a receiver can tell a
- * message Zanshin sent from a message somebody who learned the URL sent.
+ * message Vectispire sent from a message somebody who learned the URL sent.
  *
  * <p><b>Which receivers this actually helps, stated plainly.</b> A receiver has to check the
  * signature for it to be worth anything, and Slack, Teams and Discord will not — they accept
@@ -47,10 +47,10 @@ import java.util.Map;
 public final class WebhookSignature {
 
     /** {@code sha256=<hex>}, prefixed so a second algorithm can be added without ambiguity. */
-    public static final String SIGNATURE_HEADER = "X-Veriscape-Signature";
+    public static final String SIGNATURE_HEADER = "X-Vectispire-Signature";
 
     /** Unix seconds. Covered by the signature — see the class comment. */
-    public static final String TIMESTAMP_HEADER = "X-Veriscape-Timestamp";
+    public static final String TIMESTAMP_HEADER = "X-Vectispire-Timestamp";
 
     private static final String ALGORITHM_PREFIX = "sha256=";
 

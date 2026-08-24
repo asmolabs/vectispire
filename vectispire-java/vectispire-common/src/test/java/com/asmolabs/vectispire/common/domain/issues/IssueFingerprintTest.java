@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.issues;
+package com.asmolabs.vectispire.common.domain.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

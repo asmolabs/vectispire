@@ -68,7 +68,7 @@ flowchart TB
 
 ### Règles d'Architecture Clés
 1. **Domaine Pur** : La couche `common.domain` ne dépend d'aucun framework (pas de Spring, pas d'Hibernate, pas de JDBC). Cela garantit l'isolation, la testabilité exhaustive et la réutilisation sur l'agent distant.
-2. **Isolation de l'Agent** : `zanshin-agent` ne dépend pas de `zanshin-core`. Aucun pilote JDBC ni accès base de données n'est présent sur le classpath de l'agent.
+2. **Isolation de l'Agent** : `vectispire-agent` ne dépend pas de `vectispire-core`. Aucun pilote JDBC ni accès base de données n'est présent sur le classpath de l'agent.
 3. **Contrôle ArchUnit** : `ArchitectureTest` vérifie automatiquement à chaque build que les couches supérieures n'importent jamais de couches inférieures.
 
 ---
@@ -139,7 +139,7 @@ Le moteur de conformité évalue en continu 5 référentiels majeurs :
   - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`) : Adaptive Cards version 1.4 acheminées via Power Automate Workflow.
   - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`) : Rich Embeds avec couleur contextuelle selon sévérité.
   - **Email** (`MailNotificationChannel`) : Diffusion MIME/HTML sur listes de distribution.
-  - **Webhook Générique / SIEM** (`NotificationService`) : JSON POST universel avec signature cryptographique HMAC-SHA256 (`X-Zanshin-Signature`).
+  - **Webhook Générique / SIEM** (`NotificationService`) : JSON POST universel avec signature cryptographique HMAC-SHA256 (`X-Vectispire-Signature`).
 - **Garanties Transactionnelles** :
   - Les messages sont écrits dans `t_outbox_message` dans la même transaction que le résultat de scan, avec politique de retry et backoff exponentiel isolé par canal.
 - **Endpoints API** :

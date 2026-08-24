@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.licenses;
+package com.asmolabs.vectispire.common.domain.licenses;
 
 /**
  * A single software dependency license observation in a target.

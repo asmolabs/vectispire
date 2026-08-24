@@ -1,19 +1,19 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +33,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * expression in SQL rather than a comparator.
  */
 @DisplayName("opening tickets, against a database")
-class TicketSweepDatabaseTest extends ZanshinContextTest {
+class TicketSweepDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private TicketSweepService sweep;

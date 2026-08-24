@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,12 +7,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.core.persistence.TeamEntity;
-import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.TeamMembers;
-import com.asmolabs.zanshin.core.repositories.Teams;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.core.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.TeamMembers;
+import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;

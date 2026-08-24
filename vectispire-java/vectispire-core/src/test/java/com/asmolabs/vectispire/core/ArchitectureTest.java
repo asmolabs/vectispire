@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core;
+package com.asmolabs.vectispire.core;
 
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
@@ -13,10 +13,10 @@ import org.junit.jupiter.api.Test;
 /**
  * The layer rule, checked.
  *
- * <p>The module split already carries the part that matters most: {@code zanshin-agent} does
- * not depend on {@code zanshin-core}, so a driver is not on its classpath and the violation
+ * <p>The module split already carries the part that matters most: {@code vectispire-agent} does
+ * not depend on {@code vectispire-core}, so a driver is not on its classpath and the violation
  * fails to compile rather than failing review. What one module cannot express is the rule
- * <em>inside</em> {@code zanshin-core}, and that is what this file is for.
+ * <em>inside</em> {@code vectispire-core}, and that is what this file is for.
  *
  * <p>It exists because an architecture rule written in a document is not a rule: it is true
  * the day it is written and false six months later. The NestJS tree learned that, and its
@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the layer rule")
 class ArchitectureTest {
 
-    private static final String ROOT = "com.asmolabs.zanshin";
+    private static final String ROOT = "com.asmolabs.vectispire";
 
     private static JavaClasses classes;
 
@@ -107,7 +107,7 @@ class ArchitectureTest {
                         "javax.sql..",
                         "org.flywaydb..",
                         "liquibase..",
-                        // The scanning half of `zanshin-common` needs a Docker client; the
+                        // The scanning half of `vectispire-common` needs a Docker client; the
                         // domain half must never. A calculation that reached the daemon would
                         // stop being testable without one, which is the property the whole
                         // layer exists for.

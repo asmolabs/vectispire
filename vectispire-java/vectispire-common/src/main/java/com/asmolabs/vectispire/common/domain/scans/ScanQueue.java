@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scans;
+package com.asmolabs.vectispire.common.domain.scans;
 
 import java.time.Duration;
 import java.time.Instant;

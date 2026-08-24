@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.ticketing.TicketingProvider;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.IssueTicketEntity;
-import com.asmolabs.zanshin.core.repositories.IssueTickets;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
+import com.asmolabs.vectispire.core.repositories.IssueTickets;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -57,7 +57,7 @@ public class TicketingController {
     public IssueTicketEntity create(
             @PathVariable long issueId,
             @RequestBody CreateTicketRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         IssueEntity issue = issues.findById(issueId)

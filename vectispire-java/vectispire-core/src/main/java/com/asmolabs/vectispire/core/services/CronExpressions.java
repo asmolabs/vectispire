@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.scheduling.CronSchedule;
+import com.asmolabs.vectispire.common.domain.scheduling.CronSchedule;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;

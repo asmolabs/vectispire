@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.scanning.ContainerRun;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.ScannerFailureException;
-import com.asmolabs.zanshin.common.scanning.Workspace;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.scanning.ContainerRun;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
+import com.asmolabs.vectispire.common.scanning.Workspace;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -212,7 +212,7 @@ public final class SastScanner {
     }
 
     /**
-     * The tool's vocabulary into Zanshin's.
+     * The tool's vocabulary into Vectispire's.
      *
      * <p>An explicit table and not a lowercase conversion: {@code "ERROR"} lowercased is
      * {@code error}, which belongs to no policy threshold. The value would then propagate

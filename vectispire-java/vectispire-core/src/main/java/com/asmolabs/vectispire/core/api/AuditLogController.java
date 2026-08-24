@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditChain;
-import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.repositories.AuditLog;
-import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;

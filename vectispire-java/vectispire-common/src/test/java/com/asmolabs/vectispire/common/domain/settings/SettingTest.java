@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.settings;
+package com.asmolabs.vectispire.common.domain.settings;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,7 +36,7 @@ class SettingTest {
     @DisplayName("every setting whose value is a bearer capability is marked secret")
     void secretsAreMarked() {
         // A webhook URL is not configuration: whoever knows it can post in the channel where
-        // the team awaits Zanshin's alerts, which is the channel where a forged message
+        // the team awaits Vectispire's alerts, which is the channel where a forged message
         // carries most weight. Reading it needs no write permission.
         //
         // The list is exhaustive on purpose. A setting added here without `Sensitivity.SECRET`

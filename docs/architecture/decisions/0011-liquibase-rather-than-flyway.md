@@ -101,7 +101,7 @@ decision refuses.
 ## Consequences
 
 **Writing changeset 008 requires knowing this**, so the rule is in
-[`zanshin-java/README.md`](../../../zanshin-java/README.md) beside the Liquibase section —
+[`vectispire-java/README.md`](../../../vectispire-java/README.md) beside the Liquibase section —
 the file somebody opens before touching the schema — and not only here.
 
 **`ChangelogTest` asserts foreign keys by name, not by count.** A new referencing table has

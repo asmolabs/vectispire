@@ -1,25 +1,25 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
-import com.asmolabs.zanshin.common.domain.exports.IssueCsv;
-import com.asmolabs.zanshin.common.domain.exports.OpenVexDocument;
-import com.asmolabs.zanshin.common.domain.exports.OpenVexExport;
-import com.asmolabs.zanshin.common.domain.exports.SarifExport;
-import com.asmolabs.zanshin.common.domain.exports.SarifLog;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.repositories.IssueFilters;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.SlaService;
-import com.asmolabs.zanshin.core.services.ExportProperties;
-import com.asmolabs.zanshin.core.services.GateService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
-import com.asmolabs.zanshin.core.services.IssueViews;
-import com.asmolabs.zanshin.core.services.PostureReport;
-import com.asmolabs.zanshin.core.services.TargetNaming;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
+import com.asmolabs.vectispire.common.domain.exports.IssueCsv;
+import com.asmolabs.vectispire.common.domain.exports.OpenVexDocument;
+import com.asmolabs.vectispire.common.domain.exports.OpenVexExport;
+import com.asmolabs.vectispire.common.domain.exports.SarifExport;
+import com.asmolabs.vectispire.common.domain.exports.SarifLog;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.SlaService;
+import com.asmolabs.vectispire.core.services.ExportProperties;
+import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.IssueViews;
+import com.asmolabs.vectispire.core.services.PostureReport;
+import com.asmolabs.vectispire.core.services.TargetNaming;
 import java.time.Clock;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The three formats Zanshin hands to somebody else: a code-scanning platform, an auditor, a
+ * The three formats Vectispire hands to somebody else: a code-scanning platform, an auditor, a
  * spreadsheet.
  *
  * <p>The documents are built by the domain. This controller only picks the issues and sets the
@@ -87,13 +87,13 @@ public class ExportsController {
      */
     @GetMapping("/issues.sarif")
     public ResponseEntity<SarifLog> sarif(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id) {
         requireVisible(principal, kind, id);
         String name = targetName(kind, id);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".sarif"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".sarif"))
                 .contentType(MediaType.parseMediaType("application/sarif+json"))
                 .body(SarifExport.build(
                         exportable(kind, id, null),
@@ -109,7 +109,7 @@ public class ExportsController {
      */
     @GetMapping("/vex")
     public ResponseEntity<OpenVexDocument> vex(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
@@ -121,14 +121,14 @@ public class ExportsController {
                 new OpenVexExport.Options(
                         author == null || author.isBlank() ? properties.vexAuthor() : author,
                         name,
-                        properties.publicUrl().orElse("urn:zanshin") + "/vex/" + kind + "/" + id,
+                        properties.publicUrl().orElse("urn:vectispire") + "/vex/" + kind + "/" + id,
                         clock.instant()));
 
         // Downloaded like the other three. It used to render in the tab, which is fine for a
         // developer poking at the API and useless for the button that hands the document to
         // somebody downstream.
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".openvex.json"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".openvex.json"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(document);
     }
@@ -137,26 +137,26 @@ public class ExportsController {
      * The triage decisions as OASIS CSAF 2.0 (VEX profile).
      */
     @GetMapping("/issues.csaf.json")
-    public ResponseEntity<com.asmolabs.zanshin.common.domain.exports.CsafDocument> csaf(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+    public ResponseEntity<com.asmolabs.vectispire.common.domain.exports.CsafDocument> csaf(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
         requireVisible(principal, kind, id);
 
         String name = targetName(kind, id);
-        com.asmolabs.zanshin.common.domain.exports.CsafDocument document =
-                com.asmolabs.zanshin.common.domain.exports.CsafExport.build(
+        com.asmolabs.vectispire.common.domain.exports.CsafDocument document =
+                com.asmolabs.vectispire.common.domain.exports.CsafExport.build(
                         exportable(kind, id, null),
-                        new com.asmolabs.zanshin.common.domain.exports.CsafExport.Options(
+                        new com.asmolabs.vectispire.common.domain.exports.CsafExport.Options(
                                 name,
                                 author == null || author.isBlank() ? properties.vexAuthor() : author,
                                 properties.toolVersion(),
-                                properties.publicUrl().orElse("https://zanshin.internal"),
+                                properties.publicUrl().orElse("https://vectispire.internal"),
                                 clock.instant()));
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".csaf.json"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".csaf.json"))
                 .contentType(MediaType.parseMediaType("application/vnd.oasis.csaf+json; version=2.0"))
                 .body(document);
     }
@@ -171,7 +171,7 @@ public class ExportsController {
      */
     @GetMapping("/posture.pdf")
     public ResponseEntity<byte[]> pdf(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
@@ -199,14 +199,14 @@ public class ExportsController {
                 sla.policy());
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".pdf"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".pdf"))
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(document);
     }
 
     @GetMapping("/issues.csv")
     public ResponseEntity<String> csv(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
@@ -214,7 +214,7 @@ public class ExportsController {
 
         targetName(kind, id);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("zanshin-" + kind + "-" + id + ".csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".csv"))
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
                 .body(IssueCsv.build(exportable(kind, id, state)));
     }
@@ -224,7 +224,7 @@ public class ExportsController {
      * It is therefore the route where a missing check costs most, and the one a caller reaches
      * by guessing a number rather than by clicking a link.
      */
-    private void requireVisible(ZanshinPrincipal principal, String kind, long id) {
+    private void requireVisible(VectispirePrincipal principal, String kind, long id) {
         Visibilities.requireVisible(
                 isRepository(kind) ? new ScanTarget.Repository(id) : new ScanTarget.Container(id),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));

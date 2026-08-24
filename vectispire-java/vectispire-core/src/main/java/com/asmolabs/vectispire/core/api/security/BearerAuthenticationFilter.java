@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.core.api.scim.ScimProperties;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.ApiKeyAuthService;
-import com.asmolabs.zanshin.core.services.AuthService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.core.api.scim.ScimProperties;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.AuthService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,7 +66,7 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private Optional<ZanshinPrincipal> authenticate(String header) {
+    private Optional<VectispirePrincipal> authenticate(String header) {
         Optional<SessionEntity> session = auth.resolve(header);
         if (session.isPresent()) {
             Optional<UserEntity> user = users.findById(session.get().getUserId()).filter(UserEntity::getIsActive);
@@ -74,7 +74,7 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
                 auth.revoke(session.get());
                 return Optional.empty();
             }
-            return Optional.of(ZanshinPrincipal.ofUser(user.get(), session.get()));
+            return Optional.of(VectispirePrincipal.ofUser(user.get(), session.get()));
         }
 
         Optional<String> token = bearerToken(header);
@@ -86,14 +86,14 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
         if (scimProperties.isPresent()) {
             ScimProperties props = scimProperties.get().resolved();
             if (props.token().isPresent() && SecretCipher.secretEquals(token.get(), props.token().get())) {
-                return Optional.of(ZanshinPrincipal.ofScimClient());
+                return Optional.of(VectispirePrincipal.ofScimClient());
             }
         }
 
         return token.flatMap(apiKeys::resolve)
                 .filter(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT))
                 .flatMap(key -> apiKeys.agentFor(key)
-                        .map(agent -> ZanshinPrincipal.ofAgent(
+                        .map(agent -> VectispirePrincipal.ofAgent(
                                 agent, visibility.restrictionOf(key.getTargetKind(), key.getTargetId()))));
     }
 

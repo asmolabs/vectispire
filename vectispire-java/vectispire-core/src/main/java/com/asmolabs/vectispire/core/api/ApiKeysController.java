@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeys;
-import com.asmolabs.zanshin.common.domain.apikeys.InvalidApiKeyException;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.ApiKeyEntity;
-import com.asmolabs.zanshin.core.repositories.ApiKeysRepository;
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.TargetNaming;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
+import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
@@ -23,7 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -116,7 +116,7 @@ public class ApiKeysController {
     @PostMapping
     public IssuedKey create(
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String name = body.name() == null ? "" : body.name().trim();
@@ -155,7 +155,7 @@ public class ApiKeysController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable UUID id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
@@ -237,7 +237,7 @@ public class ApiKeysController {
     }
 
     private void record(
-            ZanshinPrincipal principal,
+            VectispirePrincipal principal,
             HttpServletRequest request,
             AuditOperation operation,
             String resourceId,

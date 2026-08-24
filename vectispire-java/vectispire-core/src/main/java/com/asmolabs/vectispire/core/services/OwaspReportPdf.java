@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.aireview.OwaspMarkdown;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,7 +26,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
  *
  * <h2>The provenance is on the first page, not in a footer</h2>
  *
- * <p>This document leaves Zanshin and gets forwarded. A reader who cannot see which model wrote
+ * <p>This document leaves Vectispire and gets forwarded. A reader who cannot see which model wrote
  * it, from which scan, on which version, has a security report with no way to judge its age or
  * its author — and the caveat that a model wrote it is the first thing an auditor needs, not a
  * detail at the bottom.
@@ -38,7 +38,7 @@ public final class OwaspReportPdf {
     private static final DateTimeFormatter STAMP =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'").withZone(ZoneOffset.UTC);
 
-    /** Zanshin's ink: a deep slate for structure, a warm accent for the category headings. */
+    /** Vectispire's ink: a deep slate for structure, a warm accent for the category headings. */
     private static final Color INK = new Color(0x1F, 0x2A, 0x37);
     private static final Color ACCENT = new Color(0x9A, 0x3F, 0x3F);
     private static final Color MUTED = new Color(0x6B, 0x72, 0x80);
@@ -66,7 +66,7 @@ public final class OwaspReportPdf {
             ReportCursor cursor = new ReportCursor(document);
             cover(cursor, subject);
             body(cursor, markdown);
-            cursor.close("Zanshin — OWASP report — " + subject.targetName());
+            cursor.close("Vectispire — OWASP report — " + subject.targetName());
 
             document.save(bytes);
             return bytes.toByteArray();

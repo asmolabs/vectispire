@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.dependencies;
+package com.asmolabs.vectispire.common.domain.dependencies;
 
 /**
  * Whether the project asked for a dependency, or something else dragged it in.

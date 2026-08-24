@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.reachability;
+package com.asmolabs.vectispire.common.domain.reachability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

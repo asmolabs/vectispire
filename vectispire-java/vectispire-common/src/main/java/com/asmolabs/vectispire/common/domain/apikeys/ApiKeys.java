@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.apikeys;
+package com.asmolabs.vectispire.common.domain.apikeys;
 
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.security.SecureRandom;
 import java.time.Period;
 import java.util.ArrayList;

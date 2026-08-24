@@ -1,15 +1,15 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueFingerprint;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;

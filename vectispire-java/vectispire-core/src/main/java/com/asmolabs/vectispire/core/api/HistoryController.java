@@ -1,24 +1,24 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.TriageEventEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.repositories.TriageEvents;
-import com.asmolabs.zanshin.core.services.TriageHistory;
-import com.asmolabs.zanshin.core.services.TriageHistoryCsv;
-import com.asmolabs.zanshin.core.services.TriageHistoryReport;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.core.services.TriageHistory;
+import com.asmolabs.vectispire.core.services.TriageHistoryCsv;
+import com.asmolabs.vectispire.core.services.TriageHistoryReport;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -99,7 +99,7 @@ public class HistoryController {
     }
 
     @GetMapping("/repositories")
-    public List<TriageHistory.Repository> repositories(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public List<TriageHistory.Repository> repositories(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
 
         return repositories.findAll().stream()
@@ -112,7 +112,7 @@ public class HistoryController {
 
     @GetMapping("/repositories/{id}")
     public TriageHistory.Dossier dossier(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable long id,
             @RequestParam(required = false, defaultValue = "50") int limit) {
 
@@ -122,23 +122,23 @@ public class HistoryController {
 
     @GetMapping(value = "/repositories/{id}/export.csv", produces = "text/csv")
     public ResponseEntity<byte[]> csv(
-            @AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+            @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
 
         RepositoryEntity repository = visible(principal, id);
         String content = TriageHistoryCsv.render(rowOf(repository), scanRows(id, MAX_SCANS));
         return download(
                 content.getBytes(StandardCharsets.UTF_8),
                 MediaType.parseMediaType("text/csv"),
-                "zanshin-history-" + id + ".csv");
+                "vectispire-history-" + id + ".csv");
     }
 
     @GetMapping(value = "/repositories/{id}/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> pdf(
-            @AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+            @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
 
         RepositoryEntity repository = visible(principal, id);
         byte[] document = TriageHistoryReport.render(rowOf(repository), scanRows(id, MAX_SCANS), clock.instant());
-        return download(document, MediaType.APPLICATION_PDF, "zanshin-history-" + id + ".pdf");
+        return download(document, MediaType.APPLICATION_PDF, "vectispire-history-" + id + ".pdf");
     }
 
     /**
@@ -155,7 +155,7 @@ public class HistoryController {
                 .body(body);
     }
 
-    private RepositoryEntity visible(ZanshinPrincipal principal, long id) {
+    private RepositoryEntity visible(VectispirePrincipal principal, long id) {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
         // 404 rather than 403 when it exists but is not visible — see `Visibilities`.

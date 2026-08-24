@@ -1,5 +1,5 @@
 /**
- * What every Zanshin module agrees on: the JDK, the compiler settings, how tests run.
+ * What every Vectispire module agrees on: the JDK, the compiler settings, how tests run.
  *
  * Deliberately free of library versions. Those live in `gradle/libs.versions.toml`, where a
  * reader looking for "which Spring Boot is this" finds one answer rather than two that can

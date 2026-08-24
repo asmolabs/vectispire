@@ -330,7 +330,7 @@ export class Settings {
                 this.savingWebhookSecret.set(false);
                 this.webhookSecretConfigured.set(configured);
                 // Cleared from the model as well as from the field: this is the only thing that
-                // tells a receiver a message came from Zanshin, so anyone who reads it off the
+                // tells a receiver a message came from Vectispire, so anyone who reads it off the
                 // open tab can forge one.
                 this.webhookSecretInput = '';
                 this.saved.set(true);

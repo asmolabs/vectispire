@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
 import java.util.List;
 import java.util.Optional;

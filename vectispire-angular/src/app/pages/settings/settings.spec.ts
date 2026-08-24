@@ -97,7 +97,7 @@ describe('the settings screen', () => {
         fixture.detectChanges();
 
         // The server never sends it back, so the field is the only place it could still be read —
-        // and anyone who reads it can sign a message Zanshin did not send.
+        // and anyone who reads it can sign a message Vectispire did not send.
         expect(fixture.componentInstance.webhookSecretInput).toBe('');
         expect(fixture.componentInstance.webhookSecretConfigured()).toBe(true);
     });

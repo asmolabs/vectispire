@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.domain.audit;
+package com.asmolabs.vectispire.common.domain.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditChain.Entry;
-import com.asmolabs.zanshin.common.domain.audit.AuditChain.VerifiableEntry;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain.Entry;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain.VerifiableEntry;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;

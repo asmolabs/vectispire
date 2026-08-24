@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -104,8 +104,8 @@ class TeamsAndMailTest {
         void theButtonNeedsAnAddress() {
             // An unreachable link is worse than none.
             assertThat(cardOf(payload(1, 0, List.of()), null)).doesNotContainKey("actions");
-            assertThat(cardOf(payload(1, 0, List.of()), "https://zanshin.example.com/").toString())
-                    .contains("https://zanshin.example.com/issues");
+            assertThat(cardOf(payload(1, 0, List.of()), "https://vectispire.example.com/").toString())
+                    .contains("https://vectispire.example.com/issues");
         }
     }
 

@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.apis.ApiContract;
-import com.asmolabs.zanshin.common.domain.apis.ApiEndpoint;
-import com.asmolabs.zanshin.common.domain.apis.ApiVisibility;
-import com.asmolabs.zanshin.common.domain.apis.AttackSurfaceSummary;
-import com.asmolabs.zanshin.common.domain.apis.ShadowApiDiff;
+import com.asmolabs.vectispire.common.domain.apis.ApiContract;
+import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
+import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
+import com.asmolabs.vectispire.common.domain.apis.AttackSurfaceSummary;
+import com.asmolabs.vectispire.common.domain.apis.ShadowApiDiff;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.audit;
+package com.asmolabs.vectispire.common.domain.audit;
 
 /**
  * What the audit log records.

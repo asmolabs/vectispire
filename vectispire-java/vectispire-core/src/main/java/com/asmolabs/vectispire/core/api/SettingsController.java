@@ -1,22 +1,22 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.zanshin.common.domain.aireview.AiReview;
-import com.asmolabs.zanshin.core.services.AiReviewService;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.NotificationService;
-import com.asmolabs.zanshin.core.services.SettingsService;
-import com.asmolabs.zanshin.core.services.TicketService;
+import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.core.services.AiReviewService;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.NotificationService;
+import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -96,11 +96,11 @@ public class SettingsController {
      * control, and the help text to say what the setting does not do.
      */
     @GetMapping
-    public Catalog list(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public Catalog list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Map<String, String> stored = settings.stored();
         // **A sensitive setting's value only leaves for an administrator.** A webhook URL is a
         // bearer capability: whoever reads it can post in the channel where the team awaits
-        // Zanshin's alerts. The catalog itself stays readable by everybody — the screen needs
+        // Vectispire's alerts. The catalog itself stays readable by everybody — the screen needs
         // the labels and the types.
         boolean isAdmin = principal.user()
                 .flatMap(user -> Role.of(user.getRole()))
@@ -129,7 +129,7 @@ public class SettingsController {
     @PutMapping
     public Map<String, Integer> update(
             @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         if (body == null || body.isEmpty()) {
@@ -182,7 +182,7 @@ public class SettingsController {
     @PutMapping("/ticket-token")
     public Map<String, Boolean> setTicketToken(
             @RequestBody TokenRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String token = body == null || body.token() == null ? "" : body.token();
@@ -218,7 +218,7 @@ public class SettingsController {
     @PutMapping("/webhook-secret")
     public Map<String, Boolean> setWebhookSigningSecret(
             @RequestBody SecretRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String secret = body == null || body.secret() == null ? "" : body.secret();

@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.time.Instant;
 

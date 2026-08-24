@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 @DisplayName("repository clone")
 class GitCloneTest {
 
-    private static final Path INTO = Path.of("/tmp/zanshin-clone-test");
+    private static final Path INTO = Path.of("/tmp/vectispire-clone-test");
 
     private static GitClone.Request request(String url, String key) {
         return new GitClone.Request(url, "main", INTO, key, Duration.ofMinutes(5), new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE);

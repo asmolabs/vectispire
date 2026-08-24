@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,14 +9,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.persistence.GatePolicyEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.GatePolicies;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.GatePolicies;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

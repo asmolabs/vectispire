@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

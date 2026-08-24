@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.vex;
+package com.asmolabs.vectispire.common.domain.vex;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Locale;

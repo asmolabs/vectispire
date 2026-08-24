@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.licenses;
+package com.asmolabs.vectispire.common.domain.licenses;
 
 import java.util.List;
 import java.util.Locale;

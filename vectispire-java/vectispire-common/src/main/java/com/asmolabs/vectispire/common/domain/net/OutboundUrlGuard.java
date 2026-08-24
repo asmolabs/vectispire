@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.net;
+package com.asmolabs.vectispire.common.domain.net;
 
 import java.net.InetAddress;
 import java.net.URI;
@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Validation of the URLs Zanshin will send a request to.
+ * Validation of the URLs Vectispire will send a request to.
  *
  * <p>Three settings become server-side requests: the notification webhook, the Ollama server,
  * and the local scan API. Each is a string set by an administrator and then called by the
@@ -18,7 +18,7 @@ import java.util.Set;
  * endpoint {@code 169.254.169.254}, which hands out the instance's credentials to whoever
  * asks.
  *
- * <p>"Only an administrator can set it" is a mitigation, not an answer: a Zanshin
+ * <p>"Only an administrator can set it" is a mitigation, not an answer: a Vectispire
  * administrator is not necessarily someone cleared to read the host's IAM credentials, and
  * that is exactly the pivot an attacker who has phished an account is looking for.
  *
@@ -40,7 +40,7 @@ import java.util.Set;
  * <p><b>Redirects.</b> This validates the first destination only. A validated host answering
  * {@code 302 Location: http://169.254.169.254/} defeats the whole guard, so every caller must
  * refuse redirects, and that is not something this class can enforce for them. What does
- * enforce it is that there is only one caller — the sender in {@code zanshin-core} that turns a
+ * enforce it is that there is only one caller — the sender in {@code vectispire-core} that turns a
  * {@link Destination} into a request — and an architecture rule that keeps it that way.
  */
 public final class OutboundUrlGuard {

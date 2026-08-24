@@ -3,7 +3,7 @@
     "version": 1,
     "newProjectRoot": "projects",
     "projects": {
-        "veriscape": {
+        "vectispire": {
             "projectType": "application",
             "schematics": {
                 "@schematics/angular:component": {
@@ -17,7 +17,7 @@
                 "build": {
                     "builder": "@angular/build:application",
                     "options": {
-                        "outputPath": "dist/veriscape",
+                        "outputPath": "dist/vectispire",
                         "index": "src/index.html",
                         "browser": "src/main.ts",
                         "tsConfig": "tsconfig.app.json",
@@ -73,10 +73,10 @@
                     },
                     "configurations": {
                         "production": {
-                            "buildTarget": "veriscape:build:production"
+                            "buildTarget": "vectispire:build:production"
                         },
                         "development": {
-                            "buildTarget": "veriscape:build:development"
+                            "buildTarget": "vectispire:build:development"
                         }
                     },
                     "defaultConfiguration": "development"

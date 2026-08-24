@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.ApiEndpointEntity;
+import com.asmolabs.vectispire.core.persistence.ApiEndpointEntity;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

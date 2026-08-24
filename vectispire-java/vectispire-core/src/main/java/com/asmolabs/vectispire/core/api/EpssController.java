@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.threatintel.EpssRiskMatrix.EpssFleetSummary;
-import com.asmolabs.zanshin.common.domain.threatintel.ThreatIntelRecord;
-import com.asmolabs.zanshin.common.domain.threatintel.ThreatIntelSyncStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.EpssPrioritizationService;
-import com.asmolabs.zanshin.core.services.ThreatIntelFeedService;
+import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFleetSummary;
+import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
+import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.EpssPrioritizationService;
+import com.asmolabs.vectispire.core.services.ThreatIntelFeedService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

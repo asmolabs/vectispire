@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class AttestationRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/attestations/scans/" + saved.getId()), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$._type").value("https://in-toto.io/Statement/v0.1"))
-                .andExpect(jsonPath("$.predicateType").value("https://zanshin.dev/attestation/v1"))
+                .andExpect(jsonPath("$.predicateType").value("https://vectispire.dev/attestation/v1"))
                 .andExpect(jsonPath("$.predicate.policy.gatePassed").value(true));
     }
 }

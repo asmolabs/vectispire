@@ -1,20 +1,20 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.access.VisibilityMode;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.services.SettingsService;
+import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.SettingsService;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;

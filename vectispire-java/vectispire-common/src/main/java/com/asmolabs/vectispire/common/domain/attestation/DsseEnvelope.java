@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.attestation;
+package com.asmolabs.vectispire.common.domain.attestation;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.cyclonedx;
+package com.asmolabs.vectispire.common.domain.cyclonedx;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,12 +15,12 @@ class CycloneDxDocumentTest {
     @Test
     void serializesAndDeserializesCycloneDxVex() throws Exception {
         CycloneDxDocument.Component rootComponent = new CycloneDxDocument.Component(
-                "pkg:maven/com.asmolabs/zanshin@0.9.0",
+                "pkg:maven/com.asmolabs/vectispire@0.9.0",
                 "application",
                 "com.asmolabs",
-                "zanshin",
+                "vectispire",
                 "0.9.0",
-                "pkg:maven/com.asmolabs/zanshin@0.9.0",
+                "pkg:maven/com.asmolabs/vectispire@0.9.0",
                 "required");
 
         CycloneDxDocument.Component libComponent = new CycloneDxDocument.Component(
@@ -50,7 +50,7 @@ class CycloneDxDocumentTest {
                 1,
                 new CycloneDxDocument.Metadata(
                         Instant.parse("2026-08-23T00:00:00Z"),
-                        List.of(new CycloneDxDocument.Tool("AsmoLabs", "Zanshin", "0.9.0")),
+                        List.of(new CycloneDxDocument.Tool("AsmoLabs", "Vectispire", "0.9.0")),
                         rootComponent),
                 List.of(libComponent),
                 List.of(vuln));

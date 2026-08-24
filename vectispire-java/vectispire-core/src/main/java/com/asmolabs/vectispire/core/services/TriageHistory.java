@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.time.Instant;
 import java.util.List;

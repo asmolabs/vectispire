@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -6,13 +6,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import java.time.Instant;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -36,7 +36,7 @@ class PostureReportTest extends ApiTestBase {
     private GitRepositories repositories;
 
     @Autowired
-    private com.asmolabs.zanshin.core.repositories.Issues issues;
+    private com.asmolabs.vectispire.core.repositories.Issues issues;
 
     @Test
     @DisplayName("is a PDF that names the target, its verdict and its findings")
@@ -47,13 +47,13 @@ class PostureReportTest extends ApiTestBase {
         byte[] pdf = mvc.perform(authenticated(get("/api/v1/targets/repository/" + id + "/posture.pdf"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"zanshin-repository-" + id + ".pdf\""))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"vectispire-repository-" + id + ".pdf\""))
                 .andReturn()
                 .getResponse()
                 .getContentAsByteArray();
 
         String text = textOf(pdf);
-        assertThat(text).contains("Zanshin — security posture");
+        assertThat(text).contains("Vectispire — security posture");
         assertThat(text).contains("org/project");
         assertThat(text).contains("CVE-2026-1234");
         assertThat(text).contains("openssl");
@@ -103,7 +103,7 @@ class PostureReportTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/targets/repository/" + id + "/vex"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(header().string(
-                        "Content-Disposition", "attachment; filename=\"zanshin-repository-" + id + ".openvex.json\""));
+                        "Content-Disposition", "attachment; filename=\"vectispire-repository-" + id + ".openvex.json\""));
     }
 
     private static String textOf(byte[] pdf) throws Exception {

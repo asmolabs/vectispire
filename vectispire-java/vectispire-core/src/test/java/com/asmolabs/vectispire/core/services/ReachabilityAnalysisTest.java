@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

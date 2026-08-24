@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.sbom;
+package com.asmolabs.vectispire.common.domain.sbom;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;

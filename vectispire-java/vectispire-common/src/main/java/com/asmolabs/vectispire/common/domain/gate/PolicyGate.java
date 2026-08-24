@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Pass/fail verdict of a target's backlog against a policy.
  *
- * <p>This is what makes Zanshin usable from a pipeline rather than only from a browser: a CI
+ * <p>This is what makes Vectispire usable from a pipeline rather than only from a browser: a CI
  * job asks "given what you know about this target, should this build fail?" and gets back a
  * reasoned verdict.
  *

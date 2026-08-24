@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.eol;
+package com.asmolabs.vectispire.common.domain.eol;
 
 import java.util.Locale;
 

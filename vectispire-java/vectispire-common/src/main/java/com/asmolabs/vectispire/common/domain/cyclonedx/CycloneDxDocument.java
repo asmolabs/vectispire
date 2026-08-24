@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.cyclonedx;
+package com.asmolabs.vectispire.common.domain.cyclonedx;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;

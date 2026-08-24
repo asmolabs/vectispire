@@ -3,10 +3,10 @@
 ## Three shapes, and only one that almost everybody uses
 
 **One instance, one file.** One process, SQLite, the Docker socket. This is not a degraded
-mode: it is what lets someone try Zanshin in a quarter of an hour, which is what decides
+mode: it is what lets someone try Vectispire in a quarter of an hour, which is what decides
 whether a free tool gets adopted. Everything that follows is optional.
 
-To be set explicitly — `VERISCAPE_DB_DIALECT=sqlite` — because the code's default is
+To be set explicitly — `VECTISPIRE_DB_DIALECT=sqlite` — because the code's default is
 PostgreSQL, which is what a lasting deployment wants. This shape was in fact **announced
 without existing** for the whole of the port: the dialect was listed among the supported
 engines, its driver was not installed, and no connection was possible. All four engines
@@ -38,7 +38,7 @@ database or as users logged out at random.
 
 These are warnings, not refusals. An earlier design additionally refused to boot a second
 instance on SQLite, detecting its peer through the built-in agent rows; that guard, and
-the `VERISCAPE_ALLOW_MULTI_INSTANCE_SQLITE` escape hatch that muted it, were not carried
+the `VECTISPIRE_ALLOW_MULTI_INSTANCE_SQLITE` escape hatch that muted it, were not carried
 over by the port. **Nothing currently stops you from pointing two instances at one SQLite
 file**, and the consequence is data corruption rather than slowness. See "still open".
 
@@ -103,7 +103,7 @@ not a guarantee.**
 ```mermaid
 sequenceDiagram
     participant A as Agent
-    participant API as Zanshin API
+    participant API as Vectispire API
     participant DB as Database
 
     A->>API: POST /register (capabilities, max_concurrent)
@@ -124,7 +124,7 @@ a few percent. And the main reason remains the trust boundary
 ([decision 0003](decisions/0003-long-polling-for-agents.md)).
 
 **The queue is routed by label.** A target can require a label, and only agents carrying
-it see its scans — `VERISCAPE_WORKER_LABELS` on the executor side. Without this, any
+it see its scans — `VECTISPIRE_WORKER_LABELS` on the executor side. Without this, any
 registered agent claimed any scan, which defeats the point of placing an agent in a
 less-trusted segment.
 
@@ -158,14 +158,14 @@ network holds the Docker socket. Reaching that socket is equivalent to root on t
 is the deployment's largest single risk and it is worth being exact about what reduces it.
 
 **A socket proxy needs no code change, and that was verified rather than assumed.** The client
-is built from `DefaultDockerClientConfig`, which reads `DOCKER_HOST`, so pointing Zanshin at a
+is built from `DefaultDockerClientConfig`, which reads `DOCKER_HOST`, so pointing Vectispire at a
 filtering proxy is one variable. The whole scanner suite —
 `ContainerRunnerIntegrationTest`, ten cases including the pull path with the image deleted
 first — was run against [`tecnativa/docker-socket-proxy`] with the flags below, and passed.
 The proxy's own log is where this list comes from; it is the traffic, not a reading of the
 code:
 
-| Endpoint | Why Zanshin calls it |
+| Endpoint | Why Vectispire calls it |
 |---|---|
 | `GET /_ping` | is the daemon there, asked before claiming a scan rather than during one |
 | `GET /images/{ref}/json` | is the pinned digest already local |
@@ -188,7 +188,7 @@ services:
       IMAGES: 1       # inspect, pull, export
       PING: 1
       POST: 1         # without it every call above is read-only and no scan runs
-  zanshin:
+  vectispire:
     environment:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
     # and no socket mounted here
@@ -199,7 +199,7 @@ services:
 of `/`. **Anyone who can reach this proxy can still take the host.** The proxy therefore does
 not make the socket safe; what it removes is everything *else* — `exec`, swarm, secrets,
 networks, volumes, `/info`, the events stream — which shrinks what a compromise reaches
-sideways, and makes the endpoints Zanshin uses an enumerable list somebody can audit. Deploy
+sideways, and makes the endpoints Vectispire uses an enumerable list somebody can audit. Deploy
 it for that, and do not deploy it believing the escape is closed.
 
 What actually reduces the privilege, in ascending order of what it costs to run:
@@ -208,7 +208,7 @@ What actually reduces the privilege, in ascending order of what it costs to run:
   daemon to reconfigure, and bind mounts need care; it is the highest ratio of the three.
 - **Remote agents** ([decision 0003](decisions/0003-long-polling-for-agents.md)). The socket
   moves to a machine that holds no `ENCRYPTION_KEY` and serves nothing on the network. This is
-  the shape Zanshin was designed for, and it is why the agent cannot reach the database.
+  the shape Vectispire was designed for, and it is why the agent cannot reach the database.
 - **A sandboxed runtime** — gVisor, Kata, Sysbox — as the analyzers' runtime. It contains the
   analyzer, not the socket holder, so it pairs with one of the two above rather than replacing
   them.
@@ -219,22 +219,22 @@ What actually reduces the privilege, in ascending order of what it costs to run:
 
 | Variable | What it decides |
 |---|---|
-| `VERISCAPE_DB_URL`, `VERISCAPE_DB_USER`, `VERISCAPE_DB_PASSWORD` | where the data lives. A **JDBC** URL — `jdbc:postgresql://…`, `jdbc:mysql://…` — from which the driver and the dialect follow; there is no separate dialect variable |
+| `VECTISPIRE_DB_URL`, `VECTISPIRE_DB_USER`, `VECTISPIRE_DB_PASSWORD` | where the data lives. A **JDBC** URL — `jdbc:postgresql://…`, `jdbc:mysql://…` — from which the driver and the dialect follow; there is no separate dialect variable |
 | `ENCRYPTION_KEY` | without it, nothing can be encrypted. No default value |
-| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
-| `VERISCAPE_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | rotation: the old keys stay readable |
+| `VECTISPIRE_AUDIT_MIRROR` | a path where each audit entry is also appended, outside the database it watches. Empty means one copy, and `/audit-log/verify` reports that |
 | `DOCKER_HOST` | read by the Docker client, so the daemon can be a filtering proxy instead of the socket. See the section above for the exact surface, and for what it does not buy |
-| `VERISCAPE_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
-| `VERISCAPE_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
-| `VERISCAPE_QUEUE_LEASE`, `VERISCAPE_QUEUE_MAX_ATTEMPTS` | the lease and the takeover budget described above |
-| `VERISCAPE_LEADER_LEASE` | how long the tick's holder keeps it without renewing |
+| `VECTISPIRE_EMBEDDED_WORKER` | whether this process also runs scans, or only serves the API |
+| `VECTISPIRE_WORKER_LABELS` | which labelled targets this executor is allowed to claim |
+| `VECTISPIRE_QUEUE_LEASE`, `VECTISPIRE_QUEUE_MAX_ATTEMPTS` | the lease and the takeover budget described above |
+| `VECTISPIRE_LEADER_LEASE` | how long the tick's holder keeps it without renewing |
 | migration | Flyway applies migrations at startup, under the leader lease, so one instance migrates and the others wait |
-| `VERISCAPE_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
+| `VECTISPIRE_SEMGREP_RULES_DIR` | operator-supplied rules, merged with the bundled ones |
 
 Three variables earlier versions needed are gone, and are listed here because their
 absence is the answer to "where did it go": ~~`REDIS_URL`~~ (the API is stateless, the
-session lives in the database), ~~`VERISCAPE_ALLOWED_ORIGINS`~~ (there is no websocket to
-authorize any more), and ~~`VERISCAPE_AUTO_MIGRATE`~~ (migrations are an explicit step).
+session lives in the database), ~~`VECTISPIRE_ALLOWED_ORIGINS`~~ (there is no websocket to
+authorize any more), and ~~`VECTISPIRE_AUTO_MIGRATE`~~ (migrations are an explicit step).
 
 ## Still open
 
@@ -242,7 +242,7 @@ authorize any more), and ~~`VERISCAPE_AUTO_MIGRATE`~~ (migrations are an explici
   live peer through the built-in agent rows and refused to boot; the port did not carry
   the guard over. The failure mode is corruption, not slowness, which makes this the
   heaviest item on this list.
-- **`VERISCAPE_ROLE`** (separating a `web` role from an `agent` role in one artifact) is
+- **`VECTISPIRE_ROLE`** (separating a `web` role from an `agent` role in one artifact) is
   described and not done. Remote agents cover the real need; the remaining gain would be
   taking the Docker client out of the network-exposed process.
 - **Capability-based routing** does not exist. Label-based routing does, which covers the

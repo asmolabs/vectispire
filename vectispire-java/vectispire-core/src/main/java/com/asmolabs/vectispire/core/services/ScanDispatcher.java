@@ -1,23 +1,23 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
-import com.asmolabs.zanshin.common.domain.agents.CredentialsMode;
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.ScanRunner;
-import com.asmolabs.zanshin.common.scanning.ScanTask;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.persistence.ContainerEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.ScanQueue;
-import com.asmolabs.zanshin.core.repositories.SshKeys;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.ScanQueue;
+import com.asmolabs.vectispire.core.repositories.SshKeys;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -128,7 +128,7 @@ public class ScanDispatcher {
             return Dispatched.NOTHING;
         }
 
-        int room = com.asmolabs.zanshin.common.domain.scans.ScanQueue.capacity(
+        int room = com.asmolabs.vectispire.common.domain.scans.ScanQueue.capacity(
                 maxConcurrent, (int) queue.countRunning());
         if (room == 0) {
             return Dispatched.NOTHING;
@@ -281,8 +281,8 @@ public class ScanDispatcher {
         boolean nothingExamined = artifacts.observedNothing() && !artifacts.failures().isEmpty();
         scan.setStatus(
                 (nothingExamined
-                                ? com.asmolabs.zanshin.common.domain.scans.ScanStatus.FAILED
-                                : com.asmolabs.zanshin.common.domain.scans.ScanStatus.COMPLETED)
+                                ? com.asmolabs.vectispire.common.domain.scans.ScanStatus.FAILED
+                                : com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED)
                         .wireName());
         scan.setFindingsCount(result.created() + result.reopened() + result.stillOpen());
         scan.setNewIssuesCount(result.created());

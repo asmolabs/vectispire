@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.NotificationTestService;
-import com.asmolabs.zanshin.core.services.NotificationTestService.NotificationChannelStatus;
-import com.asmolabs.zanshin.core.services.NotificationTestService.NotificationTestResult;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.NotificationTestService;
+import com.asmolabs.vectispire.core.services.NotificationTestService.NotificationChannelStatus;
+import com.asmolabs.vectispire.core.services.NotificationTestService.NotificationTestResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.rules;
+package com.asmolabs.vectispire.common.domain.rules;
 
 import java.util.Comparator;
 import java.util.List;
@@ -11,9 +11,9 @@ import java.util.regex.Pattern;
 /**
  * Fetching a third-party rule set, and the licence conditions that make it legitimate.
  *
- * <p><b>Zanshin never redistributes these rules.</b> That distinction is the whole of
+ * <p><b>Vectispire never redistributes these rules.</b> That distinction is the whole of
  * <a href="../../../../../../../../../docs/architecture/decisions/0006-semgrep-rules-written-here.md">decision
- * 0006</a>: the operator instructs Zanshin to fetch, the rules travel from their author to the
+ * 0006</a>: the operator instructs Vectispire to fetch, the rules travel from their author to the
  * operator's own installation, and nothing containing them is shipped. Which is why the
  * upstream is a fixed constant here rather than a field somebody can point anywhere.
  *
@@ -32,7 +32,7 @@ public final class RuleCatalogue {
      *
      * <p>The clause takes whoever adopts these rules out of open source in the OSI sense. That
      * is a decision for the operator to make knowingly, about rules somebody else wrote — not
-     * one Zanshin makes for them by shipping the rules in the box.
+     * one Vectispire makes for them by shipping the rules in the box.
      */
     public static final String LICENCE = "LGPL-2.1 with Commons Clause";
 
@@ -117,7 +117,7 @@ public final class RuleCatalogue {
     /**
      * @param languages how many rule files each top-level directory holds, ordered by name so
      *     two fetches of the same tag present the same list
-     * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Zanshin: a
+     * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Vectispire: a
      *     licence can change between tags, and a copy would let somebody accept the wrong one
      */
     public record Contents(Map<String, Integer> languages, String licence, List<Entry> entries) {}
@@ -139,7 +139,7 @@ public final class RuleCatalogue {
         if (FORBIDDEN.contains(repository)) {
             throw new IllegalArgumentException(
                     repository + " is licensed under terms that forbid distributing its rules. "
-                            + "Zanshin will not fetch it on anybody's behalf.");
+                            + "Vectispire will not fetch it on anybody's behalf.");
         }
     }
 

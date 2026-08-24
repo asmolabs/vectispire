@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

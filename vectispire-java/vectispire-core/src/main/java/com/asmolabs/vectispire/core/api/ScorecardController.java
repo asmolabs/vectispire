@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.scorecard.SecurityGrade;
-import com.asmolabs.zanshin.common.domain.scorecard.SecurityScorecard;
-import com.asmolabs.zanshin.common.domain.scorecard.SvgBadgeGenerator;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.SecurityScorecardService;
+import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
+import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
+import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.SecurityScorecardService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -54,7 +54,7 @@ public class ScorecardController {
      * Public badge endpoint designed for embedding into GitHub/GitLab README.md files.
      */
     @GetMapping(value = "/repositories/{repoId}/badge.svg", produces = "image/svg+xml")
-    @com.asmolabs.zanshin.core.api.security.OpenToAnonymous
+    @com.asmolabs.vectispire.core.api.security.OpenToAnonymous
     public ResponseEntity<String> getRepositoryBadge(@PathVariable("repoId") Long repoId) {
         SecurityScorecard scorecard = scorecardService.getRepositoryScorecard(repoId)
                 .orElse(null);

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.siem;
+package com.asmolabs.vectispire.common.domain.siem;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,7 +24,7 @@ class CefEventTest {
 
         String cef = event.toCefString();
 
-        assertThat(cef).startsWith("CEF:0|Zanshin|ASPM|1.0|ZAN-SEC-001|Secret Leak Detected|10|");
+        assertThat(cef).startsWith("CEF:0|Vectispire|ASPM|1.0|ZAN-SEC-001|Secret Leak Detected|10|");
         assertThat(cef).contains("suser=alice");
         assertThat(cef).contains("cs1Label=Target cs1=https://github.com/asmolabs/billing.git");
         assertThat(cef).contains("cs2Label=AssetTier cs2=TIER_1_MISSION_CRITICAL");

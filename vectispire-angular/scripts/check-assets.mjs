@@ -2,7 +2,7 @@
 /**
  * Vérifie qu'aucune ressource tierce n'est référencée par la coquille de l'application.
  *
- * Pourquoi ce script existe : la politique de sécurité de contenu de Zanshin
+ * Pourquoi ce script existe : la politique de sécurité de contenu de Vectispire
  * (`style-src 'self'`, `font-src 'self' data:`) refuse toute feuille de style ou
  * police servie par un tiers. Une telle référence ne casse rien de visible en
  * développement — le navigateur bloque la requête, la page retombe sur la police

@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * whose failure is a queue quietly filling with identical scans.
  */
 @DisplayName("the periodic rescan, against a database")
-class SchedulerDatabaseTest extends ZanshinContextTest {
+class SchedulerDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private SchedulerService scheduler;

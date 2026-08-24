@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.auth.LoginThrottle;
-import com.asmolabs.zanshin.common.domain.auth.Sessions;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.LoginAttempts;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.LoginAttempts;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * timestamp column, and a throttle that counts nothing is a throttle that is not there.
  */
 @DisplayName("logging in, against a database")
-class AuthDatabaseTest extends ZanshinContextTest {
+class AuthDatabaseTest extends VectispireContextTest {
 
     private static final String PASSWORD = "correct horse battery staple";
 

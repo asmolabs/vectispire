@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

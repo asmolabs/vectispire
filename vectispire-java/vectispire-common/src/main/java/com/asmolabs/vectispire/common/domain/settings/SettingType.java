@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.settings;
+package com.asmolabs.vectispire.common.domain.settings;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.List;
 import java.util.Optional;
 

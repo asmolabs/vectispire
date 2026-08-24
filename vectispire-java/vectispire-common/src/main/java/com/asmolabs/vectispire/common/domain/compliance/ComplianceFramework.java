@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.domain.compliance;
+package com.asmolabs.vectispire.common.domain.compliance;
 
 import java.util.List;
 
 /**
- * Security and regulatory frameworks evaluated by Zanshin.
+ * Security and regulatory frameworks evaluated by Vectispire.
  */
 public enum ComplianceFramework {
     NIS_2(

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -56,8 +56,8 @@ class SignInMethodPolicyTest {
     @DisplayName("without a provider, closing it is refused rather than honoured")
     void nobodyIsLockedOut() {
         // The dangerous configuration, and it is a plausible one: somebody sets
-        // ZANSHIN_PASSWORD_LOGIN=false while preparing the realm, and restarts before
-        // ZANSHIN_OIDC_ISSUER is in place. Honouring the request would leave a tool holding
+        // VECTISPIRE_PASSWORD_LOGIN=false while preparing the realm, and restarts before
+        // VECTISPIRE_OIDC_ISSUER is in place. Honouring the request would leave a tool holding
         // every watched repository's deployment key with no way in at all — and no way to fix
         // it from the interface either.
         SignInMethodPolicy policy = new SignInMethodPolicy(WITHOUT_PROVIDER, false);

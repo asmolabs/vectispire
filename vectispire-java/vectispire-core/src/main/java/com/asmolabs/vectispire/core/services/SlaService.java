@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.IssueFilters;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

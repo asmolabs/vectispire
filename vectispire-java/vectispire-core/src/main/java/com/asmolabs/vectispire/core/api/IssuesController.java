@@ -1,32 +1,32 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
-import com.asmolabs.zanshin.common.domain.issues.Triage;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.issues.VexJustification;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.IssueFilters;
-import com.asmolabs.zanshin.core.repositories.IssueOrdering;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.TriageEvents;
-import com.asmolabs.zanshin.core.services.TriageHistory;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.SlaService;
-import com.asmolabs.zanshin.core.services.TargetNaming;
-import com.asmolabs.zanshin.core.services.IssueTriageService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueOrdering;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.core.services.TriageHistory;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.SlaService;
+import com.asmolabs.vectispire.core.services.TargetNaming;
+import com.asmolabs.vectispire.core.services.IssueTriageService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.Period;
@@ -126,7 +126,7 @@ public class IssuesController {
 
     @GetMapping
     public Page list(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String type,
@@ -235,7 +235,7 @@ public class IssuesController {
      * is added here is what needs a query of its own — where it was seen, and what was decided.
      */
     @GetMapping("/{id}")
-    public Detail detail(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+    public Detail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         IssueEntity issue = issues.findById(id).orElse(null);
         // 404 rather than 403 when it exists but is not visible — see `Visibilities`.
         Visibilities.requireVisible(
@@ -293,7 +293,7 @@ public class IssuesController {
     public IssueEntity triage(
             @PathVariable long id,
             @RequestBody TriageRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
@@ -343,7 +343,7 @@ public class IssuesController {
     @PostMapping("/triage")
     public List<IssueEntity> triageMany(
             @RequestBody BulkTriageRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         List<Long> ids = body == null || body.ids() == null ? List.of() : body.ids();

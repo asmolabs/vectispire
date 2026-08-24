@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.api.security.OpenToAnonymous;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
-import com.asmolabs.zanshin.core.api.security.RequiresAgentKey;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -162,7 +162,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     private static boolean isOurs(HandlerMethod handler) {
-        return handler.getBeanType().getPackageName().startsWith("com.asmolabs.zanshin.core.api");
+        return handler.getBeanType().getPackageName().startsWith("com.asmolabs.vectispire.core.api");
     }
 
     /** Method first, then the class: a method's own marker is the one that applies. */

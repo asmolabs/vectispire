@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.auth.Totp;
-import com.asmolabs.zanshin.core.services.TotpService;
+import com.asmolabs.vectispire.common.domain.auth.Totp;
+import com.asmolabs.vectispire.core.services.TotpService;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

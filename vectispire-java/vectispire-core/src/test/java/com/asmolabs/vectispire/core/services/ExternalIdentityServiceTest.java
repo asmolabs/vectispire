@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,9 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
  * that already exist, and both read correct against a fake.
  */
 @DisplayName("resolving an external identity")
-class ExternalIdentityServiceTest extends ZanshinContextTest {
+class ExternalIdentityServiceTest extends VectispireContextTest {
 
-    private static final String ISSUER = "https://keycloak.example.com/realms/zanshin";
+    private static final String ISSUER = "https://keycloak.example.com/realms/vectispire";
 
     @Autowired
     private ExternalIdentityService identities;
@@ -66,7 +66,7 @@ class ExternalIdentityServiceTest extends ZanshinContextTest {
         UserEntity alice = account("alice");
         identities.resolve("sub-1", ISSUER, "alice");
 
-        // Renamed in the directory, and in Zanshin. Keyed on the name this would be a stranger —
+        // Renamed in the directory, and in Vectispire. Keyed on the name this would be a stranger —
         // or, if the old name were reassigned, somebody else's account.
         alice.setUsername("alice.martin");
         users.save(alice);

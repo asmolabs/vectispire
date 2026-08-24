@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.ComponentEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Components;
-import com.asmolabs.zanshin.core.services.TargetNaming;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.services.TargetNaming;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -57,7 +57,7 @@ public class InventoryController {
 
     /**
      * @param projectVersion the version of the <b>project</b>, from its manifest — null for a
-     *     scan that ran before Zanshin read manifests, and for a tree that carries none
+     *     scan that ran before Vectispire read manifests, and for a tree that carries none
      * @param componentVersion the version of the <b>library</b>. The two sit side by side because
      *     confusing them is the one mistake that makes the answer useless
      */
@@ -80,7 +80,7 @@ public class InventoryController {
 
     @GetMapping("/search")
     public Results search(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam String name,
             @RequestParam(required = false) String version) {
 

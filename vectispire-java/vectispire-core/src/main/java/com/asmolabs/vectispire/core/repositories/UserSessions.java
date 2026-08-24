@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

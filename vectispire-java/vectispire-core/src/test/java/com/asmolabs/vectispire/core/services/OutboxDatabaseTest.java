@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
-import com.asmolabs.zanshin.core.repositories.Outbox;
+import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
+import com.asmolabs.vectispire.core.repositories.Outbox;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * of condition that reads correct and is not.
  */
 @DisplayName("the notification queue, against a database")
-class OutboxDatabaseTest extends ZanshinContextTest {
+class OutboxDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private OutboxService outbox;

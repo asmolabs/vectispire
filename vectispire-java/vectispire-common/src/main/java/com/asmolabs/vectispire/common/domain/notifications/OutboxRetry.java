@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import java.time.Duration;
 import java.time.Instant;

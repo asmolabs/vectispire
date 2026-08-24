@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.enrichment;
+package com.asmolabs.vectispire.common.domain.enrichment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

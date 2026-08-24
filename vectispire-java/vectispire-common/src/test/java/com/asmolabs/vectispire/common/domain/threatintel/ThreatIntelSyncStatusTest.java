@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.threatintel;
+package com.asmolabs.vectispire.common.domain.threatintel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;

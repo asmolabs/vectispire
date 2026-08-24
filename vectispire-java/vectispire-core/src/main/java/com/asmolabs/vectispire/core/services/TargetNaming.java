@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
-import com.asmolabs.zanshin.common.domain.targets.RepositoryUrl;
-import com.asmolabs.zanshin.core.persistence.ContainerEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;

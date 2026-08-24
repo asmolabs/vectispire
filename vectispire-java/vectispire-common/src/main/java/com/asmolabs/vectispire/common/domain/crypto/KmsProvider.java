@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.Decrypted;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
 import java.util.Optional;
 
 /**

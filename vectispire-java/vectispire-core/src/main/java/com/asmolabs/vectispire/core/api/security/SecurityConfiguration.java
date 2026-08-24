@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,7 +29,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * kinds of generator. That problem is gone — an HTTP route has one entry point — but the rule
  * it carried is not: <b>authorization applies at the entry point, never at the rendering</b>.
  *
- * <p><b>Stateless, and that is not a detail.</b> Zanshin's session lives in a table, shared by
+ * <p><b>Stateless, and that is not a detail.</b> Vectispire's session lives in a table, shared by
  * every instance, so a servlet session would be a second notion of "logged in" — one that does
  * not survive a restart and does not cross instances, and that would silently take precedence.
  */
@@ -56,7 +56,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     /**
      * The content security policy, in one place because it is one sentence.
      *
-     * <p><b>What it is for.</b> Everything Zanshin displays — a finding's message, a package
+     * <p><b>What it is for.</b> Everything Vectispire displays — a finding's message, a package
      * name, a CVE description, a commit author — comes from the analyzers and the advisory
      * feeds, which is to say from data an attacker influences. This header is what decides
      * whether a string that got through the rendering runs with the analyst's session or sits
@@ -100,7 +100,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
      * development build does eval, which is one more reason the measurement was taken against
      * the bundle that ships.
      *
-     * <p><b>HSTS stays absent, deliberately.</b> Zanshin is routinely reached over plain HTTP on
+     * <p><b>HSTS stays absent, deliberately.</b> Vectispire is routinely reached over plain HTTP on
      * an internal address; a Strict-Transport-Security header seen once makes that origin
      * permanently unreachable in that browser. It belongs to the proxy terminating TLS, which is
      * the component that knows it has TLS.
@@ -194,7 +194,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
      */
     private AccessDeniedHandler auditingDeniedHandler() {
         return (request, response, denied) -> {
-            String who = SecurityContextHolder.getContext().getAuthentication() instanceof ZanshinPrincipal principal
+            String who = SecurityContextHolder.getContext().getAuthentication() instanceof VectispirePrincipal principal
                     ? principal.getName()
                     : null;
             audit.record(new AuditLogService.Record(

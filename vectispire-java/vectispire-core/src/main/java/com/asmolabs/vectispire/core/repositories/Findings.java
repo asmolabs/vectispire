@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.Query;

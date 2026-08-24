@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.persistence.TeamEntity;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 

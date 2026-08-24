@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -82,7 +82,7 @@ class SecurityHeadersTest extends ApiTestBase {
     @Test
     @DisplayName("HSTS is absent, deliberately")
     void noStrictTransportSecurity() throws Exception {
-        // Zanshin is routinely reached over plain HTTP on an internal address. A
+        // Vectispire is routinely reached over plain HTTP on an internal address. A
         // Strict-Transport-Security header seen once makes that origin permanently unreachable
         // in that browser — an outage no operator would connect to a header they never
         // configured. It belongs to the proxy terminating TLS, which knows it has TLS.

@@ -1,18 +1,18 @@
-Zanshin
+Vectispire
 Copyright 2026 Laurent Boucher
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.
 
 The copyright is held personally, not by an employer or by the Asmolabs
-organisation that hosts the repository. The `com.asmolabs.zanshin` package name
+organisation that hosts the repository. The `com.asmolabs.vectispire` package name
 is a namespace, not an assignment of rights.
 
 --------------------------------------------------------------------------------
-Third-party components distributed with Zanshin
+Third-party components distributed with Vectispire
 --------------------------------------------------------------------------------
 
 The application jar and the container image built from `Dockerfile` bundle the
-following components. Their own licenses apply to them, not Zanshin's.
+following components. Their own licenses apply to them, not Vectispire's.
 
 Apache License 2.0
   org.springframework.boot:*                Spring Boot 4.1
@@ -39,8 +39,8 @@ LGPL-2.1
 GPL-2.0 WITH Universal-FOSS-Exception-1.0
   com.mysql:mysql-connector-j               MySQL Connector/J
 
-  Two of the four JDBC drivers Zanshin ships are copyleft, and both are
-  `runtimeOnly` in the build: no compiled Zanshin class links against a driver,
+  Two of the four JDBC drivers Vectispire ships are copyleft, and both are
+  `runtimeOnly` in the build: no compiled Vectispire class links against a driver,
   and the connection is obtained through the JDBC API. MySQL Connector/J is
   distributed under the GPL with Oracle's Universal FOSS Exception, whose list of
   permitted licenses includes Apache-2.0 — which is what makes shipping it inside
@@ -52,7 +52,7 @@ GPL-2.0 WITH Universal-FOSS-Exception-1.0
 Scanners invoked as containers
 --------------------------------------------------------------------------------
 
-Zanshin runs each scanner as an ephemeral container, by command line, in a
+Vectispire runs each scanner as an ephemeral container, by command line, in a
 separate process. It bundles none of them and links against none of them; the
 images are pulled at run time from their own publishers.
 
@@ -62,9 +62,9 @@ images are pulled at run time from their own publishers.
   Semgrep OSS           Semgrep, Inc.             LGPL-2.1
 
 The Semgrep *rules* are a separate question from the Semgrep engine, and the
-one place where a licence decides how the code is shaped. Zanshin bundles a
+one place where a licence decides how the code is shaped. Vectispire bundles a
 single rule of its own and redistributes no third-party rule set. An operator
-who wants real coverage has Zanshin fetch `opengrep/opengrep-rules` — LGPL-2.1
+who wants real coverage has Vectispire fetch `opengrep/opengrep-rules` — LGPL-2.1
 with a Commons Clause, accepted explicitly because that clause takes whoever
 adopts those rules out of open source in the OSI sense. The rules travel from
 their author to that installation; nothing containing them is shipped here.

@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.aireview.OwaspMarkdown.Block;
-import com.asmolabs.zanshin.common.domain.aireview.OwaspMarkdown.Kind;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown.Block;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown.Kind;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

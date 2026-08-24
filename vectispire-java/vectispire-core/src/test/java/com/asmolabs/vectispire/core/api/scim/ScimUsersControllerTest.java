@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.scim;
+package com.asmolabs.vectispire.core.api.scim;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -6,13 +6,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.core.api.scim.dto.ScimListResponse;
-import com.asmolabs.zanshin.core.api.scim.dto.ScimPatchOp;
-import com.asmolabs.zanshin.core.api.scim.dto.ScimUserDto;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.AuthService;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimUserDto;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import jakarta.servlet.http.HttpServletRequest;

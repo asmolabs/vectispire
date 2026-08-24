@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -10,14 +10,14 @@ import org.junit.jupiter.api.Test;
 /**
  * The rule the module graph already enforces, stated anyway.
  *
- * <p>{@code zanshin-agent} does not depend on {@code zanshin-core}, so no driver, no
+ * <p>{@code vectispire-agent} does not depend on {@code vectispire-core}, so no driver, no
  * Hibernate and no Spring Data is on its compile classpath: reaching the database does not
  * fail review, it fails to compile. This suite exists so that the person who adds the
  * dependency that <em>would</em> allow it breaks a test that explains why, rather than only a
  * compile that says {@code cannot find symbol}.
  *
  * <p>The why: an agent holding a database connection would also need {@code ENCRYPTION_KEY},
- * which is enough to decrypt <em>every</em> deployment key Zanshin holds. The security
+ * which is enough to decrypt <em>every</em> deployment key Vectispire holds. The security
  * property that justifies the agent's existence is precisely what it does not have — see
  * decision 0003.
  *
@@ -33,7 +33,7 @@ class AgentIsolationTest {
     void agentHasNoRouteToTheDatabase() {
         JavaClasses classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                .importPackages("com.asmolabs.zanshin.agent");
+                .importPackages("com.asmolabs.vectispire.agent");
 
         org.assertj.core.api.Assertions
                 .assertThat(classes)
@@ -43,7 +43,7 @@ class AgentIsolationTest {
         ArchRuleDefinition.noClasses()
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(
-                        "com.asmolabs.zanshin.core..",
+                        "com.asmolabs.vectispire.core..",
                         "java.sql..",
                         "javax.sql..",
                         "org.hibernate..",

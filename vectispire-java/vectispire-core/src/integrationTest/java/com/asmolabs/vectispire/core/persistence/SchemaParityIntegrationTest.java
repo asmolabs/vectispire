@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.persistence;
+package com.asmolabs.vectispire.core.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.core.ZanshinApplication;
+import com.asmolabs.vectispire.core.VectispireApplication;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -35,7 +35,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * places a single representative is silent about — MySQL reports {@code tinyint(1)} where
  * MariaDB reports {@code tinyint}, and they disagree with <em>each other</em>.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
+@SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the entities agree with the schema")
 class SchemaParityIntegrationTest {
 

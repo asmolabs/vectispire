@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -9,7 +9,7 @@ import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.util.Arrays;
 
 /**
- * The key that protects the secrets Zanshin stores — private SSH keys, tokens.
+ * The key that protects the secrets Vectispire stores — private SSH keys, tokens.
  *
  * <p>A type rather than a {@code byte[]}, so a caller cannot hand the cipher a buffer of the
  * wrong length, and so "this is the encryption key" is visible in a signature.
@@ -51,7 +51,7 @@ public final class EncryptionKey {
     private static final int SCRYPT_P = 1;
 
     /** Fixed, application-specific, and not a secret. See the class comment. */
-    private static final byte[] SCRYPT_SALT = "zanshin.encryption.v2".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SCRYPT_SALT = "vectispire.encryption.v2".getBytes(StandardCharsets.UTF_8);
 
     /**
      * Base64 for exactly 32 bytes, in either alphabet.

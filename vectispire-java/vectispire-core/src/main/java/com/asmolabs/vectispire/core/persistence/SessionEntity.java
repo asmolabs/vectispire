@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.persistence;
+package com.asmolabs.vectispire.core.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,7 +14,7 @@ import java.time.Instant;
  * token itself would mean that every copy of this table is a set of live credentials: a nightly
  * backup, a read replica, a support engineer's {@code select *}, or the audit log's own database
  * being dumped. The hash is a verifier: presenting it does not authenticate, because the lookup
- * hashes what the caller sent. See {@link com.asmolabs.zanshin.common.domain.auth.Sessions#issue()}.
+ * hashes what the caller sent. See {@link com.asmolabs.vectispire.common.domain.auth.Sessions#issue()}.
  *
  * <p>The field is named {@code tokenHash} rather than {@code token} on purpose: the two are one
  * assignment apart, and the mistake — writing the clear token into the hash column — produces a

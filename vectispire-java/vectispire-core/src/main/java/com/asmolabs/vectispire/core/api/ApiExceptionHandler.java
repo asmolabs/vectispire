@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.apikeys.InvalidApiKeyException;
-import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
-import com.asmolabs.zanshin.common.domain.net.UnsafeUrlException;
-import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.zanshin.common.domain.scheduling.InvalidCronExpressionException;
-import com.asmolabs.zanshin.core.api.security.PasswordChangeRequiredException;
-import com.asmolabs.zanshin.core.services.InsecureCredentialTransportException;
-import com.asmolabs.zanshin.core.services.MissingEncryptionKeyException;
-import com.asmolabs.zanshin.core.services.ScanTriggerService;
+import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
+import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
+import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
+import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
+import com.asmolabs.vectispire.core.api.security.PasswordChangeRequiredException;
+import com.asmolabs.vectispire.core.services.InsecureCredentialTransportException;
+import com.asmolabs.vectispire.core.services.MissingEncryptionKeyException;
+import com.asmolabs.vectispire.core.services.ScanTriggerService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  *
  * <p><b>The mapping is here and nowhere else.</b> Scattering it across the controllers is how
  * the same refusal comes to answer 400 on one route and 500 on another — and a 500 is what an
- * operator reports as a bug in Zanshin rather than as a mistake in their own request.
+ * operator reports as a bug in Vectispire rather than as a mistake in their own request.
  *
  * <p>Every message below is meant to be shown as it stands. These exceptions carry text written
  * for the person who triggered them; replacing it with a generic sentence would throw away the

@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.csaf.CsafDocument;
-import com.asmolabs.zanshin.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.csaf.CsafDocument;
+import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -94,9 +94,9 @@ public class CsafGeneratorService {
         CsafDocument.DocumentMetadata meta = new CsafDocument.DocumentMetadata(
                 "csaf_vex",
                 "2.0",
-                "Zanshin Aggregate Security Advisory",
-                new CsafDocument.Publisher("vendor", "Zanshin Control Plane", "https://zanshin.internal"),
-                new CsafDocument.Tracking("ZANSHIN-AGGREGATE-CSAF", now, now, "final", "1.0.0"));
+                "Vectispire Aggregate Security Advisory",
+                new CsafDocument.Publisher("vendor", "Vectispire Control Plane", "https://vectispire.internal"),
+                new CsafDocument.Tracking("VECTISPIRE-AGGREGATE-CSAF", now, now, "final", "1.0.0"));
 
         return new CsafDocument(
                 meta,
@@ -143,9 +143,9 @@ public class CsafGeneratorService {
         CsafDocument.DocumentMetadata meta = new CsafDocument.DocumentMetadata(
                 "csaf_vex",
                 "2.0",
-                "Zanshin Scan #" + scan.getId() + " Security Advisory",
-                new CsafDocument.Publisher("vendor", "Zanshin Control Plane", "https://zanshin.internal"),
-                new CsafDocument.Tracking("ZANSHIN-SCAN-" + scan.getId(), timestamp, timestamp, "final", "1.0.0"));
+                "Vectispire Scan #" + scan.getId() + " Security Advisory",
+                new CsafDocument.Publisher("vendor", "Vectispire Control Plane", "https://vectispire.internal"),
+                new CsafDocument.Tracking("VECTISPIRE-SCAN-" + scan.getId(), timestamp, timestamp, "final", "1.0.0"));
 
         return new CsafDocument(
                 meta,

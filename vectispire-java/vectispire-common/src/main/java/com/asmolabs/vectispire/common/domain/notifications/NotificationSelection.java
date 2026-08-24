@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import java.util.List;
 
 /**

@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.SshKeys;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.EncryptionService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.SshKeys;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.EncryptionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -19,7 +19,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -104,7 +104,7 @@ public class SshKeysController {
     @PostMapping
     public Summary create(
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String name = trim(body.name());
@@ -149,7 +149,7 @@ public class SshKeysController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable UUID id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         SshKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
@@ -175,7 +175,7 @@ public class SshKeysController {
     }
 
     private void record(
-            ZanshinPrincipal principal, HttpServletRequest request, String resourceId, String description) {
+            VectispirePrincipal principal, HttpServletRequest request, String resourceId, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.SETTING_UPDATED,
                 resourceId,

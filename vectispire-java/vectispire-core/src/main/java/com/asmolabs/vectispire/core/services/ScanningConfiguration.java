@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.scanning.BundledRules;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.GitClone;
-import com.asmolabs.zanshin.common.scanning.RulePlacement;
-import com.asmolabs.zanshin.common.scanning.ScanRunner;
-import com.asmolabs.zanshin.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.common.scanning.BundledRules;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.GitClone;
+import com.asmolabs.vectispire.common.scanning.RulePlacement;
+import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Configuration;
  * runner in its constructor.
  *
  * <p>The condition is what keeps the guard meaningful: an operator who sets {@code
- * ZANSHIN_EMBEDDED_WORKER=false} — a control plane served entirely by remote agents, with no
+ * VECTISPIRE_EMBEDDED_WORKER=false} — a control plane served entirely by remote agents, with no
  * Docker socket — gets no runner, and the dispatcher's empty branch is reached for a real
  * reason instead of by omission.
  *
@@ -37,11 +37,11 @@ import org.springframework.context.annotation.Configuration;
  * {@code ScanningProperties} live here for the same reason.
  */
 @Configuration
-@ConditionalOnProperty(prefix = "zanshin.worker", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "vectispire.worker", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ScanningConfiguration {
 
     /**
-     * Where the scanners read Zanshin's own rules from.
+     * Where the scanners read Vectispire's own rules from.
      *
      * <p>Unpacked from the jar into a temporary directory, once, because the scanners run as
      * sibling containers and a bind mount cannot resolve a path inside a jar.
@@ -66,20 +66,20 @@ public class ScanningConfiguration {
      *     working directory — pointed at nothing and failed every repository scan
      * @param hostSsh whether a repository with no deployment key falls back to this machine's
      *     own git access. <b>On by default, and to be turned off on a shared installation</b>:
-     *     with it on, every target anybody adds to Zanshin is cloned with whatever the host's key
+     *     with it on, every target anybody adds to Vectispire is cloned with whatever the host's key
      *     can reach, so the per-repository scoping — a key attached to one target, encrypted at
-     *     rest — stops meaning anything, and adding a URL is enough to have Zanshin clone it with
+     *     rest — stops meaning anything, and adding a URL is enough to have Vectispire clone it with
      *     an identity nobody attached to it. The default favours the single-team install, where
      *     the operator's {@code ~/.ssh} is already the credential that reaches every target and
-     *     the alternative was re-declaring it once per repository. Set {@code ZANSHIN_HOST_SSH}
+     *     the alternative was re-declaring it once per repository. Set {@code VECTISPIRE_HOST_SSH}
      *     to {@code false} where the people adding targets are not the people who own that key
      */
     @Bean
     ScanRunner scanRunner(
             RuleSetService ruleSets,
             Clock clock,
-            @Value("${zanshin.scanning.bundled-rules:}") String bundledRulesOverride,
-            @Value("${zanshin.scanning.host-ssh:true}") boolean hostSsh) {
+            @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
+            @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh) {
         RulePlacement.RuleSetProvider provider =
                 contentHash -> ruleSets.byHash(contentHash).map(ruleSets::filesOf).orElse(List.of());
 

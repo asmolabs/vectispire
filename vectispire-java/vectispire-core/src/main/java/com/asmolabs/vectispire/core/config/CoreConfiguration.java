@@ -1,15 +1,15 @@
-package com.asmolabs.zanshin.core.config;
+package com.asmolabs.vectispire.core.config;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.asmolabs.zanshin.common.domain.auth.Sessions;
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -111,7 +111,7 @@ public class CoreConfiguration {
      * @param idleLifetime past this without a request, a session ends. It is what protects an
      *     unlocked screen, and it is deliberately much shorter
      */
-    @ConfigurationProperties("zanshin.session")
+    @ConfigurationProperties("vectispire.session")
     public record SessionProperties(
             @DefaultValue("12h") Duration absoluteLifetime, @DefaultValue("60m") Duration idleLifetime) {}
 
@@ -122,7 +122,7 @@ public class CoreConfiguration {
      *     claimed twice — it was a throughput problem, whose production shape is an agent
      *     polling for thirty seconds while work waits
      */
-    @ConfigurationProperties("zanshin.queue")
+    @ConfigurationProperties("vectispire.queue")
     public record QueueProperties(
             @DefaultValue("20m") Duration lease,
             @DefaultValue("3") int maxAttempts,

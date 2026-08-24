@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.persistence.ComponentEntity;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;

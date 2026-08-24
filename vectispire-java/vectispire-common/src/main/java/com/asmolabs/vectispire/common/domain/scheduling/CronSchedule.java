@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scheduling;
+package com.asmolabs.vectispire.common.domain.scheduling;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -12,7 +12,7 @@ import java.util.Optional;
  * framework. Cron parsing belongs to whatever the control plane already depends on, and Spring
  * ships a perfectly good parser that the domain is not allowed to see.
  *
- * <p>So the domain declares the shape and {@code zanshin-core} supplies it. Tests here pass a
+ * <p>So the domain declares the shape and {@code vectispire-core} supplies it. Tests here pass a
  * lambda, which is also the honest way to write "given that the next occurrence is Tuesday at
  * two" without asserting anything about cron syntax.
  */

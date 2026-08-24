@@ -1,20 +1,20 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.ZanshinApplication;
-import com.asmolabs.zanshin.core.persistence.ComponentEntity;
-import com.asmolabs.zanshin.core.persistence.Engine;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -45,7 +45,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * will</b>, and the queries these screens rely on are exactly the kind that read correct and are
  * wrong in SQL.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
+@SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the history and inventory queries")
 class HistoryQueriesIntegrationTest {
 

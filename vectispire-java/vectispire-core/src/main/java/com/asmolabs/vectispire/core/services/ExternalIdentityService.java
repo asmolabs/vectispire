@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.core.persistence.TeamEntity;
-import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.TeamMembers;
-import com.asmolabs.zanshin.core.repositories.Teams;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.core.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.TeamMembers;
+import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Turning an identity the provider vouched for into an account Zanshin already knows.
+ * Turning an identity the provider vouched for into an account Vectispire already knows.
  * Also synchronizes team memberships from IdP group claims.
  */
 @Service
@@ -71,7 +71,7 @@ public class ExternalIdentityService {
                 .orElseThrow(() -> {
                     log.warn("Single sign-on refused: no account named \"{}\" ({}).", name, issuer);
                     return new SignInRefusedException(
-                            "No Zanshin account matches this identity. An administrator has to create it first.");
+                            "No Vectispire account matches this identity. An administrator has to create it first.");
                 });
 
         if (account.getKeycloakId() != null) {

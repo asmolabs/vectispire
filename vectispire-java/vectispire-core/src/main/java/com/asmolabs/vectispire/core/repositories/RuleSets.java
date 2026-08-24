@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,7 +43,7 @@ public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
      * that by accident.
      */
     @Query("""
-            select new com.asmolabs.zanshin.core.repositories.RuleSetSummary(
+            select new com.asmolabs.vectispire.core.repositories.RuleSetSummary(
                     r.id, r.name, r.contentHash, r.ruleCount, r.fileCount, cast(r.sizeBytes as string),
                     r.isActive, r.uploadedBy, r.uploadedAt, r.activationNote)
               from SemgrepRuleSetEntity r

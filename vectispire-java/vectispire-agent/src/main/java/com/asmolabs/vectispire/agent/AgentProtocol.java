@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
-import com.asmolabs.zanshin.common.domain.agents.AgentContract;
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.StoredFile;
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.ScanTask;
+import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>No database access, and that is a security property rather than a detail.</b> An agent
  * with a connection would also need the encryption key — that is, the means to decrypt
- * <em>every</em> deployment key Zanshin holds. It therefore knows the control plane only
+ * <em>every</em> deployment key Vectispire holds. It therefore knows the control plane only
  * through these four calls, authenticated by an API key bearing the {@code agent} scope, and it
  * opens no inbound port.
  *

@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.aireview.AiVulnerabilityAdvice;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.services.AiReviewService;
+import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.AiReviewService;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -45,7 +45,7 @@ public class AiAdvisorController {
 
     @PostMapping("/explain/issue/{issueId}")
     public AiVulnerabilityAdvice explainIssue(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable Long issueId) {
         IssueEntity issue = issuesRepo.findById(issueId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found: " + issueId));
@@ -55,7 +55,7 @@ public class AiAdvisorController {
 
     @PostMapping("/explain/cve/{cveId}")
     public AiVulnerabilityAdvice explainCve(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String cveId,
             @RequestParam(required = false) String packageName,
             @RequestParam(required = false) String currentVersion,

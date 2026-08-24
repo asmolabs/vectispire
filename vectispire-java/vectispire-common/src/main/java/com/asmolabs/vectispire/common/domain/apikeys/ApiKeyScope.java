@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.apikeys;
+package com.asmolabs.vectispire.common.domain.apikeys;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +20,7 @@ public enum ApiKeyScope {
      * Running scans as an agent.
      *
      * <p><b>Never granted implicitly.</b> It is the scope that lets a holder execute work on
-     * Zanshin's behalf, and a default that includes it turns "I issued a read key" into
+     * Vectispire's behalf, and a default that includes it turns "I issued a read key" into
      * something else entirely.
      */
     AGENT(false);

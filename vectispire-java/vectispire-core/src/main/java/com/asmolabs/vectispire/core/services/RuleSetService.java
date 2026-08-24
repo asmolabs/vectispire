@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.StoredFile;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
-import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.RuleSetSummary;
-import com.asmolabs.zanshin.core.repositories.RuleSets;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.RuleSetSummary;
+import com.asmolabs.vectispire.core.repositories.RuleSets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Uploaded Semgrep rule sets: storing them, activating one, and serving them to executors.
  *
  * <p><b>Why this exists rather than the environment variable alone.</b> {@code
- * ZANSHIN_SEMGREP_RULES_DIR} is read by the process that scans, and the scanner is shared
+ * VECTISPIRE_SEMGREP_RULES_DIR} is read by the process that scans, and the scanner is shared
  * between the built-in worker and every remote agent. The directory therefore has to be
  * provisioned on each agent's filesystem, and the control plane has no way to check that it
  * was. Two agents, one provisioned and one not, taking turns on the same target make the SAST
@@ -135,7 +135,7 @@ public class RuleSetService {
      *
      * <p>Counted from the open SAST issues that exist right now rather than from the previously
      * uploaded set, because the backlog is the authority on what has something to lose: rules
-     * also arrive from the bundled tree and from {@code ZANSHIN_SEMGREP_RULES_DIR}.
+     * also arrive from the bundled tree and from {@code VECTISPIRE_SEMGREP_RULES_DIR}.
      */
     @Transactional(readOnly = true)
     public TriageImpact impactOf(SemgrepRuleSetEntity candidate) {

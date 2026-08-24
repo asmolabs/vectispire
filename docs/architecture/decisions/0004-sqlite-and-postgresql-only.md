@@ -61,7 +61,7 @@ behaviour everywhere you test it.
 
 **Dropping SQLite** — see above.
 
-**Letting MySQL work without testing it.** SQLAlchemy would connect and most of Zanshin
+**Letting MySQL work without testing it.** SQLAlchemy would connect and most of Vectispire
 would work, so an operator who kept their URL would meet the removal months later, in the
 shape of an audit log declaring itself tampered with. A back end that is no longer tested
 must fail loudly on the first line, not subtly on the hundredth.

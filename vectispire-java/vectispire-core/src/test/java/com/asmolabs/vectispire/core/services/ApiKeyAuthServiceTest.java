@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,12 +8,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeys;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.core.persistence.ApiKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Agents;
-import com.asmolabs.zanshin.core.repositories.ApiKeysRepository;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

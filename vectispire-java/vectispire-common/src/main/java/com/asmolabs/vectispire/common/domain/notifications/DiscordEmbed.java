@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ public final class DiscordEmbed {
         }
 
         Map<String, Object> embed = new LinkedHashMap<>();
-        embed.put("title", "🛡️ Zanshin: " + payload.target() + " (Scan #" + payload.scanId() + ")");
+        embed.put("title", "🛡️ Vectispire: " + payload.target() + " (Scan #" + payload.scanId() + ")");
         embed.put("description", payload.text());
         embed.put("color", color);
         embed.put("timestamp", Instant.now().toString());
@@ -58,10 +58,10 @@ public final class DiscordEmbed {
         }
 
         embed.put("fields", fields);
-        embed.put("footer", Map.of("text", "Zanshin DevSecOps Platform"));
+        embed.put("footer", Map.of("text", "Vectispire DevSecOps Platform"));
 
         Map<String, Object> root = new LinkedHashMap<>();
-        root.put("username", "Zanshin Security");
+        root.put("username", "Vectispire Security");
         root.put("embeds", List.of(embed));
         return root;
     }

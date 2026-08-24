@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.notifications.SlackBlockKit;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.SlackBlockKit;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

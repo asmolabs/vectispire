@@ -200,7 +200,7 @@ export class Repositories {
     }
 
     copyBadgeMarkdown(repoId: number): void {
-        const markdown = `[![Zanshin Security](${window.location.origin}/api/v1/scorecards/repositories/${repoId}/badge.svg)](${window.location.origin}/repositories)`;
+        const markdown = `[![Vectispire Security](${window.location.origin}/api/v1/scorecards/repositories/${repoId}/badge.svg)](${window.location.origin}/repositories)`;
         navigator.clipboard.writeText(markdown).then(() => {
             this.copied.set(true);
             setTimeout(() => this.copied.set(false), 3000);

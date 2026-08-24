@@ -15,11 +15,11 @@ import { ApiService } from '../../core/api.service';
 import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
 const CREDENTIALS = [
-    { label: 'Local keys', value: 'local', hint: 'The agent uses its own git credentials. Zanshin sends it no key.' },
+    { label: 'Local keys', value: 'local', hint: 'The agent uses its own git credentials. Vectispire sends it no key.' },
     {
         label: 'Delegated keys',
         value: 'delegated',
-        hint: 'Zanshin sends the repository deployment key. Requires an encrypted link — the agent is refused otherwise.'
+        hint: 'Vectispire sends the repository deployment key. Requires an encrypted link — the agent is refused otherwise.'
     }
 ];
 

@@ -167,7 +167,7 @@ export class Login {
                     // is elsewhere. Seen by trying it, not by reading it.
                     this.error.set(
                         response.status === 0
-                            ? 'Server unreachable. Check that Zanshin is running.'
+                            ? 'Server unreachable. Check that Vectispire is running.'
                             : `The server answered ${response.status}. Try again, or check its logs.`
                     );
                 }
@@ -185,7 +185,7 @@ export class Login {
  * forgiving.
  */
 function clientId(): string {
-    const key = 'zanshin.client';
+    const key = 'vectispire.client';
     let value = localStorage.getItem(key);
     if (!value) {
         value = crypto.randomUUID();

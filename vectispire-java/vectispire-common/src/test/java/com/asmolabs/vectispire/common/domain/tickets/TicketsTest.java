@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.common.domain.tickets;
+package com.asmolabs.vectispire.common.domain.tickets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets.TicketableIssue;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ class TicketsTest {
     private static TicketableIssue issue() {
         return new TicketableIssue(
                 42, FindingType.VULNERABILITY, "CVE-2024-1234", Severity.HIGH, "requests", "2.31.0",
-                "2.32.0", FixState.FIXED, com.asmolabs.zanshin.common.domain.dependencies.Directness.DIRECT, null, null, true, 0.9754, "https://example/CVE-2024-1234",
+                "2.32.0", FixState.FIXED, com.asmolabs.vectispire.common.domain.dependencies.Directness.DIRECT, null, null, true, 0.9754, "https://example/CVE-2024-1234",
                 null, "abc123");
     }
 
@@ -24,17 +24,17 @@ class TicketsTest {
     @DisplayName("the title is short enough for a list and precise enough to search")
     void titleIsSearchable() {
         assertThat(Tickets.title(issue(), "api-service"))
-                .isEqualTo("[Zanshin][HIGH] CVE-2024-1234 — requests (api-service)");
+                .isEqualTo("[Vectispire][HIGH] CVE-2024-1234 — requests (api-service)");
     }
 
     @Test
     @DisplayName("falls back to the finding type when there is no identifier")
     void titleWithoutIdentifier() {
         TicketableIssue anonymous = new TicketableIssue(
-                1, FindingType.SECRET, null, Severity.CRITICAL, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, "app.py", 12,
+                1, FindingType.SECRET, null, Severity.CRITICAL, null, null, null, null, com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN, "app.py", 12,
                 false, null, null, null, "f");
 
-        assertThat(Tickets.title(anonymous, "api")).isEqualTo("[Zanshin][CRITICAL] secret (api)");
+        assertThat(Tickets.title(anonymous, "api")).isEqualTo("[Vectispire][CRITICAL] secret (api)");
     }
 
     @Test
@@ -54,7 +54,7 @@ class TicketsTest {
     void noPublishedFix() {
         TicketableIssue unfixable = new TicketableIssue(
                 1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, "pkg", "1.0", null, FixState.NOT_FIXED,
-                com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null, false, null, null, null, "f");
+                com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN, null, null, false, null, null, null, "f");
 
         assertThat(Tickets.body(unfixable, "api")).contains("- No published fix to date");
     }
@@ -74,7 +74,7 @@ class TicketsTest {
 
         assertThat(body)
                 .contains("Known active exploitation (CISA KEV catalog)")
-                .contains("Zanshin issue #42 — fingerprint `abc123`")
+                .contains("Vectispire issue #42 — fingerprint `abc123`")
                 .contains("would fail a build under the gate policy");
     }
 
@@ -82,7 +82,7 @@ class TicketsTest {
     @DisplayName("truncates a description that would bury the conclusion")
     void truncatesTheDescription() {
         TicketableIssue verbose = new TicketableIssue(
-                1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null,
+                1, FindingType.VULNERABILITY, "CVE-1", Severity.HIGH, null, null, null, null, com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN, null, null,
                 false, null, null, "x".repeat(5000), "f");
 
         assertThat(Tickets.body(verbose, "api")).contains("x".repeat(1000)).doesNotContain("x".repeat(1001));
@@ -92,7 +92,7 @@ class TicketsTest {
     @DisplayName("omits what it does not know rather than printing a placeholder")
     void omitsUnknownFields() {
         TicketableIssue sparse = new TicketableIssue(
-                1, FindingType.IAC, "CKV_AWS_1", Severity.MEDIUM, null, null, null, null, com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN, null, null,
+                1, FindingType.IAC, "CKV_AWS_1", Severity.MEDIUM, null, null, null, null, com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN, null, null,
                 false, null, null, null, "f");
         String body = Tickets.body(sparse, "api");
 
@@ -102,7 +102,7 @@ class TicketsTest {
     @Test
     @DisplayName("an empty label list is a valid state")
     void labelsMayBeEmpty() {
-        assertThat(Tickets.parseLabels(" zanshin , security ,")).containsExactly("zanshin", "security");
+        assertThat(Tickets.parseLabels(" vectispire , security ,")).containsExactly("vectispire", "security");
         assertThat(Tickets.parseLabels("")).isEmpty();
         assertThat(Tickets.parseLabels(null)).isEmpty();
     }

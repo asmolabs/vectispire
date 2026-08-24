@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.licenses;
+package com.asmolabs.vectispire.common.domain.licenses;
 
-import com.asmolabs.zanshin.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

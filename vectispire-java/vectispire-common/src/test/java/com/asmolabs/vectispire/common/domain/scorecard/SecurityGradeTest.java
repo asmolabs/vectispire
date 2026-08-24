@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scorecard;
+package com.asmolabs.vectispire.common.domain.scorecard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,10 +32,10 @@ class SecurityGradeTest {
     @Test
     @DisplayName("generates valid SVG badge markup")
     void generatesSvgBadge() {
-        String svg = SvgBadgeGenerator.generateBadge("zanshin security", "A+", "#4c1");
+        String svg = SvgBadgeGenerator.generateBadge("vectispire security", "A+", "#4c1");
 
         assertThat(svg).contains("<svg");
-        assertThat(svg).contains("zanshin security");
+        assertThat(svg).contains("vectispire security");
         assertThat(svg).contains("A+");
         assertThat(svg).contains("#4c1");
         assertThat(svg).endsWith("</svg>");

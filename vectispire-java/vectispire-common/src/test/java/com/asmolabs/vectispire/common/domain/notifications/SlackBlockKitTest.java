@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +26,7 @@ class SlackBlockKitTest {
                 0,
                 "msg-123");
 
-        Map<String, Object> slackPayload = SlackBlockKit.of(payload, "https://zanshin.corp.com");
+        Map<String, Object> slackPayload = SlackBlockKit.of(payload, "https://vectispire.corp.com");
 
         assertThat(slackPayload).containsKey("blocks");
         List<?> blocks = (List<?>) slackPayload.get("blocks");

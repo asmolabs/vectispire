@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 /** A rule source was named and cannot be used. Refusing to scan is the point. */
 public class OperatorRulesUnavailableException extends RuntimeException {

@@ -11,7 +11,7 @@ sqlite = "3.51.0.0"
 bouncycastle = "1.85"
 dockerJava = "3.7.1"
 # **Raised above what the Spring Boot BOM and docker-java ask for, for named advisories.**
-# The BOM manages 5.6.1/5.4.2, and Zanshin's own SBOM scan reports fixable High findings
+# The BOM manages 5.6.1/5.4.2, and Vectispire's own SBOM scan reports fixable High findings
 # against both — GHSA-v3jc-474w-2wm6 and GHSA-hf6x-8p5f-cgmf on httpcore5, GHSA-hjcp-jmpx-g3qm
 # on httpclient5. Gradle resolves to the highest of the declared version and the platform
 # constraint, so naming them here is what raises them. Drop these two lines when the BOM

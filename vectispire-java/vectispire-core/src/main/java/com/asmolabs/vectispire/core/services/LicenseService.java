@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.licenses.LicenseBlocklist;
-import com.asmolabs.zanshin.common.domain.sbom.Sbom;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.licenses.LicenseBlocklist;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.util.List;

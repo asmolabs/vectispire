@@ -14,7 +14,7 @@ first.
 
 ## Decision
 
-A common interface, [`ScanRunner`](../../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java), which
+A common interface, [`ScanRunner`](../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java), which
 separates **what** to scan from **how and where** it is executed. The orchestrator calls
 the configured implementation; the Docker engine stays the default, functionally
 unchanged.

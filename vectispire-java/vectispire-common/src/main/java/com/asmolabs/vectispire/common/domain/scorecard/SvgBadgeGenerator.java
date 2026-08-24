@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scorecard;
+package com.asmolabs.vectispire.common.domain.scorecard;
 
 /**
  * Pure Java generator for clean, vector SVG security badges (Shields.io style).

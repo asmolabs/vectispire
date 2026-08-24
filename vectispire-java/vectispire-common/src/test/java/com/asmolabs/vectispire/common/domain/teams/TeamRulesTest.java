@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.teams;
+package com.asmolabs.vectispire.common.domain.teams;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

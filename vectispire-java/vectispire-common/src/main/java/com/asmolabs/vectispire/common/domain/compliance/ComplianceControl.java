@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.compliance;
+package com.asmolabs.vectispire.common.domain.compliance;
 
 /**
  * A specific compliance requirement / control within a regulatory framework.

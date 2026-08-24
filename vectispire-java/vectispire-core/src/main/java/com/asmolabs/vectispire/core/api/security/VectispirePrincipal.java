@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  * mean every filter and every controller asking "which kind is this" before it can do
  * anything. One token that can answer both questions keeps that branch in one place.
  */
-public final class ZanshinPrincipal extends AbstractAuthenticationToken {
+public final class VectispirePrincipal extends AbstractAuthenticationToken {
 
     private static final long serialVersionUID = 1L;
 
@@ -40,7 +40,7 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
      */
     private final transient Visibility credentialRestriction;
 
-    private ZanshinPrincipal(
+    private VectispirePrincipal(
             UserEntity user,
             SessionEntity session,
             AgentEntity agent,
@@ -54,7 +54,7 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
         setAuthenticated(true);
     }
 
-    public static ZanshinPrincipal ofUser(UserEntity user, SessionEntity session) {
+    public static VectispirePrincipal ofUser(UserEntity user, SessionEntity session) {
         Role role = Role.of(user.getRole()).orElse(null);
         List<GrantedAuthority> authorities = role == null
                 // An unreadable role authorizes nothing. Not a fallback to the least privileged
@@ -64,16 +64,16 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
                 : List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
         // A session carries no restriction of its own; the account's assignments are
         // resolved separately, and intersected with this.
-        return new ZanshinPrincipal(user, session, null, Visibility.everything(), authorities);
+        return new VectispirePrincipal(user, session, null, Visibility.everything(), authorities);
     }
 
-    public static ZanshinPrincipal ofAgent(AgentEntity agent, Visibility credentialRestriction) {
-        return new ZanshinPrincipal(
+    public static VectispirePrincipal ofAgent(AgentEntity agent, Visibility credentialRestriction) {
+        return new VectispirePrincipal(
                 null, null, agent, credentialRestriction, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
     }
 
-    public static ZanshinPrincipal ofScimClient() {
-        return new ZanshinPrincipal(
+    public static VectispirePrincipal ofScimClient() {
+        return new VectispirePrincipal(
                 null,
                 null,
                 null,
@@ -114,7 +114,7 @@ public final class ZanshinPrincipal extends AbstractAuthenticationToken {
      * <b>The token itself, not the row behind it.</b>
      *
      * <p>{@code @AuthenticationPrincipal} injects whatever this returns, and every controller
-     * asks for a {@code ZanshinPrincipal}. Returning the {@code UserEntity} — the obvious
+     * asks for a {@code VectispirePrincipal}. Returning the {@code UserEntity} — the obvious
      * reading of "principal" — made the types disagree, so Spring injected {@code null} into
      * every authenticated route in the application. Nothing failed to compile and no unit test
      * could see it: the first symptom was a NullPointerException on the first real request,

@@ -260,7 +260,7 @@ export class Issues {
 
     /**
      * The type in words. Open table: an unknown type shows raw rather than being hidden, because
-     * a type Zanshin does not know is a type somebody added and nobody wired to this screen.
+     * a type Vectispire does not know is a type somebody added and nobody wired to this screen.
      */
     typeLabel(type: string): string {
         return this.types.find((option) => option.value === type)?.label ?? type;

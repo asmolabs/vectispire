@@ -1,15 +1,15 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.agents.AgentContract;
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.StoredFile;
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.core.api.security.RequiresAgentKey;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.repositories.Agents;
-import com.asmolabs.zanshin.core.services.RuleSetService;
-import com.asmolabs.zanshin.core.services.ScanDispatcher;
+import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.services.RuleSetService;
+import com.asmolabs.vectispire.core.services.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
@@ -94,7 +94,7 @@ public class AgentsController {
      * that is, most of what can be misconfigured.
      */
     @PostMapping("/hello")
-    public HelloResponse hello(@RequestBody HelloRequest body, @AuthenticationPrincipal ZanshinPrincipal principal) {
+    public HelloResponse hello(@RequestBody HelloRequest body, @AuthenticationPrincipal VectispirePrincipal principal) {
         AgentEntity agent = authenticate(principal);
         String announced = body.contractVersion() == null ? "" : body.contractVersion();
 
@@ -104,7 +104,7 @@ public class AgentsController {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This agent speaks contract \"" + (announced.isEmpty() ? "unknown" : announced)
-                            + "\" and Zanshin speaks \"" + AgentContract.VERSION + "\". Update the agent.");
+                            + "\" and Vectispire speaks \"" + AgentContract.VERSION + "\". Update the agent.");
         }
 
         // **Refused when unusable, rather than stored as it stands.** An unreadable value would
@@ -147,7 +147,7 @@ public class AgentsController {
      * it with no invalidation.
      */
     @GetMapping("/rules/{hash}")
-    public RuleSetResponse ruleSet(@PathVariable String hash, @AuthenticationPrincipal ZanshinPrincipal principal) {
+    public RuleSetResponse ruleSet(@PathVariable String hash, @AuthenticationPrincipal VectispirePrincipal principal) {
         authenticate(principal);
         // 404 rather than an empty set: the agent must fail its SAST step, not scan with the
         // bundled rules alone and hand back a shorter list that reads as "analyzed, these issues
@@ -160,7 +160,7 @@ public class AgentsController {
     /** Claims a task, or answers 204 when the wait runs out. */
     @GetMapping("/jobs")
     public DeferredResult<ResponseEntity<Object>> claimJob(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestHeader(name = "X-Forwarded-Proto", required = false) String forwardedProto,
             @RequestParam(required = false, defaultValue = "0") int wait,
             HttpServletRequest request) {
@@ -181,7 +181,7 @@ public class AgentsController {
      */
     @PostMapping("/jobs/{scanId}/heartbeat")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void heartbeat(@PathVariable long scanId, @AuthenticationPrincipal ZanshinPrincipal principal) {
+    public void heartbeat(@PathVariable long scanId, @AuthenticationPrincipal VectispirePrincipal principal) {
         AgentEntity agent = authenticate(principal);
         if (!dispatcher.renewAgentLease(scanId, agent)) {
             // 409: the lease was taken over while the agent worked. It has to give up rather than
@@ -196,8 +196,8 @@ public class AgentsController {
     public Map<String, Boolean> submitResult(
             @PathVariable long scanId,
             @RequestBody ScanArtifacts artifacts,
-            @RequestHeader(name = "X-Zanshin-Agent-Signature", required = false) String signature,
-            @AuthenticationPrincipal ZanshinPrincipal principal) {
+            @RequestHeader(name = "X-Vectispire-Agent-Signature", required = false) String signature,
+            @AuthenticationPrincipal VectispirePrincipal principal) {
 
         AgentEntity agent = authenticate(principal);
         if (!dispatcher.acceptAgentResult(scanId, agent, artifacts)) {
@@ -207,7 +207,7 @@ public class AgentsController {
         return Map.of("accepted", true);
     }
 
-    private static AgentEntity authenticate(ZanshinPrincipal principal) {
+    private static AgentEntity authenticate(VectispirePrincipal principal) {
         AgentEntity agent = principal == null
                 ? null
                 : principal.agent().orElse(null);

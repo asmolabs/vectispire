@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.ZanshinApplication;
-import com.asmolabs.zanshin.core.persistence.Engine;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +38,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * <b>everything queued must eventually be claimed</b>. A claim that never double-serves because
  * it serves almost nothing passes the first assertion and starves the queue.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
+@SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("claiming from the scan queue")
 class ScanQueueIntegrationTest {
 

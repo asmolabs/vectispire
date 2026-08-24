@@ -1,18 +1,18 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.dependencies.Directness;
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
-import com.asmolabs.zanshin.common.domain.gate.GateIssue;
-import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
-import com.asmolabs.zanshin.common.domain.gate.PolicyResolution.StoredPolicy;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets.TicketableIssue;
-import com.asmolabs.zanshin.core.persistence.GatePolicyEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.common.domain.dependencies.Directness;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
+import com.asmolabs.vectispire.common.domain.gate.GateIssue;
+import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
+import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 
 /**
  * Turning a stored row into the narrow shape a domain rule reads.

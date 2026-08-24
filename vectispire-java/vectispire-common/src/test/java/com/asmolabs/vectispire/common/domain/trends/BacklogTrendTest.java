@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.common.domain.trends;
+package com.asmolabs.vectispire.common.domain.trends;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.trends.BacklogTrend.Lifespan;
-import com.asmolabs.zanshin.common.domain.trends.BacklogTrend.Point;
-import com.asmolabs.zanshin.common.domain.trends.BacklogTrend.Series;
+import com.asmolabs.vectispire.common.domain.trends.BacklogTrend.Lifespan;
+import com.asmolabs.vectispire.common.domain.trends.BacklogTrend.Point;
+import com.asmolabs.vectispire.common.domain.trends.BacklogTrend.Series;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;

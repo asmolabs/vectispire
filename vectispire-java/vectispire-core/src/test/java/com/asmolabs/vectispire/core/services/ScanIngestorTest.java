@@ -1,19 +1,19 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.scanners.IacScanner.IacFinding;
-import com.asmolabs.zanshin.common.scanning.scanners.SastScanner.SastFinding;
-import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner.SecretFinding;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.scanners.IacScanner.IacFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.SastScanner.SastFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

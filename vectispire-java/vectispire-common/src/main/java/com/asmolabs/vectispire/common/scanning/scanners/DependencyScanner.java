@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.scanning.ContainerRun;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.ScannerFailureException;
-import com.asmolabs.zanshin.common.scanning.Workspace;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.scanning.ContainerRun;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
+import com.asmolabs.vectispire.common.scanning.Workspace;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -59,7 +59,7 @@ public final class DependencyScanner {
     }
 
     /**
-     * A vulnerable component, reduced to what Zanshin keeps.
+     * A vulnerable component, reduced to what Vectispire keeps.
      *
      * @param fixVersions the versions that fix it, comma-separated; empty when none exists.
      *     <b>A string and not a list</b>, because this doubles as the "fixable" flag in the
@@ -99,7 +99,7 @@ public final class DependencyScanner {
     /**
      * Takes the inventory of a <b>container image</b>.
      *
-     * <p><b>Zanshin pulls it, the container does not.</b> The only process talking to the daemon
+     * <p><b>Vectispire pulls it, the container does not.</b> The only process talking to the daemon
      * is this one; the cataloguer sees a file. Mounting the socket into it would be equivalent
      * to handing out root on the host, and no amount of container hardening changes that —
      * whoever reaches the socket can start a privileged container.
@@ -163,7 +163,7 @@ public final class DependencyScanner {
     public Optional<List<DependencyFinding>> matchStandaloneSbom(String sbomJson) {
         Path directory;
         try {
-            directory = Files.createTempDirectory("zanshin-sbom-");
+            directory = Files.createTempDirectory("vectispire-sbom-");
         } catch (IOException e) {
             throw new UncheckedIOException("could not stage the SBOM for matching", e);
         }
@@ -203,7 +203,7 @@ public final class DependencyScanner {
             findings.add(new DependencyFinding(
                     vulnerability.path("id").asText("unknown"),
                     // Parsed into the enum rather than kept as text. The matcher says "High";
-                    // Zanshin's vocabulary is lowercase, and an unparsed "High" would match no
+                    // Vectispire's vocabulary is lowercase, and an unparsed "High" would match no
                     // policy threshold — the finding would be created and enter no gate.
                     Severity.of(vulnerability.path("severity").asText(null)),
                     artifact.path("name").asText("unknown"),

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.auth.LoginThrottle;
-import com.asmolabs.zanshin.core.repositories.LoginAttempts;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
+import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.core.repositories.LoginAttempts;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
 import java.time.Clock;
 import java.time.Duration;
 import org.slf4j.Logger;

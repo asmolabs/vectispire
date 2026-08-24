@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.zanshin.common.domain.issues.Triage;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.vex.OpenVexDocument;
-import com.asmolabs.zanshin.common.domain.vex.OpenVexStatement;
-import com.asmolabs.zanshin.common.domain.vex.VexStatus;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
+import com.asmolabs.vectispire.common.domain.vex.VexStatus;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -110,7 +110,7 @@ public class VexIngestorService {
                 List<IssueEntity> matchingIssues = issuesRepo.findByIdentifier(cveId);
                 matched += matchingIssues.size();
 
-                com.asmolabs.zanshin.common.domain.issues.VexJustification justification = mapCycloneDxJustification(vuln.analysis().justification());
+                com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapCycloneDxJustification(vuln.analysis().justification());
                 String comment = "Upstream CycloneDX VEX by " + author + ": "
                         + (vuln.analysis().detail() != null ? vuln.analysis().detail() : "Declared not affected in CycloneDX BOM.");
 
@@ -166,7 +166,7 @@ public class VexIngestorService {
                 List<IssueEntity> matchingIssues = issuesRepo.findByIdentifier(cveId);
                 matched += matchingIssues.size();
 
-                com.asmolabs.zanshin.common.domain.issues.VexJustification justification = mapJustification(statement.justification());
+                com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapJustification(statement.justification());
 
                 String comment = "Upstream VEX statement by " + author + ": "
                         + (statement.impactStatement() != null ? statement.impactStatement() : "Declared not affected by upstream maintainer.");
@@ -195,37 +195,37 @@ public class VexIngestorService {
         return new IngestionResult(doc.statements().size(), matched, triaged, appliedCves);
     }
 
-    private com.asmolabs.zanshin.common.domain.issues.VexJustification mapJustification(
-            com.asmolabs.zanshin.common.domain.vex.VexJustification justification) {
+    private com.asmolabs.vectispire.common.domain.issues.VexJustification mapJustification(
+            com.asmolabs.vectispire.common.domain.vex.VexJustification justification) {
         if (justification == null) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
         }
         return switch (justification) {
-            case COMPONENT_NOT_PRESENT -> com.asmolabs.zanshin.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
-            case VULNERABLE_CODE_NOT_PRESENT -> com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_PRESENT;
-            case VULNERABLE_CODE_NOT_IN_EXECUTE_PATH -> com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH;
-            case VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY -> com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY;
-            case INLINE_MITIGATIONS_EXIST -> com.asmolabs.zanshin.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
+            case COMPONENT_NOT_PRESENT -> com.asmolabs.vectispire.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
+            case VULNERABLE_CODE_NOT_PRESENT -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_PRESENT;
+            case VULNERABLE_CODE_NOT_IN_EXECUTE_PATH -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH;
+            case VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY;
+            case INLINE_MITIGATIONS_EXIST -> com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
         };
     }
 
-    private com.asmolabs.zanshin.common.domain.issues.VexJustification mapCycloneDxJustification(String justification) {
+    private com.asmolabs.vectispire.common.domain.issues.VexJustification mapCycloneDxJustification(String justification) {
         if (justification == null) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
         }
         String normalized = justification.toLowerCase().replace("-", "_").replace(" ", "_");
         if (normalized.contains("component_not_present")) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
         }
         if (normalized.contains("not_in_execute_path") || normalized.contains("not_in_execution_path")) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH;
         }
         if (normalized.contains("not_present")) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_PRESENT;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_PRESENT;
         }
         if (normalized.contains("cannot_be_controlled")) {
-            return com.asmolabs.zanshin.common.domain.issues.VexJustification.VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY;
+            return com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY;
         }
-        return com.asmolabs.zanshin.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
+        return com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
     }
 }

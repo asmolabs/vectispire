@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.services.ScanDispatcher;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;

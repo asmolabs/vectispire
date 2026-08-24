@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
-import com.asmolabs.zanshin.common.domain.attestation.DsseEnvelope;
+import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -152,7 +152,7 @@ public final class CosignSigner {
         String base64Payload = Base64.getEncoder().encodeToString(payloadBytes);
         String signature = sign(payloadBytes, privateKey);
         DsseEnvelope.SignatureEntry sigEntry = new DsseEnvelope.SignatureEntry(
-                keyId != null ? keyId : "zanshin-default-key",
+                keyId != null ? keyId : "vectispire-default-key",
                 signature);
         return new DsseEnvelope(payloadType, base64Payload, List.of(sigEntry));
     }

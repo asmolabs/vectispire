@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.attestation.DsseEnvelope;
-import com.asmolabs.zanshin.common.domain.attestation.InTotoAttestation;
-import com.asmolabs.zanshin.common.domain.audit.AuditChain;
-import com.asmolabs.zanshin.common.domain.compliance.EvidenceBundleManifest;
-import com.asmolabs.zanshin.common.domain.compliance.EvidenceBundleManifest.EvidenceFileEntry;
-import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.AuditLog;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
+import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest;
+import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest.EvidenceFileEntry;
+import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -86,8 +86,8 @@ public class EvidenceVaultService {
 
             // 0. Public Key (Cosign / Sigstore Verification)
             byte[] pubKeyBytes = signingKeyService.getPublicKeyPem().getBytes(StandardCharsets.UTF_8);
-            addZipEntry(zip, entries, "00_zanshin_public_key.pub",
-                    "Zanshin ECDSA P-256 public key for verifying Cosign signatures and DSSE envelopes",
+            addZipEntry(zip, entries, "00_vectispire_public_key.pub",
+                    "Vectispire ECDSA P-256 public key for verifying Cosign signatures and DSSE envelopes",
                     pubKeyBytes);
 
             // 1. Compliance Frameworks evaluation
@@ -178,7 +178,7 @@ public class EvidenceVaultService {
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
                     "1.0",
                     Instant.now(),
-                    username != null ? username : "ciso@zanshin.internal",
+                    username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
                     logEntries.size(),
                     entries);

@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -48,7 +48,7 @@ class ExportsTest {
         @Test
         @DisplayName("under_review is spelled under_investigation, as the specification requires")
         void translatesUnderReview() {
-            // The single divergence between Zanshin's triage vocabulary and OpenVEX's.
+            // The single divergence between Vectispire's triage vocabulary and OpenVEX's.
             OpenVexDocument document = OpenVexExport.build(
                     List.of(vulnerability().triageStatus(TriageStatus.UNDER_REVIEW).build()), options());
 
@@ -106,7 +106,7 @@ class ExportsTest {
             JsonNode node = MAPPER.readTree(json);
 
             assertThat(node.get("@context").asText()).isEqualTo(OpenVexDocument.CONTEXT);
-            assertThat(node.get("@id").asText()).isEqualTo("urn:zanshin:doc:1");
+            assertThat(node.get("@id").asText()).isEqualTo("urn:vectispire:doc:1");
             // RFC 3339: a timestamp with no timezone is not a valid instant, and a strict
             // consumer is entitled to refuse the document.
             assertThat(node.get("timestamp").asText()).isEqualTo("2026-08-10T08:00:00.000Z");
@@ -118,7 +118,7 @@ class ExportsTest {
         }
 
         private static OpenVexExport.Options options() {
-            return new OpenVexExport.Options("Zanshin", "pkg:generic/product", "urn:zanshin:doc:1", AT);
+            return new OpenVexExport.Options("Vectispire", "pkg:generic/product", "urn:vectispire:doc:1", AT);
         }
     }
 
@@ -215,7 +215,7 @@ class ExportsTest {
 
             assertThat(log.runs().getFirst().tool().driver().rules())
                     .extracting(SarifLog.Rule::id)
-                    .containsExactly("zanshin/secret/generic-api-key", "zanshin/iac/generic-api-key");
+                    .containsExactly("vectispire/secret/generic-api-key", "vectispire/iac/generic-api-key");
         }
 
         @ParameterizedTest(name = "{0} lands on a level a reviewer does not scroll past")
@@ -276,7 +276,7 @@ class ExportsTest {
                             .packageVersion("2.31.0")
                             .fixVersions("2.32.0")
                             .kev(true)
-                            .directness(com.asmolabs.zanshin.common.domain.dependencies.Directness.TRANSITIVE)
+                            .directness(com.asmolabs.vectispire.common.domain.dependencies.Directness.TRANSITIVE)
                             .build()),
                     new SarifExport.Options("api-service"));
 
@@ -353,7 +353,7 @@ class ExportsTest {
         void unknownDependencyIsEmpty() {
             // A column filled with "unknown" reads as a finding about the dependency, when the
             // honest statement is that we have nothing to say about it.
-            String csv = IssueCsv.build(List.of(issue().directness(com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN).build()));
+            String csv = IssueCsv.build(List.of(issue().directness(com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN).build()));
             String[] header = csv.split("\r\n")[0].split(",");
             String[] row = csv.split("\r\n")[1].split(",", -1);
 

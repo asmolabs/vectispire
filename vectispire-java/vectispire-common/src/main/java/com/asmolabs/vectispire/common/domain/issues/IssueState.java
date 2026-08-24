@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.issues;
+package com.asmolabs.vectispire.common.domain.issues;
 
 import java.util.Optional;
 import java.util.stream.Stream;

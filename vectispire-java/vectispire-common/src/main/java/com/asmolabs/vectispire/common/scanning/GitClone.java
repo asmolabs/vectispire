@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
-import com.asmolabs.zanshin.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -116,7 +116,7 @@ public final class GitClone {
          * <p><b>It removes the per-repository scoping, and that is the trade.</b> Every target
          * this executor scans is reachable with whatever the host's key can reach. On a
          * single-team installation that is the point; on a shared one it means adding a URL is
-         * enough to have Zanshin clone it with an identity nobody attached to it.
+         * enough to have Vectispire clone it with an identity nobody attached to it.
          */
         HOST_SSH
     }
@@ -263,7 +263,7 @@ public final class GitClone {
      * Turns a failure into a sentence that says what to do.
      *
      * <p>Git's raw message is correct and unusable: "Permission denied (publickey)" says neither
-     * which repository, nor that Zanshin holds a key, nor where to declare it. The error lands
+     * which repository, nor that Vectispire holds a key, nor where to declare it. The error lands
      * in an agent's log, hours after the action that caused it.
      *
      * <p>Dispatched on the exception <b>type</b> where JGit provides one, and on its text only

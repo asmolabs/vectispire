@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.SettingEntity;
-import com.asmolabs.zanshin.core.repositories.Settings;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.SettingEntity;
+import com.asmolabs.vectispire.core.repositories.Settings;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;

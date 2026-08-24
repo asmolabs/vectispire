@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.siem;
+package com.asmolabs.vectispire.common.domain.siem;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
  * An immutable ArcSight Common Event Format (CEF v0.1) event.
  *
  * <p>Format specification:
- * {@code CEF:0|Zanshin|ASPM|1.0|signatureId|name|severity|extension}
+ * {@code CEF:0|Vectispire|ASPM|1.0|signatureId|name|severity|extension}
  */
 public record CefEvent(
         SecurityEventType eventType,
@@ -30,7 +30,7 @@ public record CefEvent(
 
     public String toCefString() {
         String header = String.format(
-                "CEF:0|Zanshin|ASPM|1.0|%s|%s|%d|",
+                "CEF:0|Vectispire|ASPM|1.0|%s|%s|%d|",
                 escapeHeader(eventType.signatureId()),
                 escapeHeader(eventType.description()),
                 eventType.cefSeverity());

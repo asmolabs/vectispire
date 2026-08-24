@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.compliance.ComplianceEvaluation;
-import com.asmolabs.zanshin.common.domain.compliance.ComplianceFramework;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.ComplianceReportPdf;
-import com.asmolabs.zanshin.core.services.ComplianceService;
-import com.asmolabs.zanshin.core.services.EvidenceVaultService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
+import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.ComplianceReportPdf;
+import com.asmolabs.vectispire.core.services.ComplianceService;
+import com.asmolabs.vectispire.core.services.EvidenceVaultService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import org.springframework.http.ContentDisposition;
@@ -51,14 +51,14 @@ public class ComplianceController {
     }
 
     @GetMapping("/summary")
-    public ComplianceService.ComplianceSummary summary(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public ComplianceService.ComplianceSummary summary(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         return compliance.getSummary(allowed);
     }
 
     @GetMapping("/frameworks/{framework}")
     public ComplianceEvaluation framework(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String framework) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         ComplianceFramework fw = ComplianceFramework.valueOf(framework.toUpperCase().replace('-', '_'));
@@ -67,7 +67,7 @@ public class ComplianceController {
 
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         ComplianceService.ComplianceSummary summary = compliance.getSummary(allowed);
@@ -94,7 +94,7 @@ public class ComplianceController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename("zanshin-compliance-report.pdf")
+                                .filename("vectispire-compliance-report.pdf")
                                 .build()
                                 .toString())
                 .body(pdf);
@@ -102,7 +102,7 @@ public class ComplianceController {
 
     @GetMapping(value = "/evidence-bundle.zip", produces = "application/zip")
     public ResponseEntity<byte[]> exportEvidenceBundle(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) throws java.io.IOException {
 
         String username = principal.user().map(u -> u.getUsername()).orElse("unknown");
@@ -115,7 +115,7 @@ public class ComplianceController {
                 request.getHeader("User-Agent")));
 
         byte[] zip = evidenceVault.generateEvidenceBundle(username);
-        String filename = "zanshin-audit-evidence-bundle.zip";
+        String filename = "vectispire-audit-evidence-bundle.zip";
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))

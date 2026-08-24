@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.scanning.ContainerRun;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.ScannerFailureException;
-import com.asmolabs.zanshin.common.scanning.Workspace;
+import com.asmolabs.vectispire.common.scanning.ContainerRun;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
+import com.asmolabs.vectispire.common.scanning.Workspace;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.util.List;
  */
 public final class SecretsScanner {
 
-    private static final String REPORT_FILENAME = "zanshin-gitleaks-report.json";
+    private static final String REPORT_FILENAME = "vectispire-gitleaks-report.json";
     private static final String LABEL = "gitleaks (secret detection)";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -40,7 +40,7 @@ public final class SecretsScanner {
     }
 
     /**
-     * What Zanshin keeps about a secret: where it is, and which rule found it.
+     * What Vectispire keeps about a secret: where it is, and which rule found it.
      *
      * <p><b>Not its value.</b> The report carries the plaintext; copying it into a finding would
      * put it in the database, in the SARIF exports, in the tickets and in the notifications. A
@@ -64,7 +64,7 @@ public final class SecretsScanner {
                         List.of(
                                 "detect",
                                 "--source=" + ContainerPaths.source(subPath),
-                                // **The configuration comes from Zanshin, never from the target.**
+                                // **The configuration comes from Vectispire, never from the target.**
                                 //
                                 // Without `--config`, the tool falls back to `.gitleaks.toml`
                                 // inside the scanned repository — a file written by whoever is
@@ -88,7 +88,7 @@ public final class SecretsScanner {
                         // Writable: the container has to deposit its report.
                         List.of(ContainerRun.Mount.writable(workspace.root().toString(), ContainerPaths.MOUNT)),
                         LABEL)
-                // The workspace is a 0700 temp directory owned by Zanshin's user, and the image
+                // The workspace is a 0700 temp directory owned by Vectispire's user, and the image
                 // runs unprivileged.
                 .runningAsRoot();
 

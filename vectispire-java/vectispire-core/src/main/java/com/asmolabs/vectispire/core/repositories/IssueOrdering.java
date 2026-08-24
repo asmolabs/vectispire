@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Sort;
@@ -38,7 +38,7 @@ public final class IssueOrdering {
     /**
      * A {@code case} mapping each stored severity to its position in the enum.
      *
-     * <p>The {@code else} catches a value no version of Zanshin writes — a row from an older
+     * <p>The {@code else} catches a value no version of Vectispire writes — a row from an older
      * schema, or a scanner label that reached the column. It sorts last rather than first: an
      * unrecognised severity must not head a backlog it says nothing about.
      */

@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,7 +30,7 @@ import java.util.TreeMap;
  *       dependency issue has no file. GitHub silently discards results with no location, so an
  *       honestly-empty location would make the vulnerability findings vanish — that is, most
  *       of them.
- *   <li><b>{@code partialFingerprints} carries Zanshin's fingerprint</b>, which lets the
+ *   <li><b>{@code partialFingerprints} carries Vectispire's fingerprint</b>, which lets the
  *       platform match an issue across uploads even when the file moves and the line shifts.
  * </ul>
  */
@@ -113,7 +113,7 @@ public final class SarifExport {
         }
 
         SarifLog.Driver driver = new SarifLog.Driver(
-                "Zanshin",
+                "Vectispire",
                 options.toolVersion() == null ? "1.0.0" : options.toolVersion(),
                 blankToNull(options.informationUri()),
                 List.copyOf(rules.values()));
@@ -135,7 +135,7 @@ public final class SarifExport {
     private static String ruleIdOf(ExportableIssue issue) {
         String type = issue.type() == null ? "unspecified" : issue.type().wireName();
         String identifier = blankToNull(issue.identifier()) == null ? "unspecified" : issue.identifier();
-        return "zanshin/" + type + "/" + identifier;
+        return "vectispire/" + type + "/" + identifier;
     }
 
     private static SarifLog.Rule rule(ExportableIssue issue, String ruleId) {
@@ -170,11 +170,11 @@ public final class SarifExport {
 
     private static SarifLog.Result result(ExportableIssue issue, String ruleId, int index) {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("zanshinIssueId", issue.id());
+        properties.put("vectispireIssueId", issue.id());
         properties.put("type", issue.type() == null ? null : issue.type().wireName());
         properties.put("firstSeen", issue.firstSeenAt() == null ? "" : Digests.canonical(issue.firstSeenAt()));
         properties.put("timesSeen", issue.timesSeen() == null || issue.timesSeen() == 0 ? 1 : issue.timesSeen());
-        if (issue.directness() != com.asmolabs.zanshin.common.domain.dependencies.Directness.UNKNOWN) {
+        if (issue.directness() != com.asmolabs.vectispire.common.domain.dependencies.Directness.UNKNOWN) {
             properties.put("dependency", issue.directness().label());
         }
 
@@ -184,7 +184,7 @@ public final class SarifExport {
                 levelOf(issue.severity()),
                 new SarifLog.Text(message(issue)),
                 List.of(location(issue)),
-                issue.fingerprint() == null ? Map.of() : Map.of("zanshinIssueFingerprint", issue.fingerprint()),
+                issue.fingerprint() == null ? Map.of() : Map.of("vectispireIssueFingerprint", issue.fingerprint()),
                 properties,
                 isSuppressed(issue) ? List.of(new SarifLog.Suppression("external", suppressionJustification(issue))) : null);
     }
@@ -214,7 +214,7 @@ public final class SarifExport {
         if (issue.kev()) {
             message.append(" — known active exploitation (CISA KEV)");
         }
-        if (issue.directness() == com.asmolabs.zanshin.common.domain.dependencies.Directness.TRANSITIVE) {
+        if (issue.directness() == com.asmolabs.vectispire.common.domain.dependencies.Directness.TRANSITIVE) {
             message.append(" — transitive dependency");
         }
         return message.toString();

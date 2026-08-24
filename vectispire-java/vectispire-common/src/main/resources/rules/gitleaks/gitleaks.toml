@@ -1,4 +1,4 @@
-# The secret-detection configuration, **supplied by Zanshin and not by the target**.
+# The secret-detection configuration, **supplied by Vectispire and not by the target**.
 #
 # Without `--config`, gitleaks falls back to `<source>/.gitleaks.toml` — a file inside the
 # repository being scanned, written by whoever is being audited — and uses it *instead of*
@@ -9,7 +9,7 @@
 # This file is copied into the workspace beside the Semgrep rules, outside the analysed
 # tree, and passed explicitly on the command line.
 
-title = "Zanshin"
+title = "Vectispire"
 
 # The built-in gitleaks rule set, and nothing more: it is maintained upstream, covers the
 # common providers, and replacing it with a hand-written list would be a commitment to keep
@@ -22,6 +22,6 @@ useDefault = true
 # triage, not a defect in the analysis.
 #
 # An allowlist here would also be the first thing an attacker would try to widen. The
-# built-in set already carries its own, written upstream; Zanshin adds none. (gitleaks
+# built-in set already carries its own, written upstream; Vectispire adds none. (gitleaks
 # refuses an empty allowlist anyway — the only way to exclude nothing is to not declare
 # the section at all.)

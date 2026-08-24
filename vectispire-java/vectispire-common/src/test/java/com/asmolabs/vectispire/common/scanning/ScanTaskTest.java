@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
-import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner.SecretFinding;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;

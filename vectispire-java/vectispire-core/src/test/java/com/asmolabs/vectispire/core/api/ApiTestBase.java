@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.auth.Sessions;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.Users;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -35,10 +35,10 @@ import org.springframework.web.context.WebApplicationContext;
  * disagreements are the database campaign's business; what is under test here is the HTTP
  * surface, which is the same on all four.
  *
- * <p>The context and the between-test cleanup come from {@link ZanshinContextTest}; what this
+ * <p>The context and the between-test cleanup come from {@link VectispireContextTest}; what this
  * adds is the HTTP half — the filter chain, and accounts to authenticate as.
  */
-abstract class ApiTestBase extends ZanshinContextTest {
+abstract class ApiTestBase extends VectispireContextTest {
 
     /**
      * Built by hand rather than through {@code @AutoConfigureMockMvc}.

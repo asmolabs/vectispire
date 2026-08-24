@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.ticketing;
+package com.asmolabs.vectispire.common.domain.ticketing;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 
 /**
  * Pure generator of issue descriptions formatted for Jira, GitHub, and GitLab.
@@ -22,7 +22,7 @@ public final class TicketDescription {
             String cwe,
             String description,
             String remediation,
-            String zanshinUrl) {}
+            String vectispireUrl) {}
 
     public static String formatTitle(IssueContext ctx) {
         String prefix = ctx.severity() != null ? "[" + ctx.severity().name() + "] " : "";
@@ -62,8 +62,8 @@ public final class TicketDescription {
             sb.append("### Recommended Remediation\n\n").append(ctx.remediation()).append("\n\n");
         }
 
-        if (ctx.zanshinUrl() != null && !ctx.zanshinUrl().isBlank()) {
-            sb.append("---\n*Tracked and managed by [Zanshin ASPM](").append(ctx.zanshinUrl()).append(")*\n");
+        if (ctx.vectispireUrl() != null && !ctx.vectispireUrl().isBlank()) {
+            sb.append("---\n*Tracked and managed by [Vectispire ASPM](").append(ctx.vectispireUrl()).append(")*\n");
         }
 
         return sb.toString();

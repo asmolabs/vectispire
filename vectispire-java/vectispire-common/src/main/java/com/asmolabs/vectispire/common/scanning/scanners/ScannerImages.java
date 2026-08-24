@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
 /**
  * The scanner images, <b>pinned by digest</b>.
  *
- * <p>These images <em>are</em> Zanshin's supply chain: a tool that audits everybody else's
+ * <p>These images <em>are</em> Vectispire's supply chain: a tool that audits everybody else's
  * cannot pull {@code :latest} and run whatever comes down. A digest makes an update a
  * deliberate, reviewable act instead of a change that happens one morning without anyone
  * deciding it.

@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -17,7 +17,7 @@ import java.util.List;
  *
  * <p><b>The structural mitigation is elsewhere</b>: the review's findings are excluded from the
  * gate by default and tagged as coming from a model. See
- * {@link com.asmolabs.zanshin.common.domain.issues.FindingType#AI_REVIEW}.
+ * {@link com.asmolabs.vectispire.common.domain.issues.FindingType#AI_REVIEW}.
  */
 public final class AiReview {
 

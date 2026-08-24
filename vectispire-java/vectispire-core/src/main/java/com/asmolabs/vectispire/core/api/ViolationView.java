@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Locale;

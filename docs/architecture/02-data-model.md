@@ -60,7 +60,7 @@ deduplicated), `leader_lease` (who holds the tick), `agent`.
 ## The fingerprint
 
 An issue's identity across scans, computed by
-[`buildFingerprint`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/issues/IssueFingerprint.java):
+[`buildFingerprint`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java):
 
 ```
 sha256( target, type, identifier, purl-or-package-name, file-path )
@@ -108,7 +108,7 @@ stateDiagram-v2
 **"Absent from a scan that looked for this type"** is the clause that matters. An issue is
 resolved only if the scan actually looked for its type — hence the `scannedTypes` list
 carried into
-[`IssueSyncService`](../../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/IssueSyncService.java), which
+[`IssueSyncService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/IssueSyncService.java), which
 includes a type only if it ran. Without that condition, turning off secret scanning would
 declare every secret fixed.
 
@@ -131,7 +131,7 @@ blob, precisely so that it keeps working after the purge.
 
 ## The migrations
 
-Managed by Flyway under `zanshin-java/zanshin-core/src/main/resources/db/migration/{vendor}/`
+Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/`
 (`postgresql`, `mariadb`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring
 complete fidelity on each database engine. Two rules learned by breaking something.
 

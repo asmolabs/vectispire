@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services.crypto;
+package com.asmolabs.vectispire.core.services.crypto;
 
-import com.asmolabs.zanshin.common.domain.crypto.KmsProvider;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.Decrypted;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.SecretState;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.zanshin.core.services.PinnedHttpSender;
+import com.asmolabs.vectispire.common.domain.crypto.KmsProvider;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.core.services.PinnedHttpSender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -49,7 +49,7 @@ public class VaultKmsProvider implements KmsProvider {
             KmsProvider fallbackProvider) {
         this.endpoint = endpoint == null ? "" : endpoint.replaceAll("/+$", "");
         this.token = token == null ? "" : token;
-        this.keyName = (keyName == null || keyName.isBlank()) ? "zanshin" : keyName;
+        this.keyName = (keyName == null || keyName.isBlank()) ? "vectispire" : keyName;
         this.mountPath = (mountPath == null || mountPath.isBlank()) ? "transit" : mountPath;
         this.http = http;
         this.guard = guard;

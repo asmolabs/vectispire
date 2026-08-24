@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core;
+package com.asmolabs.vectispire.core;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,9 +9,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 @org.springframework.boot.context.properties.ConfigurationPropertiesScan
 @org.springframework.scheduling.annotation.EnableScheduling
-public class ZanshinApplication {
+public class VectispireApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ZanshinApplication.class, args);
+        SpringApplication.run(VectispireApplication.class, args);
     }
 }

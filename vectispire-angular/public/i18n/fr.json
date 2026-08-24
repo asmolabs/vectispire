@@ -324,7 +324,7 @@
   },
   "rule_sets": {
     "title": "Jeux de règles Semgrep",
-    "subtitle": "Zanshin intègre une règle par défaut ; la couverture du code source provient des jeux de règles installés ici. Vos règles sont transmises avec chaque scan, y compris vers les agents distants.",
+    "subtitle": "Vectispire intègre une règle par défaut ; la couverture du code source provient des jeux de règles installés ici. Vos règles sont transmises avec chaque scan, y compris vers les agents distants.",
     "upload_set_title": "Téléverser un jeu de règles",
     "name_label": "Nom du jeu",
     "name_placeholder": "opengrep-rules v1.0.0",
@@ -423,7 +423,7 @@
       },
       "notification_webhook_secret": {
         "label": "Secret de signature Webhook",
-        "help": "Signe chaque payload avec HMAC-SHA256 dans l'en-tête X-Zanshin-Signature (chiffré au repos)."
+        "help": "Signe chaque payload avec HMAC-SHA256 dans l'en-tête X-Vectispire-Signature (chiffré au repos)."
       },
       "ai_review_enabled": {
         "label": "Activer la revue IA locale (Ollama)",
@@ -455,7 +455,7 @@
       },
       "ticket_label": {
         "label": "Étiquette (label) des tickets créés",
-        "help": "Label apposé systématiquement sur tous les tickets créés (ex: zanshin-security)."
+        "help": "Label apposé systématiquement sur tous les tickets créés (ex: vectispire-security)."
       },
       "scanner_concurrency": {
         "label": "Nombre maximal d'analyses simultanées",
@@ -510,8 +510,8 @@
     "private_key_placeholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
     "private_key_hint": "Chiffrée en AES-256-GCM avant écriture en base avec ENCRYPTION_KEY. La clé en clair n'est jamais stockée ni retournée par l'API.",
     "public_key_label": "Clé publique",
-    "public_key_placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... deploy@zanshin",
-    "public_key_hint": "Optionnelle mais recommandée : permet à Zanshin d'afficher l'empreinte sans avoir à déchiffrer la partie privée.",
+    "public_key_placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... deploy@vectispire",
+    "public_key_hint": "Optionnelle mais recommandée : permet à Vectispire d'afficher l'empreinte sans avoir à déchiffrer la partie privée.",
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer cette clé ? Les dépôts associés échoueront lors de leur prochaine analyse."
   },
   "agents": {
@@ -663,7 +663,7 @@
     "manual_only": "Les deux champs sont vides : cette cible est analysée uniquement à la demande. Aucun planning automatique par défaut."
   },
   "auth": {
-    "login_title": "Connexion à Zanshin",
+    "login_title": "Connexion à Vectispire",
     "login_subtitle": "Analyse de sécurité applicative",
     "mfa_title": "Authentification à deux facteurs",
     "mfa_desc": "Saisissez le code à 6 chiffres de votre application d'authentification ou un code de secours.",
@@ -690,7 +690,7 @@
     "error_title": "Une erreur est survenue",
     "error_desc": "La ressource demandée n'est pas disponible.",
     "notfound_title": "Page non trouvée",
-    "notfound_desc": "Cette adresse ne correspond à aucun écran Zanshin.",
+    "notfound_desc": "Cette adresse ne correspond à aucun écran Vectispire.",
     "notfound_back_btn": "Retour au tableau de bord"
   },
   "roles": {

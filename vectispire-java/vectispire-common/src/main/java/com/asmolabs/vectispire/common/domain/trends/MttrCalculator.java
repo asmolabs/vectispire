@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.trends;
+package com.asmolabs.vectispire.common.domain.trends;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;

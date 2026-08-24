@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.net;
+package com.asmolabs.vectispire.common.domain.net;
 
 import java.net.InetAddress;
 import java.util.Arrays;

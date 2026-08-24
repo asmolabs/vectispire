@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.net;
+package com.asmolabs.vectispire.common.domain.net;
 
-/** The URL is not a destination Zanshin will call. */
+/** The URL is not a destination Vectispire will call. */
 public class UnsafeUrlException extends RuntimeException {
 
     public UnsafeUrlException(String message) {

@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.AuthService;
-import com.asmolabs.zanshin.core.services.ExternalIdentityService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.AuthService;
+import com.asmolabs.vectispire.core.services.ExternalIdentityService;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -29,9 +29,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 /**
- * Optional single sign-on, on top of the accounts Zanshin already has.
+ * Optional single sign-on, on top of the accounts Vectispire already has.
  *
- * <h2>Keycloak authenticates; Zanshin still issues the session</h2>
+ * <h2>Keycloak authenticates; Vectispire still issues the session</h2>
  *
  * <p>The alternative — validating the provider's token on every request, as a resource server —
  * reads as the purer design and costs more. It gives the application two sources of principal,
@@ -42,7 +42,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
  *
  * <h2>Present only when configured</h2>
  *
- * <p>The whole thing hangs on one variable. With no {@code ZANSHIN_OIDC_ISSUER} there is no
+ * <p>The whole thing hangs on one variable. With no {@code VECTISPIRE_OIDC_ISSUER} there is no
  * registration, no extra filter chain, no extra route and no button: an optional feature that is
  * off should be absent, not present and refusing.
  *
@@ -55,7 +55,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 // registration — so the condition would read false on a correctly configured instance. The
 // property is the honest signal, and it also lets the variables follow this project's naming
 // rather than Spring's nested property soup.
-@ConditionalOnProperty("zanshin.oidc.issuer")
+@ConditionalOnProperty("vectispire.oidc.issuer")
 public class OidcConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(OidcConfiguration.class);
@@ -75,18 +75,18 @@ public class OidcConfiguration {
     private static final int HANDOFF_SECONDS = 60;
 
     /**
-     * The provider, built here from Zanshin's own variables.
+     * The provider, built here from Vectispire's own variables.
      *
-     * <p>`ZANSHIN_OIDC_ISSUER` is the realm's issuer URL — the one whose
-     * `/.well-known/openid-configuration` describes the rest, so Zanshin discovers the endpoints
+     * <p>`VECTISPIRE_OIDC_ISSUER` is the realm's issuer URL — the one whose
+     * `/.well-known/openid-configuration` describes the rest, so Vectispire discovers the endpoints
      * instead of asking an operator to copy four of them correctly.
      */
     @Bean
     ClientRegistrationRepository oidcProvider(
-            @Value("${zanshin.oidc.issuer}") String issuer,
-            @Value("${zanshin.oidc.client-id}") String clientId,
-            @Value("${zanshin.oidc.client-secret:}") String clientSecret,
-            @Value("${zanshin.oidc.name:Single sign-on}") String name) {
+            @Value("${vectispire.oidc.issuer}") String issuer,
+            @Value("${vectispire.oidc.client-id}") String clientId,
+            @Value("${vectispire.oidc.client-secret:}") String clientSecret,
+            @Value("${vectispire.oidc.name:Single sign-on}") String name) {
 
         ClientRegistration registration = ClientRegistrations.fromIssuerLocation(issuer)
                 .registrationId("oidc")
@@ -121,7 +121,7 @@ public class OidcConfiguration {
      * <p>This chain is the one place in the application that is not stateless: the authorization
      * code flow needs a servlet session to hold the state and nonce between the redirect out and
      * the redirect back. It is created here and nowhere else, and it carries no application
-     * identity — the identity is the Zanshin session the success handler mints.
+     * identity — the identity is the Vectispire session the success handler mints.
      */
     @Bean
     @Order(1)
@@ -144,7 +144,7 @@ public class OidcConfiguration {
     /**
      * What happens once the provider has vouched for somebody.
      *
-     * <p>Resolve the account, mint a Zanshin session, hand the token over in a one-time cookie,
+     * <p>Resolve the account, mint a Vectispire session, hand the token over in a one-time cookie,
      * and send the browser to the application. A refusal is redirected with its reason rather
      * than thrown: the person is in a browser, mid-redirect, and a 500 tells them nothing.
      */

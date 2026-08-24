@@ -1,6 +1,6 @@
 # Regulatory Compliance Calculation Engine
 
-Zanshin's regulatory compliance module (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) continuously and automatically evaluates your organization's security posture against five major international regulatory frameworks:
+Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) continuously and automatically evaluates your organization's security posture against five major international regulatory frameworks:
 
 - **NIS 2 Directive** (EU 2022/2555 — Cybersecurity Risk-Management & Supply Chain Security)
 - **DORA** (EU 2022/2554 — Digital Operational Resilience Act for Financial Entities)
@@ -119,11 +119,11 @@ $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Scor
 
 ## 4. Certified Audit Evidence Vault
 
-Zanshin exports cryptographically sealed evidence packages ready for external auditors:
+Vectispire exports cryptographically sealed evidence packages ready for external auditors:
 - **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 5 frameworks, 20 controls, and prioritized remediation roadmap.
 - **Evidence Bundle ZIP (`/api/v1/compliance/evidence-bundle.zip`)**:
   - `manifest.json` & `manifest.json.sig`: Sealed evidence manifest with detached Cosign signature (ECDSA P-256).
-  - `00_zanshin_public_key.pub`: Active instance public key for independent auditor verification.
+  - `00_vectispire_public_key.pub`: Active instance public key for independent auditor verification.
   - `01_compliance_frameworks.json`: Continuous compliance assessments across NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA.
   - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
@@ -137,7 +137,7 @@ Zanshin exports cryptographically sealed evidence packages ready for external au
 
 ## 5. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)
 
-Zanshin supports the full trio of international VEX standards:
+Vectispire supports the full trio of international VEX standards:
 - **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier **OpenVEX**, **CSAF 2.0**, and **CycloneDX 1.5/1.6 VEX** statements, cascading automated triage for unaffected components with full audit provenance.
 - **OASIS CSAF 2.0 Export (`/api/v1/csaf/...`)**: Generates automated machine-readable security advisories for release scans and aggregate fleet inventory.
 - **CycloneDX 1.5/1.6 BOM-Linked VEX Export (`/api/v1/cyclonedx/...`)**: Generates industry-standard CycloneDX SBOMs enriched with component-level VEX analysis and justification.
@@ -154,7 +154,7 @@ To satisfy strict DORA and ISO 27001 requirements:
 
 ## 7. Cryptographic Artifact Signing (Cosign & DSSE RFC 9615)
 
-Zanshin integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic signing for all software supply chain artifacts:
+Vectispire integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic signing for all software supply chain artifacts:
 
 - **Key Pair**: ECDSA P-256 (`secp256r1`) with SHA-256 digest.
 - **Public Key Endpoint**: `GET /api/v1/crypto/public-key.pub` (publicly accessible for automated auditor verification).
@@ -162,5 +162,5 @@ Zanshin integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic sign
 - **Detached Cosign Signatures**: All SBOM and VEX deliverables in Evidence Vault carry companion `.sig` files.
 - **CLI Verification**:
   ```bash
-  cosign verify-blob --key zanshin-signing-key.pub --signature manifest.json.sig manifest.json
+  cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
   ```

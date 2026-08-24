@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.access.VisibilityMode;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;

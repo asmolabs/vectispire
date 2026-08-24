@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.access;
+package com.asmolabs.vectispire.common.domain.access;
 
 import java.util.Locale;
 import java.util.Optional;

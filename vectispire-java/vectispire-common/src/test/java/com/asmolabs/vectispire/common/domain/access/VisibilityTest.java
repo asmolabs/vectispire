@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.access;
+package com.asmolabs.vectispire.common.domain.access;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;

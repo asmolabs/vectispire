@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.scanning.Workspace;
+import com.asmolabs.vectispire.common.scanning.Workspace;
 
 /**
  * Paths as the scanner containers see them.
@@ -22,7 +22,7 @@ final class ContainerPaths {
         return subPath == null || subPath.isBlank() ? base : base + "/" + trim(subPath);
     }
 
-    /** A file in the rule tree Zanshin copied into the workspace. */
+    /** A file in the rule tree Vectispire copied into the workspace. */
     static String rules(String... segments) {
         return MOUNT + "/" + Workspace.RULES_SUBDIR + "/" + String.join("/", segments);
     }

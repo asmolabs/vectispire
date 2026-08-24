@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 
 /**
  * One destination a scan's delta can reach.

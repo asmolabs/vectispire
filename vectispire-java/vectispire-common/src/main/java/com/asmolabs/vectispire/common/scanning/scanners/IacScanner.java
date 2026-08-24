@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.scanning.ContainerRun;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.Workspace;
+import com.asmolabs.vectispire.common.scanning.ContainerRun;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.Workspace;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;

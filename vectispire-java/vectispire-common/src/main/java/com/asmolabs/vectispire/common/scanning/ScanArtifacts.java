@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
-import com.asmolabs.zanshin.common.domain.apis.ApiContract;
-import com.asmolabs.zanshin.common.domain.apis.ApiEndpoint;
-import com.asmolabs.zanshin.common.scanning.scanners.DependencyScanner.DependencyFinding;
-import com.asmolabs.zanshin.common.scanning.scanners.IacScanner.IacFinding;
-import com.asmolabs.zanshin.common.scanning.scanners.SastScanner.SastFinding;
-import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner.SecretFinding;
+import com.asmolabs.vectispire.common.domain.apis.ApiContract;
+import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
+import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner.DependencyFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.IacScanner.IacFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.SastScanner.SastFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.ArrayList;

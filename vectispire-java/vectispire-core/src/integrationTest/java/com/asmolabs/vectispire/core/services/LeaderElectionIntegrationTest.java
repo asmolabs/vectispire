@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.core.ZanshinApplication;
-import com.asmolabs.zanshin.core.persistence.Engine;
-import com.asmolabs.zanshin.core.repositories.LeaderLeases;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.repositories.LeaderLeases;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +37,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * holds under concurrency is a property of the engine, not of the Java, which is why this runs
  * on all four.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
+@SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the leader lease under contention")
 class LeaderElectionIntegrationTest {
 

@@ -1,6 +1,6 @@
 # Architecture, Quality & Security Audit Review
 
-**Project**: Zanshin  
+**Project**: Vectispire  
 **Scope**: Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Database Engines, Container Sandboxing, CI/CD Supply Chain, Compliance Engine & Certified Evidence Vault.  
 **Author**: Security & Software Architect  
 **Date**: August 2026  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary & Security Posture
 
-Zanshin demonstrates an **exceptional architectural and security maturity**. The system rigorously enforces **Security by Design**, **Defense-in-Depth**, and **Least Privilege** across all software layers.
+Vectispire demonstrates an **exceptional architectural and security maturity**. The system rigorously enforces **Security by Design**, **Defense-in-Depth**, and **Least Privilege** across all software layers.
 
 Security guarantees do not rely on implicit conventions; they are verified and locked by:
 1. **Compilation-level module boundaries** (physical JVM separation without JDBC leakage to remote agents).
@@ -27,7 +27,7 @@ flowchart TB
         FEEDS["CVE / KEV Feeds & Supplier VEX Advisories"]
     end
 
-    subgraph Runtime["Container Isolation (Zanshin Common)"]
+    subgraph Runtime["Container Isolation (Vectispire Common)"]
         DOCKER["Scanners (Syft, Grype, Semgrep, Gitleaks)<br/>cap_drop: ALL | network: none | read-only | digest pin"]
     end
 
@@ -43,7 +43,7 @@ flowchart TB
     end
 
     subgraph Agent["Remote Agent (Isolated JVM)"]
-        AGENT_RUN["zanshin-agent (No JDBC/Hibernate, Long Polling API)"]
+        AGENT_RUN["vectispire-agent (No JDBC/Hibernate, Long Polling API)"]
     end
 
     subgraph Front["Frontend (Angular 21)"]
@@ -63,7 +63,7 @@ flowchart TB
 ## 2. Backend Architecture & Security (Java 25 / Spring Boot 4.1)
 
 ### 2.1. Module Isolation at Build Time (Compile-Time Boundary)
-- **Design**: `zanshin-agent` depends strictly on `zanshin-common` and has zero dependency on `zanshin-core`.
+- **Design**: `vectispire-agent` depends strictly on `vectispire-common` and has zero dependency on `vectispire-core`.
 - **Security Property**: The remote agent daemon holds no JDBC driver, no Hibernate/JPA ORM, and no Spring Data on its classpath.
 - **Guarantee**: Even if an agent node is fully compromised, an attacker cannot access `ENCRYPTION_KEY` or connect directly to the central database.
 - **Validation**: Enforced by the Gradle build graph and verified by `AgentIsolationTest`.
@@ -83,7 +83,7 @@ flowchart TB
 ### 2.4. Scanner Sandboxing & Container Isolation
 - **Least Privilege**: Analysis containers execute with `cap_drop: ALL`, `no-new-privileges`, strict memory and PID limits, read-only mounts, and disabled networking (`network: none`) for local scanners.
 - **Digest Pinning**: All scanner images (Syft, Grype, Semgrep, Gitleaks) are pinned by exact **SHA-256 digest**.
-- **Docker Socket Sanitization**: No scan container has access to `/var/run/docker.sock`. For container image scanning, Zanshin exports image tarballs locally and mounts them read-only.
+- **Docker Socket Sanitization**: No scan container has access to `/var/run/docker.sock`. For container image scanning, Vectispire exports image tarballs locally and mounts them read-only.
 
 ### 2.5. Regulatory Compliance Engine & Evidence Vault (`ComplianceEngine`, `EvidenceVaultService`)
 - **Deterministic Scoring**: Real-time evaluation across 5 frameworks (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA) and 7 assessment categories.

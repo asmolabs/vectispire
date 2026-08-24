@@ -1,6 +1,6 @@
 # Moteur de Calcul de la Conformité Réglementaire & Coffre-Fort de Preuves
 
-Le sous-système de conformité réglementaire de Zanshin (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) évalue automatiquement et de manière déterministe la posture de sécurité de votre organisation par rapport à cinq référentiels internationaux majeurs :
+Le sous-système de conformité réglementaire de Vectispire (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) évalue automatiquement et de manière déterministe la posture de sécurité de votre organisation par rapport à cinq référentiels internationaux majeurs :
 
 - **Directive NIS 2** (UE 2022/2555 — Gestion des risques cyber & Sécurité de la chaîne d'approvisionnement)
 - **Règlement DORA** (UE 2022/2554 — Résilience opérationnelle numérique pour le secteur financier)
@@ -36,14 +36,14 @@ sequenceDiagram
         UI->>Ctrl: GET /api/v1/compliance/export.pdf
         Ctrl->>PDF: render(Subject, Evaluations)
         PDF-->>Ctrl: Rapport PDF Exécutif byte[]
-        Ctrl-->>Auditeur: zanshin-compliance-report.pdf
+        Ctrl-->>Auditeur: vectispire-compliance-report.pdf
     end
 
     opt Export Paquet de Preuves Certifiées (ZIP)
         UI->>Ctrl: GET /api/v1/compliance/evidence-bundle.zip
         Ctrl->>Vault: generateEvidenceBundle(username)
         Vault-->>Ctrl: Archive ZIP scellée cryptographiquement
-        Ctrl-->>Auditeur: zanshin-audit-evidence-bundle.zip
+        Ctrl-->>Auditeur: vectispire-audit-evidence-bundle.zip
     end
 ```
 
@@ -156,13 +156,13 @@ $$\text{Score Global} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score
 
 ## 5. Coffre-Fort de Preuves d'Audit (Evidence Vault)
 
-Zanshin produit des paquets de preuves directement opposables aux auditeurs externes :
+Vectispire produit des paquets de preuves directement opposables aux auditeurs externes :
 
 1. **Rapport PDF Exécutif (`/api/v1/compliance/export.pdf`)** :
    - Synthèse de la posture, scores par référentiel, détail des 20 contrôles et plan de remédiation priorisé.
 2. **Paquet de Preuves Certifié (`/api/v1/compliance/evidence-bundle.zip`)** :
    - `manifest.json` & `manifest.json.sig` : Manifeste d'audit scellé et sa signature détachée Cosign (ECDSA P-256).
-   - `00_zanshin_public_key.pub` : Clé publique PEM de l'instance pour vérification indépendante.
+   - `00_vectispire_public_key.pub` : Clé publique PEM de l'instance pour vérification indépendante.
    - `01_compliance_frameworks.json` : Évaluations continues des 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA).
    - `02_immutable_audit_log.jsonl` : Journal d'audit scellé HMAC-SHA256.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
@@ -176,13 +176,13 @@ Zanshin produit des paquets de preuves directement opposables aux auditeurs exte
 
 ## 6. Interopérabilité VEX & Échange B2B (OpenVEX, CSAF 2.0 & CycloneDX VEX)
 
-Zanshin supporte le triptyque complet des formats VEX mondiaux :
+Vectispire supporte le triptyque complet des formats VEX mondiaux :
 
 ### 1. Ingestion Multi-Formats Amont (*Upstream Suppression Cascade*)
-Zanshin permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX 1.5/1.6 VEX** :
+Vectispire permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX 1.5/1.6 VEX** :
 - **Endpoint API** : `POST /api/v1/vex/ingest` (détection automatique du format JSON).
 - **Interface Web** : Bouton `Importer VEX` sur `/compliance`.
-- **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non exécutable ou mitigation en ligne), Zanshin classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
+- **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non exécutable ou mitigation en ligne), Vectispire classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
 
 ### 2. Export Standardisé OASIS CSAF 2.0
 - `GET /api/v1/csaf/scans/{scanId}/csaf.json` : Avis CSAF par scan de release.
@@ -213,7 +213,7 @@ Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (
 
 ## 8. Signature Cryptographique des Preuves (Cosign & DSSE RFC 9615)
 
-Zanshin intègre une signature numérique de niveau **SLSA 3 / Sigstore** garantissant la non-répudiation des livrables :
+Vectispire intègre une signature numérique de niveau **SLSA 3 / Sigstore** garantissant la non-répudiation des livrables :
 
 - **Paire de clés de signature** : ECDSA P-256 (courbe `secp256r1`) avec condensé SHA-256.
 - **Export Clé Publique** : `GET /api/v1/crypto/public-key.pub` (téléchargeable publiquement pour audit).
@@ -221,5 +221,5 @@ Zanshin intègre une signature numérique de niveau **SLSA 3 / Sigstore** garant
 - **Signatures Détachées Cosign** : Tous les SBOMs et avis VEX de l'archive Evidence Vault sont accompagnés de leur signature `.sig`.
 - **Vérification CLI** :
   ```bash
-  cosign verify-blob --key zanshin-signing-key.pub --signature manifest.json.sig manifest.json
+  cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
   ```

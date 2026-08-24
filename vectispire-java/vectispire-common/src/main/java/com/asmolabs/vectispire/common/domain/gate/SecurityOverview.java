@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

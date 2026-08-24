@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,24 +11,24 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.agents.CredentialsMode;
-import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.ScanRunner;
-import com.asmolabs.zanshin.common.scanning.ScanTask;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.persistence.ContainerEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.SshKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.ScanQueue;
-import com.asmolabs.zanshin.core.repositories.SshKeys;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.ScanQueue;
+import com.asmolabs.vectispire.core.repositories.SshKeys;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -318,7 +318,7 @@ class ScanDispatcherTest {
         key.setName("deploy");
         key.setPrivateKey(new SecretCipher()
                 .encrypt(
-                        com.asmolabs.zanshin.common.domain.crypto.EncryptionKey.derive(ENCRYPTION_KEY),
+                        com.asmolabs.vectispire.common.domain.crypto.EncryptionKey.derive(ENCRYPTION_KEY),
                         PRIVATE_KEY,
                         SecretCipher.privateKeyContext(KEY_ID.toString())));
         return key;

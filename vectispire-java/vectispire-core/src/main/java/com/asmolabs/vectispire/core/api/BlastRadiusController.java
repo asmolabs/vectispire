@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.graph.BlastRadiusReport;
-import com.asmolabs.zanshin.common.domain.graph.BlastRadiusReport.TopImpactPackage;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.BlastRadiusService;
+import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
+import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TopImpactPackage;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.BlastRadiusService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -13,10 +13,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param vexAuthor a VEX is an assertion about who said what: the default names the tool, and an
  *     organization publishing them outwards will want its own name here
  */
-@ConfigurationProperties("zanshin.exports")
+@ConfigurationProperties("vectispire.exports")
 public record ExportProperties(
         Optional<String> publicUrl,
-        @DefaultValue("Zanshin") String vexAuthor,
+        @DefaultValue("Vectispire") String vexAuthor,
         @DefaultValue("1.0.0") String toolVersion) {
 
     public ExportProperties {

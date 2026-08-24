@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,11 +8,11 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * The rules Zanshin ships, materialised where a scanner can read them.
+ * The rules Vectispire ships, materialised where a scanner can read them.
  *
  * <p><b>They live in the jar and the scanners need files.</b> Semgrep and gitleaks run as sibling
  * containers with the workspace bind-mounted, and a bind mount is resolved by the Docker
- * <em>daemon</em>: a path inside Zanshin's own jar does not exist as far as it is concerned.
+ * <em>daemon</em>: a path inside Vectispire's own jar does not exist as far as it is concerned.
  * Decision 0006 records the same conclusion for the workspace copy.
  *
  * <p><b>Before this class the path was {@code Path.of("rules")}</b> — relative to whatever
@@ -44,7 +44,7 @@ public final class BundledRules {
      */
     public static Path materialise() {
         try {
-            return materialise(Files.createTempDirectory("zanshin-bundled-rules-"));
+            return materialise(Files.createTempDirectory("vectispire-bundled-rules-"));
         } catch (IOException failed) {
             throw new UncheckedIOException("Could not create a directory for the bundled rules", failed);
         }
@@ -60,7 +60,7 @@ public final class BundledRules {
                         // A packaging mistake, and one that would otherwise surface as a scan
                         // that "found nothing" — the worst possible symptom for a secrets rule.
                         throw new IllegalStateException(
-                                "Bundled rule " + file + " is missing from the jar. Zanshin cannot scan a "
+                                "Bundled rule " + file + " is missing from the jar. Vectispire cannot scan a "
                                         + "repository without it: gitleaks would fall back to a configuration "
                                         + "supplied by the repository being scanned.");
                     }

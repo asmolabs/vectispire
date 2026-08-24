@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.zanshin.common.domain.vex.OpenVexDocument;
-import com.asmolabs.zanshin.common.domain.vex.OpenVexStatement;
-import com.asmolabs.zanshin.common.domain.vex.VexJustification;
-import com.asmolabs.zanshin.common.domain.vex.VexStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
+import com.asmolabs.vectispire.common.domain.vex.VexJustification;
+import com.asmolabs.vectispire.common.domain.vex.VexStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +50,7 @@ public class VexGeneratorService {
         }
 
         return OpenVexDocument.create(
-                "https://zanshin.internal/api/v1/vex/aggregate/openvex.json",
+                "https://vectispire.internal/api/v1/vex/aggregate/openvex.json",
                 Instant.now(),
                 statements);
     }
@@ -67,7 +67,7 @@ public class VexGeneratorService {
             statements.add(createStatementFromFinding(finding));
         }
 
-        String uri = "https://zanshin.internal/api/v1/vex/scans/" + scan.getId() + "/openvex.json";
+        String uri = "https://vectispire.internal/api/v1/vex/scans/" + scan.getId() + "/openvex.json";
         return OpenVexDocument.create(uri, scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now(), statements);
     }
 
@@ -83,7 +83,7 @@ public class VexGeneratorService {
                     cve,
                     purl,
                     VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH,
-                    "Zanshin static analysis verified no direct call path invokes the vulnerable code.");
+                    "Vectispire static analysis verified no direct call path invokes the vulnerable code.");
         }
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(reachability)) {
@@ -124,7 +124,7 @@ public class VexGeneratorService {
                     cve,
                     purl,
                     VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH,
-                    "Zanshin static analysis verified no direct call path invokes the vulnerable code.");
+                    "Vectispire static analysis verified no direct call path invokes the vulnerable code.");
         }
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.getReachability())) {

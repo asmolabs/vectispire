@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.reachability;
+package com.asmolabs.vectispire.common.domain.reachability;
 
 /**
  * Concrete call-site evidence demonstrating reachability of a vulnerable dependency.

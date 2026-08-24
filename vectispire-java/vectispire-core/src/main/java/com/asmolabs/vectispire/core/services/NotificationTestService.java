@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,7 +94,7 @@ public class NotificationTestService {
         }
 
         NotificationPayload testPayload = new NotificationPayload(
-                "🔔 Zanshin Connectivity Test — All systems operational",
+                "🔔 Vectispire Connectivity Test — All systems operational",
                 "test-target:main",
                 999L,
                 1,

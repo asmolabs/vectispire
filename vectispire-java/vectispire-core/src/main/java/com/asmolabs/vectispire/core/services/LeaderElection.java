@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.core.persistence.LeaderLeaseEntity;
-import com.asmolabs.zanshin.core.repositories.LeaderLeases;
+import com.asmolabs.vectispire.core.persistence.LeaderLeaseEntity;
+import com.asmolabs.vectispire.core.repositories.LeaderLeases;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

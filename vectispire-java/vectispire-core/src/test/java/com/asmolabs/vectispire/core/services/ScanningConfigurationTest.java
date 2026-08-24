@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.asmolabs.zanshin.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ class ScanningConfigurationTest {
     @Test
     @DisplayName("is absent when the worker is switched off, so the guard stays meaningful")
     void noRunnerWhenTheWorkerIsOff() {
-        contexts.withPropertyValues("zanshin.worker.enabled=false")
+        contexts.withPropertyValues("vectispire.worker.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(ScanRunner.class));
     }
 

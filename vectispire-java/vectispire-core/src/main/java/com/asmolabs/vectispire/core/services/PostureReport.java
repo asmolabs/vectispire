@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue;
-import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
+import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,7 +20,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
  *
  * <p><b>Not the same audience as the other exports.</b> SARIF goes to a code host, OpenVEX to a
  * downstream consumer, CSV to a spreadsheet. This one goes to a person — an auditor, a steering
- * committee — and its job is to be readable without Zanshin open. That is why it leads with the
+ * committee — and its job is to be readable without Vectispire open. That is why it leads with the
  * verdict and the observation rather than with rows.
  *
  * <p><b>The observation is on the first page, next to the verdict.</b> A target nobody has
@@ -83,7 +83,7 @@ public final class PostureReport {
     }
 
     private static void heading(ReportCursor cursor, Subject subject) {
-        cursor.text("Zanshin — security posture", ReportCursor.HELVETICA_BOLD_16);
+        cursor.text("Vectispire — security posture", ReportCursor.HELVETICA_BOLD_16);
         cursor.gap();
         cursor.text(subject.targetKind() + ": " + subject.targetName(), ReportCursor.HELVETICA_BOLD_12);
         cursor.text("Generated " + STAMP.format(subject.generatedAt()), ReportCursor.HELVETICA_9);

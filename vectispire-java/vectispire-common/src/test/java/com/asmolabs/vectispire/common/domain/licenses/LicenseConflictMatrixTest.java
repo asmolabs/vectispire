@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.licenses;
+package com.asmolabs.vectispire.common.domain.licenses;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

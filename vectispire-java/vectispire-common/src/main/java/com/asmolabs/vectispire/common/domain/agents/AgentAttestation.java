@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.agents;
+package com.asmolabs.vectispire.common.domain.agents;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import org.bouncycastle.crypto.digests.SHA256Digest;

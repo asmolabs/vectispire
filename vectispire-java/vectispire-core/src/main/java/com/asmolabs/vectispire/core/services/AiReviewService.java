@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.aireview.AiReview;
-import com.asmolabs.zanshin.common.domain.aireview.AiVulnerabilityAdvice;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

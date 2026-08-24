@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.targets;
+package com.asmolabs.vectispire.common.domain.targets;
 
 import java.util.Optional;
 import java.util.regex.Pattern;

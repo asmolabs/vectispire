@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scans;
+package com.asmolabs.vectispire.common.domain.scans;
 
 import java.util.Arrays;
 import java.util.Locale;

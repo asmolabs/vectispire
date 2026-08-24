@@ -1,27 +1,27 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.targets.RepositoryUrl;
-import com.asmolabs.zanshin.common.domain.teams.TeamRules;
-import com.asmolabs.zanshin.core.repositories.TeamTargets;
-import com.asmolabs.zanshin.core.repositories.UserTargets;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.common.domain.targets.AssetTier;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
-import com.asmolabs.zanshin.core.services.CronExpressions;
-import com.asmolabs.zanshin.core.services.ScanTriggerService;
-import com.asmolabs.zanshin.core.services.TargetDeletionService;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.repositories.TeamTargets;
+import com.asmolabs.vectispire.core.repositories.UserTargets;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.AssetTier;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.CronExpressions;
+import com.asmolabs.vectispire.core.services.ScanTriggerService;
+import com.asmolabs.vectispire.core.services.TargetDeletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,7 +117,7 @@ public class RepositoriesController {
 
     /** The list, with each target's latest scan and how many issues are waiting on it. */
     @GetMapping
-    public List<Summary> list(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public List<Summary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(
                 principal.user().orElse(null), principal.credentialRestriction());
         Map<Long, LastScan> latest = latestScans();
@@ -147,7 +147,7 @@ public class RepositoriesController {
     @PostMapping
     public Summary create(
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String url = trim(body.url());
@@ -199,7 +199,7 @@ public class RepositoriesController {
     public Summary update(
             @PathVariable long id,
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         RepositoryEntity repository = repositories
@@ -265,7 +265,7 @@ public class RepositoriesController {
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
             @PathVariable long id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         RepositoryEntity repository = repositories.findById(id)
@@ -282,7 +282,7 @@ public class RepositoriesController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable long id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         RepositoryEntity repository = repositories.findById(id)
@@ -312,7 +312,7 @@ public class RepositoriesController {
     }
 
     private void record(
-            ZanshinPrincipal principal,
+            VectispirePrincipal principal,
             HttpServletRequest request,
             AuditOperation operation,
             long resourceId,

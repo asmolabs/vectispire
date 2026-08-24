@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.csaf;
+package com.asmolabs.vectispire.common.domain.csaf;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;

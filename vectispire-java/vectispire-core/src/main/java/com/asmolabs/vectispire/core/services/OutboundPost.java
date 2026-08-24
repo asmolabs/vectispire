@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.zanshin.common.domain.notifications.WebhookSignature;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.notifications.WebhookSignature;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -31,7 +31,7 @@ public class OutboundPost {
      * <p><b>Wrong for a model, and that is why the timeout is now a parameter.</b> A local model
      * writing a report takes minutes on ordinary hardware — this ceiling turned every OWASP run
      * into "Ollama: request timed out" after ten seconds, which reads as a broken Ollama rather
-     * than as a limit Zanshin chose.
+     * than as a limit Vectispire chose.
      */
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 

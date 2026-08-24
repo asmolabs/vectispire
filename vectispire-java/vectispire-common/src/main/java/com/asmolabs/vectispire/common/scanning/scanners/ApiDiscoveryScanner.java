@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
-import com.asmolabs.zanshin.common.domain.apis.ApiContract;
-import com.asmolabs.zanshin.common.domain.apis.ApiEndpoint;
-import com.asmolabs.zanshin.common.domain.apis.ApiVisibility;
+import com.asmolabs.vectispire.common.domain.apis.ApiContract;
+import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
+import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;

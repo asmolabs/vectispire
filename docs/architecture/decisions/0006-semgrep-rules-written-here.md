@@ -13,27 +13,27 @@ That plan ran into a licensing constraint discovered along the way.
   distributing the rules**. Vendoring is therefore impossible.
 - **`opengrep/opengrep-rules`**, the fork taken before that change, remains
   redistributable — but under LGPL-2.1 **plus a Commons Clause**. That clause would take
-  Zanshin out of open source in the OSI sense and would bind everyone who takes it up.
+  Vectispire out of open source in the OSI sense and would bind everyone who takes it up.
 
 ## Decision
 
 Three sources, in this order.
 
-**Zanshin's own rules**, written here, with no third-party license: about forty, Python /
+**Vectispire's own rules**, written here, with no third-party license: about forty, Python /
 JS-TS / Java, security and quality. Few in number and high in signal.
 
-**A directory supplied by the operator** (`VERISCAPE_SEMGREP_RULES_DIR`), merged with the
+**A directory supplied by the operator** (`VECTISPIRE_SEMGREP_RULES_DIR`), merged with the
 previous one. That is where the rules they choose land.
 
 **A fetch script** (`scripts/fetch_semgrep_rules.py`) that pulls `opengrep-rules` at a
 pinned tag, installs it into that directory, prints the license and writes a manifest.
 **Once, at install time, not on every scan**: the scan stays offline and reproducible, and
-the operator receives the rules from their author without Zanshin redistributing them.
+the operator receives the rules from their author without Vectispire redistributing them.
 
 ## What was rejected
 
 **Accepting the Commons Clause** to get a large rule set for free. It is a bad price:
-Zanshin would stop being free in the OSI sense, and the restriction would bind whoever
+Vectispire would stop being free in the OSI sense, and the restriction would bind whoever
 takes it up — for rules written by somebody else.
 
 **Downloading the rules on every scan** from the `semgrep.dev` registry. The registry also
@@ -61,8 +61,8 @@ would therefore rename every identifier, which **would resolve every SAST findin
 recreate them as new, triage lost**.
 
 **The rules are copied into the scan's workspace.** Counter-intuitive but mandatory: volume
-paths are resolved by the Docker *daemon*, not by the Zanshin process, so a directory
-living inside Zanshin's image is invisible to the sibling Semgrep container.
+paths are resolved by the Docker *daemon*, not by the Vectispire process, so a directory
+living inside Vectispire's image is invisible to the sibling Semgrep container.
 
 ---
 
@@ -70,8 +70,8 @@ living inside Zanshin's image is invisible to the sibling Semgrep container.
 > first two sources still worked. That was wrong, and the audit that followed found all
 > three broken by the port:
 >
-> - **Zanshin's own rules**: one rule, not "about forty, Python / JS-TS / Java".
-> - **`VERISCAPE_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
+> - **Vectispire's own rules**: one rule, not "about forty, Python / JS-TS / Java".
+> - **`VECTISPIRE_SEMGREP_RULES_DIR`**: documented in the README and in the settings table,
 >   and read nowhere in the code. Implemented on 2026-08-17 in
 >   `RulePlacement`, with a directory that cannot be read now failing SAST
 >   rather than letting the scan run with the bundled rules alone.

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import java.time.Duration;
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.List;
  *     vulnerability matcher needs its database and the cataloguer needs the registry; the
  *     secrets scanner, the IaC checker and a directory SBOM never do
  * @param asRoot needed by recent images that run as an unprivileged user: the workspace is a
- *     0700 temp directory owned by Zanshin's user, which a non-root process cannot read.
+ *     0700 temp directory owned by Vectispire's user, which a non-root process cannot read.
  *     {@code cap_drop: ALL} and {@code no-new-privileges} still apply
  */
 public record ContainerRun(

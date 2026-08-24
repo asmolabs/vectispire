@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.agents;
+package com.asmolabs.vectispire.common.domain.agents;
 
 /**
- * The version of the contract between Zanshin and its agents.
+ * The version of the contract between Vectispire and its agents.
  *
  * <p><b>An agent on an older version must be able to refuse cleanly.</b> Without this number
  * an agent speaking the old protocol receives a task it misreads and returns a plausible but

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,7 +14,7 @@ import java.nio.file.Path;
  * <p>An environment variable is readable by more things than an operator expects: {@code
  * /proc/<pid>/environ}, {@code docker inspect}, an orchestrator's own logs, a crash dump, and the
  * {@code .env} file somebody's backup swept up. For {@code ENCRYPTION_KEY} that matters more than
- * for anything else Zanshin reads — it decrypts <b>every</b> deployment key the installation
+ * for anything else Vectispire reads — it decrypts <b>every</b> deployment key the installation
  * holds, so it is the one value whose exposure is not a degradation but the whole loss.
  *
  * <p>A file is what a secret manager actually produces: Docker's secrets land under {@code
@@ -25,7 +25,7 @@ import java.nio.file.Path;
  * <h2>Every failure here is fatal, and that is the point</h2>
  *
  * <p>The tempting behaviour — an unreadable path falls back to the variable, or to nothing — is
- * the dangerous one, because <b>"no key configured" is a state Zanshin tolerates</b>:
+ * the dangerous one, because <b>"no key configured" is a state Vectispire tolerates</b>:
  * {@code EncryptionService} warns, keeps decrypting what is stored and refuses to write anything
  * new. A secret mount that failed would therefore look exactly like a fresh installation. The
  * screens render, the application serves, and the first person to notice is whoever tries to save

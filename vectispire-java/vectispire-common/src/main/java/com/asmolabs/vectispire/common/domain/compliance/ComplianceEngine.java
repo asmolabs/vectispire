@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.compliance;
+package com.asmolabs.vectispire.common.domain.compliance;
 
 import java.util.ArrayList;
 import java.util.List;

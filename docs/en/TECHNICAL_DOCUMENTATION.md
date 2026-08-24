@@ -74,12 +74,12 @@ parameter it cannot be built without, which is also what makes the unit suites p
 test hands a stub where the container hands a bean, and nothing has to be intercepted.
 
 **The layering is enforced, not documented.**
-[`ArchitectureTest`](../zanshin-java/zanshin-core/src/test/java/com/asmolabs/zanshin/core/ArchitectureTest.java)
+[`ArchitectureTest`](../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java)
 reads the import graph with ArchUnit and fails the suite when a layer imports from above
 itself, or when a `domain` class imports a framework.
 
-**The agent's isolation is stronger than that test.** `zanshin-agent` does not depend on
-`zanshin-core`, so no JDBC driver is on its compile classpath and the violation fails to
+**The agent's isolation is stronger than that test.** `vectispire-agent` does not depend on
+`vectispire-core`, so no JDBC driver is on its compile classpath and the violation fails to
 compile rather than failing a suite somebody could delete — a security property, not a style
 rule, see [decision 0003](architecture/decisions/0003-long-polling-for-agents.md). A rule
 written
@@ -99,7 +99,7 @@ and stays that way: Hibernate must never alter the schema at runtime.
 `VECTISPIRE_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
 four pass the whole integration campaign
 ([decision 0009](architecture/decisions/0009-four-engines.md), [decision 0013](architecture/decisions/0013-flyway-multi-dialect-migrations.md)).
-[`SchemaParityIntegrationTest`](../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/zanshin/core/persistence/SchemaParityIntegrationTest.java)
+[`SchemaParityIntegrationTest`](../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/vectispire/core/persistence/SchemaParityIntegrationTest.java)
 asks on each engine whether the entities and schema agree.
 
 ### The scan and issue model
@@ -297,14 +297,14 @@ Points that are not obvious from the diagram:
   becomes `quality`, which no policy can let into a verdict
   ([decision 0005](architecture/decisions/0005-quality-never-blocks-the-gate.md)). Both
   come from the same run, so they enter the scanned-types list together.
-- **The analyzers' configuration comes from Zanshin, never from the target.** gitleaks
+- **The analyzers' configuration comes from Vectispire, never from the target.** gitleaks
   falls back to the scanned repository's `.gitleaks.toml` when given no `--config`, and
   Semgrep honours the analyzed tree's `.gitignore` unless told otherwise — in both cases
   the audited repository would decide what is looked for in it.
 - **Rules are copied into the scan's workspace.** Counter-intuitive but mandatory: volume
-  paths are resolved by the Docker *daemon*, so a directory inside Veriscape's own image is
+  paths are resolved by the Docker *daemon*, so a directory inside Vectispire's own image is
   invisible to the sibling scanner container. See
-  [`RulePlacement`](../vectispire-java/vectispire-common/src/main/java/com/asmolabs/zanshin/common/scanning/RulePlacement.java), which also
+  [`RulePlacement`](../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/RulePlacement.java), which also
   merges the operator's `VECTISPIRE_SEMGREP_RULES_DIR`.
 - **Secrets, IaC and SAST never run on a container image.** They look in source code;
   declaring them scanned would silently resolve that target's whole history for those
@@ -327,7 +327,7 @@ to fetch.
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
 
-There is **one** runner, [`ScanRunner`](../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java), and it runs
+There is **one** runner, [`ScanRunner`](../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java), and it runs
 Docker. An earlier design had a `ScannerEngine` interface with three implementations; the
 port kept only the Docker one and
 [decision 0010](architecture/decisions/0010-one-scan-runner.md) abandons the seam rather
@@ -336,12 +336,12 @@ running an agent elsewhere.
 
 **No analysis container sees the Docker socket.** The image SBOM step used to mount it so
 Syft could pull the image itself — handing root on the host to a process whose input is
-hostile by definition. Zanshin now pulls and exports the image, and presents the container
+hostile by definition. Vectispire now pulls and exports the image, and presents the container
 with a read-only archive.
 
 ### AI code review (Ollama), off by default
 
-[`AiReviewService`](../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/AiReviewService.java) is a light complement to
+[`AiReviewService`](../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/AiReviewService.java) is a light complement to
 the scanners, not a SAST engine: one prompt, no guaranteed reproducibility. The sample sent
 is a sorted, extension-filtered concatenation of source files capped at 40,000 characters —
 no chunking, so large repositories are truncated.
@@ -397,10 +397,10 @@ Angular 21 with [Optimus UI](https://github.com/openng/optimus-ui), the communit
 PrimeNG v21 — PrimeTek archived PrimeNG and moved v22 to a commercial license. The shell
 comes from the Sakai template (MIT). `primeicons` is pinned to exactly `7.0.0`: 8.0.0
 followed PrimeNG under a proprietary license, which is what moving to Optimus was meant to
-avoid. See [`zanshin-angular/README.md`](../zanshin-angular/README.md).
+avoid. See [`vectispire-angular/README.md`](../vectispire-angular/README.md).
 
 The view models the browser receives are typed and computed server-side
-([`core/api.models.ts`](../zanshin-angular/src/app/core/api.models.ts)): finished values, not
+([`core/api.models.ts`](../vectispire-angular/src/app/core/api.models.ts)): finished values, not
 arithmetic. In particular the gate verdict shown on the Security screen is the one
 `POST /api/v1/gate` returns, because both go through the same `PolicyGate` — not a
 second implementation in SQL, which would agree today and diverge the first time a policy
@@ -422,8 +422,8 @@ migration, and roll each test back in its own transaction — so the schema unde
 one production will receive, and the cases cannot see each other.
 
 ```bash
-cd zanshin-java && ./gradlew integrationTest                # PostgreSQL
-cd zanshin-java && ./gradlew integrationTestAll             # all four engines
+cd vectispire-java && ./gradlew integrationTest                # PostgreSQL
+cd vectispire-java && ./gradlew integrationTestAll             # all four engines
 ```
 
 Two rules the harness enforces on itself:
@@ -449,7 +449,7 @@ Two rules the harness enforces on itself:
   - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`): Adaptive Cards v1.4 sent via Power Automate workflows.
   - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`): Rich Embeds with dynamic severity color codes.
   - **Email** (`MailNotificationChannel`): Multipart HTML/text delivery to distribution lists.
-  - **Generic Webhook / SIEM** (`NotificationService`): Standard JSON POST with HMAC-SHA256 signature verification (`X-Zanshin-Signature`).
+  - **Generic Webhook / SIEM** (`NotificationService`): Standard JSON POST with HMAC-SHA256 signature verification (`X-Vectispire-Signature`).
 - **Resiliency & Outbox Guarantee**:
   - Outbox rows are inserted into `t_outbox_message` in the exact transaction that reconciles scan results. Deliveries use capped exponential backoff with per-destination isolation.
 - **REST Endpoints**:

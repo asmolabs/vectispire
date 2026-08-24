@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
-import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +58,7 @@ public class NotificationService implements NotificationChannel {
      * tracker token disables ticket creation: fail-closed, nothing is claimed. An undecryptable
      * signing secret, treated the same way, would send the message <em>unsigned</em>: the alert
      * still arrives, the receiver that verifies rejects it, and the one that does not accepts a
-     * message Zanshin can no longer prove it sent. That is a security control switching itself off
+     * message Vectispire can no longer prove it sent. That is a security control switching itself off
      * after an encryption-key rotation, silently, on a deployment that configured it deliberately.
      *
      * <p>So the delivery fails instead. The relay retries it, abandons it with a reason after the

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scheduling;
+package com.asmolabs.vectispire.common.domain.scheduling;
 
 import java.time.Duration;
 import java.time.Instant;

@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.access;
+package com.asmolabs.vectispire.common.domain.access;
 
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;

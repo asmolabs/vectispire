@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>Read once, on an empty users table, and ignored ever after — see {@code
  * BootstrapService} for why that condition is the whole safety of the mechanism.
  */
-@ConfigurationProperties("zanshin.bootstrap")
+@ConfigurationProperties("vectispire.bootstrap")
 public record BootstrapProperties(Optional<String> username, Optional<String> password) {
 
     public BootstrapProperties {

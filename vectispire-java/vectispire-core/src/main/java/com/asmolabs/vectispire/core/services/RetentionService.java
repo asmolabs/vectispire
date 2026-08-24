@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.retention.RetentionPolicy;
-import com.asmolabs.zanshin.common.domain.retention.RetentionPolicy.Candidate;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
+import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy.Candidate;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;

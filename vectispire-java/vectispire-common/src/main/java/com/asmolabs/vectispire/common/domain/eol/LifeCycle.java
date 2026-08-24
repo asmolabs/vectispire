@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.eol;
+package com.asmolabs.vectispire.common.domain.eol;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;

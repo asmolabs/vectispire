@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.apis;
+package com.asmolabs.vectispire.common.domain.apis;
 
 import java.util.ArrayList;
 import java.util.HashSet;

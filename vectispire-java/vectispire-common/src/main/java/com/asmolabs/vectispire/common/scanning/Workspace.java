@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -10,7 +10,7 @@ import java.util.function.Function;
 /**
  * A scan's workspace: an ephemeral directory, and its layout.
  *
- * <p><b>The scanned tree is a subdirectory, not the root.</b> Anything Zanshin produces itself
+ * <p><b>The scanned tree is a subdirectory, not the root.</b> Anything Vectispire produces itself
  * — the SBOM for the vulnerability matcher, the secrets report — lands at the root, hence
  * deliberately <em>outside</em> the analysed tree.
  *
@@ -23,7 +23,7 @@ import java.util.function.Function;
  * <p><b>Rules are copied into the workspace</b> rather than read where they live. It looks
  * like a detour — they already exist beside this code — but it is the only location that works
  * everywhere: volume paths are resolved by the Docker <em>daemon</em>, not by the process
- * calling it. When Zanshin itself runs in a container with the socket mounted, a directory
+ * calling it. When Vectispire itself runs in a container with the socket mounted, a directory
  * from its own image is invisible to the sibling container. The workspace is the one path both
  * sides see.
  */
@@ -48,7 +48,7 @@ public record Workspace(Path root, Path source, Path rules) {
         try {
             // A random suffix rather than a constructed name: a second scan of the same target
             // must not overwrite the first, and the directory is created 0700.
-            root = Files.createTempDirectory("zanshin-scan-");
+            root = Files.createTempDirectory("vectispire-scan-");
         } catch (IOException e) {
             throw new UncheckedIOException("could not create a scan workspace", e);
         }

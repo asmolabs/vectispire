@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
 /**
  * Raised when an account that owes a password change asks for anything else.

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,16 +9,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.common.domain.dependencies.Directness;
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.tickets.TicketProvider;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets.TicketableIssue;
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.dependencies.Directness;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +49,7 @@ class TicketServiceTest {
         when(settings.get(Setting.TICKET_PROJECT)).thenReturn("team/service");
         when(settings.get(Setting.TICKET_TOKEN))
                 .thenReturn(encryption.encrypt("mock-gitlab-api-token", TicketService.TOKEN_CONTEXT));
-        when(settings.get(Setting.TICKET_LABELS)).thenReturn("zanshin,security");
+        when(settings.get(Setting.TICKET_LABELS)).thenReturn("vectispire,security");
         when(settings.isEnabled(Setting.TICKET_ALLOW_PRIVATE_URL)).thenReturn(true);
         when(post.validate(anyString(), any(), anyString())).thenAnswer(call -> call.getArgument(0));
         when(post.postForResponse(anyString(), any(), any(), anyString(), any()))
@@ -93,7 +93,7 @@ class TicketServiceTest {
     @DisplayName("a refused base URL costs the ticket, not the sweep")
     void aRefusedUrlReturnsEmpty() {
         when(post.validate(anyString(), any(), anyString()))
-                .thenThrow(new com.asmolabs.zanshin.common.domain.net.UnsafeUrlException("metadata endpoint"));
+                .thenThrow(new com.asmolabs.vectispire.common.domain.net.UnsafeUrlException("metadata endpoint"));
 
         assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
     }

@@ -1,23 +1,23 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.teams.TeamRules;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.TeamEntity;
-import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
-import com.asmolabs.zanshin.core.persistence.TeamTargetEntity;
-import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
-import com.asmolabs.zanshin.core.repositories.TeamMembers;
-import com.asmolabs.zanshin.core.repositories.TeamTargets;
-import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
-import com.asmolabs.zanshin.core.repositories.Teams;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.SettingsService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
+import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.repositories.TeamMembers;
+import com.asmolabs.vectispire.core.repositories.TeamTargets;
+import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.SettingsService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -95,7 +95,7 @@ public class TeamsController {
      *     targets grants nothing, and that is worth seeing at a glance rather than by opening it
      * @param notified whether this team has its own channel — <b>and not the URL</b>. A webhook
      *     URL is a bearer capability: whoever reads it can post in the channel where the team
-     *     awaits Zanshin's alerts, which is where a forged message carries most weight. The
+     *     awaits Vectispire's alerts, which is where a forged message carries most weight. The
      *     settings catalogue makes the same choice for the global one
      */
     public record TeamSummary(
@@ -140,7 +140,7 @@ public class TeamsController {
     @ResponseStatus(HttpStatus.CREATED)
     public TeamSummary create(
             @RequestBody TeamRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String name = TeamRules.validateName(body == null ? null : body.name());
@@ -160,7 +160,7 @@ public class TeamsController {
     public TeamSummary rename(
             @PathVariable long id,
             @RequestBody TeamRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = teams.findById(id).orElseThrow(() -> new NoSuchElementException("Team not found."));
@@ -214,7 +214,7 @@ public class TeamsController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable long id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = teams.findById(id).orElseThrow(() -> new NoSuchElementException("Team not found."));
@@ -246,7 +246,7 @@ public class TeamsController {
     public List<Long> setMembers(
             @PathVariable long id,
             @RequestBody List<Long> body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = requireTeam(id);
@@ -280,7 +280,7 @@ public class TeamsController {
     public List<TargetAssignment> setTargets(
             @PathVariable long id,
             @RequestBody List<TargetAssignment> body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = requireTeam(id);
@@ -320,7 +320,7 @@ public class TeamsController {
     public TeamSummary setWebhook(
             @PathVariable long id,
             @RequestBody WebhookRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = requireTeam(id);
@@ -375,7 +375,7 @@ public class TeamsController {
     }
 
     private void record(
-            ZanshinPrincipal principal,
+            VectispirePrincipal principal,
             HttpServletRequest request,
             long teamId,
             AuditOperation operation,

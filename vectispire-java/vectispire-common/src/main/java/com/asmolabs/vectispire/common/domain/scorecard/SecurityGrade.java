@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.scorecard;
+package com.asmolabs.vectispire.common.domain.scorecard;
 
 /**
  * Letter grade representing target security posture and maturity.

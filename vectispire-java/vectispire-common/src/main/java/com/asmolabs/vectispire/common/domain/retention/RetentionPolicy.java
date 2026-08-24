@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.retention;
+package com.asmolabs.vectispire.common.domain.retention;
 
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;

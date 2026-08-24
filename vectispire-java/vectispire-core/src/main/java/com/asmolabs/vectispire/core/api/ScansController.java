@@ -1,15 +1,15 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.TargetNaming;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.TargetNaming;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -104,7 +104,7 @@ public class ScansController {
 
     @GetMapping
     public List<Summary> list(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId,
             @RequestParam(required = false, defaultValue = "50") int limit) {
@@ -122,7 +122,7 @@ public class ScansController {
     }
 
     @GetMapping("/{id}")
-    public Detail detail(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+    public Detail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
         Visibilities.requireVisible(
                 targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
@@ -158,7 +158,7 @@ public class ScansController {
      * inventory has no SBOM, and an empty document would claim it inventoried nothing.
      */
     @GetMapping(value = "/{id}/sbom", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> sbom(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+    public ResponseEntity<String> sbom(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
         Visibilities.requireVisible(
                 targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
@@ -174,7 +174,7 @@ public class ScansController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename("zanshin-scan-" + id + ".sbom.json")
+                                .filename("vectispire-scan-" + id + ".sbom.json")
                                 .build()
                                 .toString())
                 .contentType(MediaType.APPLICATION_JSON)

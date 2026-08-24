@@ -1,22 +1,22 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.agents.AgentKind;
-import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
-import com.asmolabs.zanshin.common.domain.agents.CredentialsMode;
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeys;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.persistence.ApiKeyEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Agents;
-import com.asmolabs.zanshin.core.repositories.ApiKeysRepository;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.WorkerProperties;
+import com.asmolabs.vectispire.common.domain.agents.AgentKind;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.WorkerProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
@@ -31,7 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,8 +44,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 
 /**
  * Administering agents — separate from the protocol they speak.
@@ -329,7 +329,7 @@ public class AgentsAdminController {
     @PostMapping
     public DeclaredAgent create(
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String name = body.name() == null ? "" : body.name().trim();
@@ -387,7 +387,7 @@ public class AgentsAdminController {
     public Map<String, Object> update(
             @PathVariable UUID id,
             @RequestBody UpdateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
@@ -424,7 +424,7 @@ public class AgentsAdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable UUID id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
@@ -489,7 +489,7 @@ public class AgentsAdminController {
                 && Duration.between(agent.getLastSeenAt(), asOf).compareTo(ONLINE_TTL) < 0;
     }
 
-    private void record(ZanshinPrincipal principal, HttpServletRequest request, UUID id, String description) {
+    private void record(VectispirePrincipal principal, HttpServletRequest request, UUID id, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.AGENT_UPDATED,
                 id.toString(),

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,7 +25,7 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
         MvcResult result = mvc.perform(authenticated(get("/api/v1/compliance/evidence-bundle.zip"), token))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/zip"))
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"zanshin-audit-evidence-bundle.zip\""))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"vectispire-audit-evidence-bundle.zip\""))
                 .andReturn();
 
         byte[] zipBytes = result.getResponse().getContentAsByteArray();
@@ -43,7 +43,7 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
         assertThat(entryNames).contains(
                 "manifest.json",
                 "manifest.json.sig",
-                "00_zanshin_public_key.pub",
+                "00_vectispire_public_key.pub",
                 "01_compliance_frameworks.json",
                 "02_immutable_audit_log.jsonl",
                 "03_triage_and_exemptions.json",

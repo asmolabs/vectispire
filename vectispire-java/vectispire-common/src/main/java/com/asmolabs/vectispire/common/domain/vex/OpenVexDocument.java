@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.vex;
+package com.asmolabs.vectispire.common.domain.vex;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
@@ -22,11 +22,11 @@ public record OpenVexDocument(
         return new OpenVexDocument(
                 "https://openvex.dev/ns/v0.2.0",
                 documentUri,
-                "Zanshin ASPM Control Plane",
+                "Vectispire ASPM Control Plane",
                 "Document Creator",
                 timestamp != null ? timestamp : Instant.now(),
                 1,
-                "Zanshin Reachability & Exploitability Engine",
+                "Vectispire Reachability & Exploitability Engine",
                 statements != null ? statements : List.of());
     }
 }

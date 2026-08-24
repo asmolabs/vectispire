@@ -1,22 +1,22 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.users.AccountRules;
-import com.asmolabs.zanshin.core.api.security.OpenToAnonymous;
-import com.asmolabs.zanshin.core.api.security.PasswordChangeGate;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.SignInMethodPolicy;
-import com.asmolabs.zanshin.core.api.security.OidcConfiguration;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.AuthService;
-import com.asmolabs.zanshin.core.services.TotpService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
+import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
+import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.SignInMethodPolicy;
+import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.AuthService;
+import com.asmolabs.vectispire.core.services.TotpService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -208,7 +208,7 @@ public class AuthController {
 
     @RequiresAccount
     @PostMapping("/mfa/setup")
-    public TotpService.SetupResponse setupMfa(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public TotpService.SetupResponse setupMfa(@AuthenticationPrincipal VectispirePrincipal principal) {
         return totp.setup(principal.requireUser());
     }
 
@@ -216,7 +216,7 @@ public class AuthController {
     @PostMapping("/mfa/enable")
     public TotpService.EnableResponse enableMfa(
             @RequestBody MfaEnableRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal) {
+            @AuthenticationPrincipal VectispirePrincipal principal) {
         if (body == null || body.secret() == null || body.code() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Secret and verification code are required.");
         }
@@ -227,7 +227,7 @@ public class AuthController {
     @PostMapping("/mfa/disable")
     public Map<String, Boolean> disableMfa(
             @RequestBody MfaDisableRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal) {
+            @AuthenticationPrincipal VectispirePrincipal principal) {
         if (body == null || body.code() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verification code is required to disable MFA.");
         }
@@ -326,7 +326,7 @@ public class AuthController {
     @PasswordChangeGate
     @DeleteMapping("/session")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public void logout(@AuthenticationPrincipal VectispirePrincipal principal) {
         // The row disappears: signing out is real, including for a tab left open elsewhere.
         principal.session().ifPresent(auth::revoke);
     }
@@ -348,7 +348,7 @@ public class AuthController {
     @PostMapping("/change-password")
     public Map<String, Object> changePassword(
             @RequestBody ChangePasswordRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         UserEntity user = principal.requireUser();
@@ -385,7 +385,7 @@ public class AuthController {
     @RequiresAccount
     @PasswordChangeGate
     @GetMapping("/me")
-    public ResponseEntity<UserSummary> me(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public ResponseEntity<UserSummary> me(@AuthenticationPrincipal VectispirePrincipal principal) {
         return ResponseEntity.ok(summaryOf(principal.requireUser()));
     }
 

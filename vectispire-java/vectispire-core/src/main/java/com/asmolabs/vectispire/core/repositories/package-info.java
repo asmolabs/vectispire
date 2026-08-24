@@ -22,4 +22,4 @@
  * what names the winner. A {@code save} reads then writes, and the winner becomes whoever wrote
  * last rather than whoever met the condition.
  */
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;

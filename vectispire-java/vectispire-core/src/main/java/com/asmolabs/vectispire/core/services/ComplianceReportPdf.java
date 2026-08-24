@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.compliance.ComplianceControl;
-import com.asmolabs.zanshin.common.domain.compliance.ComplianceEvaluation;
+import com.asmolabs.vectispire.common.domain.compliance.ComplianceControl;
+import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -44,7 +44,7 @@ public final class ComplianceReportPdf {
             ReportCursor cursor = new ReportCursor(document);
             cover(cursor, subject, evaluations);
             body(cursor, evaluations);
-            cursor.close("Zanshin — Executive Regulatory Compliance Report");
+            cursor.close("Vectispire — Executive Regulatory Compliance Report");
 
             document.save(bytes);
             return bytes.toByteArray();
@@ -54,7 +54,7 @@ public final class ComplianceReportPdf {
     }
 
     private static void cover(ReportCursor cursor, Subject subject, List<ComplianceEvaluation> evaluations) {
-        cursor.text("Zanshin — Regulatory Compliance & Posture Audit", ReportCursor.HELVETICA_BOLD_16, INK);
+        cursor.text("Vectispire — Regulatory Compliance & Posture Audit", ReportCursor.HELVETICA_BOLD_16, INK);
         cursor.rule(ACCENT);
         cursor.gap();
 

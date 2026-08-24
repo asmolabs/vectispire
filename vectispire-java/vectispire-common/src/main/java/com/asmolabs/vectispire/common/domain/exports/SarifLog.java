@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * A SARIF 2.1.0 log, as records.
  *
- * <p>SARIF exists so a finding stops living only inside Zanshin. It is what GitHub code
+ * <p>SARIF exists so a finding stops living only inside Vectispire. It is what GitHub code
  * scanning, GitLab and Azure DevOps ingest natively, and therefore what puts an issue in
  * front of the person who introduced it — annotated on the line, in the merge request —
  * instead of on a dashboard they have no reason to open.
@@ -61,7 +61,7 @@ public record SarifLog(@JsonProperty("$schema") String schema, String version, L
     public record LogicalLocation(String name, String kind) {}
 
     /**
-     * @param kind {@code external} — the decision was taken in Zanshin, not in a source
+     * @param kind {@code external} — the decision was taken in Vectispire, not in a source
      *     annotation, which is what that kind documents
      */
     public record Suppression(String kind, String justification) {}

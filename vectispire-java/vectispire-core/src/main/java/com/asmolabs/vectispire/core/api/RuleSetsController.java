@@ -1,23 +1,23 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.rules.RuleCatalogue;
-import com.asmolabs.zanshin.core.services.RuleCatalogueFetcher;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
+import com.asmolabs.vectispire.core.services.RuleCatalogueFetcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.web.bind.annotation.RequestParam;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.zanshin.core.repositories.RuleSetSummary;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.RuleSetService;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.repositories.RuleSetSummary;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.RuleSetService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.NoSuchElementException;
-import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -94,7 +94,7 @@ public class RuleSetsController {
     @PostMapping
     public Uploaded upload(
             @RequestBody UploadRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String actor = principal.user().map(user -> user.getUsername()).orElse(null);
@@ -154,7 +154,7 @@ public class RuleSetsController {
     @PostMapping("/catalogue")
     public Uploaded fetchCatalogue(
             @RequestBody CatalogueRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         RuleCatalogue.requireCommit(body.commit());
@@ -220,7 +220,7 @@ public class RuleSetsController {
     public Map<String, Object> activate(
             @PathVariable long id,
             @RequestBody(required = false) ActivateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String note = body == null || body.note() == null || body.note().isBlank() ? null : body.note().trim();
@@ -241,7 +241,7 @@ public class RuleSetsController {
     /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */
     @PostMapping("/deactivate")
     public Map<String, Object> deactivate(
-            @AuthenticationPrincipal ZanshinPrincipal principal, HttpServletRequest request) {
+            @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
 
         ruleSets.deactivateAll();
         audit.record(new AuditLogService.Record(

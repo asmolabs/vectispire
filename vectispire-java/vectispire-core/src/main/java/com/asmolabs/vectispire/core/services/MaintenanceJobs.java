@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -82,23 +82,23 @@ public class MaintenanceJobs {
      * to do.
      */
     @Scheduled(
-            fixedDelayString = "${zanshin.jobs.relay-interval:60s}",
-            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
+            fixedDelayString = "${vectispire.jobs.relay-interval:60s}",
+            initialDelayString = "${vectispire.jobs.initial-delay:30s}")
     public void relayNotifications() {
         run(relaying, "notification relay", () -> outbox.relay(OutboxRetry.MAX_PER_PASS));
     }
 
     /** The scan scheduler's tick. Leader-only, which {@code SchedulerService} enforces itself. */
     @Scheduled(
-            fixedDelayString = "${zanshin.jobs.scheduler-interval:60s}",
-            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
+            fixedDelayString = "${vectispire.jobs.scheduler-interval:60s}",
+            initialDelayString = "${vectispire.jobs.initial-delay:30s}")
     public void scheduleDueScans() {
         run(dispatching, "scheduling tick", scheduler::runOnce);
     }
 
     @Scheduled(
-            fixedDelayString = "${zanshin.jobs.maintenance-interval:1h}",
-            initialDelayString = "${zanshin.jobs.initial-delay:30s}")
+            fixedDelayString = "${vectispire.jobs.maintenance-interval:1h}",
+            initialDelayString = "${vectispire.jobs.initial-delay:30s}")
     public void hourlyMaintenance() {
         run(maintaining, "maintenance", () -> {
             int pruned = retention.prune();

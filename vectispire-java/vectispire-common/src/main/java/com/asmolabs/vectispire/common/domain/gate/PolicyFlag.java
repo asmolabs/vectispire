@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
 /**
  * The boolean knobs of a gate policy, each carrying the value that <em>tightens</em> it.

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -10,7 +10,7 @@ import java.util.Map;
  *
  * <h2>It reads findings, not source code</h2>
  *
- * <p><b>The input is what Zanshin already knows about the target — never the repository's
+ * <p><b>The input is what Vectispire already knows about the target — never the repository's
  * source.</b> The code review this sits beside is explicit about the risk it accepts: its
  * endpoint "receives the scanned repository's source code", and a well-formed public URL is
  * exactly what an exfiltration channel looks like. A report about posture does not need the

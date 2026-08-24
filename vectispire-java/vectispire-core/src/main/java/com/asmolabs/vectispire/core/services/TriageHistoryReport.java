@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.core.services.TriageHistory.Decision;
-import com.asmolabs.zanshin.core.services.TriageHistory.ObservedIssue;
-import com.asmolabs.zanshin.core.services.TriageHistory.Scan;
+import com.asmolabs.vectispire.core.services.TriageHistory.Decision;
+import com.asmolabs.vectispire.core.services.TriageHistory.ObservedIssue;
+import com.asmolabs.vectispire.core.services.TriageHistory.Scan;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -13,7 +13,7 @@ import java.util.List;
 import org.apache.pdfbox.pdmodel.PDDocument;
 
 /**
- * The trail as a document, for somebody who has to be convinced and does not have Zanshin.
+ * The trail as a document, for somebody who has to be convinced and does not have Vectispire.
  *
  * <p><b>It leads with what was decided, not with what was found.</b> A backlog listing answers
  * "what is wrong"; this document answers "what did you do about it", which is a different
@@ -63,7 +63,7 @@ public final class TriageHistoryReport {
     private static void heading(
             ReportCursor cursor, TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt) {
 
-        cursor.text("Zanshin — detection and triage history", ReportCursor.HELVETICA_BOLD_16);
+        cursor.text("Vectispire — detection and triage history", ReportCursor.HELVETICA_BOLD_16);
         cursor.gap();
         cursor.text(repository.name(), ReportCursor.HELVETICA_BOLD_12);
         cursor.text(repository.url(), ReportCursor.HELVETICA_9);

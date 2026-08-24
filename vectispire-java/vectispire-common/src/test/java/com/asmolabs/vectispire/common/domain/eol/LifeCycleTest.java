@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.eol;
+package com.asmolabs.vectispire.common.domain.eol;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;

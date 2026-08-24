@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.VectispireContextTest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * rule id and a file path.
  */
 @DisplayName("the description an issue carries")
-class IssueDescriptionTest extends ZanshinContextTest {
+class IssueDescriptionTest extends VectispireContextTest {
 
     @Autowired
     private IssueSyncService sync;

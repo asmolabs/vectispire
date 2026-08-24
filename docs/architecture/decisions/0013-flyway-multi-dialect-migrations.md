@@ -15,7 +15,7 @@ The previous trade attempted to maintain a single Liquibase changelog across fou
 
 **Migrate from Liquibase to Flyway with native SQL migrations per dialect.**
 
-The migrations are organized under `zanshin-core/src/main/resources/db/migration/{vendor}/`:
+The migrations are organized under `vectispire-core/src/main/resources/db/migration/{vendor}/`:
 - `sqlite/`: Native SQLite DDL with inline foreign keys and `INTEGER PRIMARY KEY AUTOINCREMENT`.
 - `postgresql/`: Native PostgreSQL DDL with `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
 - `mysql/`: Native MySQL DDL with `BIGINT AUTO_INCREMENT`, `DATETIME(6)`, and `BIT(1)`.

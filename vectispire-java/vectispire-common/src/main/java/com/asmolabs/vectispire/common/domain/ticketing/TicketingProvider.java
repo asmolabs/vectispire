@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.ticketing;
+package com.asmolabs.vectispire.common.domain.ticketing;
 
 /**
  * Supported incident management and issue tracking providers.

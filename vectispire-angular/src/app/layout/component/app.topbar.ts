@@ -79,7 +79,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
             <!--
                 Sakai's user menu offered Calendar / Messages / Profile, three screens
-                Zanshin does not have. Only the two real actions remain; the displayed
+                Vectispire does not have. Only the two real actions remain; the displayed
                 name and role will come from the session service.
             -->
             <div class="layout-topbar-menu hidden lg:block">

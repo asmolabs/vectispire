@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.users;
+package com.asmolabs.vectispire.common.domain.users;
 
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
  * The rules that stop an administrator from locking themselves out.
  *
  * <p>Pure, because they are rules and not queries: each describes a situation the UI would
- * happily accept and nobody could come back from. <b>There is no rescue screen in Zanshin</b> —
+ * happily accept and nobody could come back from. <b>There is no rescue screen in Vectispire</b> —
  * with no active administrator left, recovery means a database session.
  *
  * <p>Refused at the account level rather than the screen's: three tabs open on two accounts
@@ -70,7 +70,7 @@ public final class AccountRules {
 
         boolean losesAdmin = change.wasAdmin() && (!change.willBeAdmin() || !change.willBeActive());
         if (losesAdmin && change.remainingActiveAdmins() == 0) {
-            return Optional.of("This is the last active administrator: removing them would leave Zanshin "
+            return Optional.of("This is the last active administrator: removing them would leave Vectispire "
                     + "with nobody able to administer it.");
         }
         return Optional.empty();
@@ -82,7 +82,7 @@ public final class AccountRules {
             return Optional.of("You cannot delete your own account.");
         }
         if (isAdmin && remainingActiveAdmins == 0) {
-            return Optional.of("This is the last active administrator: deleting them would leave Zanshin "
+            return Optional.of("This is the last active administrator: deleting them would leave Vectispire "
                     + "with nobody able to administer it.");
         }
         return Optional.empty();

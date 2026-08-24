@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +26,7 @@ class DiscordEmbedTest {
                 0,
                 "msg-456");
 
-        Map<String, Object> discordPayload = DiscordEmbed.of(payload, "https://zanshin.corp.com");
+        Map<String, Object> discordPayload = DiscordEmbed.of(payload, "https://vectispire.corp.com");
 
         assertThat(discordPayload).containsKey("embeds");
         List<?> embeds = (List<?>) discordPayload.get("embeds");

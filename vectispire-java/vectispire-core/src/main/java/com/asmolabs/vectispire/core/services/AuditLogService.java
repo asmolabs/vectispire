@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditChain;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.repositories.AuditLog;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.repositories.AuditLog;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -240,7 +240,7 @@ public class AuditLogService {
                 String.valueOf(row.getId()),
                 // The canonical form the hash itself uses, so the mirror and the table cannot
                 // disagree about an instant merely because one of them printed it differently.
-                com.asmolabs.zanshin.common.domain.crypto.Digests.canonical(row.getTimestamp()),
+                com.asmolabs.vectispire.common.domain.crypto.Digests.canonical(row.getTimestamp()),
                 row.getOperationType(),
                 row.getResourceId(),
                 row.getUserId(),

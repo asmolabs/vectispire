@@ -52,7 +52,7 @@ constraint is a disguised `=`: do not loosen it without reading the license.
 third-party domain in `index.html`, `styles.scss` **and every component template**, and
 verifies that the declared fonts actually exist and are real `woff2` files.
 
-This is not zeal. Zanshin's content security policy refuses third-party stylesheets, and
+This is not zeal. Vectispire's content security policy refuses third-party stylesheets, and
 Sakai loaded Lato from a CDN. Such a reference breaks nothing visible: the request is
 blocked, the page falls back to the system font, and nothing reports it — which is how a
 typography can fail to reach production without anyone noticing, until somebody measures it
@@ -74,7 +74,7 @@ It reads like a performance choice and is not one.
 
 With it on, the build emits `<link rel="stylesheet" media="print" onload="this.media='all'">`
 so the stylesheet does not block the first paint. That `onload` is an **inline event
-handler**, and Zanshin's CSP grants `script-src 'self'` with no `'unsafe-inline'`: the
+handler**, and Vectispire's CSP grants `script-src 'self'` with no `'unsafe-inline'`: the
 browser blocks the handler, the stylesheet stays `media="print"`, and the interface renders
 completely unstyled while every file loads with a 200. Nothing in the build output says so —
 it was found by opening the page.

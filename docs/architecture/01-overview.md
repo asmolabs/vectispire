@@ -90,7 +90,7 @@ repository holds no business rule.
 This rule is not merely written down: `ArchitectureTest` reads the
 import graph with ArchUnit and fails the suite when a layer imports from above itself, or when
 a domain class imports a framework. See
-[`zanshin-java/README.md`](../../zanshin-java/README.md) for the full table.
+[`vectispire-java/README.md`](../../vectispire-java/README.md) for the full table.
 
 Two practical consequences:
 
@@ -100,7 +100,7 @@ Two practical consequences:
   reimplemented the verdict would agree today and diverge the first time a policy flag
   was added.
 - The UI's view models
-  ([`zanshin-angular/src/app/core/api.models.ts`](../../zanshin-angular/src/app/core/api.models.ts))
+  ([`vectispire-angular/src/app/core/api.models.ts`](../../vectispire-angular/src/app/core/api.models.ts))
   are typed and computed server-side. The browser receives finished values, not
   arithmetic.
 
@@ -134,12 +134,12 @@ request ([decision 0002](decisions/0002-the-database-carries-the-queue.md)).
 the database; `ScanIngestor` reads the artifacts and writes. The cut is not cosmetic: it
 is what lets a remote agent execute the first half with no database access
 ([decision 0003](decisions/0003-long-polling-for-agents.md)), and
-`zanshin-agent` does not depend on `zanshin-core`, so no JDBC driver is on its compile
+`vectispire-agent` does not depend on `vectispire-core`, so no JDBC driver is on its compile
 classpath and the property cannot quietly lapse — the violation fails to compile.
 
 ### The analyzers
 
-Each is an ephemeral container, pinned **by digest** — these images are Zanshin's own
+Each is an ephemeral container, pinned **by digest** — these images are Vectispire's own
 supply chain, and they run on a machine that has the Docker socket.
 
 | Step | Tool | Network | Produces |
@@ -153,7 +153,7 @@ supply chain, and they run on a machine that has the Docker socket.
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
 
-[`ScanRunner`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/scanning/ScanRunner.java) is a single concrete class, and
+[`ScanRunner`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java) is a single concrete class, and
 deliberately so. An earlier design had a `ScannerEngine` interface with three
 implementations — Docker, a local side-car API, and OSV
 ([decision 0001](decisions/0001-pluggable-scan-layer.md)); the port carried over only the
@@ -166,7 +166,7 @@ running an agent elsewhere**, not by substituting an engine.
 A single rhythm carries all background work: scheduled scans, retention of raw payloads,
 triage expiry, outbox relay, refreshing the built-in agent. It is taken **under a lease**
 — a row in `leader_lease`, see
-[`LeaderLeases`](../../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/repositories/LeaderLeases.java) —
+[`LeaderLeases`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/repositories/LeaderLeases.java) —
 so that only one instance holds it. A holder that dies stops renewing; the next tick
 takes over after expiry ([04](04-runtime-and-deployment.md)).
 
@@ -178,7 +178,7 @@ until when. A `pg_advisory_lock` answers no question after the fact.
 ## Still open
 
 - **Per-team partitioning exists, and is off by default.** This entry used to say a *user* sees
-  everything, and it was the first thing anybody evaluating Zanshin read — while teams, direct
+  everything, and it was the first thing anybody evaluating Vectispire read — while teams, direct
   per-account assignment and per-team notification channels had all been built. What remains true
   is narrower and belongs to [03](03-security.md): `TARGET_VISIBILITY` ships as `everyone` so an
   upgrade changes nothing, a **new** installation is created partitioned, and an existing
@@ -186,7 +186,7 @@ until when. A `pg_advisory_lock` answers no question after the fact.
 - **The Docker socket requirement is unconditional** for whichever process runs scans,
   which is what the abandoned seam had been meant to avoid
   ([0010](decisions/0010-one-scan-runner.md)). The mitigation is to move execution onto an
-  agent so the network-exposed process does not hold the socket — see the `VERISCAPE_ROLE`
+  agent so the network-exposed process does not hold the socket — see the `VECTISPIRE_ROLE`
   item in [04](04-runtime-and-deployment.md).
 - **No reachability analysis** (call graph, taint). A vulnerability in a dependency that
   is never called is counted like any other. That is heavy work, deliberately out of

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

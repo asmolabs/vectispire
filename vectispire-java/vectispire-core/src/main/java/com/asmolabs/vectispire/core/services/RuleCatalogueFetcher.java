@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
-import com.asmolabs.zanshin.common.domain.rules.RuleCatalogue;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -22,9 +22,9 @@ import org.springframework.stereotype.Service;
 /**
  * Fetches the upstream rule catalogue, once, on an operator's instruction.
  *
- * <p><b>Zanshin does not redistribute these rules</b> — the whole point of decision 0006. They
+ * <p><b>Vectispire does not redistribute these rules</b> — the whole point of decision 0006. They
  * travel from their author to this installation because somebody here asked for them, and
- * nothing Zanshin ships contains them.
+ * nothing Vectispire ships contains them.
  *
  * <p><b>The URL is a constant, not a parameter.</b> An operator-supplied clone URL would be a
  * request this server makes to an address a caller chose, which is the definition of the hole
@@ -163,7 +163,7 @@ public class RuleCatalogueFetcher {
 
     private static Path temporaryDirectory() {
         try {
-            return Files.createTempDirectory("zanshin-rules-");
+            return Files.createTempDirectory("vectispire-rules-");
         } catch (IOException failed) {
             throw new FetchFailureException("Could not create a working directory for the fetch.", failed);
         }

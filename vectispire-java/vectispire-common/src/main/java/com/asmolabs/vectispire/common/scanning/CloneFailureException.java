@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 /** A clone that did not happen, with git's own output kept for whoever needs the detail. */
 public class CloneFailureException extends RuntimeException {

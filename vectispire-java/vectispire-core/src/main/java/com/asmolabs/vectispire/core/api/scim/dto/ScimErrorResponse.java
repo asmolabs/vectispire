@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.scim.dto;
+package com.asmolabs.vectispire.core.api.scim.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;

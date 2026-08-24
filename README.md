@@ -33,7 +33,7 @@ Together, **Vectispire** locks down software integrity while elevating visibilit
   concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
   like any vulnerability, and *quality* ones, which are visible in the backlog and can
-  never fail a CI gate. Runs with the network disabled. **Zanshin bundles a single rule**
+  never fail a CI gate. Runs with the network disabled. **Vectispire bundles a single rule**
   — the public rule sets are not redistributable, which is a licensing constraint rather
   than an oversight — so real coverage comes from a rule set you install yourself; see
   [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
@@ -42,13 +42,13 @@ Together, **Vectispire** locks down software integrity while elevating visibilit
 - **Weekly posture report** (off by default): every other notification fires when something *appears*, which is right for an alert and wrong for a report — on a quiet week nobody is told anything, and a quiet week is also the week a target has silently not been scanned for twenty days. Once a week to the webhook and the e-mail recipients: how much there is, which way it is moving, and what was never examined. It needs no outbox, unlike a scan delta: a report is derived from the database, so a failed send is simply recomputed on the next tick.
 - **Bulk triage**: one CVE across forty repositories is one judgement about one context, not forty — and deciding it forty times is how a backlog stops being triaged at all. Narrow the list, select, decide once. All or nothing in one transaction, with each issue still recording its own transition in the triage history, because a bulk decision that changed forty rows silently would be indistinguishable from forty rows edited by hand.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
-- **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The policy applied is a **stored, versioned** one — global, or overridden per target — written on *Administration → Gate policies*; where none is stored, the built-in default applies, and the screen shows it beside what is stored so that "not set" and "set to the same thing" do not look alike. Authenticated with the API keys the UI issues, and callable without writing the request by hand: [`ci/zanshin-gate.sh`](ci/zanshin-gate.sh), a GitHub composite action and a GitLab template.
+- **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The policy applied is a **stored, versioned** one — global, or overridden per target — written on *Administration → Gate policies*; where none is stored, the built-in default applies, and the screen shows it beside what is stored so that "not set" and "set to the same thing" do not look alike. Authenticated with the API keys the UI issues, and callable without writing the request by hand: [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), a GitHub composite action and a GitLab template.
 - **Tracker tickets** (GitLab, Jira): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
-- **Notifications**: a webhook, a **Microsoft Teams** card and an **e-mail** fire when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The three are independent rather than exclusive: a team wants the card in its channel *and* the mail on a distribution list. Each destination gets its own outbox row, so a mail server being down does not make Teams receive the message twice on the retry. Teams is reached through a Power Automate **workflow** — the Office 365 connector it replaces was retired — and Zanshin posts an Adaptive Card, so nothing has to be mapped in the designer. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once. Webhook messages can be **signed** (HMAC-SHA256 over the timestamp and the exact body, in `X-Zanshin-Signature`) so a receiver can tell a message Zanshin sent from one sent by whoever learned the URL — worth it for a script, a bus or your own gateway, which can check it; Slack and Teams accept whatever arrives. Empty secret means unsigned, which is what an existing deployment stays.
+- **Notifications**: a webhook, a **Microsoft Teams** card and an **e-mail** fire when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The three are independent rather than exclusive: a team wants the card in its channel *and* the mail on a distribution list. Each destination gets its own outbox row, so a mail server being down does not make Teams receive the message twice on the retry. Teams is reached through a Power Automate **workflow** — the Office 365 connector it replaces was retired — and Vectispire posts an Adaptive Card, so nothing has to be mapped in the designer. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once. Webhook messages can be **signed** (HMAC-SHA256 over the timestamp and the exact body, in `X-Vectispire-Signature`) so a receiver can tell a message Vectispire sent from one sent by whoever learned the URL — worth it for a script, a bus or your own gateway, which can check it; Slack and Teams accept whatever arrives. Empty secret means unsigned, which is what an existing deployment stays.
 - **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
 - **Detection and triage history**: per repository, every scan with the project version it read, the issues that scan observed, and every triage decision taken on them — from which status to which, by whom, with which justification, and against which version. For the reader who has to be convinced after the fact and was not there. Exportable as PDF and CSV. An issue nobody triaged is printed saying so: silence would let it pass for a decision that was merely not written down.
 - **User management** and **audit log**: roles (SUPERUSER/ADMIN/USER), guardrails (can't delete your own account or the last active superuser), traceability of sensitive actions.
-- **Optional single sign-on** (OpenID Connect, tested against Keycloak): the provider answers *who is this*, and Zanshin still issues its own session — so the visibility rules, the audit trail, the session lifetimes and the API keys keep working unchanged. **No account is created on sign-on**: an administrator creates it first, and the role stays Zanshin's to decide. Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of every target. The first sign-on binds the account whose username matches the claim, and every later one matches on the provider's subject — a username is not stable for the life of a person.
+- **Optional single sign-on** (OpenID Connect, tested against Keycloak): the provider answers *who is this*, and Vectispire still issues its own session — so the visibility rules, the audit trail, the session lifetimes and the API keys keep working unchanged. **No account is created on sign-on**: an administrator creates it first, and the role stays Vectispire's to decide. Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of every target. The first sign-on binds the account whose username matches the claim, and every later one matches on the provider's subject — a username is not stable for the life of a person.
 - **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/decisions/0010-one-scan-runner.md)).
 
 ## Architecture
@@ -74,7 +74,7 @@ product names and versions.
 
 Results are normalized into a single `Finding` table (type, severity, identifier, package, source, EPSS/CVSS scores, KEV status, fix version), in addition to the raw JSON blobs (`Scan.sbom`, `Scan.cves`) kept for audit purposes.
 
-A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/IssueSyncService.java).
+A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/IssueSyncService.java).
 
 The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
 
@@ -101,7 +101,7 @@ scans then wait for a remote agent instead of quietly using the web instance.
 A remote agent polls over HTTP with an API key carrying the `agent` scope, so it needs no
 inbound port and **no database access**. That last point is a security property, not a
 detail: an agent with a database connection would also need `ENCRYPTION_KEY`, i.e. the
-ability to decrypt every deploy key Zanshin holds.
+ability to decrypt every deploy key Vectispire holds.
 
 | Credentials mode | What the controller sends | When to use it |
 |---|---|---|
@@ -110,24 +110,24 @@ ability to decrypt every deploy key Zanshin holds.
 
 ```bash
 # On the agent's machine — the key comes from /agents, shown once
-VERISCAPE_URL=https://veriscape.internal \
-VERISCAPE_AGENT_TOKEN=zsk_... \
+VECTISPIRE_URL=https://vectispire.internal \
+VECTISPIRE_AGENT_TOKEN=zsk_... \
 node dist/agent/main.js
 ```
 
 Or as a container, which is how it is meant to be deployed:
 
 ```bash
-docker build -f Dockerfile.agent -t veriscape-agent .
-docker run --rm -e VERISCAPE_URL=... -e VERISCAPE_AGENT_TOKEN=zsk_... \
-  -v /var/run/docker.sock:/var/run/docker.sock veriscape-agent
+docker build -f Dockerfile.agent -t vectispire-agent .
+docker run --rm -e VECTISPIRE_URL=... -e VECTISPIRE_AGENT_TOKEN=zsk_... \
+  -v /var/run/docker.sock:/var/run/docker.sock vectispire-agent
 ```
 
 The agent runs **the same `ScanRunner`** as the built-in worker, which is what makes a
 result produced elsewhere indistinguishable from a local one. A layering test enforces
 what it may import: `scanning/` and `domain/`, never `persistence/` — an agent with a
 database connection would also need `ENCRYPTION_KEY`, i.e. the ability to decrypt every
-deploy key Zanshin holds.
+deploy key Vectispire holds.
 
 **Container image scans are distributed too**, and they carry no key at all: an image is
 pulled from a registry, not cloned from git, so registry credentials belong to the Docker
@@ -143,7 +143,7 @@ scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has ex
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
 the login throttle is counted in the database rather than in process memory. What it requires:
 
-- **PostgreSQL or MySQL** (`ZANSHIN_DB_URL`; the engine is read from the URL). Both keep a
+- **PostgreSQL or MySQL** (`VECTISPIRE_DB_URL`; the engine is read from the URL). Both keep a
   claimed scan from reaching two workers;
 - **nothing to run for the schema.** Flyway applies the migrations at startup, and the
   leader lease is what stops two instances migrating at once;
@@ -162,8 +162,8 @@ Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for th
 
 ```bash
 npm install
-cd zanshin-java && ./gradlew :zanshin-core:bootRun   # API on http://localhost:8000
-npm --workspace @zanshin/frontend start            # UI on http://localhost:4200
+cd vectispire-java && ./gradlew :vectispire-core:bootRun   # API on http://localhost:8000
+npm --workspace @vectispire/frontend start            # UI on http://localhost:4200
 ```
 
 The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
@@ -173,7 +173,7 @@ to validate the entities against the schema Flyway really built, on all four eng
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
-# A new change is a new migration script in zanshin-core/src/main/resources/db/migration/<dialect>/.
+# A new change is a new migration script in vectispire-core/src/main/resources/db/migration/<dialect>/.
 ```
 
 ### Main pages
@@ -199,40 +199,40 @@ to validate the entities against the schema Flyway really built, on all four eng
 The API is served from the same process and port as the UI, under `/api/v1`, and authenticates with a key created on the **API keys** page:
 
 ```bash
-export VERISCAPE=http://localhost:3180
-export VERISCAPE_KEY=zsk_...
+export VECTISPIRE=http://localhost:3180
+export VECTISPIRE_KEY=zsk_...
 
 # What can I scan?
-curl -H "Authorization: Bearer $VERISCAPE_KEY" $VERISCAPE/api/v1/repositories
-curl -H "Authorization: Bearer $VERISCAPE_KEY" $VERISCAPE/api/v1/containers
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/repositories
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/containers
 
 # Scan, then poll. A scan is queued on its target, not posted to a queue:
 # the target is what carries the branch, the sub-path and the deployment key.
-curl -X POST -H "Authorization: Bearer $VERISCAPE_KEY" $VERISCAPE/api/v1/repositories/1/scan
-curl -H "Authorization: Bearer $VERISCAPE_KEY" $VERISCAPE/api/v1/scans/42
+curl -X POST -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/repositories/1/scan
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" $VECTISPIRE/api/v1/scans/42
 
 # Should this build fail? The tightening fields are **flat**, not nested under "policy":
 # an object the request record does not declare is ignored by the mapper, silently, and a
 # pipeline that sent one would run on the stored policy while believing it had raised the bar.
-curl -X POST -H "Authorization: Bearer $VERISCAPE_KEY" -H 'Content-Type: application/json' \
+curl -X POST -H "Authorization: Bearer $VECTISPIRE_KEY" -H 'Content-Type: application/json' \
      -d '{"repository_id": 1, "fail_on_severity": "high", "fail_on_kev": true}' \
-     $VERISCAPE/api/v1/gate
+     $VECTISPIRE/api/v1/gate
 ```
 
-Or, without writing the call yourself — [`ci/veriscape-gate.sh`](ci/veriscape-gate.sh), with a
+Or, without writing the call yourself — [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), with a
 composite action in [`ci/github-action/`](ci/github-action/action.yml) and a GitLab template in
-[`ci/gitlab/`](ci/gitlab/veriscape-gate.gitlab-ci.yml):
+[`ci/gitlab/`](ci/gitlab/vectispire-gate.gitlab-ci.yml):
 
 ```yaml
 - uses: ./ci/github-action
   with:
-    url: https://veriscape.example.com
-    token: ${{ secrets.VERISCAPE_TOKEN }}
+    url: https://vectispire.example.com
+    token: ${{ secrets.VECTISPIRE_TOKEN }}
     repository-id: 12
 ```
 
 It exits **0** when the gate passes, **1** when it fails, and **2** when it could not be asked at
-all — three codes rather than two, because a pipeline that reads "Veriscape was unreachable" as
+all — three codes rather than two, because a pipeline that reads "Vectispire was unreachable" as
 "your code is clean" has no gate on the day the control plane is down. `--on-error warn` is the
 other choice, and it says out loud that the build went through ungated.
 
@@ -270,13 +270,13 @@ Exports, all authenticated like every other route:
 SARIF is the one that puts a finding in front of the developer who introduced it, annotated on the line, in the pull request:
 
 ```bash
-curl -H "Authorization: Bearer $VERISCAPE_KEY" \
-     -o veriscape.sarif "$VERISCAPE/api/v1/targets/repository/1/issues.sarif"
+curl -H "Authorization: Bearer $VECTISPIRE_KEY" \
+     -o vectispire.sarif "$VECTISPIRE/api/v1/targets/repository/1/issues.sarif"
 gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
      -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c vectispire.sarif | base64 -w0)"
 ```
 
-Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers under [`api/`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/zanshin/core/api/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers under [`api/`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -328,14 +328,14 @@ Operational tuning (all optional, shown with their defaults):
 | `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / `1.0.0` | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. |
 
 **The scanner images are not configurable, and that is deliberate.** The five digests are
-constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/zanshin/common/scanning/scanners/ScannerImages.java):
+constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java):
 they execute on the scanning host and read input nobody controls, so they *are* Vectispire's
 supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving one is a
 commit that goes through review, not an environment variable somebody sets on a server. Update
 deliberately with `docker buildx imagetools inspect <image>:latest`.
 
-A remote agent reads a different set: `VERISCAPE_URL` and `VERISCAPE_AGENT_TOKEN` (both required),
-plus `VERISCAPE_AGENT_WAIT` (`30s`), `VERISCAPE_AGENT_RETRY` (`10s`) and `VERISCAPE_AGENT_HEARTBEAT`
+A remote agent reads a different set: `VECTISPIRE_URL` and `VECTISPIRE_AGENT_TOKEN` (both required),
+plus `VECTISPIRE_AGENT_WAIT` (`30s`), `VECTISPIRE_AGENT_RETRY` (`10s`) and `VECTISPIRE_AGENT_HEARTBEAT`
 (`60s`). It reads no database variable at all, and cannot: see
 [the agent section](#distributed-scanning-agents).
 
@@ -346,7 +346,7 @@ The database file is not part of the repository (it holds password hashes and en
 Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
 exercised by the full integration campaign**. Flyway applies native migrations per dialect
 under `db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`), ensuring complete
-fidelity and avoiding dialect impedance mismatches. Point `ZANSHIN_DB_URL`
+fidelity and avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL`
 at the engine; it is read from the URL, and PostgreSQL is the default. A portability defect is
 invisible to reading and to a single engine; running all four is the only way it gets found, and
 it found several.

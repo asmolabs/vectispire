@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.dependencies.DependencyGraph;
-import com.asmolabs.zanshin.core.persistence.ComponentEntity;
-import com.asmolabs.zanshin.core.repositories.Components;
+import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
+import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.repositories.Components;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;

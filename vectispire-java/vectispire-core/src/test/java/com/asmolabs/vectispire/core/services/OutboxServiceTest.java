@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,13 +12,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.Detail;
-import com.asmolabs.zanshin.common.domain.notifications.OutboxRetry;
-import com.asmolabs.zanshin.core.persistence.OutboxMessageEntity;
-import com.asmolabs.zanshin.core.repositories.Outbox;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.Detail;
+import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
+import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -239,8 +239,8 @@ class OutboxServiceTest {
         return manager;
     }
 
-    private com.asmolabs.zanshin.core.persistence.OutboxMessageEntity queued(String type) {
-        var message = new com.asmolabs.zanshin.core.persistence.OutboxMessageEntity();
+    private com.asmolabs.vectispire.core.persistence.OutboxMessageEntity queued(String type) {
+        var message = new com.asmolabs.vectispire.core.persistence.OutboxMessageEntity();
         message.setId(java.util.UUID.randomUUID());
         message.setMessageType(type);
         message.setPayload("{\"scan_id\":34,\"message_id\":\"msg-1\"}");

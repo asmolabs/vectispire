@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,8 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.ScanTask;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 class AgentLoopTest {
 
     private static final AgentProperties PROPERTIES = new AgentProperties(
-            "https://zanshin.example", "zsk-token",
+            "https://vectispire.example", "zsk-token",
             Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(5), "docker", "1");
 
     private AgentProtocol protocol;

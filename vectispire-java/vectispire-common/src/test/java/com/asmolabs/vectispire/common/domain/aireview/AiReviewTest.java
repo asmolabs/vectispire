@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

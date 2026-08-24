@@ -11,7 +11,7 @@ dist/
 .angular/
 coverage/
 *.tsbuildinfo
-veriscape-angular/openapi.json
+vectispire-angular/openapi.json
 
 # macOS
 .DS_Store

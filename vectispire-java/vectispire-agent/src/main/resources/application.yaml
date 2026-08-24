@@ -1,19 +1,19 @@
 # The agent's whole configuration. Everything else it needs, it is told by the control plane.
 spring:
   application:
-    name: zanshin-agent
+    name: vectispire-agent
   main:
     # It dials out and listens on nothing. An agent that listened would be a second attack
     # surface inside the network the control plane is deliberately kept out of.
     web-application-type: none
 
-zanshin:
+vectispire:
   agent:
-    url: ${ZANSHIN_URL:}
-    token: ${ZANSHIN_AGENT_TOKEN:}
+    url: ${VECTISPIRE_URL:}
+    token: ${VECTISPIRE_AGENT_TOKEN:}
     # The long wait is the server's to hold, so a queued scan leaves within the second.
-    claim-wait: ${ZANSHIN_AGENT_WAIT:30s}
-    retry-delay: ${ZANSHIN_AGENT_RETRY:10s}
+    claim-wait: ${VECTISPIRE_AGENT_WAIT:30s}
+    retry-delay: ${VECTISPIRE_AGENT_RETRY:10s}
     # Well under the lease, so one missed beat cannot expire a scan that is progressing.
-    heartbeat: ${ZANSHIN_AGENT_HEARTBEAT:60s}
-    version: ${ZANSHIN_VERSION:1}
+    heartbeat: ${VECTISPIRE_AGENT_HEARTBEAT:60s}
+    version: ${VECTISPIRE_VERSION:1}

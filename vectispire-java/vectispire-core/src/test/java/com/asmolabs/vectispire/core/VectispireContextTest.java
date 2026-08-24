@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core;
+package com.asmolabs.vectispire.core;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -26,9 +26,9 @@ import org.springframework.test.context.DynamicPropertySource;
  * runs outside any transaction. A suite that rewrote those boundaries would be green about
  * behaviour production does not have — which is the one thing worse than no suite.
  */
-@SpringBootTest(classes = ZanshinApplication.class)
+@SpringBootTest(classes = VectispireApplication.class)
 @ActiveProfiles("apitest")
-public abstract class ZanshinContextTest {
+public abstract class VectispireContextTest {
 
     /**
      * A database file nobody has touched, one per JVM.
@@ -41,7 +41,7 @@ public abstract class ZanshinContextTest {
      */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
-        Path file = Path.of(System.getProperty("java.io.tmpdir"), "zanshin-apitest-" + UUID.randomUUID() + ".db");
+        Path file = Path.of(System.getProperty("java.io.tmpdir"), "vectispire-apitest-" + UUID.randomUUID() + ".db");
         file.toFile().deleteOnExit();
         registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
     }

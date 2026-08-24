@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
-import com.asmolabs.zanshin.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.attestation.DsseEnvelope;
+import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PrivateKey;

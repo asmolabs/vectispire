@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.common.domain.tickets.TicketProvider;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets.TicketableIssue;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

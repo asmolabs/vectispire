@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,7 +18,7 @@ public final class SlackBlockKit {
         // 1. Header
         blocks.add(Map.of(
                 "type", "header",
-                "text", Map.of("type", "plain_text", "text", "🛡️ Zanshin Security Alert", "emoji", true)));
+                "text", Map.of("type", "plain_text", "text", "🛡️ Vectispire Security Alert", "emoji", true)));
 
         // 2. Summary section
         String summaryMarkdown = String.format("*Target:* `%s` (Scan #%d)\n*%s*",
@@ -70,7 +70,7 @@ public final class SlackBlockKit {
                     "type", "actions",
                     "elements", List.of(Map.of(
                             "type", "button",
-                            "text", Map.of("type", "plain_text", "text", "View in Zanshin", "emoji", true),
+                            "text", Map.of("type", "plain_text", "text", "View in Vectispire", "emoji", true),
                             "url", publicUrl.replaceAll("/+$", "") + "/issues",
                             "style", "primary"))));
         }

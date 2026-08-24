@@ -491,7 +491,7 @@ export interface TeamSummary {
     memberCount: number;
     targetCount: number;
     /** Whether the team has its own notification channel — **not the URL**. A webhook URL is a
-     *  bearer capability: whoever reads it can post where the team awaits Zanshin's alerts, so no
+     *  bearer capability: whoever reads it can post where the team awaits Vectispire's alerts, so no
      *  route returns it and this screen cannot display it back. */
     notified: boolean;
 }
@@ -988,7 +988,7 @@ export interface SignInMethods {
     configured: boolean;
     label: string | null;
     /** False when this deployment delegates authentication entirely to the provider — so the
-     *  second factor is the realm's, and Zanshin never sees a password. The form is then hidden
+     *  second factor is the realm's, and Vectispire never sees a password. The form is then hidden
      *  rather than shown and refused: an input that cannot work is worse than no input.
      *
      *  Always true when no provider is configured, whatever was asked for: the server refuses to

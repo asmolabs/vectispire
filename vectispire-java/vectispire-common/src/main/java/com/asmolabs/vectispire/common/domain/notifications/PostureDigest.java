@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -88,7 +88,7 @@ public record PostureDigest(
      * has an empty backlog and passes every policy.
      */
     private static String summary(LocalDate weekStarting, Counts counts) {
-        StringBuilder text = new StringBuilder("Zanshin — week of ").append(weekStarting).append(": ")
+        StringBuilder text = new StringBuilder("Vectispire — week of ").append(weekStarting).append(": ")
                 .append(counts.openTotal()).append(" open");
         if (counts.overdueCount() > 0) {
             text.append(", ").append(counts.overdueCount()).append(" past their remediation deadline");
@@ -144,7 +144,7 @@ public record PostureDigest(
 
     /** The subject line, which is what most recipients will actually read. */
     public String asSubject() {
-        return "Zanshin — week of " + weekOf + ": " + openTotal + " open"
+        return "Vectispire — week of " + weekOf + ": " + openTotal + " open"
                 + (overdueCount > 0 ? ", " + overdueCount + " late" : "");
     }
 }

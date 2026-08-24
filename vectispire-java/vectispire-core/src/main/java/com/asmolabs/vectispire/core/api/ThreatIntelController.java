@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.threatintel.ThreatIntelSyncStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.ThreatIntelFeedService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.ThreatIntelFeedService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,7 +36,7 @@ public class ThreatIntelController {
 
     @PostMapping("/sync")
     public ThreatIntelSyncStatus sync(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String username = principal != null && principal.user().isPresent()

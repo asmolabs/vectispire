@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,10 +7,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
-import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -25,7 +25,7 @@ import org.mockito.ArgumentCaptor;
  * Where a notification is sent, once teams have their own channels.
  *
  * <p><b>The leak this closes.</b> Visibility decides what an account reads in the interface and
- * decides nothing about the channel Zanshin posts to. With one global webhook, a deployment that
+ * decides nothing about the channel Vectispire posts to. With one global webhook, a deployment that
  * carefully restricted its screens still announced every team's vulnerabilities where everybody
  * reads — the partitioning leaking through Slack.
  *
@@ -157,6 +157,6 @@ class TeamNotificationRoutingTest {
 
     private static NotificationPayload payload() {
         return NotificationPayload.of(new NotificationPayload.Delta(
-                "org/project", 12, List.of(), List.of(), 0, com.asmolabs.zanshin.common.domain.issues.Severity.HIGH));
+                "org/project", 12, List.of(), List.of(), 0, com.asmolabs.vectispire.common.domain.issues.Severity.HIGH));
     }
 }

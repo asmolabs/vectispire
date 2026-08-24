@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.rules;
+package com.asmolabs.vectispire.common.domain.rules;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -15,21 +15,21 @@ import java.util.regex.Pattern;
 /**
  * An uploaded Semgrep rule set: what is accepted, and what is deliberately not done to it.
  *
- * <p>Zanshin bundles a single rule — the public sets are not redistributable (decision 0006) —
- * so an operator's coverage has to arrive from outside. {@code ZANSHIN_SEMGREP_RULES_DIR} is
+ * <p>Vectispire bundles a single rule — the public sets are not redistributable (decision 0006) —
+ * so an operator's coverage has to arrive from outside. {@code VECTISPIRE_SEMGREP_RULES_DIR} is
  * one way, and it has a hole this module exists to close: it is read <b>by the process that
  * scans</b>, so every remote agent needs the directory provisioned on its own filesystem and
  * the control plane cannot check that it was. Two agents, one provisioned and one not, take
  * turns on the same target and the SAST backlog resolves and reappears with each turn —
  * silently, because the step <em>ran</em> both times.
  *
- * <h2>Zanshin never parses these rules, and that is a security decision</h2>
+ * <h2>Vectispire never parses these rules, and that is a security decision</h2>
  *
  * <p>The obvious implementation reads each file's YAML to count rules and read their ids. It
  * is refused here for a specific reason. Document 03 accepts a YAML parser advisory on the
- * grounds that "the only YAML that path produces is the OpenAPI document Zanshin generates
+ * grounds that "the only YAML that path produces is the OpenAPI document Vectispire generates
  * itself: the exponential-time parse needs hostile input, and there is none" — and names what
- * would overturn that decision: "some path in Zanshin starting to parse YAML from elsewhere".
+ * would overturn that decision: "some path in Vectispire starting to parse YAML from elsewhere".
  * <b>This would have been that path.</b>
  *
  * <p>So the bytes are stored verbatim and handed to <b>Semgrep</b>, which has to understand
@@ -79,7 +79,7 @@ public final class RuleSet {
             String name,
             String content) {}
 
-    /** A stored file, under the name Zanshin chose. */
+    /** A stored file, under the name Vectispire chose. */
     public record StoredFile(
             /* `rule-0001.yaml`. Generated here, never taken from the upload. */
             String path,
@@ -88,7 +88,7 @@ public final class RuleSet {
             String content) {}
 
     /**
-     * Validates an upload and returns it under Zanshin's own filenames.
+     * Validates an upload and returns it under Vectispire's own filenames.
      *
      * <p>Throws rather than filtering silently: an operator who uploaded forty files and got
      * thirty-eight stored would have coverage they believe they have and do not.

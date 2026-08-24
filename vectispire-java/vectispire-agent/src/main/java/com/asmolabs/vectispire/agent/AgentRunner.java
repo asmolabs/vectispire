@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
-import com.asmolabs.zanshin.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.zanshin.common.scanning.BundledRules;
-import com.asmolabs.zanshin.common.scanning.ContainerRunner;
-import com.asmolabs.zanshin.common.scanning.GitClone;
-import com.asmolabs.zanshin.common.scanning.RulePlacement;
-import com.asmolabs.zanshin.common.scanning.ScanRunner;
-import com.asmolabs.zanshin.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.scanning.BundledRules;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.GitClone;
+import com.asmolabs.vectispire.common.scanning.RulePlacement;
+import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -53,11 +53,11 @@ public class AgentRunner implements ApplicationRunner {
         // Refused at once and by name. An agent that starts with no configuration and loops on
         // 401s reads as a network problem, and the operator looks in the wrong place.
         if (properties.url().isEmpty()) {
-            throw new IllegalStateException("zanshin.agent.url is required: the control plane's address.");
+            throw new IllegalStateException("vectispire.agent.url is required: the control plane's address.");
         }
         if (properties.token().isEmpty()) {
             throw new IllegalStateException(
-                    "zanshin.agent.token is required: the API key shown once when the agent was created.");
+                    "vectispire.agent.token is required: the API key shown once when the agent was created.");
         }
         if (!properties.url().startsWith("https://")) {
             // Warned and not refused: an agent in `local` mode receives no key, and a deployment

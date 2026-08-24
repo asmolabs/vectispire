@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.apikeys;
+package com.asmolabs.vectispire.common.domain.apikeys;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,7 +57,7 @@ class ApiKeysTest {
         @Test
         @DisplayName("never grants agent implicitly")
         void agentIsNeverImplicit() {
-            // It is the scope that lets a holder execute work on Zanshin's behalf.
+            // It is the scope that lets a holder execute work on Vectispire's behalf.
             assertThat(ApiKeys.normalizeScopes(null)).doesNotContain(ApiKeyScope.AGENT);
         }
 

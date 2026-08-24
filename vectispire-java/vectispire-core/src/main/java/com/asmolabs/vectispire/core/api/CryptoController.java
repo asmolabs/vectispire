@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.SigningKeyService;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.SigningKeyService;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;
@@ -27,11 +27,11 @@ public class CryptoController {
         this.signingKeyService = signingKeyService;
     }
 
-    @com.asmolabs.zanshin.core.api.security.OpenToAnonymous
+    @com.asmolabs.vectispire.core.api.security.OpenToAnonymous
     @GetMapping(value = "/public-key.pub", produces = "application/x-pem-file")
     public ResponseEntity<String> getPublicKey() {
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zanshin-signing-key.pub\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-signing-key.pub\"")
                 .body(signingKeyService.getPublicKeyPem());
     }
 
@@ -71,10 +71,10 @@ public class CryptoController {
                 "keyAlgorithm", "ECDSA_P256",
                 "instructions", "Verify artifacts using standard cosign or openssl CLI",
                 "commands", Map.of(
-                        "cosignVerifyManifest", "cosign verify-blob --key zanshin-signing-key.pub --signature manifest.json.sig manifest.json",
-                        "cosignVerifyVex", "cosign verify-blob --key zanshin-signing-key.pub --signature 05_openvex_advisory.json.sig 05_openvex_advisory.json",
-                        "cosignVerifyCycloneDx", "cosign verify-blob --key zanshin-signing-key.pub --signature 08_cyclonedx_1_5_vex.json.sig 08_cyclonedx_1_5_vex.json",
-                        "opensslVerify", "openssl dgst -sha256 -verify zanshin-signing-key.pub -signature <(base64 -d manifest.json.sig) manifest.json"
+                        "cosignVerifyManifest", "cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json",
+                        "cosignVerifyVex", "cosign verify-blob --key vectispire-signing-key.pub --signature 05_openvex_advisory.json.sig 05_openvex_advisory.json",
+                        "cosignVerifyCycloneDx", "cosign verify-blob --key vectispire-signing-key.pub --signature 08_cyclonedx_1_5_vex.json.sig 08_cyclonedx_1_5_vex.json",
+                        "opensslVerify", "openssl dgst -sha256 -verify vectispire-signing-key.pub -signature <(base64 -d manifest.json.sig) manifest.json"
                 )
         );
     }

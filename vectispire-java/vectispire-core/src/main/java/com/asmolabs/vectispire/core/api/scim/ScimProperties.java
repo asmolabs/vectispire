@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.api.scim;
+package com.asmolabs.vectispire.core.api.scim;
 
-import com.asmolabs.zanshin.core.services.SecretFile;
+import com.asmolabs.vectispire.core.services.SecretFile;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 /**
  * SCIM 2.0 configuration properties.
  */
-@ConfigurationProperties("zanshin.scim")
+@ConfigurationProperties("vectispire.scim")
 public record ScimProperties(
         boolean enabled,
         Optional<String> token,
@@ -25,7 +25,7 @@ public record ScimProperties(
             return this;
         }
         Optional<String> resolvedToken = tokenFile
-                .map(path -> SecretFile.read(path, "ZANSHIN_SCIM_TOKEN_FILE"))
+                .map(path -> SecretFile.read(path, "VECTISPIRE_SCIM_TOKEN_FILE"))
                 .<String>map(s -> s)
                 .or(() -> token);
         return new ScimProperties(enabled, resolvedToken, Optional.empty());

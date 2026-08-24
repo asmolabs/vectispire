@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.access.VisibilityMode;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
+import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.VectispireContextTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * sentence and partitions nothing.
  */
 @DisplayName("a fresh installation, wired")
-class FirstInstallDefaultsDatabaseTest extends ZanshinContextTest {
+class FirstInstallDefaultsDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private BootstrapService bootstrap;

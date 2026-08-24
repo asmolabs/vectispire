@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * The built-in worker: it runs inside Zanshin's process and drains the queue.
+ * The built-in worker: it runs inside Vectispire's process and drains the queue.
  *
  * <p><b>It has no privilege.</b> It claims exactly as a remote agent would, with the same lease
  * and the same ownership check. That is what makes adding an agent require no change here: the
@@ -46,8 +46,8 @@ public class ScanWorker {
     }
 
     @Scheduled(
-            fixedDelayString = "${zanshin.worker.interval:15s}",
-            initialDelayString = "${zanshin.worker.initial-delay:15s}")
+            fixedDelayString = "${vectispire.worker.interval:15s}",
+            initialDelayString = "${vectispire.worker.initial-delay:15s}")
     public void tick() {
         if (!properties.enabled() || !busy.compareAndSet(false, true)) {
             return;

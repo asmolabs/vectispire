@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditChain;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.AuditLogEntity;
-import com.asmolabs.zanshin.core.repositories.AuditLog;
+import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.repositories.AuditLog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * perfectly intact log broken.
  */
 @DisplayName("the audit chain, against a database")
-class AuditLogDatabaseTest extends ZanshinContextTest {
+class AuditLogDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private AuditLogService audit;

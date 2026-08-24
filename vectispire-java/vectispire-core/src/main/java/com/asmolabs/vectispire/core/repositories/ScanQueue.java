@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import static com.asmolabs.zanshin.common.domain.scans.ScanQueue.LEASE_EXHAUSTED_MESSAGE;
-import static com.asmolabs.zanshin.common.domain.scans.ScanQueue.afterLapse;
-import static com.asmolabs.zanshin.common.domain.scans.ScanQueue.leaseUntil;
+import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.LEASE_EXHAUSTED_MESSAGE;
+import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.afterLapse;
+import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.leaseUntil;
 
-import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Lapsed;
-import com.asmolabs.zanshin.common.domain.scans.ScanQueue.Policy;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;

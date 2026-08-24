@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.Decrypted;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.SecretState;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;

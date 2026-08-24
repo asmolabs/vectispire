@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
-import com.asmolabs.zanshin.common.scanning.ScanArtifacts;
-import com.asmolabs.zanshin.common.scanning.ScanTask;
+import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -34,7 +34,7 @@ public class AgentLoop {
     private final Function<ScanTask, ScanArtifacts> execute;
     private final AgentProperties properties;
     private final ScheduledExecutorService heartbeats =
-            Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("zanshin-heartbeat").factory());
+            Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("vectispire-heartbeat").factory());
 
     public AgentLoop(AgentProtocol protocol, Function<ScanTask, ScanArtifacts> execute, AgentProperties properties) {
         this.protocol = protocol;

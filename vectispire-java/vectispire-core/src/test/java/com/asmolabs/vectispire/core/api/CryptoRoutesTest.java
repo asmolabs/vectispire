@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.core.services.SigningKeyService;
+import com.asmolabs.vectispire.core.services.SigningKeyService;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,7 @@ class CryptoRoutesTest extends ApiTestBase {
     void downloadsPublicKey() throws Exception {
         MvcResult result = mvc.perform(get("/api/v1/crypto/public-key.pub"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"zanshin-signing-key.pub\""))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"vectispire-signing-key.pub\""))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();

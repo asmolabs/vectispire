@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.persistence;
+package com.asmolabs.vectispire.core.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

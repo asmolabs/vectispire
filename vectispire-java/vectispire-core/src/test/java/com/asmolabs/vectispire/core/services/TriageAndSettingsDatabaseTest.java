@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.Triage;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.issues.VexJustification;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Instant;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;
@@ -27,7 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * are the kind of statement that reads correct against a fake and is wrong in SQL.
  */
 @DisplayName("triage and settings, against a database")
-class TriageAndSettingsDatabaseTest extends ZanshinContextTest {
+class TriageAndSettingsDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private IssueTriageService triage;
@@ -39,7 +39,7 @@ class TriageAndSettingsDatabaseTest extends ZanshinContextTest {
     private Issues issues;
 
     @Autowired
-    private com.asmolabs.zanshin.core.repositories.RuleSets ruleSets;
+    private com.asmolabs.vectispire.core.repositories.RuleSets ruleSets;
 
     @Test
     @DisplayName("a decision is written, review date included")
@@ -154,12 +154,12 @@ class TriageAndSettingsDatabaseTest extends ZanshinContextTest {
         // The order only makes the answer deterministic.
         assertThat(ruleSets.findFirstByContentHashOrderByIdAsc(hash))
                 .get()
-                .extracting(com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity::getId)
+                .extracting(com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity::getId)
                 .isEqualTo(first);
     }
 
-    private com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity storeRuleSet(String hash, String name) {
-        var entity = new com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity();
+    private com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity storeRuleSet(String hash, String name) {
+        var entity = new com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity();
         entity.setName(name);
         entity.setFiles("[]");
         entity.setContentHash(hash);

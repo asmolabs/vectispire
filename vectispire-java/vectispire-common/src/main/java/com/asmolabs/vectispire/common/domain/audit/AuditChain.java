@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.audit;
+package com.asmolabs.vectispire.common.domain.audit;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;

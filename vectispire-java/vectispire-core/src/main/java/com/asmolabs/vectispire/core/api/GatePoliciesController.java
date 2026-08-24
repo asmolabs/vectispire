@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresSecurityLead;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.GatePolicyEntity;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.GateService;
-import com.asmolabs.zanshin.core.services.GateService.PolicyScope;
-import com.asmolabs.zanshin.core.services.IssueViews;
-import com.asmolabs.zanshin.core.services.TargetNaming;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
+import com.asmolabs.vectispire.core.services.IssueViews;
+import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
@@ -120,7 +120,7 @@ public class GatePoliciesController {
     /** The global policy: what every target inherits unless it has one of its own. */
     @PutMapping("/global")
     public PolicyView storeGlobal(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request,
             @RequestBody PolicyRequest body) {
 
@@ -129,7 +129,7 @@ public class GatePoliciesController {
 
     @PutMapping("/{kind}/{id}")
     public PolicyView storeForTarget(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request,
             @PathVariable String kind,
             @PathVariable long id,
@@ -149,7 +149,7 @@ public class GatePoliciesController {
     @DeleteMapping("/{kind}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void clear(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request,
             @PathVariable String kind,
             @PathVariable long id) {
@@ -164,7 +164,7 @@ public class GatePoliciesController {
     private PolicyView store(
             PolicyScope scope,
             String what,
-            ZanshinPrincipal principal,
+            VectispirePrincipal principal,
             HttpServletRequest request,
             PolicyRequest body) {
 
@@ -302,7 +302,7 @@ public class GatePoliciesController {
      * exactly the change somebody has to be able to find afterwards.
      */
     private void record(
-            ZanshinPrincipal principal, HttpServletRequest request, PolicyScope scope, String description) {
+            VectispirePrincipal principal, HttpServletRequest request, PolicyScope scope, String description) {
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.GATE_POLICY_UPDATED,

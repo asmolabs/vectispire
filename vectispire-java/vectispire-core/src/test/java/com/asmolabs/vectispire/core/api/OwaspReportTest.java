@@ -1,24 +1,24 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.persistence.AiReviewResultEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.services.AiReviewService;
-import com.asmolabs.zanshin.core.services.OwaspReviewService;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.AiReviewService;
+import com.asmolabs.vectispire.core.services.OwaspReviewService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -53,7 +53,7 @@ class OwaspReportTest extends ApiTestBase {
     private Issues issues;
 
     @Autowired
-    private com.asmolabs.zanshin.core.repositories.AiReviewResults results;
+    private com.asmolabs.vectispire.core.repositories.AiReviewResults results;
 
     private AiReviewService models;
     private OwaspReviewService service;
@@ -230,11 +230,11 @@ class OwaspReportTest extends ApiTestBase {
             Mockito.when(ai.validatedUrl()).thenReturn("http://localhost:11434");
             Mockito.when(ai.availableModels()).thenReturn(models);
             return new SettingsController(
-                    Mockito.mock(com.asmolabs.zanshin.core.services.SettingsService.class),
-                    Mockito.mock(com.asmolabs.zanshin.core.services.TicketService.class),
-                    Mockito.mock(com.asmolabs.zanshin.core.services.AuditLogService.class),
+                    Mockito.mock(com.asmolabs.vectispire.core.services.SettingsService.class),
+                    Mockito.mock(com.asmolabs.vectispire.core.services.TicketService.class),
+                    Mockito.mock(com.asmolabs.vectispire.core.services.AuditLogService.class),
                     ai,
-                    Mockito.mock(com.asmolabs.zanshin.core.services.NotificationService.class));
+                    Mockito.mock(com.asmolabs.vectispire.core.services.NotificationService.class));
         }
 
         @Test
@@ -242,7 +242,7 @@ class OwaspReportTest extends ApiTestBase {
         void suggestionsMeanUnreachable() {
             // `availableModels` never throws and returns suggestions when nothing answered —
             // right for a dropdown, and indistinguishable from success unless the check says so.
-            var check = controllerWith(com.asmolabs.zanshin.common.domain.aireview.AiReview.FALLBACK_MODEL_SUGGESTIONS)
+            var check = controllerWith(com.asmolabs.vectispire.common.domain.aireview.AiReview.FALLBACK_MODEL_SUGGESTIONS)
                     .testOllama();
 
             assertThat(check.reachable()).isFalse();

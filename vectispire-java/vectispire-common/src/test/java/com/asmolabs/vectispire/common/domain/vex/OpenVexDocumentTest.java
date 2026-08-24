@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.vex;
+package com.asmolabs.vectispire.common.domain.vex;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,7 +25,7 @@ class OpenVexDocumentTest {
                 "Upgrade required before SLA deadline (due in 3 days)");
 
         OpenVexDocument doc = OpenVexDocument.create(
-                "https://zanshin.internal/vex/scans/42/openvex.json",
+                "https://vectispire.internal/vex/scans/42/openvex.json",
                 Instant.parse("2026-08-22T14:00:00Z"),
                 List.of(stmt1, stmt2));
 

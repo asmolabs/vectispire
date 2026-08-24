@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.issues;
+package com.asmolabs.vectispire.common.domain.issues;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.Objects;
 
 /**

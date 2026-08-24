@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.targets;
+package com.asmolabs.vectispire.common.domain.targets;
 
 /**
  * What a scan runs against: a source repository, or a container image.

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
@@ -24,7 +24,7 @@ public class AuditMirrorConfiguration {
      *     database. Empty disables it, and {@code /audit-log/verify} reports that it is off — an
      *     integrity control whose state nobody can see is one nobody can rely on
      */
-    @ConfigurationProperties("zanshin.audit")
+    @ConfigurationProperties("vectispire.audit")
     public record AuditProperties(String mirrorPath) {}
 
     /**

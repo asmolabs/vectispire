@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,14 +7,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,7 +71,7 @@ class ClientRequestContractTest extends ApiTestBase {
         // Somebody other than the caller, and not the last administrator: the self-lockout rule
         // refuses both, and would answer 400 for a reason that has nothing to do with binding.
         String victim = "victim-" + System.nanoTime();
-        tokenFor(victim, com.asmolabs.zanshin.common.domain.users.Role.USER, false);
+        tokenFor(victim, com.asmolabs.vectispire.common.domain.users.Role.USER, false);
         long id = users.findByUsername(victim).orElseThrow().getId();
 
         Map<String, Object> patch = new HashMap<>();
@@ -137,7 +137,7 @@ class ClientRequestContractTest extends ApiTestBase {
     @DisplayName("the login's client identifier reaches the throttle's second counter")
     void theClientIdentifierBinds() throws Exception {
         String username = "throttled-" + System.nanoTime();
-        tokenFor(username, com.asmolabs.zanshin.common.domain.users.Role.USER, false);
+        tokenFor(username, com.asmolabs.vectispire.common.domain.users.Role.USER, false);
 
         // Dropped, the counter falls back to the IP address — and behind a corporate NAT that
         // is one lock shared by everybody, which is what the second counter exists to avoid.

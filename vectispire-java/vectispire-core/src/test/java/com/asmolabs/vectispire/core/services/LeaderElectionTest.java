@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,8 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.core.persistence.LeaderLeaseEntity;
-import com.asmolabs.zanshin.core.repositories.LeaderLeases;
+import com.asmolabs.vectispire.core.persistence.LeaderLeaseEntity;
+import com.asmolabs.vectispire.core.repositories.LeaderLeases;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

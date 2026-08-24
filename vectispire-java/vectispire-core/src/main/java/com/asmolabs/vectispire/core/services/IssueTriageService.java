@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
-import com.asmolabs.zanshin.common.domain.issues.Triage;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.TriageEventEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.TriageEvents;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;

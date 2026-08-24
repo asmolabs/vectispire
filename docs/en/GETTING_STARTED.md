@@ -1,25 +1,25 @@
-# Zanshin — Getting Started / Launch Guide
+# Vectispire — Getting Started / Launch Guide
 
-This document covers everything needed to run Zanshin locally: prerequisites, installation, environment configuration, and how to start the application. For features, see [`README.md`](../README.md); for architecture and database schema, see [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md).
+This document covers everything needed to run Vectispire locally: prerequisites, installation, environment configuration, and how to start the application. For features, see [`README.md`](../README.md); for architecture and database schema, see [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md).
 
 ## 1. Prerequisites
 
 | Requirement | Why |
 |---|---|
 | **Node ≥ 24** | The workspace targets the current LTS. |
-| **Docker**, running and reachable | Zanshin runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through the Docker socket. It is also what starts PostgreSQL in development and in the integration tests. |
+| **Docker**, running and reachable | Vectispire runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through the Docker socket. It is also what starts PostgreSQL in development and in the integration tests. |
 | **PostgreSQL or MySQL 8** | Both are supported and exercised by the integration campaign. SQLite is not — see the README for the measured reason. In development, a container is enough. |
-| **Git** | To clone this repository, and used by Zanshin itself to clone what it scans. |
+| **Git** | To clone this repository, and used by Vectispire itself to clone what it scans. |
 
 ## 2. Install
 
 ```bash
 git clone <this-repo-url>
-cd Zanshin
+cd Vectispire
 npm install
 ```
 
-`npm` covers the interface alone. The control plane is a Gradle build in `zanshin-java/` and
+`npm` covers the interface alone. The control plane is a Gradle build in `vectispire-java/` and
 shares nothing with it but the HTTP contract.
 
 ## 3. Configuration
@@ -110,7 +110,7 @@ npm run docker:build:agent    # or docker build -f Dockerfile.agent -t vectispir
 
 An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans; its narrative result and normalized findings (severity/title/file) show up in the scan detail dialog. See `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
 
-Ollama can be run either natively or in Docker — Zanshin talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. There is deliberately no setting for it: where Ollama runs changes nothing about how Zanshin calls it.
+Ollama can be run either natively or in Docker — Vectispire talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. There is deliberately no setting for it: where Ollama runs changes nothing about how Vectispire calls it.
 
 **Native install (recommended, especially on Apple Silicon Macs)** — see [ollama.com/download](https://ollama.com/download). Gets full GPU acceleration: Metal on Apple Silicon, CUDA/ROCm on Linux with the right drivers.
 
@@ -123,19 +123,19 @@ ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
 
 ```bash
 docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
-docker exec -it zanshin-ollama ollama pull gemma4:12b-it-qat
-docker exec -it zanshin-ollama ollama pull gemma4:e4b-it-qat   # optional, lighter alternative
+docker exec -it vectispire-ollama ollama pull gemma4:12b-it-qat
+docker exec -it vectispire-ollama ollama pull gemma4:e4b-it-qat   # optional, lighter alternative
 ```
 
 (Add `--gpus all` for NVIDIA passthrough on Linux.)
 
-Then, from Zanshin's **Settings** page, under "Revue de code par IA": toggle the feature on, set the Ollama URL (default `http://localhost:11434`, unchanged whether Ollama runs natively or via the provided compose file since the container publishes the same port to the host), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
+Then, from Vectispire's **Settings** page, under "Revue de code par IA": toggle the feature on, set the Ollama URL (default `http://localhost:11434`, unchanged whether Ollama runs natively or via the provided compose file since the container publishes the same port to the host), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
 
 ## 7. Running the tests
 
 ```bash
-cd zanshin-java && ./gradlew build              # unit, architecture and HTTP suites
-cd zanshin-java && ./gradlew integrationTest    # starts PostgreSQL via testcontainers
+cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
+cd vectispire-java && ./gradlew integrationTest    # starts PostgreSQL via testcontainers
 ```
 
 The integration suites start their own database and **do not skip** when one is missing:
@@ -149,10 +149,10 @@ running anything — a security tool you took on trust is a contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle zanshin-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/Asmo1973/Zanshin/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --bundle vectispire-1.0.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/Asmo1973/Vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  zanshin-1.0.0.jar
+  vectispire-1.0.0.jar
 ```
 
 **Each part of that command pins something, and dropping any of them gives back most of what
@@ -181,10 +181,10 @@ rewrite before you read it.
 
 ## 9. Troubleshooting
 
-- **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Zanshin needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
+- **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Vectispire needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
-- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
+- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
 - **An SSH key shows "Illisible" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; [`ROTATION_AND_PURGE.md`](ROTATION_AND_PURGE.md) has the procedure.
 - **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
 - **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.

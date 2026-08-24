@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -6,13 +6,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,7 +81,7 @@ class VexRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/vex/aggregate.json"), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.['@context']").value("https://openvex.dev/ns/v0.2.0"))
-                .andExpect(jsonPath("$.author").value("Zanshin ASPM Control Plane"));
+                .andExpect(jsonPath("$.author").value("Vectispire ASPM Control Plane"));
     }
 
     @Test
@@ -89,7 +89,7 @@ class VexRoutesTest extends ApiTestBase {
     void ingestsUpstreamOpenVex() throws Exception {
         String token = asAdmin();
 
-        com.asmolabs.zanshin.core.persistence.IssueEntity issue = new com.asmolabs.zanshin.core.persistence.IssueEntity();
+        com.asmolabs.vectispire.core.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.persistence.IssueEntity();
         issue.setFingerprint("fp-upstream-test-1");
         issue.setIdentifier("CVE-2023-9999");
         issue.setType("vulnerability");
@@ -132,7 +132,7 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.triagedIssues").value(1))
                 .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-9999"));
 
-        com.asmolabs.zanshin.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        com.asmolabs.vectispire.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
         assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
         assertThat(updated.getTriageComment()).contains("Spring Security Team");
     }
@@ -142,7 +142,7 @@ class VexRoutesTest extends ApiTestBase {
     void ingestsUpstreamCycloneDxVex() throws Exception {
         String token = asAdmin();
 
-        com.asmolabs.zanshin.core.persistence.IssueEntity issue = new com.asmolabs.zanshin.core.persistence.IssueEntity();
+        com.asmolabs.vectispire.core.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.persistence.IssueEntity();
         issue.setFingerprint("fp-upstream-cdx-test");
         issue.setIdentifier("CVE-2023-8888");
         issue.setType("vulnerability");
@@ -189,7 +189,7 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.triagedIssues").value(1))
                 .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-8888"));
 
-        com.asmolabs.zanshin.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        com.asmolabs.vectispire.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
         assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
         assertThat(updated.getTriageComment()).contains("Apache Security Team");
     }

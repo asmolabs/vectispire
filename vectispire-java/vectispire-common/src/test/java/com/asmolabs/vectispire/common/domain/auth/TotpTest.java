@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.auth;
+package com.asmolabs.vectispire.common.domain.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,8 +16,8 @@ class TotpTest {
         String secret = Totp.generateSecret();
         assertThat(secret).matches("^[A-Z2-7]{32}$");
 
-        String uri = Totp.qrCodeUri("alice", secret, "Zanshin");
-        assertThat(uri).startsWith("otpauth://totp/Zanshin:alice?secret=" + secret);
+        String uri = Totp.qrCodeUri("alice", secret, "Vectispire");
+        assertThat(uri).startsWith("otpauth://totp/Vectispire:alice?secret=" + secret);
     }
 
     @Test

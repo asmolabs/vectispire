@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.persistence;
+package com.asmolabs.vectispire.core.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,7 +43,7 @@ class ChangelogTest {
     }
 
     private List<String> applyChangelog() throws Exception {
-        Path database = scratch.resolve("zanshin.db");
+        Path database = scratch.resolve("vectispire.db");
         Files.createDirectories(database.getParent());
         apply(database);
 

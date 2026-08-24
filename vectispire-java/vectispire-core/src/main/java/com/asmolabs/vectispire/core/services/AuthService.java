@@ -1,15 +1,15 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.auth.LoginThrottle;
-import com.asmolabs.zanshin.common.domain.auth.Sessions;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.core.persistence.LoginAttemptEntity;
-import com.asmolabs.zanshin.core.persistence.SessionEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.LoginAttempts;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.persistence.LoginAttemptEntity;
+import com.asmolabs.vectispire.core.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.LoginAttempts;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -91,7 +91,7 @@ class NotificationsTest {
                     3, Severity.HIGH));
 
             assertThat(payload.text())
-                    .isEqualTo("Zanshin — api-service: 1 new issue(s), 1 reappeared, 1 actively exploited (3 resolved)");
+                    .isEqualTo("Vectispire — api-service: 1 new issue(s), 1 reappeared, 1 actively exploited (3 resolved)");
         }
 
         @Test

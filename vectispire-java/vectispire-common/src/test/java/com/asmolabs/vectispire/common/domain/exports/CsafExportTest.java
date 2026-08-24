@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

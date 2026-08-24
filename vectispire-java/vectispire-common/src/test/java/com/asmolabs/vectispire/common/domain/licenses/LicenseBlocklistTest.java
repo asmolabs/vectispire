@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.domain.licenses;
+package com.asmolabs.vectispire.common.domain.licenses;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

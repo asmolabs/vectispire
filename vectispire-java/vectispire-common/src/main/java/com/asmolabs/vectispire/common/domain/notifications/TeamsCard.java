@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -86,7 +86,7 @@ public final class TeamsCard {
         if (publicUrl != null && !publicUrl.isBlank()) {
             card.put("actions", List.of(Map.of(
                     "type", "Action.OpenUrl",
-                    "title", "Open in Zanshin",
+                    "title", "Open in Vectispire",
                     "url", trimTrailingSlash(publicUrl) + "/issues")));
         }
 

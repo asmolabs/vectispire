@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.users;
+package com.asmolabs.vectispire.common.domain.users;
 
 import java.util.Arrays;
 import java.util.List;
@@ -8,7 +8,7 @@ import java.util.Optional;
  * The vocabulary of roles.
  *
  * <p>In the domain and not on the entity: it is a business rule, not a column. The roles would
- * still exist if Zanshin changed database.
+ * still exist if Vectispire changed database.
  *
  * <p>{@link #isAdministrative()} travels with the constant rather than living in a second
  * {@code ADMIN_ROLES} list. Two lists over one set can disagree, and the disagreement here

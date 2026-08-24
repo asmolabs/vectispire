@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,12 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.issues.InvalidTriageException;
-import com.asmolabs.zanshin.common.domain.issues.Triage;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.issues.VexJustification;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
@@ -28,13 +28,13 @@ class IssueTriageServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T09:00:00Z");
 
     private Issues issues;
-    private com.asmolabs.zanshin.core.repositories.TriageEvents events;
+    private com.asmolabs.vectispire.core.repositories.TriageEvents events;
     private IssueTriageService service;
 
     @BeforeEach
     void wire() {
         issues = mock(Issues.class);
-        events = mock(com.asmolabs.zanshin.core.repositories.TriageEvents.class);
+        events = mock(com.asmolabs.vectispire.core.repositories.TriageEvents.class);
         service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC));
         when(issues.save(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAll(any())).thenAnswer(call -> call.getArgument(0));
@@ -42,9 +42,9 @@ class IssueTriageServiceTest {
     }
 
     /** The single event this call recorded. */
-    private com.asmolabs.zanshin.core.persistence.TriageEventEntity recorded() {
+    private com.asmolabs.vectispire.core.persistence.TriageEventEntity recorded() {
         var captor = org.mockito.ArgumentCaptor.forClass(
-                com.asmolabs.zanshin.core.persistence.TriageEventEntity.class);
+                com.asmolabs.vectispire.core.persistence.TriageEventEntity.class);
         org.mockito.Mockito.verify(events).save(captor.capture());
         return captor.getValue();
     }

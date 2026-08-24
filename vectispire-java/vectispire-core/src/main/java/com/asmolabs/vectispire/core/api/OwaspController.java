@@ -1,21 +1,21 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.aireview.OwaspMarkdown;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.AiReviewResultEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.services.OwaspReportPdf;
-import com.asmolabs.zanshin.core.services.AuditLogService;
-import com.asmolabs.zanshin.core.services.OwaspReviewService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.OwaspReportPdf;
+import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.OwaspReviewService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -89,7 +89,7 @@ public class OwaspController {
             Instant createdAt) {}
 
     @GetMapping
-    public Report latest(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+    public Report latest(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         visible(principal, id);
         return reviews.latest(id)
                 .map(OwaspController::reportOf)
@@ -98,7 +98,7 @@ public class OwaspController {
 
     @PostMapping
     public Report run(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable long id,
             HttpServletRequest request) {
 
@@ -128,7 +128,7 @@ public class OwaspController {
      * it. 409 rather than 404: the report exists, it just is not a document.
      */
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal ZanshinPrincipal principal, @PathVariable long id) {
+    public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         RepositoryEntity repository = visible(principal, id);
         AiReviewResultEntity result = reviews.latest(id)
                 .orElseThrow(() -> new NoSuchElementException("No OWASP report has been produced for this target."));
@@ -156,13 +156,13 @@ public class OwaspController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()
-                                .filename("zanshin-owasp-" + id + ".pdf")
+                                .filename("vectispire-owasp-" + id + ".pdf")
                                 .build()
                                 .toString())
                 .body(document);
     }
 
-    private RepositoryEntity visible(ZanshinPrincipal principal, long id) {
+    private RepositoryEntity visible(VectispirePrincipal principal, long id) {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
         Visibilities.requireVisible(

@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -15,7 +15,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
  */
 @SpringBootApplication
 @org.springframework.boot.context.properties.ConfigurationPropertiesScan
-public class ZanshinAgentApplication {
+public class VectispireAgentApplication {
 
     /**
      * The clock, injected rather than called.
@@ -43,7 +43,7 @@ public class ZanshinAgentApplication {
     }
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(ZanshinAgentApplication.class)
+        new SpringApplicationBuilder(VectispireAgentApplication.class)
                 .web(WebApplicationType.NONE)
                 .run(args);
     }

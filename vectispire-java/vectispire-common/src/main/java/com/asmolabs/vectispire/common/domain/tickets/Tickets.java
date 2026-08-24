@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.domain.tickets;
+package com.asmolabs.vectispire.common.domain.tickets;
 
-import com.asmolabs.zanshin.common.domain.dependencies.Directness;
-import com.asmolabs.zanshin.common.domain.exports.ExportableIssue.FixState;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.dependencies.Directness;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +30,7 @@ public final class Tickets {
     private Tickets() {}
 
     public static final String DEFAULT_JIRA_ISSUE_TYPE = "Bug";
-    public static final List<String> DEFAULT_LABELS = List.of("zanshin", "security");
+    public static final List<String> DEFAULT_LABELS = List.of("vectispire", "security");
 
     /**
      * Cap per sweep.
@@ -68,7 +68,7 @@ public final class Tickets {
         String component = blank(issue.packageName()) ? "" : " — " + issue.packageName();
         String severity = severityOf(issue).wireName().toUpperCase(Locale.ROOT);
 
-        return "[Zanshin][" + severity + "] " + subject + component + " (" + targetName + ")";
+        return "[Vectispire][" + severity + "] " + subject + component + " (" + targetName + ")";
     }
 
     /**
@@ -79,7 +79,7 @@ public final class Tickets {
      */
     public static String body(TicketableIssue issue, String targetName) {
         List<String> lines = new ArrayList<>(List.of(
-                "Detected by Zanshin on **" + targetName + "**.",
+                "Detected by Vectispire on **" + targetName + "**.",
                 "",
                 "- Type: " + issue.type().wireName(),
                 "- Identifier: " + (blank(issue.identifier()) ? "—" : issue.identifier()),
@@ -122,7 +122,7 @@ public final class Tickets {
         }
 
         lines.add("");
-        lines.add("Zanshin issue #" + issue.id() + " — fingerprint `" + issue.fingerprint() + "`.");
+        lines.add("Vectispire issue #" + issue.id() + " — fingerprint `" + issue.fingerprint() + "`.");
         lines.add("This ticket was opened because this issue would fail a build under the gate policy in force "
                 + "for this target.");
 

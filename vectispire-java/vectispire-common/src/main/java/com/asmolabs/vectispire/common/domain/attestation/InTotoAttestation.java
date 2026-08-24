@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.attestation;
+package com.asmolabs.vectispire.common.domain.attestation;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,7 +14,7 @@ public record InTotoAttestation(
         Predicate predicate) {
 
     public static final String IN_TOTO_STATEMENT_V01 = "https://in-toto.io/Statement/v0.1";
-    public static final String ZANSHIN_PREDICATE_V1 = "https://zanshin.dev/attestation/v1";
+    public static final String VECTISPIRE_PREDICATE_V1 = "https://vectispire.dev/attestation/v1";
 
     public record Subject(
             String name,
@@ -72,12 +72,12 @@ public record InTotoAttestation(
                         : Map.of("sha256", "0000000000000000000000000000000000000000000000000000000000000000"));
 
         Predicate predicate = new Predicate(
-                new Builder("https://github.com/asmolabs/zanshin", "0.9.0"),
+                new Builder("https://github.com/asmolabs/vectispire", "0.9.0"),
                 new Invocation(scanId, targetKind, targetName, branch, commitSha, timestamp),
                 new PolicyAssessment(gatePassed, violations != null ? violations : List.of(), policyName),
                 findings,
                 sbomDigestSha256);
 
-        return new InTotoAttestation(IN_TOTO_STATEMENT_V01, List.of(subject), ZANSHIN_PREDICATE_V1, predicate);
+        return new InTotoAttestation(IN_TOTO_STATEMENT_V01, List.of(subject), VECTISPIRE_PREDICATE_V1, predicate);
     }
 }

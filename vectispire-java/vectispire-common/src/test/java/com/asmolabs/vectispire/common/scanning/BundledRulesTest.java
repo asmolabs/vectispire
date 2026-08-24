@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The rules Zanshin ships are actually in the jar.
+ * The rules Vectispire ships are actually in the jar.
  *
  * <p><b>They were not, and every repository scan failed because of it</b> — "could not place
  * rules from rules", from a {@code Path.of("rules")} resolved against whatever directory the
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
  * {@code RulePlacement} over a temporary directory, and container scans run the dependency step
  * alone and never place a rule. Only a repository scan, run for real, reaches this code.
  */
-@DisplayName("the rules Zanshin ships")
+@DisplayName("the rules Vectispire ships")
 class BundledRulesTest {
 
     @Test
@@ -63,6 +63,6 @@ class BundledRulesTest {
         // the rule produced and recreates them as new, losing the triage attached to them —
         // silently, across every target. Pinned here so that a rename is a failing test rather
         // than a discovery six months later.
-        assertThat(rule).contains("id: zanshin.python.eval-on-input");
+        assertThat(rule).contains("id: vectispire.python.eval-on-input");
     }
 }

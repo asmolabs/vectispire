@@ -1,18 +1,18 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.core.persistence.ContainerEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.repositories.Containers;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,10 +35,10 @@ class BacklogTargetTest extends ApiTestBase {
     private Containers containers;
 
     @Autowired
-    private com.asmolabs.zanshin.core.repositories.Issues issues;
+    private com.asmolabs.vectispire.core.repositories.Issues issues;
 
     @Autowired
-    private com.asmolabs.zanshin.core.repositories.Scans scans;
+    private com.asmolabs.vectispire.core.repositories.Scans scans;
 
     @Test
     @DisplayName("is named, for a repository and for an image alike")
@@ -96,7 +96,7 @@ class BacklogTargetTest extends ApiTestBase {
     @DisplayName("the dashboard's recent scans name their target too, not just its id")
     void recentScansAreNamed() throws Exception {
         long container = seedContainer();
-        com.asmolabs.zanshin.core.persistence.ScanEntity scan = new com.asmolabs.zanshin.core.persistence.ScanEntity();
+        com.asmolabs.vectispire.core.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.persistence.ScanEntity();
         scan.setContainerId(container);
         scan.setBranch("-");
         scan.setStatus("completed");
@@ -115,7 +115,7 @@ class BacklogTargetTest extends ApiTestBase {
     @DisplayName("a repository scan carries the branch it ran on, an image scan does not")
     void aRepositoryScanNamesItsBranch() throws Exception {
         long repository = seedRepository("https://github.com/org/project.git");
-        com.asmolabs.zanshin.core.persistence.ScanEntity scan = new com.asmolabs.zanshin.core.persistence.ScanEntity();
+        com.asmolabs.vectispire.core.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.persistence.ScanEntity();
         scan.setRepoId(repository);
         scan.setBranch("release/2.4");
         scan.setStatus("completed");

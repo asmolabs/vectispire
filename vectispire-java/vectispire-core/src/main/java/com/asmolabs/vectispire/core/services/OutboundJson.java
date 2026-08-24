@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -12,7 +12,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
- * Every JSON call Zanshin makes to the outside, through one door.
+ * Every JSON call Vectispire makes to the outside, through one door.
  *
  * <p><b>Redirects are refused, not followed.</b> A guard that validates a URL and then lets the
  * client follow a 302 has validated nothing: the destination that was checked is not the

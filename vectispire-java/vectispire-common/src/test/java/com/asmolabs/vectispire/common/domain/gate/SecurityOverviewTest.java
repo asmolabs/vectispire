@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.common.domain.gate;
+package com.asmolabs.vectispire.common.domain.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview.LatestScan;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview.NamedTarget;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview.Observation;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.LatestScan;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.NamedTarget;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.Observation;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +111,7 @@ class SecurityOverviewTest {
         // that corresponds to nothing on the screen below it.
         GateIssue kev = new GateIssue(2, true, FindingType.VULNERABILITY, Severity.LOW, "CVE-2", "pkg", null, true, null);
         GateIssue settledKev = new GateIssue(3, true, FindingType.VULNERABILITY, Severity.LOW, "CVE-3", "pkg", null, true,
-                com.asmolabs.zanshin.common.domain.issues.TriageStatus.NOT_AFFECTED);
+                com.asmolabs.vectispire.common.domain.issues.TriageStatus.NOT_AFFECTED);
 
         SecurityOverview.Overview overview = SecurityOverview.build(input(
                 Map.of(REPO, List.of(kev, settledKev)), Map.of(REPO, scan(ScanStatus.COMPLETED))));

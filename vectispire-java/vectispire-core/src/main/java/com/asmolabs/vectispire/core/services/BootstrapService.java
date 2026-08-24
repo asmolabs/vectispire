@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.users.AccountRules;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -86,7 +86,7 @@ public class BootstrapService {
             // in front of a login screen no credentials get through.
             log.warn(
                     "No account exists and no bootstrap credentials are configured: nobody will be able to log in. "
-                            + "Set ZANSHIN_BOOTSTRAP_USERNAME and ZANSHIN_BOOTSTRAP_PASSWORD, then restart.");
+                            + "Set VECTISPIRE_BOOTSTRAP_USERNAME and VECTISPIRE_BOOTSTRAP_PASSWORD, then restart.");
             return Optional.empty();
         }
 

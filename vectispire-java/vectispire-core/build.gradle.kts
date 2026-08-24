@@ -13,7 +13,7 @@ plugins {
  *              │                              │
  *              └──────────────┬───────────────┘
  *                             ▼
- *                        zanshin-common
+ *                        vectispire-common
  * ```
  *
  * **Only `repositories` may speak SQL.** Not for purity: the behaviour four engines disagree
@@ -92,7 +92,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // The OIDC client, for the optional single sign-on. `oauth2-client` and not
-    // `oauth2-resource-server`: Keycloak authenticates, and Zanshin still issues its own session
+    // `oauth2-resource-server`: Keycloak authenticates, and Vectispire still issues its own session
     // — see `OidcConfiguration` for why the token is not validated on every request instead.
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     // The mail sender. Its own starter rather than a raw JavaMail dependency: the retry, the
@@ -100,12 +100,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    // **In `zanshin-core` and not in the domain beside the other exports**, deliberately. The
-    // domain half of `zanshin-common` is what the agent also carries, and an agent that never
+    // **In `vectispire-core` and not in the domain beside the other exports**, deliberately. The
+    // domain half of `vectispire-common` is what the agent also carries, and an agent that never
     // renders a document has no business shipping a PDF library. The layer rule would have
     // allowed it — it forbids frameworks and drivers, and PDFBox is neither — so the reason is
     // the agent's classpath rather than the rule.
-    // Cloning the upstream rule catalogue at a pinned tag. `zanshin-common` keeps JGit as
+    // Cloning the upstream rule catalogue at a pinned tag. `vectispire-common` keeps JGit as
     // `implementation`, so it does not reach here transitively — and declaring it explicitly is
     // the honest form anyway: this module uses it directly.
     implementation(libs.jgit)
@@ -174,7 +174,7 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
         sourceSets.main.get().output
     // The suites share one server, so they cannot run against it concurrently.
     maxParallelForks = 1
-    systemProperty("zanshin.db.dialect", providers.gradleProperty("dialect").getOrElse("postgres"))
+    systemProperty("vectispire.db.dialect", providers.gradleProperty("dialect").getOrElse("postgres"))
     shouldRunAfter(tasks.test)
 }
 
@@ -193,7 +193,7 @@ engines.forEach { engine ->
             integrationTest.output +
             sourceSets.main.get().output
         maxParallelForks = 1
-        systemProperty("zanshin.db.dialect", engine)
+        systemProperty("vectispire.db.dialect", engine)
         // Each engine gets its own results directory: one shared directory means the last run
         // overwrites the others, and "which engine failed" stops being answerable.
         reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$engine")

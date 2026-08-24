@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.ApiInventoryService;
-import com.asmolabs.zanshin.core.services.ApiInventoryService.GlobalAttackSurface;
-import com.asmolabs.zanshin.core.services.ApiInventoryService.RepositoryApisOverview;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.ApiInventoryService;
+import com.asmolabs.vectispire.core.services.ApiInventoryService.GlobalAttackSurface;
+import com.asmolabs.vectispire.core.services.ApiInventoryService.RepositoryApisOverview;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

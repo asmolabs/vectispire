@@ -1,24 +1,24 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.common.domain.trends.BacklogTrend;
-import com.asmolabs.zanshin.common.domain.trends.PostureTrendAnalytics;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.repositories.IssueFilters;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.common.domain.access.Visibility;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.GateService;
-import com.asmolabs.zanshin.core.services.SlaService;
-import com.asmolabs.zanshin.core.services.TargetNaming;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
+import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.SlaService;
+import com.asmolabs.vectispire.core.services.TargetNaming;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Clock;
 import java.time.Instant;
@@ -135,7 +135,7 @@ public class DashboardController {
             List<RecentScan> recentScans) {}
 
     @GetMapping
-    public Overview overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public Overview overview(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         SecurityOverview.Overview posture = gate.overview(allowed);
 
@@ -194,7 +194,7 @@ public class DashboardController {
      */
     @GetMapping("/trends")
     public Trends trends(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false, defaultValue = "90") int days) {
 
         // Clamped rather than refused: a chart is not a place to fail a request over a query
@@ -227,18 +227,18 @@ public class DashboardController {
 
     @GetMapping("/posture-analytics")
     public PostureTrendAnalytics postureAnalytics(
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false, defaultValue = "30") int days) {
 
         int window = Math.clamp(days, 7, MAX_TREND_DAYS);
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
 
-        List<com.asmolabs.zanshin.core.persistence.IssueEntity> allIssues = issues
+        List<com.asmolabs.vectispire.core.persistence.IssueEntity> allIssues = issues
                 .findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
                         .toSpecification());
 
-        List<Long> repoIds = allIssues.stream().map(com.asmolabs.zanshin.core.persistence.IssueEntity::getRepoId).filter(java.util.Objects::nonNull).distinct().toList();
-        List<Long> containerIds = allIssues.stream().map(com.asmolabs.zanshin.core.persistence.IssueEntity::getContainerId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> repoIds = allIssues.stream().map(com.asmolabs.vectispire.core.persistence.IssueEntity::getRepoId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> containerIds = allIssues.stream().map(com.asmolabs.vectispire.core.persistence.IssueEntity::getContainerId).filter(java.util.Objects::nonNull).distinct().toList();
         TargetNaming.Names names = naming.forIds(repoIds, containerIds);
 
         List<PostureTrendAnalytics.IssueObservation> observations = allIssues.stream()

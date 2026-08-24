@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.auth.Totp;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.Users;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.Totp;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +39,7 @@ public class TotpService {
 
     public SetupResponse setup(UserEntity user) {
         String secret = Totp.generateSecret();
-        String issuer = "Zanshin";
+        String issuer = "Vectispire";
         String qrUri = Totp.qrCodeUri(user.getUsername(), secret, issuer);
         return new SetupResponse(secret, qrUri, issuer);
     }

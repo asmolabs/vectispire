@@ -1,6 +1,6 @@
 # Rapport d'Audit & Revue d'Architecture, Qualité et Sécurité
 
-**Projet** : Zanshin  
+**Projet** : Vectispire  
 **Périmètre** : Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Moteurs de Base de Données, Conteneurs d'Analyse, Chaîne de Déploiement (CI/CD / Supply Chain), Moteur de Conformité & Coffre-Fort de Preuves.  
 **Auteur** : Architecte Sécurité, Java & Angular  
 **Date** : Août 2026  
@@ -9,7 +9,7 @@
 
 ## 1. Résumé Exécutif & Posture Globale
 
-Zanshin présente une **maturité architecturale et sécuritaire exceptionnelle**. Le système applique rigoureusement les principes de **Security by Design**, de **Défense en Profondeur** et de **Moindre Privilège** à l'ensemble des couches logicielles.
+Vectispire présente une **maturité architecturale et sécuritaire exceptionnelle**. Le système applique rigoureusement les principes de **Security by Design**, de **Défense en Profondeur** et de **Moindre Privilège** à l'ensemble des couches logicielles.
 
 Les contrôles de sécurité ne reposent pas sur des conventions implicites mais sont validés et verrouillés par :
 1. **Le graphe de dépendances au niveau compilation** (isolation physique des modules sans fuite JDBC vers l'agent).
@@ -27,7 +27,7 @@ flowchart TB
         FEEDS["Flux CVE / KEV / Advisories / VEX éditeurs"]
     end
 
-    subgraph Runtime["Isolation Conteneurs (Zanshin Common)"]
+    subgraph Runtime["Isolation Conteneurs (Vectispire Common)"]
         DOCKER["Scanners (Syft, Grype, Semgrep, Gitleaks)<br/>cap_drop: ALL | network: none | read-only | digest pin"]
     end
 
@@ -43,7 +43,7 @@ flowchart TB
     end
 
     subgraph Agent["Remote Agent (Isolation JVM)"]
-        AGENT_RUN["zanshin-agent (Sans JDBC/Hibernate, Long Polling API)"]
+        AGENT_RUN["vectispire-agent (Sans JDBC/Hibernate, Long Polling API)"]
     end
 
     subgraph Front["Frontend (Angular 21)"]
@@ -63,7 +63,7 @@ flowchart TB
 ## 2. Architecture & Sécurité Backend (Java 25 / Spring Boot 4.1)
 
 ### 2.1. Isolation des Modules au Build (Compile-Time Boundary)
-- **Constat** : `zanshin-agent` ne dépend que de `zanshin-common` et n'a aucune dépendance vers `zanshin-core`.
+- **Constat** : `vectispire-agent` ne dépend que de `vectispire-common` et n'a aucune dépendance vers `vectispire-core`.
 - **Bénéfice Sécurité** : L'agent déporté ne possède aucun pilote JDBC, aucun framework ORM (Hibernate/JPA) et aucune dépendance vers Spring Data sur son classpath.
 - **Garantie** : Même en cas de compromission totale d'un agent distant, l'attaquant n'a aucun moyen technique d'accéder à `ENCRYPTION_KEY` ou à la base de données centrale.
 - **Validation** : Règle validée par compilation et testée par `AgentIsolationTest`.
@@ -83,7 +83,7 @@ flowchart TB
 ### 2.4. Isolation & Sandboxing des Conteneurs d'Analyse Docker
 - **Moindre Privilège** : Exécution des conteneurs avec `cap_drop: ALL`, `no-new-privileges`, limites mémoire et PID strictes, montages en lecture seule (`read-only`), et coupure réseau (`network: none`) pour les scanners locaux.
 - **Immutabilité des Scanners** : Toutes les images d'analyse (Syft, Grype, Semgrep, Gitleaks) sont épinglées par **digest SHA-256**.
-- **Sanctuarisation de la Socket Docker** : Aucun conteneur d'analyse n'a accès à `/var/run/docker.sock`. Pour l'analyse d'images, Zanshin exporte lui-même l'archive d'image et la monte en lecture seule.
+- **Sanctuarisation de la Socket Docker** : Aucun conteneur d'analyse n'a accès à `/var/run/docker.sock`. Pour l'analyse d'images, Vectispire exporte lui-même l'archive d'image et la monte en lecture seule.
 
 ### 2.5. Moteur de Conformité & Preuves d'Audit (`ComplianceEngine`, `EvidenceVaultService`)
 - **Calcul Déterministe** : Scoring continu sur 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA) et 7 catégories d'évaluation sans heuristique opaque.

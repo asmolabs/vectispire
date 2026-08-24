@@ -1,16 +1,16 @@
-package com.asmolabs.zanshin.core.api.scim;
+package com.asmolabs.vectispire.core.api.scim;
 
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.core.api.scim.dto.ScimGroupDto;
-import com.asmolabs.zanshin.core.api.scim.dto.ScimListResponse;
-import com.asmolabs.zanshin.core.api.scim.dto.ScimPatchOp;
-import com.asmolabs.zanshin.core.persistence.TeamEntity;
-import com.asmolabs.zanshin.core.persistence.TeamMemberEntity;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.repositories.TeamMembers;
-import com.asmolabs.zanshin.core.repositories.Teams;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimGroupDto;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
+import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
+import com.asmolabs.vectispire.core.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.TeamMembers;
+import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 
 /**
  * SCIM 2.0 /Groups endpoint (RFC 7644 Section 3.2).

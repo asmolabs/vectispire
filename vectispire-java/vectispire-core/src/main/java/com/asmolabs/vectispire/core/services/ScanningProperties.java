@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -12,7 +12,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     because it is a decision about <em>what we want scanned</em>, not about the machine that
  *     runs the scan
  */
-@ConfigurationProperties("zanshin.scanning")
+@ConfigurationProperties("vectispire.scanning")
 public record ScanningProperties(Optional<String> imagePlatform) {
 
     public ScanningProperties {

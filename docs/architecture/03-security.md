@@ -1,6 +1,6 @@
 # 03 — Security
 
-Zanshin is a security tool, which does not make it secure: it makes it **interesting to
+Vectispire is a security tool, which does not make it secure: it makes it **interesting to
 attack**. It holds deployment keys, it has the Docker socket, it displays strings
 produced by hostile code, and it returns a verdict someone has an interest in making
 lie.
@@ -31,7 +31,7 @@ flowchart LR
         CODE["Scanned source code"]
         FEED["Advisory feeds, package metadata"]
     end
-    subgraph proc["Zanshin process — has the Docker socket and ENCRYPTION_KEY"]
+    subgraph proc["Vectispire process — has the Docker socket and ENCRYPTION_KEY"]
         SCAN["Analysis containers<br/>cap_drop ALL, no-new-privileges, network off"]
         APP["Services and API"]
     end
@@ -51,15 +51,15 @@ flowchart LR
 
 **Three boundaries, and what holds them.**
 
-*Between the scanned code and Zanshin.* The code is executed by an analyzer, never by
-Zanshin, and the analyzer runs with `cap_drop: ALL`, `no-new-privileges`, memory and PID
+*Between the scanned code and Vectispire.* The code is executed by an analyzer, never by
+Vectispire, and the analyzer runs with `cap_drop: ALL`, `no-new-privileges`, memory and PID
 caps, and the network cut off when the tool has nothing to fetch. All four images are
 **pinned by digest**: they run on a machine that has the Docker socket, so whoever
 controls `anchore/syft:latest` controls the machine — and a scan should be reproducible.
 
 **No analysis container sees the Docker socket.** The image SBOM step used to mount it,
 so that Syft could pull the image itself: that handed root on the host to a process whose
-input — the layers of an image nobody controls — is hostile by definition. Zanshin now
+input — the layers of an image nobody controls — is hostile by definition. Vectispire now
 pulls and exports the image itself, and presents the container with nothing but a
 read-only archive, network off. A test checks this against what the scanner *asks for*,
 not against what one reads in the code.
@@ -76,7 +76,7 @@ accepted; closing that case would mean serializing every audit write, and theref
 making every audited action queue behind the others.
 
 **No outbound call follows a redirect.**
-[`validateOutboundUrl`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/net/OutboundUrlGuard.java) only checks the
+[`validateOutboundUrl`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/net/OutboundUrlGuard.java) only checks the
 *first* request: Node follows redirects by default, so a validated destination answering
 `302 Location: http://169.254.169.254/` was reached with nothing re-checking. All six
 calls in the repository needed this; none had it. The costliest case is not the webhook
@@ -95,14 +95,14 @@ carrying it see it. Neither end-to-end sealing nor `local` mode closes this: the
 protects the key in transit and does open it at the claimant, the second removes the key
 but still lets the agent read the source code.
 
-**The analyzers' configuration comes from Zanshin, never from the target.** gitleaks falls
+**The analyzers' configuration comes from Vectispire, never from the target.** gitleaks falls
 back to the scanned repository's `.gitleaks.toml` when no `--config` is given, and uses it
 *instead of* its built-in set; Semgrep only examines files tracked by git. In both cases
 the audited repository decided what would be looked for in it — and a scan that finds
 nothing because it was told to look for nothing reads as "analyzed, nothing found", which
 resolves the target's entire history.
 
-*Between the results and the analyst.* What Zanshin displays comes from the analyzers and
+*Between the results and the analyst.* What Vectispire displays comes from the analyzers and
 the advisory feeds, that is, from data an attacker influences. The CSP decides whether an
 injected string is inert or runs with the analyst's session, and it is now **sent** — on every
 response, static files included, since the document carrying the string is `index.html` and not
@@ -137,7 +137,7 @@ the Sakai template — `auth/access` and `auth/error` — each pulled an illustr
 application shell only, so nothing saw them; it now reads every component template, and the
 images are gone rather than the directive widened.
 
-**HSTS is deliberately absent**: Zanshin is often reached over HTTP on an internal address, and
+**HSTS is deliberately absent**: Vectispire is often reached over HTTP on an internal address, and
 HSTS would make that origin permanently unreachable in any browser that saw it once. It belongs
 to the proxy that terminates TLS, which knows it has TLS. `SecurityHeadersTest` pins its
 absence, so that adding it becomes a decision rather than a default.
@@ -162,17 +162,17 @@ because SQLite enforces foreign keys only when `PRAGMA foreign_keys = ON` has be
 nothing here issues it — a revocation must not depend on which of four engines is underneath.
 
 **And the channel is partitioned too, or the rest of it leaks.** Visibility decides what an
-account reads in the interface; it decides nothing about where Zanshin announces findings. With a
+account reads in the interface; it decides nothing about where Vectispire announces findings. With a
 single webhook, a deployment that carefully restricted its screens still posted every team's
 vulnerabilities where everybody reads. A team may now have its own channel, and receives only
 what concerns the targets it owns; the global webhook keeps receiving everything, because it is
 the security team's feed and narrowing it would be a silent change to what an existing
 deployment is told.
 
-**And a receiver can now tell a message Zanshin sent from one somebody who learned the URL sent.**
+**And a receiver can now tell a message Vectispire sent from one somebody who learned the URL sent.**
 The URL is a bearer capability — that is why no route returns it — and this closes the other half:
-`X-Zanshin-Signature` carries HMAC-SHA256 over `<unix seconds>.<exact body>`, with the timestamp
-also travelling in `X-Zanshin-Timestamp`. The timestamp is **inside** the signature deliberately: a
+`X-Vectispire-Signature` carries HMAC-SHA256 over `<unix seconds>.<exact body>`, with the timestamp
+also travelling in `X-Vectispire-Timestamp`. The timestamp is **inside** the signature deliberately: a
 receiver needs it to reject a replay, and one that is not covered by the MAC is one an attacker
 rewrites freely, which makes the replay window their choice and the header decorative. Replay
 *within* the window is closed by something already there — every payload carries a `messageId`,
@@ -224,7 +224,7 @@ capability outliving its owner in a table nothing purges and no screen shows is 
 of leftover that survives the rotation its deletion should have forced.
 
 The URL itself is never returned by any route: it is a bearer capability — whoever reads it can
-post in the channel where a team awaits Zanshin's alerts, which is where a forged message carries
+post in the channel where a team awaits Vectispire's alerts, which is where a forged message carries
 most weight — so the screen shows *whether* a team has a channel and cannot show *which*. The
 audit entry names the team and not the URL, for the same reason and one more: the audit table is
 deliberately never purged, and a capability copied into it outlives its own rotation.
@@ -233,23 +233,23 @@ deliberately never purged, and a capability copied into it outlives its own rota
 number one reason for long-polling: an agent with a PostgreSQL connection would need the
 database credentials *and* `ENCRYPTION_KEY`, hence everything needed to decrypt every SSH
 key of every target ([decision 0003](decisions/0003-long-polling-for-agents.md)). An
-module graph guarantees it: `zanshin-agent` does not depend on `zanshin-core`, so the import does not compile.
+module graph guarantees it: `vectispire-agent` does not depend on `vectispire-core`, so the import does not compile.
 
 ## The controls, and why they are set this way
 
 **Authentication and sessions.** Argon2id for the password — 19 MiB, two passes, through
 BouncyCastle's lightweight API rather than the JCA (see the note in
-[`PasswordHasher`](../../zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/crypto/PasswordHasher.java);
+[`PasswordHasher`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/crypto/PasswordHasher.java);
 bcrypt is gone, and with it the 72-byte truncation that forced a rule refusing long
 passphrases). An absolute lifetime of 12 hours and an idle lifetime of 60 minutes, both
 re-evaluated on **every request** rather than on page load. A missing or unreadable timestamp
 counts as expired — failing open would make the control decorative, and the cost of failing
 closed is one re-login.
 
-**A second factor, delegated rather than built.** Veriscape holds a deployment key for every
-repository it watches, and a password is one factor. `VERISCAPE_PASSWORD_LOGIN=false` closes the
+**A second factor, delegated rather than built.** Vectispire holds a deployment key for every
+repository it watches, and a password is one factor. `VECTISPIRE_PASSWORD_LOGIN=false` closes the
 password door, so single sign-on carries whatever the realm requires — including an MFA
-requirement Veriscape never implements, never stores a secret for, and never has to write a
+requirement Vectispire never implements, never stores a secret for, and never has to write a
 recovery path around. What blocked that delegation before was that the password stayed
 available beside the provider: the realm's strongest requirement was optional in practice.
 
@@ -300,14 +300,14 @@ database copied repository B's encrypted key into repository A's row, and A was 
 cloned with B's key, **with no error**. Decryption retries without context for older
 values and logs it. There is **no default key**: a published constant would have
 decrypted everybody's database. Rotation goes through
-`VERISCAPE_PREVIOUS_ENCRYPTION_KEYS`.
+`VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS`.
 
 **And the key itself can come from a file rather than the environment.** A variable is readable by
 more things than an operator expects — `/proc/<pid>/environ`, `docker inspect`, an orchestrator's
 own logs, a crash dump, the `.env` a backup swept up — and this is the one value for which that
 matters absolutely rather than relatively: it decrypts every deployment key the installation
 holds. `ENCRYPTION_KEY_FILE` names a file instead, which is what Docker and Kubernetes secrets
-actually mount, with an owner and a mode. `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
+actually mount, with an owner and a mode. `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` exists for the
 same reason and not for symmetry: an old key still decrypts live rows, and a rotation is precisely
 when two keys exist at once, so without it moving the current key out of the environment would
 mean putting the previous one back in.
@@ -375,7 +375,7 @@ declared unverifiable rather than back-hashed: backfilling hashes would be manuf
 evidence.
 
 **And there can now be a second copy, outside the database the log watches.**
-`VERISCAPE_AUDIT_MIRROR` names a path; each entry is appended there as one JSON line, in the
+`VECTISPIRE_AUDIT_MIRROR` names a path; each entry is appended there as one JSON line, in the
 canonical form the hash covers, so the two copies are comparable field by field. It is not
 that a file is unforgeable — it is not. It is that erasing an entry now takes **two edits in
 two media with two sets of permissions**, and the mirror is normally shipped off the host by a
@@ -474,19 +474,19 @@ template — because the CSP would refuse it, so declaring it would produce a pa
   partitioning until an administrator switches it, and the screen saying which mode is in force
   is the most a compatible default can do.
 - **The audit log is in the database it watches**, unless a mirror is configured — and the
-  default is unconfigured. A deployment that sets no `VERISCAPE_AUDIT_MIRROR` still has one copy
+  default is unconfigured. A deployment that sets no `VECTISPIRE_AUDIT_MIRROR` still has one copy
   and one set of credentials protecting it; the verification screen says so, which is the most
   a default-off control can do.
 - **The Docker socket stays mounted** in the default deployment. Only remote agents take
   it out of the process exposed on the network; the `local_api` back end that also did so
   was not carried over by the port. A filtering proxy in front of it now has a documented and
   *measured* configuration ([04](04-runtime-and-deployment.md#the-docker-socket-and-what-a-proxy-in-front-of-it-is-worth)),
-  which shrinks the sideways reach — but `POST /containers/create` is on the list Zanshin needs,
+  which shrinks the sideways reach — but `POST /containers/create` is on the list Vectispire needs,
   and that endpoint accepts a privileged container bind-mounting `/`. **The proxy is not a
   containment boundary**; rootless Docker or a remote agent is what reduces the privilege.
 - **A compromised agent can skew a verdict** by reporting false results. Reports are
   audited; they are not proven.
-- **Zanshin's own supply chain is now scanned by Zanshin's own scanners**, on every run, in
+- **Vectispire's own supply chain is now scanned by Vectispire's own scanners**, on every run, in
   the `supply-chain` job: Syft builds an SBOM of the jar that actually ships and Grype fails
   the build on a **fixable** High finding. `--only-fixed` is the design, not a softening —
   failing on an advisory with no released fix makes a gate nobody can satisfy, which is

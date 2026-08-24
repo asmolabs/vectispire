@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.attestation.DsseEnvelope;
-import com.asmolabs.zanshin.common.domain.crypto.CosignSigner;
+import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -20,7 +20,7 @@ public class SigningKeyService {
     private final String publicKeyPem;
     private final String keyId;
 
-    public SigningKeyService(@Value("${zanshin.signing.key:}") String configuredKey) {
+    public SigningKeyService(@Value("${vectispire.signing.key:}") String configuredKey) {
         if (configuredKey != null && !configuredKey.isBlank()) {
             this.privateKey = CosignSigner.parsePrivateKey(configuredKey);
             // Derive public key or key pair

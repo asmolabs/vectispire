@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.agent;
+package com.asmolabs.vectispire.agent;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -17,7 +17,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     to the scanner's steps</b>: a beat sent per step would go silent for the fifteen minutes
  *     Semgrep can take on a large repository, and the lease would lapse while it progresses
  */
-@ConfigurationProperties("zanshin.agent")
+@ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
         String url,
         String token,

@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.notifications.MailMessage;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.notifications.MailMessage;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +43,7 @@ public class MailNotificationChannel implements NotificationChannel {
             SettingsService settings,
             Optional<JavaMailSender> sender,
             ExportProperties deployment,
-            @org.springframework.beans.factory.annotation.Value("${zanshin.mail.from:zanshin@localhost}") String from) {
+            @org.springframework.beans.factory.annotation.Value("${vectispire.mail.from:vectispire@localhost}") String from) {
         this.settings = settings;
         this.sender = sender;
         this.deployment = deployment;
@@ -99,7 +99,7 @@ public class MailNotificationChannel implements NotificationChannel {
      * and a synthesised {@code text} is a shape that lies, and the next reader believes it.
      *
      * <p>It lives here rather than in the digest service because the relay, the sender address and
-     * the recipient list are this class's: a second place resolving "who receives Zanshin's mail"
+     * the recipient list are this class's: a second place resolving "who receives Vectispire's mail"
      * would drift from the settings screen the first time either was edited.
      *
      * <p><b>Throws on failure, like {@code deliver}.</b> Its caller has no queue — a digest is

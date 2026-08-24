@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ import java.util.Locale;
  *
  * <h2>The subject carries the verdict</h2>
  *
- * <p>A mailbox shows a subject and nothing else until somebody opens it. "Zanshin" alone is a
+ * <p>A mailbox shows a subject and nothing else until somebody opens it. "Vectispire" alone is a
  * message somebody learns to leave unread; the target and the counts are what decide whether it
  * is opened now or after lunch.
  */
@@ -44,7 +44,7 @@ public final class MailMessage {
         String lead = payload.kevCount() > 0 ? "[exploited] " : "";
         String what = counts.isEmpty() ? "scan reported" : String.join(", ", counts);
 
-        return lead + "Zanshin · " + payload.target() + " · " + what;
+        return lead + "Vectispire · " + payload.target() + " · " + what;
     }
 
     private static String bodyOf(NotificationPayload payload, String publicUrl) {

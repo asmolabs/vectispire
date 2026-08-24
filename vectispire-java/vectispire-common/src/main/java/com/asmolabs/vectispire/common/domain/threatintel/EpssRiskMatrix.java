@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.threatintel;
+package com.asmolabs.vectispire.common.domain.threatintel;
 
 import java.util.List;
 import java.util.Map;

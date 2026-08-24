@@ -1,12 +1,12 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.zanshin.common.domain.apikeys.ApiKeys;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.core.persistence.AgentEntity;
-import com.asmolabs.zanshin.core.persistence.ApiKeyEntity;
-import com.asmolabs.zanshin.core.repositories.Agents;
-import com.asmolabs.zanshin.core.repositories.ApiKeysRepository;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;

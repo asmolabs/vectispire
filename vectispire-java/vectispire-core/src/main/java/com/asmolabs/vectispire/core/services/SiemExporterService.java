@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.siem.CefEvent;
-import com.asmolabs.zanshin.common.domain.siem.SecurityEventType;
-import com.asmolabs.zanshin.core.persistence.SiemConfigEntity;
-import com.asmolabs.zanshin.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.repositories.SiemConfigs;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,7 +71,7 @@ public class SiemExporterService {
         }
         try {
             CefEvent testEvent = CefEvent.builder(SecurityEventType.PING_TEST)
-                    .message("Zanshin SIEM Health Check Ping")
+                    .message("Vectispire SIEM Health Check Ping")
                     .build();
             sendPayload(endpoint, authHeader, testEvent.toCefString());
             return new TestResult(true, "Event delivered successfully", 200);

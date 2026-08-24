@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -12,10 +12,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * The rules Zanshin places into a scan's workspace.
+ * The rules Vectispire places into a scan's workspace.
  *
  * <p><b>Why copy rather than mount the original directory.</b> Volume paths are resolved by the
- * Docker <em>daemon</em>, not by the process calling it: when Zanshin itself runs in a
+ * Docker <em>daemon</em>, not by the process calling it: when Vectispire itself runs in a
  * container with the socket mounted, a directory from its image is invisible to the sibling
  * container. The workspace is the only path both sides see, locally as on a remote agent.
  *
@@ -33,7 +33,7 @@ public final class RulePlacement {
     private final Path bundled;
 
     /**
-     * @param bundled the tree Zanshin ships — {@code semgrep/} and {@code gitleaks/}
+     * @param bundled the tree Vectispire ships — {@code semgrep/} and {@code gitleaks/}
      */
     public RulePlacement(Path bundled) {
         this.bundled = bundled;
@@ -64,7 +64,7 @@ public final class RulePlacement {
      * Merges the operator's rule directory into the workspace, if one is configured.
      *
      * <p>This is the second of the three rule sources decision 0006 describes, and the one the
-     * whole licensing argument rests on: Zanshin ships only rules it wrote, so an operator's own
+     * whole licensing argument rests on: Vectispire ships only rules it wrote, so an operator's own
      * coverage can only arrive this way. It was documented in the README and in the settings
      * table, and <b>read nowhere</b> — a scan ran with the bundled rules alone, and nothing said
      * so.
@@ -102,11 +102,11 @@ public final class RulePlacement {
         Path source = Path.of(configured);
         if (!Files.exists(source)) {
             throw new OperatorRulesUnavailableException(
-                    "ZANSHIN_SEMGREP_RULES_DIR points at " + configured + ", which cannot be read.");
+                    "VECTISPIRE_SEMGREP_RULES_DIR points at " + configured + ", which cannot be read.");
         }
         if (!Files.isDirectory(source)) {
             throw new OperatorRulesUnavailableException(
-                    "ZANSHIN_SEMGREP_RULES_DIR points at " + configured + ", which is not a directory.");
+                    "VECTISPIRE_SEMGREP_RULES_DIR points at " + configured + ", which is not a directory.");
         }
 
         copyTree(source, operatorDirectory(workspace));
@@ -162,7 +162,7 @@ public final class RulePlacement {
         try {
             Files.createDirectories(directory);
             for (RuleSet.StoredFile file : files) {
-                // The **basename**, not the path as given. Zanshin generates these paths, but
+                // The **basename**, not the path as given. Vectispire generates these paths, but
                 // this content arrives over HTTP on an agent, and a guard costing one call is
                 // worth more than the argument that it cannot be hostile.
                 Path name = Path.of(file.path()).getFileName();
@@ -199,6 +199,6 @@ public final class RulePlacement {
 
     /** The environment variable an operator sets to supply their own rules. */
     public static Optional<String> environmentDirectory() {
-        return Optional.ofNullable(System.getenv("ZANSHIN_SEMGREP_RULES_DIR"));
+        return Optional.ofNullable(System.getenv("VECTISPIRE_SEMGREP_RULES_DIR"));
     }
 }

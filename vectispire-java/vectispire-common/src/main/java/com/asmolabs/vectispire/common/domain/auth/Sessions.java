@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.auth;
+package com.asmolabs.vectispire.common.domain.auth;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;

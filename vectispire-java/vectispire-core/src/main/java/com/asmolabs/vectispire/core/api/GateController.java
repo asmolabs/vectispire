@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.gate.GatePolicy;
-import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
-import com.asmolabs.zanshin.common.domain.gate.PolicyFlag;
-import com.asmolabs.zanshin.common.domain.gate.RequestedPolicy;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
-import com.asmolabs.zanshin.common.domain.gate.SeverityRequest;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.services.GateService;
-import com.asmolabs.zanshin.core.services.VisibilityService;
+import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
+import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.PolicyFlag;
+import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
+import com.asmolabs.vectispire.common.domain.gate.SeverityRequest;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +92,7 @@ public class GateController {
      */
     @PostMapping("/gate")
     public GateResponse evaluate(
-            @AuthenticationPrincipal ZanshinPrincipal principal, @RequestBody GateRequest body) {
+            @AuthenticationPrincipal VectispirePrincipal principal, @RequestBody GateRequest body) {
         if ((body.repositoryId() == null) == (body.containerId() == null)) {
             throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
         }
@@ -130,7 +130,7 @@ public class GateController {
 
     /** Every target's posture — what the security screen shows. */
     @GetMapping("/security/overview")
-    public SecurityOverviewView overview(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public SecurityOverviewView overview(@AuthenticationPrincipal VectispirePrincipal principal) {
         return SecurityOverviewView.of(
                 gate.overview(visibility.of(principal.user().orElse(null), principal.credentialRestriction())));
     }

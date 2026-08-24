@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.vex.OpenVexDocument;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.VexGeneratorService;
-import com.asmolabs.zanshin.core.services.VexIngestorService;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.VexGeneratorService;
+import com.asmolabs.vectispire.core.services.VexIngestorService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -49,7 +49,7 @@ public class VexController {
     public ResponseEntity<OpenVexDocument> getAggregateVex() {
         OpenVexDocument doc = vexService.generateAggregate();
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zanshin-aggregate-openvex.json\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-openvex.json\"")
                 .body(doc);
     }
 

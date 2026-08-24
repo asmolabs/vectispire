@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

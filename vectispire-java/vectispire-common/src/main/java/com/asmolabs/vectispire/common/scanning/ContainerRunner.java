@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p><b>None of them sees the Docker socket.</b> The image SBOM step used to mount it, which is
  * equivalent to root on the host: a parsing flaw in the cataloguer — which by definition reads
- * the layers of an image nobody controls — became a full escape. Zanshin now exports the image
+ * the layers of an image nobody controls — became a full escape. Vectispire now exports the image
  * itself and hands the container a single read-only file. There is no option to mount the
  * socket, and that absence is the design: an option survives, a missing capability does not.
  *
@@ -43,8 +43,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ContainerRunner {
 
-    /** The mark placed on every container Zanshin launches. */
-    public static final String SCANNER_LABEL = "dev.zanshin.scanner";
+    /** The mark placed on every container Vectispire launches. */
+    public static final String SCANNER_LABEL = "dev.vectispire.scanner";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -79,12 +79,12 @@ public final class ContainerRunner {
 
     /**
      * Resolves the Docker or Podman daemon socket.
-     * Supports `ZANSHIN_DOCKER_HOST`, `DOCKER_HOST`, macOS (OrbStack, Docker Desktop, Colima) and Rootless Linux auto-detection.
+     * Supports `VECTISPIRE_DOCKER_HOST`, `DOCKER_HOST`, macOS (OrbStack, Docker Desktop, Colima) and Rootless Linux auto-detection.
      */
     public static String resolveDockerHost() {
-        String zanshinHost = System.getenv("ZANSHIN_DOCKER_HOST");
-        if (zanshinHost != null && !zanshinHost.isBlank()) {
-            return zanshinHost.trim();
+        String vectispireHost = System.getenv("VECTISPIRE_DOCKER_HOST");
+        if (vectispireHost != null && !vectispireHost.isBlank()) {
+            return vectispireHost.trim();
         }
         String dockerHost = System.getenv("DOCKER_HOST");
         if (dockerHost != null && !dockerHost.isBlank()) {
@@ -149,7 +149,7 @@ public final class ContainerRunner {
      * <p><b>This is what replaces the Docker socket mounted into the cataloguer.</b> Mounting it
      * is equivalent to handing out root on the host: a parsing flaw in a tool that by definition
      * reads layers nobody controls became a complete escape. Here the only process talking to
-     * the daemon is Zanshin, and the scanner sees a file, mounted read-only, with the network
+     * the daemon is Vectispire, and the scanner sees a file, mounted read-only, with the network
      * cut.
      *
      * <p>{@code platform} is <b>mandatory on the pull</b>: without it the daemon returns the
@@ -194,7 +194,7 @@ public final class ContainerRunner {
                 .withCmd(request.command())
                 // **Labelled, because the machine that scans is not necessarily ours.** An
                 // agent runs on a shared host where other containers come and go: with no
-                // mark, neither an operator nor an orphan sweep can tell what Zanshin
+                // mark, neither an operator nor an orphan sweep can tell what Vectispire
                 // launched from the rest.
                 .withLabels(Map.of(SCANNER_LABEL, request.label()))
                 .withHostConfig(hostConfig);
@@ -274,7 +274,7 @@ public final class ContainerRunner {
      * Waits for the end, or stops the container.
      *
      * <p>Stopping is necessary and not optional: abandoning the wait would leave the container
-     * running indefinitely, consuming its memory and its processes, while Zanshin considers the
+     * running indefinitely, consuming its memory and its processes, while Vectispire considers the
      * scan finished.
      */
     private int waitFor(String containerId, Duration timeout, String label) {

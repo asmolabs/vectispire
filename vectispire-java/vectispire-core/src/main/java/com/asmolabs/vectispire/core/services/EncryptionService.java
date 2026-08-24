@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
-import com.asmolabs.zanshin.common.domain.crypto.KmsProvider;
-import com.asmolabs.zanshin.common.domain.crypto.LocalKmsProvider;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.Decrypted;
-import com.asmolabs.zanshin.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.zanshin.core.services.crypto.VaultKmsProvider;
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.KmsProvider;
+import com.asmolabs.vectispire.common.domain.crypto.LocalKmsProvider;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
+import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.core.services.crypto.VaultKmsProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,7 +64,7 @@ public class EncryptionService {
             this.kms = new VaultKmsProvider(
                     properties.vaultEndpoint().get(),
                     properties.vaultToken().get(),
-                    properties.vaultKeyName().orElse("zanshin"),
+                    properties.vaultKeyName().orElse("vectispire"),
                     properties.vaultMountPath().orElse("transit"),
                     sender,
                     urlGuard,

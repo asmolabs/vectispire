@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.enrichment.Catalogs;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.net.OutboundPolicy;
-import com.asmolabs.zanshin.common.domain.settings.Setting;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
 /**
  * Enriching vulnerabilities from EPSS and the CISA KEV catalog.
  *
- * <p><b>These are the only network calls Zanshin makes during a scan, and they send nothing but
+ * <p><b>These are the only network calls Vectispire makes during a scan, and they send nothing but
  * CVE identifiers</b> — never source code, never a SBOM. That is what separates them from a
  * cloud scanner, and what makes the trade acceptable.
  *

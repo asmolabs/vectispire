@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.zanshin.core.api.security.RequiresAccount;
-import com.asmolabs.zanshin.core.services.CycloneDxGeneratorService;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.services.CycloneDxGeneratorService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -41,7 +41,7 @@ public class CycloneDxController {
     public ResponseEntity<CycloneDxDocument> getAggregateCycloneDx() {
         CycloneDxDocument doc = cycloneDxService.generateAggregate();
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zanshin-aggregate-cyclonedx-vex.json\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-cyclonedx-vex.json\"")
                 .body(doc);
     }
 }

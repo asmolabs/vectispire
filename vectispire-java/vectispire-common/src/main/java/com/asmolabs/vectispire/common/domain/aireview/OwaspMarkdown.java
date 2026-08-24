@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.aireview;
+package com.asmolabs.vectispire.common.domain.aireview;
 
 import java.util.ArrayList;
 import java.util.List;

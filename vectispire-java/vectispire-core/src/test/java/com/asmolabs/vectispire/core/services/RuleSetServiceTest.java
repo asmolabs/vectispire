@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,13 +8,13 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.zanshin.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.TriageImpact;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
-import com.asmolabs.zanshin.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.RuleSets;
+import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.RuleSets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;

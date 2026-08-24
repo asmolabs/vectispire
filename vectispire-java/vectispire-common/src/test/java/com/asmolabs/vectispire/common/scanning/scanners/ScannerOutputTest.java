@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.common.scanning.scanners;
+package com.asmolabs.vectispire.common.scanning.scanners;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.scanning.scanners.SecretsScanner.SecretFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
 import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -100,7 +100,7 @@ class ScannerOutputTest {
         @Test
         @DisplayName("every scanner image is pinned by digest, never by tag")
         void allPinnedByDigest() {
-            // These images are Zanshin's own supply chain. A tool that audits everybody else's
+            // These images are Vectispire's own supply chain. A tool that audits everybody else's
             // cannot pull `:latest` and run whatever comes down.
             assertThat(Arrays.stream(ScannerImages.class.getRecordComponents())
                             .map(component -> {

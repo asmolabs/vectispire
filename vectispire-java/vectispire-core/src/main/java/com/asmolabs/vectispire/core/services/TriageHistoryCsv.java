@@ -1,8 +1,8 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.core.services.TriageHistory.Decision;
-import com.asmolabs.zanshin.core.services.TriageHistory.ObservedIssue;
-import com.asmolabs.zanshin.core.services.TriageHistory.Scan;
+import com.asmolabs.vectispire.core.services.TriageHistory.Decision;
+import com.asmolabs.vectispire.core.services.TriageHistory.ObservedIssue;
+import com.asmolabs.vectispire.core.services.TriageHistory.Scan;
 import java.time.Instant;
 import java.util.List;
 

@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.core.repositories;
+package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;

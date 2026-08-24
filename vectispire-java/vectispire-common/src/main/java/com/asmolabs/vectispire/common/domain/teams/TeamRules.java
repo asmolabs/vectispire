@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.teams;
+package com.asmolabs.vectispire.common.domain.teams;
 
 import java.util.Locale;
 import java.util.Set;
@@ -7,7 +7,7 @@ import java.util.Set;
  * What a team may be called, and what a team may own.
  *
  * <p>Pure and in the domain, like {@code AccountRules}: these are rules about the vocabulary of
- * access, and they would still hold if Zanshin changed database. Keeping them here is also what
+ * access, and they would still hold if Vectispire changed database. Keeping them here is also what
  * lets the interesting cases — a name that is only whitespace, a target kind from a future
  * version — be tested without a server.
  *

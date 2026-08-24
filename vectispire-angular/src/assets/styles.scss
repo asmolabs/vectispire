@@ -18,7 +18,7 @@
 /* Inter, servi localement.
  *
  * Sakai chargeait Lato depuis un CDN. La politique de sécurité de contenu de
- * Zanshin refuse toute feuille de style tierce, et c'est ainsi que la typographie
+ * Vectispire refuse toute feuille de style tierce, et c'est ainsi que la typographie
  * de la version Reflex n'a jamais atteint la production : la requête était bloquée,
  * la page retombait sur la police système, et rien ne le signalait.
  *
@@ -51,7 +51,7 @@
 
 body {
     font-family: var(--zs-font-family);
-    /* Chiffres à chasse fixe et zéro barré : les tableaux de Zanshin sont pleins de
+    /* Chiffres à chasse fixe et zéro barré : les tableaux de Vectispire sont pleins de
      * comptes, de scores CVSS et d'identifiants, et des chiffres de largeur variable
      * font danser les colonnes d'une ligne à l'autre. */
     font-variant-numeric: tabular-nums slashed-zero;

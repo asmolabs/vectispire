@@ -1,17 +1,17 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.zanshin.common.domain.audit.AuditOperation;
-import com.asmolabs.zanshin.common.domain.crypto.PasswordHasher;
-import com.asmolabs.zanshin.common.domain.users.AccountRules;
-import com.asmolabs.zanshin.common.domain.users.Role;
-import com.asmolabs.zanshin.core.api.security.ZanshinPrincipal;
-import com.asmolabs.zanshin.core.persistence.UserEntity;
-import com.asmolabs.zanshin.core.persistence.UserTargetEntity;
-import com.asmolabs.zanshin.core.repositories.UserSessions;
-import com.asmolabs.zanshin.core.repositories.UserTargets;
-import com.asmolabs.zanshin.core.repositories.Users;
-import com.asmolabs.zanshin.core.services.AuditLogService;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.UserTargets;
+import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.zanshin.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -91,7 +91,7 @@ public class UsersController {
     public record UpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
 
     @GetMapping
-    public Listing list(@AuthenticationPrincipal ZanshinPrincipal principal) {
+    public Listing list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Map<Long, Long> active = activeSessionsByUser();
         List<Summary> summaries = new ArrayList<>();
         users.findAllByOrderByUsernameAsc()
@@ -105,7 +105,7 @@ public class UsersController {
     @PostMapping
     public Summary create(
             @RequestBody CreateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String username = trim(body.username());
@@ -150,7 +150,7 @@ public class UsersController {
     public Summary update(
             @PathVariable long id,
             @RequestBody UpdateRequest body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
@@ -240,7 +240,7 @@ public class UsersController {
     public List<TargetAssignment> setTargets(
             @PathVariable long id,
             @RequestBody List<TargetAssignment> body,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
@@ -262,7 +262,7 @@ public class UsersController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
             @PathVariable long id,
-            @AuthenticationPrincipal ZanshinPrincipal principal,
+            @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
@@ -289,7 +289,7 @@ public class UsersController {
         return counts;
     }
 
-    private void record(ZanshinPrincipal principal, HttpServletRequest request, long id, String description) {
+    private void record(VectispirePrincipal principal, HttpServletRequest request, long id, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.USER_UPDATED,
                 String.valueOf(id),

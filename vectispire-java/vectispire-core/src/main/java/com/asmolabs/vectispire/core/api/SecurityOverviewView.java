@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.zanshin.common.domain.gate.GateVerdict;
-import com.asmolabs.zanshin.common.domain.gate.PolicyResolution;
-import com.asmolabs.zanshin.common.domain.gate.SecurityOverview;
-import com.asmolabs.zanshin.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;

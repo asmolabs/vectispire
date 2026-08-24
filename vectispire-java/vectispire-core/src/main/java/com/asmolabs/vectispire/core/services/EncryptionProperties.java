@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import java.util.Arrays;
 import java.util.List;
@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 /**
  * Where the encryption secrets and KMS settings come from.
  */
-@ConfigurationProperties("zanshin.encryption")
+@ConfigurationProperties("vectispire.encryption")
 public record EncryptionProperties(
         Optional<String> key,
         Optional<String> keyFile,
@@ -79,22 +79,22 @@ public record EncryptionProperties(
         refuseBoth(
                 !previousKeys.isEmpty(),
                 previousKeysFile.isPresent(),
-                "ZANSHIN_PREVIOUS_ENCRYPTION_KEYS",
-                "ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE");
+                "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS",
+                "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE");
         refuseBoth(
                 isSupplied(vaultToken),
                 vaultTokenFile.isPresent(),
-                "ZANSHIN_VAULT_TOKEN",
-                "ZANSHIN_VAULT_TOKEN_FILE");
+                "VECTISPIRE_VAULT_TOKEN",
+                "VECTISPIRE_VAULT_TOKEN_FILE");
 
         Optional<String> resolvedKey =
                 keyFile.map(path -> SecretFile.read(path, "ENCRYPTION_KEY_FILE")).or(() -> key);
         List<String> resolvedPrevious = previousKeysFile
-                .map(path -> SecretFile.read(path, "ZANSHIN_PREVIOUS_ENCRYPTION_KEYS_FILE"))
+                .map(path -> SecretFile.read(path, "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE"))
                 .map(EncryptionProperties::splitKeys)
                 .orElse(previousKeys);
         Optional<String> resolvedVaultToken = vaultTokenFile
-                .map(path -> SecretFile.read(path, "ZANSHIN_VAULT_TOKEN_FILE"))
+                .map(path -> SecretFile.read(path, "VECTISPIRE_VAULT_TOKEN_FILE"))
                 .or(() -> vaultToken);
 
         return new EncryptionProperties(

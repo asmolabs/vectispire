@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api.security;
+package com.asmolabs.vectispire.core.api.security;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

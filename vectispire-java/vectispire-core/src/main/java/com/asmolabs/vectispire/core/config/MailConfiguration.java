@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.config;
+package com.asmolabs.vectispire.core.config;
 
 import java.util.Properties;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,14 +17,14 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
  * property mapped from an unset variable is present and empty. That sender exists, answers every
  * injection point, and fails at the first send — so the channel would report itself configured
  * and queue messages that can never leave, filling the outbox with rows whose backoff runs to
- * exhaustion. Conditioning on Zanshin's own variable makes "no relay" mean no bean.
+ * exhaustion. Conditioning on Vectispire's own variable makes "no relay" mean no bean.
  *
  * <p>It also keeps the naming this project uses everywhere else. An operator reading the
  * variables table should not have to learn a second vocabulary for the one feature that borrows
  * a Spring starter.
  */
 @Configuration
-@ConditionalOnProperty("zanshin.mail.host")
+@ConditionalOnProperty("vectispire.mail.host")
 public class MailConfiguration {
 
     /**
@@ -35,11 +35,11 @@ public class MailConfiguration {
      */
     @Bean
     JavaMailSender mailSender(
-            @Value("${zanshin.mail.host}") String host,
-            @Value("${zanshin.mail.port:587}") int port,
-            @Value("${zanshin.mail.username:}") String username,
-            @Value("${zanshin.mail.password:}") String password,
-            @Value("${zanshin.mail.starttls:true}") boolean starttls) {
+            @Value("${vectispire.mail.host}") String host,
+            @Value("${vectispire.mail.port:587}") int port,
+            @Value("${vectispire.mail.username:}") String username,
+            @Value("${vectispire.mail.password:}") String password,
+            @Value("${vectispire.mail.starttls:true}") boolean starttls) {
 
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(host);

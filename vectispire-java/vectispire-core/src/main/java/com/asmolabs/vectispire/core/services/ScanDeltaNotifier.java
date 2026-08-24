@@ -1,14 +1,14 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationPayload.NotifiableIssue;
-import com.asmolabs.zanshin.common.domain.teams.TeamRules;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.TeamWebhookEntity;
-import com.asmolabs.zanshin.core.repositories.TeamTargets;
-import com.asmolabs.zanshin.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.repositories.TeamTargets;
+import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import java.util.List;
 import org.springframework.stereotype.Service;
 

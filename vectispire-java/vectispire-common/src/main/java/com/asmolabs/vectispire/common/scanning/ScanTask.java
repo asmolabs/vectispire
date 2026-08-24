@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
-import com.asmolabs.zanshin.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.Optional;

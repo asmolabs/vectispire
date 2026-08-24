@@ -4,7 +4,7 @@ This document exists because these two actions cannot be performed from the repo
 one means going and revoking a key at a provider, the other means opening a ticket with
 GitHub. Everything else — the inventory, the checks, the commands — is prepared here.
 
-**Context.** `zanshin/database.sqlite` was committed for months. It held the password
+**Context.** `vectispire/database.sqlite` was committed for months. It held the password
 hashes and the "encrypted" private SSH keys — encrypted with a default key that was itself
 published in the repository. The history was rewritten and force-pushed on 2026-08-06, but
 a force-push does not delete the objects on GitHub's side: they become unreferenced and
@@ -30,7 +30,7 @@ In other words: anyone who obtained a copy of the old `database.sqlite` holds th
 key in clear text. It must be considered compromised.
 
 **What the code does now.** That constant has been removed from
-[`EncryptionService`](../zanshin-java/zanshin-core/src/main/java/com/asmolabs/zanshin/core/services/EncryptionService.java):
+[`EncryptionService`](../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java):
 the application no longer carries the key that opens its own database, and the value above
 is no longer tried during decryption. The `perso` row therefore shows as **"Unreadable"**
 on the *SSH keys* page — that is the expected result, and the replacement below is the only
@@ -146,10 +146,10 @@ From an authenticated session (`gh auth login`), an old SHA from before the rewr
 instance `92df73d`, `7e78c14`, `e934b76`, `54bf480`, `bdd5795`:
 
 ```bash
-gh api repos/Asmo1973/Zanshin/commits/92df73d --jq .sha   # 404 = purged, 200 = still served
+gh api repos/Asmo1973/Vectispire/commits/92df73d --jq .sha   # 404 = purged, 200 = still served
 ```
 
-Or in a browser: `https://github.com/Asmo1973/Zanshin/commit/92df73d`. If the page renders,
+Or in a browser: `https://github.com/Asmo1973/Vectispire/commit/92df73d`. If the page renders,
 the object is still there.
 
 These commands could **not** be run conclusively here: `gh` is not authenticated on this
@@ -162,7 +162,7 @@ A fork keeps the objects independently, and that is the usual reason a purge is 
 check:
 
 ```bash
-gh api repos/Asmo1973/Zanshin --jq '{forks: .forks_count, network: .network_count}'
+gh api repos/Asmo1973/Vectispire --jq '{forks: .forks_count, network: .network_count}'
 ```
 
 If a fork exists, it must be deleted before the purge, otherwise the operation achieves
@@ -174,8 +174,8 @@ Through <https://support.github.com/request> (category *Repository / other*):
 
 > Hello,
 >
-> The private repository `Asmo1973/Zanshin` mistakenly contained a SQLite database file
-> (`zanshin/database.sqlite`) holding secrets: password hashes and a private SSH key. The
+> The private repository `Asmo1973/Vectispire` mistakenly contained a SQLite database file
+> (`vectispire/database.sqlite`) holding secrets: password hashes and a private SSH key. The
 > history was rewritten with `git filter-repo` and force-pushed on 6 August 2026, and the
 > `main` branch no longer contains that file.
 >

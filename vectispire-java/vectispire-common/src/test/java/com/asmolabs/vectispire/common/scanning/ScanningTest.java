@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.scanning.ContainerRunner.ContainerResult;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -23,7 +23,7 @@ class ScanningTest {
         @Test
         @DisplayName("keeps the scanned tree in its own subdirectory")
         void sourceIsNotTheRoot() {
-            // Anything Zanshin produces lands at the root, hence outside the analysed tree.
+            // Anything Vectispire produces lands at the root, hence outside the analysed tree.
             // Two of those artifacts are actively harmful to feed back in: the secrets report
             // holds every detected secret in the clear, and an SBOM alone exceeds a model
             // review's budget.

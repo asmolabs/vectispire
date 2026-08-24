@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.notifications;
+package com.asmolabs.vectispire.common.domain.notifications;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -114,7 +114,7 @@ public record NotificationPayload(
             parts.add(kevCount + " actively exploited");
         }
 
-        StringBuilder text = new StringBuilder("Zanshin — ")
+        StringBuilder text = new StringBuilder("Vectispire — ")
                 .append(delta.targetName())
                 .append(": ")
                 .append(String.join(", ", parts));

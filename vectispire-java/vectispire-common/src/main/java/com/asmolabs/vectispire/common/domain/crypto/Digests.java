@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -10,7 +10,7 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.util.encoders.Hex;
 
 /**
- * Every hash in Zanshin, computed in one place, by one provider.
+ * Every hash in Vectispire, computed in one place, by one provider.
  *
  * <p><b>Why BouncyCastle rather than {@code MessageDigest}.</b> The JCA picks an
  * implementation from whatever providers the JVM was started with, so the algorithm that

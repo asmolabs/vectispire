@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.tickets;
+package com.asmolabs.vectispire.common.domain.tickets;
 
 import java.util.Arrays;
 import java.util.Locale;

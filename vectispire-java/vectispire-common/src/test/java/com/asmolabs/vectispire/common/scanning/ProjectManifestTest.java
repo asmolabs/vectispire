@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -109,7 +109,7 @@ class ProjectManifestTest {
         @Test
         @DisplayName("npm")
         void packageJson() throws IOException {
-            write("package.json", "{\"name\":\"zanshin\",\"version\":\"0.1.0\"}");
+            write("package.json", "{\"name\":\"vectispire\",\"version\":\"0.1.0\"}");
 
             assertThat(ProjectManifest.read(source))
                     .contains(new ProjectManifest.Project("npm", "0.1.0"));

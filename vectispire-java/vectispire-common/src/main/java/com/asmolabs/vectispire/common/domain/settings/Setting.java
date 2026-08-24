@@ -1,13 +1,13 @@
-package com.asmolabs.zanshin.common.domain.settings;
+package com.asmolabs.vectispire.common.domain.settings;
 
-import com.asmolabs.zanshin.common.domain.aireview.AiReview;
-import com.asmolabs.zanshin.common.domain.eol.LifeCycle;
-import com.asmolabs.zanshin.common.domain.issues.RemediationSla;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.notifications.NotificationSelection;
-import com.asmolabs.zanshin.common.domain.retention.RetentionPolicy;
-import com.asmolabs.zanshin.common.domain.tickets.TicketProvider;
-import com.asmolabs.zanshin.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
+import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,7 +23,7 @@ import java.util.Optional;
  *
  * <p><b>The rule is checked when the reading service is wired, not here.</b> During the port
  * nothing reads anything yet, so applying it literally would leave the catalog empty. Every
- * key below has its rule ported into {@code zanshin-common}; what remains is to confirm, as
+ * key below has its rule ported into {@code vectispire-common}; what remains is to confirm, as
  * each service lands, that it genuinely consults the key it claims to.
  *
  * <p>An enum rather than a list of records, for the same reason as {@code PolicyFlag}: the
@@ -83,7 +83,7 @@ public enum Setting {
     TEAMS_WEBHOOK_URL("notification_teams_url", SettingType.TEXT, Section.NOTIFICATIONS,
             "Microsoft Teams webhook URL",
             "The URL of a Teams **workflow** — \"when a Teams webhook request is received\" in Power Automate. "
-                    + "The old Office 365 connector was retired, and a workflow is what replaces it. Zanshin posts "
+                    + "The old Office 365 connector was retired, and a workflow is what replaces it. Vectispire posts "
                     + "an Adaptive Card, so nothing has to be mapped in the designer. Empty disables it; it can run "
                     + "beside the generic webhook and the e-mail rather than instead of them.",
             "", Sensitivity.SECRET),
@@ -101,7 +101,7 @@ public enum Setting {
     WEBHOOK_SIGNING_SECRET("notification_webhook_secret", SettingType.TEXT, Section.NOTIFICATIONS,
             "Webhook signing secret",
             "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
-                    + "Veriscape sent from one sent by whoever learned the URL. An `X-Veriscape-Signature` header "
+                    + "Vectispire sent from one sent by whoever learned the URL. An `X-Vectispire-Signature` header "
                     + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
                     + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
                     + "arrives and will ignore it. Empty means unsigned, which is what every existing "
@@ -110,7 +110,7 @@ public enum Setting {
 
     MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
             "E-mail recipients",
-            "Comma-separated. Empty disables e-mail. The server itself is configured with `ZANSHIN_MAIL_HOST` and "
+            "Comma-separated. Empty disables e-mail. The server itself is configured with `VECTISPIRE_MAIL_HOST` and "
                     + "its companions: a mail relay is deployment infrastructure, not something to retype on a "
                     + "settings screen, and its password has no business in a table this application can export.",
             ""),
@@ -306,7 +306,7 @@ public enum Setting {
      *
      * <p>A Slack, Teams or Discord webhook URL is not configuration: it is a bearer capability.
      * Whoever knows it can post in the channel — the very channel where the team awaits
-     * Zanshin's alerts, hence the one where a forged message carries most weight. Reading it
+     * Vectispire's alerts, hence the one where a forged message carries most weight. Reading it
      * requires no write permission, which made it reachable by any account.
      *
      * <p>The screen therefore receives "configured" without the value.

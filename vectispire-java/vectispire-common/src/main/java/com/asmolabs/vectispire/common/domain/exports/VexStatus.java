@@ -1,11 +1,11 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 
 /**
  * The OpenVEX status vocabulary.
  *
- * <p>Zanshin's triage vocabulary is already OpenVEX's, with one exception:
+ * <p>Vectispire's triage vocabulary is already OpenVEX's, with one exception:
  * {@link TriageStatus#UNDER_REVIEW} is spelled {@code under_investigation} in the
  * specification. That single divergence is the entire reason this mapping exists, and it is
  * written here rather than inside the serializer so that it cannot be half-applied.

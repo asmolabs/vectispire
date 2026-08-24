@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.scanning.ContainerRunner.ContainerResult;
+import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("scanner containers, against a real daemon")
 class ContainerRunnerIntegrationTest {
 
-    /** Small, has a shell, and pinned like every other image Zanshin runs. */
+    /** Small, has a shell, and pinned like every other image Vectispire runs. */
     private static final String BUSYBOX = "busybox:1.37";
 
     private static final ContainerRunner RUNNER = new ContainerRunner();
@@ -107,7 +107,7 @@ class ContainerRunnerIntegrationTest {
     void readOnlyMountsAreReadOnly() throws IOException {
         // The source tree is mounted read-only so a scanner cannot alter what it is auditing —
         // nor plant something the next step would read.
-        Path directory = Files.createTempDirectory("zanshin-ro-");
+        Path directory = Files.createTempDirectory("vectispire-ro-");
         Files.writeString(directory.resolve("file.txt"), "original");
 
         ContainerResult result = run(ContainerRun.of(
@@ -124,7 +124,7 @@ class ContainerRunnerIntegrationTest {
     @DisplayName("a scanner that runs too long is stopped, not abandoned")
     void timeoutStopsTheContainer() {
         // Abandoning the wait would leave the container running indefinitely, holding its
-        // memory and its processes, while Zanshin considers the scan finished.
+        // memory and its processes, while Vectispire considers the scan finished.
         assertThatThrownBy(() -> RUNNER.run(busybox("sleep 120").withTimeout(Duration.ofSeconds(3))))
                 .isInstanceOf(ScannerFailureException.class)
                 .hasMessageContaining("exceeded");
@@ -141,10 +141,10 @@ class ContainerRunnerIntegrationTest {
     }
 
     @Test
-    @DisplayName("every container Zanshin starts is labelled")
+    @DisplayName("every container Vectispire starts is labelled")
     void containersAreLabelled() {
         // An agent runs on a shared host where other containers come and go. With no mark,
-        // neither an operator nor an orphan sweep can tell what Zanshin launched from the rest.
-        assertThat(ContainerRunner.SCANNER_LABEL).isEqualTo("dev.zanshin.scanner");
+        // neither an operator nor an orphan sweep can tell what Vectispire launched from the rest.
+        assertThat(ContainerRunner.SCANNER_LABEL).isEqualTo("dev.vectispire.scanner");
     }
 }

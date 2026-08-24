@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;

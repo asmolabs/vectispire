@@ -40,7 +40,7 @@ dependencies {
     implementation(libs.docker.java.core)
     // **Raised for named advisories, not for freshness.** docker-java's transport brings
     // Apache's client, and the versions it and the Spring Boot BOM agree on carry fixable High
-    // findings that Zanshin's own SBOM scan reports (see `supply-chain` in CI). Declared here
+    // findings that Vectispire's own SBOM scan reports (see `supply-chain` in CI). Declared here
     // rather than excluded: the transport needs them, and Gradle takes the highest of the
     // declared version and the platform's constraint.
     implementation(libs.apache.httpclient5)
@@ -84,7 +84,7 @@ dependencies {
  *
  * <p>Deliberately not built on Testcontainers. `ContainerRunner` is the thing under test, so
  * running it through Testcontainers would mostly test Testcontainers; what this needs is a real
- * daemon and a tiny image. Testcontainers earns its place in `zanshin-core`, where the four
+ * daemon and a tiny image. Testcontainers earns its place in `vectispire-core`, where the four
  * database engines are.
  *
  * **There is no "skip if Docker is missing" guard**, for the reason that holds everywhere in

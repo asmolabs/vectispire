@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;

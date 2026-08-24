@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -12,7 +12,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     everything" — would make targeting useless on any single-instance install, which is most
  *     of them
  */
-@ConfigurationProperties("zanshin.worker")
+@ConfigurationProperties("vectispire.worker")
 public record WorkerProperties(
         @DefaultValue("true") boolean enabled,
         @DefaultValue("2") int maxConcurrent,

@@ -1,6 +1,6 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Builds an OASIS CSAF 2.0 VEX Profile document from Zanshin issues.
+ * Builds an OASIS CSAF 2.0 VEX Profile document from Vectispire issues.
  *
  * <p>Pure domain calculation: independent of database, network and framework.
  */
@@ -27,9 +27,9 @@ public final class CsafExport {
 
     public static CsafDocument build(List<ExportableIssue> issues, Options options) {
         String target = options.targetName() == null || options.targetName().isBlank() ? "target" : options.targetName();
-        String author = options.author() == null || options.author().isBlank() ? "Zanshin" : options.author();
+        String author = options.author() == null || options.author().isBlank() ? "Vectispire" : options.author();
         String version = options.toolVersion() == null || options.toolVersion().isBlank() ? "1.0.0" : options.toolVersion();
-        String namespace = options.namespace() == null || options.namespace().isBlank() ? "https://zanshin.internal" : options.namespace();
+        String namespace = options.namespace() == null || options.namespace().isBlank() ? "https://vectispire.internal" : options.namespace();
         Instant now = options.generatedAt() == null ? Instant.now() : options.generatedAt();
 
         // 1. Build Document Metadata
@@ -45,7 +45,7 @@ public final class CsafExport {
                         docId,
                         "final",
                         "1.0.0",
-                        new CsafDocument.Generator(new CsafDocument.Engine("Zanshin", version), now.toString())),
+                        new CsafDocument.Generator(new CsafDocument.Engine("Vectispire", version), now.toString())),
                 List.of(new CsafDocument.Note("summary", "Summary", "Security and triage assessment for " + target)));
 
         // 2. Build Product Tree

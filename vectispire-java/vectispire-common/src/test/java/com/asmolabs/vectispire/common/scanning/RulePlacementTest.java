@@ -1,9 +1,9 @@
-package com.asmolabs.zanshin.common.scanning;
+package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.asmolabs.zanshin.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -95,7 +95,7 @@ class RulePlacementTest {
                     .isInstanceOf(OperatorRulesUnavailableException.class)
                     // The message names the variable, so the misconfiguration is findable. A
                     // bare "cannot read" sends the operator to the repository instead.
-                    .hasMessageContaining("ZANSHIN_SEMGREP_RULES_DIR");
+                    .hasMessageContaining("VECTISPIRE_SEMGREP_RULES_DIR");
         }
 
         @Test
@@ -183,7 +183,7 @@ class RulePlacementTest {
         @Test
         @DisplayName("writes under the basename, whatever path the provider returns")
         void usesTheBasenameOnly() throws IOException {
-            // Zanshin generates these paths, but the content arrives over HTTP on an agent. A
+            // Vectispire generates these paths, but the content arrives over HTTP on an agent. A
             // guard costing one call is worth more than the argument that it cannot be hostile.
             Workspace workspace = workspace();
             placement.placeBundled(workspace);

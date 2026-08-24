@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.auth;
+package com.asmolabs.vectispire.common.domain.auth;
 
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;

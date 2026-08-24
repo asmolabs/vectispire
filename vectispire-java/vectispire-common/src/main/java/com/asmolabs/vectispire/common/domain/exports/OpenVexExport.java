@@ -1,7 +1,7 @@
-package com.asmolabs.zanshin.common.domain.exports;
+package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.zanshin.common.domain.crypto.Digests;
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,7 +47,7 @@ public final class OpenVexExport {
                 options.author(),
                 Digests.canonical(options.timestamp()),
                 options.version(),
-                "Zanshin",
+                "Vectispire",
                 List.copyOf(statements));
     }
 

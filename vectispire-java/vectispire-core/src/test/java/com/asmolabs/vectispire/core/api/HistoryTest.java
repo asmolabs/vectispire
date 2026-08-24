@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.core.api;
+package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,21 +7,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.zanshin.common.domain.issues.FindingType;
-import com.asmolabs.zanshin.common.domain.issues.IssueState;
-import com.asmolabs.zanshin.common.domain.issues.Severity;
-import com.asmolabs.zanshin.common.domain.issues.TriageStatus;
-import com.asmolabs.zanshin.common.domain.scans.ScanStatus;
-import com.asmolabs.zanshin.core.persistence.FindingEntity;
-import com.asmolabs.zanshin.core.persistence.IssueEntity;
-import com.asmolabs.zanshin.core.persistence.RepositoryEntity;
-import com.asmolabs.zanshin.core.persistence.ScanEntity;
-import com.asmolabs.zanshin.core.persistence.TriageEventEntity;
-import com.asmolabs.zanshin.core.repositories.Findings;
-import com.asmolabs.zanshin.core.repositories.GitRepositories;
-import com.asmolabs.zanshin.core.repositories.Issues;
-import com.asmolabs.zanshin.core.repositories.Scans;
-import com.asmolabs.zanshin.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.repositories.TriageEvents;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import org.apache.pdfbox.Loader;
@@ -119,7 +119,7 @@ class HistoryTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
                 .andExpect(header().string(
-                        "Content-Disposition", "attachment; filename=\"zanshin-history-" + repositoryId + ".pdf\""))
+                        "Content-Disposition", "attachment; filename=\"vectispire-history-" + repositoryId + ".pdf\""))
                 .andReturn()
                 .getResponse()
                 .getContentAsByteArray();
@@ -129,7 +129,7 @@ class HistoryTest extends ApiTestBase {
             text = new PDFTextStripper().getText(document);
         }
 
-        assertThat(text).contains("Zanshin — detection and triage history");
+        assertThat(text).contains("Vectispire — detection and triage history");
         assertThat(text).contains("version 2.4.1");
         assertThat(text).contains("CVE-2026-1234");
         assertThat(text).contains("under_review -> not_affected");
@@ -175,7 +175,7 @@ class HistoryTest extends ApiTestBase {
                         .andExpect(status().isOk())
                         .andExpect(header().string(
                                 "Content-Disposition",
-                                "attachment; filename=\"zanshin-history-" + repositoryId + ".csv\""))
+                                "attachment; filename=\"vectispire-history-" + repositoryId + ".csv\""))
                         .andReturn()
                         .getResponse()
                         .getContentAsByteArray(),

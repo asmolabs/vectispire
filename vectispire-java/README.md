@@ -1,12 +1,12 @@
-# Veriscape on the JVM
+# Vectispire on the JVM
 
-Veriscape's control plane and its remote agent: **Spring Boot 4.1 / JDK 25**, built with Gradle.
-The Angular interface lives in [`veriscape-angular/`](../veriscape-angular/) and reaches this over
+Vectispire's control plane and its remote agent: **Spring Boot 4.1 / JDK 25**, built with Gradle.
+The Angular interface lives in [`vectispire-angular/`](../vectispire-angular/) and reaches this over
 HTTP.
 
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
-./gradlew :veriscape-common:integrationTest   # the scanner containers, needs Docker
+./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: postgres)
 ./gradlew integrationTest -Pdialect=mariadb
 ./gradlew integrationTestAll         # all four
@@ -15,28 +15,28 @@ HTTP.
 ## Three modules, and why three
 
 ```
-  veriscape-core  ──┐
-                    ├──►  veriscape-common     domain calculations + scan execution
-  veriscape-agent ──┘
+  vectispire-core  ──┐
+                    ├──►  vectispire-common     domain calculations + scan execution
+  vectispire-agent ──┘
 ```
 
-`veriscape-common` holds what both sides must agree on: the calculations that *decide* — issue
+`vectispire-common` holds what both sides must agree on: the calculations that *decide* — issue
 fingerprint, gate verdict, audit chain, export formats — and the scan execution that turns a
 checkout into artifacts. Both halves are needed by both sides: the agent fingerprints the
 findings it reports, and the control plane runs the same scanners in its built-in worker. Two
 copies of the fingerprint rule would be two answers to "is this the same issue", which is the
 one question this system may not get wrong twice.
 
-**The split is a security boundary, not packaging.** `zanshin-agent` does not depend on
-`zanshin-core`, so no JDBC driver, no Hibernate and no Spring Data is on its compile
+**The split is a security boundary, not packaging.** `vectispire-agent` does not depend on
+`vectispire-core`, so no JDBC driver, no Hibernate and no Spring Data is on its compile
 classpath. An agent holding a database connection would also need `ENCRYPTION_KEY`, which is
-enough to decrypt *every* deployment key Zanshin holds; the property that justifies the
+enough to decrypt *every* deployment key Vectispire holds; the property that justifies the
 agent's existence is precisely what it does not have ([decision
 0003](../docs/architecture/decisions/0003-long-polling-for-agents.md)). It is a fact about
 the build graph rather than a rule somebody enforces: the violation does not fail review, it
 fails to compile.
 
-**What that costs.** The layers *inside* `zanshin-core` — `persistence`, `repositories`,
+**What that costs.** The layers *inside* `vectispire-core` — `persistence`, `repositories`,
 `services`, `api` — can no longer be expressed by the module graph, so `ArchitectureTest`
 enforces them with ArchUnit. That is a genuine step down: an ArchUnit rule can be deleted by
 the same commit that violates it; a missing dependency cannot.
@@ -122,7 +122,7 @@ which is global mutable state in a process that also serves HTTP.
 ## Flyway, and dialect-specific native migrations
 
 The schema is managed by **Flyway** with native migration sets per dialect under
-`zanshin-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`).
+`vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`).
 
 This native multi-dialect approach solves the impedance mismatches and table-recreation traps
 historically experienced with abstractions:

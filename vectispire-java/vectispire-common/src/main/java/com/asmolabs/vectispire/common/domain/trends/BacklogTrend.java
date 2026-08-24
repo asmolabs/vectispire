@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.trends;
+package com.asmolabs.vectispire.common.domain.trends;
 
 import java.time.Duration;
 import java.time.Instant;

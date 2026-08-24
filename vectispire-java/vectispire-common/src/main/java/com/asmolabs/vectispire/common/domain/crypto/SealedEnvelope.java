@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.crypto;
+package com.asmolabs.vectispire.common.domain.crypto;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -51,7 +51,7 @@ public final class SealedEnvelope {
     public static final String PREFIX = "sealed:v1:";
 
     /** Separates this derivation from any other built on the same exchange. */
-    private static final byte[] HKDF_INFO = "zanshin:sealed-envelope:v1".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] HKDF_INFO = "vectispire:sealed-envelope:v1".getBytes(StandardCharsets.UTF_8);
 
     private static final int SESSION_KEY_LENGTH_BYTES = 32;
     private static final int NONCE_LENGTH_BYTES = 12;

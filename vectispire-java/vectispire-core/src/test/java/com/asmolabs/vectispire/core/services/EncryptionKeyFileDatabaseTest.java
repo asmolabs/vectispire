@@ -1,10 +1,10 @@
-package com.asmolabs.zanshin.core.services;
+package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.zanshin.common.domain.crypto.EncryptionKey;
-import com.asmolabs.zanshin.common.domain.crypto.SecretCipher.SecretState;
-import com.asmolabs.zanshin.core.ZanshinContextTest;
+import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
+import com.asmolabs.vectispire.core.VectispireContextTest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -32,7 +32,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * tolerance for a missing key applies.
  */
 @DisplayName("the encryption key from a file, wired")
-class EncryptionKeyFileDatabaseTest extends ZanshinContextTest {
+class EncryptionKeyFileDatabaseTest extends VectispireContextTest {
 
     private static final String KEY = EncryptionKey.generate();
 
@@ -45,18 +45,14 @@ class EncryptionKeyFileDatabaseTest extends ZanshinContextTest {
     @DynamicPropertySource
     static void keyFromAFile(DynamicPropertyRegistry registry) {
         registry.add("ENCRYPTION_KEY_FILE", () -> secretFile().toString());
-        // **The empty value is the production shape, not a way to silence the test profile.** The
-        // yaml reads `key: ${ENCRYPTION_KEY:}`, so a deployment that sets only the file still
-        // presents an empty string here — and reading that as "a value was supplied" is what made
-        // the first version of this refuse to start on every correct configuration. The apitest
-        // profile happens to set a key, which is what surfaced it.
-        registry.add("zanshin.encryption.key", () -> "");
+        registry.add("ENCRYPTION_KEY", () -> "");
+        registry.add("vectispire.encryption.key", () -> "");
     }
 
     private static Path secretFile() {
         try {
             Path file = Path.of(
-                    System.getProperty("java.io.tmpdir"), "zanshin-encryption-key-" + UUID.randomUUID());
+                    System.getProperty("java.io.tmpdir"), "vectispire-encryption-key-" + UUID.randomUUID());
             Files.writeString(file, KEY + "\n");
             file.toFile().deleteOnExit();
             return file;

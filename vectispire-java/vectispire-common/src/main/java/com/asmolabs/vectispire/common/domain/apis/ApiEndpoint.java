@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.apis;
+package com.asmolabs.vectispire.common.domain.apis;
 
 /**
  * An API endpoint discovered in source code, contract, or infrastructure definition.

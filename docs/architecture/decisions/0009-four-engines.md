@@ -16,7 +16,7 @@ rest on statements nobody had run.
 **SQLite was a dead promise.** The dialect appeared in `SUPPORTED_DIALECTS`, `parseDialect`
 accepted it, the error message listed it among the expected values, its capabilities
 carried detailed comments, and document 04 sold it as *the default mode* — the one that
-lets someone try Zanshin in a quarter of an hour. A probe showed its driver was not even
+lets someone try Vectispire in a quarter of an hour. A probe showed its driver was not even
 installed: not "the migrations fail", but no connection possible at all.
 
 **MariaDB was announced without ever having run.** Its four capabilities were inherited

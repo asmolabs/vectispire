@@ -1,4 +1,4 @@
-package com.asmolabs.zanshin.common.domain.targets;
+package com.asmolabs.vectispire.common.domain.targets;
 
 import java.net.URI;
 import java.util.Locale;

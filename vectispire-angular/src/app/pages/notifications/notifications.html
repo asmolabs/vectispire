@@ -119,7 +119,7 @@
                 Garanties de Livraison &amp; Architecture Transactionnelle
             </h3>
             <p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-                Les alertes Zanshin sont enregistrées dans une <strong>table d'Outbox transactionnelle</strong> au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de <strong>backoff exponentiel</strong> en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par <strong>HMAC-SHA256</strong> (en-tête <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Zanshin-Signature</code>).
+                Les alertes Vectispire sont enregistrées dans une <strong>table d'Outbox transactionnelle</strong> au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de <strong>backoff exponentiel</strong> en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par <strong>HMAC-SHA256</strong> (en-tête <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Vectispire-Signature</code>).
             </p>
         </div>
     }
