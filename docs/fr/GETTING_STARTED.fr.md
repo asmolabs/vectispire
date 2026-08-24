@@ -1,6 +1,6 @@
-# Guide de Démarrage Rapide — Veriscape
+# Guide de Démarrage Rapide — Vectispire
 
-Ce guide décrit l'installation, la configuration et le lancement de Veriscape en local ou en production.
+Ce guide décrit l'installation, la configuration et le lancement de Vectispire en local ou en production.
 
 ---
 
@@ -20,7 +20,7 @@ Ce guide décrit l'installation, la configuration et le lancement de Veriscape e
 npm ci
 
 # Compilation backend et vérification
-cd veriscape-java && ./gradlew build
+cd vectispire-java && ./gradlew build
 ```
 
 ---
@@ -34,13 +34,13 @@ Créez un fichier `.env` ou exportez les variables suivantes :
 export ENCRYPTION_KEY=$(openssl rand -base64 32)
 
 # Base de données (par défaut PostgreSQL ou SQLite)
-export VERISCAPE_DB_URL=jdbc:postgresql://localhost:5432/veriscape
-export VERISCAPE_DB_USER=veriscape
-export VERISCAPE_DB_PASSWORD=secret
+export VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
+export VECTISPIRE_DB_USER=vectispire
+export VECTISPIRE_DB_PASSWORD=secret
 
 # Identifiants de démarrage (SUPERUSER initial)
-export VERISCAPE_BOOTSTRAP_USERNAME=admin
-export VERISCAPE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
+export VECTISPIRE_BOOTSTRAP_USERNAME=admin
+export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
 ```
 
 ---
@@ -57,10 +57,10 @@ Le schéma est géré par **Flyway** (`src/main/resources/db/migration/{vendor}/
 
 ```bash
 # Lancement de l'API Backend (Port 3180 pour le proxy Angular de développement)
-cd veriscape-java && ./gradlew :veriscape-core:bootRun --args='--server.port=3180'
+cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'
 
 # Lancement de l'Interface Angular (Port 4280)
-npm --workspace @veriscape/frontend start
+npm --workspace @vectispire/frontend start
 ```
 
 Accédez ensuite à l'interface sur `http://localhost:4280` (le proxy redirige `/api` vers `http://localhost:3180`).
@@ -70,24 +70,24 @@ Connectez-vous avec l'utilisateur `admin` et changez le mot de passe initial.
 
 ## 6. Analyse de Sécurité assistée par IA (Optionnel)
 
-Veriscape permet d'activer une revue de code assistée par LLM local via [Ollama](https://ollama.com) :
+Vectispire permet d'activer une revue de code assistée par LLM local via [Ollama](https://ollama.com) :
 ```bash
-export VERISCAPE_AI_REVIEW_ENABLED=true
-export VERISCAPE_AI_REVIEW_URL=http://localhost:11434
-export VERISCAPE_AI_REVIEW_MODEL=llama3.2
+export VECTISPIRE_AI_REVIEW_ENABLED=true
+export VECTISPIRE_AI_REVIEW_URL=http://localhost:11434
+export VECTISPIRE_AI_REVIEW_MODEL=llama3.2
 ```
 
 ---
 
 ## 7. Déploiement Conteneurisé avec Docker & Docker Compose
 
-Pour exécuter la suite complète (Base PostgreSQL + Control Plane Veriscape + Agent optionnel) en une seule commande :
+Pour exécuter la suite complète (Base PostgreSQL + Control Plane Vectispire + Agent optionnel) en une seule commande :
 
 ```bash
 # Copier et ajuster les variables d'environnement
 cp .env.example .env
 
-# Lancer la stack (PostgreSQL + Veriscape Control Plane sur http://localhost:3180)
+# Lancer la stack (PostgreSQL + Vectispire Control Plane sur http://localhost:3180)
 docker compose up -d
 
 # Lancer avec un agent distant déporté (profile with-agent)
@@ -97,8 +97,8 @@ docker compose --profile with-agent up -d
 **Construction des images Docker personnalisées :**
 ```bash
 # Image Control Plane (Backend + Frontend intégré)
-npm run docker:build          # ou docker build -t veriscape:latest .
+npm run docker:build          # ou docker build -t vectispire:latest .
 
 # Image Agent distant déporté
-npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t veriscape-agent:latest .
+npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispire-agent:latest .
 ```

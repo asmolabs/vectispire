@@ -11,9 +11,9 @@ Lors de la rotation d'une clé SSH privée de déploiement :
 1. **Révoquer** l'ancienne clé publique sur le fournisseur Git (GitHub / GitLab).
 2. **Générer** une nouvelle paire de clés Ed25519 :
    ```bash
-   ssh-keygen -t ed25519 -C "zanshin-deploy" -f ~/zanshin-deploy
+   ssh-keygen -t ed25519 -C "vectispire-deploy" -f ~/vectispire-deploy
    ```
-3. **Mettre à jour** la clé dans Zanshin via la page `/ssh-keys`. Zanshin chiffre automatiquement la clé avec AES-256-GCM et lie le ciphertext à la ligne (`ssh_key:<id>:private_key`).
+3. **Mettre à jour** la clé dans Vectispire via la page `/ssh-keys`. Vectispire chiffre automatiquement la clé avec AES-256-GCM et lie le ciphertext à la ligne (`ssh_key:<id>:private_key`).
 4. **Supprimer** l'ancienne entrée obsolète.
 
 ### 1.2 Rotation de la Clé Principale (`ENCRYPTION_KEY`)
@@ -21,7 +21,7 @@ Lors de la rotation d'une clé SSH privée de déploiement :
    ```bash
    openssl rand -base64 32
    ```
-2. Configurer la nouvelle clé dans `ENCRYPTION_KEY` et placer l'ancienne clé dans `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` pour permettre la transition et le ré-encodage fluide.
+2. Configurer la nouvelle clé dans `ENCRYPTION_KEY` et placer l'ancienne clé dans `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` pour permettre la transition et le ré-encodage fluide.
 
 ### 1.3 Mots de Passe Utilisateurs
 Pour forcer le changement de mot de passe à la prochaine connexion d'un utilisateur :

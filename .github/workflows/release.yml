@@ -48,8 +48,8 @@ jobs:
       # `main`, which is not the same statement: a tag can point anywhere, and "it passed on main
       # last week" is not "this is what was tested".
       - name: Build and test
-        working-directory: zanshin-java
-        run: ./gradlew build :zanshin-core:bootJar
+        working-directory: vectispire-java
+        run: ./gradlew build :vectispire-core:bootJar
 
       - name: Name the artifact after the version
         id: names
@@ -61,9 +61,9 @@ jobs:
             version="0.0.0-dev+${GITHUB_SHA::7}"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "jar=zanshin-$version.jar" >> "$GITHUB_OUTPUT"
-          echo "sbom=zanshin-$version.cdx.json" >> "$GITHUB_OUTPUT"
-          cp zanshin-java/zanshin-core/build/libs/zanshin-core.jar "zanshin-$version.jar"
+          echo "jar=vectispire-$version.jar" >> "$GITHUB_OUTPUT"
+          echo "sbom=vectispire-$version.cdx.json" >> "$GITHUB_OUTPUT"
+          cp vectispire-java/vectispire-core/build/libs/vectispire-core.jar "vectispire-$version.jar"
 
       # The same pinned Syft digest `ScannerImages` uses, for the reason the CI file gives: the
       # product and its own release must agree on which cataloguer ran, and a floating tag makes
@@ -124,7 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            --title "Zanshin ${{ steps.names.outputs.version }}" \
+            --title "Vectispire ${{ steps.names.outputs.version }}" \
             --notes-file - <<'NOTES'
           **Verify before running anything from here.** The exact command, and what each part of it
           pins, is in `docs/GETTING_STARTED.md` under "Verifying a release".
@@ -145,8 +145,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: zanshin-release-dry-run
+          name: vectispire-release-dry-run
           path: |
-            zanshin-*.jar
-            zanshin-*.cdx.json
-            zanshin-*.cosign.bundle
+            vectispire-*.jar
+            vectispire-*.cdx.json
+            vectispire-*.cosign.bundle

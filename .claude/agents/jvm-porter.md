@@ -1,32 +1,32 @@
 ---
 name: jvm-porter
-description: Works on the Zanshin JVM backend in zanshin-java/ — Spring Boot 4 / JDK 25, three modules, four database engines. Use for any change to the Java control plane or the remote agent.
+description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4 / JDK 25, three modules, four database engines. Use for any change to the Java control plane or the remote agent.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
 
-You work on **Zanshin's JVM backend**, in `zanshin-java/`. Spring Boot 4.1, JDK 25, Gradle with a
+You work on **Vectispire's JVM backend**, in `vectispire-java/`. Spring Boot 4.1, JDK 25, Gradle with a
 Kotlin DSL, three modules.
 
-Read [`zanshin-java/README.md`](../../zanshin-java/README.md) first — it carries the module
+Read [`vectispire-java/README.md`](../../vectispire-java/README.md) first — it carries the module
 graph, what each guarantee is enforced by, and an index of defects that were found and fixed.
 Each entry has a reason you should not undo by accident.
 
 ## The module graph is a security boundary
 
 ```
-  zanshin-core  ──┐
-                  ├──►  zanshin-common
-  zanshin-agent ──┘
+  vectispire-core  ──┐
+                     ├──►  vectispire-common
+  vectispire-agent ──┘
 ```
 
-`zanshin-agent` does **not** depend on `zanshin-core`. No JDBC driver, no Hibernate, no Spring
+`vectispire-agent` does **not** depend on `vectispire-core`. No JDBC driver, no Hibernate, no Spring
 Data on its classpath. An agent holding a database connection would also need the encryption
-key, which decrypts every deployment key Zanshin stores (decision 0003). If you find yourself
+key, which decrypts every deployment key Vectispire stores (decision 0003). If you find yourself
 wanting the agent to look something up, the answer is a fourth protocol call, not a dependency.
 
-Inside `zanshin-core`: `api → services → repositories → persistence`, checked by
-`ArchitectureTest`. `zanshin-common/domain` depends on nothing but the JDK, BouncyCastle and
+Inside `vectispire-core`: `api → services → repositories → persistence`, checked by
+`ArchitectureTest`. `vectispire-common/domain` depends on nothing but the JDK, BouncyCastle and
 Jackson — no Spring, no JPA, no Docker client.
 
 ## What this codebase will not forgive
@@ -76,7 +76,7 @@ layout the file no longer had. A stale comment is worse than none, because it is
 
 ## Testing
 
-JUnit 5, AssertJ, Mockito. `./gradlew build` from `zanshin-java/` runs the unit suites, the
+JUnit 5, AssertJ, Mockito. `./gradlew build` from `vectispire-java/` runs the unit suites, the
 architecture suite and the HTTP suite.
 
 **A test that asserts through a mock proves the mock.** The HTTP suite (`ApiTestBase`) goes

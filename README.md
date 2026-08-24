@@ -1,17 +1,17 @@
-# Veriscape
+# Vectispire
 
-Veriscape is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
+Vectispire is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
 
 Built with [Spring Boot](https://spring.io/projects/spring-boot) on JDK 25 and [Angular](https://angular.dev) over PostgreSQL.
 
-## Why "Veriscape"?
+## Why "Vectispire"?
 
-The name **Veriscape** is the fusion of two foundational principles of software supply chain security:
+The name **Vectispire** reflects two foundational pillars of application security posture management:
 
-- **`Veritas`** *(Latin for "Truth")*: The platform is anchored in **cryptographic truth and verifiable evidence**. An audit statement or security declaration without cryptographic backing is merely an assertion. Veriscape generates signed in-toto attestations, DSSE Cosign signatures, deterministic SBOMs, and verifiable VEX statements (OASIS CSAF 2.0, OpenVEX, CycloneDX) with tamper-evident audit logs.
-- **`Landscape`** *(The Full Posture & Attack Surface)*: The platform provides a **panoramic, connected view** across your entire software ecosystem — mapping multi-tier dependency call graphs, measuring blast radius dispersion, evaluating open-source license copyleft conflicts, and tracking vulnerability remediation velocity (MTTR) across all Git repositories and container fleets.
+- **`Vectis`** *(Latin for "Security Lever & Locking Mechanism")*: The platform acts as the **cryptographic security lever and policy gatekeeper** of the software supply chain. It enforces strict compliance and gate verdicts, generates DSSE Cosign signatures, signs in-toto attestations, and issues tamper-evident VEX statements (OASIS CSAF 2.0, OpenVEX, CycloneDX) and immutable audit log chains.
+- **`Spire`** *(The Elevated ASPM Watchtower & Posture Horizon)*: The platform provides a **panoramic, high-ground vantage point** over your entire application security posture — mapping multi-tier dependency graphs, calculating blast radius impact, resolving license copyleft matrices, and tracking vulnerability remediation velocity (MTTR) across all repositories and container registries.
 
-Together, **Veriscape** transforms opaque dependency trees into an illuminated, provable, and actionable security landscape.
+Together, **Vectispire** locks down software integrity while elevating visibility across the entire attack surface.
 
 ## Features
 
@@ -273,10 +273,10 @@ SARIF is the one that puts a finding in front of the developer who introduced it
 curl -H "Authorization: Bearer $VERISCAPE_KEY" \
      -o veriscape.sarif "$VERISCAPE/api/v1/targets/repository/1/issues.sarif"
 gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
-     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c veriscape.sarif | base64 -w0)"
+     -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c vectispire.sarif | base64 -w0)"
 ```
 
-Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Veriscape's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers under [`api/`](veriscape-java/veriscape-core/src/main/java/com/asmolabs/zanshin/core/api/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers under [`api/`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/zanshin/core/api/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -300,36 +300,36 @@ Three things are *not* runtime settings, because they have to exist before the a
 |---|---|---|
 | `ENCRYPTION_KEY` | To store SSH keys | 32-byte key used to encrypt SSH private keys and tokens (AES-GCM). Without it, saving a secret is refused rather than written under something that cannot protect it. The application no longer carries a default key: it used to ship one in its own source, which meant a copy of the database file was enough to read every stored private key. **Prefer `ENCRYPTION_KEY_FILE` below.** |
 | `ENCRYPTION_KEY_FILE` | Instead of `ENCRYPTION_KEY` | A path to a file holding the key — what a Docker or Kubernetes secret actually mounts. This is the recommended form: a variable is readable through `/proc/<pid>/environ`, `docker inspect`, an orchestrator's logs and a swept-up `.env`, and this is the one value whose exposure is the whole loss rather than a degradation. A trailing newline is not part of the key. **Setting this and `ENCRYPTION_KEY` together is refused at startup**, because nothing could then say which key is in force without picking one you did not. And a path that does not resolve — missing, unreadable, or an empty mount — **stops the application** instead of falling back: a deployment with no key still serves every screen, so a failed secret mount would otherwise be indistinguishable from a fresh install. |
-| `VERISCAPE_MAIL_HOST` | To send alerts by e-mail | The SMTP relay, with `VERISCAPE_MAIL_PORT` (587), `VERISCAPE_MAIL_USERNAME`, `VERISCAPE_MAIL_PASSWORD`, `VERISCAPE_MAIL_FROM` and `VERISCAPE_MAIL_STARTTLS` (true). **Where to send is deployment configuration; who receives is a setting** — the relay holds a password and is the same for every message, the recipients change with the team. With no host there is no sender and no channel: an unconfigured destination is queued nothing rather than queued and failed. |
-| `VERISCAPE_OIDC_ISSUER` | To offer single sign-on | The realm's issuer URL, e.g. `https://keycloak.example.com/realms/veriscape`. Veriscape discovers the endpoints from its `/.well-known/openid-configuration` rather than asking an operator to copy four of them correctly. **Setting it is the whole switch**: with no issuer there is no filter chain, no route and no button. Password login stays in either case — it is the way in when the realm is unreachable, and without it a broken issuer locks everybody out. Accompanied by `VERISCAPE_OIDC_CLIENT_ID`, optionally `VERISCAPE_OIDC_CLIENT_SECRET` (omit it for a public client) and `VERISCAPE_OIDC_NAME` for the button's label. |
-| `VERISCAPE_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Veriscape ships. **Veriscape bundles a single rule**, so in practice this is where your coverage comes from — see [Installing a Semgrep rule set](#installing-a-semgrep-rule-set). If the directory is set and cannot be read, the SAST step fails rather than quietly scanning with the bundled rule alone. |
-| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. |
-| `VERISCAPE_PREVIOUS_ENCRYPTION_KEYS_FILE` | Instead of the above | A file holding them, comma- or newline-separated. It exists for the same reason as `ENCRYPTION_KEY_FILE` and not for symmetry: an old key still decrypts live rows, and a rotation is the moment two keys exist at once — so without it, moving the current key to a file would mean putting the previous one back into the environment to finish the job. Same refusals. |
-| `VERISCAPE_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
-| `VERISCAPE_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
+| `VECTISPIRE_MAIL_HOST` | To send alerts by e-mail | The SMTP relay, with `VECTISPIRE_MAIL_PORT` (587), `VECTISPIRE_MAIL_USERNAME`, `VECTISPIRE_MAIL_PASSWORD`, `VECTISPIRE_MAIL_FROM` and `VECTISPIRE_MAIL_STARTTLS` (true). **Where to send is deployment configuration; who receives is a setting** — the relay holds a password and is the same for every message, the recipients change with the team. With no host there is no sender and no channel: an unconfigured destination is queued nothing rather than queued and failed. |
+| `VECTISPIRE_OIDC_ISSUER` | To offer single sign-on | The realm's issuer URL, e.g. `https://keycloak.example.com/realms/vectispire`. Vectispire discovers the endpoints from its `/.well-known/openid-configuration` rather than asking an operator to copy four of them correctly. **Setting it is the whole switch**: with no issuer there is no filter chain, no route and no button. Password login stays in either case — it is the way in when the realm is unreachable, and without it a broken issuer locks everybody out. Accompanied by `VECTISPIRE_OIDC_CLIENT_ID`, optionally `VECTISPIRE_OIDC_CLIENT_SECRET` (omit it for a public client) and `VECTISPIRE_OIDC_NAME` for the button's label. |
+| `VECTISPIRE_SEMGREP_RULES_DIR` | To widen Semgrep's coverage | A directory of extra Semgrep rules, merged with the ones Vectispire ships. **Vectispire bundles a single rule**, so in practice this is where your coverage comes from — see [Installing a Semgrep rule set](#installing-a-semgrep-rule-set). If the directory is set and cannot be read, the SAST step fails rather than quietly scanning with the bundled rule alone. |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | Instead of the above | A file holding them, comma- or newline-separated. It exists for the same reason as `ENCRYPTION_KEY_FILE` and not for symmetry: an old key still decrypts live rows, and a rotation is the moment two keys exist at once — so without it, moving the current key to a file would mean putting the previous one back into the environment to finish the job. Same refusals. |
+| `VECTISPIRE_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
+| `VECTISPIRE_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
 
 Operational tuning (all optional, shown with their defaults):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VERISCAPE_DB_URL` | `jdbc:postgresql://localhost:5432/veriscape` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
-| `VERISCAPE_DB_USER` / `VERISCAPE_DB_PASSWORD` | `veriscape` / — | Database credentials. |
-| `VERISCAPE_PORT` | `3180` | HTTP port. The API and the agent protocol share it. |
-| `VERISCAPE_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
-| `VERISCAPE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh` — identities, `config`, agent and `known_hosts`, used whole. `false` on any installation where the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have Veriscape clone it with an identity nobody attached to it. |
-| `VERISCAPE_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
-| `VERISCAPE_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
-| `VERISCAPE_WORKER_LABELS` / `VERISCAPE_WORKER_INTERVAL` | — / `15s` | Labels this worker answers to, and how often it looks for work. Empty labels on purpose: the built-in worker takes only work with no requirement, or targeting would be useless on a single-instance install. |
-| `VERISCAPE_QUEUE_LEASE` / `VERISCAPE_QUEUE_MAX_ATTEMPTS` / `VERISCAPE_QUEUE_CLAIM_ATTEMPTS` | `20m` / `3` / `12` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
-| `VERISCAPE_SCHEDULER_INTERVAL` / `VERISCAPE_RELAY_INTERVAL` / `VERISCAPE_MAINTENANCE_INTERVAL` | `60s` / `60s` / `1h` | How often due targets are looked for, the notification outbox is drained, and housekeeping runs. |
-| `VERISCAPE_LEADER_LEASE` | `180s` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
-| `VERISCAPE_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
-| `VERISCAPE_SESSION_LIFETIME` / `VERISCAPE_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
-| `VERISCAPE_VEX_AUTHOR` / `VERISCAPE_VERSION` | `Veriscape` / `1.0.0` | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. |
+| `VECTISPIRE_DB_URL` | `jdbc:postgresql://localhost:5432/vectispire` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
+| `VECTISPIRE_DB_USER` / `VECTISPIRE_DB_PASSWORD` | `vectispire` / — | Database credentials. |
+| `VECTISPIRE_PORT` | `3180` | HTTP port. The API and the agent protocol share it. |
+| `VECTISPIRE_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
+| `VECTISPIRE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh` — identities, `config`, agent and `known_hosts`, used whole. `false` on any installation where the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have Vectispire clone it with an identity nobody attached to it. |
+| `VECTISPIRE_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself. Queued scans then wait for a remote agent instead of quietly using the web instance. |
+| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Concurrent scans for this instance's built-in worker. |
+| `VECTISPIRE_WORKER_LABELS` / `VECTISPIRE_WORKER_INTERVAL` | — / `15s` | Labels this worker answers to, and how often it looks for work. Empty labels on purpose: the built-in worker takes only work with no requirement, or targeting would be useless on a single-instance install. |
+| `VECTISPIRE_QUEUE_LEASE` / `VECTISPIRE_QUEUE_MAX_ATTEMPTS` / `VECTISPIRE_QUEUE_CLAIM_ATTEMPTS` | `20m` / `3` / `12` | Lease held on a claimed scan, retries before it is abandoned, and retries of the claim itself under contention. |
+| `VECTISPIRE_SCHEDULER_INTERVAL` / `VECTISPIRE_RELAY_INTERVAL` / `VECTISPIRE_MAINTENANCE_INTERVAL` | `60s` / `60s` / `1h` | How often due targets are looked for, the notification outbox is drained, and housekeeping runs. |
+| `VECTISPIRE_LEADER_LEASE` | `180s` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
+| `VECTISPIRE_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
+| `VECTISPIRE_SESSION_LIFETIME` / `VECTISPIRE_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
+| `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / `1.0.0` | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. |
 
 **The scanner images are not configurable, and that is deliberate.** The five digests are
-constants in [`ScannerImages`](veriscape-java/veriscape-common/src/main/java/com/asmolabs/zanshin/common/scanning/scanners/ScannerImages.java):
-they execute on the scanning host and read input nobody controls, so they *are* Veriscape's
+constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/zanshin/common/scanning/scanners/ScannerImages.java):
+they execute on the scanning host and read input nobody controls, so they *are* Vectispire's
 supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving one is a
 commit that goes through review, not an environment variable somebody sets on a server. Update
 deliberately with `docker buildx imagetools inspect <image>:latest`.
@@ -382,9 +382,9 @@ reservation, and the one the code picks by default.
 
 ## Installing a Semgrep rule set
 
-Zanshin bundles one Semgrep rule. That is a licensing constraint, not an oversight:
+Vectispire bundles one Semgrep rule. That is a licensing constraint, not an oversight:
 `semgrep/semgrep-rules` was relicensed under terms that forbid redistributing the rules,
-and the `opengrep-rules` fork carries a Commons Clause that would take Zanshin out of open
+and the `opengrep-rules` fork carries a Commons Clause that would take Vectispire out of open
 source and bind everyone who takes it up
 ([decision 0006](docs/architecture/decisions/0006-semgrep-rules-written-here.md)). So the
 rules are fetched by you, from their author, and never redistributed here.
@@ -397,17 +397,17 @@ No tool ships for this. The steps are short enough not to warrant one:
 #    fingerprint.
 TAG=v1.0.0
 curl -fsSL "https://github.com/opengrep/opengrep-rules/archive/refs/tags/${TAG}.tar.gz" \
-  | tar -xz -C /opt/zanshin
+  | tar -xz -C /opt/vectispire
 
 # 2. Read the licence before using it. LGPL-2.1 plus a Commons Clause: fine to run,
 #    fine to build into your own agent image, NOT fine to publish that image.
-less /opt/zanshin/opengrep-rules-${TAG}/LICENSE
+less /opt/vectispire/opengrep-rules-${TAG}/LICENSE
 
 # 3. Record what you installed, so a mass movement in the backlog has an explanation.
-echo "opengrep-rules ${TAG} installed $(date -u +%FT%TZ)" > /opt/zanshin/rules-manifest.txt
+echo "opengrep-rules ${TAG} installed $(date -u +%FT%TZ)" > /opt/vectispire/rules-manifest.txt
 
-# 4. Point Zanshin at it.
-export ZANSHIN_SEMGREP_RULES_DIR=/opt/zanshin/opengrep-rules-${TAG}
+# 4. Point Vectispire at it.
+export VECTISPIRE_SEMGREP_RULES_DIR=/opt/vectispire/opengrep-rules-${TAG}
 ```
 
 Run once, at install time — **the scan itself stays offline**, which is the property that
@@ -416,7 +416,7 @@ makes it reproducible and deployable on an isolated network.
 Two things to know:
 
 - **The directory is merged, not substituted.** Your rules land beside the bundled one, in
-  their own subtree, so a filename collision cannot silently replace a rule Zanshin ships.
+  their own subtree, so a filename collision cannot silently replace a rule Vectispire ships.
 - **A directory that cannot be read fails the SAST step**, leaving the previous findings
   untouched. It does not fall back to the bundled rule: Semgrep would exit cleanly with a
   shorter list, which reads as "analyzed, those issues are gone" and would resolve
@@ -426,10 +426,10 @@ Two things to know:
 ## Tests
 
 ```bash
-cd zanshin-java && ./gradlew build              # unit, architecture and HTTP suites
-cd zanshin-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
-cd zanshin-java && ./gradlew integrationTestAll # all four engines — ten minutes, needs Docker
-npm ci && npm run build && npm test             # the Angular interface
+cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
+cd vectispire-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
+cd vectispire-java && ./gradlew integrationTestAll # all four engines — ten minutes, needs Docker
+npm ci && npm run build && npm test                # the Angular interface
 ```
 
 Around 840 unit tests, and five integration classes run against real servers. **CI runs the
@@ -455,23 +455,23 @@ So the rules here are the ones whose findings were all real.
 ## Project structure
 
 ```
-zanshin-java/
-├── zanshin-common/          # Shared with the agent
-│   ├── domain/              # Pure rules: fingerprint, gate, exports, schedule, payloads
-│   └── scanning/            # Runs the scanners — no database
-├── zanshin-core/            # The control plane
-│   ├── persistence/         # JPA entities; the schema lives in db/changelog/
-│   ├── repositories/        # Data access, no business rules — the only layer that speaks SQL
-│   ├── services/            # Orchestration: ingestion, issues, notifications, tickets
-│   └── api/                 # HTTP controllers
-└── zanshin-agent/           # The remote worker. Does NOT depend on zanshin-core.
-zanshin-angular/src/app/     # Angular: 17 page areas, Sakai layout over Optimus UI
-docs/architecture/           # ADR
+vectispire-java/
+├── vectispire-common/        # Shared with the agent
+│   ├── domain/               # Pure rules: fingerprint, gate, exports, schedule, payloads
+│   └── scanning/             # Runs the scanners — no database
+├── vectispire-core/          # The control plane
+│   ├── persistence/          # JPA entities; the schema lives in db/migration/
+│   ├── repositories/         # Data access, no business rules — the only layer that speaks SQL
+│   ├── services/             # Orchestration: ingestion, issues, notifications, tickets
+│   └── api/                  # HTTP controllers
+└── vectispire-agent/         # The remote worker. Does NOT depend on vectispire-core.
+vectispire-angular/src/app/   # Angular: 17 page areas, Sakai layout over Optimus UI
+docs/architecture/            # ADR
 ```
 
-**`zanshin-agent` not depending on `zanshin-core` is a security property, not packaging.** No
+**`vectispire-agent` not depending on `vectispire-core` is a security property, not packaging.** No
 JDBC driver is on its classpath, so it cannot hold a database connection — which it would need
-`ENCRYPTION_KEY` for, and that key decrypts every deployment key Zanshin stores. The violation
+`ENCRYPTION_KEY` for, and that key decrypts every deployment key Vectispire stores. The violation
 fails to compile rather than failing review.
 
 The import direction is enforced by `ArchitectureTest`:
@@ -482,7 +482,7 @@ gate verdict, a due date — testable without a database.
 
 ## License
 
-Zanshin is licensed under the [Apache License 2.0](LICENSE) — patent grant included, and
+Vectispire is licensed under the [Apache License 2.0](LICENSE) — patent grant included, and
 contributions are under the same terms without a CLA. [`NOTICE`](NOTICE) lists the
 third-party components the jar and the image bundle, including the two JDBC drivers that are
 copyleft; both are `runtimeOnly`, and moving either onto the compile classpath changes the
@@ -491,4 +491,4 @@ adoption — [decision 0012](docs/architecture/decisions/0012-apache-2-0.md) say
 judgement, and what it would cost to reverse.
 
 The licence covers the code, not the name: Apache-2.0 grants no trademark rights, so a fork
-may use all of this and may not call itself Zanshin.
+may use all of this and may not call itself Vectispire.

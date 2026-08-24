@@ -1,10 +1,10 @@
 # Agents
 
-Veriscape is a **Spring Boot 4 / JDK 25** control plane in [`veriscape-java/`](veriscape-java/) with an
-**Angular 21** interface in [`veriscape-angular/`](veriscape-angular/). They talk over HTTP and are
+Vectispire is a **Spring Boot 4 / JDK 25** control plane in [`vectispire-java/`](vectispire-java/) with an
+**Angular 21** interface in [`vectispire-angular/`](vectispire-angular/). They talk over HTTP and are
 built by different toolchains: Gradle for the backend, npm for the frontend.
 
-Read [`veriscape-java/README.md`](veriscape-java/README.md) before working there. It carries the
+Read [`vectispire-java/README.md`](vectispire-java/README.md) before working there. It carries the
 module graph, what each guarantee is enforced by, and the index of the defects that were fixed
 rather than reproduced.
 
@@ -12,14 +12,14 @@ rather than reproduced.
 
 | | |
 |---|---|
-| Backend | Spring Boot 4.1, JDK 25, Gradle, `veriscape-java/` — see [`veriscape-java/README.md`](veriscape-java/README.md) |
-| Frontend | Angular 21, Optimus UI, `veriscape-angular/` — see [`veriscape-angular/README.md`](veriscape-angular/README.md) |
+| Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
+| Frontend | Angular 21, Optimus UI, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
 | Database | PostgreSQL (default), MySQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
-cd veriscape-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd veriscape-java && ./gradlew integrationTestAll   # four engines, needs Docker
+cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
+cd vectispire-java && ./gradlew integrationTestAll   # four engines, needs Docker
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface
@@ -33,7 +33,7 @@ mean portability was checked.
 CI also runs a **`supply-chain`** job that no local command mirrors: Syft builds an SBOM of the
 jar that ships and Grype fails on a fixable High finding, and `npm audit` blocks on production
 dependencies. It uses the scanner digests `ScannerImages` pins, so the same scanner version
-audits Veriscape as audits its targets.
+audits Vectispire as audits its targets.
 
 A **`v*` tag** runs [`release.yml`](.github/workflows/release.yml): the suites on the tagged tree,
 then the jar and its SBOM signed with Sigstore keyless and published. It **verifies the signature
@@ -53,10 +53,10 @@ ArchUnit: `domain ← scanning ← persistence ← repositories ← services ←
 SQL, or a domain class importing Spring, fails the suite.
 
 **The agent's isolation is not one of those rules — it is a fact about the build graph.**
-`zanshin-agent` does not depend on `zanshin-core`, so no JDBC driver is on its compile
+`vectispire-agent` does not depend on `vectispire-core`, so no JDBC driver is on its compile
 classpath and the violation fails to compile rather than failing review. That is a **security
 property**: an agent holding a database connection would also need `ENCRYPTION_KEY`, which
-decrypts every deployment key Zanshin stores — see
+decrypts every deployment key Vectispire stores — see
 [decision 0003](docs/architecture/decisions/0003-long-polling-for-agents.md).
 
 **Three traps that cause silent data loss**, each with a decision behind it:

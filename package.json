@@ -1,11 +1,11 @@
 {
-    "name": "veriscape",
+    "name": "vectispire",
     "version": "1.0.0",
     "private": true,
     "license": "Apache-2.0",
-    "description": "Veriscape \u2014 application security analysis. Spring Boot control plane in veriscape-java/, Angular interface in veriscape-angular/.",
+    "description": "Vectispire — application security posture management and attestation. Spring Boot control plane in vectispire-java/, Angular interface in vectispire-angular/.",
     "workspaces": [
-        "veriscape-angular"
+        "vectispire-angular"
     ],
     "engines": {
         "node": ">=22 <25"
@@ -14,9 +14,9 @@
         "build": "npm run build --workspaces --if-present",
         "test": "npm run test --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
-        "start": "npm run start --workspace @veriscape/frontend",
-        "docker:build": "docker build -t veriscape:latest .",
-        "docker:build:agent": "docker build -f Dockerfile.agent -t veriscape-agent:latest .",
+        "start": "npm run start --workspace @vectispire/frontend",
+        "docker:build": "docker build -t vectispire:latest .",
+        "docker:build:agent": "docker build -f Dockerfile.agent -t vectispire-agent:latest .",
         "docker:up": "docker compose up -d",
         "docker:down": "docker compose down",
         "prepare": "git config core.hooksPath .githooks || true"

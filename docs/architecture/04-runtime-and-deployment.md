@@ -22,7 +22,7 @@ Works **even on SQLite**, because an agent never touches the database.
 
 ## What the engine tells you at startup, and why
 
-[`001-baseline.yaml`](../../veriscape-java/veriscape-core/src/main/resources/db/changelog/001-baseline.yaml)
+[`V1__initial_schema.sql`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/postgresql/V1__initial_schema.sql)
 declares what each engine can and cannot do, and the startup path emits a warning for
 every capability that is missing, each one naming the consequence rather than the
 capability. Saying it early beats letting the problem be discovered as a corrupted

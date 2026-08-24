@@ -52,7 +52,7 @@ jobs:
       # Compiles all three modules, runs the unit suites, the architecture suite and the
       # HTTP suite against a real SQLite database.
       - name: Build and test
-        working-directory: zanshin-java
+        working-directory: vectispire-java
         run: ./gradlew build
 
   # The Angular interface.
@@ -78,7 +78,7 @@ jobs:
       - name: Test
         run: npm test
 
-  # **Zanshin's own supply chain, scanned by Zanshin's own scanners.** A tool that reports
+  # **Vectispire's own supply chain, scanned by Vectispire's own scanners.** A tool that reports
   # other people's vulnerable dependencies and never looks at its own is making a claim it has
   # not checked.
   #
@@ -101,16 +101,16 @@ jobs:
       # build files declare. A dependency raised by conflict resolution is in one and not the
       # other — and it is the resolved version that runs.
       - name: Build the jar
-        working-directory: zanshin-java
-        run: ./gradlew :zanshin-core:bootJar
+        working-directory: vectispire-java
+        run: ./gradlew :vectispire-core:bootJar
 
       - name: SBOM of the control plane
         run: |
           docker run --rm --network none \
-            -v "$PWD/zanshin-java/zanshin-core/build/libs:/scan:ro" \
+            -v "$PWD/vectispire-java/vectispire-core/build/libs:/scan:ro" \
             anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
-            scan file:/scan/zanshin-core.jar -o cyclonedx-json > zanshin-jvm.cdx.json
-          echo "components: $(grep -o '"bom-ref"' zanshin-jvm.cdx.json | wc -l)"
+            scan file:/scan/vectispire-core.jar -o cyclonedx-json > vectispire-jvm.cdx.json
+          echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
 
       # Kept whether the scan below passes or fails: the SBOM is the evidence, and it is most
       # wanted on the run that failed.
@@ -118,8 +118,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zanshin-sbom
-          path: zanshin-jvm.cdx.json
+          name: vectispire-sbom
+          path: vectispire-jvm.cdx.json
 
       # **`--only-fixed`, and that is the whole design of this gate.** Failing on an advisory
       # with no released fix turns CI red for something nobody in this repository can do
@@ -135,10 +135,10 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/sbom:ro" \
             anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
-            sbom:/sbom/zanshin-jvm.cdx.json --only-fixed -o table
+            sbom:/sbom/vectispire-jvm.cdx.json --only-fixed -o table
           docker run --rm -v "$PWD:/sbom:ro" \
             anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
-            sbom:/sbom/zanshin-jvm.cdx.json --only-fixed --fail-on high -q -o table
+            sbom:/sbom/vectispire-jvm.cdx.json --only-fixed --fail-on high -q -o table
 
       - uses: actions/setup-node@v4
         with:

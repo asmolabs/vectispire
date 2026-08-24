@@ -1,6 +1,15 @@
-# Zanshin — Plateforme de Gestion de la Posture de Sécurité du Code
+# Vectispire — Plateforme de Gestion de la Posture de Sécurité Logicielle (ASPM)
 
-Zanshin est une plateforme moderne de sécurité applicative (ASPM / SecOps) conçue en **Spring Boot 4.1 / JDK 25** pour le backend et en **Angular 21** pour le frontend.
+Vectispire est une plateforme moderne de sécurité applicative (ASPM / SecOps) conçue en **Spring Boot 4.1 / JDK 25** pour le backend et en **Angular 21** pour le frontend.
+
+---
+
+### Pourquoi le nom "Vectispire" ?
+
+Le nom **Vectispire** reflète deux principes fondamentaux de la gouvernance de la chaîne de livraison logicielle :
+
+- **`Vectis`** *(latin pour Levier de verrouillage & Verrou de sécurité)* : La plateforme agit comme le **verrou de sécurité et le garde-fou politique** du cycle de livraison logiciel. Elle applique des Quality Gates infranchissables, signe les attestations in-toto, génère des signatures DSSE Cosign, des SBOMs déterministes, des déclarations VEX opposables (CSAF 2.0, OpenVEX, CycloneDX) et un journal d'audit scellé par cryptographie.
+- **`Spire`** *(la Tour de Guet & Posture globale)* : La plateforme offre un **point de vue panoramique élevé (ASPM)** sur l'ensemble du patrimoine applicatif — cartographie multi-niveaux du graphe de dépendances, calcul du rayon d'impact (*Blast Radius*), matrice des conflits de licences copyleft, et mesure de la vitesse de remédiation (MTTR) sur tous les dépôts et parcs de conteneurs.
 
 ---
 
@@ -33,11 +42,11 @@ Zanshin est une plateforme moderne de sécurité applicative (ASPM / SecOps) con
 # Installation des dépendances
 npm ci
 
-# Lancement de l'API Backend (Port 8000)
-cd zanshin-java && ./gradlew :zanshin-core:bootRun
+# Lancement de l'API Backend (Port 3180)
+cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'
 
-# Lancement du Frontend Angular (Port 4200)
-npm --workspace @zanshin/frontend start
+# Lancement du Frontend Angular (Port 4280)
+npm --workspace @vectispire/frontend start
 ```
 
 ### Pages et Navigation
@@ -63,8 +72,7 @@ npm --workspace @zanshin/frontend start
 
 ## 📚 Documentation
 
-- [Guide de Démarrage](docs/fr/GETTING_STARTED.fr.md) (`docs/GETTING_STARTED.md` en anglais)
-- [Documentation Technique](docs/fr/TECHNICAL_DOCUMENTATION.fr.md) (`docs/TECHNICAL_DOCUMENTATION.md` en anglais)
-- [Audit Sécurité et Qualité](docs/SECURITY_AND_QUALITY_REVIEW.md)
-- [Rotation des Secrets et Purge](docs/fr/ROTATION_AND_PURGE.fr.md)
+- [Guide de Démarrage](docs/fr/GETTING_STARTED.fr.md) (`docs/en/GETTING_STARTED.md` en anglais)
+- [Documentation Technique](docs/fr/TECHNICAL_DOCUMENTATION.fr.md) (`docs/en/TECHNICAL_DOCUMENTATION.md` en anglais)
+- [Rotation des Secrets et Purge](docs/fr/ROTATION_AND_PURGE.fr.md) (`docs/en/ROTATION_AND_PURGE.md` en anglais)
 - [Registre des Décisions d'Architecture (ADR)](docs/architecture/decisions/)

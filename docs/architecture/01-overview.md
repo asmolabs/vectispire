@@ -1,18 +1,18 @@
 # 01 — Overview
 
-## What Zanshin does
+## What Vectispire does
 
-Zanshin watches the security of a set of **targets** — Git repositories and container
+Vectispire watches the security of a set of **targets** — Git repositories and container
 images — by periodically putting them through a battery of analyzers, and tracks what it
 finds **from one scan to the next**.
 
 That last point is what separates it from a script that runs Grype in CI. A scanner
-returns a list; Zanshin returns a **backlog**: what appeared, what was triaged and by
+returns a list; Vectispire returns a **backlog**: what appeared, what was triaged and by
 whom, what has been sitting there for six scans, what has gone away. A report says what
 exists today; a backlog says what changed, which is the only information anyone acts on.
 
 The second use is the **compliance verdict**: `POST /api/v1/gate` tells a build pipeline
-whether a target passes, according to an explicit policy. This is where Zanshin stops
+whether a target passes, according to an explicit policy. This is where Vectispire stops
 being a dashboard and becomes a decision.
 
 Three principles shape everything else.
@@ -37,14 +37,14 @@ runs through the whole codebase
 
 ```mermaid
 flowchart TB
-    subgraph proc["Zanshin control plane (Spring Boot)"]
-        API["HTTP API<br/>zanshin-core/api/"]
-        SVC["Services<br/>zanshin-core/services/"]
-        REPO["Repositories<br/>zanshin-core/repositories/"]
+    subgraph proc["Vectispire control plane (Spring Boot)"]
+        API["HTTP API<br/>vectispire-core/api/"]
+        SVC["Services<br/>vectispire-core/services/"]
+        REPO["Repositories<br/>vectispire-core/repositories/"]
         SCHED["Scheduler<br/>SchedulerService — periodic tick"]
     end
 
-    UI["Angular UI<br/>zanshin-angular/src/app/"]
+    UI["Angular UI<br/>vectispire-angular/src/app/"]
     DB[("Database<br/>PostgreSQL, MySQL, MariaDB or SQLite")]
     DOCKER["Docker daemon<br/>ephemeral analysis containers"]
     AGENT["Remote agent<br/>four-route protocol"]
