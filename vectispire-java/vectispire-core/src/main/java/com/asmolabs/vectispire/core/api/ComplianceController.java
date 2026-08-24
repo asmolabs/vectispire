@@ -51,9 +51,11 @@ public class ComplianceController {
     }
 
     @GetMapping("/summary")
-    public ComplianceService.ComplianceSummary summary(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public ComplianceService.ComplianceSummary summary(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam(name = "targetId", required = false) String targetId) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        return compliance.getSummary(allowed);
+        return compliance.getSummary(targetId, allowed);
     }
 
     @GetMapping("/frameworks/{framework}")
@@ -68,14 +70,15 @@ public class ComplianceController {
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(
             @AuthenticationPrincipal VectispirePrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam(name = "targetId", required = false) String targetId,
             HttpServletRequest request) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        ComplianceService.ComplianceSummary summary = compliance.getSummary(allowed);
+        ComplianceService.ComplianceSummary summary = compliance.getSummary(targetId, allowed);
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.AI_REVIEW_REQUESTED,
                 "compliance",
-                "Regulatory Compliance PDF report exported",
+                "Regulatory Compliance PDF report exported" + (targetId != null ? " for " + targetId : ""),
                 principal.user().map(u -> u.getUsername()).orElse("unknown"),
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));

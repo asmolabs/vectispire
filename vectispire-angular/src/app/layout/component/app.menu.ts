@@ -38,7 +38,6 @@ export class AppMenu {
             { label: this.i18n.t('menu.security'), icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
             { label: this.i18n.t('menu.issues'), icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
             { label: this.i18n.t('menu.history'), icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
-            { label: this.i18n.t('menu.component_search'), icon: 'pi pi-fw pi-search', routerLink: ['/inventory'] },
             { label: this.i18n.t('menu.epss'), icon: 'pi pi-fw pi-bolt', routerLink: ['/epss'] },
             { label: this.i18n.t('menu.blast_radius'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/blast-radius'] },
             { label: this.i18n.t('menu.licenses'), icon: 'pi pi-fw pi-book', routerLink: ['/licenses'] },

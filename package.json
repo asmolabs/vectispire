@@ -19,6 +19,7 @@
         "docker:build:agent": "docker build -f Dockerfile.agent -t vectispire-agent:latest .",
         "docker:up": "docker compose up -d",
         "docker:down": "docker compose down",
+        "c4:generate": "./scripts/generate-c4-diagrams.sh",
         "prepare": "git config core.hooksPath .githooks || true"
     },
     "devDependencies": {}

@@ -127,15 +127,19 @@ public class ScanIngestor {
 
         artifacts.secrets().ifPresent(secrets -> {
             scannedTypes.add(FindingType.SECRET);
+            Set<String> seenSecrets = new java.util.HashSet<>();
             secrets.forEach(secret -> {
-                FindingEntity finding = base(scan, FindingType.SECRET, "gitleaks", secret.rule());
-                // A hardcoded secret is always serious: there is no severity to grade, only a
-                // key to revoke.
-                finding.setSeverity(Severity.HIGH.wireName());
-                finding.setFilePath(secret.file());
-                finding.setLine(secret.line());
-                finding.setDescription(secret.description());
-                findings.add(finding);
+                String locationKey = (secret.file() != null ? secret.file() : "") + ":" + secret.line();
+                if (seenSecrets.add(locationKey)) {
+                    FindingEntity finding = base(scan, FindingType.SECRET, "gitleaks", secret.rule());
+                    // A hardcoded secret is always serious: there is no severity to grade, only a
+                    // key to revoke.
+                    finding.setSeverity(Severity.HIGH.wireName());
+                    finding.setFilePath(secret.file());
+                    finding.setLine(secret.line());
+                    finding.setDescription(secret.description());
+                    findings.add(finding);
+                }
             });
         });
 

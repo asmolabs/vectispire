@@ -26,6 +26,8 @@ export class Compliance {
 
     readonly summary = signal<ComplianceSummary | null>(null);
     readonly selectedFramework = signal<string>('NIS_2');
+    readonly selectedTarget = signal<string | null>(null);
+    readonly targetsList = signal<{ targetId: string; name: string; type: string }[]>([]);
     readonly loading = signal<boolean>(true);
     readonly exporting = signal<boolean>(false);
     readonly exportingBundle = signal<boolean>(false);
@@ -81,9 +83,13 @@ export class Compliance {
     loadSummary(): void {
         this.loading.set(true);
         this.error.set(null);
-        this.api.complianceSummary().subscribe({
+        const tid = this.selectedTarget() ?? undefined;
+        this.api.complianceSummary(tid).subscribe({
             next: (data) => {
                 this.summary.set(data);
+                if (data.targets && data.targets.length > 0 && this.targetsList().length === 0) {
+                    this.targetsList.set(data.targets.map((t) => ({ targetId: t.targetId, name: t.name, type: t.type })));
+                }
                 this.loading.set(false);
             },
             error: () => {
@@ -93,15 +99,21 @@ export class Compliance {
         });
     }
 
+    onTargetChange(targetId: string | null): void {
+        this.selectedTarget.set(targetId || null);
+        this.loadSummary();
+    }
+
     selectFramework(key: string): void {
         this.selectedFramework.set(key);
     }
 
     exportPdf(): void {
         this.exporting.set(true);
-        this.api.exportCompliancePdf().subscribe({
+        const tid = this.selectedTarget() ?? undefined;
+        this.api.exportCompliancePdf(tid).subscribe({
             next: (response) => {
-                saveDocument(response, 'vectispire-compliance-report.pdf');
+                saveDocument(response, tid ? `vectispire-compliance-${tid.replace(':', '-')}.pdf` : 'vectispire-compliance-report.pdf');
                 this.exporting.set(false);
             },
             error: () => {

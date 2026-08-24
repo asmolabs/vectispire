@@ -1059,6 +1059,18 @@ export interface ComplianceEvaluation {
     controls: ComplianceControlAssessment[];
 }
 
+export interface TargetCompliance {
+    targetId: string;
+    name: string;
+    type: 'REPOSITORY' | 'CONTAINER';
+    gateStatus: 'PASSED' | 'FAILED' | 'NEVER_SCANNED' | 'LAST_SCAN_FAILED';
+    openIssuesCount: number;
+    overdueCount: number;
+    overallScore: number;
+    overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+    frameworkScores: Record<string, number>;
+}
+
 export interface ComplianceSummary {
     evaluations: ComplianceEvaluation[];
     mttr: {
@@ -1070,6 +1082,7 @@ export interface ComplianceSummary {
     dueSoonCount: number;
     totalMonitoredTargets: number;
     passingGateTargets: number;
+    targets?: TargetCompliance[];
 }
 
 export interface GraphNode {

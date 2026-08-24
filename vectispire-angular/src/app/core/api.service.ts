@@ -497,16 +497,20 @@ export class ApiService {
         return this.http.get<AuditVerification>('/api/v1/audit-log/verify');
     }
 
-    complianceSummary(): Observable<ComplianceSummary> {
-        return this.http.get<ComplianceSummary>('/api/v1/compliance/summary');
+    complianceSummary(targetId?: string): Observable<ComplianceSummary> {
+        let params = new HttpParams();
+        if (targetId) params = params.set('targetId', targetId);
+        return this.http.get<ComplianceSummary>('/api/v1/compliance/summary', { params });
     }
 
     complianceFramework(framework: string): Observable<ComplianceEvaluation> {
         return this.http.get<ComplianceEvaluation>(`/api/v1/compliance/frameworks/${framework}`);
     }
 
-    exportCompliancePdf(): Observable<HttpResponse<Blob>> {
-        return this.downloadDocument('/api/v1/compliance/export.pdf');
+    exportCompliancePdf(targetId?: string): Observable<HttpResponse<Blob>> {
+        let url = '/api/v1/compliance/export.pdf';
+        if (targetId) url += `?targetId=${encodeURIComponent(targetId)}`;
+        return this.downloadDocument(url);
     }
 
     exportEvidenceBundle(): Observable<HttpResponse<Blob>> {

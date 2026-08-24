@@ -1,0 +1,63 @@
+@startuml
+title <size:24>System Context View: Vectispire Platform</size>\n<size:24>Level 1: System Context Diagram for Vectispire ASPM Platform</size>
+
+set separator none
+top to bottom direction
+skinparam ranksep 20
+skinparam nodesep 5
+hide stereotype
+
+<style>
+  root {
+    BackgroundColor: #ffffff;
+    FontColor: #444444;
+  }
+  // Element,Person
+  .Element-RWxlbWVudCxQZXJzb24= {
+    BackgroundColor: #08427b;
+    LineColor: #052e56;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #ffffff;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+    MaximumWidth: 450;
+  }
+  // Element,Software System
+  .Element-RWxlbWVudCxTb2Z0d2FyZSBTeXN0ZW0= {
+    BackgroundColor: #1168bd;
+    LineColor: #0b4884;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #ffffff;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+    MaximumWidth: 450;
+  }
+  // Relationship
+  .Relationship-UmVsYXRpb25zaGlw {
+    LineThickness: 2;
+    LineStyle: 10-10;
+    LineColor: #444444;
+    FontColor: #444444;
+    FontSize: 24;
+    MaximumWidth: 200;
+  }
+</style>
+
+person "==Security Analyst / Admin\n<size:16>[Person]</size>\n\nMonitors posture, triages vulnerabilities, configures compliance policies and team access." <<Element-RWxlbWVudCxQZXJzb24=>> as SecurityAnalystAdmin
+rectangle "==External Threat Feeds\n<size:16>[Software System]</size>\n\nPublic threat intelligence sources (CISA KEV, EPSS, endoflife.date)." <<Element-RWxlbWVudCxTb2Z0d2FyZSBTeXN0ZW0=>> as ExternalThreatFeeds
+rectangle "==Notification Systems\n<size:16>[Software System]</size>\n\nMicrosoft Teams, Email gateways, and signed HTTP webhooks." <<Element-RWxlbWVudCxTb2Z0d2FyZSBTeXN0ZW0=>> as NotificationSystems
+person "==Software Developer\n<size:16>[Person]</size>\n\nViews repository findings, inspects SCA/Secrets/SAST issues, and remediates vulnerabilities." <<Element-RWxlbWVudCxQZXJzb24=>> as SoftwareDeveloper
+person "==CI/CD Pipeline (Jenkins / GitHub Actions / GitLab CI)\n<size:16>[Person]</size>\n\nQueries the Quality Gate API (POST /api/v1/gate) to enforce security compliance before deployment." <<Element-RWxlbWVudCxQZXJzb24=>> as CICDPipelineJenkinsGitHubActionsGitLabCI
+rectangle "==Vectispire Platform\n<size:16>[Software System]</size>\n\nApplication Security Posture Management (ASPM) & Compliance Control Plane." <<Element-RWxlbWVudCxTb2Z0d2FyZSBTeXN0ZW0=>> as VectispirePlatform
+
+SecurityAnalystAdmin --> VectispirePlatform <<Relationship-UmVsYXRpb25zaGlw>> : "Uses for triage, compliance inspection, and system administration\n<size:16>[HTTPS]</size>"
+SoftwareDeveloper --> VectispirePlatform <<Relationship-UmVsYXRpb25zaGlw>> : "Views findings and remediates security issues\n<size:16>[HTTPS]</size>"
+CICDPipelineJenkinsGitHubActionsGitLabCI --> VectispirePlatform <<Relationship-UmVsYXRpb25zaGlw>> : "Evaluates Quality Gate verdicts (POST /api/v1/gate)\n<size:16>[HTTP/HTTPS (API Key)]</size>"
+VectispirePlatform --> ExternalThreatFeeds <<Relationship-UmVsYXRpb25zaGlw>> : "Enriches vulnerabilities with KEV status, EPSS scores, and EOL metadata\n<size:16>[HTTPS]</size>"
+VectispirePlatform --> NotificationSystems <<Relationship-UmVsYXRpb25zaGlw>> : "Dispatches real-time alerts & outbox messages\n<size:16>[HTTP Webhooks / SMTP]</size>"
+
+@enduml

@@ -56,7 +56,7 @@ flowchart TB
     end
 
     subgraph scanning["scanning/ — runs containers, no database"]
-        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
+        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · betterleaks · checkov · semgrep"]
     end
 
     Pages -->|"/api over HTTP"| Routes

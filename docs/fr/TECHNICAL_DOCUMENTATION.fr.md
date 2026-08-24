@@ -53,7 +53,7 @@ flowchart TB
     end
 
     subgraph scanning["scanning/ — Exécution Conteneurs (Docker)"]
-        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
+        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · betterleaks · checkov · semgrep"]
     end
 
     Pages -->|"/api sur HTTP"| Routes
@@ -94,7 +94,7 @@ Le schéma est géré par **Flyway** (`src/main/resources/db/migration/{vendor}/
 Chaque scanner s'exécute dans un conteneur éphémère Docker sous isolation stricte :
 1. **Syft** : Génération du SBOM (Software Bill of Materials).
 2. **Grype** : Analyse des dépendances et CVEs associées.
-3. **Gitleaks** : Détection des secrets et identifiants exposés.
+3. **Gitleaks & Betterleaks** : Détection multi-moteurs des secrets et identifiants exposés.
 4. **Checkov / Semgrep** : Analyse statique (SAST) et Infrastructure-as-Code (IaC).
 
 **Sécurité Conteneurs** :

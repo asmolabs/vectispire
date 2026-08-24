@@ -17,7 +17,7 @@ Le nom **Vectispire** reflète deux principes fondamentaux de la gouvernance de 
 
 - **Analyse Multi-Scanners Unifiée** :
   - **SBOM & Dépendances** : Syft et Grype.
-  - **Détection de Secrets** : Gitleaks.
+  - **Détection de Secrets** : Gitleaks et Betterleaks (analyse multi-moteurs avec déduplication).
   - **Sécurité de l'Infrastructure (IaC)** : Checkov.
   - **Analyse Statique (SAST)** : Semgrep OSS.
   - **Revue de Code IA (Optionnelle)** : Intégration locale Ollama (Llama, etc.).
@@ -75,4 +75,4 @@ npm --workspace @vectispire/frontend start
 - [Guide de Démarrage](docs/fr/GETTING_STARTED.fr.md) (`docs/en/GETTING_STARTED.md` en anglais)
 - [Documentation Technique](docs/fr/TECHNICAL_DOCUMENTATION.fr.md) (`docs/en/TECHNICAL_DOCUMENTATION.md` en anglais)
 - [Rotation des Secrets et Purge](docs/fr/ROTATION_AND_PURGE.fr.md) (`docs/en/ROTATION_AND_PURGE.md` en anglais)
-- [Registre des Décisions d'Architecture (ADR)](docs/architecture/decisions/)
+- [Registre des Décisions d'Architecture (ADR)](docs/architecture/fr/decisions/README.md)

@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,6 +31,7 @@ public final class ScanRunner {
     private final ContainerRunner containers;
     private final DependencyScanner dependencies;
     private final SecretsScanner secrets;
+    private final com.asmolabs.vectispire.common.scanning.scanners.BetterleaksScanner betterleaks;
     private final IacScanner iac;
     private final SastScanner sast;
     private final RulePlacement rules;
@@ -66,6 +68,7 @@ public final class ScanRunner {
         this.containers = containers;
         this.dependencies = new DependencyScanner(containers, images);
         this.secrets = new SecretsScanner(containers, images.gitleaks());
+        this.betterleaks = new com.asmolabs.vectispire.common.scanning.scanners.BetterleaksScanner(containers, images.betterleaks());
         this.iac = new IacScanner(containers, images.checkov());
         this.sast = new SastScanner(containers, images.semgrep());
         this.rules = new RulePlacement(bundledRules);
@@ -121,7 +124,14 @@ public final class ScanRunner {
             rules.placeBundled(workspace);
 
             if (task.runs(ScanTask.Step.SECRETS)) {
-                step(artifacts, "secrets", () -> artifacts.secrets(secrets.scan(workspace, subPath)));
+                step(artifacts, "secrets", () -> {
+                    List<SecretsScanner.SecretFinding> allSecrets = new java.util.ArrayList<>(secrets.scan(workspace, subPath));
+                    try {
+                        allSecrets.addAll(betterleaks.scan(workspace, subPath));
+                    } catch (Exception ignored) {
+                    }
+                    artifacts.secrets(allSecrets);
+                });
             }
             if (task.runs(ScanTask.Step.IAC)) {
                 step(artifacts, "IaC", () -> artifacts.iac(ran(

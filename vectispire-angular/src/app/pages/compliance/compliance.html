@@ -79,6 +79,31 @@
         </div>
     </div>
 
+    <!-- Scope Selector Bar -->
+    <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-building text-primary-500 text-xl"></i>
+            <div>
+                <span class="font-bold text-surface-900 dark:text-surface-0 text-sm">Périmètre d'évaluation</span>
+                <p class="text-xs text-surface-500 my-0">Sélectionnez la vue globale ou un dépôt/conteneur spécifique</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <select
+                [ngModel]="selectedTarget()"
+                (ngModelChange)="onTargetChange($event)"
+                class="px-4 py-2 text-sm rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0 font-medium focus:ring-2 focus:ring-primary-500"
+            >
+                <option [value]="null">🌐 Vue Globale — Toute l'organisation</option>
+                @for (t of targetsList(); track t.targetId) {
+                    <option [value]="t.targetId">
+                        {{ t.type === 'REPOSITORY' ? '📁' : '📦' }} {{ t.name }}
+                    </option>
+                }
+            </select>
+        </div>
+    </div>
+
     <!-- Error Alert -->
     @if (error()) {
         <p-message severity="error" [text]="error()!"></p-message>
@@ -141,6 +166,90 @@
                 </div>
             </div>
         </div>
+
+        <!-- Per-Target Compliance Matrix Table (Global view) -->
+        @if (!selectedTarget() && summary()?.targets && summary()!.targets!.length > 0) {
+            <div class="p-card rounded-xl border border-surface-200 dark:border-surface-700 p-6 bg-surface-0 dark:bg-surface-900 mt-2">
+                <div class="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-surface-800">
+                    <div>
+                        <h2 class="text-xl font-bold text-surface-900 dark:text-surface-0">
+                            Matrice de Conformité par Dépôt / Conteneur
+                        </h2>
+                        <p class="text-sm text-surface-500 mt-1">
+                            Aperçu consolidé des scores de conformité et des portes de sécurité pour chaque cible suivie.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto mt-4">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-surface-200 dark:border-surface-700 text-xs text-surface-500 uppercase bg-surface-50 dark:bg-surface-800/50">
+                                <th class="p-3 font-semibold">Cible</th>
+                                <th class="p-3 font-semibold">Porte de Sécurité</th>
+                                <th class="p-3 font-semibold">Issues Ouvertes</th>
+                                <th class="p-3 font-semibold">SLA Dépassements</th>
+                                <th class="p-3 font-semibold text-center">NIS 2</th>
+                                <th class="p-3 font-semibold text-center">DORA</th>
+                                <th class="p-3 font-semibold text-center">ISO 27001</th>
+                                <th class="p-3 font-semibold text-center">Score Global</th>
+                                <th class="p-3 font-semibold text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-surface-200 dark:divide-surface-800">
+                            @for (target of summary()!.targets!; track target.targetId) {
+                                <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
+                                    <td class="p-3 font-medium text-surface-900 dark:text-surface-0">
+                                        <div class="flex items-center gap-2">
+                                            <i [class]="target.type === 'REPOSITORY' ? 'pi pi-folder text-blue-500' : 'pi pi-box text-purple-500'"></i>
+                                            <span>{{ target.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-3">
+                                        <p-tag
+                                            [value]="target.gateStatus"
+                                            [severity]="target.gateStatus === 'PASSED' ? 'success' : (target.gateStatus === 'NEVER_SCANNED' ? 'warn' : 'danger')"
+                                        ></p-tag>
+                                    </td>
+                                    <td class="p-3 font-semibold text-surface-900 dark:text-surface-0">
+                                        {{ target.openIssuesCount }}
+                                    </td>
+                                    <td class="p-3">
+                                        <span [ngClass]="target.overdueCount > 0 ? 'text-red-500 font-bold' : 'text-surface-500'">
+                                            {{ target.overdueCount }}
+                                        </span>
+                                    </td>
+                                    <td class="p-3 text-center font-mono text-xs">
+                                        {{ target.frameworkScores['NIS_2'] ?? '-' }}%
+                                    </td>
+                                    <td class="p-3 text-center font-mono text-xs">
+                                        {{ target.frameworkScores['DORA'] ?? '-' }}%
+                                    </td>
+                                    <td class="p-3 text-center font-mono text-xs">
+                                        {{ target.frameworkScores['ISO_27001'] ?? '-' }}%
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <span class="font-bold text-surface-900 dark:text-surface-0">{{ target.overallScore }}%</span>
+                                            <p-tag [value]="target.overallStatus" [severity]="statusSeverity(target.overallStatus)"></p-tag>
+                                        </div>
+                                    </td>
+                                    <td class="p-3 text-right">
+                                        <button
+                                            pButton
+                                            icon="pi pi-filter"
+                                            class="p-button-sm p-button-outlined"
+                                            label="Inspecter"
+                                            (click)="onTargetChange(target.targetId)"
+                                        ></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
 
         <!-- Framework Cards Selector -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-2">

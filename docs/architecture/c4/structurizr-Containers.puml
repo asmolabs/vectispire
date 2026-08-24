@@ -1,0 +1,45 @@
+@startuml
+title <size:24>Container View: Vectispire Platform</size>\n<size:24>Level 2: Container Diagram showing frontend, backend, database, Docker daemon, and agents</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Container>
+
+Person(SecurityAnalystAdmin, "Security Analyst / Admin", $descr="Monitors posture, triages vulnerabilities, configures compliance policies and team access.", $tags="", $link="")
+Person(SoftwareDeveloper, "Software Developer", $descr="Views repository findings, inspects SCA/Secrets/SAST issues, and remediates vulnerabilities.", $tags="", $link="")
+Person(CICDPipelineJenkinsGitHubActionsGitLabCI, "CI/CD Pipeline (Jenkins / GitHub Actions / GitLab CI)", $descr="Queries the Quality Gate API (POST /api/v1/gate) to enforce security compliance before deployment.", $tags="", $link="")
+System(ExternalThreatFeeds, "External Threat Feeds", $descr="Public threat intelligence sources (CISA KEV, EPSS, endoflife.date).", $tags="", $link="")
+System(NotificationSystems, "Notification Systems", $descr="Microsoft Teams, Email gateways, and signed HTTP webhooks.", $tags="", $link="")
+
+System_Boundary("VectispirePlatform_boundary", "Vectispire Platform", $tags="") {
+  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
+  Container(VectispirePlatform.DockerDaemonScanners, "Docker Daemon & Scanners", $techn="Docker Engine / ContainerRunner", $descr="Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis.", $tags="", $link="")
+  Container(VectispirePlatform.VectispireRemoteAgent, "Vectispire Remote Agent", $techn="Spring Boot / Java 25", $descr="Executes scans on remote worker nodes using HTTP long-polling.", $tags="", $link="")
+  Container(VectispirePlatform.AngularFrontendUI, "Angular Frontend UI", $techn="Angular 21 / Optimus UI / TypeScript", $descr="Provides security overview, repository posture, compliance matrices, issue triage, and administration interface.", $tags="", $link="")
+  Container(VectispirePlatform.SpringBootControlPlane, "Spring Boot Control Plane", $techn="Spring Boot 4.1 / JDK 25", $descr="Manages scan scheduling, issue lifecycle, VEX triage, policy gate evaluations, and audit logging.", $tags="", $link="")
+}
+
+Rel(SecurityAnalystAdmin, VectispirePlatform.AngularFrontendUI, "Uses for triage, compliance inspection, and system administration", $techn="HTTPS", $tags="", $link="")
+Rel(SoftwareDeveloper, VectispirePlatform.AngularFrontendUI, "Views findings and remediates security issues", $techn="HTTPS", $tags="", $link="")
+Rel(CICDPipelineJenkinsGitHubActionsGitLabCI, VectispirePlatform.SpringBootControlPlane, "Evaluates Quality Gate verdicts (POST /api/v1/gate)", $techn="HTTP/HTTPS (API Key)", $tags="", $link="")
+Rel(VectispirePlatform.AngularFrontendUI, VectispirePlatform.SpringBootControlPlane, "Sends API requests & fetches posture state", $techn="JSON / REST API over HTTP", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane, VectispirePlatform.DatabaseEngine, "Reads & writes domain entities, scans, issues, and audit logs", $techn="JDBC / JPA Hibernate", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane, VectispirePlatform.DockerDaemonScanners, "Launches ephemeral scanner containers (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)", $techn="Docker Socket / ContainerRunner", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane, ExternalThreatFeeds, "Enriches vulnerabilities with KEV status, EPSS scores, and EOL metadata", $techn="HTTPS", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane, NotificationSystems, "Dispatches real-time alerts & outbox messages", $techn="HTTP Webhooks / SMTP", $tags="", $link="")
+Rel(VectispirePlatform.VectispireRemoteAgent, VectispirePlatform.SpringBootControlPlane, "Fetches scan tasks via HTTP Long-Polling (GET /api/v1/agents/jobs)", $techn="HTTP/REST API (Agent Key)", $tags="", $link="")
+Rel(VectispirePlatform.VectispireRemoteAgent, VectispirePlatform.DockerDaemonScanners, "Executes analysis containers on remote worker machine", $techn="Docker Socket", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml
