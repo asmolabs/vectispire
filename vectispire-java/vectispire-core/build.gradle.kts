@@ -1,5 +1,5 @@
 plugins {
-    id("zanshin.java-conventions")
+    id("vectispire.java-conventions")
     alias(libs.plugins.springBoot)
 }
 
