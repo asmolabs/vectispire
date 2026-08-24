@@ -38,12 +38,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SecurityConfiguration implements WebMvcConfigurer {
 
     private final BearerAuthenticationFilter bearer;
+    private final LoginRateLimitFilter rateLimit;
     private final PasswordChangeInterceptor passwordChange;
     private final AuditLogService audit;
 
     public SecurityConfiguration(
-            BearerAuthenticationFilter bearer, PasswordChangeInterceptor passwordChange, AuditLogService audit) {
+            BearerAuthenticationFilter bearer,
+            LoginRateLimitFilter rateLimit,
+            PasswordChangeInterceptor passwordChange,
+            AuditLogService audit) {
         this.bearer = bearer;
+        this.rateLimit = rateLimit;
         this.passwordChange = passwordChange;
         this.audit = audit;
     }
@@ -130,6 +135,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 // it would only break the agent protocol, which has no page to read a token from.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(rateLimit, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(handling -> handling
                         // 401 with no body and no `WWW-Authenticate` challenge: a browser

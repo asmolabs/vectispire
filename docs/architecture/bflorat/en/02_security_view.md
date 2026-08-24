@@ -17,15 +17,18 @@
 
 ## 2. Authentication, Session Security & RBAC
 
-### 2.1 Password Hashing & API Keys
+### 2.1 Password Hashing & Anti-Brute-Force Protection
 - **User Passwords**: Hashed using **Argon2id** algorithm (high memory cost, resistant to GPU cracking).
-- **Brute-Force Protection**: Tracking failed login attempts in `t_login_attempt` with automatic lockout.
+- **In-Memory Dynamic Token-Bucket Rate-Limiting (`Bucket4j`)**: `LoginRateLimitFilter` HTTP filter intercepting `POST /api/v1/auth/login` (Bucket4j: 10 tokens per minute per IP). Blocks burst attacks instantly with HTTP `429 Too Many Requests` and `Retry-After` headers **without performing any database query or Argon2id key derivation**.
+- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts per username and client ID in database via `LoginThrottle`.
 - **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with configurable permission scopes and expiration dates.
 
-### 2.2 Role-Based Access Control (RBAC)
-Strict endpoint authorization via Spring Security `@PreAuthorize`:
-- `ROLE_ADMIN`: User management, SSH key administration, Quality Gate policies, system configuration.
-- `ROLE_USER` / `ROLE_ANALYST`: Posture dashboard inspection, vulnerability VEX qualification.
+### 2.2 Role-Based Access Control (RBAC) & Double Validation
+Strict endpoint authorization via Spring Security:
+- `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO`: System configuration, user management, SSH keys, and toggling **Double Validation (Four-Eyes Approval)** (`triage_four_eyes_required`).
+- **Optional Double Validation**: Dynamically configurable via UI by Admins or CISOs (`PUT /api/v1/settings`). When enabled, any VEX triage decision (`NOT_AFFECTED` or `FIXED`) submitted by a non-CISO/Admin user enters `PENDING_APPROVAL` status. When disabled, authorized users can directly triage issues.
+- **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256 sealed audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
+- `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage.
 - `ROLE_CI`: Dedicated Gate evaluation execution (`POST /api/v1/gate`).
 
 ---

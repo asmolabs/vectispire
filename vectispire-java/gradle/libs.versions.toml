@@ -21,6 +21,7 @@ apacheHttpClient5 = "5.6.3"
 apacheHttpCore5 = "5.4.3"
 jgit = "7.7.1.202607240634-r"
 pdfbox = "3.0.6"
+bucket4j = "8.10.1"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -52,6 +53,7 @@ hibernate-community-dialects = { module = "org.hibernate.orm:hibernate-community
 # correct for a document of four sections.
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 jgit-ssh = { module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache", version.ref = "jgit" }
+bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 
 [plugins]
 springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }

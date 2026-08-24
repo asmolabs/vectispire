@@ -11,6 +11,8 @@
         "format": "prettier --write \"src/**/*.{ts,html,scss,css}\" --cache",
         "lint": "ng lint",
         "test": "node scripts/check-assets.mjs && ng test",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui",
         "generate:api": "openapi-typescript openapi.json -o src/app/core/api.generated.ts"
     },
     "dependencies": {
@@ -34,6 +36,7 @@
         "@angular/build": "^21",
         "@angular/cli": "^21",
         "@angular/compiler-cli": "^21",
+        "@playwright/test": "^1.50.0",
         "autoprefixer": "^10.4.20",
         "jsdom": "^26.1.0",
         "openapi-typescript": "^7.13.0",

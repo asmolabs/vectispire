@@ -17,15 +17,18 @@
 
 ## 2. Authentification, Sécurité des Sessions & RBAC
 
-### 2.1 Hachage des Mots de Passe & Clés API
+### 2.1 Hachage des Mots de Passe & Protection Anti-Brute-Force
 - **Mots de passe utilisateurs** : Hachés avec l'algorithme fort **Argon2id** (protection contre les attaques GPU).
-- **Protection contre le Brute-Force** : Suivi et blocage automatique des tentatives infructueuses via `t_login_attempt`.
+- **Rate-Limiting Dynamique en Mémoire (`Bucket4j`)** : Filtre HTTP `LoginRateLimitFilter` sur `POST /api/v1/auth/login` évaluant le quota d'IP (Bucket4j: 10 jetons par minute). Bloque les attaques par déni de service et bursts d'essais bruts avec HTTP `429 Too Many Requests` et en-tête `Retry-After` **sans effectuer de requête SQL ni de dérivation de hash Argon2id**.
+- **Protection Brute-Force Persistante (`t_login_attempt`)** : Suivi des échecs de connexion par compte utilisateur et par identifiant client dans la base de données via `LoginThrottle`.
 - **Clés API d'intégration CI/CD** : Stockées uniquement sous forme de hash Argon2id (préfixées `vectispire_`) avec périmètres de droits (scopes) et date d'expiration.
 
-### 2.2 Contrôle d'Accès basé sur les Rôles (RBAC)
-L'application applique un contrôle strict sur tous les endpoints REST via Spring Security `@PreAuthorize` :
-- `ROLE_ADMIN` : Gestion des utilisateurs, clés SSH, politiques de Gate et configuration système.
-- `ROLE_USER` / `ROLE_ANALYST` : Consultation du posture dashboard, qualification VEX des vulnérabilités.
+### 2.2 Contrôle d'Accès basé sur les Rôles (RBAC) & Double Validation
+L'application applique un contrôle strict sur tous les endpoints REST via Spring Security :
+- `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO` : Gestion de la configuration système, des utilisateurs, des clés SSH et basculement de la **Double Validation (Four-Eyes Approval)** (`triage_four_eyes_required`).
+- **Double Validation Optionnelle** : Configurable dynamiquement via l'UI par un Admin ou CISO (`PUT /api/v1/settings`). Lorsqu'elle est activée, toute décision VEX de type `NOT_AFFECTED` ou `FIXED` émise par un utilisateur non-CISO/Admin passe en état `PENDING_APPROVAL`. Lorsqu'elle est désactivée, tout utilisateur autorisé peut triager directement.
+- **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement consigné dans le journal d'audit scellé SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur (`SETTING_UPDATED`).
+- `ROLE_USER` / `ROLE_SECURITY_CHAMPION` : Consultation du posture dashboard et qualification des vulnérabilités.
 - `ROLE_CI` : Exécution exclusive des requêtes de Gate (`POST /api/v1/gate`).
 
 ---

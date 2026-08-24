@@ -125,7 +125,7 @@ public class SettingsController {
         return new Catalog(views);
     }
 
-    @RequiresAdministrator
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')")
     @PutMapping
     public Map<String, Integer> update(
             @RequestBody Map<String, String> body,
@@ -155,11 +155,14 @@ public class SettingsController {
         audit.record(new AuditLogService.Record(
                 AuditOperation.SETTING_UPDATED,
                 changes.stream().map(change -> change.setting().key()).reduce((a, b) -> a + "," + b).orElse(""),
-                // The values are logged: no catalog setting is a secret, and knowing *what*
-                // somebody changed is the whole point of the entry.
                 changes.stream()
-                        .map(change -> change.setting().key() + " = "
-                                + (change.value().isEmpty() ? "(empty)" : change.value()))
+                        .map(change -> {
+                            if (change.setting() == Setting.FOUR_EYES_APPROVAL_REQUIRED) {
+                                return "Double validation (Four-Eyes Approval) for VEX triage set to " 
+                                        + ("true".equalsIgnoreCase(change.value()) ? "ENABLED" : "DISABLED");
+                            }
+                            return change.setting().key() + " = " + (change.value().isEmpty() ? "(empty)" : change.value());
+                        })
                         .reduce((a, b) -> a + "; " + b)
                         .orElse(""),
                 principal.user().map(user -> user.getUsername()).orElse(null),

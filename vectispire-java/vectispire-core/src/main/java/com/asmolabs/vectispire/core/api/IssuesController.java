@@ -21,6 +21,8 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.services.SettingsService;
 import com.asmolabs.vectispire.core.services.TriageHistory;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.SlaService;
@@ -79,6 +81,7 @@ public class IssuesController {
     private final AuditLogService audit;
     private final VisibilityService visibility;
     private final SlaService sla;
+    private final SettingsService settings;
 
     public IssuesController(
             Issues issues,
@@ -88,7 +91,8 @@ public class IssuesController {
             IssueTriageService triage,
             AuditLogService audit,
             VisibilityService visibility,
-            SlaService sla) {
+            SlaService sla,
+            SettingsService settings) {
         this.issues = issues;
         this.findings = findings;
         this.events = events;
@@ -97,6 +101,7 @@ public class IssuesController {
         this.audit = audit;
         this.visibility = visibility;
         this.sla = sla;
+        this.settings = settings;
     }
 
     public record Page(List<BacklogEntry> items, long total, int limit, int offset) {}
@@ -297,7 +302,8 @@ public class IssuesController {
             HttpServletRequest request) {
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
-        boolean canApprove = principal.user()
+        boolean fourEyesRequired = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
+        boolean canApprove = !fourEyesRequired || principal.user()
                 .flatMap(user -> Role.of(user.getRole()))
                 .map(Role::canApproveTriage)
                 .orElse(true);
@@ -359,7 +365,8 @@ public class IssuesController {
         }
 
         String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
-        boolean canApprove = principal.user()
+        boolean fourEyesRequired = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
+        boolean canApprove = !fourEyesRequired || principal.user()
                 .flatMap(user -> Role.of(user.getRole()))
                 .map(Role::canApproveTriage)
                 .orElse(true);

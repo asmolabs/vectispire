@@ -274,12 +274,18 @@ public enum Setting {
             "As above. Negligible and unknown severities carry no window at all and are not settable: neither "
                     + "describes work anybody schedules, and a deadline on either would fill the report with "
                     + "lateness that means nothing.",
-            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.LOW).orElseThrow().toDays()));
+            String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.LOW).orElseThrow().toDays())),
+
+    FOUR_EYES_APPROVAL_REQUIRED("triage_four_eyes_required", SettingType.BOOLEAN, Section.TRIAGE,
+            "Require double validation (Four-Eyes approval) for VEX triage",
+            "When enabled, marking an issue as NOT_AFFECTED or FIXED by a user without CISO/Admin approval privileges creates a PENDING_APPROVAL request. When disabled, any authorized user can directly settle triage decisions.",
+            "true");
 
     /** The group the screen files a setting under. */
     public enum Section {
 
         ACCESS("Access"),
+        TRIAGE("VEX Triage & Approval"),
         ENRICHMENT("Enrichment"),
         END_OF_LIFE("End of life"),
         SOURCE_CODE("Source code analysis"),
