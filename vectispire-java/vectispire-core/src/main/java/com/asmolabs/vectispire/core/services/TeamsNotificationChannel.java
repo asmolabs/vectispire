@@ -41,7 +41,7 @@ public class TeamsNotificationChannel implements NotificationChannel {
 
     @Override
     public boolean isConfigured() {
-        return !url().isBlank();
+        return settings.isEnabled(Setting.TEAMS_ENABLED) && !url().isBlank();
     }
 
     @Override

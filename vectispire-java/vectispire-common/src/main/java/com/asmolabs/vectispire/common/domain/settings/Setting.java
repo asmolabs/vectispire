@@ -80,6 +80,11 @@ public enum Setting {
                     + "explicitly allowed.",
             "", Sensitivity.SECRET),
 
+    TEAMS_ENABLED("notification_teams_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Enable Microsoft Teams notifications",
+            "Master toggle to enable or disable Microsoft Teams webhook notifications across the application.",
+            "true"),
+
     TEAMS_WEBHOOK_URL("notification_teams_url", SettingType.TEXT, Section.NOTIFICATIONS,
             "Microsoft Teams webhook URL",
             "The URL of a Teams **workflow** — \"when a Teams webhook request is received\" in Power Automate. "

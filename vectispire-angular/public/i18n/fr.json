@@ -417,6 +417,10 @@
         "label": "URL de Webhook générique",
         "help": "Envoi de notifications JSON POST vers Slack, Mattermost, Discord ou un webhook sur mesure."
       },
+      "notification_teams_enabled": {
+        "label": "Activer les notifications Microsoft Teams",
+        "help": "Interrupteur général pour activer ou désactiver l'envoi de cartes adaptatives vers Microsoft Teams."
+      },
       "notification_teams_url": {
         "label": "URL de Webhook Microsoft Teams",
         "help": "URL du workflow Power Automate Teams pour diffuser des fiches adaptatives enrichies."
