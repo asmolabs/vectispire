@@ -164,4 +164,52 @@ class ApiInventoryRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.openapi").value("3.0.3"))
                 .andExpect(jsonPath("$.paths['/api/v1/payments'].post").exists());
     }
+
+    @Test
+    @DisplayName("clears attack surface globally and per repository")
+    void clearsAttackSurface() throws Exception {
+        String token = asAdmin();
+
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/auth-service");
+        repo.setUrl("https://github.com/corp/auth-service.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+
+        ApiEndpointEntity ep = new ApiEndpointEntity();
+        ep.setScanId(999L);
+        ep.setRepositoryId(repo.getId());
+        ep.setHttpMethod("GET");
+        ep.setPath("/api/v1/ping");
+        ep.setAuthRequired(false);
+        ep.setVisibility("PUBLIC");
+        ep.setFramework("SPRING");
+        ep.setCreatedAt(Instant.now());
+        apiEndpointsRepo.save(ep);
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/repositories/" + repo.getId() + "/apis"), token))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(authenticated(get("/api/v1/repositories/" + repo.getId() + "/apis"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endpoints").isEmpty());
+
+        ApiEndpointEntity ep2 = new ApiEndpointEntity();
+        ep2.setScanId(1000L);
+        ep2.setRepositoryId(repo.getId());
+        ep2.setHttpMethod("GET");
+        ep2.setPath("/api/v1/health");
+        ep2.setAuthRequired(false);
+        ep2.setVisibility("PUBLIC");
+        ep2.setFramework("SPRING");
+        ep2.setCreatedAt(Instant.now());
+        apiEndpointsRepo.save(ep2);
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/attack-surface"), token))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(authenticated(get("/api/v1/attack-surface"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEndpoints").value(0));
+    }
 }

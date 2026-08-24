@@ -39,6 +39,10 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
              order by c.version desc""")
     List<String> versionsOf(@Param("name") String name, Limit limit);
 
+    List<ComponentEntity> findByScanId(long scanId);
+
+    List<ComponentEntity> findByScanIdIn(Collection<Long> scanIds);
+
     void deleteByScanId(long scanId);
 
     void deleteByScanIdIn(Collection<Long> scanIds);

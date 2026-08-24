@@ -56,6 +56,7 @@
     "security": "Sécurité",
     "issues": "Vulnérabilités",
     "history": "Historique",
+    "inventory": "Inventaire & SBOM Diff",
     "component_search": "Recherche de composants",
     "licenses": "Licences Open Source",
     "attack_surface": "Surface d'attaque & APIs",
@@ -656,7 +657,13 @@
     "raw_output": "Sortie brute des scanners",
     "artifacts": "Artefacts d'analyse",
     "components": "Composants",
-    "duration": "Durée"
+    "duration": "Durée",
+    "never_scanned": "Jamais analysé",
+    "status_queued": "En attente",
+    "status_running": "En cours d'analyse",
+    "status_completed": "Terminé",
+    "status_failed": "Échoué",
+    "status_cancelled": "Annulé"
   },
   "schedule": {
     "rescan_interval": "Réanalyser toutes les",

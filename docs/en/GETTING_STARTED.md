@@ -189,3 +189,15 @@ rewrite before you read it.
 - **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
 - **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.
 
+## 10. REST API Documentation & Swagger UI
+
+- **Official REST Reference**: Consult the [REST API Reference Documentation](api/rest_api_reference.md) for full descriptions of authentication schemes (`Bearer JWT`, `X-API-Key`, `X-Agent-Key`), endpoints, and `curl` examples.
+- **Swagger UI (Development & Staging)**:
+  Swagger UI is disabled by default in production. You can activate it in local development environments:
+  ```bash
+  export VECTISPIRE_SWAGGER_UI_ENABLED=true
+  export VECTISPIRE_API_DOCS_ENABLED=true
+  ```
+  Access the interactive console at `http://localhost:3180/swagger-ui.html`.
+
+

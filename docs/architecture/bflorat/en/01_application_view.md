@@ -16,7 +16,9 @@ Vectispire is an **Application Security Posture Management (ASPM)** and complian
 3. **IaC & SAST Analysis**: Infrastructure configuration scanning (Checkov) and source code analysis (Semgrep).
 4. **Code Quality & AI Review**: Technical debt evaluation and local AI-assisted code review integration (Ollama).
 5. **Quality Gate & CI/CD Attestation**: Deterministic decision engine (`POST /api/v1/gate`) evaluating build compliance.
-6. **Regulatory Compliance**: Global and repository-level compliance matrices for NIS 2, DORA, ISO 27001, and PCI-DSS.
+6. **Regulatory Compliance & Audit Packages**: Global and target-level compliance matrices for NIS 2, DORA, ISO 27001, PCI-DSS v4.0, Cyber Resilience Act (EU CRA), and SOC 2 Type II.
+7. **SBOM Drift & Diff Viewer**: Differential comparison between scan releases tracking added/removed components, license shifts, and net CVE changes.
+8. **Security Debt & High-Impact Remediation**: Engineering effort quantification (in person-days) and maximum-ROI package upgrade discovery.
 
 ---
 

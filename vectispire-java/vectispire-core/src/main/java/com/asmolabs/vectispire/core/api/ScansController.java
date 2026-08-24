@@ -10,6 +10,10 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.asmolabs.vectispire.core.services.VisibilityService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -26,13 +30,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The scan history, and each scan's detail.
+ * Scan history, and the detail of an individual scan.
  *
  * <p><b>The detail shows the scan's findings, not the target's backlog.</b> The two differ: the
  * backlog carries history — an issue seen three scans ago and still open belongs to it — while
  * a scan reports only what it observed that day. Conflating them would suggest a scan "found"
  * an issue it merely saw again.
  */
+@Tag(name = "Scans", description = "Security scan lifecycle, pipeline execution and status reporting")
 @RestController
 @RequestMapping("/api/v1/scans")
 @RequiresAccount
@@ -102,12 +107,14 @@ public class ScansController {
             long findingsTotal,
             boolean findingsTruncated) {}
 
+    @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
+    @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
     @GetMapping
     public List<Summary> list(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @RequestParam(name = "repo_id", required = false) Long repoId,
-            @RequestParam(name = "container_id", required = false) Long containerId,
-            @RequestParam(required = false, defaultValue = "50") int limit) {
+            @Parameter(description = "Filter by repository ID") @RequestParam(name = "repo_id", required = false) Long repoId,
+            @Parameter(description = "Filter by container ID") @RequestParam(name = "container_id", required = false) Long containerId,
+            @Parameter(description = "Maximum results to return") @RequestParam(required = false, defaultValue = "50") int limit) {
 
         TargetNaming.Names names = naming.all();
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
@@ -121,8 +128,12 @@ public class ScansController {
                 .toList();
     }
 
+    @Operation(summary = "Get scan detail", description = "Returns full details and raw findings observed during a specific scan.")
+    @ApiResponse(responseCode = "200", description = "Scan details retrieved successfully")
     @GetMapping("/{id}")
-    public Detail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
+    public Detail detail(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
         Visibilities.requireVisible(
                 targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
@@ -157,8 +168,12 @@ public class ScansController {
      * cataloguer signed off. 404 when the scan produced none — a scan that failed before the
      * inventory has no SBOM, and an empty document would claim it inventoried nothing.
      */
+    @Operation(summary = "Download scan SBOM", description = "Returns the complete Software Bill of Materials (SBOM) produced during this scan.")
+    @ApiResponse(responseCode = "200", description = "CycloneDX / SPDX SBOM JSON document")
     @GetMapping(value = "/{id}/sbom", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> sbom(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
+    public ResponseEntity<String> sbom(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
         Visibilities.requireVisible(
                 targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));

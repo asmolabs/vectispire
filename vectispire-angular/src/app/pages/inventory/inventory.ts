@@ -7,26 +7,15 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { DialogModule } from '@openng/optimus-ui/dialog';
 import { ApiService } from '../../core/api.service';
-import type { InventoryOccurrence } from '../../core/api.models';
-
-/**
- * "Do we ship this library, and in which release of ours?"
- *
- * **Not a filter over the backlog.** An issue exists only where something is wrong, so the
- * backlog is silent on exactly the component being asked about on the day a vulnerability is
- * published and no scanner knows it yet. This searches the inventory — every component a scan
- * catalogued, flagged or not.
- *
- * The project version travels beside the component version, and the two are labelled apart:
- * confusing them is the one mistake that makes the answer useless.
- */
+import type { InventoryOccurrence, SbomDiffReport } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-inventory',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, InputTextModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, CardModule, DialogModule, TableModule, TagModule, MessageModule, ButtonModule, InputTextModule, TranslatePipe],
     templateUrl: './inventory.html'
 })
 export class Inventory {
@@ -40,6 +29,16 @@ export class Inventory {
     readonly loading = signal(false);
     readonly searched = signal(false);
     readonly error = signal<string | null>(null);
+
+    readonly activeTab = signal<'search' | 'diff'>('search');
+
+    // SBOM Diff Viewer
+    readonly diffOpen = signal(false);
+    fromScanId: number | null = null;
+    toScanId: number | null = null;
+    readonly diffReport = signal<SbomDiffReport | null>(null);
+    readonly diffLoading = signal(false);
+    readonly diffError = signal<string | null>(null);
 
     search(): void {
         if (!this.name.trim()) {
@@ -58,6 +57,30 @@ export class Inventory {
             error: () => {
                 this.loading.set(false);
                 this.error.set('The search could not be run.');
+            }
+        });
+    }
+
+    openDiffModal(): void {
+        this.diffOpen.set(true);
+        this.diffError.set(null);
+    }
+
+    runDiff(): void {
+        if (!this.fromScanId || !this.toScanId) {
+            this.diffError.set('Veuillez spécifier les identifiants des deux scans à comparer.');
+            return;
+        }
+        this.diffLoading.set(true);
+        this.diffError.set(null);
+        this.api.getSbomDiff(this.fromScanId, this.toScanId).subscribe({
+            next: (report) => {
+                this.diffReport.set(report);
+                this.diffLoading.set(false);
+            },
+            error: () => {
+                this.diffError.set('Impossible de charger le différentiel SBOM pour ces scans.');
+                this.diffLoading.set(false);
             }
         });
     }

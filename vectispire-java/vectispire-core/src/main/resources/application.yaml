@@ -72,3 +72,12 @@ vectispire:
     relay-interval: ${VECTISPIRE_RELAY_INTERVAL:60s}
     scheduler-interval: ${VECTISPIRE_SCHEDULER_INTERVAL:60s}
     maintenance-interval: ${VECTISPIRE_MAINTENANCE_INTERVAL:1h}
+
+springdoc:
+  swagger-ui:
+    # Disabled by default in production. Enable explicitly with VECTISPIRE_SWAGGER_UI_ENABLED=true
+    enabled: ${VECTISPIRE_SWAGGER_UI_ENABLED:false}
+  api-docs:
+    # OpenAPI JSON specification endpoint. Enable explicitly with VECTISPIRE_API_DOCS_ENABLED=true
+    enabled: ${VECTISPIRE_API_DOCS_ENABLED:false}
+

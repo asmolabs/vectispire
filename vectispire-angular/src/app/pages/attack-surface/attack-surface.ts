@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -8,6 +8,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -37,19 +38,57 @@ import type {
     ],
     templateUrl: './attack-surface.html'
 })
-export class AttackSurface implements OnInit {
+export class AttackSurface implements OnInit, OnDestroy {
     private readonly api = inject(ApiService);
     readonly i18n = inject(I18nService);
+    private pollInterval: any = null;
 
     readonly loading = signal<boolean>(true);
     readonly repoLoading = signal<boolean>(false);
     readonly error = signal<string | null>(null);
     readonly exporting = signal<boolean>(false);
+    readonly scanningRepo = signal<boolean>(false);
+    readonly scanSuccess = signal<string | null>(null);
 
     readonly globalData = signal<GlobalAttackSurface | null>(null);
     readonly repositories = signal<MonitoredRepository[]>([]);
-    readonly selectedRepoId = signal<number | null>(null);
+    readonly selectedRepoId = signal<string | null>(null);
     readonly repoOverview = signal<RepositoryApisOverview | null>(null);
+
+    readonly repoOptions = computed(() => {
+        const repos = this.repositories();
+        return repos.map((r) => ({ label: r.displayName || r.name, value: String(r.id) }));
+    });
+
+    readonly currentStats = computed(() => {
+        const repo = this.repoOverview();
+        if (this.selectedRepoId() && repo) {
+            const sum = repo.summary;
+            const frameworks: string[] = [];
+            repo.endpoints.forEach((e) => {
+                if (e.framework && !frameworks.includes(e.framework)) {
+                    frameworks.push(e.framework);
+                }
+            });
+            return {
+                totalEndpoints: sum.totalEndpoints,
+                publicEndpoints: sum.publicEndpoints,
+                unauthenticatedEndpoints: sum.unauthenticatedEndpoints,
+                shadowEndpoints: sum.shadowEndpoints,
+                sensitiveUnprotectedEndpoints: sum.sensitiveUnprotectedEndpoints,
+                frameworks
+            };
+        }
+        const g = this.globalData();
+        return {
+            totalEndpoints: g?.totalEndpoints ?? 0,
+            publicEndpoints: g?.publicEndpoints ?? 0,
+            unauthenticatedEndpoints: g?.unauthenticatedEndpoints ?? 0,
+            shadowEndpoints: g?.shadowEndpoints ?? 0,
+            sensitiveUnprotectedEndpoints: g?.sensitiveUnprotectedEndpoints ?? 0,
+            frameworks: g?.frameworks ?? []
+        };
+    });
 
     readonly activeTab = signal<'endpoints' | 'contracts' | 'highrisk'>('endpoints');
     readonly searchQuery = signal<string>('');
@@ -101,19 +140,24 @@ export class AttackSurface implements OnInit {
         this.api.repositories().subscribe({
             next: (repos) => {
                 this.repositories.set(repos);
-                if (repos.length > 0 && this.selectedRepoId() === null) {
-                    this.onSelectRepo(repos[0].id);
-                }
             },
             error: () => {}
         });
     }
 
-    onSelectRepo(repoId: number): void {
-        this.selectedRepoId.set(repoId);
+    onSelectRepo(repoId: string | number | null): void {
+        if (!repoId || repoId === 'ALL' || repoId === '0') {
+            this.selectedRepoId.set(null);
+            this.repoOverview.set(null);
+            this.repoLoading.set(false);
+            return;
+        }
+
+        const id = Number(repoId);
+        this.selectedRepoId.set(String(id));
         this.repoLoading.set(true);
 
-        this.api.getRepositoryApis(repoId).subscribe({
+        this.api.getRepositoryApis(id).subscribe({
             next: (data) => {
                 this.repoOverview.set(data);
                 this.repoLoading.set(false);
@@ -126,10 +170,14 @@ export class AttackSurface implements OnInit {
     }
 
     readonly filteredEndpoints = computed<ApiEndpointView[]>(() => {
-        const overview = this.repoOverview();
-        if (!overview || !overview.endpoints) return [];
+        const repoId = this.selectedRepoId();
+        if (!repoId) {
+            return [];
+        }
 
-        let list = overview.endpoints;
+        const overview = this.repoOverview();
+        let list: ApiEndpointView[] = overview?.endpoints || [];
+
         const q = this.searchQuery().trim().toLowerCase();
         const m = this.filterMethod();
         const v = this.filterVisibility();
@@ -153,9 +201,9 @@ export class AttackSurface implements OnInit {
         }
 
         if (a === 'AUTH') {
-            list = list.filter((ep) => ep.authRequired);
+            list = list.filter((ep) => Boolean(ep.authRequired));
         } else if (a === 'UNAUTH') {
-            list = list.filter((ep) => !ep.authRequired);
+            list = list.filter((ep) => !Boolean(ep.authRequired));
         }
 
         return list;
@@ -163,12 +211,13 @@ export class AttackSurface implements OnInit {
 
     exportOpenApi(): void {
         const repoId = this.selectedRepoId();
-        if (!repoId) return;
+        if (!repoId || repoId === 'ALL') return;
 
+        const id = Number(repoId);
         this.exporting.set(true);
-        this.api.exportSynthesizedOpenApi(repoId).subscribe({
+        this.api.exportSynthesizedOpenApi(id).subscribe({
             next: (response) => {
-                saveDocument(response, `openapi-repository-${repoId}.json`);
+                saveDocument(response, `openapi-repository-${id}.json`);
                 this.exporting.set(false);
             },
             error: (err) => {
@@ -176,6 +225,118 @@ export class AttackSurface implements OnInit {
                 this.exporting.set(false);
             }
         });
+    }
+
+    readonly clearing = signal<boolean>(false);
+
+    clearInventory(): void {
+        const repoId = this.selectedRepoId();
+        this.clearing.set(true);
+        this.error.set(null);
+        this.scanSuccess.set(null);
+
+        const request$ = (!repoId || repoId === 'ALL')
+            ? this.api.clearAttackSurface()
+            : this.api.clearRepositoryApis(Number(repoId));
+
+        request$.subscribe({
+            next: () => {
+                this.clearing.set(false);
+                this.scanSuccess.set('Surface d\'attaque purgée avec succès.');
+                this.loadData();
+                if (repoId && repoId !== 'ALL') {
+                    this.onSelectRepo(repoId);
+                }
+            },
+            error: (err) => {
+                this.clearing.set(false);
+                this.error.set(messageOf(err, 'Échec lors de la purge de la surface d\'attaque.'));
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.stopPolling();
+    }
+
+    triggerScan(): void {
+        const repoId = this.selectedRepoId();
+        if (!repoId) return;
+
+        if (repoId === 'ALL') {
+            this.triggerScanAll();
+            return;
+        }
+
+        const id = Number(repoId);
+        this.scanningRepo.set(true);
+        this.error.set(null);
+        this.scanSuccess.set(null);
+
+        this.api.triggerRepositoryScan(id).subscribe({
+            next: () => {
+                this.scanningRepo.set(false);
+                this.scanSuccess.set('Scan planifié. Analyse des routes d\'APIs en cours d\'exécution...');
+                this.startPolling();
+            },
+            error: (err) => {
+                this.scanningRepo.set(false);
+                this.error.set(err?.error?.message ?? 'Impossible de lancer l\'analyse.');
+            }
+        });
+    }
+
+    triggerScanAll(): void {
+        const repos = this.repositories();
+        if (repos.length === 0) return;
+
+        this.scanningRepo.set(true);
+        this.error.set(null);
+        this.scanSuccess.set(null);
+
+        const requests = repos.map((r) => this.api.triggerRepositoryScan(r.id));
+        import('rxjs').then(({ forkJoin }) => {
+            forkJoin(requests).subscribe({
+                next: (results) => {
+                    this.scanningRepo.set(false);
+                    this.scanSuccess.set(`Scan planifié pour ${results.length} dépôts. Analyse et découverte en cours...`);
+                    this.startPolling();
+                },
+                error: (err) => {
+                    this.scanningRepo.set(false);
+                    this.error.set(err?.error?.message ?? 'Impossible de lancer le scan global des dépôts.');
+                }
+            });
+        });
+    }
+
+    private startPolling(): void {
+        this.stopPolling();
+        let attempts = 0;
+        this.pollInterval = setInterval(() => {
+            attempts++;
+            this.loadData();
+            if (this.selectedRepoId()) {
+                this.onSelectRepo(this.selectedRepoId()!);
+            }
+            const currentCount = this.repoOverview()?.endpoints?.length ?? 0;
+            const globalCount = this.globalData()?.totalEndpoints ?? 0;
+            if (currentCount > 0 || globalCount > 0 || attempts >= 25) {
+                if (currentCount > 0 || globalCount > 0) {
+                    this.scanSuccess.set(`Découverte d'APIs terminée avec succès (${globalCount || currentCount} routes répertoriées).`);
+                    this.stopPolling();
+                } else if (attempts >= 25) {
+                    this.stopPolling();
+                }
+            }
+        }, 3000);
+    }
+
+    private stopPolling(): void {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
     }
 
     getMethodSeverity(method: string): 'info' | 'success' | 'warn' | 'danger' | 'secondary' {

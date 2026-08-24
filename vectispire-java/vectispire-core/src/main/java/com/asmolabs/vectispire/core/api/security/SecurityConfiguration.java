@@ -162,6 +162,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/repositories/*/badge.svg").permitAll()
                         // **The interface itself is not behind the token.** When the jar

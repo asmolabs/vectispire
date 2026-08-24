@@ -285,6 +285,34 @@ class ScanIngestorTest {
         assertThat(notified.get()).isTrue();
     }
 
+    @Test
+    @DisplayName("records API endpoints and contracts into ApiInventoryService")
+    void recordsApiInventory() {
+        ApiInventoryService apiService = mock(ApiInventoryService.class);
+        ScanIngestor customIngestor = new ScanIngestor(
+                sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                components, Optional.of(apiService),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var endpoint = new com.asmolabs.vectispire.common.domain.apis.ApiEndpoint(
+                "POST", "/api/v1/checkout", true, "Bearer",
+                com.asmolabs.vectispire.common.domain.apis.ApiVisibility.PUBLIC,
+                "src/Controller.java", 20, "Spring Web", "checkout", "Process checkout", "checkout");
+
+        ScanArtifacts artifacts = ScanArtifacts.builder()
+                .apiEndpoints(List.of(endpoint))
+                .apiContracts(List.of())
+                .build(Duration.ZERO);
+
+        ScanEntity s = scan();
+        customIngestor.ingest(s, artifacts);
+
+        org.mockito.Mockito.verify(apiService).record(
+                org.mockito.ArgumentMatchers.eq(s),
+                org.mockito.ArgumentMatchers.eq(List.of(endpoint)),
+                org.mockito.ArgumentMatchers.eq(List.of()));
+    }
+
     private static com.fasterxml.jackson.databind.JsonNode sbom() {
         try {
             return new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"artifacts\": []}");

@@ -28,13 +28,14 @@ flowchart TB
     end
 
     subgraph api["api/ — controllers, DTOs, guards"]
-        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, agents-admin, teams, rule-sets, owasp"]
+        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, agents-admin, teams, rule-sets, owasp,<br/>sbom, remediation"]
     end
 
     subgraph services["services/ — orchestration, transactions"]
         Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
         Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
         Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService"]
+        Remed["SbomDiffService · SecurityDebtService"]
         Enrich["EnrichmentService · EolService · LicenseService"]
         Ai["AiReviewService"]
         Notify["NotificationService · OutboxService"]
@@ -497,5 +498,16 @@ Two rules the harness enforces on itself:
   - Dynamically synthesizes compliant OpenAPI 3.0.3 specifications from discovered code routes for undocumented legacy services.
 - **REST Endpoints**:
   - `GET /api/v1/attack-surface`: Global cross-repository attack surface summary, frameworks inventory, and high-risk exposed endpoints.
+  - `DELETE /api/v1/attack-surface`: Atomically purges all discovered endpoints and contracts across the platform.
   - `GET /api/v1/repositories/{id}/apis`: Discovered endpoints, contracts, and shadow API status for a repository.
+  - `DELETE /api/v1/repositories/{id}/apis`: Purges endpoints and contracts for a specific repository.
   - `GET /api/v1/repositories/{id}/apis/export/openapi`: Synthesized OpenAPI 3.0.3 specification export for a repository.
+
+## 14. OpenAPI 3.0 Documentation & REST Reference
+
+- **Static Reference Documentation**:
+  - [`docs/en/api/rest_api_reference.md`](api/rest_api_reference.md): Complete bilingual reference of all REST endpoints, headers, request bodies, responses, and `curl` examples.
+- **Optional OpenAPI 3.0 & Swagger UI**:
+  - In production deployments, Swagger UI and `/v3/api-docs` are **strictly disabled by default** (`springdoc.swagger-ui.enabled: false`) to avoid unnecessary exposure.
+  - Can be activated in development or staging environments via `VECTISPIRE_SWAGGER_UI_ENABLED=true` and `VECTISPIRE_API_DOCS_ENABLED=true`.
+

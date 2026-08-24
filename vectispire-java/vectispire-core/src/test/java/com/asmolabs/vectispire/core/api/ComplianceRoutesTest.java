@@ -18,7 +18,7 @@ class ComplianceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/compliance/summary"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.evaluations").isArray())
-                .andExpect(jsonPath("$.evaluations.length()").value(5))
+                .andExpect(jsonPath("$.evaluations.length()").value(6))
                 .andExpect(jsonPath("$.evaluations[0].framework").value("NIS_2"))
                 .andExpect(jsonPath("$.evaluations[0].controls").isArray());
     }
@@ -29,6 +29,12 @@ class ComplianceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/compliance/frameworks/dora"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.framework").value("DORA"))
+                .andExpect(jsonPath("$.controls").isArray())
+                .andExpect(jsonPath("$.controls.length()").value(4));
+
+        mvc.perform(authenticated(get("/api/v1/compliance/frameworks/soc-2"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.framework").value("SOC_2"))
                 .andExpect(jsonPath("$.controls").isArray())
                 .andExpect(jsonPath("$.controls.length()").value(4));
     }

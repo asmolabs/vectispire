@@ -102,3 +102,17 @@ npm run docker:build          # ou docker build -t vectispire:latest .
 # Image Agent distant déporté
 npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispire-agent:latest .
 ```
+
+---
+
+## 8. Documentation des APIs REST
+
+- **Référence Complète** : Consultez la [Documentation de référence des APIs REST](api/rest_api_reference.md) pour les détails sur l'authentification (`Bearer JWT`, `X-API-Key`, `X-Agent-Key`) et la liste de toutes les routes.
+- **Swagger UI en Mode Développement** :
+  Par défaut, Swagger UI est désactivé en production. Vous pouvez l'activer en environnement local avec :
+  ```bash
+  export VECTISPIRE_SWAGGER_UI_ENABLED=true
+  export VECTISPIRE_API_DOCS_ENABLED=true
+  ```
+  Accédez ensuite à `http://localhost:3180/swagger-ui.html`.
+

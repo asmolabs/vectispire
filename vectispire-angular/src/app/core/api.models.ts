@@ -1063,7 +1063,7 @@ export interface TargetCompliance {
     targetId: string;
     name: string;
     type: 'REPOSITORY' | 'CONTAINER';
-    gateStatus: 'PASSED' | 'FAILED' | 'NEVER_SCANNED' | 'LAST_SCAN_FAILED';
+    gateStatus: 'PASSED' | 'FAILED' | 'NEVER_SCANNED' | 'LAST_SCAN_FAILED' | 'SCANNING' | 'IN_PROGRESS';
     openIssuesCount: number;
     overdueCount: number;
     overallScore: number;
@@ -1321,4 +1321,70 @@ export interface GlobalAttackSurface {
     sensitiveUnprotectedEndpoints: number;
     frameworks: string[];
     highRiskEndpoints: ApiEndpointView[];
+    allEndpoints?: ApiEndpointView[];
+}
+
+export type ChangeType = 'ADDED' | 'REMOVED' | 'VERSION_CHANGED' | 'LICENSE_CHANGED' | 'UNCHANGED';
+
+export interface ComponentDelta {
+    name: string;
+    purl: string | null;
+    type: string | null;
+    isDirect: boolean | null;
+    oldVersion: string | null;
+    newVersion: string | null;
+    oldLicense: string | null;
+    newLicense: string | null;
+    changeType: ChangeType;
+}
+
+export interface CveDelta {
+    cveId: string;
+    severity: string | null;
+    packageName: string | null;
+    version: string | null;
+    status: 'INTRODUCED' | 'RESOLVED' | 'PERSISTENT';
+}
+
+export interface SbomDiffReport {
+    fromScanId: number;
+    toScanId: number;
+    fromVersion: string;
+    toVersion: string;
+    addedCount: number;
+    removedCount: number;
+    versionChangedCount: number;
+    licenseChangedCount: number;
+    introducedCveCount: number;
+    resolvedCveCount: number;
+    componentDeltas: ComponentDelta[];
+    cveDeltas: CveDelta[];
+}
+
+export interface HighImpactFix {
+    packageName: string;
+    currentVersion: string;
+    recommendedVersion: string;
+    cveCountResolved: number;
+    criticalCveCount: number;
+    highCveCount: number;
+    estimatedHours: number;
+    leverageScore: number;
+    affectedCves: string[];
+    affectedTargetNames: string[];
+}
+
+export interface SecurityDebtReport {
+    totalOpenIssues: number;
+    criticalIssues: number;
+    highIssues: number;
+    mediumIssues: number;
+    lowIssues: number;
+    totalEstimatedHours: number;
+    totalEstimatedPersonDays: number;
+    vulnerabilitiesDebtHours: number;
+    secretsDebtHours: number;
+    sastDebtHours: number;
+    iacDebtHours: number;
+    topHighImpactFixes: HighImpactFix[];
 }

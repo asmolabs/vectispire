@@ -105,6 +105,18 @@ public final class ScanRunner {
             // would put "no pom.xml" in the same list as "Semgrep timed out".
             ProjectManifest.read(workspace.source().resolve(subPath)).ifPresent(artifacts::project);
 
+            // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger)
+            try {
+                var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(
+                        workspace.source().resolve(subPath));
+                if (apiDiscovery != null) {
+                    artifacts.apiEndpoints(apiDiscovery.endpoints());
+                    artifacts.apiContracts(apiDiscovery.contracts());
+                }
+            } catch (Exception ignored) {
+                // Discovery is resilient; failure never blocks the scan
+            }
+
             if (task.runs(ScanTask.Step.DEPENDENCIES)) {
                 step(artifacts, "dependencies", () -> {
                     JsonNode sbom = ran(

@@ -111,6 +111,7 @@ dependencies {
     implementation(libs.jgit)
     implementation(libs.pdfbox)
     implementation(libs.bucket4j.core)
+    implementation(libs.springdoc.openapi.starter.webmvc.ui)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.flyway.mysql)

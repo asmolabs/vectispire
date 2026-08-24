@@ -19,7 +19,13 @@ public interface ApiEndpoints extends JpaRepository<ApiEndpointEntity, Long> {
     @Query("select distinct e.framework from ApiEndpointEntity e where e.framework is not null")
     List<String> findDistinctFrameworks();
 
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ApiEndpointEntity e where (:repositoryId is not null and e.repositoryId = :repositoryId) or e.scanId = :scanId")
+    void deleteByRepositoryIdOrScanId(@Param("repositoryId") Long repositoryId, @Param("scanId") long scanId);
+
     void deleteByScanId(long scanId);
 
     void deleteByScanIdIn(Collection<Long> scanIds);
+
+    void deleteByRepositoryId(Long repositoryId);
 }

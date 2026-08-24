@@ -8,7 +8,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
-import type { DashboardOverview, Trends, PostureTrendAnalytics } from '../../core/api.models';
+import type { DashboardOverview, Trends, PostureTrendAnalytics, SecurityDebtReport } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
@@ -55,6 +55,7 @@ export class Dashboard {
     readonly windows = WINDOWS;
 
     readonly data = signal<DashboardOverview | null>(null);
+    readonly securityDebt = signal<SecurityDebtReport | null>(null);
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
 
@@ -81,6 +82,10 @@ export class Dashboard {
                 this.error.set('Could not load the dashboard.');
                 this.loading.set(false);
             }
+        });
+        this.api.getSecurityDebt().subscribe({
+            next: (debt) => this.securityDebt.set(debt),
+            error: () => {}
         });
         this.loadTrends(this.window());
     }

@@ -17,6 +17,9 @@ import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.TotpService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,6 +48,7 @@ import org.springframework.web.server.ResponseStatusException;
  * account carries {@code mustChangePassword}, which is the right way to say "change your
  * password" without saying what it is.
  */
+@Tag(name = "Authentication", description = "User login, MFA, SSO and session management")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -101,6 +105,8 @@ public class AuthController {
 
     public record ChangePasswordRequest(@JsonProperty("current_password") String currentPassword, @JsonProperty("new_password") String newPassword) {}
 
+    @Operation(summary = "User login", description = "Authenticates user by credentials and issues a JWT session bearer token or an MFA challenge.")
+    @ApiResponse(responseCode = "200", description = "Authentication successful or MFA challenge initiated")
     @OpenToAnonymous
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest body, HttpServletRequest request) {
@@ -160,6 +166,8 @@ public class AuthController {
         };
     }
 
+    @Operation(summary = "Verify MFA challenge", description = "Verifies TOTP authentication code and completes sign-in.")
+    @ApiResponse(responseCode = "200", description = "MFA verified, JWT session issued")
     @OpenToAnonymous
     @PostMapping("/mfa/verify")
     public LoginResponse verifyMfa(@RequestBody MfaVerifyRequest body, HttpServletRequest request) {
@@ -206,12 +214,16 @@ public class AuthController {
                 null);
     }
 
+    @Operation(summary = "Setup MFA / TOTP", description = "Generates a new TOTP secret and QR code URI for 2FA setup.")
+    @ApiResponse(responseCode = "200", description = "MFA setup payload")
     @RequiresAccount
     @PostMapping("/mfa/setup")
     public TotpService.SetupResponse setupMfa(@AuthenticationPrincipal VectispirePrincipal principal) {
         return totp.setup(principal.requireUser());
     }
 
+    @Operation(summary = "Enable MFA", description = "Confirms TOTP setup by verifying the first code.")
+    @ApiResponse(responseCode = "200", description = "MFA activated")
     @RequiresAccount
     @PostMapping("/mfa/enable")
     public TotpService.EnableResponse enableMfa(
@@ -223,6 +235,8 @@ public class AuthController {
         return totp.enable(principal.requireUser(), body.secret(), body.code());
     }
 
+    @Operation(summary = "Disable MFA", description = "Deactivates 2FA after providing verification code.")
+    @ApiResponse(responseCode = "200", description = "MFA disabled")
     @RequiresAccount
     @PostMapping("/mfa/disable")
     public Map<String, Boolean> disableMfa(
@@ -247,31 +261,23 @@ public class AuthController {
 
     /**
      * What this deployment accepts as a way in.
-     *
-     * <p>Readable without a session, on purpose and with nothing sensitive in it: the login
-     * screen has to render the right buttons before anybody is authenticated, and "this instance
-     * has single sign-on" is not a secret — the redirect it produces is public by construction.
      */
+    @Operation(summary = "Get available sign-in methods", description = "Discovers whether password login and/or SSO OIDC providers are enabled.")
+    @ApiResponse(responseCode = "200", description = "Sign-in methods availability")
     @OpenToAnonymous
     @GetMapping("/methods")
     public SignInMethods methods() {
         return new SignInMethods(
                 providers.isPresent(),
                 providers.map(this::labelOf).orElse(null),
-                // The effective answer, not the requested one: asking for password sign-in to be
-                // off without a provider leaves it on, and this endpoint must say what is true.
                 methods.passwordAllowed());
     }
 
     /**
      * Exchanges the one-time hand-off cookie for the session token.
-     *
-     * <p><b>Why a cookie and an exchange rather than a token in the URL.</b> The usual shortcut
-     * puts the token in the redirect's fragment, which never reaches a server — and does reach
-     * the browser's history, where a session token outlives the tab. The cookie is
-     * {@code HttpOnly}, lives sixty seconds, and is deleted here: the application reads it once,
-     * through a request the interceptor will carry from then on.
      */
+    @Operation(summary = "Exchange SSO hand-off cookie for session", description = "Trades temporary SSO callback cookie for a full JWT session.")
+    @ApiResponse(responseCode = "200", description = "Session established successfully")
     @OpenToAnonymous
     @PostMapping("/session/exchange")
     public LoginResponse exchange(HttpServletRequest request, HttpServletResponse response) {

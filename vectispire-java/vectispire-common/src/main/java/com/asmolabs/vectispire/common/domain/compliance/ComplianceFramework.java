@@ -31,31 +31,6 @@ public enum ComplianceFramework {
                             "Deployment gates must enforce blocking security policies across all release artifacts.",
                             ComplianceControl.Category.GOVERNANCE))),
 
-    DORA(
-            "DORA",
-            "EU 2022/2554 — Digital Operational Resilience Act for Financial Entities",
-            List.of(
-                    new ComplianceControl(
-                            "DORA-ART09-ICT",
-                            "ICT Risk Management & Continuous Testing",
-                            "Continuous automated vulnerability assessment must be conducted on all digital assets.",
-                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
-                    new ComplianceControl(
-                            "DORA-ART11-THIRD",
-                            "Third-Party ICT Risk & Dependency Governance",
-                            "External dependencies must be inventoried and monitored for critical vulnerabilities and end-of-life.",
-                            ComplianceControl.Category.SUPPLY_CHAIN),
-                    new ComplianceControl(
-                            "DORA-ART13-SECRETS",
-                            "Access Control & Secret Leakage Prevention",
-                            "System authentication tokens and deployment keys must not be exposed in code or build pipelines.",
-                            ComplianceControl.Category.SECRETS_MANAGEMENT),
-                    new ComplianceControl(
-                            "DORA-ART16-INCIDENT",
-                            "Audit Trail & Evidence Retention",
-                            "Security scans, findings, and triage decisions must maintain an immutable audit trail.",
-                            ComplianceControl.Category.AUDIT_AND_LOGGING))),
-
     ISO_27001(
             "ISO/IEC 27001:2022",
             "Information Security Management Systems — Annex A Controls",
@@ -80,6 +55,56 @@ public enum ComplianceFramework {
                             "Access Control & Secrets Protection",
                             "Credentials, private keys, and API tokens must be strictly protected and never leaked in code.",
                             ComplianceControl.Category.SECRETS_MANAGEMENT))),
+
+    EU_CRA(
+            "Cyber Resilience Act (EU CRA)",
+            "EU Cyber Resilience Act — Mandatory Cybersecurity Requirements for Digital Products",
+            List.of(
+                    new ComplianceControl(
+                            "CRA-ART11-NOTIF",
+                            "ENISA / CSIRT 24h Exploited Vulnerability Notification",
+                            "Actively exploited vulnerabilities (CISA KEV / EPSS > 0.5) must be identified for mandatory 24h reporting.",
+                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
+                    new ComplianceControl(
+                            "CRA-ART10-SBOM",
+                            "Machine-Readable SBOM Delivery",
+                            "All distributed software and container images must provide an active, machine-readable SBOM.",
+                            ComplianceControl.Category.SUPPLY_CHAIN),
+                    new ComplianceControl(
+                            "CRA-ART10-LIFECYCLE",
+                            "Security Support & End-of-Life Tracking",
+                            "Third-party packages and base images must be monitored for active security support and end-of-life status.",
+                            ComplianceControl.Category.SUPPLY_CHAIN),
+                    new ComplianceControl(
+                            "CRA-ART10-VULN",
+                            "Continuous Vulnerability Handling & Security Updates",
+                            "Zero unmitigated critical vulnerabilities and automated security patch availability.",
+                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT))),
+
+    DORA(
+            "DORA",
+            "EU 2022/2554 — Digital Operational Resilience Act for Financial Entities",
+            List.of(
+                    new ComplianceControl(
+                            "DORA-ART09-ICT",
+                            "ICT Risk Management & Continuous Testing",
+                            "Continuous automated vulnerability assessment must be conducted on all digital assets.",
+                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
+                    new ComplianceControl(
+                            "DORA-ART11-THIRD",
+                            "Third-Party ICT Risk & Dependency Governance",
+                            "External dependencies must be inventoried and monitored for critical vulnerabilities and end-of-life.",
+                            ComplianceControl.Category.SUPPLY_CHAIN),
+                    new ComplianceControl(
+                            "DORA-ART13-SECRETS",
+                            "Access Control & Secret Leakage Prevention",
+                            "System authentication tokens and deployment keys must not be exposed in code or build pipelines.",
+                            ComplianceControl.Category.SECRETS_MANAGEMENT),
+                    new ComplianceControl(
+                            "DORA-ART16-INCIDENT",
+                            "Audit Trail & Evidence Retention",
+                            "Security scans, findings, and triage decisions must maintain an immutable audit trail.",
+                            ComplianceControl.Category.AUDIT_AND_LOGGING))),
 
     PCI_DSS(
             "PCI-DSS v4.0",
@@ -106,30 +131,30 @@ public enum ComplianceFramework {
                             "Automated audit trails must record security-relevant events and access modifications.",
                             ComplianceControl.Category.AUDIT_AND_LOGGING))),
 
-    EU_CRA(
-            "Cyber Resilience Act (EU CRA)",
-            "EU Cyber Resilience Act — Mandatory Cybersecurity Requirements for Digital Products",
+    SOC_2(
+            "SOC 2 Type II",
+            "AICPA Trust Services Criteria — Security, Availability & Confidentiality",
             List.of(
                     new ComplianceControl(
-                            "CRA-ART11-NOTIF",
-                            "ENISA / CSIRT 24h Exploited Vulnerability Notification",
-                            "Actively exploited vulnerabilities (CISA KEV / EPSS > 0.5) must be identified for mandatory 24h reporting.",
+                            "SOC2-CC6.8",
+                            "Preventing Unauthorized Changes & Malicious Code",
+                            "Software development lifecycle must enforce automated code quality, SAST analysis, and deployment gate policies.",
+                            ComplianceControl.Category.SECURE_CODING),
+                    new ComplianceControl(
+                            "SOC2-CC7.1",
+                            "Vulnerability Assessment & Threat Detection",
+                            "Continuous vulnerability scanning and remediation must be enforced with zero unmitigated critical CVEs.",
                             ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
                     new ComplianceControl(
-                            "CRA-ART10-SBOM",
-                            "Machine-Readable SBOM Delivery",
-                            "All distributed software and container images must provide an active, machine-readable SBOM.",
-                            ComplianceControl.Category.SUPPLY_CHAIN),
+                            "SOC2-CC6.6",
+                            "Logical Access & Secrets Management",
+                            "Credentials, encryption keys, and authentication tokens must not be exposed in source repositories.",
+                            ComplianceControl.Category.SECRETS_MANAGEMENT),
                     new ComplianceControl(
-                            "CRA-ART10-LIFECYCLE",
-                            "Security Support & End-of-Life Tracking",
-                            "Third-party packages and base images must be monitored for active security support and end-of-life status.",
-                            ComplianceControl.Category.SUPPLY_CHAIN),
-                    new ComplianceControl(
-                            "CRA-ART10-VULN",
-                            "Continuous Vulnerability Handling & Security Updates",
-                            "Zero unmitigated critical vulnerabilities and automated security patch availability.",
-                            ComplianceControl.Category.VULNERABILITY_MANAGEMENT)));
+                            "SOC2-CC7.2",
+                            "Security Incident Monitoring & Audit Logging",
+                            "Immutable audit trail with cryptographic verification must monitor all system access and configuration changes.",
+                            ComplianceControl.Category.AUDIT_AND_LOGGING)));
 
     private final String title;
     private final String description;

@@ -25,13 +25,14 @@ flowchart TB
     end
 
     subgraph api["api/ — Contrôleurs, DTOs, Guards"]
-        Routes["Contrôleurs REST<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, vex, agents, agents-admin, teams, rule-sets, owasp"]
+        Routes["Contrôleurs REST<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, vex, agents, agents-admin, teams, rule-sets, owasp,<br/>sbom, remediation"]
     end
 
     subgraph services["services/ — Métier, Orchestration, Transactions"]
         Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
         Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
         Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService"]
+        Remed["SbomDiffService · SecurityDebtService"]
         Enrich["EnrichmentService · EolService · LicenseService"]
         Ai["AiReviewService"]
         Notify["NotificationService · OutboxService"]
@@ -193,6 +194,19 @@ Le moteur de conformité évalue en continu 5 référentiels majeurs :
   - Export synthétisé de spécifications OpenAPI 3.0.3 pour les applications legacy non documentées.
 - **Endpoints API** :
   - `GET /api/v1/attack-surface` : Résumé global de la surface d'attaque, inventaire des frameworks et endpoints à haut risque.
+  - `DELETE /api/v1/attack-surface` : Purge atomique de l'ensemble des endpoints et contrats de la surface d'attaque.
   - `GET /api/v1/repositories/{id}/apis` : Inventaire complet des routes, contrats et dérive Shadow API d'un dépôt.
+  - `DELETE /api/v1/repositories/{id}/apis` : Purge des endpoints et contrats d'un dépôt cible spécifique.
   - `GET /api/v1/repositories/{id}/apis/export/openapi` : Export dynamique du schéma OpenAPI 3.0.3 d'un dépôt.
+
+---
+
+## 12. Documentation OpenAPI 3.0 & Référence REST
+
+- **Documentation Statique de Référence** :
+  - [`docs/fr/api/rest_api_reference.md`](api/rest_api_reference.md) : Spécification complète et bilingue de l'ensemble des routes REST avec exemples `curl`.
+- **OpenAPI 3.0 & Swagger UI Optionnels** :
+  - En production, Swagger UI et `/v3/api-docs` sont **désactivés par défaut** pour éviter toute exposition de surface d'attaque (`springdoc.swagger-ui.enabled: false`).
+  - Activables à la demande en staging ou développement via `VECTISPIRE_SWAGGER_UI_ENABLED=true` et `VECTISPIRE_API_DOCS_ENABLED=true`.
+
 

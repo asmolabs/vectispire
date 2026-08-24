@@ -22,6 +22,9 @@ Le nom **Vectispire** reflète deux principes fondamentaux de la gouvernance de 
   - **Analyse Statique (SAST)** : Semgrep OSS.
   - **Revue de Code IA (Optionnelle)** : Intégration locale Ollama (Llama, etc.).
 - **Triage & VEX Natif** : Triage fin des vulnérabilités avec justification et date d'expiration.
+- **Conformité Réglementaire & Dossiers d'Audit** : Évaluation déterministe pour **NIS 2**, **DORA**, **ISO 27001**, **PCI-DSS v4.0**, **Cyber Resilience Act (EU CRA)**, **SOC 2 Type II** et export d'archives de preuves scellées (*Evidence Vault*).
+- **SBOM Drift & Diff Viewer** : Comparateur différentiel entre scans pour tracer les composants ajoutés/supprimés, dérives de licences et deltas CVE.
+- **Dette de Sécurité & Actions à Fort Impact (*High-Impact Fixes*)** : Quantification de l'effort de remédiation en J/H et priorisation des montées de version à fort ROI sécurité.
 - **Portabilité Multi-Base de Données** : Support complet et validé par tests de **PostgreSQL**, **MySQL**, **MariaDB** et **SQLite** via migrations **Flyway**.
 - **Sécurité de Bout en Bout** :
   - Chiffrement AES-256-GCM des clés privées et secrets au repos.
@@ -53,12 +56,14 @@ npm --workspace @vectispire/frontend start
 
 | Route | Description |
 |---|---|
-| `/dashboard` | Vue d'ensemble de la posture et métriques globales |
+| `/dashboard` | Vue d'ensemble de la posture, dette de sécurité estimée et High-Impact Fixes |
 | `/repositories` | Dépôts Git suivis, historique des analyses, détails des findings |
 | `/security` | Verdicts des politiques de sécurité (Gate) par cible |
 | `/quality` | Vulnérabilités de qualité de code SAST groupées par règle |
 | `/issues` | Backlog global des vulnérabilités et interface de triage VEX |
 | `/containers` | Images de conteneurs analysées |
+| `/inventory` | Inventaire global des dépendances et comparateur SBOM Drift & Diff |
+| `/compliance` | Matrices de conformité réglementaire (NIS 2, CRA, SOC 2) et exports d'audit |
 | `/ssh-keys` | Gestion des clés SSH chiffrées pour le clonage de dépôts privés |
 | `/api-keys` | Clés d'API programmatiques (hachage Argon2id) |
 | `/agents` | Gestion des agents d'analyse distribués |

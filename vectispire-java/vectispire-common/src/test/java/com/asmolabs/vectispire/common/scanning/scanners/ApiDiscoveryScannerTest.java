@@ -68,6 +68,59 @@ class ApiDiscoveryScannerTest {
     }
 
     @Test
+    @DisplayName("discovers Spring Boot controllers with class-level @RequiresAccount and overrides")
+    void discoversRequiresAccountControllers(@TempDir Path tempDir) throws IOException {
+        Path src = tempDir.resolve("src/main/java/com/example/api");
+        Files.createDirectories(src);
+
+        String springController = """
+                package com.example.api;
+                import org.springframework.web.bind.annotation.*;
+                import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+                import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
+
+                @RestController
+                @RequestMapping("/api/v1/repositories")
+                @RequiresAccount
+                public class RepositoriesController {
+
+                    @GetMapping
+                    public List<String> list() { return List.of(); }
+
+                    @PostMapping("/{id}/scan")
+                    public void scan(@PathVariable String id) {}
+
+                    @OpenToAnonymous
+                    @GetMapping("/public-status")
+                    public String status() { return "OK"; }
+                }
+                """;
+        Files.writeString(src.resolve("RepositoriesController.java"), springController);
+
+        ApiDiscoveryScanner.Result result = ApiDiscoveryScanner.scan(tempDir);
+        List<ApiEndpoint> endpoints = result.endpoints();
+
+        assertThat(endpoints).hasSize(3);
+        assertThat(endpoints).anySatisfy(ep -> {
+            assertThat(ep.method()).isEqualTo("GET");
+            assertThat(ep.path()).isEqualTo("/api/v1/repositories");
+            assertThat(ep.authRequired()).isTrue();
+            assertThat(ep.authType()).isEqualTo("SPRING_SECURITY");
+        });
+        assertThat(endpoints).anySatisfy(ep -> {
+            assertThat(ep.method()).isEqualTo("POST");
+            assertThat(ep.path()).isEqualTo("/api/v1/repositories/{id}/scan");
+            assertThat(ep.authRequired()).isTrue();
+        });
+        assertThat(endpoints).anySatisfy(ep -> {
+            assertThat(ep.method()).isEqualTo("GET");
+            assertThat(ep.path()).isEqualTo("/api/v1/repositories/public-status");
+            assertThat(ep.authRequired()).isFalse();
+            assertThat(ep.authType()).isEqualTo("NONE");
+        });
+    }
+
+    @Test
     @DisplayName("discovers Express and NestJS endpoints in TypeScript/JavaScript")
     void discoversNodeEndpoints(@TempDir Path tempDir) throws IOException {
         Path routes = tempDir.resolve("routes");

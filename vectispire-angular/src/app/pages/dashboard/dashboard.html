@@ -116,9 +116,95 @@
         </div>
     </p-card>
 
+    <!-- Dette de Sécurité Estimée & Actions à Fort Impact (Remédiation Optimisée) -->
+    @if (securityDebt(); as debt) {
+        <div id="security-debt" class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+            <p-card styleClass="xl:col-span-1 border-l-4 border-l-primary-500 h-full">
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>Dette de Sécurité Estimée</span>
+                        <p-tag [value]="debt.totalEstimatedPersonDays + ' J/H'" severity="warn" />
+                    </div>
+                </ng-template>
+                <div class="text-sm text-muted-color mb-3">
+                    Temps d'ingénierie estimé pour résorber le backlog de sécurité ({{ debt.totalOpenIssues }} tickets ouverts).
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Vulnérabilités (SCA) :</span>
+                        <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours }} h</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Secrets & Clés :</span>
+                        <span class="font-semibold">{{ debt.secretsDebtHours }} h</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Code Source (SAST) :</span>
+                        <span class="font-semibold">{{ debt.sastDebtHours }} h</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Infrastructure-as-Code :</span>
+                        <span class="font-semibold">{{ debt.iacDebtHours }} h</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400">
+                        <span>Charge Totale :</span>
+                        <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} J/H)</span>
+                    </div>
+                </div>
+            </p-card>
+
+            <p-card styleClass="xl:col-span-2 h-full">
+                <ng-template #title>
+                    <div class="flex items-center justify-between">
+                        <span>Actions à Fort Impact (High-Impact Fixes)</span>
+                        <span class="text-xs text-muted-color font-normal">Priorisation par ROI Sécurité (CVEs résolues / effort)</span>
+                    </div>
+                </ng-template>
+                @if (!debt.topHighImpactFixes || debt.topHighImpactFixes.length === 0) {
+                    <p class="text-muted-color m-0 py-4 text-center">Aucune action de remédiation prioritaire requise.</p>
+                } @else {
+                    <p-table [value]="debt.topHighImpactFixes || []" styleClass="p-datatable-sm">
+                        <ng-template #header>
+                            <tr>
+                                <th>Composant</th>
+                                <th>CVEs Résolues</th>
+                                <th>Effort Estimé</th>
+                                <th>Score de Levier (ROI)</th>
+                                <th>Cibles Affectées</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-fix>
+                            <tr>
+                                <td>
+                                    <div class="font-semibold">{{ fix.packageName }}</div>
+                                    <div class="text-xs text-muted-color">v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}</div>
+                                </td>
+                                <td>
+                                    <p-tag [value]="fix.cveCountResolved + ' CVEs'" severity="danger" />
+                                    @if (fix.criticalCveCount > 0) {
+                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold">({{ fix.criticalCveCount }} critiques)</span>
+                                    }
+                                </td>
+                                <td><span class="font-mono text-sm">{{ fix.estimatedHours }} h</span></td>
+                                <td>
+                                    <p-tag [value]="fix.leverageScore + 'x'" severity="success" />
+                                </td>
+                                <td>
+                                    <div class="text-xs text-muted-color max-w-[12rem] truncate" [title]="fix.affectedTargetNames.join(', ')">
+                                        {{ fix.affectedTargetNames.join(', ') || '—' }}
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                }
+            </p-card>
+        </div>
+    }
+
     <!-- Target Security Maturity Scoreboard -->
     @if (postureAnalytics()?.targetScoreboard?.length) {
-        <p-card>
+        <p-card styleClass="mb-4">
             <ng-template #title>
                 <div class="flex items-center justify-between">
                     <span class="flex items-center gap-2">
@@ -188,7 +274,7 @@
         </p-card>
     }
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
         <p-card styleClass="xl:col-span-1">
             <ng-template #title>{{ 'dashboard.open_backlog_severity' | translate }}</ng-template>
             <div class="flex flex-col gap-3">

@@ -17,7 +17,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -62,7 +64,8 @@ public class ApiInventoryService {
             int shadowEndpoints,
             int sensitiveUnprotectedEndpoints,
             List<String> frameworks,
-            List<EndpointView> highRiskEndpoints) {}
+            List<EndpointView> highRiskEndpoints,
+            List<EndpointView> allEndpoints) {}
 
     private final ApiEndpoints apiEndpoints;
     private final ApiContracts apiContracts;
@@ -85,12 +88,21 @@ public class ApiInventoryService {
         long scanId = scan.getId();
         Long repoId = scan.getRepoId();
 
-        if (endpoints != null) {
-            apiEndpoints.deleteByScanId(scanId);
+        // Atomic cleanup of prior scan and repository state
+        apiEndpoints.deleteByRepositoryIdOrScanId(repoId, scanId);
+        apiContracts.deleteByRepositoryIdOrScanId(repoId, scanId);
+
+        if (endpoints != null && !endpoints.isEmpty()) {
             List<ApiEndpointEntity> entities = new ArrayList<>();
             Instant now = clock.instant();
 
+            // Deduplicate incoming scan endpoints by method + path
+            Map<String, ApiEndpoint> uniqueEndpoints = new LinkedHashMap<>();
             for (ApiEndpoint ep : endpoints) {
+                uniqueEndpoints.put(ep.method().toUpperCase() + ":" + ep.path(), ep);
+            }
+
+            for (ApiEndpoint ep : uniqueEndpoints.values()) {
                 ApiEndpointEntity entity = new ApiEndpointEntity();
                 entity.setScanId(scanId);
                 entity.setRepositoryId(repoId);
@@ -111,8 +123,7 @@ public class ApiInventoryService {
             apiEndpoints.saveAll(entities);
         }
 
-        if (contracts != null) {
-            apiContracts.deleteByScanId(scanId);
+        if (contracts != null && !contracts.isEmpty()) {
             List<ApiContractEntity> entities = new ArrayList<>();
             Instant now = clock.instant();
 
@@ -133,12 +144,37 @@ public class ApiInventoryService {
     }
 
     /**
+     * Purges all discovered endpoints and contracts from the inventory.
+     */
+    @Transactional
+    public void clearAll() {
+        apiEndpoints.deleteAllInBatch();
+        apiContracts.deleteAllInBatch();
+    }
+
+    /**
+     * Purges discovered endpoints and contracts for a specific repository.
+     */
+    @Transactional
+    public void clearForRepository(long repositoryId) {
+        apiEndpoints.deleteByRepositoryIdOrScanId(repositoryId, -1L);
+        apiContracts.deleteByRepositoryIdOrScanId(repositoryId, -1L);
+    }
+
+    /**
      * Returns API overview for a specific repository with Shadow API diff against contracts.
      */
     @Transactional(readOnly = true)
     public RepositoryApisOverview forRepository(long repositoryId) {
-        List<ApiEndpointEntity> endpointEntities = apiEndpoints.findByRepositoryIdOrderByPathAsc(repositoryId);
+        List<ApiEndpointEntity> rawEndpointEntities = apiEndpoints.findByRepositoryIdOrderByPathAsc(repositoryId);
         List<ApiContractEntity> contractEntities = apiContracts.findByRepositoryIdOrderByCreatedAtDesc(repositoryId);
+
+        // Deduplicate in memory by method + path (keep latest by ID)
+        Map<String, ApiEndpointEntity> byMethodPath = new LinkedHashMap<>();
+        for (ApiEndpointEntity e : rawEndpointEntities) {
+            byMethodPath.put(e.getHttpMethod().toUpperCase() + ":" + e.getPath(), e);
+        }
+        List<ApiEndpointEntity> endpointEntities = new ArrayList<>(byMethodPath.values());
 
         // Convert entities to domain for diff computation
         List<ApiEndpoint> domainEndpoints = new ArrayList<>();
@@ -209,9 +245,17 @@ public class ApiInventoryService {
      */
     @Transactional(readOnly = true)
     public GlobalAttackSurface globalAttackSurface() {
-        List<ApiEndpointEntity> all = apiEndpoints.findAll();
+        List<ApiEndpointEntity> rawAll = apiEndpoints.findAll();
         List<ApiContractEntity> allContracts = apiContracts.findAll();
         List<String> frameworks = apiEndpoints.findDistinctFrameworks();
+
+        // Deduplicate in memory by repositoryId + method + path (keep latest by ID)
+        Map<String, ApiEndpointEntity> byRepoMethodPath = new LinkedHashMap<>();
+        for (ApiEndpointEntity e : rawAll) {
+            String key = (e.getRepositoryId() != null ? e.getRepositoryId() : 0L) + ":" + e.getHttpMethod().toUpperCase() + ":" + e.getPath();
+            byRepoMethodPath.put(key, e);
+        }
+        List<ApiEndpointEntity> all = new ArrayList<>(byRepoMethodPath.values());
 
         List<ApiEndpoint> domainList = new ArrayList<>();
         for (ApiEndpointEntity e : all) {
@@ -238,10 +282,41 @@ public class ApiInventoryService {
         AttackSurfaceSummary summary = AttackSurfaceSummary.from(domainList, diff);
 
         List<EndpointView> highRisk = new ArrayList<>();
+        List<EndpointView> allViews = new ArrayList<>();
+        Set<String> shadowPathMethods = new HashSet<>();
+        for (ApiEndpoint se : diff.shadowEndpoints()) {
+            shadowPathMethods.add(se.method() + ":" + se.path());
+        }
+
         for (ApiEndpointEntity e : all) {
+            String key = e.getHttpMethod() + ":" + e.getPath();
+            String status = allContracts.isEmpty()
+                    ? "UNDOCUMENTED"
+                    : (shadowPathMethods.contains(key) ? ShadowApiStatus.SHADOW_API.name() : ShadowApiStatus.DOCUMENTED.name());
+
             boolean unauth = !Boolean.TRUE.equals(e.getAuthRequired());
             boolean sensitive = isSensitive(e.getPath());
             boolean pub = "PUBLIC".equals(e.getVisibility());
+
+            EndpointView view = new EndpointView(
+                    e.getId(),
+                    e.getScanId(),
+                    e.getRepositoryId(),
+                    e.getHttpMethod(),
+                    e.getPath(),
+                    Boolean.TRUE.equals(e.getAuthRequired()),
+                    e.getAuthType(),
+                    e.getVisibility(),
+                    e.getFilePath(),
+                    e.getLineNumber(),
+                    e.getFramework(),
+                    e.getOperationId(),
+                    e.getSummary(),
+                    e.getTags(),
+                    status,
+                    e.getCreatedAt());
+
+            allViews.add(view);
 
             if (unauth && (sensitive || pub)) {
                 highRisk.add(new EndpointView(
@@ -261,7 +336,8 @@ public class ApiInventoryService {
                 summary.shadowEndpoints(),
                 summary.sensitiveUnprotectedEndpoints(),
                 frameworks,
-                highRisk);
+                highRisk,
+                allViews);
     }
 
     /**

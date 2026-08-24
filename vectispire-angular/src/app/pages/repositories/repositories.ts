@@ -41,6 +41,7 @@ export class Repositories {
     readonly copied = signal(false);
     /** La ligne dont le scan est en cours de mise en file. */
     readonly busy = signal<number | null>(null);
+    readonly scanningAll = signal(false);
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
 
@@ -102,6 +103,30 @@ export class Repositories {
                 // The server knows why — "a scan is already queued", most of the time.
                 this.error.set(messageOf(response, 'Could not queue this scan.'));
             }
+        });
+    }
+
+    triggerScanAll(): void {
+        const repos = this.repositories();
+        if (repos.length === 0) return;
+
+        this.scanningAll.set(true);
+        this.notice.set(null);
+        this.error.set(null);
+
+        const requests = repos.map((r) => this.api.triggerRepositoryScan(r.id));
+        import('rxjs').then(({ forkJoin }) => {
+            forkJoin(requests).subscribe({
+                next: (results) => {
+                    this.scanningAll.set(false);
+                    this.notice.set(`Scan planifié pour ${results.length} dépôts. Les workers vont démarrer les analyses.`);
+                    this.reload();
+                },
+                error: (response) => {
+                    this.scanningAll.set(false);
+                    this.error.set(messageOf(response, 'Impossible de lancer le scan de tous les dépôts.'));
+                }
+            });
         });
     }
 

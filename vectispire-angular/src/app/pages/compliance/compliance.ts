@@ -7,6 +7,7 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { SelectModule } from '@openng/optimus-ui/select';
 import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -16,7 +17,7 @@ import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.mod
 @Component({
     selector: 'app-compliance',
     standalone: true,
-    imports: [CommonModule, FormsModule, DialogModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, DialogModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, SelectModule, TranslatePipe],
     templateUrl: './compliance.html'
 })
 export class Compliance {
@@ -26,7 +27,7 @@ export class Compliance {
 
     readonly summary = signal<ComplianceSummary | null>(null);
     readonly selectedFramework = signal<string>('NIS_2');
-    readonly selectedTarget = signal<string | null>(null);
+    readonly selectedTarget = signal<string>('ALL');
     readonly targetsList = signal<{ targetId: string; name: string; type: string }[]>([]);
     readonly loading = signal<boolean>(true);
     readonly exporting = signal<boolean>(false);
@@ -35,6 +36,17 @@ export class Compliance {
     readonly exportingCsaf = signal<boolean>(false);
     readonly exportingCycloneDx = signal<boolean>(false);
     readonly error = signal<string | null>(null);
+
+    readonly targetOptions = computed(() => {
+        const list = this.targetsList();
+        return [
+            { label: '🌐 Vue Globale — Toute l\'organisation', value: 'ALL' },
+            ...list.map((t) => ({
+                label: `${t.type === 'REPOSITORY' ? '📁' : '📦'} ${t.name}`,
+                value: t.targetId
+            }))
+        ];
+    });
 
     // Crypto & Cosign Verifier
     readonly downloadingPubKey = signal<boolean>(false);
@@ -56,10 +68,11 @@ export class Compliance {
 
     readonly frameworks = [
         { key: 'NIS_2', label: 'NIS 2 Directive', desc: 'EU 2022/2555 — Supply Chain & Vulnerability Mgmt' },
-        { key: 'DORA', label: 'DORA', desc: 'EU 2022/2554 — Digital Operational Resilience' },
         { key: 'ISO_27001', label: 'ISO/IEC 27001:2022', desc: 'Annex A Information Security Controls' },
+        { key: 'EU_CRA', label: 'Cyber Resilience Act (EU CRA)', desc: 'EU Digital Products Security & 24h CSIRT Notification' },
+        { key: 'DORA', label: 'DORA', desc: 'EU 2022/2554 — Digital Operational Resilience' },
         { key: 'PCI_DSS', label: 'PCI-DSS v4.0', desc: 'Payment Card Security Standard' },
-        { key: 'EU_CRA', label: 'Cyber Resilience Act (EU CRA)', desc: 'EU Digital Products Security & 24h CSIRT Notification' }
+        { key: 'SOC_2', label: 'SOC 2 Type II', desc: 'AICPA Trust Services Criteria — Security & Audit Integrity' }
     ];
 
     frameworkLabel(key: string): string {
@@ -69,6 +82,18 @@ export class Compliance {
     frameworkDesc(key: string): string {
         return this.frameworks.find((f) => f.key === key)?.desc ?? key;
     }
+
+    readonly orderedEvaluations = computed<ComplianceEvaluation[]>(() => {
+        const s = this.summary();
+        if (!s) return [];
+        const desiredOrder = ['NIS_2', 'ISO_27001', 'EU_CRA', 'DORA', 'PCI_DSS', 'SOC_2'];
+        const orderMap = new Map(desiredOrder.map((key, i) => [key, i]));
+        return [...s.evaluations].sort((a, b) => {
+            const orderA = orderMap.get(a.framework) ?? 99;
+            const orderB = orderMap.get(b.framework) ?? 99;
+            return orderA - orderB;
+        });
+    });
 
     readonly activeEvaluation = computed<ComplianceEvaluation | null>(() => {
         const s = this.summary();
@@ -83,11 +108,13 @@ export class Compliance {
     loadSummary(): void {
         this.loading.set(true);
         this.error.set(null);
-        const tid = this.selectedTarget() ?? undefined;
+        const sel = this.selectedTarget();
+        const tid = (sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined') ? sel : undefined;
+
         this.api.complianceSummary(tid).subscribe({
             next: (data) => {
                 this.summary.set(data);
-                if (data.targets && data.targets.length > 0 && this.targetsList().length === 0) {
+                if (data.targets && data.targets.length > 0) {
                     this.targetsList.set(data.targets.map((t) => ({ targetId: t.targetId, name: t.name, type: t.type })));
                 }
                 this.loading.set(false);
@@ -100,7 +127,8 @@ export class Compliance {
     }
 
     onTargetChange(targetId: string | null): void {
-        this.selectedTarget.set(targetId || null);
+        const tid = (!targetId || targetId === 'ALL' || targetId === 'null' || targetId === 'undefined') ? 'ALL' : targetId;
+        this.selectedTarget.set(tid);
         this.loadSummary();
     }
 
@@ -319,6 +347,13 @@ export class Compliance {
     statusSeverity(status: string): 'success' | 'warn' | 'danger' {
         if (status === 'COMPLIANT') return 'success';
         if (status === 'PARTIAL') return 'warn';
+        return 'danger';
+    }
+
+    gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {
+        if (status === 'PASSED') return 'success';
+        if (status === 'SCANNING' || status === 'IN_PROGRESS') return 'info';
+        if (status === 'NEVER_SCANNED') return 'warn';
         return 'danger';
     }
 }

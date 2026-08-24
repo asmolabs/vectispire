@@ -7,6 +7,7 @@ Le sous-système de conformité réglementaire de Vectispire (`ComplianceEngine`
 - **ISO/IEC 27001:2022** (Système de management de la sécurité de l'information — Contrôles de l'Annexe A)
 - **PCI-DSS v4.0** (Standard de sécurité des données de l'industrie des cartes de paiement)
 - **Cyber Resilience Act (EU CRA)** (Règlement européen sur la cyber-résilience des produits numériques)
+- **SOC 2 Type II** (AICPA Trust Services Criteria — Sécurité, Disponibilité et Confidentialité)
 
 ---
 
@@ -30,7 +31,7 @@ sequenceDiagram
     Svc->>Engine: evaluateAll(PostureInput)
     Engine-->>Svc: List<ComplianceEvaluation> (Scores & Contrôles)
     Svc-->>Ctrl: ComplianceSummary
-    Ctrl-->>UI: Synthèse JSON & Statuts des 5 Référentiels
+    Ctrl-->>UI: Synthèse JSON & Statuts des 6 Référentiels
 
     opt Export Rapport PDF Exécutif
         UI->>Ctrl: GET /api/v1/compliance/export.pdf
@@ -73,6 +74,10 @@ sequenceDiagram
 | **EU CRA** | `CRA-ART10-SBOM` | Fourniture obligatoire d'un SBOM machine-readable | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-LIFECYCLE` | Traçabilité du support de sécurité et dates d'obsolescence (EOL) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-VULN` | Remédiation continue et gestion des correctifs de sécurité | `VULNERABILITY_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC6.8` | Prévention des modifications non autorisées & Code malveillant | `SECURE_CODING` |
+| **SOC 2** | `SOC2-CC7.1` | Évaluation des vulnérabilités & Détection des menaces | `VULNERABILITY_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC6.6` | Sécurité des accès logiques & Gestion des secrets | `SECRETS_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC7.2` | Surveillance des incidents & Traçabilité d'audit infalsifiable | `AUDIT_AND_LOGGING` |
 
 ---
 
@@ -223,3 +228,36 @@ Vectispire intègre une signature numérique de niveau **SLSA 3 / Sigstore** gar
   ```bash
   cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
   ```
+
+---
+
+## 9. Comparateur Différentiel SBOM (SBOM Drift & Diff Viewer)
+
+Le comparateur de versions de SBOM (`SbomDiffService`, `SbomDiffController`) permet de suivre déterministement l'évolution des dépendances logicielles entre deux scans :
+
+- **Endpoints API** :
+  - `GET /api/v1/sbom/diff?fromScanId={id1}&toScanId={id2}` : Comparatif complet entre deux scans quelconques.
+  - `GET /api/v1/sbom/diff/latest?repoId={id}` : Comparatif automatique entre les deux derniers scans d'une cible.
+- **Indicateurs calculés** :
+  - **Composants ajoutés / supprimés** : Nouveaux packages introduits ou retirés de la release.
+  - **Changements de versions & de licences** : Détection des migrations et des dérives de licences open-source (ex: passage silencieux en GPL/AGPL).
+  - **Balance nette des CVEs** : Décompte précis des vulnérabilités résolues par rapport aux nouvelles vulnérabilités introduites.
+
+---
+
+## 10. Indicateur de Dette de Sécurité & Actions à Fort Impact (*High-Impact Fixes*)
+
+Le module d'optimisation de la remédiation (`SecurityDebtService`, `SecurityDebtController`) quantifie l'effort d'ingénierie nécessaire pour résorber le backlog de sécurité et identifie les actions correctives à ROI maximal :
+
+- **Endpoints API** :
+  - `GET /api/v1/remediation/debt` : Synthèse globale du temps estimé en heures et jours-hommes (J/H).
+  - `GET /api/v1/remediation/high-impact-fixes` : Classement des actions prioritaires par score de levier.
+- **Barème d'effort estimé** :
+  - Patch mineur de dépendance : ~0.8h à 1.5h
+  - Rotation de secret et révocation : 2.0h
+  - Refactoring de code SAST : 2.5h
+  - Misconfiguration IaC : 1.0h
+- **Score de Levier (ROI Sécurité)** :
+  $$\text{Levier} = \frac{N_{\text{CVEs résolues}} \times 2.0 + N_{\text{Critiques}} \times 3.0 + N_{\text{Élevées}} \times 1.5}{\text{Effort Estimé (h)}}$$
+  Ce calcul met en lumière la montée de version unique qui résout le plus grand nombre de CVEs sur le parc d'applications.
+

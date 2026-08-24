@@ -13,6 +13,10 @@ import com.asmolabs.vectispire.core.services.EvidenceVaultService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,11 +25,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Regulatory compliance matrix and executive posture endpoints (NIS 2, DORA, ISO 27001, PCI-DSS).
  */
+@Tag(name = "Compliance", description = "Regulatory conformity frameworks (NIS2, ISO 27001, CRA, SOC2, PCI-DSS)")
 @RestController
 @RequestMapping("/api/v1/compliance")
 @RequiresAccount
@@ -50,27 +56,33 @@ public class ComplianceController {
         this.clock = clock;
     }
 
+    @Operation(summary = "Get compliance summary", description = "Returns compliance scores across all regulatory frameworks.")
+    @ApiResponse(responseCode = "200", description = "Compliance summary evaluated successfully")
     @GetMapping("/summary")
     public ComplianceService.ComplianceSummary summary(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @org.springframework.web.bind.annotation.RequestParam(name = "targetId", required = false) String targetId) {
+            @Parameter(description = "Optional target ID filter") @RequestParam(name = "targetId", required = false) String targetId) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         return compliance.getSummary(targetId, allowed);
     }
 
+    @Operation(summary = "Get framework compliance details", description = "Returns detailed conformity evaluation for a specific framework (e.g. NIS2, ISO_27001).")
+    @ApiResponse(responseCode = "200", description = "Framework evaluation details")
     @GetMapping("/frameworks/{framework}")
     public ComplianceEvaluation framework(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @PathVariable String framework) {
+            @Parameter(description = "Framework identifier (e.g. NIS2, ISO-27001, CRA)", required = true) @PathVariable String framework) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         ComplianceFramework fw = ComplianceFramework.valueOf(framework.toUpperCase().replace('-', '_'));
         return compliance.getEvaluation(fw, allowed);
     }
 
+    @Operation(summary = "Export compliance PDF report", description = "Generates an executive PDF compliance audit report.")
+    @ApiResponse(responseCode = "200", description = "Generated PDF report document")
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @org.springframework.web.bind.annotation.RequestParam(name = "targetId", required = false) String targetId,
+            @Parameter(description = "Optional target ID filter") @RequestParam(name = "targetId", required = false) String targetId,
             HttpServletRequest request) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         ComplianceService.ComplianceSummary summary = compliance.getSummary(targetId, allowed);
@@ -103,6 +115,8 @@ public class ComplianceController {
                 .body(pdf);
     }
 
+    @Operation(summary = "Export certified audit evidence bundle", description = "Generates a cryptographically sealed ZIP bundle containing compliance evidence, SHA-256 integrity proofs, and policy audit logs.")
+    @ApiResponse(responseCode = "200", description = "Certified evidence bundle ZIP archive")
     @GetMapping(value = "/evidence-bundle.zip", produces = "application/zip")
     public ResponseEntity<byte[]> exportEvidenceBundle(
             @AuthenticationPrincipal VectispirePrincipal principal,

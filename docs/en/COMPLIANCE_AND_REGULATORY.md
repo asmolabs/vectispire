@@ -7,6 +7,7 @@ Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceServic
 - **ISO/IEC 27001:2022** (Information Security Management Systems — Annex A Controls)
 - **PCI-DSS v4.0** (Payment Card Industry Data Security Standard)
 - **Cyber Resilience Act (EU CRA)** (European Cyber Resilience Act for Digital Products)
+- **SOC 2 Type II** (AICPA Trust Services Criteria — Security, Availability & Confidentiality)
 
 ---
 
@@ -34,6 +35,10 @@ Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceServic
 | **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM Delivery (CycloneDX & SPDX) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-LIFECYCLE` | Component Security Support & End-of-Life Tracking (EOL) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-VULN` | Continuous Vulnerability Remediation & Security Updates | `VULNERABILITY_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC6.8` | Preventing Unauthorized Changes & Malicious Code | `SECURE_CODING` |
+| **SOC 2** | `SOC2-CC7.1` | Vulnerability Assessment & Threat Detection | `VULNERABILITY_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC6.6` | Logical Access & Secrets Management | `SECRETS_MANAGEMENT` |
+| **SOC 2** | `SOC2-CC7.2` | Security Incident Monitoring & Audit Logging | `AUDIT_AND_LOGGING` |
 
 ---
 
@@ -164,3 +169,36 @@ Vectispire integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic s
   ```bash
   cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
   ```
+
+---
+
+## 8. SBOM Drift & Diff Viewer
+
+The SBOM comparison engine (`SbomDiffService`, `SbomDiffController`) provides deterministic dependency change tracking across software releases and scan executions:
+
+- **API Endpoints**:
+  - `GET /api/v1/sbom/diff?fromScanId={id1}&toScanId={id2}`: Comprehensive differential report between two scans.
+  - `GET /api/v1/sbom/diff/latest?repoId={id}`: Automatic differential report across the two most recent scans of a target.
+- **Computed Metrics**:
+  - **Added / Removed Components**: Identifies newly introduced libraries or pruned dependencies.
+  - **Version & License Changes**: Detects package updates and license compliance drifts (e.g. silent relicensing to GPL/AGPL).
+  - **Net CVE Balance**: Pinpoints newly introduced vulnerabilities vs. resolved CVEs.
+
+---
+
+## 9. Security Debt & High-Impact Remediation (*High-Impact Fixes*)
+
+The remediation optimization engine (`SecurityDebtService`, `SecurityDebtController`) translates technical findings into actionable engineering hours and prioritizes maximum-ROI actions:
+
+- **API Endpoints**:
+  - `GET /api/v1/remediation/debt`: Posture-wide estimated remediation effort in person-hours and person-days.
+  - `GET /api/v1/remediation/high-impact-fixes`: Prioritized list of root library updates ranked by security leverage score.
+- **Effort Calibration**:
+  - Minor dependency update: ~0.8h - 1.5h
+  - Secret revocation & rotation: 2.0h
+  - SAST source code refactoring: 2.5h
+  - IaC misconfiguration fix: 1.0h
+- **Leverage Formula (Security ROI)**:
+  $$\text{Leverage} = \frac{N_{\text{Resolved CVEs}} \times 2.0 + N_{\text{Critical}} \times 3.0 + N_{\text{High}} \times 1.5}{\text{Estimated Effort (h)}}$$
+  Highlights root dependency upgrades that resolve the highest concentration of CVEs across the entire fleet in a single engineering step.
+

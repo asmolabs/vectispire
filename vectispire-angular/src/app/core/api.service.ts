@@ -77,7 +77,10 @@ import {
     CompatibilityCell,
     PostureTrendAnalytics,
     GlobalAttackSurface,
-    RepositoryApisOverview
+    RepositoryApisOverview,
+    SbomDiffReport,
+    SecurityDebtReport,
+    HighImpactFix
 } from './api.models';
 
 /**
@@ -703,8 +706,16 @@ export class ApiService {
         return this.http.get<GlobalAttackSurface>('/api/v1/attack-surface');
     }
 
+    clearAttackSurface(): Observable<void> {
+        return this.http.delete<void>('/api/v1/attack-surface');
+    }
+
     getRepositoryApis(repositoryId: number): Observable<RepositoryApisOverview> {
         return this.http.get<RepositoryApisOverview>(`/api/v1/repositories/${repositoryId}/apis`);
+    }
+
+    clearRepositoryApis(repositoryId: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/repositories/${repositoryId}/apis`);
     }
 
     exportSynthesizedOpenApi(repositoryId: number): Observable<HttpResponse<Blob>> {
@@ -712,6 +723,34 @@ export class ApiService {
             observe: 'response',
             responseType: 'blob'
         });
+    }
+
+    getSbomDiff(fromScanId: number, toScanId: number): Observable<SbomDiffReport> {
+        let params = new HttpParams()
+            .set('fromScanId', fromScanId)
+            .set('toScanId', toScanId);
+        return this.http.get<SbomDiffReport>('/api/v1/sbom/diff', { params });
+    }
+
+    getLatestSbomDiff(repoId?: number, containerId?: number): Observable<SbomDiffReport> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repoId', repoId);
+        if (containerId) params = params.set('containerId', containerId);
+        return this.http.get<SbomDiffReport>('/api/v1/sbom/diff/latest', { params });
+    }
+
+    getSecurityDebt(repoId?: number, containerId?: number): Observable<SecurityDebtReport> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repoId', repoId);
+        if (containerId) params = params.set('containerId', containerId);
+        return this.http.get<SecurityDebtReport>('/api/v1/remediation/debt', { params });
+    }
+
+    getHighImpactFixes(repoId?: number, containerId?: number): Observable<HighImpactFix[]> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repoId', repoId);
+        if (containerId) params = params.set('containerId', containerId);
+        return this.http.get<HighImpactFix[]>('/api/v1/remediation/high-impact-fixes', { params });
     }
 }
 

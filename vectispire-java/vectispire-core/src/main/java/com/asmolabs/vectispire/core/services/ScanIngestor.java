@@ -70,7 +70,28 @@ public class ScanIngestor {
     private final Optional<EndOfLifeSource> endOfLife;
     private final Optional<LicenseSource> licenses;
     private final Optional<NotificationSink> notifications;
+    private final Optional<ApiInventoryService> apiInventory;
     private final Clock clock;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScanIngestor(
+            IssueSyncService sync,
+            Optional<Enricher> enricher,
+            Optional<EndOfLifeSource> endOfLife,
+            Optional<LicenseSource> licenses,
+            Optional<NotificationSink> notifications,
+            ComponentInventory inventory,
+            Optional<ApiInventoryService> apiInventory,
+            Clock clock) {
+        this.inventory = inventory;
+        this.sync = sync;
+        this.enricher = enricher;
+        this.endOfLife = endOfLife;
+        this.licenses = licenses;
+        this.notifications = notifications;
+        this.apiInventory = apiInventory;
+        this.clock = clock;
+    }
 
     public ScanIngestor(
             IssueSyncService sync,
@@ -80,13 +101,7 @@ public class ScanIngestor {
             Optional<NotificationSink> notifications,
             ComponentInventory inventory,
             Clock clock) {
-        this.inventory = inventory;
-        this.sync = sync;
-        this.enricher = enricher;
-        this.endOfLife = endOfLife;
-        this.licenses = licenses;
-        this.notifications = notifications;
-        this.clock = clock;
+        this(sync, enricher, endOfLife, licenses, notifications, inventory, Optional.empty(), clock);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -106,6 +121,16 @@ public class ScanIngestor {
         // alone rather than replaced by nothing, exactly as an absent finding list leaves the
         // backlog alone.
         artifacts.sbom().ifPresent(sbom -> inventory.record(scan.getId(), sbom, graph));
+
+        // API Endpoints & Contracts inventory (Surface d'attaque & APIs)
+        apiInventory.ifPresent(service -> {
+            if (artifacts.apiEndpoints().isPresent() || artifacts.apiContracts().isPresent()) {
+                service.record(
+                        scan,
+                        artifacts.apiEndpoints().orElse(List.of()),
+                        artifacts.apiContracts().orElse(List.of()));
+            }
+        });
 
         artifacts.dependencies().ifPresent(dependencies -> {
             scannedTypes.add(FindingType.VULNERABILITY);

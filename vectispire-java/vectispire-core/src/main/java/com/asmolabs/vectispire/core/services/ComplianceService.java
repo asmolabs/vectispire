@@ -90,7 +90,10 @@ public class ComplianceService {
     public ComplianceSummary getSummary(String targetId, Visibility allowed) {
         SecurityOverview.Overview posture = gate.overview(allowed);
 
-        if (targetId != null && !targetId.isBlank()) {
+        if (targetId != null && !targetId.isBlank()
+                && !"ALL".equalsIgnoreCase(targetId)
+                && !"null".equalsIgnoreCase(targetId)
+                && !"undefined".equalsIgnoreCase(targetId)) {
             return getSummaryForTarget(targetId, posture, allowed);
         }
 
@@ -99,7 +102,8 @@ public class ComplianceService {
 
     private ComplianceSummary getGlobalSummary(SecurityOverview.Overview posture, Visibility allowed) {
         int totalTargets = posture.totalCount();
-        int passingTargets = totalTargets - posture.failingCount();
+        int observedTargets = (int) posture.targets().stream().filter(SecurityOverview.TargetPosture::observed).count();
+        int passingTargets = (int) posture.targets().stream().filter(p -> p.observed() && p.passed()).count();
 
         long critical = countOpen(Severity.CRITICAL, null, null, null, allowed);
         long high = countOpen(Severity.HIGH, null, null, null, allowed);
@@ -111,20 +115,14 @@ public class ComplianceService {
         long sast = countOpenType(FindingType.QUALITY, null, null, allowed);
         long iac = countOpenType(FindingType.IAC, null, null, allowed);
 
-        int withSbom = (int) scans.findAll().stream()
-                .filter(s -> s.getSbom() != null && !s.getSbom().isBlank())
-                .map(s -> s.getRepoId() != null ? "repo:" + s.getRepoId() : "container:" + s.getContainerId())
-                .distinct()
-                .count();
-
         boolean auditValid = audit.verify().broken() == null;
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
-                totalTargets,
-                totalTargets - (int) posture.neverScannedCount(),
+                Math.max(1, totalTargets),
+                observedTargets,
                 passingTargets,
                 critical, high, medium, low, kev, overdue, secrets, sast, iac,
-                Math.min(totalTargets, withSbom),
+                observedTargets,
                 auditValid);
 
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input);
@@ -156,12 +154,15 @@ public class ComplianceService {
 
             long totalOpen = tCrit + tHigh + tMed + tLow;
 
+            boolean isObserved = targetPosture.observed();
+            boolean isPassed = targetPosture.observed() && targetPosture.passed();
+
             ComplianceEngine.PostureInput tInput = new ComplianceEngine.PostureInput(
                     1,
-                    targetPosture.observed() ? 1 : 0,
-                    targetPosture.passed() ? 1 : 0,
+                    isObserved ? 1 : 0,
+                    isPassed ? 1 : 0,
                     tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
-                    targetPosture.observed() ? 1 : 0,
+                    isObserved ? 1 : 0,
                     auditValid);
 
             List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput);
@@ -170,7 +171,17 @@ public class ComplianceService {
 
             int avgScore = (int) Math.round(tEvals.stream().mapToInt(ComplianceEvaluation::scorePercentage).average().orElse(100.0));
             String status = avgScore == 100 ? "COMPLIANT" : (avgScore >= 70 ? "PARTIAL" : "NON_COMPLIANT");
-            String gateStatus = !targetPosture.observed() ? "NEVER_SCANNED" : (targetPosture.passed() ? "PASSED" : "FAILED");
+            
+            String gateStatus;
+            if (targetPosture.observation() == SecurityOverview.Observation.IN_PROGRESS) {
+                gateStatus = "SCANNING";
+            } else if (targetPosture.observation() == SecurityOverview.Observation.NEVER_SCANNED) {
+                gateStatus = "NEVER_SCANNED";
+            } else if (targetPosture.observation() == SecurityOverview.Observation.LAST_SCAN_FAILED) {
+                gateStatus = "FAILED";
+            } else {
+                gateStatus = targetPosture.passed() ? "PASSED" : "FAILED";
+            }
 
             return new TargetCompliance(tid, targetPosture.name(), type, gateStatus, totalOpen, tOverdue, avgScore, status, scores);
         }).toList();
@@ -205,7 +216,8 @@ public class ComplianceService {
                 .orElse(null);
 
         int totalTargets = 1;
-        int passingTargets = (targetPosture != null && targetPosture.passed()) ? 1 : 0;
+        boolean observed = targetPosture != null && targetPosture.observed();
+        int passingTargets = (targetPosture != null && targetPosture.observed() && targetPosture.passed()) ? 1 : 0;
 
         long critical = countOpen(Severity.CRITICAL, null, repoId, containerId, allowed);
         long high = countOpen(Severity.HIGH, null, repoId, containerId, allowed);
@@ -218,7 +230,6 @@ public class ComplianceService {
         long iac = countOpenType(FindingType.IAC, repoId, containerId, allowed);
 
         boolean auditValid = audit.verify().broken() == null;
-        boolean observed = targetPosture != null && targetPosture.observed();
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 totalTargets,
@@ -238,7 +249,57 @@ public class ComplianceService {
 
         MttrCalculator.MttrResult mttr = MttrCalculator.calculate(resolved);
 
-        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets, List.of());
+        // Build targetComplianceList as well so table never disappears
+        List<TargetCompliance> targetComplianceList = posture.targets().stream().map(tp -> {
+            Long rId = tp.target() instanceof com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository r ? r.id() : null;
+            Long cId = tp.target() instanceof com.asmolabs.vectispire.common.domain.targets.ScanTarget.Container c ? c.id() : null;
+            String tid = (rId != null ? "repo:" + rId : "container:" + cId);
+            String type = (rId != null ? "REPOSITORY" : "CONTAINER");
+
+            long tCrit = countOpen(Severity.CRITICAL, null, rId, cId, allowed);
+            long tHigh = countOpen(Severity.HIGH, null, rId, cId, allowed);
+            long tMed = countOpen(Severity.MEDIUM, null, rId, cId, allowed);
+            long tLow = countOpen(Severity.LOW, null, rId, cId, allowed);
+            long tKev = countOpen(null, true, rId, cId, allowed);
+            long tOverdue = countOverdueForTarget(rId, cId, allowed);
+            long tSec = countOpenType(FindingType.SECRET, rId, cId, allowed);
+            long tSast = countOpenType(FindingType.QUALITY, rId, cId, allowed);
+            long tIac = countOpenType(FindingType.IAC, rId, cId, allowed);
+
+            long totalOpen = tCrit + tHigh + tMed + tLow;
+            boolean isObs = tp.observed();
+            boolean isPass = tp.observed() && tp.passed();
+
+            ComplianceEngine.PostureInput tInput = new ComplianceEngine.PostureInput(
+                    1,
+                    isObs ? 1 : 0,
+                    isPass ? 1 : 0,
+                    tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
+                    isObs ? 1 : 0,
+                    auditValid);
+
+            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput);
+            Map<String, Integer> scores = new java.util.HashMap<>();
+            tEvals.forEach(e -> scores.put(e.framework().name(), e.scorePercentage()));
+
+            int avgScore = (int) Math.round(tEvals.stream().mapToInt(ComplianceEvaluation::scorePercentage).average().orElse(100.0));
+            String status = avgScore == 100 ? "COMPLIANT" : (avgScore >= 70 ? "PARTIAL" : "NON_COMPLIANT");
+            
+            String gateStatus;
+            if (tp.observation() == SecurityOverview.Observation.IN_PROGRESS) {
+                gateStatus = "SCANNING";
+            } else if (tp.observation() == SecurityOverview.Observation.NEVER_SCANNED) {
+                gateStatus = "NEVER_SCANNED";
+            } else if (tp.observation() == SecurityOverview.Observation.LAST_SCAN_FAILED) {
+                gateStatus = "FAILED";
+            } else {
+                gateStatus = tp.passed() ? "PASSED" : "FAILED";
+            }
+
+            return new TargetCompliance(tid, tp.name(), type, gateStatus, totalOpen, tOverdue, avgScore, status, scores);
+        }).toList();
+
+        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets, targetComplianceList);
     }
 
     @Transactional(readOnly = true)

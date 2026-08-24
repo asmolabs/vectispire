@@ -43,3 +43,10 @@ vectispire:
   encryption:
     key: ${ENCRYPTION_KEY:vectispire-test-encryption-passphrase-placeholder}
 
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+

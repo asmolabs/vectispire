@@ -37,6 +37,10 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,6 +48,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The repositories under watch, and triggering their scans. */
+@Tag(name = "Repositories", description = "Target repository inventory, Git synchronization and scan triggers")
 @RestController
 @RequestMapping("/api/v1/repositories")
 // Listing is readable by any account; creating, scanning and deleting are administrators' —
@@ -116,6 +121,8 @@ public class RepositoriesController {
     public record QueuedScan(Long id, String status) {}
 
     /** The list, with each target's latest scan and how many issues are waiting on it. */
+    @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible to the caller.")
+    @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
     @GetMapping
     public List<Summary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(
@@ -143,6 +150,8 @@ public class RepositoriesController {
                 .toList();
     }
 
+    @Operation(summary = "Create repository", description = "Registers a new Git repository for automated security scanning.")
+    @ApiResponse(responseCode = "200", description = "Repository registered successfully")
     @RequiresAdministrator
     @PostMapping
     public Summary create(
@@ -194,10 +203,12 @@ public class RepositoriesController {
      * — and the wrong one for pointing an existing row at an unrelated project. The audit entry
      * records both URLs so the surprise has an explanation.
      */
+    @Operation(summary = "Update repository", description = "Updates configuration, schedule or credentials of a monitored repository.")
+    @ApiResponse(responseCode = "200", description = "Repository updated successfully")
     @RequiresAdministrator
     @PatchMapping("/{id}")
     public Summary update(
-            @PathVariable long id,
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
             @RequestBody CreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
@@ -261,10 +272,12 @@ public class RepositoriesController {
      *
      * <p>Administrators only: a scan costs machine time and network, and the queue is shared.
      */
+    @Operation(summary = "Trigger repository scan", description = "Enqueues an immediate full security scan (SBOM, CVE, Secrets, SAST, IaC, APIs).")
+    @ApiResponse(responseCode = "200", description = "Scan queued successfully")
     @RequiresAdministrator
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
-            @PathVariable long id,
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -277,11 +290,13 @@ public class RepositoriesController {
         return new QueuedScan(scan.getId(), scan.getStatus());
     }
 
+    @Operation(summary = "Delete repository", description = "Removes repository and cascades deletion of its issues, findings and history.")
+    @ApiResponse(responseCode = "204", description = "Repository deleted successfully")
     @RequiresAdministrator
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
-            @PathVariable long id,
+            @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 

@@ -14,8 +14,7 @@ Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un révi
 | [Modélisation des Menaces STRIDE](../security/STRIDE_THREAT_MODEL.fr.md) | Analyse formelle des menaces selon les 6 catégories STRIDE. |
 | [Diagrammes C4 (Structurizr DSL)](../c4/workspace.dsl) | Modélisation C4 interactive (Niveaux 1, 2 et 3). |
 
-## Ailleurs dans la documentation
-
 - [`docs/fr/GETTING_STARTED.fr.md`](../../fr/GETTING_STARTED.fr.md) — installation et exécution.
 - [`docs/fr/TECHNICAL_DOCUMENTATION.fr.md`](../../fr/TECHNICAL_DOCUMENTATION.fr.md) — référence des modules et paramètres.
 - [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — rotation des clés et purge des données brutes.
+- [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des endpoints REST.
