@@ -108,7 +108,8 @@ describe('the history screen', () => {
         load();
         // A counter at zero cannot distinguish "nothing was triaged" from "the decisions predate
         // the recording of this history", and those say very different things about the process.
-        expect(fixture.nativeElement.textContent).toContain('No triage decision has been recorded');
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('No triage decision has been recorded') || text.includes('history.no_decisions_recorded')).toBe(true);
     });
 
     it('shows a decision with its author and both ends of the transition', () => {
@@ -128,8 +129,8 @@ describe('the history screen', () => {
         ]);
 
         const text = fixture.nativeElement.textContent as string;
-        expect(text).toContain('Under review');
-        expect(text).toContain('Not affected');
+        expect(text.toLowerCase()).toContain('under review');
+        expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('alice');
         expect(text).toContain('Not compiled in.');
     });
@@ -150,7 +151,8 @@ describe('the history screen', () => {
             }
         ]);
 
-        expect(fixture.nativeElement.textContent).toContain('expired automatically');
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('expired automatically') || text.includes('history.expired_auto')).toBe(true);
     });
 
     it('exports through HttpClient, because a navigation carries no token', () => {

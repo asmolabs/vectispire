@@ -1,5 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Ensure proxy is bypassed for local test server requests
+process.env['NO_PROXY'] = 'localhost,127.0.0.1,::1,*';
+process.env['HTTP_PROXY'] = '';
+process.env['HTTPS_PROXY'] = '';
+process.env['http_proxy'] = '';
+process.env['https_proxy'] = '';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,

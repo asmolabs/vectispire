@@ -67,11 +67,12 @@ describe('every screen', () => {
         }
         // Before `/dashboard`, which this URL does not end with: an empty series is a fresh
         // install, and the mean is absent rather than zero on purpose.
-        if (url.endsWith('/dashboard/trends')) return { points: [], mean_days_to_resolve: null, resolved_in_window: 0 };
+        if (url.includes('/dashboard/analytics')) return { mttrBySeverity: { CRITICAL: null, HIGH: null, MEDIUM: null, LOW: null }, resolvedThisMonth: 0, slaComplianceRate: 100 };
+        if (url.includes('/dashboard/trends')) return { points: [], mean_days_to_resolve: null, resolved_in_window: 0 };
         if (url.endsWith('/dashboard')) {
             return {
                 posture: { failingCount: 0, totalCount: 0, kevCount: 0, neverScannedCount: 0, lastScanFailedCount: 0 },
-                backlogBySeverity: {},
+                backlogBySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
                 qualityTotal: 0,
                 failing: [],
                 recentScans: []

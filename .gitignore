@@ -22,3 +22,13 @@ vectispire-java/**/build/
 vectispire-java/**/.gradle/
 **/bin/**
 *.class
+
+# Playwright test artifacts & reports
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+vectispire-angular/test-results/
+vectispire-angular/playwright-report/
+vectispire-angular/blob-report/
+vectispire-angular/.playwright/

@@ -223,7 +223,7 @@ export class Settings {
                 || lowerName.includes('scanner') || lowerName.includes('source code');
         }
         if (tab === 'ai') {
-            return firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai') || lowerName.includes('ollama');
+            return firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai') || lowerName.includes('ollama') || lowerName.includes('owasp');
         }
         if (tab === 'integrations') {
             return firstKey.startsWith('ticket_') || firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')

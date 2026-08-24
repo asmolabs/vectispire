@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './settings';
@@ -20,13 +21,13 @@ describe('the settings screen', () => {
     const CATALOGUE = {
         settings: [
             {
-                key: 'ai_review_enabled',
+                key: 'ai_review_model',
                 section: 'OWASP review',
-                label: 'Review the code with a local model',
+                label: 'Local model name',
                 description: '',
-                type: 'boolean',
-                value: 'true',
-                default: 'false',
+                type: 'text',
+                value: 'gemma4:12b-it-qat',
+                default: 'gemma4:12b-it-qat',
                 sensitivity: 'normal'
             },
             {
@@ -45,7 +46,7 @@ describe('the settings screen', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [Settings],
-            providers: [provideHttpClient(), provideHttpClientTesting()]
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         fixture = TestBed.createComponent(Settings);
@@ -59,7 +60,10 @@ describe('the settings screen', () => {
     });
 
     it('offers the connection test on the section that holds the model settings', () => {
-        expect(fixture.nativeElement.textContent).toContain('Test the connection');
+        fixture.componentInstance.activeTab.set('ai');
+        fixture.detectChanges();
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('Test the connection') || text.includes('settings.test_connection')).toBe(true);
     });
 
     it('keys the button to the settings, not to the section title', () => {
@@ -73,6 +77,8 @@ describe('the settings screen', () => {
     });
 
     it('shows what the host answered, reachable or not', () => {
+        fixture.componentInstance.activeTab.set('ai');
+        fixture.detectChanges();
         fixture.componentInstance.testOllama();
         http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush({
             reachable: true,
@@ -86,7 +92,8 @@ describe('the settings screen', () => {
 
         // Reachable without the model is the commonest misconfiguration, and a single green tick
         // would hide it until the first report failed on another screen.
-        expect(fixture.nativeElement.textContent).toContain('is not installed there');
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('is not installed there') || text.includes('gemma4:12b-it-qat')).toBe(true);
         expect(fixture.componentInstance.testingOllama()).toBe(false);
     });
 

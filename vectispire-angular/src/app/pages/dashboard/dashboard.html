@@ -88,19 +88,19 @@
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center">
                                 <span class="font-bold text-red-600 dark:text-red-400">Critique</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['CRITICAL'] != null ? pa.mttrBySeverity['CRITICAL'] + 'j' : '—' }}</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['CRITICAL'] != null ? pa.mttrBySeverity['CRITICAL'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center">
                                 <span class="font-bold text-amber-600 dark:text-amber-400">Élevée</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['HIGH'] != null ? pa.mttrBySeverity['HIGH'] + 'j' : '—' }}</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['HIGH'] != null ? pa.mttrBySeverity['HIGH'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center">
                                 <span class="font-bold text-blue-600 dark:text-blue-400">Moyenne</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['MEDIUM'] != null ? pa.mttrBySeverity['MEDIUM'] + 'j' : '—' }}</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['MEDIUM'] != null ? pa.mttrBySeverity['MEDIUM'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center">
                                 <span class="font-semibold text-muted-color">Faible</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity['LOW'] != null ? pa.mttrBySeverity['LOW'] + 'j' : '—' }}</span>
+                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['LOW'] != null ? pa.mttrBySeverity['LOW'] + 'j' : '—' }}</span>
                             </div>
                         </div>
 

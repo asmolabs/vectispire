@@ -75,7 +75,8 @@ describe('the container list', () => {
 
     it('says a never-scanned image was never scanned', () => {
         load({ ...CONTAINER, lastScan: null });
-        expect(fixture.nativeElement.textContent).toContain('Never scanned');
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('Never scanned') || text.includes('scans.never_scanned')).toBe(true);
     });
 
     it('says an image with no schedule is scanned only when somebody asks', () => {

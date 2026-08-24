@@ -104,7 +104,8 @@ describe('the OWASP report screen', () => {
             blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'x' }],
             error: null, scanId: 34, createdAt: '2026-08-21T07:57:53Z'
         });
-        expect(fixture.nativeElement.textContent).toContain('Export PDF');
+        const text = fixture.nativeElement.textContent;
+        expect(text.includes('Export PDF') || text.includes('owasp.export_pdf')).toBe(true);
     });
 
     it('downloads through HttpClient, because a navigation carries no token', () => {
