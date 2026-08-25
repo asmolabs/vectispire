@@ -5,7 +5,10 @@ spring:
     name: vectispire
 
   datasource:
-    url: ${VECTISPIRE_DB_URL:${VECTISPIRE_DB_URL:${VECTISPIRE_DB_URL:jdbc:postgresql://localhost:5432/vectispire}}}
+    # **MySQL is the default engine**, and the same one `docker-compose.yml` ships — the two
+    # used to disagree, so a reader had to guess which was authoritative. The engine is chosen
+    # by this URL and nothing else: Hibernate and Flyway both read it from here.
+    url: ${VECTISPIRE_DB_URL:jdbc:mysql://localhost:3306/vectispire}
     username: ${VECTISPIRE_DB_USER:vectispire}
     password: ${VECTISPIRE_DB_PASSWORD:}
 

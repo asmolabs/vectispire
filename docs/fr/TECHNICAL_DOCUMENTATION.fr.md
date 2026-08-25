@@ -99,7 +99,9 @@ Le schéma appartient aux **migrations Flyway**, sous
 moteur (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` vaut `validate`
 et le reste : Hibernate ne doit jamais altérer le schéma à l'exécution.
 
-`VECTISPIRE_DB_DIALECT` accepte `postgres` (défaut), `mysql`, `mariadb` et `sqlite`. Les quatre
+**Le moteur est choisi par `VECTISPIRE_DB_URL` et rien d'autre** — Hibernate et Flyway le lisent
+tous deux depuis l'URL JDBC, il n'existe donc aucun réglage de dialecte séparé à tenir en phase
+avec elle. MySQL est le défaut, le moteur que livre `docker-compose.yml`. Les quatre
 passent l'intégralité de la campagne d'intégration
 ([décision 0009](../architecture/fr/decisions/0009-four-engines.md), [décision 0013](../architecture/fr/decisions/0013-flyway-multi-dialect-migrations.md)).
 [`SchemaParityIntegrationTest`](../../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/vectispire/core/persistence/SchemaParityIntegrationTest.java)
@@ -427,7 +429,7 @@ migrations et annulent chaque test dans sa propre transaction — de sorte que l
 est celui que la production recevra, et que les cas ne peuvent pas se voir entre eux.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # PostgreSQL
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres, mariadb, sqlite)
 cd vectispire-java && ./gradlew integrationTestAll             # les quatre moteurs
 ```
 

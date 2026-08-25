@@ -33,7 +33,7 @@ Créez un fichier `.env` ou exportez les variables suivantes :
 # Clé de chiffrement AES-256 (32 octets encodés en base64)
 export ENCRYPTION_KEY=$(openssl rand -base64 32)
 
-# Base de données (par défaut PostgreSQL ou SQLite)
+# Base de données (MySQL par défaut ; l'URL choisit le moteur)
 export VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
 export VECTISPIRE_DB_USER=vectispire
 export VECTISPIRE_DB_PASSWORD=secret
@@ -47,12 +47,24 @@ export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
 
 ## 4. Base de données
 
-PostgreSQL ou MySQL 8. En développement, un conteneur est le chemin le plus court :
+MySQL 8 par défaut — le moteur que livre `docker-compose.yml` et celui vers lequel pointe
+`VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL, MariaDB et SQLite sont tout aussi
+supportés ; le moteur est lu depuis l'URL et il n'existe aucun réglage de dialecte séparé.
+
+```bash
+docker run -d --name vectispire-db -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
+  -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire \
+  mysql:8
+```
+
+Pour PostgreSQL à la place, pointez `VECTISPIRE_DB_URL` dessus — rien d'autre ne change :
 
 ```bash
 docker run -d --name vectispire-db -p 5432:5432 \
   -e POSTGRES_USER=vectispire -e POSTGRES_PASSWORD=vectispire -e POSTGRES_DB=vectispire \
   postgres:16-alpine
+# VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
 ```
 
 Le schéma appartient aux **migrations Flyway**, appliquées au démarrage :
@@ -157,7 +169,7 @@ npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispir
 
 ```bash
 cd vectispire-java && ./gradlew build              # campagnes unitaires, d'architecture et HTTP
-cd vectispire-java && ./gradlew integrationTest    # démarre PostgreSQL via testcontainers
+cd vectispire-java && ./gradlew integrationTest    # démarre MySQL via testcontainers (-Pdialect= pour les autres)
 ```
 
 Les campagnes d'intégration démarrent leur propre base et **ne s'esquivent pas** quand elle

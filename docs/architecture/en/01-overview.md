@@ -24,7 +24,7 @@ security is actually a question, and it is why the Semgrep rules are bundled rat
 downloaded ([decision 0006](decisions/0006-semgrep-rules-written-here.md)).
 
 **The default deployment is one process and one file.** A single `docker run` and the
-tool is up. Everything distributed — several instances, remote agents, PostgreSQL — is
+tool is up. Everything distributed — several instances, remote agents, a server engine — is
 possible, and refused at startup when the configuration does not allow it
 ([04](04-runtime-and-deployment.md)).
 

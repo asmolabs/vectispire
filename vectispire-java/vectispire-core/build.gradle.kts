@@ -1,6 +1,7 @@
 plugins {
     id("vectispire.java-conventions")
     alias(libs.plugins.springBoot)
+    alias(libs.plugins.jib)
 }
 
 /**
@@ -176,7 +177,7 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
         sourceSets.main.get().output
     // The suites share one server, so they cannot run against it concurrently.
     maxParallelForks = 1
-    systemProperty("vectispire.db.dialect", providers.gradleProperty("dialect").getOrElse("postgres"))
+    systemProperty("vectispire.db.dialect", providers.gradleProperty("dialect").getOrElse("mysql"))
     shouldRunAfter(tasks.test)
 }
 
@@ -223,4 +224,89 @@ tasks.register("integrationTestAll") {
  */
 tasks.named<Jar>("bootJar") {
     archiveFileName = "vectispire-core.jar"
+}
+
+/**
+ * The container image, built from this build rather than from a Dockerfile.
+ *
+ * **Why Jib.** The image and the release both copied `vectispire-core.jar` while `bootJar` emitted
+ * `vectispire-core-0.9.0.jar`, so both were broken for an unknown period and were found by
+ * accident. Jib removes the class of defect rather than the instance: there is no path string
+ * between the build and the image to get wrong, because the build *is* the image.
+ *
+ * **No `git`, no `openssh-client`, and that was verified rather than assumed.** The Dockerfile
+ * installed both. Nothing shells out to either — cloning goes through JGit (`org.eclipse.jgit`)
+ * and its own SSH transport, and there is no `ProcessBuilder` anywhere in the production sources.
+ * Two unused binaries in a container that reads code nobody controls are two more things an
+ * attacker can reach for.
+ *
+ * **The base is pinned by digest**, for the reason `ScannerImages` gives: a tool that audits
+ * everybody else's supply chain cannot pull a floating tag and run whatever comes down.
+ */
+jib {
+    from {
+        // eclipse-temurin:25-jre-alpine, resolved with
+        // `docker buildx imagetools inspect eclipse-temurin:25-jre-alpine`.
+        image = "eclipse-temurin@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682"
+        platforms {
+            platform {
+                architecture = "amd64"
+                os = "linux"
+            }
+        }
+    }
+    to {
+        image = "vectispire:latest"
+    }
+    container {
+        ports = listOf("3180")
+        // Numeric rather than a name: the base image has no such account, and a UID needs none.
+        // It is what keeps the process off root inside a container that launches scanners.
+        user = "1000:1000"
+        // Fixed, so the same source produces the same image. The default is the epoch for the
+        // same reason; naming it here is so nobody "fixes" it to the current time later.
+        // **Named, not inferred.** Jib infers the entry point by reading class files with a
+        // bundled ASM that does not know class file major 69, so on JDK 25 the build fails
+        // with "Unsupported class file major version 69". Naming it skips the scan — and it
+        // is one less thing decided by a heuristic.
+        mainClass = "com.asmolabs.vectispire.core.VectispireApplication"
+        creationTime = "EPOCH"
+        jvmFlags = listOf("-XX:MaxRAMPercentage=75")
+    }
+    extraDirectories {
+        // The licence and the notice travel with every copy — Apache-2.0 clause 4 — and the audit
+        // mirror's directory has to exist so a named volume mounted over it inherits an owner
+        // the runtime user can write to.
+        setPaths(listOf(layout.buildDirectory.dir("jib-extra").get().asFile))
+        // **1777, and that is a Jib limitation rather than a preference.** Docker initialises a
+        // named volume from what it finds at the mount point, ownership included — and Jib can
+        // express mode but not ownership, so the directory arrives `root:root` whatever is asked.
+        // Left at 755 the unprivileged runtime user cannot write, every audit-mirror append fails
+        // on a permission error, and the mirror is configured and absent at once: the outcome
+        // worse than having none.
+        //
+        // The sticky bit would narrow it further, and Jib will not take one — it accepts three
+        // octal digits only. What keeps 777 defensible is that a single process runs here, as a
+        // single unprivileged user, in a container whose root filesystem it does not own.
+        permissions = mapOf("/var/lib/vectispire/audit" to "777")
+    }
+}
+
+/** Stages what the image carries beyond the application itself. */
+val jibExtras = tasks.register<Copy>("jibExtras") {
+    from(rootProject.projectDir.parentFile) {
+        include("LICENSE", "NOTICE")
+        into("app")
+    }
+    into(layout.buildDirectory.dir("jib-extra"))
+    doLast {
+        // Created empty: Docker initialises a named volume from what it finds at the mount point,
+        // ownership included, so this directory existing is what stops the volume arriving
+        // root-owned and every audit-mirror append failing on a permission error.
+        layout.buildDirectory.dir("jib-extra/var/lib/vectispire/audit").get().asFile.mkdirs()
+    }
+}
+
+tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configureEach {
+    dependsOn(jibExtras)
 }

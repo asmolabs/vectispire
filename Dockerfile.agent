@@ -22,7 +22,12 @@ RUN ./gradlew --no-daemon :vectispire-agent:bootJar -x test
 # --- Runtime Stage -----------------------------------------------------------------------
 FROM eclipse-temurin:25-jre-alpine
 
-RUN apk add --no-cache git openssh-client ca-certificates
+# **No `git`, no `openssh-client`, and that was measured.** Cloning goes through JGit
+# (`org.eclipse.jgit`) and its own SSH transport; there is no `ProcessBuilder` anywhere in
+# the production sources, so neither binary was ever called. Two unused executables in a
+# container that reads code nobody controls are two more things to reach for — the agent
+# needs neither.
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 COPY --from=build /src/vectispire-agent/build/libs/vectispire-agent.jar app.jar

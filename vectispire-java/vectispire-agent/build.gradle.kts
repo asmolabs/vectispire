@@ -1,6 +1,7 @@
 plugins {
     id("vectispire.java-conventions")
     alias(libs.plugins.springBoot)
+    alias(libs.plugins.jib)
 }
 
 /**
@@ -43,4 +44,52 @@ dependencies {
  */
 tasks.named<Jar>("bootJar") {
     archiveFileName = "vectispire-agent.jar"
+}
+
+/**
+ * The agent's image, built the same way and for the same reasons as the control plane's.
+ *
+ * <p>No `git` or `openssh-client` here either: the agent clones through JGit, and it is the
+ * component that runs on somebody else's network — the one where an unused binary matters most.
+ * It opens no port, so none is declared.
+ */
+jib {
+    from {
+        // eclipse-temurin:25-jre-alpine, pinned by digest like every other image this project runs.
+        image = "eclipse-temurin@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682"
+        platforms {
+            platform {
+                architecture = "amd64"
+                os = "linux"
+            }
+        }
+    }
+    to {
+        image = "vectispire-agent:latest"
+    }
+    container {
+        user = "1000:1000"
+        // **Named, not inferred.** Jib infers the entry point by reading class files with a
+        // bundled ASM that does not know class file major 69, so on JDK 25 the build fails
+        // with "Unsupported class file major version 69". Naming it skips the scan — and it
+        // is one less thing decided by a heuristic.
+        mainClass = "com.asmolabs.vectispire.agent.VectispireAgentApplication"
+        creationTime = "EPOCH"
+        jvmFlags = listOf("-XX:MaxRAMPercentage=75")
+    }
+    extraDirectories {
+        setPaths(listOf(layout.buildDirectory.dir("jib-extra").get().asFile))
+    }
+}
+
+val jibExtras = tasks.register<Copy>("jibExtras") {
+    from(rootProject.projectDir.parentFile) {
+        include("LICENSE", "NOTICE")
+        into("app")
+    }
+    into(layout.buildDirectory.dir("jib-extra"))
+}
+
+tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configureEach {
+    dependsOn(jibExtras)
 }

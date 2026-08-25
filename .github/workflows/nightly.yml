@@ -58,6 +58,32 @@ jobs:
             vectispire-java/vectispire-core/build/reports/tests/integrationTest-*/
           if-no-files-found: warn
 
+  # The shipped images, built the way a release builds them.
+  #
+  # `ci.yml` builds the same two with Jib on every push, which is fast and needs no daemon. This
+  # one exercises the `Dockerfile` route — the one that ships, because it can chown the audit
+  # mirror's directory where Jib can only set a mode. Ten minutes is affordable once a night and
+  # is not on every push.
+  dockerfiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Control plane image
+        run: docker build -f Dockerfile -t vectispire:nightly .
+
+      - name: Agent image
+        run: docker build -f Dockerfile.agent -t vectispire-agent:nightly .
+
+      # The defect that made this job necessary was a COPY of a file the build does not produce,
+      # so the assertion is that the artifact is where the image says it is.
+      - name: The images carry what they claim
+        run: |
+          docker run --rm --entrypoint sh vectispire:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+          docker run --rm --entrypoint sh vectispire-agent:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+          docker run --rm --entrypoint sh vectispire:nightly -c 'ls -ld /var/lib/vectispire/audit'
+
   # The interface, driven the way an analyst drives it: sign-in including MFA, the four-eyes
   # approval, the settings audit trail, and VEX triage.
   e2e:

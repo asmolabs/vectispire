@@ -73,6 +73,96 @@ jobs:
           done
           echo "C4 diagrams are in step with the model."
 
+  # **The images are built here, and one of them is started.**
+  #
+  # `Dockerfile`, `Dockerfile.agent` and `release.yml` all copied `vectispire-core.jar` while the
+  # build emitted `vectispire-core-0.9.0.jar`. Both container images and the release were broken
+  # for an unknown period, and it was found by accident — because nothing here ever built an image
+  # or cut a release. One job closes that whole class.
+  #
+  # Jib rather than `docker build` on this path: it needs no daemon for the build itself, it is
+  # fast enough to run on every push, and there is no path string between the build and the image
+  # to get wrong. The `Dockerfile` route is still the shipped image — it is the one that can chown
+  # the audit mirror's directory, which Jib cannot express — so the nightly workflow builds that
+  # one, where ten minutes is affordable.
+  images:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: vectispire
+          MYSQL_USER: vectispire
+          MYSQL_PASSWORD: vectispire
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uvectispire -pvectispire"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The interface is a build input to the image, not a separate artifact: without it the jar
+      # serves the API and answers 404 at `/`. Verified by building an image without it and
+      # asking — which is how this step came to exist.
+      - name: Build the interface
+        run: npm run build
+
+      - name: Build both images
+        working-directory: vectispire-java
+        run: |
+          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild -x test \
+            -PuiDist="$PWD/../vectispire-angular/dist/vectispire/browser"
+
+      # **An image that builds is not an image that runs.** This is the assertion the jar-name
+      # defect would have failed: the container starts, reaches its database, and answers on the
+      # health endpoint that only says UP once the schema validated.
+      - name: The control plane image starts and serves
+        run: |
+          docker run -d --name vectispire-smoke --network host \
+            -e VECTISPIRE_DB_URL="jdbc:mysql://127.0.0.1:3306/vectispire" \
+            -e VECTISPIRE_DB_USER=vectispire \
+            -e VECTISPIRE_DB_PASSWORD=vectispire \
+            -e ENCRYPTION_KEY="Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=" \
+            -e VECTISPIRE_BOOTSTRAP_PASSWORD="CiSmoke2026!" \
+            -e VECTISPIRE_EMBEDDED_WORKER=false \
+            vectispire:latest
+
+          for attempt in $(seq 1 90); do
+            if curl -sf http://localhost:3180/actuator/health > /dev/null; then
+              echo "control plane image healthy after ${attempt}s"
+              # The interface is in the image, which the health endpoint does not prove.
+              curl -sf -o /dev/null http://localhost:3180/ \
+                || { echo "the image serves the API but not the interface"; exit 1; }
+              echo "interface served"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "the image did not become healthy — last 100 lines:"
+          docker logs --tail 100 vectispire-smoke
+          exit 1
+
+      - name: Keep the container log
+        if: always()
+        run: docker logs --tail 200 vectispire-smoke || true
+
   jvm:
     runs-on: ubuntu-latest
     steps:

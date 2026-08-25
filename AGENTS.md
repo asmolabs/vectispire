@@ -14,7 +14,7 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 21, Optimus UI, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | PostgreSQL (default), MySQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
+| Database | MySQL (default), PostgreSQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash

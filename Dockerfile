@@ -62,7 +62,12 @@ FROM eclipse-temurin:25-jre-alpine
 
 # `git` is what clones the repositories the built-in worker scans. The Docker *client* is not
 # needed: the worker talks to the daemon over the mounted socket, from Java.
-RUN apk add --no-cache git openssh-client ca-certificates
+# **No `git`, no `openssh-client`, and that was measured.** Cloning goes through JGit
+# (`org.eclipse.jgit`) and its own SSH transport; there is no `ProcessBuilder` anywhere in
+# the production sources, so neither binary was ever called. Two unused executables in a
+# container that reads code nobody controls are two more things to reach for — the built-in worker
+# needs neither.
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 COPY --from=build /src/vectispire-core/build/libs/vectispire-core.jar app.jar

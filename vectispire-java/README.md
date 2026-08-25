@@ -7,7 +7,7 @@ HTTP.
 ```bash
 ./gradlew build                      # compile + unit tests + architecture suite
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
-./gradlew integrationTest            # one engine, needs Docker (default: postgres)
+./gradlew integrationTest            # one engine, needs Docker (default: mysql)
 ./gradlew integrationTest -Pdialect=mariadb
 ./gradlew integrationTestAll         # all four
 ```

@@ -12,7 +12,7 @@ Trois principes façonnent tout le reste :
 
 **Tout est local.** Les analyseurs s'exécutent dans des conteneurs éphémères sur la même machine, avec le réseau coupé lorsque l'outil n'a rien à récupérer. Aucun code source ne sort. Ce n'est pas une contrainte subie : c'est ce qui rend l'outil déployable là où la sécurité applicative est réellement un sujet, et c'est pourquoi les règles Semgrep sont intégrées au binaire plutôt que téléchargées ([décision 0006](decisions/0006-semgrep-rules-written-here.md)).
 
-**Le déploiement par défaut est un seul processus et un seul fichier.** Un simple `docker run` et l'outil est opérationnel. Tout ce qui est distribué — plusieurs instances, agents distants, PostgreSQL — est possible, et refusé au démarrage lorsque la configuration ne le permet pas ([04](04-runtime-and-deployment.md)).
+**Le déploiement par défaut est un seul processus et un seul fichier.** Un simple `docker run` et l'outil est opérationnel. Tout ce qui est distribué — plusieurs instances, agents distants, un moteur serveur — est possible, et refusé au démarrage lorsque la configuration ne le permet pas ([04](04-runtime-and-deployment.md)).
 
 **Ce qui n'a pas été observé n'est pas sain.** Un analyseur qui plante n'a rien trouvé, et confondre son silence avec un résultat vide revient à déclarer la cible corrigée. Cette distinction traverse l'ensemble de la codebase ([décision 0007](decisions/0007-none-is-not-an-empty-list.md)).
 

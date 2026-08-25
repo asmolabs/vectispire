@@ -97,8 +97,9 @@ The schema belongs to **Flyway migrations**, under
 engine (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` is `validate`
 and stays that way: Hibernate must never alter the schema at runtime.
 
-`VECTISPIRE_DB_DIALECT` accepts `postgres` (default), `mysql`, `mariadb` and `sqlite`. All
-four pass the whole integration campaign
+**The engine is chosen by `VECTISPIRE_DB_URL` and nothing else** — Hibernate and Flyway both read
+it from the JDBC URL, so there is no separate dialect setting to keep in step with it. MySQL is
+the default, the engine `docker-compose.yml` ships. All four pass the whole integration campaign
 ([decision 0009](../architecture/en/decisions/0009-four-engines.md), [decision 0013](../architecture/en/decisions/0013-flyway-multi-dialect-migrations.md)).
 [`SchemaParityIntegrationTest`](../../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/vectispire/core/persistence/SchemaParityIntegrationTest.java)
 asks on each engine whether the entities and schema agree.
@@ -423,7 +424,7 @@ migration, and roll each test back in its own transaction — so the schema unde
 one production will receive, and the cases cannot see each other.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # PostgreSQL
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres, mariadb, sqlite)
 cd vectispire-java && ./gradlew integrationTestAll             # all four engines
 ```
 

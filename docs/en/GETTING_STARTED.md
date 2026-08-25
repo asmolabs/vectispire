@@ -44,12 +44,24 @@ Three environment variables matter before the first run:
 
 ## 4. Database
 
-PostgreSQL or MySQL 8. In development a container is the shortest path:
+MySQL 8 by default — the engine `docker-compose.yml` ships and the one
+`VECTISPIRE_DB_URL` points at when nothing overrides it. PostgreSQL, MariaDB and SQLite are
+equally supported; the engine is read from the URL and there is no separate dialect setting.
+
+```bash
+docker run -d --name vectispire-db -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
+  -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire \
+  mysql:8
+```
+
+For PostgreSQL instead, point `VECTISPIRE_DB_URL` at it — nothing else changes:
 
 ```bash
 docker run -d --name vectispire-db -p 5432:5432 \
   -e POSTGRES_USER=vectispire -e POSTGRES_PASSWORD=vectispire -e POSTGRES_DB=vectispire \
   postgres:16-alpine
+# VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
 ```
 
 The schema belongs to **Flyway migrations**, applied at startup:
@@ -135,7 +147,7 @@ Then, from Vectispire's **Settings** page, under "Revue de code par IA": toggle 
 
 ```bash
 cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTest    # starts PostgreSQL via testcontainers
+cd vectispire-java && ./gradlew integrationTest    # starts MySQL via testcontainers (-Pdialect= for the others)
 ```
 
 The integration suites start their own database and **do not skip** when one is missing:

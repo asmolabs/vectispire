@@ -349,7 +349,8 @@ Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **e
 exercised by the full integration campaign**. Flyway applies native migrations per dialect
 under `db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`), ensuring complete
 fidelity and avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL`
-at the engine; it is read from the URL, and PostgreSQL is the default. A portability defect is
+at the engine; it is read from the URL, and MySQL is the default — the engine `docker-compose.yml`
+ships, so the shortest path and the documented one agree. A portability defect is
 invisible to reading and to a single engine; running all four is the only way it gets found, and
 it found several.
 
