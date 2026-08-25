@@ -1,6 +1,6 @@
 # 0015 — Un seul moteur de secrets
 
-**Date :** 2026-08-25 · **Statut :** accepté
+**Date :** 2026-08-25 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

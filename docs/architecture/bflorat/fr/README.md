@@ -1,8 +1,15 @@
 # Dossier d'Architecture Vectispire (Modèle Bertrand Florat — bflorat/modele-da)
 
-Ce répertoire contient le **Dossier d'Architecture (DA)** de la plateforme **Vectispire** en version française, rédigé selon le modèle standardisé **[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat).
+> **Sur le registre.** Ces cinq vues suivent un gabarit imposé — sections numérotées,
+> exigences tabulées, une version et un statut. Elles se lisent autrement que le reste du
+> dossier d'architecture parce que le gabarit l'impose, pas parce que le projet a changé.
 
-Ce modèle s'appuie sur une approche documentaire structurée en **5 Vues Métier et Techniques auto-porteuses** :
+Ce répertoire contient le **Dossier d'Architecture (DA)** de la plateforme **Vectispire** en version
+française, rédigé selon le modèle standardisé
+**[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat).
+
+Ce modèle s'appuie sur une approche documentaire structurée en **5 Vues Métier et Techniques
+auto-porteuses** :
 
 ---
 

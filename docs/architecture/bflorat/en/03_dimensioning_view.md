@@ -8,10 +8,14 @@
 
 ## 1. Non-Functional Performance Requirements (NFR)
 
-1. **Quality Gate Response Time (`POST /api/v1/gate`)**: $< 300\text{ ms}$ (deterministic in-memory evaluation).
-2. **Scan Ingestion Throughput**: Asynchronous background scan processing without blocking HTTP thread pools.
-3. **Horizontal Scaling**: Conflict-free coordination across multiple instances using database leader leases (`t_leader_lease`).
-4. **Docker Memory Stability**: Enforced CPU and memory caps on scanner containers to prevent host RAM exhaustion.
+1. **Quality Gate Response Time (`POST /api/v1/gate`)**: $< 300\text{ ms}$ (deterministic in-memory
+   evaluation).
+2. **Scan Ingestion Throughput**: Asynchronous background scan processing without blocking HTTP
+   thread pools.
+3. **Horizontal Scaling**: Conflict-free coordination across multiple instances using database
+   leader leases (`t_leader_lease`).
+4. **Docker Memory Stability**: Enforced CPU and memory caps on scanner containers to prevent host
+   RAM exhaustion.
 
 ---
 
@@ -28,14 +32,16 @@
 
 ## 3. Scale Coordination & Leader Leases (`t_leader_lease`)
 
-In a multi-instance distributed deployment, background task coordination (cron scheduling, retention purges, outbox relay) is managed via `t_leader_lease`:
+In a multi-instance distributed deployment, background task coordination (cron scheduling, retention
+purges, outbox relay) is managed via `t_leader_lease`:
 
 ```sql
 SELECT * FROM t_leader_lease WHERE lease_name = 'SCHEDULER' AND expires_at > NOW() FOR UPDATE;
 ```
 
 - **Guarantee**: Only one active instance (*Leader*) executes a background task at any given time.
-- **Failover**: If the active leader fails to renew its lease, the lease expires and another node acquires leadership automatically.
+- **Failover**: If the active leader fails to renew its lease, the lease expires and another node
+  acquires leadership automatically.
 
 ---
 
@@ -49,4 +55,5 @@ SELECT * FROM t_leader_lease WHERE lease_name = 'SCHEDULER' AND expires_at > NOW
 Every container execution is constrained to prevent host memory exhaustion:
 - **Maximum Container Memory**: `1.5 GB` RAM.
 - **CPU Quota**: `2.0 vCPUs`.
-- **Maximum Execution Timeout**: `10 minutes` per scanner step. Exceeding timeout triggers forced container termination.
+- **Maximum Execution Timeout**: `10 minutes` per scanner step. Exceeding timeout triggers forced
+  container termination.

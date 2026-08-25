@@ -1,6 +1,6 @@
 # 0011 — Liquibase reste, et le DDL structurel est écrit à la main
 
-**Date :** 2026-08-22 · **Statut :** **remplacé** par [0013](0013-flyway-multi-dialect-migrations.md)
+**Date :** 2026-08-22 · **Statut :** **remplacé** par [0013](0013-flyway-multi-dialect-migrations.md) on 2026-08-22 · **Décideur :** Laurent Boucher
 
 ## Contexte & Décision
 

@@ -1,6 +1,6 @@
 # 0003 — Les agents parlent en long-polling HTTP, jamais à la base
 
-**Date :** 2026-08-06 · **Statut :** accepté
+**Date :** 2026-08-06 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

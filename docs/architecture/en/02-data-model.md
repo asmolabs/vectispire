@@ -4,8 +4,10 @@
 
 This is the one thing to understand before touching this schema.
 
-- A **`Finding`** is what an analyzer said, during **one** scan. It is immutable and disposable. Re-running the scan produces a new one.
-- An **`Issue`** is the same problem **tracked across scans**. It has a first detection, a times-seen counter, a state, a triage decision and its author.
+- A **`Finding`** is what an analyzer said, during **one** scan. It is immutable and disposable.
+  Re-running the scan produces a new one.
+- An **`Issue`** is the same problem **tracked across scans**. It has a first detection, a
+  times-seen counter, a state, a triage decision and its author.
 
 ```mermaid
 erDiagram
@@ -23,10 +25,10 @@ erDiagram
 ```
 
 **The diagram is a deliberate subset: eleven tables of thirty-three.** It shows the scan path,
-because that is the part whose shape has to be understood before the schema can be touched. The
-rest — ticketing, the API inventory, threat intelligence, SIEM configuration, sessions, settings,
-the audit log — hangs off it without changing it. `SchemaParityIntegrationTest` is what keeps the
-count honest, and it once asserted twenty-six against a tree of thirty-three: an exact number in a
+because that is the part whose shape has to be understood before the schema can be touched. The rest
+— ticketing, the API inventory, threat intelligence, SIEM configuration, sessions, settings, the
+audit log — hangs off it without changing it. `SchemaParityIntegrationTest` is what keeps the count
+honest, and it once asserted twenty-six against a tree of thirty-three: an exact number in a
 document is a number nobody updates.
 
 ## The fingerprint
@@ -53,4 +55,6 @@ stateDiagram-v2
 
 ## The migrations
 
-Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring complete fidelity on each database engine.
+Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/`
+(`postgresql`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring complete
+fidelity on each database engine.

@@ -1,6 +1,6 @@
 # 0005 — Quality never blocks the gate
 
-**Date:** 2026-08-11 · **Status:** accepted
+**Date:** 2026-08-11 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 

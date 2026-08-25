@@ -1,6 +1,6 @@
 # 0007 — None is not an empty list
 
-**Date:** 2026-08-12 · **Status:** accepted
+**Date:** 2026-08-12 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 

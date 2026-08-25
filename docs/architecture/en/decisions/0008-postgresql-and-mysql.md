@@ -1,6 +1,6 @@
 # 0008 — Two database engines: PostgreSQL and MySQL
 
-**Date:** 2026-08-14 · **Status:** **superseded** by [0009](0009-four-engines.md) on 2026-08-16
+**Date:** 2026-08-14 · **Status:** **superseded** by [0009](0009-four-engines.md) on 2026-08-16 · **Supersedes:** [0004](0004-sqlite-and-postgresql-only.md) · **Decider:** Laurent Boucher
 
 ## Context & Decision
 

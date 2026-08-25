@@ -21,13 +21,15 @@
 ## 2. Contraintes d'Architecture & Validation Automatisée
 
 ### 2.1 Couplage Inter-Couches (ArchUnit)
-L'isolation des couches d'architecture est vérifiée automatiquement par ArchUnit dans `ArchitectureTest` :
+L'isolation des couches d'architecture est vérifiée automatiquement par ArchUnit dans
+`ArchitectureTest` :
 ```
 domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  ◄──  services  ◄──  api
 ```
 - **Règle 1** : Une couche de domaine ne doit jamais importer de classes Spring.
 - **Règle 2** : Un service ne doit pas exécuter de SQL brut.
-- **Règle 3** : Le module `vectispire-agent` ne doit jamais inclure de dépendances JDBC sur son classpath.
+- **Règle 3** : Le module `vectispire-agent` ne doit jamais inclure de dépendances JDBC sur son
+  classpath.
 
 ---
 
@@ -43,8 +45,11 @@ flowchart LR
     PackageJar --> VerifySignature["Vérification Signature Avant Publication"]
 ```
 
-1. **Audit de la Supply Chain (`supply-chain`)** : Syft construit un SBOM du JAR produit. Grype vérifie l'absence de vulnérabilités High fixables.
-2. **Signature Cryptographique Sigstore** : Les releases publiées lors des tags `v*` sont signées sans clé avec Sigstore, et la signature est vérifiée automatiquement avant toute publication ([AGENTS.md](../../../../AGENTS.md)).
+1. **Audit de la Supply Chain (`supply-chain`)** : Syft construit un SBOM du JAR produit. Grype
+   vérifie l'absence de vulnérabilités High fixables.
+2. **Signature Cryptographique Sigstore** : Les releases publiées lors des tags `v*` sont signées
+   sans clé avec Sigstore, et la signature est vérifiée automatiquement avant toute publication
+   ([AGENTS.md](../../../../AGENTS.md)).
 
 ---
 
@@ -70,4 +75,5 @@ npm run start --workspace @vectispire/frontend
 ```bash
 cd vectispire-java && ./gradlew integrationTestAll
 ```
-*(Valide le comportement du plan de contrôle sur PostgreSQL et MySQL, avec SQLite comme fixture de test).*
+*(Valide le comportement du plan de contrôle sur PostgreSQL et MySQL, avec SQLite comme fixture de
+test).*

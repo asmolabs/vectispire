@@ -1,6 +1,6 @@
 # 0014 — Two deployable engines, and SQLite as a test fixture
 
-**Date:** 2026-08-25 · **Status:** accepted · **Supersedes:** [0009](0009-four-engines.md)
+**Date:** 2026-08-25 · **Status:** accepted · **Supersedes:** [0009](0009-four-engines.md) · **Decider:** Laurent Boucher
 
 ## Context
 

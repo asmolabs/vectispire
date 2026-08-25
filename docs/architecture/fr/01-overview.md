@@ -2,19 +2,35 @@
 
 ## Ce que fait Vectispire
 
-Vectispire surveille la sécurité d'un ensemble de **cibles** — dépôts Git et images de conteneurs — en les soumettant périodiquement à une batterie d'analyseurs, et suit ce qu'il trouve **d'un scan à l'autre**.
+Vectispire surveille la sécurité d'un ensemble de **cibles** — dépôts Git et images de conteneurs —
+en les soumettant périodiquement à une batterie d'analyseurs, et suit ce qu'il trouve **d'un scan à
+l'autre**.
 
-Ce dernier point est ce qui le différencie d'un simple script exécutant Grype en CI. Un analyseur renvoie une liste ; Vectispire renvoie un **backlog** : ce qui est apparu, ce qui a été qualifié et par qui, ce qui est présent depuis six scans, ce qui a disparu. Un rapport dit ce qui existe aujourd'hui ; un backlog dit ce qui a changé, ce qui est la seule information sur laquelle on agit.
+Ce dernier point est ce qui le différencie d'un simple script exécutant Grype en CI. Un analyseur
+renvoie une liste ; Vectispire renvoie un **backlog** : ce qui est apparu, ce qui a été qualifié et
+par qui, ce qui est présent depuis six scans, ce qui a disparu. Un rapport dit ce qui existe
+aujourd'hui ; un backlog dit ce qui a changé, ce qui est la seule information sur laquelle on agit.
 
-Le second usage est le **verdict de conformité** : `POST /api/v1/gate` indique à un pipeline de build si une cible passe les contrôles selon une politique explicite. C'est là que Vectispire cesse d'être un tableau de bord pour devenir une décision.
+Le second usage est le **verdict de conformité** : `POST /api/v1/gate` indique à un pipeline de
+build si une cible passe les contrôles selon une politique explicite. C'est là que Vectispire cesse
+d'être un tableau de bord pour devenir une décision.
 
 Trois principes façonnent tout le reste :
 
-**Tout est local.** Les analyseurs s'exécutent dans des conteneurs éphémères sur la même machine, avec le réseau coupé lorsque l'outil n'a rien à récupérer. Aucun code source ne sort. Ce n'est pas une contrainte subie : c'est ce qui rend l'outil déployable là où la sécurité applicative est réellement un sujet, et c'est pourquoi les règles Semgrep sont intégrées au binaire plutôt que téléchargées ([décision 0006](decisions/0006-semgrep-rules-written-here.md)).
+**Tout est local.** Les analyseurs s'exécutent dans des conteneurs éphémères sur la même machine,
+avec le réseau coupé lorsque l'outil n'a rien à récupérer. Aucun code source ne sort. Ce n'est pas
+une contrainte subie : c'est ce qui rend l'outil déployable là où la sécurité applicative est
+réellement un sujet, et c'est pourquoi les règles Semgrep sont intégrées au binaire plutôt que
+téléchargées ([décision 0006](decisions/0006-semgrep-rules-written-here.md)).
 
-**Le déploiement par défaut est un seul processus et un seul fichier.** Un simple `docker run` et l'outil est opérationnel. Tout ce qui est distribué — plusieurs instances, agents distants, un moteur serveur — est possible, et refusé au démarrage lorsque la configuration ne le permet pas ([04](04-runtime-and-deployment.md)).
+**Le déploiement par défaut est un seul processus et un seul fichier.** Un simple `docker run` et
+l'outil est opérationnel. Tout ce qui est distribué — plusieurs instances, agents distants, un
+moteur serveur — est possible, et refusé au démarrage lorsque la configuration ne le permet pas
+([04](04-runtime-and-deployment.md)).
 
-**Ce qui n'a pas été observé n'est pas sain.** Un analyseur qui plante n'a rien trouvé, et confondre son silence avec un résultat vide revient à déclarer la cible corrigée. Cette distinction traverse l'ensemble de la codebase ([décision 0007](decisions/0007-none-is-not-an-empty-list.md)).
+**Ce qui n'a pas été observé n'est pas sain.** Un analyseur qui plante n'a rien trouvé, et confondre
+son silence avec un résultat vide revient à déclarer la cible corrigée. Cette distinction traverse
+l'ensemble de la codebase ([décision 0007](decisions/0007-none-is-not-an-empty-list.md)).
 
 ## Les composants
 
@@ -46,7 +62,8 @@ flowchart TB
     AGENT --> DOCKER
 ```
 
-**Deux artefacts, une seule API.** Un backend Spring Boot et un frontend Angular ; le navigateur dialogue avec la même API HTTP que les pipelines CI et les agents distants.
+**Deux artefacts, une seule API.** Un backend Spring Boot et un frontend Angular ; le navigateur
+dialogue avec la même API HTTP que les pipelines CI et les agents distants.
 
 ### Les couches et la règle d'isolation
 
@@ -58,7 +75,8 @@ api/ ──► services/ ──► repositories/ ──► persistence/ ──�
                        domain/          (pur, ne dépend de rien)
 ```
 
-Une règle stricte garantit la testabilité : **une couche ne connaît que la couche située immédiatement en dessous.**
+Une règle stricte garantit la testabilité : **une couche ne connaît que la couche située
+immédiatement en dessous.**
 
 ## Le déroulement d'un scan
 

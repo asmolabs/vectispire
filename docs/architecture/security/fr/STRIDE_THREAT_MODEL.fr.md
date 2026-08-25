@@ -1,6 +1,8 @@
 # Modélisation des Menaces STRIDE basée sur DFD (Data Flow Diagram) — Vectispire
 
-Ce document présente l'analyse formelle des menaces de **Vectispire** basée sur la modélisation par **Diagramme de Flux de Données (DFD)** et la cartographie des risques **STRIDE par Entité Individuelle du Système**.
+Ce document présente l'analyse formelle des menaces de **Vectispire** basée sur la modélisation par
+**Diagramme de Flux de Données (DFD)** et la cartographie des risques **STRIDE par Entité
+Individuelle du Système**.
 
 ---
 
@@ -19,7 +21,7 @@ flowchart TB
         P2["P2 : Orchestrateur de Scan (ScanRunner)"]
         P3["P3 : Ingesteur & Réconciliateur (ScanIngestor / IssueSync)"]
         P4["P4 : Moteur de Conformité & Gate (ComplianceService / PolicyGate)"]
-        
+
         DS1[("DS1 : Base de Données SQL<br/>(Dépôts, Scans, Issues, t_audit_log, Sessions)")]
         DS2[("DS2 : Espace de Stockage Éphémère<br/>(Workspace / tmp / Repositories)")]
     end
@@ -36,7 +38,7 @@ flowchart TB
     E1 -->|"F1 : Authentification & Triage VEX (HTTPS)"| P1
     E2 -->|"F2 : Évaluation Gate (POST /api/v1/gate - API Key)"| P1
     E3 -->|"F3 : Clonage Code / Pull Archive Image"| DS2
-    
+
     P1 -->|"F4 : Lecture / Écriture Sessions, Utilisateurs & Rôles"| DS1
     P1 -->|"F5 : Déclenchement de Scan (Queue t_scan)"| DS1
     P1 -->|"F6 : Évaluation de Conformité & Gate"| P4
@@ -61,7 +63,7 @@ flowchart TB
 
 ---
 
-### 👤 Entité E1 : Analyste Security / Administrateur
+### Entité E1 : Analyste Security / Administrateur
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -71,7 +73,7 @@ flowchart TB
 
 ---
 
-### 🤖 Entité E2 : Pipeline CI/CD (Jenkins / GitLab / GitHub Actions)
+### Entité E2 : Pipeline CI/CD (Jenkins / GitLab / GitHub Actions)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -80,7 +82,7 @@ flowchart TB
 
 ---
 
-### 📦 Entité E3 : Dépôt Git Distant / Image de Conteneur (Code Hostile)
+### Entité E3 : Dépôt Git Distant / Image de Conteneur (Code Hostile)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -89,7 +91,7 @@ flowchart TB
 
 ---
 
-### 🖥️ Entité E4 : Agent Distant Worker (Vectispire Agent)
+### Entité E4 : Agent Distant Worker (Vectispire Agent)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -98,7 +100,7 @@ flowchart TB
 
 ---
 
-### ⚙️ Processus P1 : Contrôleur API REST & Couche de Sécurité Backend
+### Processus P1 : Contrôleur API REST & Couche de Sécurité Backend
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -107,7 +109,7 @@ flowchart TB
 
 ---
 
-### 🔬 Processus P2 : Orchestrateur de Scan (`ScanRunner`)
+### Processus P2 : Orchestrateur de Scan (`ScanRunner`)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -116,7 +118,7 @@ flowchart TB
 
 ---
 
-### 📥 Processus P3 : Ingesteur & Réconciliateur (`ScanIngestor` / `IssueSyncService`)
+### Processus P3 : Ingesteur & Réconciliateur (`ScanIngestor` / `IssueSyncService`)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -125,7 +127,7 @@ flowchart TB
 
 ---
 
-### 🛡️ Processus P4 : Moteur de Conformité & Quality Gate (`ComplianceService` / `PolicyGate`)
+### Processus P4 : Moteur de Conformité & Quality Gate (`ComplianceService` / `PolicyGate`)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -134,7 +136,7 @@ flowchart TB
 
 ---
 
-### 🐳 Processus P5 : Conteneurs d'Analyse Isolés (Syft, Grype, Gitleaks, Checkov, Semgrep)
+### Processus P5 : Conteneurs d'Analyse Isolés (Syft, Grype, Gitleaks, Checkov, Semgrep)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -143,7 +145,7 @@ flowchart TB
 
 ---
 
-### 🗄️ Stockage DS1 : Base de Données Relational SQL (`t_repository`, `t_issue`, `t_audit_log`, `t_ssh_key`)
+### Stockage DS1 : Base de Données Relational SQL (`t_repository`, `t_issue`, `t_audit_log`, `t_ssh_key`)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -153,7 +155,7 @@ flowchart TB
 
 ---
 
-### 📁 Stockage DS2 : Espace de Stockage Éphémère (`Workspace` / `tmp`)
+### Stockage DS2 : Espace de Stockage Éphémère (`Workspace` / `tmp`)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
@@ -162,7 +164,7 @@ flowchart TB
 
 ---
 
-### ⚡ Flux de Données en Transit (Data Flows : F1 à F16)
+### Flux de Données en Transit (Data Flows : F1 à F16)
 
 | Flux DFD | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|---|

@@ -1,6 +1,14 @@
 # Vectispire Architecture Document (Bertrand Florat Template — bflorat/modele-da)
 
-Welcome to the **Vectispire Architecture Document (DA)** generated according to the **[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat) framework.
+> **On the register.** These five views follow an imposed template, so they read differently
+> from the rest of the folder: numbered sections, tabulated requirements, a version and a
+> status. That is the template speaking, not a change of project. >
+> **Sur le registre.** Ces cinq vues suivent un gabarit imposé, elles se lisent donc autrement
+> que le reste du dossier : sections numérotées, exigences tabulées, une version et un statut.
+> C'est le gabarit qui parle, pas un changement de projet.
+
+Welcome to the **Vectispire Architecture Document (DA)** generated according to the
+**[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat) framework.
 
 Please select your language / Veuillez choisir votre langue :
 

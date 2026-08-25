@@ -1,6 +1,11 @@
 # Vectispire Architecture Documentation / Documentation d'Architecture
 
-Bienvenue dans la documentation d'architecture de Vectispire. Veuillez choisir votre langue / Please select your preferred language:
+Bienvenue dans la documentation d'architecture de Vectispire. Veuillez choisir votre langue / Please
+select your preferred language:
+
+Emoji appear on these index pages and nowhere else: a page that carries an argument carries no
+decoration. / Les emoji figurent sur ces pages d'index et nulle part ailleurs : une page qui porte
+un argument ne porte pas de décoration.
 
 ---
 

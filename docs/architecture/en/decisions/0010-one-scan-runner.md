@@ -1,6 +1,6 @@
 # 0010 — One scan runner, and no seam around it
 
-**Date:** 2026-08-17 · **Status:** accepted
+**Date:** 2026-08-17 · **Status:** accepted · **Supersedes:** [0001](0001-pluggable-scan-layer.md) · **Decider:** Laurent Boucher
 
 ## Context
 

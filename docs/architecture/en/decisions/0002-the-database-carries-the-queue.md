@@ -1,6 +1,6 @@
 # 0002 — The database carries the queue
 
-**Date:** 2026-08-08 · **Status:** accepted
+**Date:** 2026-08-08 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 

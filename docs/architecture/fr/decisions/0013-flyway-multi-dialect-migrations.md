@@ -1,6 +1,6 @@
 # 0013 — Flyway avec des migrations natives par dialecte
 
-**Date :** 2026-08-22 · **Statut :** accepté · **Remplace :** [0011](0011-liquibase-rather-than-flyway.md)
+**Date :** 2026-08-22 · **Statut :** accepté · **Remplace :** [0011](0011-liquibase-rather-than-flyway.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 

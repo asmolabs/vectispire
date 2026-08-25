@@ -1,6 +1,6 @@
 # 0007 — L'absence n'est pas une liste vide
 
-**Date :** 2026-08-12 · **Statut :** accepté
+**Date :** 2026-08-12 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

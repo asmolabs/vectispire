@@ -1,8 +1,11 @@
 # Architecture de Vectispire (Français)
 
-Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un réviseur, pas pour un comité. Il répond à trois questions, dans cet ordre : comment il est construit, pourquoi il est construit ainsi, et ce qui casse si vous le modifiez sans le savoir.
+Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un réviseur, pas pour un comité.
+Il répond à trois questions, dans cet ordre : comment il est construit, pourquoi il est construit
+ainsi, et ce qui casse si vous le modifiez sans le savoir.
 
-> Ces documents décrivent le système tel qu'il est : un plan de contrôle Spring Boot dans `vectispire-java/` et une interface Angular dans `vectispire-angular/`.
+> Ces documents décrivent le système tel qu'il est : un plan de contrôle Spring Boot dans
+  `vectispire-java/` et une interface Angular dans `vectispire-angular/`.
 
 | Document | La question à laquelle il répond |
 |---|---|
@@ -25,9 +28,15 @@ existent.
 | [Diagrammes C4 (Structurizr DSL)](../c4/workspace.dsl) | Modélisation C4 interactive (Niveaux 1, 2 et 3). |
 
 - [`docs/fr/GETTING_STARTED.fr.md`](../../fr/GETTING_STARTED.fr.md) — installation et exécution.
-- [`docs/fr/TECHNICAL_DOCUMENTATION.fr.md`](../../fr/TECHNICAL_DOCUMENTATION.fr.md) — référence des modules et paramètres.
-- [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — rotation des clés et purge des données brutes.
-- [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des endpoints REST.
-- [`docs/fr/CI_CD_INTEGRATION.fr.md`](../../fr/CI_CD_INTEGRATION.fr.md) — guide d'intégration CI/CD et outil CLI (vectispire-cli).
-- [`docs/fr/TICKETING_INTEGRATION.fr.md`](../../fr/TICKETING_INTEGRATION.fr.md) — synchronisation bidirectionnelle du ticketing (Jira, GitLab, GitHub, ServiceNow).
-- [`docs/fr/NOTIFICATIONS_INTEGRATION.fr.md`](../../fr/NOTIFICATIONS_INTEGRATION.fr.md) — intégration des alertes et webhooks (Discord, Slack, Microsoft Teams).
+- [`docs/fr/TECHNICAL_DOCUMENTATION.fr.md`](../../fr/TECHNICAL_DOCUMENTATION.fr.md) — référence des
+  modules et paramètres.
+- [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — rotation des clés et
+  purge des données brutes.
+- [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des
+  endpoints REST.
+- [`docs/fr/CI_CD_INTEGRATION.fr.md`](../../fr/CI_CD_INTEGRATION.fr.md) — guide d'intégration CI/CD
+  et outil CLI (vectispire-cli).
+- [`docs/fr/TICKETING_INTEGRATION.fr.md`](../../fr/TICKETING_INTEGRATION.fr.md) — synchronisation
+  bidirectionnelle du ticketing (Jira, GitLab, GitHub, ServiceNow).
+- [`docs/fr/NOTIFICATIONS_INTEGRATION.fr.md`](../../fr/NOTIFICATIONS_INTEGRATION.fr.md) —
+  intégration des alertes et webhooks (Discord, Slack, Microsoft Teams).

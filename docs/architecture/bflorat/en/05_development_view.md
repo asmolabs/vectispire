@@ -43,8 +43,11 @@ flowchart LR
     PackageJar --> VerifySignature["Verify Signature Before Release"]
 ```
 
-1. **Supply Chain Audit (`supply-chain`)**: Syft builds an SBOM of the shipped JAR. Grype verifies zero fixable High vulnerabilities.
-2. **Cryptographic Sigstore Signing**: Releases triggered by `v*` tags are signed keyless with Sigstore, and the signature is automatically verified before publishing ([AGENTS.md](../../../../AGENTS.md)).
+1. **Supply Chain Audit (`supply-chain`)**: Syft builds an SBOM of the shipped JAR. Grype verifies
+   zero fixable High vulnerabilities.
+2. **Cryptographic Sigstore Signing**: Releases triggered by `v*` tags are signed keyless with
+   Sigstore, and the signature is automatically verified before publishing
+   ([AGENTS.md](../../../../AGENTS.md)).
 
 ---
 

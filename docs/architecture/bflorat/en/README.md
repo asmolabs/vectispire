@@ -1,6 +1,12 @@
 # Vectispire Architecture Document (Bertrand Florat Template — bflorat/modele-da)
 
-This directory contains the English version of the **Architecture Document (DA)** for the **Vectispire** platform, written according to the standardized **[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat) template.
+> **On the register.** These five views follow an imposed template — numbered sections,
+> tabulated requirements, a version and a status. They read differently from the rest of the
+> architecture folder because the template says so, not because the project changed.
+
+This directory contains the English version of the **Architecture Document (DA)** for the
+**Vectispire** platform, written according to the standardized
+**[`bflorat/modele-da`](https://github.com/bflorat/modele-da)** (Bertrand Florat) template.
 
 This template is structured around **5 self-contained Business & Technical Views**:
 

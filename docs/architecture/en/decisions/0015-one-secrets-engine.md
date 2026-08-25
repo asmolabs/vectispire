@@ -1,6 +1,6 @@
 # 0015 — One secrets engine
 
-**Date:** 2026-08-25 · **Status:** accepted
+**Date:** 2026-08-25 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 

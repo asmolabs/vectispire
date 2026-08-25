@@ -1,6 +1,6 @@
 # 0009 — Quatre moteurs de base de données, chacun mesuré
 
-**Date :** 2026-08-16 · **Statut :** **remplacé** par [0014](0014-two-engines-and-a-test-fixture.md) le 2026-08-25 · **Remplace :** [0008](0008-postgresql-and-mysql.md)
+**Date :** 2026-08-16 · **Statut :** **remplacé** par [0014](0014-two-engines-and-a-test-fixture.md) le 2026-08-25 · **Remplace :** [0008](0008-postgresql-and-mysql.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 

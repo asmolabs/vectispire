@@ -1,6 +1,6 @@
 # 0008 — Deux moteurs de base de données : PostgreSQL et MySQL
 
-**Date :** 2026-08-14 · **Statut :** **remplacé** par [0009](0009-four-engines.md) le 2026-08-16
+**Date :** 2026-08-14 · **Statut :** **remplacé** par [0009](0009-four-engines.md) le 2026-08-16 · **Remplace :** [0004](0004-sqlite-and-postgresql-only.md) · **Décideur :** Laurent Boucher
 
 ## Contexte & Décision
 

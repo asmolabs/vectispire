@@ -1,6 +1,6 @@
 # 0004 — Deux moteurs de base de données : SQLite et PostgreSQL
 
-**Date :** 2026-08-10 · **Statut :** **remplacé** par [0008](0008-postgresql-and-mysql.md) le 2026-08-14
+**Date :** 2026-08-10 · **Statut :** **remplacé** par [0008](0008-postgresql-and-mysql.md) le 2026-08-14 · **Décideur :** Laurent Boucher
 
 ## Contexte & Décision
 

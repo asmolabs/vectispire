@@ -1,39 +1,55 @@
-# Modélisation C4 & Diagrammes Structurizr DSL (Génération PNG)
+# C4 model — Structurizr DSL / Modélisation C4 — Structurizr DSL
 
-Ce répertoire contient la définition d'architecture système au format **Structurizr DSL** ([`workspace.dsl`](workspace.dsl)) ainsi que les diagrammes PNG exportés automatiquement.
+The system in [`workspace.dsl`](workspace.dsl), and the diagrams generated from it. **The
+diagrams are generated, never drawn**: CI regenerates them from the model on every push and fails
+if the committed files differ, so a picture cannot drift from the architecture it claims to show.
+
+Le système décrit dans [`workspace.dsl`](workspace.dsl), et les diagrammes qui en sont issus. **Les
+diagrammes sont générés, jamais dessinés** : la CI les régénère depuis le modèle à chaque poussée
+et échoue si les fichiers commités diffèrent — une image ne peut donc pas diverger de
+l'architecture qu'elle prétend montrer.
 
 ---
 
-## 🖼️ Diagrammes Générés (PNG)
+## Level 1 — System context / Niveau 1 — Contexte système
 
-### 1. Niveau 1 : Contexte Système (*System Context*)
 ![C4 System Context Diagram](diagrams/structurizr-SystemContext.png)
 
----
+## Level 2 — Containers / Niveau 2 — Conteneurs
 
-### 2. Niveau 2 : Conteneurs (*Containers*)
 ![C4 Container Diagram](diagrams/structurizr-Containers.png)
 
----
+## Level 3 — Backend components / Niveau 3 — Composants backend
 
-### 3. Niveau 3 : Composants Backend (*Components*)
 ![C4 Component Diagram](diagrams/structurizr-Components.png)
 
 ---
 
-## ⚡ Générer / Re-générer les PNG de la build
+## Regenerating / Régénérer
 
-Pour régénérer automatiquement l'ensemble des diagrammes PNG à partir du modèle `workspace.dsl`, lancez simplement la commande suivante :
+Regenerate every diagram from the model — run this after any edit to `workspace.dsl`, because CI
+compares the result against what is committed.
+
+Régénérez tous les diagrammes depuis le modèle — à lancer après toute modification de
+`workspace.dsl`, la CI comparant le résultat à ce qui est commité.
 
 ```bash
 npm run c4:generate
 ```
 
-*(Ou en exécutant le script [`scripts/generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh)).*
+Equivalently, [`scripts/generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh).
+De façon équivalente, [`scripts/generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh).
 
-### 🎨 Visualiser les diagrammes interactifs avec Structurizr Lite :
+## Browsing interactively / Explorer de façon interactive
+
+Structurizr Lite serves the model as a navigable site, which is the comfortable way to move
+between the three levels.
+
+Structurizr Lite sert le modèle sous forme de site navigable, ce qui est la manière confortable de
+circuler entre les trois niveaux.
 
 ```bash
 docker run --rm -it -p 8080:8080 -v $(pwd)/docs/architecture/c4:/structurizr structurizr/lite
 ```
-Puis ouvrez votre navigateur sur **`http://localhost:8080`**.
+
+Then open `http://localhost:8080`. / Puis ouvrez `http://localhost:8080`.

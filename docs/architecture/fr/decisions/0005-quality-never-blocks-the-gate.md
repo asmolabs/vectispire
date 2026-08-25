@@ -1,6 +1,6 @@
 # 0005 — La qualité ne bloque jamais la gate
 
-**Date :** 2026-08-11 · **Statut :** accepté
+**Date :** 2026-08-11 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

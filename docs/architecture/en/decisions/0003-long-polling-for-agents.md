@@ -1,6 +1,6 @@
 # 0003 — Agents speak HTTP long-polling, never to the database
 
-**Date:** 2026-08-06 · **Status:** accepted
+**Date:** 2026-08-06 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 

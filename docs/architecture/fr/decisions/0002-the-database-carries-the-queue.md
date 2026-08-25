@@ -1,6 +1,6 @@
 # 0002 — La base de données porte la file
 
-**Date :** 2026-08-08 · **Statut :** accepté
+**Date :** 2026-08-08 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

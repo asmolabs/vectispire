@@ -1,6 +1,6 @@
 # 0010 — Un seul exécuteur de scan, et aucune couture autour
 
-**Date :** 2026-08-17 · **Statut :** accepté
+**Date :** 2026-08-17 · **Statut :** accepté · **Remplace :** [0001](0001-pluggable-scan-layer.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 

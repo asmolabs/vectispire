@@ -36,7 +36,9 @@ flowchart TB
 
 ## 2. Database Compatibility Matrix & Flyway Migrations
 
-Vectispire supports 4 relational database engines using dialect-specific native SQL migration scripts (`src/main/resources/db/migration/{vendor}/`) managed by **Flyway** ([ADR 0013](../../en/decisions/0013-flyway-multi-dialect-migrations.md)):
+Vectispire supports 4 relational database engines using dialect-specific native SQL migration
+scripts (`src/main/resources/db/migration/{vendor}/`) managed by **Flyway** ([ADR
+0013](../../en/decisions/0013-flyway-multi-dialect-migrations.md)):
 
 | RDBMS Engine | Min. Supported Version | Flyway Dialect | Target Usage |
 |---|---|---|---|
@@ -45,14 +47,17 @@ Vectispire supports 4 relational database engines using dialect-specific native 
 | **SQLite** | 3.35+ | `sqlite` | Demos, local evaluation, and embedded single-instance mode |
 
 ### 2.1 Schema Integrity & `ddl-auto`
-Hibernate's `ddl-auto` setting is strictly set to `validate`. Flyway maintains sole authority over DDL migrations to prevent schema drift or silent data loss.
+Hibernate's `ddl-auto` setting is strictly set to `validate`. Flyway maintains sole authority over
+DDL migrations to prevent schema drift or silent data loss.
 
 ---
 
 ## 3. Host Docker Daemon Interaction & Confinement
 
-1. **Docker Socket Mounting (`/var/run/docker.sock`)**: Only the control plane (or agent process) interacts with the Docker daemon via the host socket.
-2. **Ephemeral Analyzer Containers**: `ContainerRunner` instantiates isolated containers that terminate and self-destruct immediately after execution.
+1. **Docker Socket Mounting (`/var/run/docker.sock`)**: Only the control plane (or agent process)
+   interacts with the Docker daemon via the host socket.
+2. **Ephemeral Analyzer Containers**: `ContainerRunner` instantiates isolated containers that
+   terminate and self-destruct immediately after execution.
 
 ---
 
@@ -60,6 +65,8 @@ Hibernate's `ddl-auto` setting is strictly set to `validate`. Flyway maintains s
 
 Remote agents offload scanning closer to isolated corporate network zones:
 
-- **Network Protocol**: Outbound unidirectional communication via HTTP Long-Polling (`GET /api/v1/agents/jobs?wait=30`).
+- **Network Protocol**: Outbound unidirectional communication via HTTP Long-Polling (`GET
+  /api/v1/agents/jobs?wait=30`).
 - **Zero Database Dependencies**: `vectispire-agent` has zero JDBC drivers on its classpath.
-- **Key Isolation**: Agent never possesses master `ENCRYPTION_KEY` ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)).
+- **Key Isolation**: Agent never possesses master `ENCRYPTION_KEY` ([ADR
+  0003](../../en/decisions/0003-long-polling-for-agents.md)).

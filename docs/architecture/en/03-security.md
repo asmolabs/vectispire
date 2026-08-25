@@ -4,7 +4,9 @@
 > **[STRIDE threat model](../security/en/STRIDE_THREAT_MODEL.en.md)** walks each category with the
 > control that answers it. This page is the shape of the problem; that one is the enumeration.
 
-Vectispire is a security tool, which does not make it secure: it makes it **interesting to attack**. It holds deployment keys, it has the Docker socket, it displays strings produced by hostile code, and it returns a verdict someone has an interest in making lie.
+Vectispire is a security tool, which does not make it secure: it makes it **interesting to attack**.
+It holds deployment keys, it has the Docker socket, it displays strings produced by hostile code,
+and it returns a verdict someone has an interest in making lie.
 
 ## Assets and Assets Protection
 

@@ -1,6 +1,6 @@
 # 0004 — Two database engines: SQLite and PostgreSQL
 
-**Date:** 2026-08-10 · **Status:** **superseded** by [0008](0008-postgresql-and-mysql.md) on 2026-08-14
+**Date:** 2026-08-10 · **Status:** **superseded** by [0008](0008-postgresql-and-mysql.md) on 2026-08-14 · **Decider:** Laurent Boucher
 
 ## Context & Decision
 

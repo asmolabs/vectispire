@@ -1,6 +1,6 @@
 # 0006 — Les règles de l'analyseur viennent d'ici, jamais de la cible
 
-**Date :** 2026-08-11 · **Statut :** accepté
+**Date :** 2026-08-11 · **Statut :** accepté · **Décideur :** Laurent Boucher
 
 ## Contexte
 

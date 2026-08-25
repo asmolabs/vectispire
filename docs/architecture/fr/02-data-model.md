@@ -4,8 +4,11 @@
 
 C'est le concept essentiel à comprendre avant de manipuler ce schéma :
 
-- Un **`Finding`** (Constat) est ce qu'un analyseur a renvoyé au cours d'**un seul scan**. Il est immuable et jetable. Exécuter un nouveau scan produit un nouveau constat.
-- Une **`Issue`** (Problème) est le même problème **suivi d'un scan à l'autre**. Elle possède une date de première détection, un compteur d'occurrences, un état (`OPEN`/`RESOLVED`), une décision de triage VEX et son auteur.
+- Un **`Finding`** (Constat) est ce qu'un analyseur a renvoyé au cours d'**un seul scan**. Il est
+  immuable et jetable. Exécuter un nouveau scan produit un nouveau constat.
+- Une **`Issue`** (Problème) est le même problème **suivi d'un scan à l'autre**. Elle possède une
+  date de première détection, un compteur d'occurrences, un état (`OPEN`/`RESOLVED`), une décision
+  de triage VEX et son auteur.
 
 ```mermaid
 erDiagram
@@ -54,4 +57,6 @@ stateDiagram-v2
 
 ## Les migrations
 
-Gérées par Flyway dans `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`) avec des scripts SQL natifs par dialecte assurant une fidélité parfaite sur chaque moteur de base de données.
+Gérées par Flyway dans `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/`
+(`postgresql`, `mysql`, `sqlite`) avec des scripts SQL natifs par dialecte assurant une fidélité
+parfaite sur chaque moteur de base de données.

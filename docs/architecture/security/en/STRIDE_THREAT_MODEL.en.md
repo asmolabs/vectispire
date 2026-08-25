@@ -1,6 +1,7 @@
 # DFD-Based STRIDE Threat Model — Vectispire
 
-This document presents the formal threat model for **Vectispire** based on **Data Flow Diagram (DFD)** modeling and **STRIDE Risk Mapping per Individual System Entity**.
+This document presents the formal threat model for **Vectispire** based on **Data Flow Diagram
+(DFD)** modeling and **STRIDE Risk Mapping per Individual System Entity**.
 
 ---
 
@@ -19,7 +20,7 @@ flowchart TB
         P2["P2: Scan Orchestrator (ScanRunner)"]
         P3["P3: Ingestor & Reconciler (ScanIngestor / IssueSync)"]
         P4["P4: Compliance Engine & Gate (ComplianceService / PolicyGate)"]
-        
+
         DS1[("DS1: SQL Database<br/>(Targets, Scans, Issues, t_audit_log, Sessions)")]
         DS2[("DS2: Ephemeral Disk Storage<br/>(Workspace / tmp / Repositories)")]
     end
@@ -36,7 +37,7 @@ flowchart TB
     E1 -->|"F1: Authentication & VEX Triage (HTTPS)"| P1
     E2 -->|"F2: Gate Evaluation (POST /api/v1/gate - API Key)"| P1
     E3 -->|"F3: Code Clone / Pull Archive Image"| DS2
-    
+
     P1 -->|"F4: Read / Write Sessions, Users & Roles"| DS1
     P1 -->|"F5: Scan Trigger (Queue t_scan)"| DS1
     P1 -->|"F6: Compliance & Gate Evaluation"| P4
@@ -61,7 +62,7 @@ flowchart TB
 
 ---
 
-### 👤 Entity E1: Security Analyst / Admin
+### Entity E1: Security Analyst / Admin
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -71,7 +72,7 @@ flowchart TB
 
 ---
 
-### 🤖 Entity E2: CI/CD Pipeline (Jenkins / GitLab / GitHub Actions)
+### Entity E2: CI/CD Pipeline (Jenkins / GitLab / GitHub Actions)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -80,7 +81,7 @@ flowchart TB
 
 ---
 
-### 📦 Entity E3: Remote Git Repository / Container Image (Untrusted Code)
+### Entity E3: Remote Git Repository / Container Image (Untrusted Code)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -89,7 +90,7 @@ flowchart TB
 
 ---
 
-### 🖥️ Entity E4: Remote Agent Worker (Vectispire Agent)
+### Entity E4: Remote Agent Worker (Vectispire Agent)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -98,7 +99,7 @@ flowchart TB
 
 ---
 
-### ⚙️ Process P1: REST API Controllers & Backend Security Layer
+### Process P1: REST API Controllers & Backend Security Layer
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -107,7 +108,7 @@ flowchart TB
 
 ---
 
-### 🔬 Process P2: Scan Orchestrator (`ScanRunner`)
+### Process P2: Scan Orchestrator (`ScanRunner`)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -116,7 +117,7 @@ flowchart TB
 
 ---
 
-### 📥 Process P3: Ingestor & Reconciler (`ScanIngestor` / `IssueSyncService`)
+### Process P3: Ingestor & Reconciler (`ScanIngestor` / `IssueSyncService`)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -125,7 +126,7 @@ flowchart TB
 
 ---
 
-### 🛡️ Process P4: Compliance Engine & Quality Gate (`ComplianceService` / `PolicyGate`)
+### Process P4: Compliance Engine & Quality Gate (`ComplianceService` / `PolicyGate`)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -134,7 +135,7 @@ flowchart TB
 
 ---
 
-### 🐳 Process P5: Isolated Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)
+### Process P5: Isolated Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -143,7 +144,7 @@ flowchart TB
 
 ---
 
-### 🗄️ Data Store DS1: Relational SQL Database (`t_repository`, `t_issue`, `t_audit_log`, `t_ssh_key`)
+### Data Store DS1: Relational SQL Database (`t_repository`, `t_issue`, `t_audit_log`, `t_ssh_key`)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -153,7 +154,7 @@ flowchart TB
 
 ---
 
-### 📁 Data Store DS2: Ephemeral Disk Storage (`Workspace` / `tmp`)
+### Data Store DS2: Ephemeral Disk Storage (`Workspace` / `tmp`)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
@@ -162,7 +163,7 @@ flowchart TB
 
 ---
 
-### ⚡ Data Flows in Transit (Data Flows: F1 to F16)
+### Data Flows in Transit (Data Flows: F1 to F16)
 
 | DFD Flow | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|---|

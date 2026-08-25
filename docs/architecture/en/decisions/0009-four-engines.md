@@ -1,6 +1,6 @@
 # 0009 — Four database engines, each one measured
 
-**Date:** 2026-08-16 · **Status:** **superseded** by [0014](0014-two-engines-and-a-test-fixture.md) on 2026-08-25 · **Supersedes:** [0008](0008-postgresql-and-mysql.md)
+**Date:** 2026-08-16 · **Status:** **superseded** by [0014](0014-two-engines-and-a-test-fixture.md) on 2026-08-25 · **Supersedes:** [0008](0008-postgresql-and-mysql.md) · **Decider:** Laurent Boucher
 
 ## Context
 

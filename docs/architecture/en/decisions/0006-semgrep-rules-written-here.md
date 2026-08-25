@@ -1,6 +1,6 @@
 # 0006 — The analyser's rules come from here, never from the target
 
-**Date:** 2026-08-11 · **Status:** accepted
+**Date:** 2026-08-11 · **Status:** accepted · **Decider:** Laurent Boucher
 
 ## Context
 
