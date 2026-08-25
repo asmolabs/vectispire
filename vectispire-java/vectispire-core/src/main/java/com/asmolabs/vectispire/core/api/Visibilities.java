@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -27,7 +28,35 @@ final class Visibilities {
         }
     }
 
+    /**
+     * A scan is visible when its target is.
+     *
+     * <p><b>Here rather than copied into each controller that exports one.</b> Five routes hand
+     * back the same scan under five formats — SBOM, CSAF, CycloneDX, OpenVEX, attestation — and
+     * only the first of them checked. Five copies of an authorization rule is five chances for
+     * one to be forgotten, and the forgotten one had already happened four times over.
+     */
+    static void requireVisible(ScanEntity scan, Visibility visibility) {
+        if (scan == null) {
+            throw new NoSuchElementException("Scan not found.");
+        }
+        requireVisible(targetOf(scan), visibility);
+    }
+
+    /** A scan attached to neither is unclassifiable, and treated as invisible. */
+    static ScanTarget targetOf(ScanEntity scan) {
+        if (scan.getRepoId() != null) {
+            return new ScanTarget.Repository(scan.getRepoId());
+        }
+        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+    }
+
     static void requireVisible(ScanTarget target, Visibility visibility) {
+        // `null` is left to `permits`, deliberately, and that is not the same as waving it
+        // through: an unrestricted caller sees an unclassifiable row, a restricted one does not,
+        // which is exactly what the issue guard beside this one already does. Deciding it here
+        // instead would have made this stricter than the rule it is meant to reuse — a scan
+        // attached to neither target would have 404'd for an administrator too.
         if (!visibility.permits(target)) {
             throw new NoSuchElementException("Target not found.");
         }

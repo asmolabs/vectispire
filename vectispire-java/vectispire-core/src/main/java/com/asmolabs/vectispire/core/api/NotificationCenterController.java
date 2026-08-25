@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.services.NotificationTestService;
 import com.asmolabs.vectispire.core.services.NotificationTestService.NotificationChannelStatus;
 import com.asmolabs.vectispire.core.services.NotificationTestService.NotificationTestResult;
@@ -30,6 +31,9 @@ public class NotificationCenterController {
         return notificationTestService.getChannelsStatus();
     }
 
+    // It posts to a configured webhook — somebody else's Slack or Teams. A route that emits
+    // outbound traffic on demand belongs to whoever configured the channel.
+    @RequiresSecurityLead
     @PostMapping("/test/{channelType}")
     public NotificationTestResult testChannel(@PathVariable String channelType) {
         return notificationTestService.testChannel(channelType);

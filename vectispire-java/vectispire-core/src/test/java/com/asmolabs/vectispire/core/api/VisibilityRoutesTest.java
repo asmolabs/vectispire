@@ -241,6 +241,76 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.targets.length()").value(2));
     }
 
+    @Test
+    @DisplayName("a scan the reader may not see is absent from every export, not just from the SBOM")
+    void everyPerScanExportIsGuarded() throws Exception {
+        // **`ScansController` has always guarded `/scans/{id}/sbom` with `requireVisible`.** Four
+        // other routes hand back the same scan under a different format and none of them did, so
+        // the protection depended on which document a caller asked for. A reader who cannot open
+        // the SBOM could read the CSAF advisory built from the same scan.
+        //
+        // 404 rather than 403 throughout, for the reason `Visibilities` gives: a refusal that is
+        // distinguishable from an absence answers the question the caller was probing with.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirScan = scan(theirs);
+        String reader = assignedReader(mine);
+
+        for (String route : List.of(
+                "/api/v1/scans/" + theirScan + "/sbom",
+                "/api/v1/csaf/scans/" + theirScan + "/csaf.json",
+                "/api/v1/cyclonedx/scans/" + theirScan + "/cyclonedx-vex.json",
+                "/api/v1/vex/scans/" + theirScan + "/openvex.json",
+                "/api/v1/attestation/scans/" + theirScan)) {
+            mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    @DisplayName("a target the reader may not see has no scorecard and no API inventory")
+    void everyPerTargetReadIsGuarded() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        for (String route : List.of(
+                "/api/v1/scorecard/repositories/" + theirs,
+                "/api/v1/repositories/" + theirs + "/apis",
+                "/api/v1/repositories/" + theirs + "/apis/export/openapi")) {
+            mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isNotFound());
+        }
+
+        // **The guard must not narrow what the reader was given**, and this is the assertion
+        // that says so without asserting a fixture detail: on their own repository the reader
+        // gets whatever an administrator gets. Written this way after a first version asserted
+        // 200 and failed — an administrator gets 404 too, because a repository with no scan has
+        // no scorecard. That is the product's behaviour and not this guard's doing.
+        int forAnAdministrator = mvc.perform(
+                        authenticated(get("/api/v1/scorecard/repositories/" + mine), asAdmin()))
+                .andReturn().getResponse().getStatus();
+        mvc.perform(authenticated(get("/api/v1/scorecard/repositories/" + mine), reader))
+                .andExpect(status().is(forAnAdministrator));
+    }
+
+    @Test
+    @DisplayName("an issue the reader may not see cannot be explained to them either")
+    void theAiExplanationIsGuarded() throws Exception {
+        // The route already took the principal and already ignored it. An explanation names the
+        // package, the file and the fix — it is the finding itself, in prose.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-9");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + theirIssue), reader))
+                .andExpect(status().isNotFound());
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }
@@ -279,6 +349,16 @@ class VisibilityRoutesTest extends ApiTestBase {
         repository.setUrl(url);
         repository.setBranch("main");
         return repositories.save(repository).getId();
+    }
+
+    /** A completed scan of one repository, with nothing in it. */
+    private long scan(long repoId) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        return scans.save(scan).getId();
     }
 
     /** A completed scan of one repository, carrying one vulnerable package. */

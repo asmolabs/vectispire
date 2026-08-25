@@ -4,6 +4,10 @@ import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.SecurityScorecardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,9 +34,12 @@ import java.util.concurrent.TimeUnit;
 public class ScorecardController {
 
     private final SecurityScorecardService scorecardService;
+    private final VisibilityService visibility;
 
-    public ScorecardController(SecurityScorecardService scorecardService) {
+    public ScorecardController(
+            SecurityScorecardService scorecardService, VisibilityService visibility) {
         this.scorecardService = scorecardService;
+        this.visibility = visibility;
     }
 
     @Operation(summary = "Get repository scorecard", description = "Calculates security grade (A+ to F), risk posture, and metric breakdown for a repository.")
@@ -40,7 +47,11 @@ public class ScorecardController {
     @GetMapping("/repositories/{repoId}")
     @RequiresAccount
     public SecurityScorecard getRepositoryScorecard(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId) {
+        // A scorecard is a target's posture in a number, and the number is the interesting part
+        // to somebody who was not given the target: it says how exposed a neighbouring team is.
+        requireVisible(principal, new ScanTarget.Repository(repoId));
         return scorecardService.getRepositoryScorecard(repoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
     }
@@ -50,7 +61,9 @@ public class ScorecardController {
     @GetMapping("/containers/{containerId}")
     @RequiresAccount
     public SecurityScorecard getContainerScorecard(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Container ID", required = true) @PathVariable("containerId") Long containerId) {
+        requireVisible(principal, new ScanTarget.Container(containerId));
         return scorecardService.getContainerScorecard(containerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Container not found: " + containerId));
     }
@@ -85,4 +98,10 @@ public class ScorecardController {
                 .contentType(MediaType.parseMediaType("image/svg+xml"))
                 .body(svg);
     }
+
+    private void requireVisible(VectispirePrincipal principal, ScanTarget target) {
+        Visibilities.requireVisible(
+                target, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    }
+
 }

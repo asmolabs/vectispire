@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.asmolabs.vectispire.core.services.AiReviewService;
 import java.util.List;
 import java.util.Map;
@@ -28,10 +29,13 @@ public class AiAdvisorController {
 
     private final AiReviewService aiReviewService;
     private final Issues issuesRepo;
+    private final VisibilityService visibility;
 
-    public AiAdvisorController(AiReviewService aiReviewService, Issues issuesRepo) {
+    public AiAdvisorController(
+            AiReviewService aiReviewService, Issues issuesRepo, VisibilityService visibility) {
         this.aiReviewService = aiReviewService;
         this.issuesRepo = issuesRepo;
+        this.visibility = visibility;
     }
 
     @GetMapping("/status")
@@ -49,6 +53,12 @@ public class AiAdvisorController {
             @PathVariable Long issueId) {
         IssueEntity issue = issuesRepo.findById(issueId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found: " + issueId));
+
+        // The principal was already on this signature and was already unused — the route took
+        // an identifier, found the row and explained it, whoever asked. An explanation names the
+        // package, the file and the fix, which is the finding itself in prose.
+        Visibilities.requireVisible(
+                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         return aiReviewService.explainVulnerability(issue);
     }

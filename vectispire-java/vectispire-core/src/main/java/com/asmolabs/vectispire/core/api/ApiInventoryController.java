@@ -1,6 +1,11 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.services.ApiInventoryService;
 import com.asmolabs.vectispire.core.services.ApiInventoryService.GlobalAttackSurface;
 import com.asmolabs.vectispire.core.services.ApiInventoryService.RepositoryApisOverview;
@@ -27,9 +32,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApiInventoryController {
 
     private final ApiInventoryService apiInventoryService;
+    private final VisibilityService visibility;
 
-    public ApiInventoryController(ApiInventoryService apiInventoryService) {
+    public ApiInventoryController(
+            ApiInventoryService apiInventoryService, VisibilityService visibility) {
         this.apiInventoryService = apiInventoryService;
+        this.visibility = visibility;
     }
 
     /**
@@ -49,7 +57,12 @@ public class ApiInventoryController {
     @ApiResponse(responseCode = "200", description = "Repository API inventory retrieved successfully")
     @GetMapping("/repositories/{id}/apis")
     public RepositoryApisOverview repositoryApis(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id) {
+        // An API inventory is a map of somebody's attack surface — paths, methods, and where the
+        // contract and the code disagree. It is the last thing to hand to a reader who was not
+        // given that repository.
+        requireVisible(principal, id);
         return apiInventoryService.forRepository(id);
     }
 
@@ -58,6 +71,12 @@ public class ApiInventoryController {
      */
     @Operation(summary = "Purge all attack surface data", description = "Atomically deletes all endpoints and contracts across the entire platform.")
     @ApiResponse(responseCode = "204", description = "Global attack surface purged successfully")
+    // **Reading the inventory is a reader's; destroying it is not.** This carried
+    // `@RequiresAccount` alone, which every signed-in account satisfies, so `ROLE_USER` — the
+    // role given to somebody meant to look at a dashboard — could purge the platform's discovered
+    // endpoints in one call. Reading stays governed by visibility; changing the platform is
+    // governed by a role, which is the rule the rest of this API already follows.
+    @RequiresSecurityLead
     @DeleteMapping("/attack-surface")
     public ResponseEntity<Void> clearAllAttackSurfaces() {
         apiInventoryService.clearAll();
@@ -69,6 +88,12 @@ public class ApiInventoryController {
      */
     @Operation(summary = "Purge repository attack surface data", description = "Deletes all endpoints and contracts belonging to a specific repository.")
     @ApiResponse(responseCode = "204", description = "Repository attack surface purged successfully")
+    // **Reading the inventory is a reader's; destroying it is not.** This carried
+    // `@RequiresAccount` alone, which every signed-in account satisfies, so `ROLE_USER` — the
+    // role given to somebody meant to look at a dashboard — could purge the platform's discovered
+    // endpoints in one call. Reading stays governed by visibility; changing the platform is
+    // governed by a role, which is the rule the rest of this API already follows.
+    @RequiresSecurityLead
     @DeleteMapping("/repositories/{id}/apis")
     public ResponseEntity<Void> clearRepositoryAttackSurface(
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id) {
@@ -83,10 +108,19 @@ public class ApiInventoryController {
     @ApiResponse(responseCode = "200", description = "Synthesized OpenAPI 3.0 JSON document")
     @GetMapping(value = "/repositories/{id}/apis/export/openapi", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> exportOpenApi(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id) {
+        requireVisible(principal, id);
         String json = apiInventoryService.exportSynthesizedOpenApiJson(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"openapi-repository-" + id + ".json\"")
                 .body(json);
     }
+
+    private void requireVisible(VectispirePrincipal principal, long repositoryId) {
+        Visibilities.requireVisible(
+                new ScanTarget.Repository(repositoryId),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    }
+
 }

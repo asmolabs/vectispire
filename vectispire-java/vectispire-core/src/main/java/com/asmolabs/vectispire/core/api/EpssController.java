@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFlee
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.services.EpssPrioritizationService;
 import com.asmolabs.vectispire.core.services.ThreatIntelFeedService;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +45,9 @@ public class EpssController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    // Outbound, repeatable at will, and rate-limited by whoever serves it. Not destructive,
+    // which is why it is a lead's rather than an administrator's, but not a reader's.
+    @RequiresSecurityLead
     @PostMapping("/sync")
     public ThreatIntelSyncStatus sync() {
         return threatIntelFeedService.syncThreatIntel();
