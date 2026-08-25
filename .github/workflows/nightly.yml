@@ -148,6 +148,16 @@ jobs:
           # No scanners are launched here, and the runner's Docker socket is not this job's
           # business: the suites drive triage and settings, not a scan.
           VECTISPIRE_EMBEDDED_WORKER: "false"
+          # **The suites sign in eleven times in under a minute, which the shipped limit calls a
+          # burst — correctly.** `LoginRateLimitFilter` allows ten attempts per minute per
+          # address, and every test in a run comes from the same one. Without this the job fails
+          # four cases on 429 and the failures read as interface defects; it was diagnosed as one
+          # for a while, wrongly.
+          #
+          # Raised only here, on a runner destroyed at the end of the job. The default is not
+          # touched, and the per-account throttle — five failed attempts per user — is unaffected
+          # by this setting and still guards the case this one cannot see.
+          VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: "200"
         run: |
           java -jar vectispire-java/vectispire-core/build/libs/vectispire-core.jar \
             > "${{ runner.temp }}/control-plane.log" 2>&1 &

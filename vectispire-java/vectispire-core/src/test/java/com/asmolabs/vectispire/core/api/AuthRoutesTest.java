@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,6 +34,37 @@ class AuthRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.password").value(true))
                 .andExpect(jsonPath("$.configured").value(false));
+    }
+
+    @Test
+    @DisplayName("the account throttle says how long to wait in a header, not only in a sentence")
+    void theThrottleAnswersWithRetryAfter() throws Exception {
+        // **Two limiters guard this endpoint, and they disagreed about the contract.**
+        // `LoginRateLimitFilter` keys on the caller's address and has always returned
+        // `Retry-After`; this one keys on the account and returned a bare 429 whose wait was
+        // legible only inside an English sentence. Which of the two fires first depends on
+        // whether the attempts share an address or a username — so a client honouring the header
+        // got an answer or got nothing depending on how it was being attacked.
+        //
+        // Six wrong passwords for one account: the per-user ceiling is five, and six stays well
+        // under the address limiter's ten, so this exercises the account path and not the filter.
+        tokenFor("throttled-account", Role.USER, false);
+
+        for (int attempt = 0; attempt < 6; attempt++) {
+            mvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(write(Map.of("username", "throttled-account", "password", "wrong-on-purpose", "client_id", "t"))));
+        }
+
+        mvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("username", "throttled-account", "password", "wrong-on-purpose", "client_id", "t"))))
+                .andExpect(status().isTooManyRequests())
+                // The value, not merely the presence: a header carrying a word instead of a
+                // number is a header every client will ignore, and `exists` would call it a pass.
+                .andExpect(header().string("Retry-After", org.hamcrest.Matchers.matchesPattern("[1-9]\\d*")))
+                .andExpect(header().string(
+                        "X-Rate-Limit-Retry-After-Seconds", org.hamcrest.Matchers.matchesPattern("[1-9]\\d*")));
     }
 
     @Test

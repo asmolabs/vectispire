@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -74,8 +75,23 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     private static final int MAX_IP_ENTRIES = 10_000;
 
-    private static final int CAPACITY = 10;
-    private static final Duration REFILL_PERIOD = Duration.ofMinutes(1);
+    /**
+     * Ten sign-in attempts a minute from one address, and <b>configurable because one address is
+     * not always one person.</b>
+     *
+     * <p>The default is deliberately tight: it is the ceiling that makes credential stuffing
+     * expensive, and it is right for a deployment whose users arrive from their own addresses.
+     * It is wrong for two real situations, and neither is hypothetical — an office behind a
+     * single NAT egress, where the whole floor shares one key, and a browser test suite, where
+     * eleven sign-ins in a minute is the suite rather than an attack.
+     *
+     * <p>Raising it is a decision an operator takes with their eyes open, which is why it is a
+     * setting and not a heuristic that quietly widens itself for private address ranges. The
+     * account-level throttle in {@code LoginThrottle} — five attempts per user — is unaffected
+     * by this and keeps guarding the case this one cannot see.
+     */
+    private static final int DEFAULT_CAPACITY = 10;
+    private static final Duration DEFAULT_REFILL_PERIOD = Duration.ofMinutes(1);
 
     /**
      * Access-ordered and size-bounded: {@code removeEldestEntry} makes insertion the moment the
@@ -94,9 +110,31 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             });
 
     private final List<IpAddressMatcher> trustedProxies;
+    private final int capacity;
+    private final Duration refillPeriod;
 
     public LoginRateLimitFilter(
             @Value("${vectispire.security.trusted-proxies:}") String configuredProxies) {
+        this(configuredProxies, DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
+    }
+
+    @Autowired
+    public LoginRateLimitFilter(
+            @Value("${vectispire.security.trusted-proxies:}") String configuredProxies,
+            @Value("${vectispire.security.login-attempts-per-window:10}") int capacity,
+            @Value("${vectispire.security.login-attempt-window:PT1M}") Duration refillPeriod) {
+
+        // A ceiling of zero would refuse every sign-in including the operator's, so a
+        // misconfiguration falls back to the shipped value rather than locking the deployment out
+        // of itself.
+        this.capacity = capacity > 0 ? capacity : DEFAULT_CAPACITY;
+        this.refillPeriod = refillPeriod != null && !refillPeriod.isZero() && !refillPeriod.isNegative()
+                ? refillPeriod
+                : DEFAULT_REFILL_PERIOD;
+        if (this.capacity != DEFAULT_CAPACITY || !this.refillPeriod.equals(DEFAULT_REFILL_PERIOD)) {
+            log.info("Sign-in rate limit set to {} attempts per {} per address (default is {} per {}).",
+                    this.capacity, this.refillPeriod, DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
+        }
         this.trustedProxies = parseProxies(configuredProxies);
         if (this.trustedProxies.isEmpty()) {
             log.info("No trusted proxies configured — X-Forwarded-For is ignored and the peer "
@@ -197,8 +235,8 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     private Bucket createNewBucket() {
         Bandwidth limit = Bandwidth.builder()
-                .capacity(CAPACITY)
-                .refillGreedy(CAPACITY, REFILL_PERIOD)
+                .capacity(capacity)
+                .refillGreedy(capacity, refillPeriod)
                 .build();
         return Bucket.builder().addLimit(limit).build();
     }

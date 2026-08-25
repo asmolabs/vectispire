@@ -171,10 +171,7 @@ public class AuthController {
                 request.getHeader("User-Agent")));
 
         return switch (result.outcome()) {
-            case AuthService.Outcome.Blocked blocked ->
-                throw new ResponseStatusException(
-                        HttpStatus.TOO_MANY_REQUESTS,
-                        "Too many attempts. Try again in " + blocked.retryAfter().toSeconds() + "s.");
+            case AuthService.Outcome.Blocked blocked -> throw throttled(blocked.retryAfter());
             case AuthService.Outcome.Invalid ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
             case AuthService.Outcome.Success success -> {
@@ -488,4 +485,34 @@ public class AuthController {
     private static String text(String value) {
         return value == null ? "" : value;
     }
+
+    /**
+     * The account throttle's refusal, answered the way the address limiter answers.
+     *
+     * <p><b>Two limiters guard this endpoint and they used to disagree about the contract.</b>
+     * {@code LoginRateLimitFilter} keys on the caller's address and returns {@code Retry-After};
+     * this one keys on the *account* and returned a bare 429 whose wait was legible only inside an
+     * English sentence. So a client that honours {@code Retry-After} — every HTTP library, and
+     * this application's own sign-in screen, which reads {@code retryAfterSeconds} — was told
+     * nothing by whichever of the two happened to fire first. Which one fires first depends on
+     * whether the attempts share an address or a username, so the behaviour was not even stable.
+     *
+     * <p>Found by running the browser suites: the burst case asserts the header, got a 429 from
+     * this path rather than from the filter, and failed on a header nobody had noticed was
+     * missing.
+     */
+    private static ResponseStatusException throttled(java.time.Duration retryAfter) {
+        long seconds = Math.max(1, retryAfter.toSeconds());
+        return new ResponseStatusException(
+                HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Try again in " + seconds + "s.") {
+            @Override
+            public org.springframework.http.HttpHeaders getHeaders() {
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.set("Retry-After", String.valueOf(seconds));
+                headers.set("X-Rate-Limit-Retry-After-Seconds", String.valueOf(seconds));
+                return headers;
+            }
+        };
+    }
+
 }
