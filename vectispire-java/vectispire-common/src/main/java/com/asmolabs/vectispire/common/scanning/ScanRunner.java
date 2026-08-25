@@ -137,12 +137,29 @@ public final class ScanRunner {
 
             if (task.runs(ScanTask.Step.SECRETS)) {
                 step(artifacts, "secrets", () -> {
-                    List<SecretsScanner.SecretFinding> allSecrets = new java.util.ArrayList<>(secrets.scan(workspace, subPath));
-                    try {
-                        allSecrets.addAll(betterleaks.scan(workspace, subPath));
-                    } catch (Exception ignored) {
-                    }
-                    artifacts.secrets(allSecrets);
+                    // **Both, or neither — and never one presented as both.** The second scanner
+                    // used to run inside a `catch (Exception ignored)`, so its failure produced
+                    // the first scanner's results alone: a non-null list, which decision 0007
+                    // defines as "the step ran and found nothing" and which therefore *resolves*
+                    // this type's open issues. A leaked credential that only the second engine
+                    // detects was closed, silently, with no error recorded anywhere — in the one
+                    // finding type where a false resolution costs the most.
+                    //
+                    // `ran(…)` restores the rule the rest of this method already follows: an
+                    // analysis that did not happen leaves the artifact absent and the backlog
+                    // untouched, and the step carries the reason.
+                    List<SecretsScanner.SecretFinding> merged = new java.util.ArrayList<>(
+                            ran(secrets.scan(workspace, subPath),
+                                    "the search for hardcoded secrets did not complete."));
+
+                    // Outside the list construction, so the failure of one is never absorbed by
+                    // the success of the other. A throw here abandons the whole step, which is
+                    // the point: half a secrets analysis is not a secrets analysis.
+                    merged.addAll(ran(betterleaks.scan(workspace, subPath),
+                            "the second secrets engine did not complete, so the analysis covers "
+                                    + "less than it claims."));
+
+                    artifacts.secrets(merged);
                 });
             }
             if (task.runs(ScanTask.Step.IAC)) {

@@ -12,12 +12,27 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Secondary secret scanner based on Betterleaks engine, running alongside Gitleaks.
+ * Secondary secret scanner running alongside Gitleaks.
  *
  * <p>Uses the same hermetic execution patterns (no network, rootless workspace mount) and produces
  * normalized {@link SecretsScanner.SecretFinding} records.
+ *
+ * <p><b>By default this is the same engine as the primary one.</b> {@code ScannerImages} aliases
+ * {@code betterleaks} to the pinned {@code gitleaks} digest, and the command below uses the same
+ * rule file — so out of the box this is a second, identical pass whose only difference is the
+ * report filename. The seam exists so an operator can point {@code betterleaks} at a genuinely
+ * different engine; until they do, it buys coverage of exactly nothing and costs one more
+ * container per scan. Whoever changes that default should also revisit the shared
+ * {@code gitleaks.toml} above, which a different engine has no reason to understand.
+ *
+ * <p><b>Its failure is not the other scanner's success.</b> This used to be called inside a
+ * {@code catch (Exception ignored)}, so a failure here produced Gitleaks' results alone — a
+ * non-null list, which decision 0007 defines as "analysed, found nothing" and which therefore
+ * <em>resolves</em> leaked-credential findings. The signature below is what stops that being
+ * expressible.
  */
 public final class BetterleaksScanner {
 
@@ -33,7 +48,7 @@ public final class BetterleaksScanner {
         this.image = image;
     }
 
-    public List<SecretsScanner.SecretFinding> scan(Workspace workspace, String subPath) {
+    public Optional<List<SecretsScanner.SecretFinding>> scan(Workspace workspace, String subPath) {
         ContainerRun request = ContainerRun.of(
                         image,
                         List.of(
@@ -56,11 +71,13 @@ public final class BetterleaksScanner {
         Path reportPath = workspace.root().resolve(REPORT_FILENAME);
         try {
             String content = Files.readString(reportPath).strip();
-            return content.isEmpty() ? List.of() : parse(content);
+            return Optional.of(content.isEmpty() ? List.of() : parse(content));
         } catch (NoSuchFileException noReport) {
-            return List.of();
+            return Optional.of(List.of());
         } catch (IOException unreadable) {
-            throw ScannerFailureException.of(LABEL, "The betterleaks report could not be read: " + unreadable.getMessage());
+            // Absent rather than empty, for the reason given on SecretsScanner: a report that
+            // could not be read is not a repository without secrets.
+            return Optional.empty();
         } finally {
             try {
                 Files.deleteIfExists(reportPath);

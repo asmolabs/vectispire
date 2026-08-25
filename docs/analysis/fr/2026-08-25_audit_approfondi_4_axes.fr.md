@@ -10,6 +10,46 @@
 
 ---
 
+## ✅ 0. Remédiation & Correction
+
+**A1 est corrigé** (le jour même, après rédaction de ce rapport). Les deux scanners de secrets
+renvoient désormais `Optional<List<…>>` et sont routés par `ran(…)` ; le `catch (Exception ignored)`
+a disparu, et les deux résultats sont fusionnés hors de la construction de la liste, de sorte que
+l'échec d'un moteur ne peut jamais être absorbé par le succès de l'autre. Un échec laisse maintenant
+l'artefact absent et inscrit la raison sur l'analyse, exactement comme toutes les autres étapes.
+
+Verrouillé de deux façons. `ScannerContractTest` vérifie par réflexion que chaque scanner lançant un
+conteneur renvoie un `Optional` — un scanner ajouté plus tard entre dans le périmètre dès qu'il
+existe. Et la vérification par mutation a donné mieux qu'un test qui échoue : remettre
+`BetterleaksScanner` à une `List` nue **ne compile plus**, parce que `ScanRunner.ran(…)` exige un
+`Optional`. Le défaut est devenu inexprimable plutôt que simplement testé.
+
+### Correction de l'A2 — le mécanisme énoncé plus bas est faux
+
+Vérifié en implémentant A1, et consigné plutôt que corrigé en douce : le rapport affirme que
+Gitleaks et Betterleaks « exécutent des jeux de règles différents ». **C'est faux.**
+`ScannerImages` aliase `betterleaks` sur le digest épinglé de `gitleaks`, et `BetterleaksScanner`
+passe le *même* `gitleaks.toml`. Par défaut, les deux sont le même moteur, les mêmes règles, les
+mêmes arguments — seul le nom du fichier de rapport diffère.
+
+Les conséquences s'inversent :
+
+* **La déduplication fonctionne** sur une installation par défaut. Des jeux de règles identiques
+  produisent des identifiants identiques, donc des empreintes identiques. Le risque de doublons
+  décrit au §4.2 ne se matérialise pas.
+* **Le vrai défaut est la redondance.** La seconde passe coûte un conteneur de plus par analyse et
+  n'achète strictement aucune couverture. C'est désormais écrit sur `BetterleaksScanner` lui-même.
+* **Le risque de doublons est conditionnel, pas actuel.** Il n'apparaît que si un exploitant pointe
+  `betterleaks` vers un moteur réellement différent — et alors le `gitleaks.toml` partagé, qu'un
+  autre moteur n'a aucune raison de comprendre, devient le premier problème.
+
+La recommandation change en conséquence : décider si le second moteur est censé être un véritable
+second avis. Si oui, lui donner son propre fichier de règles et tester la déduplication
+inter-scanners. Si non, retirer la seconde passe et récupérer le temps d'analyse.
+
+
+---
+
 ## 📊 1. Tableau Récapitulatif des Notes
 
 | Domaine évalué | Post-remédiation | Cette passe | Statut |

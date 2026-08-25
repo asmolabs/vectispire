@@ -10,6 +10,45 @@
 
 ---
 
+## ✅ 0. Remediation & Correction
+
+**A1 is fixed** (same day, after this report was written). Both secret scanners now return
+`Optional<List<…>>` and are routed through `ran(…)`; the `catch (Exception ignored)` is gone, and
+the two results are merged outside the list construction so one engine's failure can never be
+absorbed by the other's success. A failure now leaves the artifact absent and records the reason
+on the scan, exactly as every other step does.
+
+Pinned two ways. `ScannerContractTest` checks by reflection that every container-running scanner
+returns `Optional` — a scanner added later is in scope the moment it exists. And the mutation
+check produced a better result than a failing test: reverting `BetterleaksScanner` to a bare
+`List` **no longer compiles**, because `ScanRunner.ran(…)` requires an `Optional`. The defect is
+now unexpressible rather than merely tested.
+
+### Correction to A2 — the mechanism stated below is wrong
+
+Verified while implementing A1, and it should be recorded rather than quietly edited: the report
+claims Gitleaks and Betterleaks "run different rule sets". **They do not.** `ScannerImages` aliases
+`betterleaks` to the pinned `gitleaks` digest, and `BetterleaksScanner` passes the *same*
+`gitleaks.toml`. By default the two are the same engine, same rules, same arguments — only the
+report filename differs.
+
+The consequences invert:
+
+* **Deduplication works** on a default install. Identical rule sets produce identical identifiers,
+  hence identical fingerprints. The duplicate-issue risk described in §4.2 does not materialise.
+* **The real defect is redundancy.** The second pass costs one more container per scan and buys
+  coverage of exactly nothing. That is now stated on `BetterleaksScanner` itself.
+* **The duplication risk is conditional, not current.** It appears only if an operator points
+  `betterleaks` at a genuinely different engine — at which point the shared `gitleaks.toml`, which
+  another engine has no reason to understand, becomes the first problem.
+
+The recommendation changes accordingly: decide whether the second engine is meant to be a real
+second opinion. If yes, give it its own rule file and test the cross-scanner dedup. If no, remove
+the second pass and recover the scan time.
+
+
+---
+
 ## 📊 1. Score Summary
 
 | Evaluation Domain | Post-remediation | This pass | Status |

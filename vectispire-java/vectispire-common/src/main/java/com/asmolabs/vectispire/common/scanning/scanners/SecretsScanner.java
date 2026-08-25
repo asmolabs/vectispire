@@ -12,6 +12,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The search for hardcoded secrets.
@@ -52,13 +53,21 @@ public final class SecretsScanner {
     public record SecretFinding(String rule, String description, String file, int line, String fingerprint) {}
 
     /**
-     * The secrets found, or a throw.
+     * The secrets found, or nothing at all.
      *
      * <p><b>Never returns an empty list to mean "I did not run".</b> An empty list means
-     * "analysed, no secrets", which resolves the whole backlog for this type. A failure throws,
-     * and the caller decides (decision 0007).
+     * "analysed, no secrets", which resolves the whole backlog for this type — and for the type
+     * that carries leaked credentials, a false resolution is the most expensive answer this
+     * product can give. A failure leaves {@code Optional.empty()} or throws, and the caller
+     * decides (decision 0007).
+     *
+     * <p><b>Two ways to fail, as {@code SastScanner} has.</b> A non-zero exit throws, because the
+     * exit code and the tool's own stderr say more than any reason this class could invent. A
+     * report that cannot be read comes back empty, and {@link ScanRunner} turns that into the
+     * step's recorded failure through {@code ran(…)}. Both end in the same place: the artifact
+     * stays absent and the backlog is left alone.
      */
-    public List<SecretFinding> scan(Workspace workspace, String subPath) {
+    public Optional<List<SecretFinding>> scan(Workspace workspace, String subPath) {
         ContainerRun request = ContainerRun.of(
                         image,
                         List.of(
@@ -100,14 +109,17 @@ public final class SecretsScanner {
         Path reportPath = workspace.root().resolve(REPORT_FILENAME);
         try {
             String content = Files.readString(reportPath).strip();
-            return content.isEmpty() ? List.of() : parse(content);
+            return Optional.of(content.isEmpty() ? List.of() : parse(content));
         } catch (NoSuchFileException noReport) {
             // No report means no secrets: depending on the version the tool writes nothing when
             // it finds nothing. Telling that apart from a failure would be more precise, and the
             // exit code above has already done it.
-            return List.of();
+            return Optional.of(List.of());
         } catch (IOException unreadable) {
-            throw ScannerFailureException.of(LABEL, "The secrets report could not be read: " + unreadable.getMessage());
+            // **Absent, not empty.** The container ran and may well have found secrets; what
+            // failed is reading them back. An empty list here would assert "no secrets" on the
+            // strength of a file nobody could open.
+            return Optional.empty();
         } finally {
             try {
                 Files.deleteIfExists(reportPath);
