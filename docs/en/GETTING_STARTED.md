@@ -200,4 +200,12 @@ rewrite before you read it.
   ```
   Access the interactive console at `http://localhost:3180/swagger-ui.html`.
 
+---
+
+## 11. Integration Guides
+
+- [CI/CD & CLI Integration (`vectispire-cli`)](CI_CD_INTEGRATION.md) — Security Quality Gates & build breaker runner for GitLab CI, GitHub Actions, Bitbucket, and Jenkins.
+- [Bidirectional Ticketing](TICKETING_INTEGRATION.md) — Automatic issue creation and closure sync with Jira, GitLab, GitHub, and ServiceNow.
+- [Alerts & Notifications](NOTIFICATIONS_INTEGRATION.md) — Real-time alerting for Discord, Slack, and Microsoft Teams.
+
 

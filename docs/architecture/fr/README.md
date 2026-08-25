@@ -20,3 +20,4 @@ Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un révi
 - [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des endpoints REST.
 - [`docs/fr/CI_CD_INTEGRATION.fr.md`](../../fr/CI_CD_INTEGRATION.fr.md) — guide d'intégration CI/CD et outil CLI (vectispire-cli).
 - [`docs/fr/TICKETING_INTEGRATION.fr.md`](../../fr/TICKETING_INTEGRATION.fr.md) — synchronisation bidirectionnelle du ticketing (Jira, GitLab, GitHub, ServiceNow).
+- [`docs/fr/NOTIFICATIONS_INTEGRATION.fr.md`](../../fr/NOTIFICATIONS_INTEGRATION.fr.md) — intégration des alertes et webhooks (Discord, Slack, Microsoft Teams).

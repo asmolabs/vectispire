@@ -116,3 +116,11 @@ npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispir
   ```
   Accédez ensuite à `http://localhost:3180/swagger-ui.html`.
 
+---
+
+## 9. Guides d'Intégration
+
+- [Intégration CI/CD & Outil CLI (`vectispire-cli`)](CI_CD_INTEGRATION.fr.md) — Blocage des builds par Quality Gate (GitLab CI, GitHub Actions, Bitbucket, Jenkins).
+- [Ticketing Bidirectionnel](TICKETING_INTEGRATION.fr.md) — Synchronisation automatique des issues avec Jira, GitLab, GitHub et ServiceNow.
+- [Alertes et Notifications](NOTIFICATIONS_INTEGRATION.fr.md) — Intégration en temps réel avec Discord, Slack et Microsoft Teams.
+
