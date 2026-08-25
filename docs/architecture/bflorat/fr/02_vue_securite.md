@@ -27,6 +27,7 @@
 L'application applique un contrôle strict sur tous les endpoints REST via Spring Security :
 - `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO` : Gestion de la configuration système, des utilisateurs, des clés SSH et basculement de la **Double Validation (Four-Eyes Approval)** (`triage_four_eyes_required`).
 - **Double Validation Optionnelle** : Configurable dynamiquement via l'UI par un Admin ou CISO (`PUT /api/v1/settings`). Lorsqu'elle est activée, toute décision VEX de type `NOT_AFFECTED` ou `FIXED` émise par un utilisateur non-CISO/Admin passe en état `PENDING_APPROVAL`. Lorsqu'elle est désactivée, tout utilisateur autorisé peut triager directement.
+- **Identités Distinctes Imposées** : L'approbateur est comparé au demandeur enregistré sur l'événement `PENDING_APPROVAL`, et non au seul rôle d'approbation. Un compte qui demande une dérogation ne peut pas l'approuver, même après avoir obtenu le rôle — quatre yeux signifie deux personnes, et une simple barrière de rôle laisse une seule personne tenir les deux moitiés.
 - **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement consigné dans le journal d'audit scellé SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur (`SETTING_UPDATED`).
 - `ROLE_USER` / `ROLE_SECURITY_CHAMPION` : Consultation du posture dashboard et qualification des vulnérabilités.
 - `ROLE_CI` : Exécution exclusive des requêtes de Gate (`POST /api/v1/gate`).

@@ -30,7 +30,7 @@ In other words: anyone who obtained a copy of the old `database.sqlite` holds th
 key in clear text. It must be considered compromised.
 
 **What the code does now.** That constant has been removed from
-[`EncryptionService`](../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java):
+[`EncryptionService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java):
 the application no longer carries the key that opens its own database, and the value above
 is no longer tried during decryption. The `perso` row therefore shows as **"Unreadable"**
 on the *SSH keys* page — that is the expected result, and the replacement below is the only

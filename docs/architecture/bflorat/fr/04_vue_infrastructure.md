@@ -36,7 +36,7 @@ flowchart TB
 
 ## 2. Matrice de Compatibilité SGBD & Migrations Flyway
 
-Vectispire prend en charge 4 moteurs de bases de données relationnelles avec des scripts SQL natifs par dialecte (`src/main/resources/db/migration/{vendor}/`) gérés par **Flyway** ([ADR 0013](decisions/0013-flyway-multi-dialect-migrations.md)) :
+Vectispire prend en charge 4 moteurs de bases de données relationnelles avec des scripts SQL natifs par dialecte (`src/main/resources/db/migration/{vendor}/`) gérés par **Flyway** ([ADR 0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md)) :
 
 | Moteur de SGBD | Version Min. Supportée | Dialecte Flyway | Usage Cible |
 |---|---|---|---|
@@ -63,4 +63,4 @@ L'agent distant permet de déporter le scan au plus près des réseaux d'entrepr
 
 - **Canal Réseau** : Communication unidirectionnelle sortante via HTTP Long-Polling (`GET /api/v1/agents/jobs?wait=30`).
 - **Aucune dépendance DB** : `vectispire-agent` ne possède aucun composant JDBC sur son classpath.
-- **Sécurité des clés** : L'agent ne détient jamais la clé maître `ENCRYPTION_KEY` ([ADR 0003](decisions/0003-long-polling-for-agents.md)).
+- **Sécurité des clés** : L'agent ne détient jamais la clé maître `ENCRYPTION_KEY` ([ADR 0003](../../fr/decisions/0003-long-polling-for-agents.md)).

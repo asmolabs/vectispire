@@ -84,7 +84,7 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Tampering** | Scanned repository embedding a malicious `.gitleaks.toml` configuration to ignore secret detection. | Concealing security flaws and bypassing audit controls. | **Server-side enforced configuration**: `SecretsScanner` and `BetterleaksScanner` pass internal `--config` and ignore target repo configs ([ADR 0006](decisions/0006-semgrep-rules-written-here.md)). |
+| **Tampering** | Scanned repository embedding a malicious `.gitleaks.toml` configuration to ignore secret detection. | Concealing security flaws and bypassing audit controls. | **Server-side enforced configuration**: `SecretsScanner` and `BetterleaksScanner` pass internal `--config` and ignore target repo configs ([ADR 0006](../../en/decisions/0006-semgrep-rules-written-here.md)). |
 | **Elevation of Privilege** | Exploit attempt in scanner container parser to escape to host via Docker socket. | Complete takeover of the Vectispire host machine. | **No scanner container mounts the Docker socket**. Execution with `cap_drop: ALL`, `no-new-privileges`, and `read-only` source mounts. |
 
 ---
@@ -94,7 +94,7 @@ flowchart TB
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
 | **Spoofing** | Unauthorized agent attempting to connect to control plane to claim scan jobs. | Source code exfiltration or scan result falsification. | Mandatory token authentication via revocable agent keys (`t_agent`) and exclusive HTTP Long-Polling protocol (`/api/v1/agents/jobs`). |
-| **Elevation of Privilege** | Compromised remote agent attempting to execute SQL queries directly on central database. | Unauthorized reading/modification of enterprise database. | **Strict agent architectural isolation (`vectispire-agent`)**: zero JDBC drivers or DB dependencies on agent classpath. Agent does not possess `ENCRYPTION_KEY` ([ADR 0003](decisions/0003-long-polling-for-agents.md)). |
+| **Elevation of Privilege** | Compromised remote agent attempting to execute SQL queries directly on central database. | Unauthorized reading/modification of enterprise database. | **Strict agent architectural isolation (`vectispire-agent`)**: zero JDBC drivers or DB dependencies on agent classpath. Agent does not possess `ENCRYPTION_KEY` ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |
 
 ---
 
@@ -120,8 +120,8 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Tampering** | Crashed scanner returning empty list `[]`, causing backlog issues to be resolved. | Silent resolution of unpatched vulnerabilities in historical tracking. | **"None is not empty" principle** ([ADR 0007](decisions/0007-none-is-not-an-empty-list.md)): Failed scan step returns `Optional.empty()` and leaves backlog intact. |
-| **Tampering** | Duplicate issue injection during Gitleaks and Betterleaks output processing. | Backlog clutter and loss of existing VEX qualifications. | Deterministic fingerprinting ([`IssueFingerprint`](file:///Users/lrb/Dev/Asmolabs/vectispire/vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
+| **Tampering** | Crashed scanner returning empty list `[]`, causing backlog issues to be resolved. | Silent resolution of unpatched vulnerabilities in historical tracking. | **"None is not empty" principle** ([ADR 0007](../../en/decisions/0007-none-is-not-an-empty-list.md)): Failed scan step returns `Optional.empty()` and leaves backlog intact. |
+| **Tampering** | Duplicate issue injection during Gitleaks and Betterleaks output processing. | Backlog clutter and loss of existing VEX qualifications. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
 
 ---
 
@@ -167,5 +167,5 @@ flowchart TB
 | DFD Flow | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|---|
 | **F1, F2 (HTTP API)** | **Information Disclosure** | Interception of credentials or API tokens in transit over network. | Theft of user sessions or CI API tokens. | Mandatory HTTPS with TLS 1.3/1.2 and strict security headers (HSTS, CSP, X-Content-Type-Options). |
-| **F12, F14 (Ingestion)** | **Tampering** | Injecting duplicate issues or altering findings during DB transit. | Backlog clutter and loss of VEX triage state. | Deterministic fingerprinting ([`IssueFingerprint`](file:///Users/lrb/Dev/Asmolabs/vectispire/vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
-| **F15 (Long-Polling Agent)** | **Elevation of Privilege** | Remote agent attempting SQL injection via job fetching stream. | SQL injection and direct database access. | Agent communicates exclusively via structured JSON DTOs over REST API with zero JDBC or direct SQL access ([ADR 0003](decisions/0003-long-polling-for-agents.md)). |
+| **F12, F14 (Ingestion)** | **Tampering** | Injecting duplicate issues or altering findings during DB transit. | Backlog clutter and loss of VEX triage state. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
+| **F15 (Long-Polling Agent)** | **Elevation of Privilege** | Remote agent attempting SQL injection via job fetching stream. | SQL injection and direct database access. | Agent communicates exclusively via structured JSON DTOs over REST API with zero JDBC or direct SQL access ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |

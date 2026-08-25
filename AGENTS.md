@@ -44,7 +44,7 @@ and publishes nothing.
 ## Before you change anything
 
 **Read [`docs/architecture/`](docs/architecture/) first.** Documents 01 to 04 describe the
-system as it is; the [decision register](docs/architecture/decisions/) says why, and what
+system as it is; the [decision register](docs/architecture/en/decisions/) says why, and what
 was rejected. When a document and a module contradict each other, the module is right and
 the document has a bug — say so rather than working around it.
 
@@ -57,7 +57,7 @@ SQL, or a domain class importing Spring, fails the suite.
 classpath and the violation fails to compile rather than failing review. That is a **security
 property**: an agent holding a database connection would also need `ENCRYPTION_KEY`, which
 decrypts every deployment key Vectispire stores — see
-[decision 0003](docs/architecture/decisions/0003-long-polling-for-agents.md).
+[decision 0003](docs/architecture/en/decisions/0003-long-polling-for-agents.md).
 
 **Three traps that cause silent data loss**, each with a decision behind it:
 
@@ -66,7 +66,7 @@ decrypts every deployment key Vectispire stores — see
   losing all triage — silently, across every target.
 - An analyzer that fails returns **absent, never empty**. `ScanArtifacts` uses `Optional`
   fields for exactly this: an empty list means "ran, found nothing", which resolves the
-  backlog ([0007](docs/architecture/decisions/0007-none-is-not-an-empty-list.md)). The same
+  backlog ([0007](docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)). The same
   rule decides a scan's status — every step absent and something broken means the target was
   never examined, and `completed` would say the opposite.
 - **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, and

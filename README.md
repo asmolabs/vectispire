@@ -51,7 +51,7 @@ Together, **Vectispire** locks down software integrity while elevating visibilit
 - **SBOM Drift & Diff Viewer**: visual and API comparison engine (`GET /api/v1/sbom/diff`) that pinpoints added/pruned packages, license migrations (e.g. permissive to GPL/AGPL copyleft), and net CVE impact between releases.
 - **Security Debt & High-Impact Remediation**: converts open vulnerabilities and findings into estimated engineering hours and person-days (`GET /api/v1/remediation/debt`), highlighting the Top High-Impact Fixes with maximum security ROI.
 - **Optional single sign-on** (OpenID Connect, tested against Keycloak): the provider answers *who is this*, and Vectispire still issues its own session — so the visibility rules, the audit trail, the session lifetimes and the API keys keep working unchanged. **No account is created on sign-on**: an administrator creates it first, and the role stays Vectispire's to decide. Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of every target. The first sign-on binds the account whose username matches the claim, and every later one matches on the provider's subject — a username is not stable for the life of a person.
-- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/decisions/0010-one-scan-runner.md)).
+- **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/en/decisions/0010-one-scan-runner.md)).
 
 ## Architecture
 
@@ -78,7 +78,7 @@ Results are normalized into a single `Finding` table (type, severity, identifier
 
 A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/IssueSyncService.java).
 
-The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md).
+The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/en/TECHNICAL_DOCUMENTATION.md).
 
 ### Distributed scanning: agents
 
@@ -137,7 +137,7 @@ configuration of whichever machine scans. Secrets, IaC and source-code analysis 
 apply to an image and stay `null` — declaring them scanned would silently resolve their
 whole history for that target.
 
-See [`docs/architecture/04-runtime-and-deployment.md`](docs/architecture/04-runtime-and-deployment.md)
+See [`docs/architecture/04-runtime-and-deployment.md`](docs/architecture/en/04-runtime-and-deployment.md)
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
@@ -388,7 +388,7 @@ Vectispire bundles one Semgrep rule. That is a licensing constraint, not an over
 `semgrep/semgrep-rules` was relicensed under terms that forbid redistributing the rules,
 and the `opengrep-rules` fork carries a Commons Clause that would take Vectispire out of open
 source and bind everyone who takes it up
-([decision 0006](docs/architecture/decisions/0006-semgrep-rules-written-here.md)). So the
+([decision 0006](docs/architecture/en/decisions/0006-semgrep-rules-written-here.md)). So the
 rules are fetched by you, from their author, and never redistributed here.
 
 No tool ships for this. The steps are short enough not to warrant one:
@@ -489,7 +489,7 @@ contributions are under the same terms without a CLA. [`NOTICE`](NOTICE) lists t
 third-party components the jar and the image bundle, including the two JDBC drivers that are
 copyleft; both are `runtimeOnly`, and moving either onto the compile classpath changes the
 legal position and not just the build file. The AGPL was the alternative and lost on
-adoption — [decision 0012](docs/architecture/decisions/0012-apache-2-0.md) says on what
+adoption — [decision 0012](docs/architecture/en/decisions/0012-apache-2-0.md) says on what
 judgement, and what it would cost to reverse.
 
 The licence covers the code, not the name: Apache-2.0 grants no trademark rights, so a fork

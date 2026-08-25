@@ -35,6 +35,18 @@ jobs:
             detect --source=/code --verbose
 
   # The control plane and the remote agent. This is the implementation of record.
+  # **A broken link is invisible until a reader hits it.** The documentation moved into
+  # `en/` and `fr/` subtrees and 53 of 305 relative links — one in four — stayed pointed at
+  # where the files used to be. Nothing failed, because nothing was checking. This is what
+  # keeps the count at zero, and it costs a second.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Documentation links resolve
+        run: python3 scripts/check-doc-links.py
+
   jvm:
     runs-on: ubuntu-latest
     steps:

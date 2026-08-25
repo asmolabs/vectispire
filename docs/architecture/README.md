@@ -18,7 +18,7 @@ Bienvenue dans la documentation d'architecture de Vectispire. Veuillez choisir v
   - [03 — Security](en/03-security.md)
   - [04 — Runtime and Deployment](en/04-runtime-and-deployment.md)
   - [Architecture Decision Records (ADR)](en/decisions/)
-  - [STRIDE Threat Model](security/STRIDE_THREAT_MODEL.en.md)
+  - [STRIDE Threat Model](security/en/STRIDE_THREAT_MODEL.en.md)
   - [C4 Structurizr DSL Models](c4/workspace.dsl)
 
 ---
@@ -30,5 +30,5 @@ Bienvenue dans la documentation d'architecture de Vectispire. Veuillez choisir v
   - [03 — Sécurité](fr/03-security.md)
   - [04 — Exécution et déploiement](fr/04-runtime-and-deployment.md)
   - [Registre des Décisions d'Architecture (ADR)](fr/decisions/)
-  - [Modélisation des Menaces STRIDE](security/STRIDE_THREAT_MODEL.fr.md)
+  - [Modélisation des Menaces STRIDE](security/fr/STRIDE_THREAT_MODEL.fr.md)
   - [Modèles C4 Structurizr DSL](c4/workspace.dsl)

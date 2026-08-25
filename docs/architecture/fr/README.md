@@ -11,7 +11,7 @@ Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un révi
 | [03 — Sécurité](03-security.md) | Quelles sont les frontières de confiance, qui les protège, et que reste-t-il à traiter ? |
 | [04 — Exécution et déploiement](04-runtime-and-deployment.md) | Une instance, plusieurs, agents distants : qu'est-ce qui est autorisé et refusé ? |
 | [Registre des décisions d'architecture (ADR)](decisions/README.md) | Une page par décision structurelle, avec l'alternative rejetée. |
-| [Modélisation des Menaces STRIDE](../security/STRIDE_THREAT_MODEL.fr.md) | Analyse formelle des menaces selon les 6 catégories STRIDE. |
+| [Modélisation des Menaces STRIDE](../security/fr/STRIDE_THREAT_MODEL.fr.md) | Analyse formelle des menaces selon les 6 catégories STRIDE. |
 | [Diagrammes C4 (Structurizr DSL)](../c4/workspace.dsl) | Modélisation C4 interactive (Niveaux 1, 2 et 3). |
 
 - [`docs/fr/GETTING_STARTED.fr.md`](../../fr/GETTING_STARTED.fr.md) — installation et exécution.

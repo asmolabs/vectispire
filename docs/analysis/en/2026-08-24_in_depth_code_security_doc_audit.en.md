@@ -32,7 +32,7 @@ Vectispire's documentation serves as an industry reference for clarity, structur
      - `05_development_view.md`: Engineering practices, lifecycle governance, naming conventions, build cycles.
 2. **Documentation-as-Code & C4 Structurizr Diagrams (`docs/architecture/c4/`)**:
    - Modeled directly in [`workspace.dsl`](../../architecture/c4/workspace.dsl) across 3 C4 levels (System Context, Containers, Components).
-   - Automated vector and PNG rendering using [`generate-c4-diagrams.sh`](../../scripts/generate-c4-diagrams.sh).
+   - Automated vector and PNG rendering using [`generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh).
 3. **Formal STRIDE Threat Modeling**:
    - Comprehensive threat matrices in `docs/architecture/security/` covering every entity (E1-E4), process (P1-P5), data store (DS1-DS2), and data flow (F1-F16).
 4. **Architectural Decision Records (ADRs 0001 through 0013)**:

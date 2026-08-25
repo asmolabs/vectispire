@@ -19,7 +19,17 @@
 | **F2** | Login rate limiter bypassable by `X-Forwarded-For`, unbounded map | ✅ Header honoured only behind `vectispire.security.trusted-proxies`; bounded LRU pruned on insertion; scope widened to the anonymous auth routes. |
 | **§3.5** | `docker-compose.yml` shipping working secrets | ✅ The three secrets are required rather than defaulted, MySQL binds to loopback, `group_add` grants the socket group. `.env.example` carried the same values and was rewritten. |
 
-Everything in §6's 🟠 and 🟡 tiers remains open.
+**The five 🟠 items were fixed in the same session.**
+
+| # | Finding | Status |
+|:--:|---|---|
+| **F3 / §2.2** | 53 of 305 relative links broken | ✅ All repaired (`decisions/` moved into `en/`+`fr/`, plus depth corrections). `scripts/check-doc-links.py` now runs as a CI job, so the count stays at zero. |
+| **§2.2** | Four `file:///Users/lrb/...` paths in the STRIDE models | ✅ Replaced with relative paths. The checker treats any `file://` link as broken, so they cannot come back. |
+| **§4.2** | `integrationTestAll` and Playwright never run in CI | ✅ `.github/workflows/nightly.yml` runs both at 02:30 UTC, plus `workflow_dispatch`. The E2E job now boots the control plane, which Playwright's `webServer` does not do. |
+| **§3.4** | Four-eyes is role-based, not identity-based | ✅ The approver is compared against the requester recorded on the `PENDING_APPROVAL` event. Verified by mutation: without the check, self-approval succeeds with 200. |
+| **§3.6** | Vault KMS falls back to a local key on a WARN | ✅ `kms-type=vault` without a reachable endpoint or token now refuses to start, rather than silently changing key custody. |
+
+The 🟡 tier remains open: FR/EN parity on the operational corpus, JaCoCo coverage, `withReadonlyRootfs`, the Swagger exposure setting, and the residual "changelog" vocabulary.
 
 ---
 
@@ -200,7 +210,7 @@ Two caveats an assessor would raise:
 3. **Validate `X-Forwarded-For` against a trusted-proxy list, move eviction onto the admission path, replace `clear()` with a bounded LRU** *(§3.2)*.
 4. **Remove the default `ENCRYPTION_KEY`, bootstrap password and database password from `docker-compose.yml`; add `group_add: [docker]`; bind PostgreSQL to loopback** *(§3.5)*.
 
-### 🟠 Next iteration
+### 🟠 Next iteration — **done, see §0**
 5. **Fix all 53 broken links** — a one-time `docs/architecture/decisions/` → `docs/architecture/{en,fr}/decisions/` rewrite plus depth corrections — and **add the link checker to CI** so the count stays at zero *(§2.2)*.
 6. **Strip the four `file:///Users/lrb/...` paths from both STRIDE documents** *(§2.2)*.
 7. **Nightly workflow: `integrationTestAll` + `playwright test`** *(§4.2)*.

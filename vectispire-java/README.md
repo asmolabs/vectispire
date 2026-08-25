@@ -32,7 +32,7 @@ one question this system may not get wrong twice.
 classpath. An agent holding a database connection would also need `ENCRYPTION_KEY`, which is
 enough to decrypt *every* deployment key Vectispire holds; the property that justifies the
 agent's existence is precisely what it does not have ([decision
-0003](../docs/architecture/decisions/0003-long-polling-for-agents.md)). It is a fact about
+0003](../docs/architecture/en/decisions/0003-long-polling-for-agents.md)). It is a fact about
 the build graph rather than a rule somebody enforces: the violation does not fail review, it
 fails to compile.
 
@@ -137,7 +137,7 @@ that all twenty-six tables and twenty foreign keys are created by name.
 engines through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
 
-See [decision 0013](../docs/architecture/decisions/0013-flyway-multi-dialect-migrations.md) for the architecture rationale.
+See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md) for the architecture rationale.
 
 ## What the suites cover
 

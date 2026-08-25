@@ -36,7 +36,7 @@ flowchart TB
 
 ## 2. Database Compatibility Matrix & Flyway Migrations
 
-Vectispire supports 4 relational database engines using dialect-specific native SQL migration scripts (`src/main/resources/db/migration/{vendor}/`) managed by **Flyway** ([ADR 0013](decisions/0013-flyway-multi-dialect-migrations.md)):
+Vectispire supports 4 relational database engines using dialect-specific native SQL migration scripts (`src/main/resources/db/migration/{vendor}/`) managed by **Flyway** ([ADR 0013](../../en/decisions/0013-flyway-multi-dialect-migrations.md)):
 
 | RDBMS Engine | Min. Supported Version | Flyway Dialect | Target Usage |
 |---|---|---|---|
@@ -63,4 +63,4 @@ Remote agents offload scanning closer to isolated corporate network zones:
 
 - **Network Protocol**: Outbound unidirectional communication via HTTP Long-Polling (`GET /api/v1/agents/jobs?wait=30`).
 - **Zero Database Dependencies**: `vectispire-agent` has zero JDBC drivers on its classpath.
-- **Key Isolation**: Agent never possesses master `ENCRYPTION_KEY` ([ADR 0003](decisions/0003-long-polling-for-agents.md)).
+- **Key Isolation**: Agent never possesses master `ENCRYPTION_KEY` ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)).

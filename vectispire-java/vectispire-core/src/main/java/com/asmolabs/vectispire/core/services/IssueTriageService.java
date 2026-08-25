@@ -104,6 +104,10 @@ public class IssueTriageService {
         String origin = (TriageStatus.PENDING_APPROVAL.wireName().equals(previous)
                 && decision.status() == TriageStatus.NOT_AFFECTED) ? APPROVAL : MANUAL;
 
+        if (APPROVAL.equals(origin)) {
+            requireASecondPairOfEyes(issue, decision);
+        }
+
         issue.setTriageStatus(decision.status().wireName());
         issue.setTriageJustification(
                 decision.justification() == null ? null : decision.justification().wireName());
@@ -124,6 +128,59 @@ public class IssueTriageService {
                 decision.expiresAt().orElse(null)));
 
         return issue;
+    }
+
+    /**
+     * Four eyes, counted as two people rather than as two roles.
+     *
+     * <p><b>What the role gate alone does not do.</b> {@link #resolveRequest} downgrades a
+     * dismissal to {@code PENDING_APPROVAL} when its author cannot approve, which produces a
+     * queue — and nothing after that compared the approver to the requester. A Security
+     * Champion could therefore raise an exemption and approve it in the same session, and the
+     * control still reported itself as satisfied. That is a maker-checker <em>role</em> gate;
+     * it is not four eyes, and DORA Art. 9 and NIS 2 Art. 21 are read literally by the people
+     * who audit against them.
+     *
+     * <p>The requester is read from the history rather than from the issue: {@code triagedBy}
+     * on the row is overwritten by each decision, so by the time the approval arrives the row
+     * already says who is approving. The event log is the only place that still remembers who
+     * asked.
+     *
+     * <p><b>The one case this lets through, deliberately.</b> An exemption requested before
+     * this check existed may carry no actor at all, and refusing those would strand them with
+     * no way forward — the request cannot be re-made without first being approved. An unknown
+     * requester is therefore admitted. Every request created since carries the authenticated
+     * username, or the literal {@code unknown} the controller substitutes, and two of those
+     * compare equal — so the gap closes as the old rows are worked off rather than staying
+     * open.
+     */
+    private void requireASecondPairOfEyes(IssueEntity issue, Triage.Decision decision) {
+        String requester = lastApprovalRequester(issue);
+        if (requester == null || requester.isBlank()) {
+            return;
+        }
+
+        String approver = decision.triagedBy();
+        if (approver != null && requester.trim().equalsIgnoreCase(approver.trim())) {
+            throw new InvalidTriageException(
+                    "Four-eyes approval: this exemption was requested by " + requester
+                            + ", so it has to be approved by somebody else.");
+        }
+    }
+
+    /** The actor of the most recent request that put this issue into the approval queue. */
+    private String lastApprovalRequester(IssueEntity issue) {
+        List<TriageEventEntity> history =
+                events.findByIssueIdOrderByOccurredAtAscIdAsc(issue.getId());
+
+        String requester = null;
+        for (TriageEventEntity event : history) {
+            if (TriageStatus.PENDING_APPROVAL.wireName().equals(event.getToStatus())) {
+                // Oldest first, so the last match is the request being answered now.
+                requester = event.getActor();
+            }
+        }
+        return requester;
     }
 
     /**

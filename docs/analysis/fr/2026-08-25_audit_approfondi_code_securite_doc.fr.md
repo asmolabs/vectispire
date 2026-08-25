@@ -19,7 +19,17 @@
 | **F2** | Limiteur de débit contournable par `X-Forwarded-For`, map non bornée | ✅ En-tête honoré uniquement derrière `vectispire.security.trusted-proxies` ; LRU bornée élaguée à l'insertion ; périmètre élargi aux routes d'authentification anonymes. |
 | **§3.5** | `docker-compose.yml` livrant des secrets fonctionnels | ✅ Les trois secrets sont requis et non plus défaultés, MySQL lié à la boucle locale, `group_add` accorde le groupe de la socket. `.env.example` portait les mêmes valeurs et a été réécrit. |
 
-Tout ce qui relève des niveaux 🟠 et 🟡 du §6 reste ouvert.
+**Les cinq points 🟠 ont été corrigés dans la même session.**
+
+| # | Constat | Statut |
+|:--:|---|---|
+| **F3 / §2.2** | 53 liens relatifs cassés sur 305 | ✅ Tous réparés (`decisions/` déplacé dans `en/`+`fr/`, plus corrections de profondeur). `scripts/check-doc-links.py` tourne désormais comme job de CI, le compte reste donc à zéro. |
+| **§2.2** | Quatre chemins `file:///Users/lrb/...` dans les modèles STRIDE | ✅ Remplacés par des chemins relatifs. Le vérificateur traite tout lien `file://` comme cassé, ils ne peuvent donc pas revenir. |
+| **§4.2** | `integrationTestAll` et Playwright jamais exécutés en CI | ✅ `.github/workflows/nightly.yml` lance les deux à 02:30 UTC, plus `workflow_dispatch`. Le job E2E démarre désormais le control plane, ce que le `webServer` de Playwright ne fait pas. |
+| **§3.4** | Quatre yeux fondé sur le rôle et non sur l'identité | ✅ L'approbateur est comparé au demandeur enregistré sur l'événement `PENDING_APPROVAL`. Vérifié par mutation : sans le contrôle, l'auto-approbation passe avec un 200. |
+| **§3.6** | Le KMS Vault se replie sur une clé locale avec un simple WARN | ✅ `kms-type=vault` sans point de terminaison ni jeton joignable refuse désormais de démarrer, au lieu de changer silencieusement la garde des clés. |
+
+Le niveau 🟡 reste ouvert : parité FR/EN du corpus opérationnel, couverture JaCoCo, `withReadonlyRootfs`, réglage de l'exposition Swagger, et vocabulaire « changelog » résiduel.
 
 ---
 
@@ -200,7 +210,7 @@ Deux réserves qu'un évaluateur soulèverait :
 3. **Valider `X-Forwarded-For` contre une liste de proxys de confiance, déplacer l'éviction sur le chemin d'admission, remplacer `clear()` par un LRU borné** *(§3.2)*.
 4. **Retirer les valeurs par défaut d'`ENCRYPTION_KEY`, du mot de passe d'amorçage et du mot de passe de base de `docker-compose.yml` ; ajouter `group_add: [docker]` ; lier PostgreSQL à la boucle locale** *(§3.5)*.
 
-### 🟠 Itération suivante
+### 🟠 Itération suivante — **fait, voir §0**
 5. **Corriger les 53 liens cassés** — une réécriture unique `docs/architecture/decisions/` → `docs/architecture/{en,fr}/decisions/` plus les corrections de profondeur — et **ajouter le vérificateur de liens à la CI** pour que le compte reste à zéro *(§2.2)*.
 6. **Supprimer les quatre chemins `file:///Users/lrb/...` des deux documents STRIDE** *(§2.2)*.
 7. **Workflow nocturne : `integrationTestAll` + `playwright test`** *(§4.2)*.

@@ -44,7 +44,7 @@ flowchart LR
 ```
 
 1. **Audit de la Supply Chain (`supply-chain`)** : Syft construit un SBOM du JAR produit. Grype vérifie l'absence de vulnérabilités High fixables.
-2. **Signature Cryptographique Sigstore** : Les releases publiées lors des tags `v*` sont signées sans clé avec Sigstore, et la signature est vérifiée automatiquement avant toute publication ([AGENTS.md](../../../AGENTS.md)).
+2. **Signature Cryptographique Sigstore** : Les releases publiées lors des tags `v*` sont signées sans clé avec Sigstore, et la signature est vérifiée automatiquement avant toute publication ([AGENTS.md](../../../../AGENTS.md)).
 
 ---
 

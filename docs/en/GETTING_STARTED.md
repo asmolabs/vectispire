@@ -1,6 +1,6 @@
 # Vectispire — Getting Started / Launch Guide
 
-This document covers everything needed to run Vectispire locally: prerequisites, installation, environment configuration, and how to start the application. For features, see [`README.md`](../README.md); for architecture and database schema, see [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md).
+This document covers everything needed to run Vectispire locally: prerequisites, installation, environment configuration, and how to start the application. For features, see [`README.md`](../../README.md); for architecture and database schema, see [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md).
 
 ## 1. Prerequisites
 

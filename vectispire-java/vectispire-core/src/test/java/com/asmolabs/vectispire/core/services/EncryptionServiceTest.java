@@ -91,6 +91,45 @@ class EncryptionServiceTest {
                 .returns(SecretState.UNREADABLE, d -> d.state());
     }
 
+    @Test
+    @DisplayName("asking for Vault and not getting it refuses to start rather than falling back")
+    void vaultWithoutCredentialsRefusesToStart() {
+        // **The failure this replaces was silent.** It logged a warning and carried on with a
+        // local scrypt key, so an expired token at boot moved every subsequent write out of
+        // Transit's custody — and the two are not interchangeable afterwards: what was written
+        // locally is not in Vault, and the next boot that does reach Transit cannot read it.
+        assertThatThrownBy(() -> new EncryptionService(vault(Optional.empty(), Optional.of("s.token"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no endpoint was provided");
+
+        assertThatThrownBy(() -> new EncryptionService(vault(Optional.of("https://vault.invalid"), Optional.empty())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no token was provided");
+    }
+
+    @Test
+    @DisplayName("choosing local encryption on purpose is not an error")
+    void localKmsStartsNormally() {
+        // The refusal above must be about `vault` specifically. A deployment that never asked
+        // for a KMS has to keep starting, or the fix is worse than what it fixed.
+        EncryptionService service = service(CURRENT, List.of());
+        assertThat(service.isConfigured()).isTrue();
+    }
+
+    private static EncryptionProperties vault(Optional<String> endpoint, Optional<String> token) {
+        return new EncryptionProperties(
+                Optional.of(CURRENT),
+                Optional.empty(),
+                List.of(),
+                Optional.empty(),
+                Optional.of("vault"),
+                endpoint,
+                token,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
     private static EncryptionService service(String key, List<String> previous) {
         return new EncryptionService(new EncryptionProperties(Optional.ofNullable(key), previous));
     }

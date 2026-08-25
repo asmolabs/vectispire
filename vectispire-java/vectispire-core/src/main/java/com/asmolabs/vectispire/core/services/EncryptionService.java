@@ -72,7 +72,28 @@ public class EncryptionService {
                     local);
         } else {
             if ("vault".equals(kmsType)) {
-                log.warn("Vault KMS requested but missing endpoint or token. Falling back to local encryption.");
+                // **Asking for Vault and silently not getting it is the failure this refuses.**
+                // The fallback logged a warning and carried on with a local scrypt-derived key,
+                // so an expired token at boot moved every subsequent write out of Transit's
+                // custody — a change of who holds the keys, announced on a line nobody reads.
+                // Worse, the two are not interchangeable afterwards: secrets written under the
+                // local key are not in Vault, and a later boot that *does* reach Transit cannot
+                // read them.
+                //
+                // `kmsType` is not a default — somebody set it to `vault` on purpose. Refusing
+                // to start is the only answer that keeps that decision meaning something, and
+                // an instance that will not start is a page at 03:00 rather than a discovery
+                // during an audit.
+                throw new IllegalStateException(
+                        "Vault KMS is configured (vectispire.encryption.kms-type=vault) but "
+                                + (properties.vaultEndpoint().isEmpty()
+                                        ? "no endpoint was provided"
+                                        : "no token was provided")
+                                + ". Refusing to start rather than falling back to local "
+                                + "encryption: secrets written under a local key are not in "
+                                + "Vault and a later boot that reaches Transit cannot read "
+                                + "them. Set vectispire.encryption.vault-endpoint and "
+                                + "vault-token, or set kms-type=local deliberately.");
             }
             if (primaryKey.isEmpty()) {
                 log.warn(

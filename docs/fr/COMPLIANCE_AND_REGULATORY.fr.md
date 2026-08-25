@@ -211,7 +211,10 @@ Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (
    - Toute demande d'exemption (`not_affected` / `accepted_risk`) initiée par un développeur (`USER`) bascule automatiquement en `PENDING_APPROVAL`.
    - **Tant que la demande n'est pas approuvée, la Gate de déploiement CI/CD reste bloquante** (`isSettled() == false`).
 
-3. **Double Validation & Piste d'Audit** :
+3. **Demandeur ≠ Approbateur** :
+   - L'approbation est refusée lorsque le compte approbateur est celui enregistré comme ayant demandé la dérogation. Sans cela le contrôle est une barrière de rôle et non un contrôle à quatre yeux, et un évaluateur lisant littéralement DORA art. 9 ou NIS 2 art. 21 a raison de le rejeter.
+
+4. **Double Validation & Piste d'Audit** :
    - L'approbation par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN` consigne un événement d'audit scellé avec l'origine `"approval"`.
 
 ---

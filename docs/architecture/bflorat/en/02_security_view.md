@@ -27,6 +27,7 @@
 Strict endpoint authorization via Spring Security:
 - `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO`: System configuration, user management, SSH keys, and toggling **Double Validation (Four-Eyes Approval)** (`triage_four_eyes_required`).
 - **Optional Double Validation**: Dynamically configurable via UI by Admins or CISOs (`PUT /api/v1/settings`). When enabled, any VEX triage decision (`NOT_AFFECTED` or `FIXED`) submitted by a non-CISO/Admin user enters `PENDING_APPROVAL` status. When disabled, authorized users can directly triage issues.
+- **Distinct Identities Enforced**: The approver is checked against the requester recorded on the `PENDING_APPROVAL` event, not merely against the approver role. An account that requests an exemption cannot approve it, even after being granted the role — four eyes means two people, and a role gate alone lets one person hold both halves.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256 sealed audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
 - `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage.
 - `ROLE_CI`: Dedicated Gate evaluation execution (`POST /api/v1/gate`).

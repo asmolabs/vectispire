@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -49,6 +50,9 @@ class BulkTriageRoutesTest extends ApiTestBase {
     @Autowired
     private SettingsService settings;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.repositories.Users users;
+
     @Test
     @DisplayName("one decision reaches every issue, and each one records its own transition")
     void appliesToAllAndRecordsEach() throws Exception {
@@ -82,6 +86,100 @@ class BulkTriageRoutesTest extends ApiTestBase {
                     .as("triage history of issue %s", id)
                     .isNotEmpty();
         }
+    }
+
+    @Test
+    @DisplayName("the person who asked for an exemption cannot be the one who grants it")
+    void anExemptionIsNotApprovedByItsOwnRequester() throws Exception {
+        long target = repository("https://example.invalid/self-approval.git");
+        long first = issue(target, "CVE-4EYES-SELF");
+
+        // The realistic shape of the attempt, and the one a role check alone misses: the same
+        // person, promoted between the two steps. Nothing about the second call looks wrong —
+        // the caller genuinely holds the approver role by then.
+        String token = tokenFor("self-approver", Role.USER, false);
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Requested by me"))),
+                        token))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(first))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .isEqualTo(TriageStatus.PENDING_APPROVAL.wireName()));
+
+        promoteToSecurityChampion("self-approver");
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Approving my own request"))),
+                        token))
+                .andExpect(status().isBadRequest());
+
+        // Refused, and left in the queue: a rejected self-approval must not settle the issue by
+        // a side effect, which is what would happen if the write ran before the check.
+        assertThat(issues.findById(first))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .as("the issue must still be awaiting somebody else")
+                        .isEqualTo(TriageStatus.PENDING_APPROVAL.wireName()));
+    }
+
+    @Test
+    @DisplayName("somebody else with the approver role still settles it")
+    void anExemptionIsApprovedByADifferentPerson() throws Exception {
+        long target = repository("https://example.invalid/other-approver.git");
+        long first = issue(target, "CVE-4EYES-OTHER");
+
+        String requester = tokenFor("asked-for-it", Role.USER, false);
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Please review"))),
+                        requester))
+                .andExpect(status().isOk());
+
+        // The control refuses one person doing both halves, not the approval itself. A check
+        // that blocked this too would be indistinguishable from a broken queue.
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(first),
+                                        "status", "not_affected",
+                                        "justification", "vulnerable_code_not_in_execute_path",
+                                        "comment", "Reviewed and accepted"))),
+                        asSecurityChampion()))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(first))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .isEqualTo(TriageStatus.NOT_AFFECTED.wireName()));
+    }
+
+    /** The promotion the scenario above turns on: same account, approver role now. */
+    private void promoteToSecurityChampion(String username) {
+        var user = users.findByUsername(username).orElseThrow();
+        user.setRole(Role.SECURITY_CHAMPION.name());
+        users.save(user);
     }
 
     @Test
