@@ -124,6 +124,82 @@
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex items-center gap-2">
+                <i class="pi pi-sync text-primary text-xl"></i>
+                <span>Synchronisation Bidirectionnelle (Webhooks Entrants)</span>
+            </div>
+        </ng-template>
+        <div class="flex flex-col gap-4">
+            <small class="text-muted-color">
+                Configurez ces URLs de webhook dans vos gestionnaires de tickets (Jira, GitLab, GitHub, ServiceNow). Lorsqu'un lead ou développeur marque un ticket comme résolu, refusé ou faux positif dans son outil de ticketing, Vectispire applique automatiquement la décision de triage et consigne l'événement dans le journal d'audit.
+            </small>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-tag text-blue-500"></i> Jira Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'jira' ? 'Copié !' : 'Copier URL'"
+                            [icon]="webhookCopied() === 'jira' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'jira' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('jira')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('jira') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-gitlab text-orange-500"></i> GitLab Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'gitlab' ? 'Copié !' : 'Copier URL'"
+                            [icon]="webhookCopied() === 'gitlab' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'gitlab' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('gitlab')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('gitlab') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-github"></i> GitHub Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'github' ? 'Copié !' : 'Copier URL'"
+                            [icon]="webhookCopied() === 'github' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'github' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('github')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('github') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-server text-emerald-500"></i> ServiceNow Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'servicenow' ? 'Copié !' : 'Copier URL'"
+                            [icon]="webhookCopied() === 'servicenow' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'servicenow' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('servicenow')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('servicenow') }}</code>
+                </div>
+            </div>
+        </div>
+    </p-card>
+
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex items-center gap-2">
                 <i class="pi pi-shield text-primary text-xl"></i>
                 <span>{{ 'settings.siem_title' | translate }}</span>
             </div>

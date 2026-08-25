@@ -19,3 +19,4 @@ This folder is written for **someone picking up the code** — not for a reviewe
 - [`docs/en/ROTATION_AND_PURGE.md`](../../en/ROTATION_AND_PURGE.md) — encryption key rotation and purging.
 - [`docs/en/api/rest_api_reference.md`](../../en/api/rest_api_reference.md) — complete REST API endpoints reference.
 - [`docs/en/CI_CD_INTEGRATION.md`](../../en/CI_CD_INTEGRATION.md) — CI/CD integration guide & vectispire-cli runner.
+- [`docs/en/TICKETING_INTEGRATION.md`](../../en/TICKETING_INTEGRATION.md) — bidirectional ticketing sync (Jira, GitLab, GitHub, ServiceNow).

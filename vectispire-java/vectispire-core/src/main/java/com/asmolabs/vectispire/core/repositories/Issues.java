@@ -75,6 +75,12 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
     List<IssueEntity> findActionableWithoutTicket(
             @Param("state") String state, @Param("excluded") Collection<String> excluded, Limit limit);
 
+    @Query("select i from IssueEntity i where i.ticketRef = :ref or i.ticketRef = concat('#', :ref)")
+    Optional<IssueEntity> findByTicketRefOrIid(@Param("ref") String ref);
+
+    @Query("select i from IssueEntity i where i.state = 'resolved' and i.ticketRef is not null and not i.ticketRef like 'CLOSED:%'")
+    List<IssueEntity> findResolvedWithOpenTicket(Limit limit);
+
     /**
      * Records the ticket a sweep opened.
      *

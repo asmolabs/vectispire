@@ -123,12 +123,48 @@ public class TicketService {
         try {
             String title = Tickets.title(issue, targetName);
             String body = Tickets.body(issue, targetName);
-            return Optional.of(provider() == TicketProvider.GITLAB
-                    ? createGitlab(baseUrl, title, body)
-                    : createJira(baseUrl, title, body));
+            return switch (provider()) {
+                case GITLAB -> Optional.of(createGitlab(baseUrl, title, body));
+                case GITHUB -> Optional.of(createGithub(baseUrl, title, body));
+                case JIRA -> Optional.of(createJira(baseUrl, title, body));
+                case SERVICENOW -> Optional.of(createServiceNow(baseUrl, title, body));
+                case NONE -> Optional.empty();
+            };
         } catch (RuntimeException failed) {
             log.warn("Ticket creation failed for issue {} — will be retried: {}", issue.id(), failed.getMessage());
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Closes an existing ticket when an issue is verified resolved.
+     */
+    public boolean closeTicket(String ticketRef, String resolutionReason) {
+        if (!isEnabled() || ticketRef == null || ticketRef.isBlank()) {
+            return false;
+        }
+
+        String baseUrl;
+        try {
+            baseUrl = validatedBaseUrl(baseUrl());
+        } catch (RuntimeException refused) {
+            log.error("Ticket closure failed - invalid base URL: {}", refused.getMessage());
+            return false;
+        }
+
+        try {
+            switch (provider()) {
+                case GITLAB -> closeGitlab(baseUrl, ticketRef, resolutionReason);
+                case GITHUB -> closeGithub(baseUrl, ticketRef, resolutionReason);
+                case JIRA -> closeJira(baseUrl, ticketRef, resolutionReason);
+                case SERVICENOW -> closeServiceNow(baseUrl, ticketRef, resolutionReason);
+                case NONE -> {}
+            }
+            log.info("Successfully closed ticket {} on {}", ticketRef, provider());
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Failed to close ticket {} on {}: {}", ticketRef, provider(), e.getMessage());
+            return false;
         }
     }
 
@@ -174,6 +210,42 @@ public class TicketService {
         return new Ticket("#" + payload.path("iid").asText(""), payload.path("web_url").asText(""));
     }
 
+    private void closeGitlab(String baseUrl, String ticketRef, String resolutionReason) {
+        String iid = ticketRef.startsWith("#") ? ticketRef.substring(1) : ticketRef;
+        String url = baseUrl + "/api/v4/projects/" + URLEncoder.encode(project(), StandardCharsets.UTF_8) + "/issues/" + iid;
+        post.postForResponse(url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()));
+    }
+
+    private Ticket createGithub(String baseUrl, String title, String body) {
+        String url = baseUrl + "/repos/" + project() + "/issues";
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("title", title);
+        payload.put("body", body);
+        if (!labels().isEmpty()) {
+            payload.put("labels", labels());
+        }
+
+        JsonNode response = read(post.postForResponse(
+                url,
+                payload,
+                policy(),
+                "GitHub",
+                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json")));
+
+        return new Ticket("#" + response.path("number").asText(""), response.path("html_url").asText(""));
+    }
+
+    private void closeGithub(String baseUrl, String ticketRef, String resolutionReason) {
+        String number = ticketRef.startsWith("#") ? ticketRef.substring(1) : ticketRef;
+        String url = baseUrl + "/repos/" + project() + "/issues/" + number;
+        post.postForResponse(
+                url,
+                Map.of("state", "closed", "state_reason", "completed"),
+                policy(),
+                "GitHub",
+                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json"));
+    }
+
     private Ticket createJira(String baseUrl, String title, String body) {
         Map<String, Object> fields = new java.util.LinkedHashMap<>();
         fields.put("project", Map.of("key", project()));
@@ -185,26 +257,79 @@ public class TicketService {
             fields.put("labels", labels());
         }
 
-        Map<String, String> headers = new java.util.LinkedHashMap<>();
-        headers.put("Accept", "application/json");
-        String user = settings.get(Setting.TICKET_USER).trim();
-        // Jira wants the account's address alongside the token for basic authentication; GitLab
-        // does not use it.
-        if (!user.isEmpty()) {
-            String credentials = Base64.getEncoder()
-                    .encodeToString((user + ":" + token()).getBytes(StandardCharsets.UTF_8));
-            headers.put("Authorization", "Basic " + credentials);
-        }
-
         JsonNode payload = read(post.postForResponse(
                 baseUrl + "/rest/api/3/issue",
                 Map.of("fields", fields),
                 policy(),
                 "Jira",
-                headers));
+                jiraHeaders()));
 
         String key = payload.path("key").asText("");
         return new Ticket(key, key.isEmpty() ? "" : baseUrl + "/browse/" + key);
+    }
+
+    private void closeJira(String baseUrl, String ticketRef, String resolutionReason) {
+        String url = baseUrl + "/rest/api/3/issue/" + ticketRef + "/transitions";
+        // Default Jira Cloud transition or comment
+        post.postForResponse(
+                url,
+                Map.of("transition", Map.of("id", "31")),
+                policy(),
+                "Jira",
+                jiraHeaders());
+    }
+
+    private Ticket createServiceNow(String baseUrl, String title, String body) {
+        String url = baseUrl + "/api/now/table/incident";
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("short_description", title);
+        payload.put("description", body);
+        payload.put("category", "Security");
+        payload.put("urgency", "1");
+        payload.put("impact", "1");
+
+        JsonNode response = read(post.postForResponse(url, payload, policy(), "ServiceNow", serviceNowHeaders()));
+        JsonNode result = response.path("result");
+        String number = result.path("number").asText("");
+        String sysId = result.path("sys_id").asText("");
+        String webUrl = baseUrl + "/nav_to.do?uri=incident.do?sys_id=" + (sysId.isEmpty() ? number : sysId);
+        return new Ticket(number.isEmpty() ? sysId : number, webUrl);
+    }
+
+    private void closeServiceNow(String baseUrl, String ticketRef, String resolutionReason) {
+        String url = baseUrl + "/api/now/table/incident/" + ticketRef;
+        post.postForResponse(
+                url,
+                Map.of("state", "6", "close_code", "Solved (Permanently)", "close_notes", "Resolved by Vectispire: " + resolutionReason),
+                policy(),
+                "ServiceNow",
+                serviceNowHeaders());
+    }
+
+    private Map<String, String> jiraHeaders() {
+        Map<String, String> headers = new java.util.LinkedHashMap<>();
+        headers.put("Accept", "application/json");
+        String user = settings.get(Setting.TICKET_USER).trim();
+        if (!user.isEmpty()) {
+            String credentials = Base64.getEncoder()
+                    .encodeToString((user + ":" + token()).getBytes(StandardCharsets.UTF_8));
+            headers.put("Authorization", "Basic " + credentials);
+        }
+        return headers;
+    }
+
+    private Map<String, String> serviceNowHeaders() {
+        Map<String, String> headers = new java.util.LinkedHashMap<>();
+        headers.put("Accept", "application/json");
+        String user = settings.get(Setting.TICKET_USER).trim();
+        if (!user.isEmpty()) {
+            String credentials = Base64.getEncoder()
+                    .encodeToString((user + ":" + token()).getBytes(StandardCharsets.UTF_8));
+            headers.put("Authorization", "Basic " + credentials);
+        } else {
+            headers.put("Authorization", "Bearer " + token());
+        }
+        return headers;
     }
 
     private static Map<String, Object> atlassianDocument(String body) {

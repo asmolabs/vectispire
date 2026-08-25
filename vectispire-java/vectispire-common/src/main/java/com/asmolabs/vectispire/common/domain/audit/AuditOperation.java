@@ -42,6 +42,8 @@ public enum AuditOperation {
      */
     AI_REVIEW_REQUESTED,
     TICKET_CREATED,
+    TICKET_CLOSED,
+    TICKET_SYNCED,
     GATE_POLICY_UPDATED,
 
     /**

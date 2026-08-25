@@ -89,6 +89,12 @@ public class TicketSweepService {
             return 0;
         }
 
+        int created = openActionableTickets(limit);
+        int closed = closeResolvedTickets(limit);
+        return created + closed;
+    }
+
+    private int openActionableTickets(int limit) {
         List<IssueEntity> candidates = issues.findActionableWithoutTicket(
                 IssueState.OPEN.wireName(),
                 List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.FIXED.wireName()),
@@ -138,6 +144,36 @@ public class TicketSweepService {
             log.info("{} ticket(s) opened.", created);
         }
         return created;
+    }
+
+    /**
+     * Automatically closes tickets on the remote tracker when an issue is marked resolved.
+     */
+    public int closeResolvedTickets(int limit) {
+        List<IssueEntity> resolvedIssues = issues.findResolvedWithOpenTicket(Limit.of(limit));
+        if (resolvedIssues.isEmpty()) {
+            return 0;
+        }
+
+        int closed = 0;
+        for (IssueEntity issue : resolvedIssues) {
+            boolean success = tickets.closeTicket(issue.getTicketRef(), "Resolved by clean security scan");
+            if (success) {
+                issues.attachTicket(issue.getId(), "CLOSED:" + issue.getTicketRef(), issue.getTicketUrl());
+                closed++;
+
+                audit.record(AuditLogService.Record.of(
+                        AuditOperation.TICKET_CLOSED,
+                        String.valueOf(issue.getId()),
+                        "Ticket " + issue.getTicketRef() + " automatically closed after issue resolution",
+                        null));
+            }
+        }
+
+        if (closed > 0) {
+            log.info("{} resolved ticket(s) automatically closed on tracker.", closed);
+        }
+        return closed;
     }
 
     /**

@@ -72,6 +72,7 @@ export class Settings {
 
     readonly webhookSecretConfigured = signal(false);
     readonly savingWebhookSecret = signal(false);
+    readonly webhookCopied = signal<string | null>(null);
     webhookSecretInput = '';
 
     readonly siemConfig = signal<SiemConfig | null>(null);
@@ -339,6 +340,18 @@ export class Settings {
                 this.savingWebhookSecret.set(false);
                 this.error.set(messageOf(response, 'Saving the secret failed.'));
             }
+        });
+    }
+
+    getWebhookUrl(provider: string): string {
+        return `${window.location.origin}/api/v1/tickets/webhook/${provider}`;
+    }
+
+    copyWebhookUrl(provider: string): void {
+        const url = this.getWebhookUrl(provider);
+        navigator.clipboard.writeText(url).then(() => {
+            this.webhookCopied.set(provider);
+            setTimeout(() => this.webhookCopied.set(null), 3000);
         });
     }
 

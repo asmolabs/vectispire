@@ -161,6 +161,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // The agent protocol authenticates by API key, resolved by the filter
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()
+                        .requestMatchers("/api/v1/tickets/webhook/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()

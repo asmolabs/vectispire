@@ -9,7 +9,8 @@ public enum TicketProvider {
     NONE,
     GITLAB,
     GITHUB,
-    JIRA;
+    JIRA,
+    SERVICENOW;
 
     public String wireName() {
         return name().toLowerCase(Locale.ROOT);

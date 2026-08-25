@@ -96,14 +96,14 @@ class RouteAuthorizationTest extends ApiTestBase {
         //                      the session it stands for. It cannot require the session it is on
         //                      the way to producing, and the cookie is the credential.
         //
-        // Listed rather than counted, so a fourth still starts the conversation.
         assertThat(open).containsExactlyInAnyOrder(
                 "[/api/v1/auth/login]",
                 "[/api/v1/auth/methods]",
                 "[/api/v1/auth/session/exchange]",
                 "[/api/v1/auth/mfa/verify]",
                 "[/api/v1/scorecards/repositories/{repoId}/badge.svg]",
-                "[/api/v1/crypto/public-key.pub]");
+                "[/api/v1/crypto/public-key.pub]",
+                "[/api/v1/tickets/webhook/{provider}]");
     }
 
     @Test
