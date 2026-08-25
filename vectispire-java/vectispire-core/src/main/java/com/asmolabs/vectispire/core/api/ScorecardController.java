@@ -72,8 +72,9 @@ public class ScorecardController {
     @ApiResponse(responseCode = "200", description = "Global scorecard retrieved successfully")
     @GetMapping("/global")
     @RequiresAccount
-    public SecurityScorecard getGlobalScorecard() {
-        return scorecardService.getGlobalScorecard();
+    public SecurityScorecard getGlobalScorecard(@AuthenticationPrincipal VectispirePrincipal principal) {
+        return scorecardService.getGlobalScorecard(
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     /**

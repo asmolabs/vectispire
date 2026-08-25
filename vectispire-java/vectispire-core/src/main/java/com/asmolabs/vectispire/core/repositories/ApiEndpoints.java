@@ -9,6 +9,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface ApiEndpoints extends JpaRepository<ApiEndpointEntity, Long> {
 
+    /**
+     * The rows belonging to these repositories, and to no others.
+     *
+     * <p>Added for the global attack surface, which read every row and answered with all of
+     * them: an API inventory is a map of somebody's exposed paths and methods, and a restricted
+     * reader was being handed everybody's.
+     */
+    List<ApiEndpointEntity> findByRepositoryIdIn(Collection<Long> repositoryIds);
+
     List<ApiEndpointEntity> findByRepositoryIdOrderByPathAsc(Long repositoryId);
 
     List<ApiEndpointEntity> findByScanIdOrderByPathAsc(Long scanId);

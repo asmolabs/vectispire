@@ -10,7 +10,11 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +48,12 @@ public class SecurityScorecardService {
 
     public Optional<SecurityScorecard> getRepositoryScorecard(Long repoId) {
         return gitRepo.findById(repoId).map(repo -> {
-            List<IssueEntity> openIssues = issuesRepo.findAll().stream()
-                    .filter(i -> repoId.equals(i.getRepoId()) && !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
+            // The route is guarded by the controller; this narrows the *read*, which used to be
+            // the whole table filtered down to one repository afterwards.
+            List<IssueEntity> openIssues = issuesRepo
+                    .findAll(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))))
+                    .stream()
+                    .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                     .toList();
 
             List<LicenseEntry> licenses = licenseService.getInventory().stream()
@@ -76,8 +84,15 @@ public class SecurityScorecardService {
         });
     }
 
-    public SecurityScorecard getGlobalScorecard() {
-        List<IssueEntity> openIssues = issuesRepo.findAll().stream()
+    /**
+     * The portfolio's posture, <b>within the caller's allowance</b>.
+     *
+     * <p>"Organization Portfolio" is a fair name for an administrator and a false one for a
+     * reader assigned two repositories: the score they were shown was the whole estate's, which
+     * is both a leak and a number that means nothing about anything they can act on.
+     */
+    public SecurityScorecard getGlobalScorecard(Visibility allowed) {
+        List<IssueEntity> openIssues = issuesRepo.findAll(openWithin(allowed)).stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                 .toList();
 
@@ -164,4 +179,11 @@ public class SecurityScorecardService {
                 hasAttestation,
                 recommendations);
     }
+
+    /** Every issue the caller may see; the open test stays in Java because it always was there. */
+    private static Specification<IssueEntity> openWithin(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                .toSpecification();
+    }
+
 }

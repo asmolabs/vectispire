@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.ComplianceReportPdf;
@@ -117,6 +118,11 @@ public class ComplianceController {
 
     @Operation(summary = "Export certified audit evidence bundle", description = "Generates a cryptographically sealed ZIP bundle containing compliance evidence, SHA-256 integrity proofs, and policy audit logs.")
     @ApiResponse(responseCode = "200", description = "Certified evidence bundle ZIP archive")
+    // **The stricter of the two doors this data has.** The archive contains the complete audit
+    // log, which `/api/v1/audit-log` has always reserved to a security lead — so a reader could
+    // obtain by export what they were refused by route. It is also a compliance officer's
+    // artifact by nature: signed, dated, and meant for somebody outside the team.
+    @RequiresSecurityLead
     @GetMapping(value = "/evidence-bundle.zip", produces = "application/zip")
     public ResponseEntity<byte[]> exportEvidenceBundle(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -131,7 +137,8 @@ public class ComplianceController {
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));
 
-        byte[] zip = evidenceVault.generateEvidenceBundle(username);
+        byte[] zip = evidenceVault.generateEvidenceBundle(
+                username, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
         String filename = "vectispire-audit-evidence-bundle.zip";
 
         return ResponseEntity.ok()

@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ThreatIntelEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.ThreatIntels;
 import java.util.ArrayList;
@@ -48,14 +50,28 @@ public class EpssPrioritizationService {
         this.containersRepo = containersRepo;
     }
 
+    /**
+     * The fleet's exploitation-probability ranking, <b>within the caller's allowance</b>.
+     *
+     * <p>The read was every issue in the deployment with the open test applied in Java, and no
+     * visibility at all — so a restricted reader received a ranked list of every other target's
+     * most exploitable vulnerabilities, which is the most actionable form the backlog takes.
+     */
     @Transactional(readOnly = true)
-    public EpssFleetSummary getFleetSummary() {
+    public EpssFleetSummary getFleetSummary(Visibility allowed) {
         Map<Long, RepositoryEntity> reposMap = reposRepo.findAll().stream()
                 .collect(Collectors.toMap(RepositoryEntity::getId, r -> r));
         Map<Long, ContainerEntity> containersMap = containersRepo.findAll().stream()
                 .collect(Collectors.toMap(ContainerEntity::getId, c -> c));
 
-        List<IssueEntity> openIssues = issuesRepo.findAll().stream()
+        // `excludeSettled` is not what this wants: the original kept everything that is not
+        // closed or resolved, including dismissed triage, so the state filter is spelled out
+        // rather than borrowed from a flag that means something adjacent.
+        List<IssueEntity> openIssues = issuesRepo
+                .findAll(new IssueFilters(
+                                null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification())
+                .stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                 .toList();
 

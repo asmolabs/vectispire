@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.csaf.CsafDocument;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -50,8 +51,9 @@ public class CsafController {
     }
 
     @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CsafDocument> getAggregateCsaf() {
-        CsafDocument doc = csafService.generateAggregate();
+    public ResponseEntity<CsafDocument> getAggregateCsaf(
+            @AuthenticationPrincipal VectispirePrincipal principal) {
+        CsafDocument doc = csafService.generateAggregate(allowanceOf(principal));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-csaf.json\"")
                 .body(doc);
@@ -67,6 +69,11 @@ public class CsafController {
         Visibilities.requireVisible(
                 scans.findById(scanId).orElseThrow(() -> new NoSuchElementException("Scan not found.")),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    }
+
+
+    private Visibility allowanceOf(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
 }

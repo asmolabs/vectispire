@@ -4,6 +4,9 @@ import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFlee
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.services.EpssPrioritizationService;
 import com.asmolabs.vectispire.core.services.ThreatIntelFeedService;
@@ -25,17 +28,21 @@ public class EpssController {
 
     private final EpssPrioritizationService epssService;
     private final ThreatIntelFeedService threatIntelFeedService;
+    private final VisibilityService visibility;
 
     public EpssController(
             EpssPrioritizationService epssService,
-            ThreatIntelFeedService threatIntelFeedService) {
+            ThreatIntelFeedService threatIntelFeedService,
+            VisibilityService visibility) {
         this.epssService = epssService;
         this.threatIntelFeedService = threatIntelFeedService;
+        this.visibility = visibility;
     }
 
     @GetMapping("/priorities")
-    public EpssFleetSummary getPriorities() {
-        return epssService.getFleetSummary();
+    public EpssFleetSummary getPriorities(@AuthenticationPrincipal VectispirePrincipal principal) {
+        return epssService.getFleetSummary(
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     @GetMapping("/cve/{cveId}")

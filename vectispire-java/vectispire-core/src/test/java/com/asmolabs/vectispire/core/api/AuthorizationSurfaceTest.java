@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,6 +27,25 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("what an ordinary account may change")
 class AuthorizationSurfaceTest extends ApiTestBase {
+
+    @Test
+    @DisplayName("a reader cannot obtain the audit log by asking for the evidence bundle instead")
+    void theEvidenceBundleIsNotABackDoorToTheAuditLog() throws Exception {
+        // **The same data behind two doors with two different locks.** `/api/v1/audit-log`
+        // requires a security lead. The certified evidence bundle — a ZIP built for an external
+        // auditor — contains `02_immutable_audit_log.jsonl`, every action by every account since
+        // the deployment started, and its route required nothing but a session.
+        //
+        // The bundle also carries the compliance summary, the triage and risk-acceptance
+        // register, and twenty scans' attestations, all built with `Visibility.everything()`
+        // hard-coded. It is the most complete leak in the API precisely because its job is to
+        // package everything.
+        mvc.perform(authenticated(get("/api/v1/compliance/evidence-bundle.zip"), asReader()))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(authenticated(get("/api/v1/compliance/evidence-bundle.zip"), asCiso()))
+                .andExpect(status().isOk());
+    }
 
     @Test
     @DisplayName("a reader cannot purge the platform's entire API inventory")

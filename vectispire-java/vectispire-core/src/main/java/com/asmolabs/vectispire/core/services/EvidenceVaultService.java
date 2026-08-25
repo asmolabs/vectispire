@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
@@ -78,8 +80,23 @@ public class EvidenceVaultService {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
+    /**
+     * The certified bundle, <b>within the caller's allowance</b>.
+     *
+     * <p><b>This was the most complete leak in the API, because packaging everything is its
+     * job.</b> It carried a hard-coded {@code Visibility.everything()} and read every triaged
+     * issue and every completed scan, so a restricted reader received the estate's compliance
+     * posture, its risk-acceptance register and twenty targets' attestations in one archive.
+     *
+     * <p>Worse than a visibility leak, it was a <b>privilege bypass</b>: entry {@code
+     * 02_immutable_audit_log.jsonl} is the whole audit trail — every action by every account —
+     * and {@code /api/v1/audit-log} requires a security lead while this route required only a
+     * session. The same data behind two doors with two different locks. The route now carries the
+     * stricter of the two, and the allowance narrows what a lead with a scoped credential
+     * receives.
+     */
     @Transactional(readOnly = true)
-    public byte[] generateEvidenceBundle(String username) throws IOException {
+    public byte[] generateEvidenceBundle(String username, Visibility allowed) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
             List<EvidenceFileEntry> entries = new ArrayList<>();
@@ -91,7 +108,7 @@ public class EvidenceVaultService {
                     pubKeyBytes);
 
             // 1. Compliance Frameworks evaluation
-            byte[] complianceBytes = json.writeValueAsBytes(compliance.getSummary(Visibility.everything()));
+            byte[] complianceBytes = json.writeValueAsBytes(compliance.getSummary(allowed));
             addZipEntry(zip, entries, "01_compliance_frameworks.json",
                     "Continuous compliance assessments for NIS 2, DORA, ISO 27001, PCI-DSS, and EU CRA",
                     complianceBytes);
@@ -108,7 +125,14 @@ public class EvidenceVaultService {
                     auditBytes);
 
             // 3. Triage & Risk Acceptance Register
-            List<IssueEntity> triagedIssues = issuesRepo.findAll().stream()
+            // Scoped in SQL rather than filtered afterwards: the register is the triage
+            // decisions somebody may see, and reading the rest to discard it was both the leak
+            // and the whole-table read.
+            List<IssueEntity> triagedIssues = issuesRepo
+                    .findAll(new IssueFilters(
+                                    null, null, null, null, null, null, false, false, null, allowed)
+                            .toSpecification())
+                    .stream()
                     .filter(i -> i.getTriageStatus() != null && !i.getTriageStatus().equals("untriaged"))
                     .toList();
             byte[] triageBytes = json.writeValueAsBytes(triagedIssues);
@@ -119,6 +143,9 @@ public class EvidenceVaultService {
             // 4. In-toto Supply Chain Attestations & DSSE Envelopes
             List<ScanEntity> completedScans = scansRepo.findAll().stream()
                     .filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
+                    // An attestation names its target's provenance and gate verdict, so the
+                    // twenty that go into the archive must be twenty the caller may see.
+                    .filter(s -> allowed.permits(targetOf(s)))
                     .limit(20)
                     .toList();
             for (ScanEntity scan : completedScans) {
@@ -139,7 +166,7 @@ public class EvidenceVaultService {
             }
 
             // 5. OpenVEX v0.2.0 document & detached signature
-            byte[] vexBytes = json.writeValueAsBytes(vexService.generateAggregate());
+            byte[] vexBytes = json.writeValueAsBytes(vexService.generateAggregate(allowed));
             addZipEntry(zip, entries, "05_openvex_advisory.json",
                     "OpenVEX v0.2.0 Vulnerability Exploitability eXchange document (CRA / EO 14028)",
                     vexBytes);
@@ -148,7 +175,7 @@ public class EvidenceVaultService {
                     signingKeyService.sign(vexBytes).getBytes(StandardCharsets.UTF_8));
 
             // 6. OASIS CSAF 2.0 VEX Advisory & detached signature
-            byte[] csafBytes = json.writeValueAsBytes(csafService.generateAggregate());
+            byte[] csafBytes = json.writeValueAsBytes(csafService.generateAggregate(allowed));
             addZipEntry(zip, entries, "06_csaf_2_0_vex.json",
                     "OASIS CSAF 2.0 Common Security Advisory Framework VEX document (ANSSI / BSI / CISA)",
                     csafBytes);
@@ -163,7 +190,7 @@ public class EvidenceVaultService {
                     licenseBytes);
 
             // 8. CycloneDX 1.5 BOM-Linked VEX Advisory & detached signature
-            byte[] cdxBytes = json.writeValueAsBytes(cycloneDxService.generateAggregate());
+            byte[] cdxBytes = json.writeValueAsBytes(cycloneDxService.generateAggregate(allowed));
             addZipEntry(zip, entries, "08_cyclonedx_1_5_vex.json",
                     "CycloneDX 1.5 Software Bill of Materials with BOM-Linked VEX analysis (OWASP)",
                     cdxBytes);
@@ -224,4 +251,13 @@ public class EvidenceVaultService {
             throw new IllegalStateException(impossible);
         }
     }
+
+    /** A scan attached to neither target is unclassifiable, and a restriction does not wave it through. */
+    private static ScanTarget targetOf(ScanEntity scan) {
+        if (scan.getRepoId() != null) {
+            return new ScanTarget.Repository(scan.getRepoId());
+        }
+        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+    }
+
 }

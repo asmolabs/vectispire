@@ -46,8 +46,10 @@ public class ApiInventoryController {
     @Operation(summary = "Get global attack surface", description = "Returns cross-repository aggregated statistics, frameworks detected, and unauthenticated endpoints.")
     @ApiResponse(responseCode = "200", description = "Global attack surface summary retrieved successfully")
     @GetMapping("/attack-surface")
-    public GlobalAttackSurface globalAttackSurface() {
-        return apiInventoryService.globalAttackSurface();
+    public GlobalAttackSurface globalAttackSurface(
+            @AuthenticationPrincipal VectispirePrincipal principal) {
+        return apiInventoryService.globalAttackSurface(
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     /**

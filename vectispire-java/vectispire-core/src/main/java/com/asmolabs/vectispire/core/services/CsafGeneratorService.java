@@ -6,6 +6,9 @@ import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
@@ -36,8 +39,8 @@ public class CsafGeneratorService {
         return scansRepo.findById(scanId).map(this::buildCsafForScan);
     }
 
-    public CsafDocument generateAggregate() {
-        List<IssueEntity> issues = issuesRepo.findAll();
+    public CsafDocument generateAggregate(Visibility allowed) {
+        List<IssueEntity> issues = issuesRepo.findAll(withCve(allowed));
         Map<String, CsafDocument.FullProductName> productMap = new HashMap<>();
         List<CsafDocument.CsafVulnerability> vulnerabilities = new ArrayList<>();
 
@@ -152,4 +155,24 @@ public class CsafGeneratorService {
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
                 vulnerabilities);
     }
+
+    /**
+     * The issues this document is built from: those carrying a CVE, within the caller's allowance.
+     *
+     * <p><b>Two defects in one line.</b> The read was {@code findAll()} — every issue in the
+     * deployment, with the CVE test applied afterwards in Java — and it carried no
+     * {@link Visibility} at all, so an aggregate export handed a restricted reader the
+     * identifiers, packages and versions of every target they had not been given.
+     *
+     * <p>The allowance is expressed through {@link IssueFilters}, which is where the
+     * authorization predicate already lives. Restating it here would be a second copy of a rule
+     * that must not have two.
+     */
+    private static Specification<IssueEntity> withCve(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                .toSpecification()
+                .and((root, query, builder) ->
+                        builder.like(builder.upper(root.get("identifier")), "CVE-%"));
+    }
+
 }

@@ -7,6 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ApiContracts extends JpaRepository<ApiContractEntity, Long> {
 
+    /**
+     * The rows belonging to these repositories, and to no others.
+     *
+     * <p>Added for the global attack surface, which read every row and answered with all of
+     * them: an API inventory is a map of somebody's exposed paths and methods, and a restricted
+     * reader was being handed everybody's.
+     */
+    List<ApiContractEntity> findByRepositoryIdIn(Collection<Long> repositoryIds);
+
     List<ApiContractEntity> findByRepositoryIdOrderByCreatedAtDesc(Long repositoryId);
 
     List<ApiContractEntity> findByScanIdOrderByCreatedAtDesc(Long scanId);

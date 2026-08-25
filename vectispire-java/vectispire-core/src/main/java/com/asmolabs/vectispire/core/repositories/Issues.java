@@ -211,6 +211,67 @@ public interface Issues
              order by total desc""")
     List<Object[]> countOpenByTargetRepository(@Param("state") String state, @Param("type") String type, Limit limit);
 
+    /**
+     * The same five reads as above, narrowed to a set of repositories.
+     *
+     * <p><b>Variants rather than one query with a nullable parameter.</b> {@code (:repoIds is
+     * null or …)} is the shape PostgreSQL refuses to type, which is one of the divergences the
+     * engine campaign exists to catch; a caller who may see everything asks the unrestricted
+     * form, and one who may not asks these. An empty allowance is answered without a query at
+     * all — {@code in ()} is not portable either, and the answer is known.
+     *
+     * <p>They exist because the quality overview reported the estate's worst rules, files and
+     * repositories to every account, and a "top offenders" list is a ranking of other people's
+     * code.
+     */
+    @Query("""
+            select i.identifier, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds
+             group by i.identifier
+             order by total desc""")
+    List<Object[]> countOpenByRuleWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds, Limit limit);
+
+    @Query("""
+            select i.filePath, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds
+             group by i.filePath
+             order by total desc""")
+    List<Object[]> countOpenByFileWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds, Limit limit);
+
+    @Query("""
+            select i.repoId, count(i.id) as total from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds
+             group by i.repoId
+             order by total desc""")
+    List<Object[]> countOpenByTargetRepositoryWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds, Limit limit);
+
+    @Query("""
+            select count(i.id) from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds""")
+    long countByStateAndTypeWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds);
+
+    @Query("""
+            select count(distinct i.identifier) from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds""")
+    long countDistinctRulesWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds);
+
+    @Query("""
+            select count(distinct i.filePath) from IssueEntity i
+             where i.state = :state and i.type = :type and i.repoId in :repoIds""")
+    long countDistinctFilesWithin(
+            @Param("state") String state, @Param("type") String type,
+            @Param("repoIds") Collection<Long> repoIds);
+
     /** The backlog by severity, for the dashboard's headline figures. */
     @Query("""
             select i.severity, count(i.id) from IssueEntity i

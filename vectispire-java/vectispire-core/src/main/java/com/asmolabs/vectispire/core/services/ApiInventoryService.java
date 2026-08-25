@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.apis.AttackSurfaceSummary;
 import com.asmolabs.vectispire.common.domain.apis.ShadowApiDiff;
 import com.asmolabs.vectispire.common.domain.apis.ShadowApiStatus;
 import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.ApiContracts;
@@ -241,12 +243,32 @@ public class ApiInventoryService {
     }
 
     /**
-     * Cross-repository global attack surface summary and high risk endpoints.
+     * Cross-repository global attack surface summary and high-risk endpoints,
+     * <b>within the caller's allowance</b>.
+     *
+     * <p>It read every endpoint and every contract and answered with all of them, to any
+     * authenticated account. Paths, methods, and where the declared contract and the discovered
+     * code disagree — the shadow endpoints — are the most directly useful thing in this product
+     * to somebody probing a neighbouring team.
      */
     @Transactional(readOnly = true)
-    public GlobalAttackSurface globalAttackSurface() {
-        List<ApiEndpointEntity> rawAll = apiEndpoints.findAll();
-        List<ApiContractEntity> allContracts = apiContracts.findAll();
+    public GlobalAttackSurface globalAttackSurface(Visibility allowed) {
+        List<Long> repositoryIds = allowed.asFilter()
+                .map(targets -> targets.stream()
+                        .filter(ScanTarget.Repository.class::isInstance)
+                        .map(target -> ((ScanTarget.Repository) target).id())
+                        .toList())
+                .orElse(null);
+
+        // An allowance of no repository is not an absent filter: `findByRepositoryIdIn` with an
+        // empty collection answers empty, which is the right answer and the opposite of what
+        // falling back to `findAll()` would give.
+        List<ApiEndpointEntity> rawAll = repositoryIds == null
+                ? apiEndpoints.findAll()
+                : apiEndpoints.findByRepositoryIdIn(repositoryIds);
+        List<ApiContractEntity> allContracts = repositoryIds == null
+                ? apiContracts.findAll()
+                : apiContracts.findByRepositoryIdIn(repositoryIds);
         List<String> frameworks = apiEndpoints.findDistinctFrameworks();
 
         // Deduplicate in memory by repositoryId + method + path (keep latest by ID)

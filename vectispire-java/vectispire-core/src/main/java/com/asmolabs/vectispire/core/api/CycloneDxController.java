@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -51,8 +52,9 @@ public class CycloneDxController {
     }
 
     @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CycloneDxDocument> getAggregateCycloneDx() {
-        CycloneDxDocument doc = cycloneDxService.generateAggregate();
+    public ResponseEntity<CycloneDxDocument> getAggregateCycloneDx(
+            @AuthenticationPrincipal VectispirePrincipal principal) {
+        CycloneDxDocument doc = cycloneDxService.generateAggregate(allowanceOf(principal));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-cyclonedx-vex.json\"")
                 .body(doc);
@@ -68,6 +70,11 @@ public class CycloneDxController {
         Visibilities.requireVisible(
                 scans.findById(scanId).orElseThrow(() -> new NoSuchElementException("Scan not found.")),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    }
+
+
+    private Visibility allowanceOf(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
 }

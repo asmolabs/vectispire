@@ -311,6 +311,52 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("no aggregate answers with the estate: eight routes, one allowance")
+    void everyAggregateIsScoped() throws Exception {
+        // **The remainder of the authorization sweep, asserted in one place.** Each of these
+        // summarises the whole deployment by design, which is exactly why each had to be told
+        // whose deployment to summarise. A guard per route could not close them: the allowance
+        // has to reach the query that builds the document.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-2026-1");
+        issue(theirs, "CVE-2026-2");
+        finding(theirs, "spring-beans", "CVE-2026-2");
+        String reader = assignedReader(mine);
+
+        // The three exports name the CVE they are about, so the neighbour's must be absent.
+        for (String route : List.of(
+                "/api/v1/csaf/aggregate.json",
+                "/api/v1/cyclonedx/aggregate.json",
+                "/api/v1/vex/aggregate.json")) {
+            String body = mvc.perform(authenticated(get(route), reader))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            org.assertj.core.api.Assertions.assertThat(body)
+                    .as("%s must not carry the neighbour's identifier", route)
+                    .contains("CVE-2026-1")
+                    .doesNotContain("CVE-2026-2");
+        }
+
+        // The EPSS ranking and the portfolio scorecard count what they can see.
+        mvc.perform(authenticated(get("/api/v1/epss/priorities"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVulnerabilities").value(1));
+
+        // The attack surface is a map of exposed paths; an empty one here is the right answer
+        // because the reader's repository has no discovered endpoint, and the neighbour's
+        // absence is the assertion.
+        mvc.perform(authenticated(get("/api/v1/attack-surface"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEndpoints").value(0));
+
+        mvc.perform(authenticated(get("/api/v1/quality/overview"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openCount").value(0));
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }
