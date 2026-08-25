@@ -130,7 +130,7 @@ historically experienced with abstractions:
 - PostgreSQL uses native `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
 - MySQL and MariaDB use their respective native types (`BIT(1)` / `BOOLEAN`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`).
 
-`ChangelogTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
+`MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
 that all twenty-six tables and twenty foreign keys are created by name.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on all four
@@ -144,7 +144,7 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 `./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against a
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
 all four engines through Testcontainers — **not run by CI**, because it needs Docker and ten
-minutes; run it before a release and after any change to the changelog.
+minutes; run it before a release and after any change to the migrations.
 
 `ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer
 is populated, so an empty one now means a package was renamed or deleted, and that rule going

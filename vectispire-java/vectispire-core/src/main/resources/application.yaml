@@ -11,7 +11,7 @@ spring:
 
   jpa:
     hibernate:
-      # **`validate`, never `update`, and never `create`.** The schema belongs to the changelog.
+      # **`validate`, never `update`, and never `create`.** The schema belongs to the migrations.
       # Letting Hibernate reconcile it would mean two authorities for one schema, and the one
       # that runs second wins silently — on whichever engine happens to boot first.
       ddl-auto: validate
@@ -52,6 +52,13 @@ vectispire:
     # Behind a load balancer, name it here (address or CIDR, comma-separated) — otherwise every
     # request arrives from the balancer and the whole estate shares one bucket.
     trusted-proxies: ${VECTISPIRE_TRUSTED_PROXIES:}
+
+    # **Who may read the API's own map.** `springdoc` below is off by default, so nothing is
+    # served until it is switched on; this decides who may read it when it is. Default closed —
+    # a control plane that inventories other people's attack surface should not publish its own
+    # endpoint catalogue to anonymous callers unless somebody decided it should. `true` suits a
+    # public demo, or a deployment behind a gateway that already authenticates.
+    anonymous-api-docs: ${VECTISPIRE_ANONYMOUS_API_DOCS:false}
 
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}

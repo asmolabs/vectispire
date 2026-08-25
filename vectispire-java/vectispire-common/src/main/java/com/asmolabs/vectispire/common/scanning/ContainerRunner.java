@@ -48,6 +48,34 @@ public final class ContainerRunner {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Where a scanner is allowed to write, and how much.
+     *
+     * <p>The root filesystem is read-only, so this is the whole of it. It is a tmpfs, hence
+     * memory: sized so an unpacked image layer set fits and a runaway does not take the host
+     * down with it. It is counted against the container's memory limit by the kernel, which is
+     * the behaviour wanted — one budget, not two.
+     */
+    private static final int SCRATCH_MEGABYTES = 512;
+
+    /**
+     * A writable {@code HOME}, because several scanner images do not set one.
+     *
+     * <p>Their default is {@code /} or a path inside the image, and a cache written there
+     * against a read-only root fails outright rather than being skipped. Pointed at a tmpfs and
+     * exported below, so the failure never arises.
+     */
+    private static final String SCRATCH_HOME = "/home/scanner";
+
+    /**
+     * Where the vulnerability database goes, for the one scanner that has one.
+     *
+     * <p>Public and named from the mounting side too, because the environment variable set here
+     * and the mount declared there have to be the same path. Two constants agreeing by
+     * convention would need a test; one constant is the property itself.
+     */
+    public static final String DATABASE_CACHE_MOUNT = "/cache";
+
     private final DockerClient docker;
     private final ScannerLimits limits;
 
@@ -186,6 +214,25 @@ public final class ContainerRunner {
                 .withPidsLimit(limits.pids())
                 .withCapDrop(com.github.dockerjava.api.model.Capability.values())
                 .withSecurityOpts(List.of("no-new-privileges"))
+                // **The image's own filesystem is not the scanner's to modify.** Everything
+                // else here was already closed — no capabilities, no new privileges, no network
+                // for most — while the root filesystem stayed writable, so a tool that got
+                // compromised mid-scan could drop a binary in it and keep it for the life of
+                // the container. Read-only ends that, and it costs nothing: a scanner reads
+                // code and writes a report to stdout.
+                .withReadonlyRootfs(true)
+                // What read-only takes away and every one of these tools needs back. Syft and
+                // Grype unpack layers, Semgrep compiles rules, Checkov writes a scratch tree —
+                // all of it to `/tmp`, none of it worth keeping. `noexec` is the point of doing
+                // it this way rather than leaving the root writable: scratch space that cannot
+                // be executed from is not somewhere to stage a payload.
+                //
+                // `HOME` goes with it because several of these images default it to `/` or to a
+                // directory in the image, and a cache write there now fails on a read-only
+                // filesystem rather than being silently discarded.
+                .withTmpFs(Map.of(
+                        "/tmp", "rw,noexec,nosuid,size=" + SCRATCH_MEGABYTES + "m",
+                        SCRATCH_HOME, "rw,noexec,nosuid,size=" + SCRATCH_MEGABYTES + "m"))
                 // Removed explicitly below rather than by the daemon: an interrupted scan must
                 // not leave dead containers accumulating on the machine that scans.
                 .withAutoRemove(false);
@@ -197,6 +244,21 @@ public final class ContainerRunner {
                 // mark, neither an operator nor an orphan sweep can tell what Vectispire
                 // launched from the rest.
                 .withLabels(Map.of(SCANNER_LABEL, request.label()))
+                // Pointed at the tmpfs mounted above. Set for every scanner rather than for the
+                // ones known to need it: the next image added is not going to announce that it
+                // caches under `$HOME`, it is going to fail a scan on a read-only filesystem
+                // and report having found nothing.
+                .withEnv(
+                        "HOME=" + SCRATCH_HOME,
+                        "TMPDIR=/tmp",
+                        "XDG_CACHE_HOME=" + SCRATCH_HOME + "/.cache",
+                        // Set for every container although only the matcher reads it: the
+                        // alternative is per-run environment plumbing for one variable, and a
+                        // scanner that does not know the name ignores it. The matcher is also
+                        // the only one that mounts anything at this path — without the mount
+                        // the variable names a directory on a read-only filesystem, which is
+                        // the loud failure rather than the quiet one.
+                        "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT)
                 .withHostConfig(hostConfig);
         if (request.asRoot()) {
             create = create.withUser("0:0");

@@ -510,4 +510,5 @@ Two rules the harness enforces on itself:
 - **Optional OpenAPI 3.0 & Swagger UI**:
   - In production deployments, Swagger UI and `/v3/api-docs` are **strictly disabled by default** (`springdoc.swagger-ui.enabled: false`) to avoid unnecessary exposure.
   - Can be activated in development or staging environments via `VECTISPIRE_SWAGGER_UI_ENABLED=true` and `VECTISPIRE_API_DOCS_ENABLED=true`.
+  - Who may read them is a second setting, closed by default: `vectispire.security.anonymous-api-docs` decides whether an anonymous caller is allowed. A complete endpoint catalogue is exactly the reconnaissance a control plane like this one reports on other people's deployments.
 

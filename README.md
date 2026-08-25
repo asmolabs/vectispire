@@ -375,7 +375,7 @@ Every "no" comes from a defect found by running, and **none of them raises an er
   claim that looks transactional and hands the same scan to two processes.
 - **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
   second, which would make the audit chain fail its own verification and declare itself
-  tampered with. `datetime(6)` is declared once in the changelog rather than
+  tampered with. `datetime(6)` is declared once in the migrations rather than
   column by column, and the connection is pinned to UTC for the same reason.
 
 PostgreSQL remains the reference engine: the one where everything is true without
@@ -443,7 +443,7 @@ deliberately: a suite that skips itself reports green having verified nothing. T
 the container itself, so a missing Docker fails loudly — which is the correct behaviour, and
 exactly the class of defect this project exists to find.
 
-The changelog rather than `ddl-auto: update`, for the same reason: the schema under test is the
+The migrations rather than `ddl-auto: update`, for the same reason: the schema under test is the
 one production will receive.
 
 The backend compiles under `-Werror` and a **layering test** (`ArchitectureTest`, ArchUnit)

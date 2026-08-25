@@ -3,7 +3,7 @@ name: CI
 # What CI keeps, in the order it actually broke:
 #   1. the test suites;
 #   2. the schema — entities run under `ddl-auto: validate` and *describe* tables the
-#      changelog creates; a gap between the two only shows against a real server;
+#      migrations create; a gap between the two only shows against a real server;
 #   3. portability across engines, which no simulated database can demonstrate.
 #
 # **Point 3 is not run here, deliberately, and that is a gap worth naming.**

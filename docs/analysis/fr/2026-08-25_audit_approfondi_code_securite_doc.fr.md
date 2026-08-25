@@ -29,7 +29,21 @@
 | **§3.4** | Quatre yeux fondé sur le rôle et non sur l'identité | ✅ L'approbateur est comparé au demandeur enregistré sur l'événement `PENDING_APPROVAL`. Vérifié par mutation : sans le contrôle, l'auto-approbation passe avec un 200. |
 | **§3.6** | Le KMS Vault se replie sur une clé locale avec un simple WARN | ✅ `kms-type=vault` sans point de terminaison ni jeton joignable refuse désormais de démarrer, au lieu de changer silencieusement la garde des clés. |
 
-Le niveau 🟡 reste ouvert : parité FR/EN du corpus opérationnel, couverture JaCoCo, `withReadonlyRootfs`, réglage de l'exposition Swagger, et vocabulaire « changelog » résiduel.
+**Les cinq points 🟡 ont été corrigés dans la même session, ce qui clôt l'intégralité du §6.**
+
+| # | Constat | Statut |
+|:--:|---|---|
+| **§2.3** | Parité FR/EN absente sur le corpus opérationnel | ✅ `ROTATION_AND_PURGE.fr` 37 → 202 lignes (parité), `TECHNICAL_DOCUMENTATION.fr` 212 → 518, `COMPLIANCE_AND_REGULATORY.md` 204 → 262 (la réconciliation a joué dans l'autre sens, comme l'audit l'indiquait), `GETTING_STARTED.fr` 126 → 187. |
+| **§4.2** | Aucune instrumentation de couverture | ✅ Rapports XML JaCoCo, plus un plancher `jacocoTestCoverageVerification` restreint à `common.domain` (80 % instructions, 65 % branches) rattaché à `check`. Vérifié par mutation : relever le plancher fait échouer la construction sur le 0,83 mesuré. |
+| **§3.7** | Système de fichiers racine des conteneurs de scan inscriptible | ✅ `withReadonlyRootfs(true)` plus un tmpfs `noexec` pour `/tmp` et `$HOME`. Validé contre les cinq images de scanner épinglées sur un démon réel, et vérifié par quatre nouveaux cas dans la campagne d'intégration conteneurs. |
+| **§3.7** | Exposition anonyme de Swagger non configurable | ✅ `vectispire.security.anonymous-api-docs`, fermé par défaut. La première tentative semblait fonctionner et ne fonctionnait pas — la règle de lien profond du SPA attrapait `/v3/api-docs` en premier. |
+| **§2.4** | Vocabulaire « changelog » résiduel | ✅ Remplacé par « migration » dans le README, la CI, Gradle et `application.yaml` ; `ChangelogTest` renommé `MigrationsTest`. |
+
+**Un point mesuré plutôt que supposé.** La base de vulnérabilités de Grype pèse environ 1,9 Go et
+le tmpfs de travail est de la mémoire comptée sur un plafond conteneur de 2 Go : le rootfs en
+lecture seule la cassait net avec `no space left on device`. Elle dispose désormais d'un montage
+inscriptible sur disque pour ce seul cache. Livré sur la foi de la relecture, chaque analyse de
+dépendances aurait échoué.
 
 ---
 
@@ -217,7 +231,7 @@ Deux réserves qu'un évaluateur soulèverait :
 8. **Imposer un « quatre yeux » à identités distinctes**, ou renommer le contrôle *(§3.4)*.
 9. **Échouer immédiatement lorsque `kmsType=vault` ne peut joindre Transit** *(§3.6)*.
 
-### 🟡 Arriéré
+### 🟡 Arriéré — **fait, voir §0**
 10. Amener `ROTATION_AND_PURGE.fr` (37 contre 202 lignes) et `TECHNICAL_DOCUMENTATION.fr` (212 contre 513) à parité ; réconcilier `COMPLIANCE_AND_REGULATORY` dans l'autre sens *(§2.3)*.
 11. Ajouter JaCoCo avec un plancher de couverture sur `common.domain` *(§4.2)*.
 12. Ajouter `withReadonlyRootfs(true)` + `tmpfs` de travail aux conteneurs de scan *(§3.7)*.

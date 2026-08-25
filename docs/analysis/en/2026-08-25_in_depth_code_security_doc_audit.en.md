@@ -29,7 +29,21 @@
 | **§3.4** | Four-eyes is role-based, not identity-based | ✅ The approver is compared against the requester recorded on the `PENDING_APPROVAL` event. Verified by mutation: without the check, self-approval succeeds with 200. |
 | **§3.6** | Vault KMS falls back to a local key on a WARN | ✅ `kms-type=vault` without a reachable endpoint or token now refuses to start, rather than silently changing key custody. |
 
-The 🟡 tier remains open: FR/EN parity on the operational corpus, JaCoCo coverage, `withReadonlyRootfs`, the Swagger exposure setting, and the residual "changelog" vocabulary.
+**The five 🟡 items were fixed in the same session, which closes every finding in §6.**
+
+| # | Finding | Status |
+|:--:|---|---|
+| **§2.3** | FR/EN parity absent on the operational corpus | ✅ `ROTATION_AND_PURGE.fr` 37 → 202 lines (parity), `TECHNICAL_DOCUMENTATION.fr` 212 → 518, `COMPLIANCE_AND_REGULATORY.md` 204 → 262 (the reconciliation ran the other way, as the audit said it must), `GETTING_STARTED.fr` 126 → 187. |
+| **§4.2** | No coverage instrumentation | ✅ JaCoCo XML reports, plus a `jacocoTestCoverageVerification` floor scoped to `common.domain` (80% instruction, 65% branch) wired into `check`. Verified by mutation: raising the floor fails the build at the measured 0.83. |
+| **§3.7** | Scanner container root filesystem writable | ✅ `withReadonlyRootfs(true)` plus `noexec` tmpfs scratch for `/tmp` and `$HOME`. Validated against all five pinned scanner images on a real daemon, and asserted by four new cases in the container integration campaign. |
+| **§3.7** | Anonymous Swagger exposure not configurable | ✅ `vectispire.security.anonymous-api-docs`, closed by default. The first attempt looked like it worked and did not — the SPA deep-link rule was matching `/v3/api-docs` first. |
+| **§2.4** | Residual "changelog" vocabulary | ✅ Replaced with "migration" across README, CI, Gradle and `application.yaml`; `ChangelogTest` renamed `MigrationsTest`. |
+
+**One thing measured rather than assumed.** Grype's vulnerability database is ~1.9 GB and the
+scratch tmpfs is memory counted against a 2 GB container ceiling, so read-only rootfs broke it
+outright with `no space left on device`. It now gets a disk-backed writable mount for that cache
+alone. Had this shipped on the strength of the code review, every dependency scan would have
+failed.
 
 ---
 
@@ -217,7 +231,7 @@ Two caveats an assessor would raise:
 8. **Enforce identity-distinct four-eyes**, or rename the control *(§3.4)*.
 9. **Fail fast when `kmsType=vault` cannot reach Transit** *(§3.6)*.
 
-### 🟡 Backlog
+### 🟡 Backlog — **done, see §0**
 10. Bring `ROTATION_AND_PURGE.fr` (37 vs 202 lines) and `TECHNICAL_DOCUMENTATION.fr` (212 vs 513) up to parity; reconcile `COMPLIANCE_AND_REGULATORY` in the other direction *(§2.3)*.
 11. Add JaCoCo with a coverage floor on `common.domain` *(§4.2)*.
 12. Add `withReadonlyRootfs(true)` + `tmpfs` scratch to scanner containers *(§3.7)*.

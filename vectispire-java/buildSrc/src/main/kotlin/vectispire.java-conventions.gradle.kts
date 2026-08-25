@@ -40,6 +40,19 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// XML alongside the HTML: the HTML is for a person looking at one class, the XML is what a
+// coverage gate and any external reader can actually parse.
+tasks.withType<JacocoReport>().configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    finalizedBy(tasks.withType<JacocoReport>())
+}
+
 dependencyLocking {
     lockAllConfigurations()
 }

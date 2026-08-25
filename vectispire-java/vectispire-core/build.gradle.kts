@@ -131,7 +131,7 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
     // SQLite on the unit-test classpath, not only at runtime: it is the one engine that needs
-    // no daemon, so the changelog can be executed for real in a plain unit test. The other
+    // no daemon, so the migrations can be executed for real in a plain unit test. The other
     // three are the integration campaign's business.
     testRuntimeOnly(libs.sqlite)
     testImplementation(libs.sqlite)

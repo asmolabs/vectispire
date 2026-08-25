@@ -32,6 +32,7 @@ import java.util.stream.StreamSupport;
 public final class DependencyScanner {
 
     private static final String SBOM_FILENAME = "sbom.json";
+    private static final String GRYPE_CACHE_SUBDIR = "grype-db-cache";
 
     /**
      * The exported image, at the workspace root.
@@ -177,10 +178,29 @@ public final class DependencyScanner {
     }
 
     private Optional<List<DependencyFinding>> match(Path mounted, String label) {
+        // **The one scanner that needs somewhere real to write, and why.** The container's root
+        // filesystem is read-only and its scratch space is a tmpfs — memory, counted against
+        // the 2 GB container limit. Grype's vulnerability database is about 1.9 GB, so it
+        // cannot live there: measured, not assumed, and the symptom was `no space left on
+        // device` followed by "database does not exist", which reads as a scanner outage
+        // rather than as a sizing mistake.
+        //
+        // A disk-backed mount for the database keeps the read-only root and puts the download
+        // exactly where it used to go — the container's own writable layer — with the
+        // difference that this directory is the *only* place it can write.
+        Path cache = mounted.resolve(GRYPE_CACHE_SUBDIR);
+        try {
+            Files.createDirectories(cache);
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not stage the vulnerability database cache", e);
+        }
+
         ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
                         images.grype(),
                         List.of("sbom:" + ContainerPaths.MOUNT + "/" + SBOM_FILENAME, "-o", "json"),
-                        List.of(ContainerRun.Mount.readOnly(mounted.toString(), ContainerPaths.MOUNT)),
+                        List.of(
+                                ContainerRun.Mount.readOnly(mounted.toString(), ContainerPaths.MOUNT),
+                                ContainerRun.Mount.writable(cache.toString(), ContainerPaths.DATABASE_CACHE)),
                         label)
                 // The matcher downloads and refreshes its vulnerability database.
                 .withNetwork()

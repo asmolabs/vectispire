@@ -14,6 +14,16 @@ final class ContainerPaths {
     /** Where the workspace root is mounted in every scanner container. */
     static final String MOUNT = "/repo";
 
+    /**
+     * The only writable, disk-backed path a scanner container gets.
+     *
+     * <p>The root filesystem is read-only and the scratch space is a tmpfs, so anything that
+     * has to survive in size — the vulnerability database, at roughly 1.9 GB — needs a real
+     * mount. Only the matcher asks for one. Taken from {@code ContainerRunner} rather than
+     * repeated, because the runner exports the environment variable that names it.
+     */
+    static final String DATABASE_CACHE = com.asmolabs.vectispire.common.scanning.ContainerRunner.DATABASE_CACHE_MOUNT;
+
     private ContainerPaths() {}
 
     /** The scanned tree, or a subdirectory of it. */

@@ -107,3 +107,55 @@ tasks.register<Test>("integrationTest") {
     classpath = configurations["integrationTestRuntimeClasspath"] + integrationTest.output + sourceSets.main.get().output
     shouldRunAfter(tasks.test)
 }
+
+/**
+ * A coverage floor, and only where it means something.
+ *
+ * **Why the domain and nothing else.** `common.domain` carries the calculations that *decide* —
+ * the issue fingerprint, the gate verdict, the audit integrity chain, the export formats.
+ * `ArchitectureTest` keeps them free of Spring, JDBC and Docker precisely so they can be tested
+ * exhaustively, and a layer argued to be exhaustively testable should be measured against that
+ * claim. The rest of the tree is mostly plumbing whose coverage number would say more about how
+ * many getters it has than about whether it works.
+ *
+ * **Why a floor and not a target.** The numbers below sit just under what the suite achieves
+ * today (83.5% instruction, 69.2% branch). That is deliberate: a floor exists to catch a
+ * regression — a class added with no test, a suite deleted in a hurry — not to reward
+ * improvement. Set at today's exact figure it fails on rounding; set aspirationally it fails on
+ * the next honest commit and gets raised until nobody reads it.
+ *
+ * **What it does not do.** It is an aggregate over the domain, so a new package landing at zero
+ * is absorbed rather than blocked while the total holds. Three currently sit there — `csaf`,
+ * `remediation` and `ticketing` — and naming them is more useful than a per-package rule that
+ * would fail the build today for code somebody is still writing.
+ */
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    // Narrowed to the domain before the rule is applied: JaCoCo's `includes` filters rule
+    // *elements*, not classes, so a BUNDLE rule would otherwise measure the whole module.
+    classDirectories.setFrom(
+        files(classDirectories.files.map { fileTree(it) { include("com/asmolabs/vectispire/common/domain/**") } })
+    )
+
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.80".toBigDecimal()
+            }
+            limit {
+                // Lower than instruction coverage, and honestly so: a branch is an `if` nobody
+                // wrote the other half of, and it is the counter that actually tracks whether
+                // the decisions were tested rather than merely executed.
+                counter = "BRANCH"
+                minimum = "0.65".toBigDecimal()
+            }
+        }
+    }
+}
+
+// Part of `check`, so `./gradlew build` enforces it. A verification task nobody runs is a
+// preference, not a gate.
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}

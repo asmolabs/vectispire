@@ -42,15 +42,36 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     private final PasswordChangeInterceptor passwordChange;
     private final AuditLogService audit;
 
+    /** @see #apiSecurity — default closed, and the reason is written there. */
+    private final boolean anonymousApiDocs;
+
     public SecurityConfiguration(
             BearerAuthenticationFilter bearer,
             LoginRateLimitFilter rateLimit,
             PasswordChangeInterceptor passwordChange,
-            AuditLogService audit) {
+            AuditLogService audit,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${vectispire.security.anonymous-api-docs:false}") boolean anonymousApiDocs) {
         this.bearer = bearer;
         this.rateLimit = rateLimit;
         this.passwordChange = passwordChange;
         this.audit = audit;
+        this.anonymousApiDocs = anonymousApiDocs;
+    }
+
+    /**
+     * The three paths springdoc serves.
+     *
+     * <p>Matched on the prefix rather than by pattern because it is consulted from a predicate,
+     * and because springdoc appends group names and a trailing config path that a literal list
+     * would miss — `/v3/api-docs/swagger-config` being the one that leaves the UI blank when it
+     * is the only one refused.
+     */
+    private static boolean isApiDocumentation(String path) {
+        return path != null
+                && (path.startsWith("/v3/api-docs")
+                        || path.startsWith("/swagger-ui")
+                        || path.equals("/swagger-ui.html"));
     }
 
     @Override
@@ -176,7 +197,34 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/api/v1/tickets/webhook/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // **A complete endpoint catalogue, and who may read it is now a
+                        // decision.** `springdoc` is off by default, so nothing is served at
+                        // all until somebody turns it on — but when they did, this line handed
+                        // the whole map of the API to anonymous callers with no way to say
+                        // otherwise. For a control plane whose job is to inventory other
+                        // people's attack surface, publishing its own unauthenticated is a
+                        // choice that should be made rather than inherited.
+                        //
+                        // Default closed: the documentation is served to an authenticated
+                        // caller, which is who needs it. Set
+                        // `vectispire.security.anonymous-api-docs=true` for a public demo or a
+                        // deployment already behind a gateway that authenticates.
+                        //
+                        // A predicate rather than a pattern list, so the setting is read where
+                        // the decision is taken: two chains built from one flag would be two
+                        // places for the rule to drift apart.
+                        .requestMatchers(request -> anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
+                        .permitAll()
+                        // **And the closed case has to be stated, not left to fall through.**
+                        // The SPA deep-link rule below matches any dotless GET outside `/api`,
+                        // `/actuator` and `/scim` — which `/v3/api-docs` and
+                        // `/v3/api-docs/swagger-config` both are. Without this line the
+                        // documentation stayed open no matter what the setting said, and the
+                        // setting looked like it worked because `/swagger-ui.html` has a dot in
+                        // it and was refused. Found by asserting the refusal rather than
+                        // assuming it.
+                        .requestMatchers(request -> !anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
+                        .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/repositories/*/badge.svg").permitAll()
                         // **The interface itself is not behind the token.** When the jar

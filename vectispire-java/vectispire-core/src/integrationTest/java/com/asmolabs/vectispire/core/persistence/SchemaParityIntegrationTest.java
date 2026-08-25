@@ -23,7 +23,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * The question whose right answer is "nothing".
  *
  * <p>Liquibase builds the schema, then Hibernate is asked to <b>validate</b> the entities
- * against it. Every disagreement — a column the entities expect and the changelog never
+ * against it. Every disagreement — a column the entities expect and the migrations never
  * creates, a length that differs, a nullability that does not — fails the context startup here
  * rather than on the first query in production.
  *

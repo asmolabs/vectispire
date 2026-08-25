@@ -11,7 +11,52 @@ Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceServic
 
 ---
 
-## 1. Supported Frameworks & Controls
+## 1. Compliance Architecture & Data Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Auditor as Auditor / CISO / SecOps
+    participant UI as Angular interface (/compliance)
+    participant Ctrl as ComplianceController
+    participant Svc as ComplianceService
+    participant Engine as ComplianceEngine (pure domain)
+    participant Vault as EvidenceVaultService
+    participant PDF as ComplianceReportPdf
+
+    Auditor->>UI: Review compliance / export the audit bundle
+    UI->>Ctrl: GET /api/v1/compliance/summary
+    Ctrl->>Svc: getSummary(allowedVisibility)
+    Svc->>Svc: Posture aggregation (Gate, Scans, Issues, SLA, AuditChain)
+    Svc->>Engine: evaluateAll(PostureInput)
+    Engine-->>Svc: List<ComplianceEvaluation> (scores & controls)
+    Svc-->>Ctrl: ComplianceSummary
+    Ctrl-->>UI: JSON summary & status of the six frameworks
+
+    opt Executive PDF report export
+        UI->>Ctrl: GET /api/v1/compliance/export.pdf
+        Ctrl->>PDF: render(Subject, Evaluations)
+        PDF-->>Ctrl: Executive PDF report byte[]
+        Ctrl-->>Auditor: vectispire-compliance-report.pdf
+    end
+
+    opt Certified evidence bundle export (ZIP)
+        UI->>Ctrl: GET /api/v1/compliance/evidence-bundle.zip
+        Ctrl->>Vault: generateEvidenceBundle(username)
+        Vault-->>Ctrl: Cryptographically sealed ZIP archive
+        Ctrl-->>Auditor: vectispire-audit-evidence-bundle.zip
+    end
+```
+
+**The evaluation happens in the pure domain, and that is the point.** `ComplianceEngine` takes a
+`PostureInput` and returns evaluations; it touches no database, no clock and no framework, so
+every control it scores is exhaustively testable without a server. A compliance figure produced by
+a query would be a second implementation of the rule, agreeing with the first until the day a
+control changed.
+
+---
+
+## 2. Supported Frameworks & Controls
 
 | Framework | Control Code | Title | Assessment Category |
 |---|---|---|---|
@@ -42,7 +87,7 @@ Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceServic
 
 ---
 
-## 2. Assessment Categories & Mathematical Scoring Formulas
+## 3. Assessment Categories & Mathematical Scoring Formulas
 
 Each compliance control maps to an evaluation category evaluated with strict, deterministic rules:
 
@@ -103,7 +148,7 @@ Verifies cryptographic HMAC-SHA256 hash-chain integrity of all audit log entries
 
 ---
 
-## 3. Status Determination & Aggregation
+## 4. Status Determination & Aggregation
 
 ### Control Status Thresholds
 $$\text{Control Status} = \begin{cases} 
@@ -122,7 +167,7 @@ $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Scor
 
 ---
 
-## 4. Certified Audit Evidence Vault
+## 5. Certified Audit Evidence Vault
 
 Vectispire exports cryptographically sealed evidence packages ready for external auditors:
 - **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 5 frameworks, 20 controls, and prioritized remediation roadmap.
@@ -140,7 +185,7 @@ Vectispire exports cryptographically sealed evidence packages ready for external
 
 ---
 
-## 5. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)
+## 6. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)
 
 Vectispire supports the full trio of international VEX standards:
 - **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier **OpenVEX**, **CSAF 2.0**, and **CycloneDX 1.5/1.6 VEX** statements, cascading automated triage for unaffected components with full audit provenance.
@@ -149,15 +194,28 @@ Vectispire supports the full trio of international VEX standards:
 
 ---
 
-## 6. Four-Eyes Risk Exemption Governance
+## 7. Four-Eyes Risk Exemption Governance
 
-To satisfy strict DORA and ISO 27001 requirements:
-- **`SECURITY_CHAMPION` Role**: Delegated security leads can approve risk acceptances.
-- **`PENDING_APPROVAL` Status**: Any exemption requested by standard users blocks CI/CD quality gates until dual-approved by a Security Champion, CISO, or Admin.
+To satisfy the strict requirements of DORA (Art. 9/13), NIS 2 and ISO 27001 (A.8.8) on
+exemptions and risk acceptances:
+
+1. **`SECURITY_CHAMPION` role**:
+   - A security delegate inside the development teams (`administrative = false`, `globalSecurityScope = false`).
+   - Entitled to review and approve technical exemptions (`canApproveTriage = true`).
+
+2. **`PENDING_APPROVAL` status**:
+   - Any exemption request (`not_affected` / `accepted_risk`) raised by a developer (`USER`) moves automatically to `PENDING_APPROVAL`.
+   - **Until the request is approved, the CI/CD deployment gate keeps failing** (`isSettled() == false`).
+
+3. **Requester ≠ approver**:
+   - The approval is refused when the approving account is the one recorded as having requested the exemption. Without this the control is a role gate rather than a four-eyes one, and an assessor reading DORA Art. 9 or NIS 2 Art. 21 literally is right to reject it.
+
+4. **Dual authorisation & audit trail**:
+   - Approval by a `SECURITY_CHAMPION`, `CISO` or `ADMIN` records a sealed audit event with origin `"approval"`.
 
 ---
 
-## 7. Cryptographic Artifact Signing (Cosign & DSSE RFC 9615)
+## 8. Cryptographic Artifact Signing (Cosign & DSSE RFC 9615)
 
 Vectispire integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic signing for all software supply chain artifacts:
 
@@ -172,7 +230,7 @@ Vectispire integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic s
 
 ---
 
-## 8. SBOM Drift & Diff Viewer
+## 9. SBOM Drift & Diff Viewer
 
 The SBOM comparison engine (`SbomDiffService`, `SbomDiffController`) provides deterministic dependency change tracking across software releases and scan executions:
 
@@ -186,7 +244,7 @@ The SBOM comparison engine (`SbomDiffService`, `SbomDiffController`) provides de
 
 ---
 
-## 9. Security Debt & High-Impact Remediation (*High-Impact Fixes*)
+## 10. Security Debt & High-Impact Remediation (*High-Impact Fixes*)
 
 The remediation optimization engine (`SecurityDebtService`, `SecurityDebtController`) translates technical findings into actionable engineering hours and prioritizes maximum-ROI actions:
 

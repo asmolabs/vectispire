@@ -27,7 +27,7 @@ import org.junit.jupiter.api.io.TempDir;
  * the engines disagree are exactly the places SQLite is most forgiving about.
  */
 @DisplayName("the schema migrations (Flyway)")
-class ChangelogTest {
+class MigrationsTest {
 
     private static final String LOCATIONS = "classpath:db/migration/sqlite";
 
@@ -42,7 +42,7 @@ class ChangelogTest {
         flyway.migrate();
     }
 
-    private List<String> applyChangelog() throws Exception {
+    private List<String> applyMigrations() throws Exception {
         Path database = scratch.resolve("vectispire.db");
         Files.createDirectories(database.getParent());
         apply(database);
@@ -60,7 +60,7 @@ class ChangelogTest {
     @Test
     @DisplayName("applies cleanly and creates every table")
     void createsEveryTable() throws Exception {
-        assertThat(applyChangelog())
+        assertThat(applyMigrations())
                 .containsExactlyInAnyOrder(
                         "t_api_key", "t_agent", "t_ssh_key", "t_container", "t_repository", "t_scan",
                         "t_ai_review_result", "t_audit_log", "t_issue", "t_finding", "t_gate_policy",
@@ -75,7 +75,7 @@ class ChangelogTest {
     @DisplayName("the foreign keys really exist on SQLite, which is why they are inline")
     void foreignKeysArePresent() throws Exception {
         // The point of declaring them inline. Written as `addForeignKeyConstraint` the
-        // changelog applies without complaint on SQLite and creates no constraint at all —
+        // migrations apply without complaint on SQLite and creates no constraint at all —
         // referential integrity on three engines out of four, and nothing saying so.
         Path database = scratch.resolve("fk.db");
         apply(database);
@@ -123,9 +123,9 @@ class ChangelogTest {
     @Test
     @DisplayName("is idempotent, so a second startup changes nothing")
     void isIdempotent() throws Exception {
-        // Every instance runs the changelog on boot. If a second application were not a no-op,
+        // Every instance runs the migrations on boot. If a second application were not a no-op,
         // the second pod to start would fail — and the failure would look like a race rather
-        // than like a changelog that cannot be replayed.
+        // than like a migration that cannot be replayed.
         Path database = scratch.resolve("twice.db");
 
         apply(database);
