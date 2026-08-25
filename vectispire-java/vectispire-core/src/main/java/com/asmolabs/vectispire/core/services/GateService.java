@@ -114,8 +114,7 @@ public class GateService {
                 requested,
                 Scope.TARGET);
 
-        List<GateIssue> scoped = openIssuesByTarget().getOrDefault(target, List.of());
-        return new Decision(PolicyGate.evaluate(scoped, resolved.policy()), resolved);
+        return new Decision(PolicyGate.evaluate(openIssuesOf(target), resolved.policy()), resolved);
     }
 
     /** Every target's posture, for the security screen — narrowed to what the caller may see. */
@@ -229,6 +228,28 @@ public class GateService {
         }
     }
 
+    /**
+     * One target's open issues.
+     *
+     * <p><b>This used to build the whole estate's map and keep one entry.</b> Every open issue in
+     * the deployment was loaded as a managed entity, grouped by target, and all but one group
+     * thrown away — on the endpoint a pipeline calls on every build, against a {@code state}
+     * column that carried no index until the migration added beside this change.
+     *
+     * <p>The verdict is unchanged, and {@code GateDatabaseTest} is what says so: it pinned the
+     * numbers before the query moved.
+     */
+    private List<GateIssue> openIssuesOf(ScanTarget target) {
+        String open = IssueState.OPEN.wireName();
+        List<IssueEntity> rows = switch (target) {
+            case ScanTarget.Repository repository -> issues.findByStateAndRepoId(open, repository.id());
+            case ScanTarget.Container container ->
+                    issues.findByStateAndRepoIdIsNullAndContainerId(open, container.id());
+        };
+        return rows.stream().map(IssueViews::forGate).toList();
+    }
+
+    /** Every target's open issues, for the overview — which is the one caller that needs them all. */
     private Map<ScanTarget, List<GateIssue>> openIssuesByTarget() {
         Map<ScanTarget, List<GateIssue>> byTarget = new HashMap<>();
         for (IssueEntity issue : issues.findByState(IssueState.OPEN.wireName())) {

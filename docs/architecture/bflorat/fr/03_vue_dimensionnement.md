@@ -2,7 +2,7 @@
 
 * **Projet :** Vectispire — ASPM & Control Plane de Sécurité
 * **Modèle :** `bflorat/modele-da` — Modèle de Dossier d'Architecture (Bertrand Florat)
-* **Statut :** Validé · **Version :** 1.1 (2026-08-25 — chiffres vérifiés contre le code)
+* **Statut :** Validé · **Version :** 1.2 (2026-08-25 — gate restreint à sa cible, `t_issue` indexée)
 
 ---
 
@@ -10,11 +10,12 @@
 
 1. **Temps de Réponse Quality Gate (`POST /api/v1/gate`)** : $< 300\text{ ms}$. La règle
    elle-même — `PolicyGate.evaluate` — est une fonction pure, en mémoire, des anomalies qu'on lui
-   passe. **Les obtenir ne l'est pas** : la requête lit d'abord les politiques actives, puis
-   *toutes* les anomalies ouvertes du parc, en conserve la part d'une seule cible et jette le
-   reste. La cible de latence tient donc sur un backlog réduit et se dégrade avec la taille du parc
-   entier plutôt qu'avec celle de la cible. Consigné ici comme une limite connue plutôt que passé
-   sous silence, car ce point d'entrée est appelé par chaque pipeline à chaque build.
+   passe, et **les obtenir coûte désormais une lecture indexée du backlog ouvert de cette seule
+   cible**. Jusqu'au 25 août 2026 la requête lisait *toutes* les anomalies ouvertes du parc et
+   jetait tout sauf une cible, sur le point d'entrée appelé par chaque pipeline à chaque build : le
+   coût suivait le parc et non la cible. Les deux moitiés ont été réparées ensemble, car une
+   requête par cible contre une colonne `state` non indexée n'aurait fait que déplacer le
+   balayage.
 2. **Capacité d'Ingestion des Scans** : Traitement asynchrone des analyses en tâche d'arrière-plan
    sans bloquer l'API.
 3. **Mise à l'Échelle Horizontale** : Sans conflit sur plusieurs instances, par deux mécanismes
@@ -33,7 +34,7 @@
 |---|---|---|
 | **`t_scan` (Historique scans)** | ~ 100 000 lignes / an | Nettoyage des métadonnées de scans obsolètes via `RetentionService`. |
 | **`t_finding` (Constats bruts)** | ~ 500 000 lignes | Transitoire, purgé périodiquement par la tâche de rétention. |
-| **`t_issue` (Backlog réconcilié)** | ~ 10 000 à 50 000 anomalies uniques | **Aucun index au-delà de la clé primaire.** Le schéma déclare neuf index et aucun ne porte sur cette table, alors que `state` et `fingerprint` sont lus à chaque appel du gate et à chaque ingestion. Énoncé parce qu'une estimation volumétrique ne vaut rien à côté d'une stratégie d'accès qui n'existe pas. |
+| **`t_issue` (Backlog réconcilié)** | ~ 10 000 à 50 000 anomalies uniques | `(state, repo_id)` et `(state, container_id)` pour le gate et le sommaire de conformité, `(fingerprint)` pour la recherche d'identité par finding à l'ingestion. Ajoutés le 2026-08-25 : cette table ne portait **aucun index** alors que ce document en annonçait trois, et `SchemaParityIntegrationTest` vérifie désormais leur existence sur chaque moteur, si bien qu'un refactoring ne peut plus les faire disparaître en silence. |
 | **`t_audit_log` (Journal scellé)** | ~ 50 000 entrées d'audit / an | Immuable, stockage d'empreintes SHA-256 compactes. |
 
 ---

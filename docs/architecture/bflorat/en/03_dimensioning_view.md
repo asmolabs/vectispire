@@ -2,19 +2,19 @@
 
 * **Project:** Vectispire — ASPM & Security Control Plane
 * **Template:** `bflorat/modele-da` — Architecture Document Template (Bertrand Florat)
-* **Status:** Approved · **Version:** 1.1 (2026-08-25 — figures checked against the code)
+* **Status:** Approved · **Version:** 1.2 (2026-08-25 — gate scoped to its target, `t_issue` indexed)
 
 ---
 
 ## 1. Non-Functional Performance Requirements (NFR)
 
 1. **Quality Gate Response Time (`POST /api/v1/gate`)**: $< 300\text{ ms}$. The rule itself —
-   `PolicyGate.evaluate` — is a pure in-memory function of the issues handed to it. **Getting those
-   issues is not**: the request first reads the active policies and then every open issue in the
-   estate, keeping the one target's worth and discarding the rest. The target therefore holds on a
-   small backlog and degrades with the size of the whole estate rather than with the target's.
-   Recorded here as a known limit rather than implied away, because this endpoint is called by
-   every pipeline on every build.
+   `PolicyGate.evaluate` — is a pure in-memory function of the issues handed to it, and **getting
+   those issues now costs one indexed read of that target's open backlog**. Until 2026-08-25 it
+   read *every* open issue in the deployment and discarded all but one target's, on the endpoint
+   every pipeline calls on every build; the cost tracked the estate rather than the target. Both
+   halves were repaired together, because a per-target query against an unindexed `state` column
+   would only have moved the scan.
 2. **Scan Ingestion Throughput**: Asynchronous background scan processing without blocking HTTP
    thread pools.
 3. **Horizontal Scaling**: Conflict-free across multiple instances, by two different mechanisms —
@@ -31,7 +31,7 @@
 |---|---|---|
 | **`t_scan` (Scan history)** | ~ 100,000 rows / year | Pruning old scan execution metadata via `RetentionService`. |
 | **`t_finding` (Raw findings)** | ~ 500,000 rows | Transient data, purged periodically by retention task. |
-| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | **No index beyond the primary key.** The schema declares nine indexes and none is on this table, while `state` and `fingerprint` are read on every gate call and every ingestion. Stated because a volumetric estimate is worthless beside a lookup strategy that does not exist. |
+| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | `(state, repo_id)` and `(state, container_id)` for the gate and the compliance summary, `(fingerprint)` for the per-finding identity lookup at ingestion. Added 2026-08-25: this table had carried **no index at all** while this document claimed three, and `SchemaParityIntegrationTest` now asserts they exist on every engine, so a refactor cannot drop them quietly. |
 | **`t_audit_log` (Sealed log)** | ~ 50,000 audit entries / year | Immutable, compact SHA-256 hash storage. |
 
 ---

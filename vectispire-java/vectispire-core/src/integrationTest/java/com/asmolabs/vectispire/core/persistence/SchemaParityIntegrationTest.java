@@ -4,10 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.VectispireApplication;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -78,6 +85,9 @@ class SchemaParityIntegrationTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private DataSource dataSource;
+
     @Test
     @DisplayName("every entity is mapped, and on a typed engine validated against the schema")
     void entitiesMatchTheSchema() {
@@ -96,6 +106,42 @@ class SchemaParityIntegrationTest {
                 .as("an empty or near-empty metamodel means the scan found nothing, not that the "
                         + "schema is fine")
                 .hasSizeGreaterThanOrEqualTo(26);
+    }
+
+    @Test
+    @DisplayName("the columns the hot paths filter on are indexed, on every engine")
+    void theHotLookupsAreIndexed() throws Exception {
+        // **An index nobody checks is an index a refactor drops.** This table carried none at all
+        // for the whole life of the project while a published document claimed three, so the
+        // assertion is that they exist rather than that somebody remembered to write them.
+        //
+        // Read through `DatabaseMetaData` rather than a catalog query: `pg_indexes`,
+        // `information_schema.statistics` and `pragma index_list` are three different questions,
+        // and the campaign exists to ask one question of three engines.
+        Set<String> indexedFirstColumns = new HashSet<>();
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String table : new String[] {"t_issue", "T_ISSUE"}) {
+                try (ResultSet indexes = metadata.getIndexInfo(
+                        connection.getCatalog(), null, table, false, false)) {
+                    while (indexes.next()) {
+                        String column = indexes.getString("COLUMN_NAME");
+                        if (column != null && indexes.getShort("ORDINAL_POSITION") == 1) {
+                            indexedFirstColumns.add(column.toLowerCase(Locale.ROOT));
+                        }
+                    }
+                }
+            }
+        }
+
+        assertThat(indexedFirstColumns)
+                .as("the gate reads one target's open issues on every build, and the compliance "
+                        + "summary groups the open backlog — both lead with `state`")
+                .contains("state");
+        assertThat(indexedFirstColumns)
+                .as("the fingerprint is looked up once per ingested finding: a scan producing two "
+                        + "thousand findings would otherwise scan this table two thousand times")
+                .contains("fingerprint");
     }
 
     @Test

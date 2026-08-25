@@ -160,8 +160,28 @@ public interface Issues
              group by i.containerId""")
     List<Object[]> countOpenByContainer(@Param("state") String state);
 
-    /** Every issue in one state, for the gate and the security overview. */
+    /**
+     * Every issue in one state. <b>The whole estate</b> — for the security overview, which shows
+     * every target, and for nothing that wants one.
+     */
     List<IssueEntity> findByState(String state);
+
+    /**
+     * One target's issues in one state.
+     *
+     * <p><b>Why two methods rather than one taking both ids.</b> A single query would need
+     * {@code (:repoId is null or …)}, and a null parameter compared to a column is the shape
+     * PostgreSQL refuses to type — <i>could not determine data type of parameter</i> — which is
+     * one of the divergences the engine campaign exists to catch. Two derived queries carry their
+     * types on their signatures.
+     *
+     * <p>The container form also requires {@code repoId} to be null, so that a row carrying both
+     * ids is attributed exactly as {@code targetOf} attributes it: to the repository, and to the
+     * repository only.
+     */
+    List<IssueEntity> findByStateAndRepoId(String state, Long repoId);
+
+    List<IssueEntity> findByStateAndRepoIdIsNullAndContainerId(String state, Long containerId);
 
     /**
      * The heaviest rules, files or targets of one issue type.
