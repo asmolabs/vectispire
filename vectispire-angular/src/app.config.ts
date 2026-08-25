@@ -6,6 +6,7 @@ import Aura from '@openng/optimus-ui-themes/aura';
 import { provideOptimus } from '@openng/optimus-ui/config';
 import { appRoutes } from './app.routes';
 import { I18nService } from './app/core/i18n/i18n.service';
+import { BrandingService } from './app/core/branding.service';
 
 export const appConfig: ApplicationConfig = {
     providers: [
@@ -22,9 +23,10 @@ export const appConfig: ApplicationConfig = {
         provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
         provideZonelessChangeDetection(),
         provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),
-        provideAppInitializer(() => {
+        provideAppInitializer(async () => {
             const i18n = inject(I18nService);
-            return i18n.init();
+            const branding = inject(BrandingService);
+            await Promise.allSettled([i18n.init(), branding.init()]);
         })
     ]
 };

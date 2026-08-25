@@ -64,6 +64,7 @@ public class AuthController {
     private final Clock clock;
 
     private final TotpService totp;
+    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
     private final Map<String, MfaChallenge> mfaChallenges = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
@@ -113,6 +114,7 @@ public class AuthController {
             Optional<ClientRegistrationRepository> providers,
             SignInMethodPolicy methods,
             TotpService totp,
+            com.asmolabs.vectispire.core.services.BrandingProperties branding,
             Clock clock) {
         this.providers = providers;
         this.methods = methods;
@@ -121,6 +123,7 @@ public class AuthController {
         this.users = users;
         this.sessions = sessions;
         this.totp = totp;
+        this.branding = branding;
         this.clock = clock;
     }
 
@@ -334,7 +337,12 @@ public class AuthController {
      *     screen hide the form rather than offer one that answers 403 — an input that cannot
      *     work is worse than no input
      */
-    public record SignInMethods(boolean configured, String label, boolean password) {}
+    public record SignInMethods(
+            boolean configured,
+            String label,
+            boolean password,
+            String brandName,
+            String gitlabUrl) {}
 
     /**
      * What this deployment accepts as a way in.
@@ -347,7 +355,9 @@ public class AuthController {
         return new SignInMethods(
                 providers.isPresent(),
                 providers.map(this::labelOf).orElse(null),
-                methods.passwordAllowed());
+                methods.passwordAllowed(),
+                branding.name(),
+                branding.gitlabUrl());
     }
 
     /**

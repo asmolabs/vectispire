@@ -40,12 +40,12 @@ public final class TriageHistoryReport {
     private static final float[] COLUMNS = {0, 60, 200, 330, 430};
     private static final int[] WIDTHS = {10, 24, 22, 17, 18};
 
-    public static byte[] render(TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt) {
+    public static byte[] render(TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt, String brandName) {
         try (PDDocument document = new PDDocument();
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
 
             ReportCursor cursor = new ReportCursor(document);
-            heading(cursor, repository, scans, generatedAt);
+            heading(cursor, repository, scans, generatedAt, brandName);
             for (Scan scan : scans) {
                 scan(cursor, scan);
             }
@@ -60,10 +60,15 @@ public final class TriageHistoryReport {
         }
     }
 
-    private static void heading(
-            ReportCursor cursor, TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt) {
+    public static byte[] render(TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt) {
+        return render(repository, scans, generatedAt, "Vectispire");
+    }
 
-        cursor.text("Vectispire — detection and triage history", ReportCursor.HELVETICA_BOLD_16);
+    private static void heading(
+            ReportCursor cursor, TriageHistory.Repository repository, List<Scan> scans, Instant generatedAt, String brandName) {
+
+        String brand = brandName == null || brandName.isBlank() ? "Vectispire" : brandName;
+        cursor.text(brand + " — detection and triage history", ReportCursor.HELVETICA_BOLD_16);
         cursor.gap();
         cursor.text(repository.name(), ReportCursor.HELVETICA_BOLD_12);
         cursor.text(repository.url(), ReportCursor.HELVETICA_9);

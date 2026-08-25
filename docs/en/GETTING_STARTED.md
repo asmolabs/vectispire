@@ -40,6 +40,8 @@ Three environment variables matter before the first run:
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | *none* — the same list from a file, comma- or newline-separated, so a rotation does not have to put the old key back into the environment |
 | `VECTISPIRE_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `VECTISPIRE_OIDC_ISSUER` is set: it would leave no way in |
 | `VECTISPIRE_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
+| `VECTISPIRE_BRAND_NAME` | `Vectispire` — custom company or instance name displayed across the header, reports (PDF), and exports (SARIF, VEX, CSAF) |
+| `VECTISPIRE_GITLAB_URL` | `https://gitlab.com/asmolabs_be/vectispire` — reference GitLab URL displayed alongside the "Powered by Vectispire" footer mention |
 
 
 ## 4. Database

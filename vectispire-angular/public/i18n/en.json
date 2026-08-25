@@ -48,6 +48,10 @@
     "switch_light": "Switch to light theme",
     "switch_dark": "Switch to dark theme"
   },
+  "footer": {
+    "tagline": "Application security posture management",
+    "powered_by": "Powered by"
+  },
   "menu": {
     "dashboard": "Dashboard",
     "configuration": "Configuration",

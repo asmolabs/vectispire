@@ -41,6 +41,10 @@ export VECTISPIRE_DB_PASSWORD=secret
 # Identifiants de démarrage (SUPERUSER initial)
 export VECTISPIRE_BOOTSTRAP_USERNAME=admin
 export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
+
+# Personnalisation de marque (White-labeling dans le header, rapports & exports)
+export VECTISPIRE_BRAND_NAME=Vectispire
+export VECTISPIRE_GITLAB_URL=https://gitlab.com/asmolabs_be/vectispire
 ```
 
 ---

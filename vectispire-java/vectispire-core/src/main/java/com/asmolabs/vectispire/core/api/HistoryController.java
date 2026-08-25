@@ -79,6 +79,7 @@ public class HistoryController {
     private final Issues issues;
     private final TriageEvents events;
     private final VisibilityService visibility;
+    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
     private final Clock clock;
 
     public HistoryController(
@@ -88,6 +89,7 @@ public class HistoryController {
             Issues issues,
             TriageEvents events,
             VisibilityService visibility,
+            com.asmolabs.vectispire.core.services.BrandingProperties branding,
             Clock clock) {
         this.repositories = repositories;
         this.scans = scans;
@@ -95,6 +97,7 @@ public class HistoryController {
         this.issues = issues;
         this.events = events;
         this.visibility = visibility;
+        this.branding = branding;
         this.clock = clock;
     }
 
@@ -137,7 +140,7 @@ public class HistoryController {
             @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
 
         RepositoryEntity repository = visible(principal, id);
-        byte[] document = TriageHistoryReport.render(rowOf(repository), scanRows(id, MAX_SCANS), clock.instant());
+        byte[] document = TriageHistoryReport.render(rowOf(repository), scanRows(id, MAX_SCANS), clock.instant(), branding.name());
         return download(document, MediaType.APPLICATION_PDF, "vectispire-history-" + id + ".pdf");
     }
 

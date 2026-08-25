@@ -51,6 +51,7 @@ public class OwaspController {
     private final Issues issues;
     private final VisibilityService visibility;
     private final AuditLogService audit;
+    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
 
     public OwaspController(
             OwaspReviewService reviews,
@@ -58,13 +59,15 @@ public class OwaspController {
             Scans scans,
             Issues issues,
             VisibilityService visibility,
-            AuditLogService audit) {
+            AuditLogService audit,
+            com.asmolabs.vectispire.core.services.BrandingProperties branding) {
         this.reviews = reviews;
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
         this.visibility = visibility;
         this.audit = audit;
+        this.branding = branding;
     }
 
     /**
@@ -148,7 +151,8 @@ public class OwaspController {
                         result.getScanId(),
                         scan == null ? null : scan.getCreatedAt(),
                         result.getCreatedAt(),
-                        issues.countByStateAndRepository(IssueState.OPEN.wireName(), id)),
+                        issues.countByStateAndRepository(IssueState.OPEN.wireName(), id),
+                        branding.name()),
                 result.getResponse());
 
         return ResponseEntity.ok()

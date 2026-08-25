@@ -5,6 +5,7 @@ import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { BrandingService } from '@/app/core/branding.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
@@ -23,7 +24,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                     <path d="M11 19.4c2.4-3.6 5.4-5.4 9-5.4s6.6 1.8 9 5.4c-2.4 3.6-5.4 5.4-9 5.4s-6.6-1.8-9-5.4Z" stroke="var(--primary-color)" stroke-width="2.2" stroke-linejoin="round" fill="none" />
                     <circle cx="20" cy="19.4" r="2.6" fill="var(--primary-color)" />
                 </svg>
-                <span>VECTISPIRE</span>
+                <span>{{ branding.brandName().toUpperCase() }}</span>
             </a>
         </div>
 
@@ -100,6 +101,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 export class AppTopbar {
     layoutService = inject(LayoutService);
     i18n = inject(I18nService);
+    branding = inject(BrandingService);
 
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({

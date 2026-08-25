@@ -994,6 +994,10 @@ export interface SignInMethods {
      *  Always true when no provider is configured, whatever was asked for: the server refuses to
      *  close the only door that works. */
     password: boolean;
+    /** The brand name for this deployment (default: Vectispire). */
+    brandName?: string;
+    /** The reference GitLab URL for upstream Vectispire project. */
+    gitlabUrl?: string;
 }
 
 /**

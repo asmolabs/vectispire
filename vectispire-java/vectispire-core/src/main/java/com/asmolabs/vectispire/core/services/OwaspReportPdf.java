@@ -57,7 +57,21 @@ public final class OwaspReportPdf {
             Long scanId,
             Instant scanAt,
             Instant generatedAt,
-            long openIssues) {}
+            long openIssues,
+            String brandName) {
+
+        public Subject(
+                String targetName,
+                String branch,
+                String projectVersion,
+                String model,
+                Long scanId,
+                Instant scanAt,
+                Instant generatedAt,
+                long openIssues) {
+            this(targetName, branch, projectVersion, model, scanId, scanAt, generatedAt, openIssues, "Vectispire");
+        }
+    }
 
     public static byte[] render(Subject subject, String markdown) {
         try (PDDocument document = new PDDocument();
@@ -66,7 +80,8 @@ public final class OwaspReportPdf {
             ReportCursor cursor = new ReportCursor(document);
             cover(cursor, subject);
             body(cursor, markdown);
-            cursor.close("Vectispire — OWASP report — " + subject.targetName());
+            String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
+            cursor.close(brand + " — OWASP report — " + subject.targetName());
 
             document.save(bytes);
             return bytes.toByteArray();

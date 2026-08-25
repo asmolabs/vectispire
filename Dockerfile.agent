@@ -30,7 +30,7 @@ FROM eclipse-temurin:25-jre-alpine
 RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
-COPY --from=build /src/vectispire-agent/build/libs/vectispire-agent.jar app.jar
+COPY --from=build /src/vectispire-agent/build/libs/*.jar app.jar
 COPY LICENSE NOTICE ./
 
 RUN addgroup -S vectispire && adduser -S -G vectispire vectispire

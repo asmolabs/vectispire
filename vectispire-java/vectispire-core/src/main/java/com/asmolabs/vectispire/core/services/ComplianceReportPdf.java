@@ -35,7 +35,18 @@ public final class ComplianceReportPdf {
             int totalTargets,
             int passingTargets,
             Double overallMttrDays,
-            long overdueCount) {}
+            long overdueCount,
+            String brandName) {
+
+        public Subject(
+                Instant generatedAt,
+                int totalTargets,
+                int passingTargets,
+                Double overallMttrDays,
+                long overdueCount) {
+            this(generatedAt, totalTargets, passingTargets, overallMttrDays, overdueCount, "Vectispire");
+        }
+    }
 
     public static byte[] render(Subject subject, List<ComplianceEvaluation> evaluations) {
         try (PDDocument document = new PDDocument();
@@ -44,7 +55,8 @@ public final class ComplianceReportPdf {
             ReportCursor cursor = new ReportCursor(document);
             cover(cursor, subject, evaluations);
             body(cursor, evaluations);
-            cursor.close("Vectispire — Executive Regulatory Compliance Report");
+            String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
+            cursor.close(brand + " — Executive Regulatory Compliance Report");
 
             document.save(bytes);
             return bytes.toByteArray();
@@ -54,7 +66,8 @@ public final class ComplianceReportPdf {
     }
 
     private static void cover(ReportCursor cursor, Subject subject, List<ComplianceEvaluation> evaluations) {
-        cursor.text("Vectispire — Regulatory Compliance & Posture Audit", ReportCursor.HELVETICA_BOLD_16, INK);
+        String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
+        cursor.text(brand + " — Regulatory Compliance & Posture Audit", ReportCursor.HELVETICA_BOLD_16, INK);
         cursor.rule(ACCENT);
         cursor.gap();
 

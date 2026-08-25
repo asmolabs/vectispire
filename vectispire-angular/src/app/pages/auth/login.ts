@@ -23,6 +23,7 @@ import { SessionStore } from '@/app/core/session.store';
  */
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { BrandingService } from '@/app/core/branding.service';
 
 @Component({
     selector: 'zs-login',
@@ -34,6 +35,7 @@ export class Login {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
+    readonly branding = inject(BrandingService);
 
     username = '';
     password = '';

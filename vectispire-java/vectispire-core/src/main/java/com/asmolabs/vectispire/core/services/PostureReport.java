@@ -53,7 +53,21 @@ public final class PostureReport {
             String observation,
             String policy,
             Instant lastScanAt,
-            Instant generatedAt) {}
+            Instant generatedAt,
+            String brandName) {
+
+        public Subject(
+                String targetName,
+                String targetKind,
+                boolean passing,
+                boolean observed,
+                String observation,
+                String policy,
+                Instant lastScanAt,
+                Instant generatedAt) {
+            this(targetName, targetKind, passing, observed, observation, policy, lastScanAt, generatedAt, "Vectispire");
+        }
+    }
 
     private PostureReport() {}
 
@@ -83,7 +97,8 @@ public final class PostureReport {
     }
 
     private static void heading(ReportCursor cursor, Subject subject) {
-        cursor.text("Vectispire — security posture", ReportCursor.HELVETICA_BOLD_16);
+        String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
+        cursor.text(brand + " — security posture", ReportCursor.HELVETICA_BOLD_16);
         cursor.gap();
         cursor.text(subject.targetKind() + ": " + subject.targetName(), ReportCursor.HELVETICA_BOLD_12);
         cursor.text("Generated " + STAMP.format(subject.generatedAt()), ReportCursor.HELVETICA_9);

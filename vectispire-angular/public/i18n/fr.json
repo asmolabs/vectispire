@@ -48,6 +48,10 @@
     "switch_light": "Passer au thème clair",
     "switch_dark": "Passer au thème sombre"
   },
+  "footer": {
+    "tagline": "Gestion de la posture de sécurité applicative",
+    "powered_by": "Propulsé par"
+  },
   "menu": {
     "dashboard": "Tableau de bord",
     "configuration": "Configuration",

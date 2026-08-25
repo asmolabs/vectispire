@@ -42,6 +42,7 @@ public class ComplianceController {
     private final VisibilityService visibility;
     private final AuditLogService audit;
     private final EvidenceVaultService evidenceVault;
+    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
     private final Clock clock;
 
     public ComplianceController(
@@ -49,11 +50,13 @@ public class ComplianceController {
             VisibilityService visibility,
             AuditLogService audit,
             EvidenceVaultService evidenceVault,
+            com.asmolabs.vectispire.core.services.BrandingProperties branding,
             Clock clock) {
         this.compliance = compliance;
         this.visibility = visibility;
         this.audit = audit;
         this.evidenceVault = evidenceVault;
+        this.branding = branding;
         this.clock = clock;
     }
 
@@ -102,7 +105,8 @@ public class ComplianceController {
                         summary.totalMonitoredTargets(),
                         summary.passingGateTargets(),
                         summary.mttr().overallMttrDays(),
-                        summary.overdueCount()),
+                        summary.overdueCount(),
+                        branding.name()),
                 summary.evaluations());
 
         return ResponseEntity.ok()

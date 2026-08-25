@@ -51,11 +51,15 @@ vectispire:
       checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
 
+  branding:
+    name: ${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:${VECTISPIRE_INSTANCE_NAME:Vectispire}}}
+    gitlab-url: ${VECTISPIRE_GITLAB_URL:https://gitlab.com/asmolabs_be/vectispire}
+
   exports:
     # Named in SARIF's information URI and in a VEX document's identifier, so a document handed
     # to somebody else says where it came from.
     public-url: ${VECTISPIRE_PUBLIC_URL:}
-    vex-author: ${VECTISPIRE_VEX_AUTHOR:Vectispire}
+    vex-author: ${VECTISPIRE_VEX_AUTHOR:${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:Vectispire}}}
     tool-version: ${VECTISPIRE_VERSION:1.0.0}
 
   bootstrap:

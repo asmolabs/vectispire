@@ -70,7 +70,7 @@ FROM eclipse-temurin:25-jre-alpine
 RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
-COPY --from=build /src/vectispire-core/build/libs/vectispire-core.jar app.jar
+COPY --from=build /src/vectispire-core/build/libs/*.jar app.jar
 
 # The image is a redistribution, so the licence and the notice travel with it: Apache-2.0
 # clause 4 asks for both in every copy, and an image that carries the code without them is

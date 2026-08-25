@@ -56,6 +56,7 @@ public class ExportsController {
     private final GateService gate;
     private final TargetNaming naming;
     private final ExportProperties properties;
+    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
     private final VisibilityService visibility;
     private final Clock clock;
 
@@ -66,6 +67,7 @@ public class ExportsController {
             GateService gate,
             TargetNaming naming,
             ExportProperties properties,
+            com.asmolabs.vectispire.core.services.BrandingProperties branding,
             VisibilityService visibility,
             Clock clock,
             SlaService sla) {
@@ -74,6 +76,7 @@ public class ExportsController {
         this.gate = gate;
         this.naming = naming;
         this.properties = properties;
+        this.branding = branding;
         this.visibility = visibility;
         this.clock = clock;
     }
@@ -194,7 +197,8 @@ public class ExportsController {
                         posture.observation().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
                         posture.policy().describeSource(),
                         posture.lastScan().map(SecurityOverview.LatestScan::createdAt).orElse(null),
-                        clock.instant()),
+                        clock.instant(),
+                        branding.name()),
                 exportable(kind, id, state),
                 sla.policy());
 

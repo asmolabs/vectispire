@@ -21,7 +21,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD — no default is provided on purpose}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD — no default is provided on purpose}
     volumes:
-      - vectispire_data:/var/lib/mysql
+      - vectispire_mysql_data:/var/lib/mysql
     ports:
       # **Loopback, not every interface.** `"3306:3306"` publishes the database to the whole
       # network the host sits on; the control plane reaches it over the compose network and
@@ -29,7 +29,7 @@ services:
       # bound where only that operator can reach it.
       - "127.0.0.1:3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD:-root_secure_pass}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,9 +74,13 @@ services:
       VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
       VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
+      # Lets the control plane clone over SSH with the host operator's keys (mounted below).
+      VECTISPIRE_HOST_SSH: ${VECTISPIRE_HOST_SSH:-true}
     volumes:
       # Sibling container scanner execution (Syft, Grype, Semgrep, Gitleaks)
       - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only, and only what git needs: the deploy keys the operator already uses.
+      - ${HOME}/.ssh:/home/vectispire/.ssh:ro
       # The audit mirror's home. A named volume rather than a bind mount: it holds audit
       # entries, and the image creates the directory owned by its unprivileged user so the
       # volume inherits that owner instead of arriving root-owned.
@@ -119,6 +123,7 @@ services:
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.ssh:/home/vectispire/.ssh:ro
     group_add:
       - ${DOCKER_SOCKET_GROUP:-docker}
     depends_on:
@@ -129,8 +134,8 @@ services:
       - vectispire-net
 
 volumes:
-  vectispire_data:
-    name: vectispire_data
+  vectispire_mysql_data:
+    name: vectispire_mysql_data
   vectispire_audit:
     name: vectispire_audit
 
