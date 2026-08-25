@@ -1,0 +1,20 @@
+# ==============================================================================
+# Vectispire CLI & CI/CD Runner Container
+# ==============================================================================
+# Lightweight image based on Alpine Linux with curl and POSIX shell runner.
+# Usage in GitLab CI / GitHub Actions / Jenkins / Bitbucket.
+# ==============================================================================
+
+FROM alpine:3.21
+
+LABEL org.opencontainers.image.title="Vectispire CLI" \
+      org.opencontainers.image.description="Lightweight CI/CD Security Gate and Scan runner for Vectispire Control Plane" \
+      org.opencontainers.image.vendor="Asmolabs"
+
+RUN apk add --no-cache curl ca-certificates jq
+
+COPY scripts/vectispire-cli.sh /usr/local/bin/vectispire-cli
+RUN chmod +x /usr/local/bin/vectispire-cli && ln -s /usr/local/bin/vectispire-cli /usr/local/bin/vectispire
+
+ENTRYPOINT ["vectispire-cli"]
+CMD ["--help"]

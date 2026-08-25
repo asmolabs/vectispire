@@ -15,6 +15,9 @@ import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The gate: should this build fail?
- *
- * <p>{@code POST} rather than {@code GET} for the verdict, because the request carries a body:
- * the requested policy. It can only <b>tighten</b> the stored one, and refused relaxations come
- * back rather than being ignored in silence.
  */
+@Tag(name = "Gate", description = "Quality Gate policy enforcement and CI/CD build verdicts")
 @RestController
 @RequestMapping("/api/v1")
 @RequiresAccount
@@ -90,6 +90,8 @@ public class GateController {
      * that is negative. A 4xx here would conflate "your repository has vulnerabilities" with
      * "your call is malformed", and a pipeline cannot tell the two apart from a status code.
      */
+    @Operation(summary = "Evaluate security quality gate", description = "Evaluates current target vulnerabilities against active or requested gate policy. Returns exit verdict and violations.")
+    @ApiResponse(responseCode = "200", description = "Gate verdict evaluated")
     @PostMapping("/gate")
     public GateResponse evaluate(
             @AuthenticationPrincipal VectispirePrincipal principal, @RequestBody GateRequest body) {
@@ -129,6 +131,8 @@ public class GateController {
     }
 
     /** Every target's posture — what the security screen shows. */
+    @Operation(summary = "Get global security posture overview", description = "Returns aggregate posture and gate statuses for all monitored targets.")
+    @ApiResponse(responseCode = "200", description = "Security overview retrieved")
     @GetMapping("/security/overview")
     public SecurityOverviewView overview(@AuthenticationPrincipal VectispirePrincipal principal) {
         return SecurityOverviewView.of(

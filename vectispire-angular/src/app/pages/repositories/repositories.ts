@@ -39,6 +39,10 @@ export class Repositories {
     readonly scorecardVisible = signal(false);
     readonly selectedScorecard = signal<SecurityScorecard | null>(null);
     readonly copied = signal(false);
+    readonly cicdVisible = signal(false);
+    readonly selectedCicdRepo = signal<MonitoredRepository | null>(null);
+    readonly cicdActiveTab = signal<'gitlab' | 'github' | 'bitbucket' | 'jenkins' | 'cli'>('gitlab');
+    readonly cicdCopied = signal(false);
     /** La ligne dont le scan est en cours de mise en file. */
     readonly busy = signal<number | null>(null);
     readonly scanningAll = signal(false);
@@ -222,6 +226,126 @@ export class Repositories {
             },
             error: () => this.error.set('Failed to load scorecard for this repository.')
         });
+    }
+
+    openCicd(repository: MonitoredRepository): void {
+        this.selectedCicdRepo.set(repository);
+        this.cicdCopied.set(false);
+        this.cicdVisible.set(true);
+    }
+
+    copySnippet(code: string): void {
+        navigator.clipboard.writeText(code).then(() => {
+            this.cicdCopied.set(true);
+            setTimeout(() => this.cicdCopied.set(false), 3000);
+        });
+    }
+
+    getCicdSnippet(type: 'gitlab' | 'github' | 'bitbucket' | 'jenkins' | 'cli', repo: MonitoredRepository | null): string {
+        const repoId = repo?.id ?? 1;
+        const origin = window.location.origin;
+
+        switch (type) {
+            case 'gitlab':
+                return `# .gitlab-ci.yml
+stages:
+  - test
+  - security-gate
+
+vectispire-scan:
+  stage: security-gate
+  image: alpine:latest
+  variables:
+    VECTISPIRE_URL: "${origin}"
+    # Configure VECTISPIRE_API_KEY in Settings > CI/CD > Variables (Masked & Protected)
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+    - chmod +x vectispire-cli.sh
+    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
+    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'`;
+
+            case 'github':
+                return `# .github/workflows/vectispire.yml
+name: Vectispire Security Gate
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-gate:
+    name: Vectispire ASPM Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Scan & Enforce Security Gate
+        env:
+          VECTISPIRE_URL: "${origin}"
+          VECTISPIRE_API_KEY: \${{ secrets.VECTISPIRE_API_KEY }}
+        run: |
+          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          chmod +x vectispire-cli.sh
+          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
+          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH`;
+
+            case 'bitbucket':
+                return `# bitbucket-pipelines.yml
+image: alpine:latest
+
+pipelines:
+  default:
+    - step:
+        name: Vectispire Security Gate
+        script:
+          - apk add --no-cache curl jq
+          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          - chmod +x vectispire-cli.sh
+          - ./vectispire-cli.sh scan --url "${origin}" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
+          - ./vectispire-cli.sh gate --url "${origin}" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH`;
+
+            case 'jenkins':
+                return `// Jenkinsfile
+pipeline {
+    agent any
+    environment {
+        VECTISPIRE_URL = '${origin}'
+        VECTISPIRE_API_KEY = credentials('vectispire-api-key')
+    }
+    stages {
+        stage('Security Gate') {
+            steps {
+                sh '''
+                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    chmod +x vectispire-cli.sh
+                    ./vectispire-cli.sh scan --url "\$VECTISPIRE_URL" --api-key "\$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
+                    ./vectispire-cli.sh gate --url "\$VECTISPIRE_URL" --api-key "\$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH
+                '''
+            }
+        }
+    }
+}`;
+
+            case 'cli':
+                return `# Direct CLI execution
+export VECTISPIRE_URL="${origin}"
+export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
+
+# 1. Trigger security scan and wait for completion
+./scripts/vectispire-cli.sh scan --repo-id ${repoId} --wait
+
+# 2. Check Security Quality Gate
+./scripts/vectispire-cli.sh gate --repo-id ${repoId} --fail-on HIGH
+
+# 3. Download CycloneDX / SPDX SBOM artifact
+./scripts/vectispire-cli.sh sbom --repo-id ${repoId} --output ./vectispire-sbom.json`;
+        }
     }
 
     copyBadgeMarkdown(repoId: number): void {
