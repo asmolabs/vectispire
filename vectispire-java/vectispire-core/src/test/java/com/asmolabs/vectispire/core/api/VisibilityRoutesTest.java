@@ -251,6 +251,11 @@ class VisibilityRoutesTest extends ApiTestBase {
         //
         // 404 rather than 403 throughout, for the reason `Visibilities` gives: a refusal that is
         // distinguishable from an absence answers the question the caller was probing with.
+        //
+        // **Every path here is spelled out because two of them were once wrong.** The attestation
+        // route is `/attestations` and the scorecard route `/scorecards`, both plural; asserting
+        // the singular gave a 404 that meant "no such route" and a test that could not fail. A
+        // route-name sweep found them, not a re-reading.
         restrict();
         long mine = repository("https://example.invalid/mine.git");
         long theirs = repository("https://example.invalid/theirs.git");
@@ -262,7 +267,7 @@ class VisibilityRoutesTest extends ApiTestBase {
                 "/api/v1/csaf/scans/" + theirScan + "/csaf.json",
                 "/api/v1/cyclonedx/scans/" + theirScan + "/cyclonedx-vex.json",
                 "/api/v1/vex/scans/" + theirScan + "/openvex.json",
-                "/api/v1/attestation/scans/" + theirScan)) {
+                "/api/v1/attestations/scans/" + theirScan)) {
             mvc.perform(authenticated(get(route), reader))
                     .andExpect(status().isNotFound());
         }
