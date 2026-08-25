@@ -13,7 +13,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity> {
+public interface Issues
+        extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity>, IssueAggregates {
     Optional<IssueEntity> findByFingerprint(String fingerprint);
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);

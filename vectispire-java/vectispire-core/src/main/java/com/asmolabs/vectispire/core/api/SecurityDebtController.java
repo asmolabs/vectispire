@@ -47,6 +47,6 @@ public class SecurityDebtController {
             @RequestParam(value = "repoId", required = false) Long repoId,
             @RequestParam(value = "containerId", required = false) Long containerId) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
-        return securityDebtService.calculateDebt(repoId, containerId, allowed).topHighImpactFixes();
+        return securityDebtService.highImpactFixes(repoId, containerId, allowed);
     }
 }
