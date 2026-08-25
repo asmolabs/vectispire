@@ -291,11 +291,17 @@ The remediation optimization engine (`SecurityDebtService`, `SecurityDebtControl
 - **API Endpoints**:
   - `GET /api/v1/remediation/debt`: Posture-wide estimated remediation effort in person-hours and person-days.
   - `GET /api/v1/remediation/high-impact-fixes`: Prioritized list of root library updates ranked by security leverage score.
-- **Effort Calibration**:
+- **Effort Calibration** — every counted finding type carries an estimate, and the buckets sum to the total:
   - Minor dependency update: ~0.8h - 1.5h
   - Secret revocation & rotation: 2.0h
-  - SAST source code refactoring: 2.5h
+  - Source code refactoring (SAST and quality): 2.5h
   - IaC misconfiguration fix: 1.0h
+  - Licence conflict (replace the dependency, or obtain an exception): 3.0h
+  - End-of-life component (a migration, not an edit): 4.0h
+
+  AI review findings are excluded from the report altogether — from the issue count as well as
+  from the estimate. Their severity is produced by a local model reading a repository that may be
+  hostile, so costing them would let a repository inflate its own remediation estimate.
 - **Leverage Formula (Security ROI)**:
   $$\text{Leverage} = \frac{N_{\text{Resolved CVEs}} \times 2.0 + N_{\text{Critical}} \times 3.0 + N_{\text{High}} \times 1.5}{\text{Estimated Effort (h)}}$$
   Highlights root dependency upgrades that resolve the highest concentration of CVEs across the entire fleet in a single engineering step.

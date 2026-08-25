@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -43,20 +44,48 @@ import org.springframework.transaction.annotation.Transactional;
  * packages that survive the ranking — so the ranking runs first, on aggregates, and the detail is
  * fetched afterwards for those ten alone.
  *
- * <p><b>The estimates themselves are unchanged, deliberately.</b> {@code SecurityDebtDatabaseTest}
- * pins them, including one figure that is wrong: half the finding types cost nothing. Correcting
- * that would move every number the product has ever displayed, which is a decision to take on its
- * own rather than inside a change about queries.
+ * <p><b>Everything the report counts, it costs.</b> That was not true until recently: the effort
+ * switch covered four of the eight finding types — a switch <em>statement</em>, so the compiler
+ * never asked about the rest — and a critical SAST finding was therefore reported as open, as
+ * critical, and as free to fix. The one type left out is left out of the count as well; see
+ * {@link #COSTED}.
  */
 @Service
 public class SecurityDebtService {
 
-    /** How long one finding of each type is assumed to take. Zero for the types nobody costed. */
+    /**
+     * How long one finding of each type is assumed to take.
+     *
+     * <p>The four that existed are unchanged. The two new ones are the two whose resolution is
+     * not an edit: a licence conflict is resolved by replacing the dependency or by obtaining an
+     * exception, and an end-of-life component is resolved by a migration. They are the most
+     * expensive entries here for that reason.
+     *
+     * <p><b>SAST costs what the documentation has always said it costs.</b> The published table
+     * lists "SAST source code refactoring: 2.5h"; the code applied that figure to
+     * {@code QUALITY} and nothing at all to {@code SAST}, which is where the ingestor files a
+     * security-category Semgrep result. Bringing the two into line is a correction, not a new
+     * estimate.
+     */
     private static final double SECRET_HOURS = 2.0;
-    private static final double QUALITY_HOURS = 2.5;
+    private static final double SOURCE_CODE_HOURS = 2.5;
     private static final double IAC_HOURS = 1.0;
+    private static final double LICENSE_HOURS = 3.0;
+    private static final double END_OF_LIFE_HOURS = 4.0;
     private static final double SEVERE_VULNERABILITY_HOURS = 1.5;
     private static final double ORDINARY_VULNERABILITY_HOURS = 0.8;
+
+    /**
+     * The finding types this report is about — every type but one.
+     *
+     * <p><b>{@code AI_REVIEW} is excluded from the count, not given an effort of zero.</b> A
+     * bucket of zero hours beside a non-zero issue count is the very inconsistency this class
+     * just stopped having. Excluded rather than costed because the domain already says what it
+     * is: {@link FindingType#isSecurity()} answers {@code false} for it, its severity is invented
+     * by a local model reading a repository that may be hostile, and it is off unless somebody
+     * asks. Costing model output would let a repository inflate its own estimate.
+     */
+    private static final Set<FindingType> COSTED = EnumSet.complementOf(EnumSet.of(FindingType.AI_REVIEW));
 
     /** The list is a work order, and nobody works a hundred items at once. */
     private static final int MOST_LEVERAGE = 10;
@@ -80,8 +109,8 @@ public class SecurityDebtService {
 
         Tallies tallies = tally(issues.countGroupedBySeverityAndType(filter));
 
-        double totalHours = round(
-                tallies.vulnerabilityHours + tallies.secretHours + tallies.qualityHours + tallies.iacHours);
+        double totalHours = round(tallies.vulnerabilityHours + tallies.secretHours
+                + tallies.sourceCodeHours + tallies.iacHours + tallies.licenseHours + tallies.eolHours);
 
         return new SecurityDebtReport(
                 tallies.total,
@@ -95,8 +124,10 @@ public class SecurityDebtService {
                 round(totalHours / 8.0),
                 round(tallies.vulnerabilityHours),
                 round(tallies.secretHours),
-                round(tallies.qualityHours),
+                round(tallies.sourceCodeHours),
                 round(tallies.iacHours),
+                round(tallies.licenseHours),
+                round(tallies.eolHours),
                 rank(filter));
     }
 
@@ -134,6 +165,10 @@ public class SecurityDebtService {
             FindingType type = FindingType.fromWireName(row.type()).orElse(FindingType.VULNERABILITY);
             long count = row.count();
 
+            if (!COSTED.contains(type)) {
+                continue;
+            }
+
             tallies.total += count;
             switch (severity) {
                 case CRITICAL -> tallies.critical += count;
@@ -148,13 +183,14 @@ public class SecurityDebtService {
                                 ? SEVERE_VULNERABILITY_HOURS
                                 : ORDINARY_VULNERABILITY_HOURS);
                 case SECRET -> tallies.secretHours += count * SECRET_HOURS;
-                case QUALITY -> tallies.qualityHours += count * QUALITY_HOURS;
+                case SAST, QUALITY -> tallies.sourceCodeHours += count * SOURCE_CODE_HOURS;
                 case IAC -> tallies.iacHours += count * IAC_HOURS;
-                // SAST, LICENSE, EOL and AI_REVIEW cost nothing, which is the defect
-                // `SecurityDebtDatabaseTest.onlyFourOfEightTypesCostAnything` records. Listed
-                // rather than left to a `default`, so the day it is fixed the compiler shows
-                // where.
-                case SAST, LICENSE, EOL, AI_REVIEW -> { }
+                case LICENSE -> tallies.licenseHours += count * LICENSE_HOURS;
+                case EOL -> tallies.eolHours += count * END_OF_LIFE_HOURS;
+                // Filtered out above, and named here rather than left to a `default`: the day a
+                // ninth type is added the compiler asks what it costs, which is the question
+                // nobody was asked the last eight times.
+                case AI_REVIEW -> { }
             }
         }
         return tallies;
@@ -272,7 +308,9 @@ public class SecurityDebtService {
         private long low;
         private double vulnerabilityHours;
         private double secretHours;
-        private double qualityHours;
+        private double sourceCodeHours;
         private double iacHours;
+        private double licenseHours;
+        private double eolHours;
     }
 }

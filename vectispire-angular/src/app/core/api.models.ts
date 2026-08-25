@@ -1386,5 +1386,7 @@ export interface SecurityDebtReport {
     secretsDebtHours: number;
     sastDebtHours: number;
     iacDebtHours: number;
+    licenseDebtHours: number;
+    eolDebtHours: number;
     topHighImpactFixes: HighImpactFix[];
 }

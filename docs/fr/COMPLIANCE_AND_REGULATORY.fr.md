@@ -297,11 +297,18 @@ Le module d'optimisation de la remédiation (`SecurityDebtService`, `SecurityDeb
 - **Endpoints API** :
   - `GET /api/v1/remediation/debt` : Synthèse globale du temps estimé en heures et jours-hommes (J/H).
   - `GET /api/v1/remediation/high-impact-fixes` : Classement des actions prioritaires par score de levier.
-- **Barème d'effort estimé** :
+- **Barème d'effort estimé** — chaque type de finding compté porte une estimation, et la somme des postes fait le total :
   - Patch mineur de dépendance : ~0.8h à 1.5h
   - Rotation de secret et révocation : 2.0h
-  - Refactoring de code SAST : 2.5h
+  - Refactoring de code source (SAST et qualité) : 2.5h
   - Misconfiguration IaC : 1.0h
+  - Conflit de licence (remplacer la dépendance, ou obtenir une dérogation) : 3.0h
+  - Composant en fin de support (une migration, pas une édition) : 4.0h
+
+  Les findings de revue par IA sont exclus du rapport dans son ensemble — du décompte des
+  anomalies comme de l'estimation. Leur sévérité est produite par un modèle local lisant un
+  dépôt potentiellement hostile : les chiffrer permettrait à un dépôt de gonfler sa propre
+  estimation de remédiation.
 - **Score de Levier (ROI Sécurité)** :
   $$\text{Levier} = \frac{N_{\text{CVEs résolues}} \times 2.0 + N_{\text{Critiques}} \times 3.0 + N_{\text{Élevées}} \times 1.5}{\text{Effort Estimé (h)}}$$
   Ce calcul met en lumière la montée de version unique qui résout le plus grand nombre de CVEs sur le parc d'applications.

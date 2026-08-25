@@ -146,6 +146,14 @@
                         <span class="text-muted-color">Infrastructure-as-Code :</span>
                         <span class="font-semibold">{{ debt.iacDebtHours }} h</span>
                     </div>
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Conformité des Licences :</span>
+                        <span class="font-semibold">{{ debt.licenseDebtHours }} h</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                        <span class="text-muted-color">Fin de Support (EOL) :</span>
+                        <span class="font-semibold">{{ debt.eolDebtHours }} h</span>
+                    </div>
                     <div class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400">
                         <span>Charge Totale :</span>
                         <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} J/H)</span>

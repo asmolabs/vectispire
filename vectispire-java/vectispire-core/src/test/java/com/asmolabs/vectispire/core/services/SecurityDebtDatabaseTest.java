@@ -44,10 +44,11 @@ import org.springframework.test.context.DynamicPropertySource;
  * deliberate edit here, visible in a diff, rather than a number that quietly drifted while
  * somebody optimised a query.
  *
- * <p><b>One of those recorded figures is a defect, and it is recorded rather than fixed.</b> See
- * {@link #onlyFourOfEightTypesCostAnything()}: half the finding types contribute no hours at all,
- * so the totals disagree with the issue count on the same screen. Correcting it would change
- * every estimate the product has ever shown, which is a decision and not a refactor.
+ * <p><b>One of those recorded figures was a defect, and this file first recorded it and then
+ * watched it change.</b> Half the finding types contributed no hours, so a critical SAST finding
+ * was counted as urgent and as free to fix. The numbers below moved when that was corrected —
+ * which is exactly what a characterisation test is for: the change had to be written here, by
+ * hand, before it could ship.
  */
 @DisplayName("the security debt report, against a database")
 class SecurityDebtDatabaseTest extends VectispireContextTest {
@@ -131,12 +132,11 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("half the finding types cost nothing, which is a defect this test records")
-    void onlyFourOfEightTypesCostAnything() {
-        // `sastDebtHours` is fed by QUALITY. The type actually called SAST — what the ingestor
-        // files a security-category Semgrep result under — is not in the effort switch at all,
-        // and neither are LICENSE, EOL and AI_REVIEW. Being a switch *statement* rather than an
-        // expression, the compiler never asked about them.
+    @DisplayName("every counted type costs something, source-code findings included")
+    void everyCountedTypeCostsSomething() {
+        // The three types that used to be free. A security-category Semgrep result is filed under
+        // SAST, and it cost nothing while the published effort table said 2.5h — the figure was
+        // being applied to QUALITY instead.
         issue(alpha, null, "fp-x1", "java.lang.security.audit", FindingType.SAST, Severity.CRITICAL,
                 IssueState.OPEN);
         issue(alpha, null, "fp-x2", "GPL-3.0", FindingType.LICENSE, Severity.HIGH, IssueState.OPEN);
@@ -144,15 +144,54 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
 
         SecurityDebtReport report = debt.calculateDebt(null, null, Visibility.everything());
 
-        // Counted as open, and counted as severe...
         assertThat(report.totalOpenIssues()).isEqualTo(12);
         assertThat(report.criticalIssues()).isEqualTo(3);
 
-        // ...but free to fix, according to the same report. Three findings, one of them critical,
-        // added no hours to any bucket and none to the total.
-        assertThat(report.totalEstimatedHours())
-                .as("recording the gap, not endorsing it: a critical SAST finding costs nothing")
-                .isEqualTo(13.8);
+        // One quality finding at 2.5 and one SAST finding at 2.5, in the bucket named for the
+        // second and fed by both.
+        assertThat(report.sastDebtHours()).isEqualTo(5.0);
+        assertThat(report.licenseDebtHours())
+                .as("a licence conflict is resolved by replacing the dependency, not by editing it")
+                .isEqualTo(3.0);
+        assertThat(report.eolDebtHours())
+                .as("an unsupported component is a migration, which is why it is the dearest entry")
+                .isEqualTo(4.0);
+
+        assertThat(report.totalEstimatedHours()).isEqualTo(23.3);
+        assertThat(report.totalEstimatedPersonDays()).isEqualTo(2.9);
+    }
+
+    @Test
+    @DisplayName("the buckets add up to the total, which is the property that was false")
+    void theBucketsAddUp() {
+        issue(alpha, null, "fp-x1", "java.lang.security.audit", FindingType.SAST, Severity.CRITICAL,
+                IssueState.OPEN);
+        issue(alpha, null, "fp-x2", "GPL-3.0", FindingType.LICENSE, Severity.HIGH, IssueState.OPEN);
+        issue(alpha, null, "fp-x3", "node-18", FindingType.EOL, Severity.HIGH, IssueState.OPEN);
+
+        SecurityDebtReport report = debt.calculateDebt(null, null, Visibility.everything());
+
+        // Stated as an identity rather than as six more literals: a seventh finding type added
+        // without an effort would satisfy every figure above and break this one.
+        assertThat(report.vulnerabilitiesDebtHours() + report.secretsDebtHours() + report.sastDebtHours()
+                        + report.iacDebtHours() + report.licenseDebtHours() + report.eolDebtHours())
+                .isEqualTo(report.totalEstimatedHours());
+    }
+
+    @Test
+    @DisplayName("an AI review finding is neither counted nor costed")
+    void aiReviewStaysOutOfTheReport() {
+        // Not costed at zero — excluded. A zero bucket beside a non-zero issue count is the
+        // inconsistency the rest of this file exists to prevent, and the severity here is
+        // invented by a model reading a repository that may be hostile: costing it would let a
+        // repository inflate its own estimate.
+        issue(alpha, null, "fp-ai", "ai-1", FindingType.AI_REVIEW, Severity.CRITICAL, IssueState.OPEN);
+
+        SecurityDebtReport report = debt.calculateDebt(null, null, Visibility.everything());
+
+        assertThat(report.totalOpenIssues()).isEqualTo(9);
+        assertThat(report.criticalIssues()).isEqualTo(2);
+        assertThat(report.totalEstimatedHours()).isEqualTo(13.8);
     }
 
     @Test
