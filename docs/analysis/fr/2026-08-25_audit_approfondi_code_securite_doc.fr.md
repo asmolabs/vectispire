@@ -8,6 +8,21 @@
 
 > **Note de lecture.** Cet audit re-vérifie délibérément plutôt qu'il ne reconfirme. Là où le rapport précédent ([24 août 2026](2026-08-24_audit_approfondi_code_securite_doc.fr.md)) décrivait une intention de conception, celui-ci vérifie si le code l'applique. Plusieurs contrôles correctement *conçus* ne sont pas correctement *câblés*, et les notes ci-dessous reflètent le câblage, non l'intention.
 
+## ✅ 0. État de Remédiation
+
+**Les quatre points 🔴 du §6 ont été corrigés le 25 août 2026 dans le commit `a9ad6fd`, postérieurement à la rédaction de cet audit.** Les constats ci-dessous sont laissés exactement tels qu'ils ont été rapportés — un audit est le relevé de ce qui était vrai au moment où il a tourné, non un tableau de bord vivant — et cette section est la seule chose ajoutée.
+
+| # | Constat | Statut |
+|:--:|---|---|
+| **F1** | `/api/v1/auth/mfa/verify` injoignable à travers la chaîne de filtres | ✅ `permitAll` ajouté, plus une sonde anonyme à travers la vraie chaîne pour chaque route `@OpenToAnonymous` (`anOpenRouteIsReallyReachableWithoutCredentials`). Vérifié par mutation. |
+| **§3.3** | Force brute TOTP sans plafond | ✅ Trois tentatives par défi, défi détruit au dernier échec, défis expirés balayés à l'écriture et map plafonnée. Nouveau `MfaVerificationRoutesTest`. |
+| **F2** | Limiteur de débit contournable par `X-Forwarded-For`, map non bornée | ✅ En-tête honoré uniquement derrière `vectispire.security.trusted-proxies` ; LRU bornée élaguée à l'insertion ; périmètre élargi aux routes d'authentification anonymes. |
+| **§3.5** | `docker-compose.yml` livrant des secrets fonctionnels | ✅ Les trois secrets sont requis et non plus défaultés, MySQL lié à la boucle locale, `group_add` accorde le groupe de la socket. `.env.example` portait les mêmes valeurs et a été réécrit. |
+
+Tout ce qui relève des niveaux 🟠 et 🟡 du §6 reste ouvert.
+
+---
+
 ---
 
 ## 📊 1. Synthèse & Notes
@@ -179,7 +194,7 @@ Deux réserves qu'un évaluateur soulèverait :
 
 ## 🎯 6. Recommandations Priorisées
 
-### 🔴 Avant la prochaine release
+### 🔴 Avant la prochaine release — **fait, voir §0**
 1. **Mettre `/api/v1/auth/mfa/verify` en `permitAll`**, et ajouter une sonde MockMvc anonyme pour chaque route `@OpenToAnonymous` afin que l'annotation et la chaîne ne puissent plus jamais diverger *(§3.1)*.
 2. **Plafonner les tentatives TOTP par défi et détruire le défi au dernier échec** — à livrer avec le point 1, jamais après *(§3.3)*.
 3. **Valider `X-Forwarded-For` contre une liste de proxys de confiance, déplacer l'éviction sur le chemin d'admission, remplacer `clear()` par un LRU borné** *(§3.2)*.

@@ -8,6 +8,21 @@
 
 > **Reading note.** This audit deliberately re-verifies rather than reconfirms. Where the previous report ([August 24, 2026](2026-08-24_in_depth_code_security_doc_audit.en.md)) described an intended design, this one checks whether the code enforces it. Several controls that are correctly *designed* are not correctly *wired*, and the scores below reflect the wiring, not the intent.
 
+## ✅ 0. Remediation Status
+
+**The four 🔴 items of §6 were fixed on August 25, 2026 in commit `a9ad6fd`, after this audit was written.** The findings below are left exactly as they were reported — an audit is a record of what was true when it ran, not a live dashboard — and this section is the only thing added.
+
+| # | Finding | Status |
+|:--:|---|---|
+| **F1** | `/api/v1/auth/mfa/verify` unreachable through the filter chain | ✅ `permitAll` added, plus an anonymous probe through the real chain for every `@OpenToAnonymous` route (`anOpenRouteIsReallyReachableWithoutCredentials`). Verified by mutation. |
+| **§3.3** | TOTP brute force unthrottled | ✅ Three attempts per challenge, challenge destroyed on the last failure, expired challenges swept on write and the map capped. New `MfaVerificationRoutesTest`. |
+| **F2** | Login rate limiter bypassable by `X-Forwarded-For`, unbounded map | ✅ Header honoured only behind `vectispire.security.trusted-proxies`; bounded LRU pruned on insertion; scope widened to the anonymous auth routes. |
+| **§3.5** | `docker-compose.yml` shipping working secrets | ✅ The three secrets are required rather than defaulted, MySQL binds to loopback, `group_add` grants the socket group. `.env.example` carried the same values and was rewritten. |
+
+Everything in §6's 🟠 and 🟡 tiers remains open.
+
+---
+
 ---
 
 ## 📊 1. Executive Summary & Scores
@@ -179,7 +194,7 @@ Two caveats an assessor would raise:
 
 ## 🎯 6. Recommendations, Prioritised
 
-### 🔴 Before the next release
+### 🔴 Before the next release — **done, see §0**
 1. **`permitAll` `/api/v1/auth/mfa/verify`**, and add an anonymous MockMvc probe for every `@OpenToAnonymous` route so annotation and chain can never diverge again *(§3.1)*.
 2. **Cap TOTP attempts per challenge and destroy the challenge on final failure** — ship with item 1, never after it *(§3.3)*.
 3. **Validate `X-Forwarded-For` against a trusted-proxy list, move eviction onto the admission path, replace `clear()` with a bounded LRU** *(§3.2)*.
