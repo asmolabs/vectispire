@@ -11,6 +11,16 @@ Ce dossier est rédigé pour **quiconque reprend le code** — pas pour un révi
 | [03 — Sécurité](03-security.md) | Quelles sont les frontières de confiance, qui les protège, et que reste-t-il à traiter ? |
 | [04 — Exécution et déploiement](04-runtime-and-deployment.md) | Une instance, plusieurs, agents distants : qu'est-ce qui est autorisé et refusé ? |
 | [Registre des décisions d'architecture (ADR)](decisions/README.md) | Une page par décision structurelle, avec l'alternative rejetée. |
+
+Trois autres corpus vivent à côté de ces chapitres, et se rejoignent depuis cette page plutôt que
+depuis le seul répertoire parent — un lecteur qui entre ici ne devrait pas avoir à deviner qu'ils
+existent.
+
+| Où | Ce que c'est |
+|---|---|
+| [Modèle de menaces STRIDE](../security/fr/STRIDE_THREAT_MODEL.fr.md) | L'analyse formelle derrière le [03](03-security.md) : une passe par catégorie STRIDE, avec le contrôle qui y répond. |
+| [Modèle C4](../c4/README.md) | Le système en Structurizr DSL, avec les diagrammes de contexte, de conteneurs et de composants générés. La CI échoue si les diagrammes commités divergent de [`workspace.dsl`](../c4/workspace.dsl). |
+| [Dossier d'architecture](../bflorat/fr/README.md) | Les cinq vues du modèle Bertrand Florat — applicative, sécurité, dimensionnement, infrastructure, développement. |
 | [Modélisation des Menaces STRIDE](../security/fr/STRIDE_THREAT_MODEL.fr.md) | Analyse formelle des menaces selon les 6 catégories STRIDE. |
 | [Diagrammes C4 (Structurizr DSL)](../c4/workspace.dsl) | Modélisation C4 interactive (Niveaux 1, 2 et 3). |
 

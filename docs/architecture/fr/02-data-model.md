@@ -22,6 +22,14 @@ erDiagram
     SCAN       ||--o{ AI_REVIEW_RESULT : "transporte"
 ```
 
+**Le diagramme est un sous-ensemble délibéré : onze tables sur trente-trois.** Il montre le chemin
+d'une analyse, parce que c'est la partie dont il faut comprendre la forme avant de toucher au
+schéma. Le reste — la billetterie, l'inventaire d'API, le renseignement sur les menaces, la
+configuration SIEM, les sessions, les paramètres, le journal d'audit — s'y raccroche sans le
+modifier. C'est `SchemaParityIntegrationTest` qui tient le compte honnête, et il a un jour affirmé
+vingt-six contre un arbre de trente-trois : un nombre exact dans un document est un nombre que
+personne ne met à jour.
+
 ## L'empreinte (Fingerprint)
 
 L'identité d'une issue entre plusieurs scans est calculée par `IssueFingerprint` :

@@ -1,5 +1,10 @@
 # 03 — Sécurité
 
+> L'analyse formelle est séparée et plus longue : le
+> **[modèle de menaces STRIDE](../security/fr/STRIDE_THREAT_MODEL.fr.md)** parcourt chaque
+> catégorie avec le contrôle qui y répond. Cette page donne la forme du problème ; celle-là en
+> donne l'énumération.
+
 Vectispire est un outil de sécurité, ce qui ne le rend pas automatiquement invulnérable : cela le rend **intéressant à attaquer**. Il stocke des clés de déploiement, détient l'accès au démon Docker, affiche des chaînes générées par du code potentiellement hostile, et renvoie un verdict de conformité qu'un attaquant pourrait chercher à falsifier.
 
 ## Actifs sensibles et protection

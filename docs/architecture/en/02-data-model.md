@@ -22,6 +22,13 @@ erDiagram
     SCAN       ||--o{ AI_REVIEW_RESULT : "carries"
 ```
 
+**The diagram is a deliberate subset: eleven tables of thirty-three.** It shows the scan path,
+because that is the part whose shape has to be understood before the schema can be touched. The
+rest — ticketing, the API inventory, threat intelligence, SIEM configuration, sessions, settings,
+the audit log — hangs off it without changing it. `SchemaParityIntegrationTest` is what keeps the
+count honest, and it once asserted twenty-six against a tree of thirty-three: an exact number in a
+document is a number nobody updates.
+
 ## The fingerprint
 
 An issue's identity across scans, computed by `buildFingerprint`:
