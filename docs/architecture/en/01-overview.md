@@ -45,7 +45,7 @@ flowchart TB
     end
 
     UI["Angular UI<br/>vectispire-angular/src/app/"]
-    DB[("Database<br/>PostgreSQL, MySQL, MariaDB or SQLite")]
+    DB[("Database<br/>PostgreSQL or MySQL")]
     DOCKER["Docker daemon<br/>ephemeral analysis containers"]
     AGENT["Remote agent<br/>four-route protocol"]
     FEEDS["Public feeds<br/>EPSS, CISA KEV, endoflife.date"]

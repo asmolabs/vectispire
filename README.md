@@ -38,7 +38,7 @@ Together, **Vectispire** locks down software integrity while elevating visibilit
   than an oversight — so real coverage comes from a rule set you install yourself; see
   [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
-- **Backlog over time**: the dashboard's figures are snapshots, which answer "how much" and never "better or worse than last month". A series does: the standing backlog day by day, what appeared against what was resolved, and the mean time to resolve — absent rather than zero when nothing was resolved, because zero reads as "fixed the day it appears". Narrowed by the reader's visibility like every other view, and computed in a pure function rather than in SQL, because four engines spell date truncation four ways.
+- **Backlog over time**: the dashboard's figures are snapshots, which answer "how much" and never "better or worse than last month". A series does: the standing backlog day by day, what appeared against what was resolved, and the mean time to resolve — absent rather than zero when nothing was resolved, because zero reads as "fixed the day it appears". Narrowed by the reader's visibility like every other view, and computed in a pure function rather than in SQL, because two engines spell date truncation four ways.
 - **Weekly posture report** (off by default): every other notification fires when something *appears*, which is right for an alert and wrong for a report — on a quiet week nobody is told anything, and a quiet week is also the week a target has silently not been scanned for twenty days. Once a week to the webhook and the e-mail recipients: how much there is, which way it is moving, and what was never examined. It needs no outbox, unlike a scan delta: a report is derived from the database, so a failed send is simply recomputed on the next tick.
 - **Bulk triage**: one CVE across forty repositories is one judgement about one context, not forty — and deciding it forty times is how a backlog stops being triaged at all. Narrow the list, select, decide once. All or nothing in one transaction, with each issue still recording its own transition in the triage history, because a bulk decision that changed forty rows silently would be indistinguishable from forty rows edited by hand.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day.
@@ -171,7 +171,7 @@ npm --workspace @vectispire/frontend start            # UI on http://localhost:4
 The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
 against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
-to validate the entities against the schema Flyway really built, on all four engines.
+to validate the entities against the schema Flyway really built, on all two engines.
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
@@ -345,30 +345,29 @@ The database file is not part of the repository (it holds password hashes and en
 
 ### Choosing a database
 
-Four engines are supported — PostgreSQL, MariaDB, MySQL and SQLite — and **each is
+Four engines are supported — PostgreSQL and MySQL, with SQLite as the test fixture — and **each is
 exercised by the full integration campaign**. Flyway applies native migrations per dialect
-under `db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`), ensuring complete
+under `db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), ensuring complete
 fidelity and avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL`
 at the engine; it is read from the URL, and MySQL is the default — the engine `docker-compose.yml`
 ships, so the shortest path and the documented one agree. A portability defect is
 invisible to reading and to a single engine; running all four is the only way it gets found, and
 it found several.
 
-| | PostgreSQL | MariaDB | MySQL | SQLite |
-|---|---|---|---|---|
-| Transactional scan claim | yes | yes | yes | **no** |
-| Complete claim batch under contention | yes | yes | **no** | n/a |
-| Millisecond timestamps | yes | yes | yes | yes |
-| `NULLS LAST` | yes | no | no | yes |
-| Concurrent writers | yes | yes | yes | **no** |
+| | PostgreSQL | MySQL | SQLite *(test fixture)* |
+|---|---|---|---|
+| Transactional scan claim | yes | yes | **no** |
+| Complete claim batch under contention | yes | **no** | n/a |
+| Millisecond timestamps | yes | yes | yes |
+| `NULLS LAST` | yes | no | yes |
+| Concurrent writers | yes | yes | **no** |
 
 Every "no" comes from a defect found by running, and **none of them raises an error**:
 
 - **MySQL returns short claim batches.** Rows skipped by `SKIP LOCKED` count against the
   `LIMIT`, so a worker asking for two scans may get none while the queue is not empty. No
   row is ever handed to two workers — measured, not assumed — and the rest goes out on the
-  next tick. It is a throughput characteristic, not a correctness defect. MariaDB, measured
-  on the same scenario, returns a complete batch like PostgreSQL.
+  next tick. It is a throughput characteristic, not a correctness defect.
 - **SQLite has a single writer.** A second instance on the same file would not be slow, it
   would corrupt data. Its claim therefore falls back to a conditional `UPDATE` guarded by
   the status column, which is correct for threads of one process. Its driver **refuses**
@@ -431,7 +430,7 @@ Two things to know:
 ```bash
 cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
 cd vectispire-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
-cd vectispire-java && ./gradlew integrationTestAll # all four engines — ten minutes, needs Docker
+cd vectispire-java && ./gradlew integrationTestAll # all two engines — ten minutes, needs Docker
 npm ci && npm run build && npm test                # the Angular interface
 ```
 

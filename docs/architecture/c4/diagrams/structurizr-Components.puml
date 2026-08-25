@@ -28,7 +28,7 @@ System_Boundary("VectispirePlatform_boundary", "Vectispire Platform", $tags="") 
     Component(VectispirePlatform.SpringBootControlPlane.ScanIngestorService, "ScanIngestor Service", $techn="Java / ScanIngestor", $descr="Normalizes raw scanner outputs into findings and deduplicates secrets.", $tags="", $link="")
   }
 
-  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
+  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
   Container(VectispirePlatform.DockerDaemonScanners, "Docker Daemon & Scanners", $techn="Docker Engine / ContainerRunner", $descr="Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis.", $tags="", $link="")
 }
 

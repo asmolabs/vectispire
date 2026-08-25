@@ -34,7 +34,6 @@ MIT
   org.bouncycastle:bcpkix-jdk18on           Bouncy Castle PKIX
 
 LGPL-2.1
-  org.mariadb.jdbc:mariadb-java-client      MariaDB Connector/J
 
 GPL-2.0 WITH Universal-FOSS-Exception-1.0
   com.mysql:mysql-connector-j               MySQL Connector/J

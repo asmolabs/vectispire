@@ -30,10 +30,11 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * <p><b>There is no "skip if Docker is missing" guard, deliberately.</b> A suite that skips
  * itself reports green without having checked anything, which is worse than one that fails.
  *
- * <p>Run one engine with {@code -Pdialect=mariadb}, or all four with {@code integrationTestAll}.
+ * <p>Run one engine with {@code -Pdialect=postgres}, or the whole set with {@code integrationTestAll}.
  * Running one is not running the campaign: the places the engines disagree are precisely the
- * places a single representative is silent about — MySQL reports {@code tinyint(1)} where
- * MariaDB reports {@code tinyint}, and they disagree with <em>each other</em>.
+ * places a single representative is silent about — MySQL reports a boolean as {@code tinyint(1)}
+ * where PostgreSQL has a real one, and a timestamp without declared precision truncates on one
+ * and not the other.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the entities agree with the schema")

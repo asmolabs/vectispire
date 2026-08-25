@@ -29,7 +29,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Backend Spring Boot 4.1 / JDK 25 (records, sealed classes, pattern matching, types immutables).
    - Isolation des couches et contrôle ArchUnit (ArchitectureTest : domain <- scanning <- persistence <- repositories <- services <- api).
    - Résilience et prévention de la perte silencieuse de données (règle ADR 0007 : Optional.empty() pour les scanners en échec, jamais de liste vide []).
-   - Portabilité et migration multi-SGBD Flyway sur 4 moteurs réels (PostgreSQL, MySQL, MariaDB, SQLite) avec validation de schéma stricte (ddl-auto: validate).
+   - Portabilité et migration multi-SGBD Flyway sur 2 moteurs réels (PostgreSQL, MySQL (SQLite for tests)) avec validation de schéma stricte (ddl-auto: validate).
    - Moteur d'ingestion et déduplication intelligente multi-scanners (ex: Gitleaks + Betterleaks) avec IssueFingerprint.
    - Frontend Angular 21 et couverture de tests end-to-end Playwright (vectispire-angular/e2e/).
 
@@ -70,7 +70,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Backend Spring Boot 4.1 / JDK 25 modern patterns (records, sealed classes, pattern matching, immutable domain).
    - Enforced architectural layering via ArchUnit (ArchitectureTest: domain <- scanning <- persistence <- repositories <- services <- api).
    - Resilience against silent data loss (ADR 0007: Optional.empty() on scanner failures, never empty list []).
-   - Multi-engine Flyway migrations verified on 4 databases (PostgreSQL, MySQL, MariaDB, SQLite) with strict validation (ddl-auto: validate).
+   - Multi-engine Flyway migrations verified on 2 databases (PostgreSQL, MySQL (SQLite for tests)) with strict validation (ddl-auto: validate).
    - Multi-scanner ingestion and deduplication engine (e.g., Gitleaks + Betterleaks) via IssueFingerprint.
    - Frontend Angular 21 and automated Playwright E2E test suites (vectispire-angular/e2e/).
 

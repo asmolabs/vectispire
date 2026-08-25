@@ -25,7 +25,7 @@ Le nom **Vectispire** reflète deux principes fondamentaux de la gouvernance de 
 - **Conformité Réglementaire & Dossiers d'Audit** : Évaluation déterministe pour **NIS 2**, **DORA**, **ISO 27001**, **PCI-DSS v4.0**, **Cyber Resilience Act (EU CRA)**, **SOC 2 Type II** et export d'archives de preuves scellées (*Evidence Vault*).
 - **SBOM Drift & Diff Viewer** : Comparateur différentiel entre scans pour tracer les composants ajoutés/supprimés, dérives de licences et deltas CVE.
 - **Dette de Sécurité & Actions à Fort Impact (*High-Impact Fixes*)** : Quantification de l'effort de remédiation en J/H et priorisation des montées de version à fort ROI sécurité.
-- **Portabilité Multi-Base de Données** : Support complet et validé par tests de **PostgreSQL**, **MySQL**, **MariaDB** et **SQLite** via migrations **Flyway**.
+- **Portabilité Multi-Base de Données** : Support complet et validé par tests de **PostgreSQL** et **MySQL** via migrations **Flyway** ; **SQLite** sert de fixture de test et n'est pas un moteur déployable ([décision 0014](docs/architecture/fr/decisions/0014-two-engines-and-a-test-fixture.md)).
 - **Sécurité de Bout en Bout** :
   - Chiffrement AES-256-GCM des clés privées et secrets au repos.
   - Journal d'audit infalsifiable avec scellement cryptographique par chaîne de hachage.

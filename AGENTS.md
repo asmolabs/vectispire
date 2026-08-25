@@ -14,12 +14,12 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 21, Optimus UI, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL (default), PostgreSQL, MariaDB, SQLite — Flyway migrations (`db/migration/{vendor}`) |
+| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/{vendor}`). SQLite is the test fixture, not a deployment ([0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTestAll   # four engines, needs Docker
+cd vectispire-java && ./gradlew integrationTestAll   # two engines, needs Docker
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface
@@ -70,7 +70,7 @@ decrypts every deployment key Vectispire stores — see
   rule decides a scan's status — every step absent and something broken means the target was
   never examined, and `completed` would say the opposite.
 - **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, and
-  `SchemaParityIntegrationTest` checks on four engines that the entities agree with it.
+  `SchemaParityIntegrationTest` checks on two engines that the entities agree with it.
   Letting Hibernate reconcile the schema would mean two authorities for one schema, and the
   one that runs second wins silently.
 

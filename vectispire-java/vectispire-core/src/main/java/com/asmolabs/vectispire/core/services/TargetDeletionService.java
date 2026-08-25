@@ -22,9 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Atomic target deletion and orphan cleanup across all databases (PostgreSQL, MySQL, MariaDB, SQLite).
+ * Atomic target deletion and orphan cleanup on every supported engine (PostgreSQL, MySQL) and on
+ * the SQLite test fixture.
  *
- * <p>Because MySQL/MariaDB and SQLite do not enable cascading deletion automatically on inline foreign
+ * <p>Because MySQL and SQLite do not enable cascading deletion automatically on inline foreign
  * keys, deleting a container or repository must explicitly purge all attached issues, findings, components,
  * scans, triage events, tickets and gate policy overrides so that no stale findings or broken visibility
  * records remain in the system.

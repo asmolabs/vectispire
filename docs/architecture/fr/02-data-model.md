@@ -46,4 +46,4 @@ stateDiagram-v2
 
 ## Les migrations
 
-Gérées par Flyway dans `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`) avec des scripts SQL natifs par dialecte assurant une fidélité parfaite sur chaque moteur de base de données.
+Gérées par Flyway dans `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`) avec des scripts SQL natifs par dialecte assurant une fidélité parfaite sur chaque moteur de base de données.

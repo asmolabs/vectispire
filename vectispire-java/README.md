@@ -8,7 +8,7 @@ HTTP.
 ./gradlew build                      # compile + unit tests + architecture suite
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
-./gradlew integrationTest -Pdialect=mariadb
+./gradlew integrationTest -Pdialect=postgres
 ./gradlew integrationTestAll         # all four
 ```
 
@@ -57,7 +57,7 @@ the same commit that violates it; a missing dependency cannot.
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
-| Entities agree with the schema, on four engines | `SchemaParityIntegrationTest` |
+| Entities agree with the schema, on two engines | `SchemaParityIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -122,13 +122,15 @@ which is global mutable state in a process that also serves HTTP.
 ## Flyway, and dialect-specific native migrations
 
 The schema is managed by **Flyway** with native migration sets per dialect under
-`vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`).
+`vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`).
 
 This native multi-dialect approach solves the impedance mismatches and table-recreation traps
 historically experienced with abstractions:
 - SQLite receives native DDL (`INTEGER PRIMARY KEY AUTOINCREMENT`, `NUMERIC` for epoch milliseconds, inline foreign keys).
 - PostgreSQL uses native `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
-- MySQL and MariaDB use their respective native types (`BIT(1)` / `BOOLEAN`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`).
+- MySQL uses its native types (`BIT(1)`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`). The declared
+  precision is not decoration: a bare `DATETIME` truncates to the second, and the audit chain
+  hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
 that all twenty-six tables and twenty foreign keys are created by name.
@@ -143,7 +145,7 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 
 `./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against a
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
-all four engines through Testcontainers — **not run by CI**, because it needs Docker and ten
+all two engines through Testcontainers — **not run by CI**, because it needs Docker and ten
 minutes; run it before a release and after any change to the migrations.
 
 `ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer

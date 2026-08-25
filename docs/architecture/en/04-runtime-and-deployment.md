@@ -7,7 +7,7 @@ Vectispire supports single-instance local deployments as well as distributed mul
 | Mode | Database | Scanners Location | Docker Socket Holder |
 |---|---|---|---|
 | Single Instance | Embedded SQLite or External DB | Same process | Control Plane |
-| Multi-Agent | PostgreSQL / MySQL / MariaDB | Remote Agents | Remote Agents |
+| Multi-Agent | PostgreSQL / MySQL | Remote Agents | Remote Agents |
 
 ## Leader Lease & Concurrency
 

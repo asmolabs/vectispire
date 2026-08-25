@@ -96,7 +96,7 @@ d'export. Il ne dépend que du JDK, de BouncyCastle et de Jackson.
 
 Le schéma appartient aux **migrations Flyway**, sous
 [`src/main/resources/db/migration/{vendor}/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — un jeu SQL natif par
-moteur (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` vaut `validate`
+moteur (`postgresql`, `mysql`, `sqlite`). `ddl-auto` vaut `validate`
 et le reste : Hibernate ne doit jamais altérer le schéma à l'exécution.
 
 **Le moteur est choisi par `VECTISPIRE_DB_URL` et rien d'autre** — Hibernate et Flyway le lisent
@@ -429,8 +429,8 @@ migrations et annulent chaque test dans sa propre transaction — de sorte que l
 est celui que la production recevra, et que les cas ne peuvent pas se voir entre eux.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres, mariadb, sqlite)
-cd vectispire-java && ./gradlew integrationTestAll             # les quatre moteurs
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres ou sqlite)
+cd vectispire-java && ./gradlew integrationTestAll             # les deux moteurs
 ```
 
 Deux règles que le harnais s'impose à lui-même :

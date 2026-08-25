@@ -17,7 +17,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
                 auditComp = component "AuditLog Service" "Maintains SHA-256 hash-chained immutable audit records." "Java / AuditLogService"
                 cryptoComp = component "Encryption Service" "Encrypts SSH deployment keys at rest using AES-256-GCM." "Java / EncryptionService"
             }
-            db = container "Database Engine" "Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings." "PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)" "Database"
+            db = container "Database Engine" "Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings." "PostgreSQL / MySQL (Flyway Migrations)" "Database"
             dockerDaemon = container "Docker Daemon & Scanners" "Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis." "Docker Engine / ContainerRunner" "Container Engine"
             agent = container "Vectispire Remote Agent" "Executes scans on remote worker nodes using HTTP long-polling." "Spring Boot / Java 25" "Standalone Agent"
         }

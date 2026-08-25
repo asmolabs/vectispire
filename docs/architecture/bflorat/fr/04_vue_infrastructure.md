@@ -22,7 +22,7 @@ flowchart TB
 
     subgraph Dist["Mode Distribué Multi-Agents"]
         Ctrl2["Plan de Contrôle Clusterisé (PostgreSQL / MySQL)"]
-        DB2[("SGBD d'Entreprise (PostgreSQL / MySQL / MariaDB)")]
+        DB2[("SGBD d'Entreprise (PostgreSQL / MySQL)")]
         AgentA["Agent Distant Site A"]
         AgentB["Agent Distant Site B"]
         
@@ -36,13 +36,12 @@ flowchart TB
 
 ## 2. Matrice de Compatibilité SGBD & Migrations Flyway
 
-Vectispire prend en charge 4 moteurs de bases de données relationnelles avec des scripts SQL natifs par dialecte (`src/main/resources/db/migration/{vendor}/`) gérés par **Flyway** ([ADR 0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md)) :
+Vectispire prend en charge 2 moteurs de bases de données relationnelles avec des scripts SQL natifs par dialecte (`src/main/resources/db/migration/{vendor}/`) gérés par **Flyway** ([ADR 0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md)) :
 
 | Moteur de SGBD | Version Min. Supportée | Dialecte Flyway | Usage Cible |
 |---|---|---|---|
 | **PostgreSQL** | 14+ | `postgresql` | Production recommandée (Cluster d'Entreprise) |
 | **MySQL** | 8.0+ | `mysql` | Production alternative (Environnements Cloud / RDS) |
-| **MariaDB** | 10.6+ | `mariadb` | Production alternative (Infrastructures Linux) |
 | **SQLite** | 3.35+ | `sqlite` | Démonstrations, évaluation locale et mode embarqué autonome |
 
 ### 2.1 Intégrité du Schéma & `ddl-auto`

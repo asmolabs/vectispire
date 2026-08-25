@@ -22,7 +22,7 @@ System(ExternalThreatFeeds, "External Threat Feeds", $descr="Public threat intel
 System(NotificationSystems, "Notification Systems", $descr="Microsoft Teams, Email gateways, and signed HTTP webhooks.", $tags="", $link="")
 
 System_Boundary("VectispirePlatform_boundary", "Vectispire Platform", $tags="") {
-  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
+  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
   Container(VectispirePlatform.DockerDaemonScanners, "Docker Daemon & Scanners", $techn="Docker Engine / ContainerRunner", $descr="Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis.", $tags="", $link="")
   Container(VectispirePlatform.VectispireRemoteAgent, "Vectispire Remote Agent", $techn="Spring Boot / Java 25", $descr="Executes scans on remote worker nodes using HTTP long-polling.", $tags="", $link="")
   Container(VectispirePlatform.AngularFrontendUI, "Angular Frontend UI", $techn="Angular 21 / Optimus UI / TypeScript", $descr="Provides security overview, repository posture, compliance matrices, issue triage, and administration interface.", $tags="", $link="")

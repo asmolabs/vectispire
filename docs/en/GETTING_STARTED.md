@@ -45,8 +45,8 @@ Three environment variables matter before the first run:
 ## 4. Database
 
 MySQL 8 by default — the engine `docker-compose.yml` ships and the one
-`VECTISPIRE_DB_URL` points at when nothing overrides it. PostgreSQL, MariaDB and SQLite are
-equally supported; the engine is read from the URL and there is no separate dialect setting.
+`VECTISPIRE_DB_URL` points at when nothing overrides it. PostgreSQL is the other supported engine;
+the engine is read from the URL and there is no separate dialect setting.
 
 ```bash
 docker run -d --name vectispire-db -p 3306:3306 \

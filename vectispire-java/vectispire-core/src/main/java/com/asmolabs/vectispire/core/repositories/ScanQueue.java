@@ -22,10 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Claiming scans from a queue several instances share.
  *
- * <p><b>One path on four engines, and no row lock.</b> The NestJS version branched on an engine
+ * <p><b>One path on every engine, and no row lock.</b> The NestJS version branched on an engine
  * capability — pessimistic locking where available, a conditional take elsewhere — and the
  * campaign showed the branch was buying trouble rather than throughput. See {@code takeBatch}
- * for what each half of it actually cost on MySQL and MariaDB.
+ * for what each half of it actually cost on MySQL.
  */
 @Repository
 public class ScanQueue {
@@ -197,7 +197,7 @@ public class ScanQueue {
      * wasted statement.
      *
      * <p>What it costs is worse than what it saves. {@code SELECT … FOR UPDATE SKIP LOCKED} with
-     * an {@code ORDER BY … LIMIT} takes next-key locks on MySQL and MariaDB: the first produced
+     * an {@code ORDER BY … LIMIT} takes next-key locks on MySQL: the first produced
      * "Deadlock found when trying to get lock" under eight concurrent claimants, and the second
      * counts skipped rows against the {@code LIMIT}, so a claimant whose candidates are all
      * locked comes back empty while rows remain — and the queue stops draining. Both were found
@@ -226,7 +226,7 @@ public class ScanQueue {
                         claimedAt,
                         leaseUntil);
             } catch (DataAccessException contended) {
-                // MariaDB answers a losing conditional update with "Record has changed since
+                // Some engines answer a losing conditional update with "Record has changed since
                 // last read" rather than with zero rows affected. Same event, different
                 // spelling: somebody else took the row. Treating it as a failure would abort a
                 // claim over an outcome the loop already handles.

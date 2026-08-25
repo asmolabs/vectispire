@@ -22,7 +22,7 @@ flowchart TB
 
     subgraph Dist["Distributed Multi-Agent Mode"]
         Ctrl2["Clustered Control Plane (PostgreSQL / MySQL)"]
-        DB2[("Enterprise RDBMS (PostgreSQL / MySQL / MariaDB)")]
+        DB2[("Enterprise RDBMS (PostgreSQL / MySQL)")]
         AgentA["Remote Agent Site A"]
         AgentB["Remote Agent Site B"]
         
@@ -42,7 +42,6 @@ Vectispire supports 4 relational database engines using dialect-specific native 
 |---|---|---|---|
 | **PostgreSQL** | 14+ | `postgresql` | Recommended production (Enterprise Cluster) |
 | **MySQL** | 8.0+ | `mysql` | Alternative production (Cloud / RDS environments) |
-| **MariaDB** | 10.6+ | `mariadb` | Alternative production (Linux Infrastructures) |
 | **SQLite** | 3.35+ | `sqlite` | Demos, local evaluation, and embedded single-instance mode |
 
 ### 2.1 Schema Integrity & `ddl-auto`

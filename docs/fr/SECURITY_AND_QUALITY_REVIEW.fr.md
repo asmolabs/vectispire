@@ -14,7 +14,7 @@ Vectispire présente une **maturité architecturale et sécuritaire exceptionnel
 Les contrôles de sécurité ne reposent pas sur des conventions implicites mais sont validés et verrouillés par :
 1. **Le graphe de dépendances au niveau compilation** (isolation physique des modules sans fuite JDBC vers l'agent).
 2. **Des tests d'architecture automatisés (ArchUnit)** vérifiant l'étanchéité des couches.
-3. **Des suites d'intégration multi-moteurs (PostgreSQL, MariaDB, MySQL, SQLite)** testant la parité du schéma et la concurrence.
+3. **Des suites d'intégration multi-moteurs (PostgreSQL, MySQL, plus la fixture SQLite)** testant la parité du schéma et la concurrence.
 4. **Une politique CSP stricte sans compromis** sur l'exécution dynamique de scripts (`'unsafe-eval'` exclu).
 5. **Une chaîne d'approvisionnement (Supply Chain)** vérifiée par signature Sigstore keyless, verrous de dépendances Gradle (`gradle.lockfile`) et scans SBOM.
 6. **Un moteur de conformité réglementaire intégré** (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA) avec coffre-fort de preuves scellé (`EvidenceVaultService`).
@@ -39,7 +39,7 @@ flowchart TB
         COMPLIANCE["ComplianceEngine (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA)"]
         VAULT["EvidenceVaultService (Signed ZIP / In-Toto / OpenVEX / CSAF 2.0)"]
         VEX["VexIngestorService (Cascade Suppression & 4-Eyes Triage)"]
-        DB[(PostgreSQL / MySQL / MariaDB / SQLite)]
+        DB[(PostgreSQL / MySQL)]
     end
 
     subgraph Agent["Remote Agent (Isolation JVM)"]
@@ -127,7 +127,7 @@ flowchart TB
 | Domaine | Évaluation | Mécanisme de Contrôle & Enforcement |
 |---|---|---|
 | **Architecture Hexagonale / En Couches** | 🟢 Exemplaire | ArchUnit (`ArchitectureTest.java`) : Domaine pur, découplé de tout framework |
-| **Parité Base de Données (4 moteurs)** | 🟢 Exemplaire | Flyway multi-dialectes + Testcontainers sur PostgreSQL, MySQL, MariaDB, SQLite (`SchemaParityIntegrationTest`) |
+| **Parité Base de Données (2 moteurs)** | 🟢 Exemplaire | Flyway multi-dialectes + Testcontainers sur PostgreSQL, MySQL (SQLite for tests) (`SchemaParityIntegrationTest`) |
 | **Verrouillage Dépendances (Supply Chain)** | 🟢 Exemplaire | Gradle dependency locking (`gradle.lockfile`), Git pre-commit hook, SBOM Syft, Grype, Sigstore |
 | **Déterminisme des Fingerprints** | 🟢 Exemplaire | Séparateur NUL (`\0`) évitant les collisions avec `\|` (`IssueFingerprintTest`) |
 | **Conformité Réglementaire** | 🟢 Exemplaire | Évaluation automatisée NIS 2 / DORA / ISO 27001 / PCI-DSS + Coffre de preuves d'audit scellé |

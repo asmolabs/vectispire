@@ -9,7 +9,7 @@ Ce guide décrit l'installation, la configuration et le lancement de Vectispire 
 - **Java** : JDK 25 (ou compatible JDK 21+ avec Gradle).
 - **Node.js** : Node LTS 24 (Angular 21 refuse Node 25).
 - **Docker** : Nécessaire pour l'exécution des conteneurs d'analyse (Syft, Grype, Semgrep, Gitleaks).
-- **Base de données** : PostgreSQL (recommandé en production), MySQL, MariaDB ou SQLite (développement/embarqué).
+- **Base de données** : MySQL (défaut) ou PostgreSQL. SQLite est la fixture des tests et ne démarre pas l'application packagée — voir la [décision 0014](../architecture/fr/decisions/0014-two-engines-and-a-test-fixture.md).
 
 ---
 
@@ -48,8 +48,8 @@ export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
 ## 4. Base de données
 
 MySQL 8 par défaut — le moteur que livre `docker-compose.yml` et celui vers lequel pointe
-`VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL, MariaDB et SQLite sont tout aussi
-supportés ; le moteur est lu depuis l'URL et il n'existe aucun réglage de dialecte séparé.
+`VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL est l'autre moteur supporté ; le moteur
+est lu depuis l'URL et il n'existe aucun réglage de dialecte séparé.
 
 ```bash
 docker run -d --name vectispire-db -p 3306:3306 \

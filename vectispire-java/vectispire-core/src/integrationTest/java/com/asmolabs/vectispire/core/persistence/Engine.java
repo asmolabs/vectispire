@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.mariadb.MariaDBContainer;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -29,7 +28,6 @@ import org.testcontainers.utility.DockerImageName;
 public enum Engine {
     POSTGRES("postgres:17.6-alpine", true),
     MYSQL("mysql:9.4", true),
-    MARIADB("mariadb:11.8", true),
 
     /** No container, no strict validation — see the class comment. */
     SQLITE(null, false);
@@ -55,7 +53,7 @@ public enum Engine {
         } catch (IllegalArgumentException unknown) {
             throw new IllegalArgumentException(
                     "Unknown dialect \"" + name.toLowerCase(Locale.ROOT) + "\". Expected one of: postgres, mysql, "
-                            + "mariadb, sqlite.");
+                            + "sqlite.");
         }
     }
 
@@ -64,7 +62,6 @@ public enum Engine {
         return switch (this) {
             case POSTGRES -> Optional.of(new PostgreSQLContainer(reference));
             case MYSQL -> Optional.of(new MySQLContainer(reference));
-            case MARIADB -> Optional.of(new MariaDBContainer(reference));
             case SQLITE -> Optional.empty();
         };
     }

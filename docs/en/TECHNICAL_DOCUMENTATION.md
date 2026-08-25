@@ -94,7 +94,7 @@ It depends on nothing but the JDK, BouncyCastle and Jackson.
 
 The schema belongs to **Flyway migrations**, under
 [`src/main/resources/db/migration/{vendor}/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — one native SQL set per
-engine (`postgresql`, `mariadb`, `mysql`, `sqlite`). `ddl-auto` is `validate`
+engine (`postgresql`, `mysql`, `sqlite`). `ddl-auto` is `validate`
 and stays that way: Hibernate must never alter the schema at runtime.
 
 **The engine is chosen by `VECTISPIRE_DB_URL` and nothing else** — Hibernate and Flyway both read
@@ -424,8 +424,8 @@ migration, and roll each test back in its own transaction — so the schema unde
 one production will receive, and the cases cannot see each other.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres, mariadb, sqlite)
-cd vectispire-java && ./gradlew integrationTestAll             # all four engines
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres or sqlite)
+cd vectispire-java && ./gradlew integrationTestAll             # all two engines
 ```
 
 Two rules the harness enforces on itself:

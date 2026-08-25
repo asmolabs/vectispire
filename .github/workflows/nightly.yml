@@ -26,9 +26,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  # The schema and the entities agree on four real engines, or they do not agree at all.
-  # SQLite runs in the unit suite already; the other three need a container each, which is
-  # the whole reason this is not in `ci.yml`.
+  # The schema and the entities agree on both supported engines, or they do not agree at all.
+  # SQLite is here as the fixture the HTTP suite runs on — its migrations still have to apply,
+  # even though it cannot boot the application (decision 0014). The two server engines need a
+  # container each, which is the whole reason this is not in `ci.yml`.
   databases:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -42,7 +43,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: All four engines
+      - name: Both supported engines, plus the SQLite fixture
         working-directory: vectispire-java
         run: ./gradlew integrationTestAll
 

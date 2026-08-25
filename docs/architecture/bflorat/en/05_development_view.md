@@ -70,4 +70,4 @@ npm run start --workspace @vectispire/frontend
 ```bash
 cd vectispire-java && ./gradlew integrationTestAll
 ```
-*(Validates control plane behavior across PostgreSQL, MySQL, MariaDB, and SQLite).*
+*(Validates control plane behavior across PostgreSQL and MySQL, with SQLite as the test fixture).*

@@ -119,7 +119,6 @@ dependencies {
     implementation(libs.spring.boot.flyway)
 
     runtimeOnly(libs.postgresql)
-    runtimeOnly(libs.mariadb)
     runtimeOnly(libs.mysql)
     runtimeOnly(libs.sqlite)
     // SQLite is not one of Hibernate's own dialects. It is a first-class engine here, so the
@@ -164,7 +163,6 @@ dependencies {
     "integrationTestImplementation"("org.testcontainers:testcontainers-junit-jupiter")
     "integrationTestImplementation"("org.testcontainers:testcontainers-postgresql")
     "integrationTestImplementation"("org.testcontainers:testcontainers-mysql")
-    "integrationTestImplementation"("org.testcontainers:testcontainers-mariadb")
     "integrationTestImplementation"("org.springframework.boot:spring-boot-testcontainers")
 }
 
@@ -182,10 +180,14 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
 }
 
 /**
- * All four engines. A portability defect only shows up by running them all — each of the
- * four has produced one that was invisible on the others.
+ * The two supported engines, plus the fixture the unit suite runs on.
+ *
+ * A portability defect only shows up by running them — PostgreSQL and MySQL have each produced
+ * one that was invisible on the other. SQLite is here for a different reason: it is what the HTTP
+ * suite uses, so its migrations have to apply even though **it is not a deployable engine** —
+ * see decision 0014.
  */
-val engines = listOf("postgres", "mariadb", "mysql", "sqlite")
+val engines = listOf("postgres", "mysql", "sqlite")
 
 engines.forEach { engine ->
     tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
@@ -205,7 +207,7 @@ engines.forEach { engine ->
 }
 
 tasks.register("integrationTestAll") {
-    description = "Runs the campaign on all four engines."
+    description = "Runs the campaign on both supported engines and the SQLite fixture."
     group = "verification"
     dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
 }

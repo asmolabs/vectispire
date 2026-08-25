@@ -7,7 +7,7 @@ Vectispire prend en charge aussi bien les déploiements autonomes en instance un
 | Mode | Base de données | Emplacement des scanners | Déférent du socket Docker |
 |---|---|---|---|
 | Monolithique | SQLite intégré ou SGBD externe | Même processus | Plan de contrôle |
-| Distribué (Agents) | PostgreSQL / MySQL / MariaDB | Agents distants | Agents distants |
+| Distribué (Agents) | PostgreSQL / MySQL | Agents distants | Agents distants |
 
 ## Leader Lease et Concurrence
 

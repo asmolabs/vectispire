@@ -46,4 +46,4 @@ stateDiagram-v2
 
 ## The migrations
 
-Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mariadb`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring complete fidelity on each database engine.
+Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring complete fidelity on each database engine.
