@@ -66,11 +66,14 @@ public class ComplianceService {
      * All three are cheap — two field reads and one settings lookup.
      */
     private ComplianceEngine.PlatformPosture platformPosture() {
-        AuditLogService.MirrorComparison mirror = audit.verifyAgainstMirror();
+        // `mirrorConfigured()` and not `verifyAgainstMirror()`: the latter reads the entire
+        // mirror file and every audit row to compare them, and this runs on every compliance
+        // page load. What the control needs to know is whether a second copy exists, not
+        // whether it currently agrees — that is `/audit-log/verify`, which somebody asks for.
         return new ComplianceEngine.PlatformPosture(
                 encryption.isConfigured(),
                 encryption.isExternallyManaged(),
-                mirror.configured(),
+                audit.mirrorConfigured(),
                 settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED));
     }
 

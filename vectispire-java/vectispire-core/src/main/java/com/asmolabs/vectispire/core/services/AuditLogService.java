@@ -157,6 +157,18 @@ public class AuditLogService {
     public record MirrorComparison(boolean configured, int missingFromTable, int missingFromMirror) {}
 
     /**
+     * Whether a second copy exists at all — the question, without the comparison.
+     *
+     * <p>{@link #verifyAgainstMirror()} reads the whole mirror file and every audit row, which is
+     * the right cost for an integrity check somebody asked for and the wrong one for a caller
+     * that only needs to know whether the control is switched on. The compliance summary is that
+     * caller, and it runs on every page load.
+     */
+    public boolean mirrorConfigured() {
+        return mirror.configured();
+    }
+
+    /**
      * Compares the two copies.
      *
      * <p>By entry hash, which is what makes the comparison cheap and exact: the hash covers

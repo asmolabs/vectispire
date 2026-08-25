@@ -49,8 +49,12 @@ tasks.withType<JacocoReport>().configureEach {
     }
 }
 
-tasks.withType<Test>().configureEach {
-    finalizedBy(tasks.withType<JacocoReport>())
+// **Only the `test` task, deliberately.** `finalizedBy` across every Test task made
+// `integrationTest` trigger `jacocoTestReport` too — and that report reads `test.exec`, so
+// running the integration campaign alone produced a coverage report describing the *unit* run,
+// or a stale one. A coverage number attached to the wrong execution is worse than none.
+tasks.named<Test>("test") {
+    finalizedBy(tasks.named("jacocoTestReport"))
 }
 
 dependencyLocking {
