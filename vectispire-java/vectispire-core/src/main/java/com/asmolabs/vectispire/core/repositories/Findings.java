@@ -35,6 +35,18 @@ public interface Findings extends JpaRepository<FindingEntity, Long>, FindingGra
     List<FindingEntity> findByScanIdIn(java.util.Collection<Long> scanIds);
 
     /**
+     * The licence findings of these scans.
+     *
+     * <p>The predicate was applied in Java over every finding in the deployment — {@code type =
+     * 'license'} or a source naming one — which is a whole-table read to keep a handful of rows.
+     */
+    @Query("""
+            select f from FindingEntity f
+             where f.scanId in :scanIds
+               and (lower(f.type) = 'license' or lower(f.source) like '%license%')""")
+    List<FindingEntity> findLicenseFindings(@Param("scanIds") java.util.Collection<Long> scanIds);
+
+    /**
      * Every scan that observed one issue, newest first, with the scan itself.
      *
      * <p>The sighting list of a detail page. An issue carries {@code firstSeenScanId} and

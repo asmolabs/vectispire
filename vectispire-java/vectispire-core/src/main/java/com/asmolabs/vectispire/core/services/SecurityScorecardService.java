@@ -56,7 +56,9 @@ public class SecurityScorecardService {
                     .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                     .toList();
 
-            List<LicenseEntry> licenses = licenseService.getInventory().stream()
+            // **The filter was passed to the stream and not to the query.** The unfiltered call
+            // parsed every SBOM in the deployment to keep one repository's rows.
+            List<LicenseEntry> licenses = licenseService.getInventory(repoId, null).stream()
                     .filter(l -> repoId.equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
@@ -77,7 +79,7 @@ public class SecurityScorecardService {
                     .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                     .toList();
 
-            List<LicenseEntry> licenses = licenseService.getInventory().stream()
+            List<LicenseEntry> licenses = licenseService.getInventory(null, containerId).stream()
                     .filter(l -> containerId.equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
@@ -100,8 +102,17 @@ public class SecurityScorecardService {
                 .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                 .toList();
 
-        List<LicenseEntry> licenses = licenseService.getInventory();
+        // **Narrowed here and not in the query, and the difference is worth stating.** The
+        // issues above are filtered in SQL; the licence inventory has no allowance parameter —
+        // it takes one target or none — so a restricted reader's entries are dropped after the
+        // fact. That closes the leak and leaves the read: the portfolio still parses every SBOM
+        // it can reach. Recorded rather than hidden, because a filter applied late is exactly
+        // the shape this service has been corrected for twice.
+        List<LicenseEntry> licenses = licenseService.getInventory().stream()
+                .filter(entry -> permits(allowed, entry))
+                .toList();
         boolean hasAttestation = scansRepo.findAll().stream()
+                .filter(s -> allowed.permits(targetOf(s)))
                 .anyMatch(s -> "completed".equalsIgnoreCase(s.getStatus()));
 
         return computeScorecard(null, "global", "Organization Portfolio", openIssues, licenses, hasAttestation);
@@ -188,6 +199,27 @@ public class SecurityScorecardService {
     private static Specification<IssueEntity> openWithin(Visibility allowed) {
         return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
                 .toSpecification();
+    }
+
+
+    /** Whether a licence entry's target is one the caller may see. */
+    private static boolean permits(Visibility allowed, LicenseEntry entry) {
+        if (entry.targetId() == null) {
+            // "general" — attached to no target. Visible to an unrestricted caller and to nobody
+            // else, which is what `Visibility.permits(null)` already answers.
+            return allowed.permits(null);
+        }
+        return allowed.permits("container".equalsIgnoreCase(entry.targetKind())
+                ? new ScanTarget.Container(entry.targetId())
+                : new ScanTarget.Repository(entry.targetId()));
+    }
+
+    /** A scan attached to neither target is unclassifiable, and a restriction does not pass it. */
+    private static ScanTarget targetOf(ScanEntity scan) {
+        if (scan.getRepoId() != null) {
+            return new ScanTarget.Repository(scan.getRepoId());
+        }
+        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
     }
 
 }

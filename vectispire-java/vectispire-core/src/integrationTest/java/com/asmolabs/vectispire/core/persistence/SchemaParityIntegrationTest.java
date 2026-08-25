@@ -145,6 +145,47 @@ class SchemaParityIntegrationTest {
     }
 
     @Test
+    @DisplayName("a fingerprint appears once, and the engine says so rather than the code hoping so")
+    void theFingerprintIsUnique() throws Exception {
+        // **The identity an issue has always had, now enforced by the schema.** Reconciliation
+        // collects existing rows with a merge function that only fires on a duplicate, so the
+        // code has been tolerating what this constraint forbids; two overlapping scans of one
+        // target could each look up a fingerprint, each find nothing, and each insert.
+        //
+        // Read through `DatabaseMetaData` because `pg_indexes`, `information_schema.statistics`
+        // and `pragma index_list` are three different questions and the campaign asks one.
+        //
+        // **`NON_UNIQUE` is read rather than trusting the `unique` argument, and that is not
+        // belt-and-braces.** The first version of this test passed `unique = true` and passed
+        // with no unique index at all: the SQLite driver ignores the flag and returns every
+        // index regardless. Found by running it against the engine with the constraint removed —
+        // an assertion that cannot fail is the failure mode this campaign exists to catch, and
+        // it caught one of its own.
+        boolean unique = false;
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String table : new String[] {"t_issue", "T_ISSUE"}) {
+                try (ResultSet indexes = metadata.getIndexInfo(
+                        connection.getCatalog(), null, table, false, false)) {
+                    while (indexes.next()) {
+                        String column = indexes.getString("COLUMN_NAME");
+                        if (column != null
+                                && "fingerprint".equalsIgnoreCase(column)
+                                && !indexes.getBoolean("NON_UNIQUE")) {
+                            unique = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        assertThat(unique)
+                .as("the fingerprint must be unique on every engine: an issue that exists twice "
+                        + "is counted twice everywhere and refreshed in only one of its copies")
+                .isTrue();
+    }
+
+    @Test
     @Transactional
     @DisplayName("a row survives the round trip, types included")
     void rowRoundTrips() {

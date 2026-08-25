@@ -280,6 +280,17 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     @Query("delete from ScanEntity s where s.id in :ids")
     void deleteByIdIn(@Param("ids") Collection<Long> ids);
 
+    /**
+     * One target's scans.
+     *
+     * <p>Added for the licence inventory, which read every scan in the deployment — and a scan
+     * row carries its whole SBOM payload, megabytes of JSON apiece. Asking for one repository's
+     * licences parsed the estate's.
+     */
+    List<ScanEntity> findByRepoId(Long repoId);
+
+    List<ScanEntity> findByContainerId(Long containerId);
+
     List<ScanEntity> findByStatusInOrderByCreatedAtAsc(Collection<String> statuses);
 
     long countByStatusAndCreatedAtAfter(String status, Instant after);

@@ -277,7 +277,7 @@ class VisibilityRoutesTest extends ApiTestBase {
         String reader = assignedReader(mine);
 
         for (String route : List.of(
-                "/api/v1/scorecard/repositories/" + theirs,
+                "/api/v1/scorecards/repositories/" + theirs,
                 "/api/v1/repositories/" + theirs + "/apis",
                 "/api/v1/repositories/" + theirs + "/apis/export/openapi")) {
             mvc.perform(authenticated(get(route), reader))
@@ -289,11 +289,12 @@ class VisibilityRoutesTest extends ApiTestBase {
         // gets whatever an administrator gets. Written this way after a first version asserted
         // 200 and failed — an administrator gets 404 too, because a repository with no scan has
         // no scorecard. That is the product's behaviour and not this guard's doing.
-        int forAnAdministrator = mvc.perform(
-                        authenticated(get("/api/v1/scorecard/repositories/" + mine), asAdmin()))
-                .andReturn().getResponse().getStatus();
-        mvc.perform(authenticated(get("/api/v1/scorecard/repositories/" + mine), reader))
-                .andExpect(status().is(forAnAdministrator));
+        // **This asserted against `/api/v1/scorecard`, which does not exist — the base path is
+        // plural.** It passed on a 404 that meant "no such route" rather than "not yours", which
+        // is an assertion that could not fail. Found by writing a second test against the same
+        // wrong path and watching it 404 for an administrator too.
+        mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + mine), reader))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -355,6 +356,35 @@ class VisibilityRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/quality/overview"), reader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openCount").value(0));
+    }
+
+    @Test
+    @DisplayName("the portfolio scorecard counts only what the reader may see, licences included")
+    void thePortfolioIsScoped() throws Exception {
+        // The issues were narrowed in SQL when the aggregates were fixed; the licence inventory
+        // was not, because it takes a target rather than an allowance. Asserted here because a
+        // score built from somebody else's licences is a leak wearing a number.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-2026-1");
+        issue(theirs, "CVE-2026-2");
+        issue(theirs, "CVE-2026-3");
+        String reader = assignedReader(mine);
+
+        // A completed scan on the neighbour's repository and none on the reader's: the
+        // attestation flag goes through the same target filter the licence entries do, and is
+        // the half of it a fixture without SBOM payloads can actually observe.
+        scan(theirs);
+
+        mvc.perform(authenticated(get("/api/v1/scorecards/global"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openHighCount").value(1))
+                .andExpect(jsonPath("$.hasAttestation").value(false));
+
+        mvc.perform(authenticated(get("/api/v1/scorecards/global"), asAdmin()))
+                .andExpect(jsonPath("$.openHighCount").value(3))
+                .andExpect(jsonPath("$.hasAttestation").value(true));
     }
 
     private void restrict() {

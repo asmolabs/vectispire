@@ -95,6 +95,18 @@ public class LicenseGovernanceService {
         return getInventory(null, null);
     }
 
+    /**
+     * The licence inventory, <b>read for the target asked about rather than for the estate</b>.
+     *
+     * <p><b>The filter arrived and was then ignored by every read.</b> It read every scan, every
+     * component and every finding in the deployment and applied {@code repoIdFilter} afterwards
+     * in Java. A scan row carries its whole SBOM payload — megabytes of JSON apiece — so asking
+     * for one repository's licences parsed the estate's, and the security scorecard did exactly
+     * that on every call: it asked for the unfiltered inventory and then kept one target's rows.
+     *
+     * <p>The scans are selected first and everything else is keyed to them, which is the shape
+     * the method already had in Java and now has in SQL.
+     */
     public List<LicenseEntry> getInventory(Long repoIdFilter, Long containerIdFilter) {
         LicensePolicy policy = getPolicy();
         Map<String, LicenseEntry> entryMap = new HashMap<>();
@@ -105,7 +117,15 @@ public class LicenseGovernanceService {
         Map<Long, ContainerEntity> containers = containersRepo.findAll().stream()
                 .collect(Collectors.toMap(ContainerEntity::getId, c -> c, (a, b) -> a));
 
-        Map<Long, ScanEntity> scans = scansRepo.findAll().stream()
+        List<ScanEntity> selected;
+        if (repoIdFilter != null) {
+            selected = scansRepo.findByRepoId(repoIdFilter);
+        } else if (containerIdFilter != null) {
+            selected = scansRepo.findByContainerId(containerIdFilter);
+        } else {
+            selected = scansRepo.findAll();
+        }
+        Map<Long, ScanEntity> scans = selected.stream()
                 .collect(Collectors.toMap(ScanEntity::getId, s -> s, (a, b) -> a));
 
         // 1. Ingest real licenses from Scan SBOMs (Syft / CycloneDX)
@@ -167,7 +187,8 @@ public class LicenseGovernanceService {
         }
 
         // 2. Check components from CycloneDX/Component table for any scan not covered by full SBOM JSON
-        List<ComponentEntity> components = componentsRepo.findAll();
+        List<ComponentEntity> components =
+                scans.isEmpty() ? List.of() : componentsRepo.findByScanIdIn(scans.keySet());
         for (ComponentEntity comp : components) {
             ScanEntity scan = comp.getScanId() != null ? scans.get(comp.getScanId()) : null;
             if (scan == null) continue;
@@ -209,9 +230,8 @@ public class LicenseGovernanceService {
         }
 
         // 3. Check direct license findings from scanners (Trivy license scanner)
-        List<FindingEntity> licenseFindings = findingsRepo.findAll().stream()
-                .filter(f -> "license".equalsIgnoreCase(f.getType()) || (f.getSource() != null && f.getSource().contains("license")))
-                .toList();
+        List<FindingEntity> licenseFindings =
+                scans.isEmpty() ? List.of() : findingsRepo.findLicenseFindings(scans.keySet());
 
         for (FindingEntity finding : licenseFindings) {
             ScanEntity scan = finding.getScanId() != null ? scans.get(finding.getScanId()) : null;
