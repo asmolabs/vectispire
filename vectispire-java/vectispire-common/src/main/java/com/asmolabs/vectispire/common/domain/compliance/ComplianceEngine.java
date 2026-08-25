@@ -30,12 +30,55 @@ public final class ComplianceEngine {
             boolean auditChainValid) {}
 
     /**
+     * What the control plane has switched on, as opposed to what it found in the fleet.
+     *
+     * <p><b>Why this is a second input and not four more fields.</b> Everything in
+     * {@link PostureInput} is a measurement of somebody else's code. Everything here is a
+     * property of <em>this</em> deployment: whether it can encrypt what it stores, whether its
+     * audit log has a second copy, whether it requires two people to grant an exemption. They are
+     * different kinds of evidence and an assessor treats them differently — the first is a
+     * finding, the second is a control.
+     *
+     * <p><b>The defect this closes.</b> The engine scored the fleet and never looked at the
+     * platform. An instance running with no encryption key at all — deployment SSH keys it cannot
+     * protect — scored 100/100 on "Access Control &amp; Secret Leakage Prevention", because the
+     * only thing that control counted was how many secrets Gitleaks found in the repositories it
+     * scanned. That is the same criticism this project makes of a CI pipeline that reports other
+     * people's vulnerable dependencies and never looks at its own.
+     *
+     * @param encryptionConfigured a key is present, so a secret stored here can actually be
+     *     encrypted. Without it the application still reads what it already holds and refuses new
+     *     writes — which is why the absence is quiet and has to be reported here
+     * @param externalKms key custody is Vault Transit rather than a local derivation. Not required
+     *     by any control below, but it is what separates "encrypted" from "encrypted with a key
+     *     held on the same host"
+     * @param auditMirrorConfigured the audit log has a second copy outside the database. **The
+     *     chain alone cannot detect the deletion of an entry nobody descends from** — the last one
+     *     written, which is precisely the one an attacker wants gone. The mirror is what closes
+     *     that, and an instance without one has an audit trail weaker than its score suggests
+     * @param fourEyesRequired an exemption raised by a developer needs a second person. Off, the
+     *     gate is advisory: whoever finds a vulnerability can dismiss it
+     */
+    public record PlatformPosture(
+            boolean encryptionConfigured,
+            boolean externalKms,
+            boolean auditMirrorConfigured,
+            boolean fourEyesRequired) {
+
+        /**
+         * Everything on. Named rather than written as four literals so a test that does not care
+         * about the platform says so, and a test that does care is impossible to misread.
+         */
+        public static final PlatformPosture FULLY_ENABLED = new PlatformPosture(true, true, true, true);
+    }
+
+    /**
      * Evaluates all supported regulatory frameworks.
      */
-    public static List<ComplianceEvaluation> evaluateAll(PostureInput input) {
+    public static List<ComplianceEvaluation> evaluateAll(PostureInput input, PlatformPosture platform) {
         List<ComplianceEvaluation> evaluations = new ArrayList<>();
         for (ComplianceFramework framework : ComplianceFramework.values()) {
-            evaluations.add(evaluate(framework, input));
+            evaluations.add(evaluate(framework, input, platform));
         }
         return List.copyOf(evaluations);
     }
@@ -43,11 +86,12 @@ public final class ComplianceEngine {
     /**
      * Evaluates a single regulatory framework.
      */
-    public static ComplianceEvaluation evaluate(ComplianceFramework framework, PostureInput input) {
+    public static ComplianceEvaluation evaluate(
+            ComplianceFramework framework, PostureInput input, PlatformPosture platform) {
         List<ComplianceEvaluation.ControlAssessment> assessments = new ArrayList<>();
 
         for (ComplianceControl control : framework.getControls()) {
-            assessments.add(evaluateControl(control, input));
+            assessments.add(cappedByPlatform(evaluateControl(control, input), platform));
         }
 
         int totalScore = 0;
@@ -86,6 +130,69 @@ public final class ComplianceEngine {
             case GOVERNANCE -> evaluateGovernance(control, input);
             case AUDIT_AND_LOGGING -> evaluateAudit(control, input);
         };
+    }
+
+    /**
+     * Lowers an assessment when the platform capability the control rests on is switched off.
+     *
+     * <p><b>A cap, not a penalty.</b> The finding-based score keeps its meaning — zero leaked
+     * secrets is still zero leaked secrets — but a control cannot be reported <em>compliant</em>
+     * on the strength of evidence that does not cover it. The ceiling is deliberately generous:
+     * the point is to stop the green tick, not to invent a number.
+     *
+     * <p><b>Why this is worth the noise it creates.</b> A compliance report is read by somebody
+     * who will sign something on the strength of it. "Compliant" against a control whose
+     * mechanism is off is worse than no report at all — it is the reader's own diligence,
+     * returned to them as a conclusion. Every cap below therefore says which switch to flip.
+     */
+    private static ComplianceEvaluation.ControlAssessment cappedByPlatform(
+            ComplianceEvaluation.ControlAssessment assessment, PlatformPosture platform) {
+
+        return switch (assessment.control().category()) {
+            case SECRETS_MANAGEMENT -> platform.encryptionConfigured()
+                    ? assessment
+                    : capped(assessment, 60,
+                            "No encryption key is configured, so secrets stored by Vectispire itself "
+                                    + "(deployment SSH keys, integration tokens) cannot be encrypted at rest — "
+                                    + "this control counts only what was found in the scanned repositories",
+                            "Set ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) and re-save the stored credentials.");
+
+            // The one the audit chain cannot answer for itself, stated where an assessor reads it.
+            case AUDIT_AND_LOGGING -> platform.auditMirrorConfigured()
+                    ? assessment
+                    : capped(assessment, 70,
+                            "No audit mirror is configured. The hash chain makes a modified entry detectable, "
+                                    + "but it cannot detect the deletion of an entry nobody descends from — "
+                                    + "the last one written, which is the one an attacker removes",
+                            "Configure vectispire.audit.mirror-path and ship the file off the host, so the "
+                                    + "deletion has to be performed twice in two media.");
+
+            case GOVERNANCE -> platform.fourEyesRequired()
+                    ? assessment
+                    : capped(assessment, 75,
+                            "Four-eyes approval is disabled, so the account that raises an exemption can also "
+                                    + "grant it — the gate verdict below is advisory rather than enforced",
+                            "Enable triage_four_eyes_required so a dismissal needs a second person.");
+
+            default -> assessment;
+        };
+    }
+
+    /** Keeps the lower of the two scores, and never reports better than PARTIAL. */
+    private static ComplianceEvaluation.ControlAssessment capped(
+            ComplianceEvaluation.ControlAssessment assessment, int ceiling, String why, String how) {
+
+        int score = Math.min(assessment.scorePercentage(), ceiling);
+        ComplianceControl.Status status = assessment.status() == ComplianceControl.Status.NON_COMPLIANT
+                ? ComplianceControl.Status.NON_COMPLIANT
+                : ComplianceControl.Status.PARTIAL;
+
+        return new ComplianceEvaluation.ControlAssessment(
+                assessment.control(),
+                status,
+                score,
+                assessment.details() + " " + why + ".",
+                why.isEmpty() ? assessment.remediationGuidance() : how + " " + assessment.remediationGuidance());
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateVulnerabilities(ComplianceControl control, PostureInput input) {

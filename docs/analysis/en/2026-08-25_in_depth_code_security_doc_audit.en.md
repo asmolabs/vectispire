@@ -45,6 +45,19 @@ outright with `no space left on device`. It now gets a disk-backed writable moun
 alone. Had this shipped on the strength of the code review, every dependency scan would have
 failed.
 
+### The two §5 caveats, closed
+
+| Caveat | Status |
+|---|---|
+| CRA Art. 10 / DORA evidence rested on unwired controls | ✅ Root cause addressed, not just the controls. `ComplianceEngine` measured the fleet and never the control plane: an instance with no encryption key scored 100/100 on `DORA-ART13-SECRETS`, because that control only counted secrets Gitleaks found in *other people's* repositories. A `PlatformPosture` input now carries what this deployment has switched on, and a control is capped at **PARTIAL** when the capability underneath it is off — secrets without an encryption key, audit without a mirror, governance without four-eyes. The cap never improves a failing control. |
+| The audit trail's strongest property was under-claimed | ✅ §5.1 of the compliance document, in both languages, states what the chain proves, what it does not (leaf deletion is undetectable), why that concession was taken, and that the audit mirror closes it. The engine now reports it too rather than leaving it to the reader. |
+
+**On detecting a leaf deletion.** The capability already existed and nothing pointed at it:
+`verifyAgainstMirror()` returns `missingFromTable`, which *is* the deleted-leaf case. An
+in-database checkpoint was considered and rejected — whoever can write the audit table can rewrite
+a checkpoint table consistently, so it moves the problem one level up while looking like evidence.
+The defect was never the missing mechanism; it was that the mechanism's absence was invisible.
+
 ---
 
 ---

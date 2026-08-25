@@ -183,6 +183,46 @@ Vectispire exports cryptographically sealed evidence packages ready for external
   - `07_license_compliance.json`: License inventory & copyleft governance.
   - `08_cyclonedx_1_5_vex.json` & `.sig`: CycloneDX 1.5 SBOM with BOM-linked VEX statements and signature.
 
+### 5.1 What the audit trail proves, and what it does not
+
+An evidence bundle is read by somebody who will sign something on the strength of it, so the
+limits of the audit chain belong here rather than only in the source.
+
+**What the chain proves.** Each entry carries the hash of the previous one over its own fields,
+NUL-separated and with the timestamp canonicalised to the millisecond. Modifying a past row breaks
+every hash that follows it, so **selective** editing is detectable — which is the realistic threat
+when the interesting row is one among thousands.
+
+**What it does not prove.** The chain does not make the log immutable: whoever can write the table
+can recompute every hash from the edited row onward, and the result verifies perfectly.
+Specifically, **the deletion of an entry nobody descends from is undetectable** — the last one
+written, or the tip of a concurrent branch. Nothing points at it, so nothing is missing once it is
+gone. That is the entry an attacker removes, and it is stated plainly here because an assessor who
+discovers it unaided is right to discount the rest of the report.
+
+That concession is deliberate and its reason is worth stating: requiring a strictly linear chain
+made two instances writing in the same instant fork it, and a perfectly honest log declared itself
+broken. A false alarm in an integrity control is worse than useless — you learn to ignore it, and
+it then covers the real ones. Closing the case in-database would mean serializing every audit
+write behind every other.
+
+**What closes it.** The **audit mirror** (`vectispire.audit.mirror-path`): a second copy, appended
+outside the database, one NDJSON line per entry. `/api/v1/audit-log/verify` compares the two and
+reports `missingFromTable` — entries the mirror holds and the table no longer does, which *is* the
+deleted-leaf case. The mirror does not make the copy unforgeable; it forces the edit to be made
+**twice, in two media, with two sets of permissions**, and a log collector normally ships it off
+the host within seconds, beyond the reach of whoever holds the database.
+
+An in-database checkpoint would not substitute for it. Whoever can write the audit table can
+rewrite a checkpoint table consistently, so it would move the problem one level up while looking
+like evidence.
+
+**The report says which of the two you have.** With no mirror configured, the
+`AUDIT_AND_LOGGING` controls (`DORA-ART16-INCIDENT`, `PCI-REQ-10.2`) are capped at **PARTIAL**
+whatever the chain says, with the reason above as the control's detail. A green tick against an
+audit control whose deletion case is open is precisely the kind of conclusion this document
+exists not to produce.
+
 ---
 
 ## 6. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)

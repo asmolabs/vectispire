@@ -177,6 +177,48 @@ Vectispire produit des paquets de preuves directement opposables aux auditeurs e
    - `07_license_compliance.json` : Inventaire des licences et analyse de risque copyleft.
    - `08_cyclonedx_1_5_vex.json` & `.sig` : SBOM CycloneDX 1.5 enrichi et signature Cosign.
 
+### 5.1 Ce que la piste d'audit prouve, et ce qu'elle ne prouve pas
+
+Un paquet de preuves est lu par quelqu'un qui va signer quelque chose sur sa foi : les limites de
+la chaîne d'audit ont donc leur place ici, et pas seulement dans le code source.
+
+**Ce que la chaîne prouve.** Chaque entrée porte l'empreinte de la précédente sur ses propres
+champs, séparés par des octets NUL et avec l'horodatage canonisé à la milliseconde. Modifier une
+ligne passée casse toutes les empreintes qui suivent : une modification **sélective** est donc
+détectable — c'est la menace réaliste quand la ligne intéressante est une parmi des milliers.
+
+**Ce qu'elle ne prouve pas.** La chaîne ne rend pas le journal immuable : qui peut écrire dans la
+table peut recalculer toutes les empreintes à partir de la ligne modifiée, et le résultat se
+vérifie parfaitement. En particulier, **la suppression d'une entrée dont personne ne descend est
+indétectable** — la dernière écrite, ou la pointe d'une branche concurrente. Rien ne pointe vers
+elle, donc rien ne manque une fois qu'elle a disparu. C'est l'entrée qu'un attaquant supprime, et
+c'est énoncé franchement ici parce qu'un évaluateur qui le découvre seul a raison de dévaluer le
+reste du rapport.
+
+Cette concession est délibérée et sa raison mérite d'être dite : exiger une chaîne strictement
+linéaire faisait bifurquer deux instances écrivant dans le même instant, et un journal parfaitement
+honnête se déclarait rompu. Une fausse alerte dans un contrôle d'intégrité est pire qu'inutile —
+on apprend à l'ignorer, et elle couvre ensuite les vraies. Clore le cas en base signifierait
+sérialiser chaque écriture d'audit derrière toutes les autres.
+
+**Ce qui le ferme.** Le **miroir d'audit** (`vectispire.audit.mirror-path`) : une seconde copie,
+ajoutée hors de la base, une ligne NDJSON par entrée. `/api/v1/audit-log/verify` compare les deux
+et signale `missingFromTable` — les entrées que le miroir détient et que la table n'a plus, ce qui
+*est* le cas de la feuille supprimée. Le miroir ne rend pas la copie infalsifiable ; il oblige à
+faire la modification **deux fois, dans deux médias, avec deux jeux de permissions**, et un
+collecteur de journaux l'expédie normalement hors de la machine en quelques secondes, hors de
+portée de qui détient la base.
+
+Un système de points de contrôle en base ne s'y substituerait pas. Qui peut écrire dans la table
+d'audit peut réécrire une table de points de contrôle de façon cohérente : cela déplacerait le
+problème d'un cran tout en ayant l'air d'une preuve.
+
+**Le rapport dit laquelle des deux vous avez.** Sans miroir configuré, les contrôles
+`AUDIT_AND_LOGGING` (`DORA-ART16-INCIDENT`, `PCI-REQ-10.2`) sont plafonnés à **PARTIAL** quoi que
+dise la chaîne, avec la raison ci-dessus en détail du contrôle. Une pastille verte sur un contrôle
+d'audit dont le cas de suppression est ouvert est exactement le genre de conclusion que ce
+document existe pour ne pas produire.
+
 ---
 
 ## 6. Interopérabilité VEX & Échange B2B (OpenVEX, CSAF 2.0 & CycloneDX VEX)

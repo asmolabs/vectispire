@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -33,6 +34,8 @@ public class ComplianceService {
     private final Containers containers;
     private final SlaService sla;
     private final AuditLogService audit;
+    private final EncryptionService encryption;
+    private final SettingsService settings;
 
     public ComplianceService(
             GateService gate,
@@ -41,7 +44,9 @@ public class ComplianceService {
             GitRepositories repositories,
             Containers containers,
             SlaService sla,
-            AuditLogService audit) {
+            AuditLogService audit,
+            EncryptionService encryption,
+            SettingsService settings) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
@@ -49,6 +54,24 @@ public class ComplianceService {
         this.containers = containers;
         this.sla = sla;
         this.audit = audit;
+        this.encryption = encryption;
+        this.settings = settings;
+    }
+
+    /**
+     * What this deployment has switched on, read fresh on every evaluation.
+     *
+     * <p>Not cached: these are settings an administrator changes, and a compliance report built
+     * from a cached copy of them would be a report about a configuration that no longer exists.
+     * All three are cheap — two field reads and one settings lookup.
+     */
+    private ComplianceEngine.PlatformPosture platformPosture() {
+        AuditLogService.MirrorComparison mirror = audit.verifyAgainstMirror();
+        return new ComplianceEngine.PlatformPosture(
+                encryption.isConfigured(),
+                encryption.isExternallyManaged(),
+                mirror.configured(),
+                settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED));
     }
 
     public record TargetCompliance(
@@ -116,6 +139,7 @@ public class ComplianceService {
         long iac = countOpenType(FindingType.IAC, null, null, allowed);
 
         boolean auditValid = audit.verify().broken() == null;
+        ComplianceEngine.PlatformPosture platform = platformPosture();
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 Math.max(1, totalTargets),
@@ -125,7 +149,7 @@ public class ComplianceService {
                 observedTargets,
                 auditValid);
 
-        List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input);
+        List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
 
         // MTTR calculation over resolved issues
         List<MttrCalculator.ResolvedIssue> resolved = issues.findAll(new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, null, null, false, false, null, allowed).toSpecification())
@@ -165,7 +189,7 @@ public class ComplianceService {
                     isObserved ? 1 : 0,
                     auditValid);
 
-            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput);
+            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);
             Map<String, Integer> scores = new java.util.HashMap<>();
             tEvals.forEach(e -> scores.put(e.framework().name(), e.scorePercentage()));
 
@@ -230,6 +254,7 @@ public class ComplianceService {
         long iac = countOpenType(FindingType.IAC, repoId, containerId, allowed);
 
         boolean auditValid = audit.verify().broken() == null;
+        ComplianceEngine.PlatformPosture platform = platformPosture();
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 totalTargets,
@@ -239,7 +264,7 @@ public class ComplianceService {
                 observed ? 1 : 0,
                 auditValid);
 
-        List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input);
+        List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
 
         List<MttrCalculator.ResolvedIssue> resolved = issues.findAll(new IssueFilters(
                 IssueState.RESOLVED.wireName(), null, null, null, repoId, containerId, false, false, null, allowed).toSpecification())
@@ -278,7 +303,7 @@ public class ComplianceService {
                     isObs ? 1 : 0,
                     auditValid);
 
-            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput);
+            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);
             Map<String, Integer> scores = new java.util.HashMap<>();
             tEvals.forEach(e -> scores.put(e.framework().name(), e.scorePercentage()));
 
@@ -308,7 +333,10 @@ public class ComplianceService {
         return summary.evaluations().stream()
                 .filter(e -> e.framework() == framework)
                 .findFirst()
-                .orElseGet(() -> ComplianceEngine.evaluate(framework, new ComplianceEngine.PostureInput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true)));
+                .orElseGet(() -> ComplianceEngine.evaluate(
+                        framework,
+                        new ComplianceEngine.PostureInput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true),
+                        platformPosture()));
     }
 
     private long countOpen(Severity severity, Boolean isKev, Long repoId, Long containerId, Visibility allowed) {

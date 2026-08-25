@@ -109,6 +109,18 @@ public class EncryptionService {
         return kms.isConfigured();
     }
 
+    /**
+     * Whether key custody is external.
+     *
+     * <p>Reported to the compliance engine rather than asserted by it: "encrypted" and "encrypted
+     * with a key held on the same host as the ciphertext" are not the same claim, and an assessor
+     * asks which one it is. No control requires Vault today, so this narrows a statement rather
+     * than gating one.
+     */
+    public boolean isExternallyManaged() {
+        return kms instanceof VaultKmsProvider;
+    }
+
     public String encrypt(String plainText, String context) {
         if (plainText == null || plainText.isEmpty()) {
             return plainText;

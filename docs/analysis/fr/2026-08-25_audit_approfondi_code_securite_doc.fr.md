@@ -45,6 +45,20 @@ lecture seule la cassait net avec `no space left on device`. Elle dispose désor
 inscriptible sur disque pour ce seul cache. Livré sur la foi de la relecture, chaque analyse de
 dépendances aurait échoué.
 
+### Les deux réserves du §5, levées
+
+| Réserve | Statut |
+|---|---|
+| La preuve CRA art. 10 / DORA reposait sur des contrôles non câblés | ✅ La cause racine est traitée, pas seulement les contrôles. `ComplianceEngine` mesurait la flotte et jamais le control plane : une instance sans clé de chiffrement scorait 100/100 sur `DORA-ART13-SECRETS`, parce que ce contrôle ne comptait que les secrets trouvés par Gitleaks dans les dépôts *des autres*. Une entrée `PlatformPosture` porte désormais ce que ce déploiement a activé, et un contrôle est plafonné à **PARTIAL** quand la capacité qui le porte est éteinte — secrets sans clé, audit sans miroir, gouvernance sans quatre-yeux. Le plafond n'améliore jamais un contrôle en échec. |
+| La propriété la plus forte de la piste d'audit était sous-déclarée | ✅ Le §5.1 du document de conformité, dans les deux langues, énonce ce que la chaîne prouve, ce qu'elle ne prouve pas (la suppression de feuille est indétectable), pourquoi cette concession a été prise, et que le miroir d'audit la ferme. Le moteur le signale désormais aussi, au lieu de le laisser au lecteur. |
+
+**Sur la détection d'une suppression de feuille.** La capacité existait déjà et rien ne la
+désignait : `verifyAgainstMirror()` renvoie `missingFromTable`, qui *est* le cas de la feuille
+supprimée. Un système de points de contrôle en base a été envisagé puis écarté — qui peut écrire
+dans la table d'audit peut réécrire une table de points de contrôle de façon cohérente : cela
+déplace le problème d'un cran tout en ayant l'air d'une preuve. Le défaut n'a jamais été le
+mécanisme manquant, mais le fait que son absence était invisible.
+
 ---
 
 ---
