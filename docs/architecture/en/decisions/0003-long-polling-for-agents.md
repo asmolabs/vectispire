@@ -11,7 +11,7 @@ when it is.
 
 ## Decision
 
-Agents poll `GET /api/v1/agents/jobs?wait=30` over outbound HTTP. Nothing listens on the agent —
+Agents poll `GET /api/v1/agent/jobs?wait=30` over outbound HTTP. Nothing listens on the agent —
 `web-application-type: none`, so it opens no port — and redirects are refused, because the control
 plane's address is configuration and a redirect would send a claim, an API key or a scan result to
 a host nobody declared.

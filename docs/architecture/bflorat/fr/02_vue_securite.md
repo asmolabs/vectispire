@@ -30,8 +30,16 @@
 ### 2.1 Hachage des Mots de Passe & Protection Anti-Brute-Force
 - **Mots de passe utilisateurs** : Hachés avec l'algorithme fort **Argon2id** (protection contre les
   attaques GPU).
-- **Rate-Limiting Dynamique en Mémoire (`Bucket4j`)** : Filtre HTTP `LoginRateLimitFilter` sur `POST
-  /api/v1/auth/login` évaluant le quota d'IP (Bucket4j: 10 jetons par minute). Bloque les attaques
+- **Rate-Limiting Dynamique en Mémoire (`Bucket4j`)** : Filtre HTTP `LoginRateLimitFilter` sur
+  **les trois points d'entrée qui présentent des identifiants** — `POST /api/v1/auth/login`,
+  `/api/v1/auth/mfa/verify` et `/api/v1/auth/session/exchange` — évaluant le quota d'IP (Bucket4j:
+  10 jetons par minute). La portée est de trois points d'entrée et non d'un seul parce qu'un
+  limiteur qui ne garde que l'étape du mot de passe laisse le second facteur ouvert à un nombre
+  illimité de tentatives, et c'est la plus intéressante des deux cibles.
+- **Confiance dans l'adresse du client** : `X-Forwarded-For` n'est honoré que depuis les adresses
+  listées dans `VECTISPIRE_TRUSTED_PROXIES`, vide par défaut. Faire confiance à l'en-tête sans
+  condition laisse un appelant choisir son propre seau — soit un limiteur qui ne limite personne.
+  Bloque les attaques
   par déni de service et bursts d'essais bruts avec HTTP `429 Too Many Requests` et en-tête
   `Retry-After` **sans effectuer de requête SQL ni de dérivation de hash Argon2id**.
 - **Protection Brute-Force Persistante (`t_login_attempt`)** : Suivi des échecs de connexion par

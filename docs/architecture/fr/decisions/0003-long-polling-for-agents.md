@@ -11,7 +11,7 @@ moins susceptible qu'on s'en aperçoive.
 
 ## Décision
 
-Les agents interrogent `GET /api/v1/agents/jobs?wait=30` en HTTP sortant. Rien n'écoute côté agent
+Les agents interrogent `GET /api/v1/agent/jobs?wait=30` en HTTP sortant. Rien n'écoute côté agent
 — `web-application-type: none`, il n'ouvre donc aucun port — et les redirections sont refusées :
 l'adresse du control plane est une configuration, et une redirection enverrait une réclamation, une
 clé d'API ou un résultat d'analyse vers un hôte que personne n'a déclaré.

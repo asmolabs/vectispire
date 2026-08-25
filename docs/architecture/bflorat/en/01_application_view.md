@@ -104,5 +104,5 @@ sha256( target_id + type + rule_or_cve_id + purl_or_package + file_path )
    Boot backend.
 2. **Quality Gate Interface (`POST /api/v1/gate`)**: Dedicated endpoint for CI/CD pipelines
    returning compliance verdicts.
-3. **Agent Long-Polling Protocol (`GET /api/v1/agents/jobs?wait=30`)**: Communication channel
+3. **Agent Long-Polling Protocol (`GET /api/v1/agent/jobs?wait=30`)**: Communication channel
    between remote agents and control plane.

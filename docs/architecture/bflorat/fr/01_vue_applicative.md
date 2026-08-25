@@ -106,5 +106,5 @@ sha256( target_id + type + rule_or_cve_id + purl_or_package + file_path )
 1. **API REST Interne (`/api/v1/*`)** : Échange JSON entre le frontend Angular et Spring Boot.
 2. **Interface Quality Gate (`POST /api/v1/gate`)** : Endpoint dédié aux pipelines CI/CD retournant
    le verdict de conformité.
-3. **Protocol Long-Polling Agent (`GET /api/v1/agents/jobs?wait=30`)** : Canal d'échange entre les
+3. **Protocol Long-Polling Agent (`GET /api/v1/agent/jobs?wait=30`)** : Canal d'échange entre les
    agents distants et le plan de contrôle.

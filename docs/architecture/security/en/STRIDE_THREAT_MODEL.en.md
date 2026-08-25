@@ -52,7 +52,7 @@ flowchart TB
     P2 -->|"F13: Forward Artifacts for Ingestion"| P3
     P3 -->|"F14: Normalization, Fingerprinting & Immutable Write"| DS1
 
-    E4 -.->|"F15: Long-Polling Job Fetch (GET /api/v1/agents/jobs)"| P1
+    E4 -.->|"F15: Long-Polling Job Fetch (GET /api/v1/agent/jobs)"| P1
     E4 -->|"F16: Launch Local Analysis Containers"| P5
 ```
 
@@ -94,7 +94,7 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Spoofing** | Unauthorized agent attempting to connect to control plane to claim scan jobs. | Source code exfiltration or scan result falsification. | Mandatory token authentication via revocable agent keys (`t_agent`) and exclusive HTTP Long-Polling protocol (`/api/v1/agents/jobs`). |
+| **Spoofing** | Unauthorized agent attempting to connect to control plane to claim scan jobs. | Source code exfiltration or scan result falsification. | Mandatory token authentication via revocable agent keys (`t_agent`) and exclusive HTTP Long-Polling protocol (`/api/v1/agent/jobs`). |
 | **Elevation of Privilege** | Compromised remote agent attempting to execute SQL queries directly on central database. | Unauthorized reading/modification of enterprise database. | **Strict agent architectural isolation (`vectispire-agent`)**: zero JDBC drivers or DB dependencies on agent classpath. Agent does not possess `ENCRYPTION_KEY` ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |
 
 ---

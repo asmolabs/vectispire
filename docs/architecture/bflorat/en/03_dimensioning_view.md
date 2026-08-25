@@ -2,20 +2,26 @@
 
 * **Project:** Vectispire — ASPM & Security Control Plane
 * **Template:** `bflorat/modele-da` — Architecture Document Template (Bertrand Florat)
-* **Status:** Approved · **Version:** 1.0
+* **Status:** Approved · **Version:** 1.1 (2026-08-25 — figures checked against the code)
 
 ---
 
 ## 1. Non-Functional Performance Requirements (NFR)
 
-1. **Quality Gate Response Time (`POST /api/v1/gate`)**: $< 300\text{ ms}$ (deterministic in-memory
-   evaluation).
+1. **Quality Gate Response Time (`POST /api/v1/gate`)**: $< 300\text{ ms}$. The rule itself —
+   `PolicyGate.evaluate` — is a pure in-memory function of the issues handed to it. **Getting those
+   issues is not**: the request first reads the active policies and then every open issue in the
+   estate, keeping the one target's worth and discarding the rest. The target therefore holds on a
+   small backlog and degrades with the size of the whole estate rather than with the target's.
+   Recorded here as a known limit rather than implied away, because this endpoint is called by
+   every pipeline on every build.
 2. **Scan Ingestion Throughput**: Asynchronous background scan processing without blocking HTTP
    thread pools.
-3. **Horizontal Scaling**: Conflict-free coordination across multiple instances using database
-   leader leases (`t_leader_lease`).
-4. **Docker Memory Stability**: Enforced CPU and memory caps on scanner containers to prevent host
-   RAM exhaustion.
+3. **Horizontal Scaling**: Conflict-free across multiple instances, by two different mechanisms —
+   the scan **scheduler** holds a lease in `t_leader_lease` because it *creates* work, and the scan
+   **worker** needs none because claiming a queued row is itself the concurrency control. See §3.
+4. **Docker Memory Stability**: Enforced **memory and process-count** caps on scanner containers.
+   **No CPU quota is applied** — see §4.2, where the gap is stated rather than papered over.
 
 ---
 
@@ -25,23 +31,33 @@
 |---|---|---|
 | **`t_scan` (Scan history)** | ~ 100,000 rows / year | Pruning old scan execution metadata via `RetentionService`. |
 | **`t_finding` (Raw findings)** | ~ 500,000 rows | Transient data, purged periodically by retention task. |
-| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | Indexing on `target_id`, `status`, `fingerprint` for fast lookup. |
+| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | **No index beyond the primary key.** The schema declares nine indexes and none is on this table, while `state` and `fingerprint` are read on every gate call and every ingestion. Stated because a volumetric estimate is worthless beside a lookup strategy that does not exist. |
 | **`t_audit_log` (Sealed log)** | ~ 50,000 audit entries / year | Immutable, compact SHA-256 hash storage. |
 
 ---
 
 ## 3. Scale Coordination & Leader Leases (`t_leader_lease`)
 
-In a multi-instance distributed deployment, background task coordination (cron scheduling, retention
-purges, outbox relay) is managed via `t_leader_lease`:
+**One job takes a lease, not all of them.** Four periodic jobs run in every instance: the scan
+worker (15 s), the scan scheduler (60 s), the notification relay (60 s) and hourly maintenance.
+Only the **scheduler** is elected, because it is the only one that creates work — two instances
+independently deciding a nightly scan is due would queue it twice. The relay and the maintenance
+pass are idempotent, and the worker claims rows.
+
+**The mechanism is a compare-and-swap, not a row lock.** No `SELECT … FOR UPDATE` is ever issued;
+acquisition is a conditional `UPDATE` that succeeds for exactly one instance:
 
 ```sql
-SELECT * FROM t_leader_lease WHERE lease_name = 'SCHEDULER' AND expires_at > NOW() FOR UPDATE;
+update t_leader_lease
+   set holder = :holder, expires_at = :expiresAt, acquired_at = :at, updated_at = :at
+ where name = 'scheduler' and holder = :previousHolder and expires_at = :previousExpiry;
 ```
 
-- **Guarantee**: Only one active instance (*Leader*) executes a background task at any given time.
-- **Failover**: If the active leader fails to renew its lease, the lease expires and another node
-  acquires leadership automatically.
+- **Guarantee**: the update matches zero rows for every instance but one, so exactly one becomes
+  leader — without holding a lock across the pass, which is what a `FOR UPDATE` would do and what
+  would turn a slow scheduling round into a blocked one everywhere else.
+- **Failover**: a leader that stops renewing lets its lease expire, and the next instance to try
+  the swap matches the expired row and takes over.
 
 ---
 
@@ -53,7 +69,13 @@ SELECT * FROM t_leader_lease WHERE lease_name = 'SCHEDULER' AND expires_at > NOW
 
 ### 4.2 Per-Container Resource Caps (`ContainerRunner`)
 Every container execution is constrained to prevent host memory exhaustion:
-- **Maximum Container Memory**: `1.5 GB` RAM.
-- **CPU Quota**: `2.0 vCPUs`.
-- **Maximum Execution Timeout**: `10 minutes` per scanner step. Exceeding timeout triggers forced
+- **Maximum Container Memory**: `2 GB` (`ScannerLimits.DEFAULT`). A container that exceeds it
+  dies; the host does not.
+- **Maximum Process Count**: `512` PIDs. This is what turns a fork bomb into a dead container, and
+  it is the cap this document previously omitted.
+- **Maximum Execution Timeout**: `15 minutes` per scanner step. Exceeding it triggers forced
   container termination.
+- **CPU Quota**: **none is applied.** `ContainerRunner` sets memory, PIDs and a timeout, and no CPU
+  limit of any kind. A scanner can therefore saturate every core for the duration of its timeout.
+  The timeout bounds how long that lasts; nothing bounds how much it takes. Left as a stated gap
+  rather than a silent one — the previous text claimed `2.0 vCPUs`, which no code enforced.

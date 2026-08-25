@@ -53,7 +53,7 @@ flowchart TB
     P2 -->|"F13 : Transmissions des Artefacts pour Ingestion"| P3
     P3 -->|"F14 : Normalisation, Empreintes & Écriture Scellée"| DS1
 
-    E4 -.->|"F15 : Long-Polling Job Fetch (GET /api/v1/agents/jobs)"| P1
+    E4 -.->|"F15 : Long-Polling Job Fetch (GET /api/v1/agent/jobs)"| P1
     E4 -->|"F16 : Lancement des Conteneurs d'Analyse Locaux"| P5
 ```
 
@@ -95,7 +95,7 @@ flowchart TB
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
-| **Spoofing** | Un agent non autorisé tente de se connecter au plan de contrôle pour récupérer des travaux de scan. | Exfiltration du code des projets ou falsification des rapports d'analyse. | Authentification obligatoire par jeton d'agent révoquable (`t_agent`) et protocole exclusif HTTP Long-Polling (`/api/v1/agents/jobs`). |
+| **Spoofing** | Un agent non autorisé tente de se connecter au plan de contrôle pour récupérer des travaux de scan. | Exfiltration du code des projets ou falsification des rapports d'analyse. | Authentification obligatoire par jeton d'agent révoquable (`t_agent`) et protocole exclusif HTTP Long-Polling (`/api/v1/agent/jobs`). |
 | **Elevation of Privilege** | Un agent distant compromis tente d'exécuter des requêtes SQL directement sur la base de données centrale. | Lecture/modification non autorisée de la base de données d'entreprise. | **Isolation stricte de l'agent (`vectispire-agent`)** : aucun pilote JDBC ni dépendance DB n'existe sur le classpath de l'agent. L'agent ne possède pas la clé `ENCRYPTION_KEY` ([ADR 0003](../../fr/decisions/0003-long-polling-for-agents.md)). |
 
 ---

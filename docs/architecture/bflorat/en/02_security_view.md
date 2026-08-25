@@ -30,9 +30,15 @@
 - **User Passwords**: Hashed using **Argon2id** algorithm (high memory cost, resistant to GPU
   cracking).
 - **In-Memory Dynamic Token-Bucket Rate-Limiting (`Bucket4j`)**: `LoginRateLimitFilter` HTTP filter
-  intercepting `POST /api/v1/auth/login` (Bucket4j: 10 tokens per minute per IP). Blocks burst
-  attacks instantly with HTTP `429 Too Many Requests` and `Retry-After` headers **without performing
-  any database query or Argon2id key derivation**.
+  over **all three credential-presenting endpoints** — `POST /api/v1/auth/login`,
+  `/api/v1/auth/mfa/verify` and `/api/v1/auth/session/exchange` (Bucket4j: 10 tokens per minute per
+  IP). Blocks burst attacks instantly with HTTP `429 Too Many Requests` and `Retry-After` headers
+  **without performing any database query or Argon2id key derivation**. The scope is three
+  endpoints and not one because a limiter that guards only the password step leaves the second
+  factor open to unlimited guessing, which is the more valuable target of the two.
+- **Client Address Trust**: `X-Forwarded-For` is honoured only from addresses listed in
+  `VECTISPIRE_TRUSTED_PROXIES`, which is empty by default. Trusting the header unconditionally lets
+  a caller pick their own bucket, which is a rate limiter that rate-limits nobody.
 - **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts per
   username and client ID in database via `LoginThrottle`.
 - **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with

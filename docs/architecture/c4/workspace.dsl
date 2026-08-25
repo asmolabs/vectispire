@@ -36,7 +36,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
         apiApp -> threatFeeds "Enriches vulnerabilities with KEV status, EPSS scores, and EOL metadata" "HTTPS"
         apiApp -> webhooks "Dispatches real-time alerts & outbox messages" "HTTP Webhooks / SMTP"
 
-        agent -> apiApp "Fetches scan tasks via HTTP Long-Polling (GET /api/v1/agents/jobs)" "HTTP/REST API (Agent Key)"
+        agent -> apiApp "Fetches scan tasks via HTTP Long-Polling (GET /api/v1/agent/jobs)" "HTTP/REST API (Agent Key)"
         agent -> dockerDaemon "Executes analysis containers on remote worker machine" "Docker Socket"
 
         # Component Relationships
