@@ -23,14 +23,16 @@
                 />
             </div>
             <button pButton icon="pi pi-search" class="p-button-outlined" (click)="searchCve()" [disabled]="!cveSearchQuery.trim()"></button>
-            <button
-                pButton
-                icon="pi pi-refresh"
-                class="p-button-primary"
-                label="Sync Threat Intel"
-                [loading]="syncing()"
-                (click)="syncThreatIntel()"
-            ></button>
+            @if (isSecurityLead()) {
+                <button
+                    pButton
+                    icon="pi pi-refresh"
+                    class="p-button-primary"
+                    label="Sync Threat Intel"
+                    [loading]="syncing()"
+                    (click)="syncThreatIntel()"
+                ></button>
+            }
         </div>
     </div>
 

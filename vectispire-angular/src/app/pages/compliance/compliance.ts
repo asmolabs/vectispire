@@ -8,6 +8,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
+import { SessionStore } from '@/app/core/session.store';
 import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -22,6 +23,17 @@ import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.mod
 })
 export class Compliance {
     private readonly api = inject(ApiService);
+    private readonly session = inject(SessionStore);
+
+    /**
+     * Whether this account may use the governance controls on this page.
+     *
+     * **The interface used to offer them to everybody**, and the server used to accept them from
+     * everybody — consistent, and wrong in both halves. The server now refuses; a button that
+     * answers 403 tells a reader the product is broken rather than that the action is not theirs,
+     * so the button goes with the permission.
+     */
+    readonly isSecurityLead = this.session.isSecurityLead;
     readonly i18n = inject(I18nService);
     readonly Math = Math;
 

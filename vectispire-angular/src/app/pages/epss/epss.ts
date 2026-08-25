@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SessionStore } from '@/app/core/session.store';
 import { ApiService } from '../../core/api.service';
 import { EpssFleetSummary, EpssPrioritizedIssue, ThreatIntelRecord } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -29,6 +30,10 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 })
 export class Epss implements OnInit {
     private readonly api = inject(ApiService);
+    private readonly session = inject(SessionStore);
+
+    /** Synchronising the feed is an operator's act; reading the ranking is not. */
+    readonly isSecurityLead = this.session.isSecurityLead;
 
     readonly loading = signal<boolean>(false);
     readonly syncing = signal<boolean>(false);

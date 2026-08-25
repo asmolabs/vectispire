@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SessionStore } from '@/app/core/session.store';
 import { ApiService } from '../../core/api.service';
 import { NotificationChannelStatus, NotificationTestResult } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -27,6 +28,10 @@ import { RouterLink } from '@angular/router';
 })
 export class Notifications implements OnInit {
     private readonly api = inject(ApiService);
+    private readonly session = inject(SessionStore);
+
+    /** Sending a test posts to somebody's Slack, so it belongs to whoever configured it. */
+    readonly isSecurityLead = this.session.isSecurityLead;
 
     readonly channels = signal<NotificationChannelStatus[]>([]);
     readonly loading = signal<boolean>(false);

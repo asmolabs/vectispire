@@ -69,8 +69,12 @@ public class SecurityScorecardService {
 
     public Optional<SecurityScorecard> getContainerScorecard(Long containerId) {
         return containerRepo.findById(containerId).map(container -> {
-            List<IssueEntity> openIssues = issuesRepo.findAll().stream()
-                    .filter(i -> containerId.equals(i.getContainerId()) && !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
+            // The repository form was narrowed and this one was not, in the same change — which
+            // is what a sweep is for and what reading the diff was not enough to catch.
+            List<IssueEntity> openIssues = issuesRepo
+                    .findAll(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))))
+                    .stream()
+                    .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
                     .toList();
 
             List<LicenseEntry> licenses = licenseService.getInventory().stream()

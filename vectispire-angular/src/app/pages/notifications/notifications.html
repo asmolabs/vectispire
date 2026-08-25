@@ -87,7 +87,7 @@
                                 [label]="'Tester l\'envoi'"
                                 icon="pi pi-send"
                                 class="p-button-sm p-button-outlined"
-                                [disabled]="!c.configured || testingChannel() === c.type"
+                                [disabled]="!c.configured || !isSecurityLead() || testingChannel() === c.type"
                                 [loading]="testingChannel() === c.type"
                                 (click)="testChannel(c.type)"
                             ></button>

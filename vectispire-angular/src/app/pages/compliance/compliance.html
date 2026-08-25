@@ -22,13 +22,15 @@
                 [loading]="exporting()"
                 (click)="exportPdf()"
             ></button>
-            <button
-                pButton
-                icon="pi pi-upload"
-                class="p-button-outlined"
-                label="Importer VEX"
-                (click)="openImport()"
-            ></button>
+            @if (isSecurityLead()) {
+                <button
+                    pButton
+                    icon="pi pi-upload"
+                    class="p-button-outlined"
+                    label="Importer VEX"
+                    (click)="openImport()"
+                ></button>
+            }
             <button
                 pButton
                 icon="pi pi-file-code"
@@ -68,14 +70,16 @@
                 label="Vérifier Signature"
                 (click)="openVerifier()"
             ></button>
-            <button
-                pButton
-                icon="pi pi-shield"
-                class="p-button-primary"
-                [label]="'compliance.export_bundle' | translate"
-                [loading]="exportingBundle()"
-                (click)="exportEvidenceBundle()"
-            ></button>
+            @if (isSecurityLead()) {
+                <button
+                    pButton
+                    icon="pi pi-shield"
+                    class="p-button-primary"
+                    [label]="'compliance.export_bundle' | translate"
+                    [loading]="exportingBundle()"
+                    (click)="exportEvidenceBundle()"
+                ></button>
+            }
         </div>
     </div>
 

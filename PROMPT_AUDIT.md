@@ -20,9 +20,9 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Protection anti-déni de service et rate limiting en amont (LoginRateLimitFilter avec Token-Bucket / Bucket4j).
    - Authentification et gestion des identifiants (hachage Argon2id, TOTP MFA, SCIM 2.0, OIDC).
    - Chiffrement au repos AEAD (AES-256-GCM) et gestion des clés (VaultKmsProvider).
-   - Isolation et sandboxing des conteneurs scanners (cap_drop: ALL, read-only, network: none, aucun socket Docker monté, fichiers de config internes imposés).
+   - Isolation et sandboxing des conteneurs scanners (cap_drop: ALL, read-only, network: none, aucun socket Docker monté dans un scanner — le plan de contrôle et l'agent en ont une, et c'est toute la raison d'être du bac à sable — plafonds mémoire/PID/CPU, fichiers de config internes imposés).
    - Isolation étanche de l'agent distant vectispire-agent (zéro JDBC, zéro ENCRYPTION_KEY, communication sortante HTTP Long-Polling uniquement).
-   - Journal d'audit scellé et chaîné SHA-256 avec détection d'intégrité (t_audit_log / verifyIntegrity).
+   - Journal d'audit scellé et chaîné SHA-256 avec détection d'intégrité (t_audit_log / AuditLogService.verify).
    - Workflow d'approbation collégiale (Four-Eyes Approval).
 
 3. ⚙️ Qualité du Code & Architecture Logicielle :
@@ -35,7 +35,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
 
 4. 📋 Conformité Réglementaire & Standards :
    - Moteurs d'évaluation réglementaire intégrés (ComplianceService : CRA / Cyber Resilience Act, NIS 2, DORA, OWASP Top 10).
-   - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6, SPDX 2.3, CSAF 2.0, OpenVEX, EPSS, reachability).
+   - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX n'est pas produit, voir ADR 0016).
 
 Génère deux rapports d'analyse détaillés avec scores sur 10 et recommandations :
 - Un rapport en français dans docs/analysis/fr/YYYY-MM-DD_audit_approfondi_code_securite_doc.fr.md
@@ -61,9 +61,9 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Upstream Anti-DoS and brute-force token-bucket rate limiting (LoginRateLimitFilter with Bucket4j).
    - Identity & Authentication controls (Argon2id hashing, TOTP MFA, SCIM 2.0, OIDC group sync).
    - AEAD Encryption at rest (AES-256-GCM) and Key Management (VaultKmsProvider).
-   - Hardened scanner container sandboxing (cap_drop: ALL, read-only mounts, network: none, zero Docker host socket mounting, enforced server-side config).
+   - Hardened scanner container sandboxing (cap_drop: ALL, read-only mounts, network: none, no Docker socket inside a scanner — the control plane and the agent hold one, which is the whole reason the sandbox matters — memory/PID/CPU ceilings, enforced server-side config).
    - Watertight remote agent isolation in vectispire-agent (zero JDBC drivers, zero ENCRYPTION_KEY, outbound HTTP Long-Polling only).
-   - Sealed, tamper-evident SHA-256 hash-chained audit log (t_audit_log / verifyIntegrity).
+   - Sealed, tamper-evident SHA-256 hash-chained audit log (t_audit_log / AuditLogService.verify).
    - Dual-authorization workflow (Four-Eyes Approval).
 
 3. ⚙️ Code Quality & Software Architecture:
@@ -76,7 +76,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
 
 4. 📋 Regulatory & Standards Compliance:
    - Built-in regulatory engines (ComplianceService: EU CRA / Cyber Resilience Act, NIS 2, DORA, OWASP Top 10).
-   - Software supply chain interoperability (CycloneDX 1.6, SPDX 2.3, CSAF 2.0, OpenVEX, EPSS, reachability).
+   - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX documents are not produced, see ADR 0016).
 
 Generate two synchronized in-depth audit reports with domain scores and actionable recommendations:
 - French report in docs/analysis/fr/YYYY-MM-DD_audit_approfondi_code_securite_doc.fr.md
