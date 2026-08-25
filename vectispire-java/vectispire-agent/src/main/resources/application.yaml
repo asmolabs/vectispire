@@ -26,6 +26,5 @@ vectispire:
       syft: ${VECTISPIRE_IMAGE_SYFT:}
       grype: ${VECTISPIRE_IMAGE_GRYPE:}
       gitleaks: ${VECTISPIRE_IMAGE_GITLEAKS:}
-      betterleaks: ${VECTISPIRE_IMAGE_BETTERLEAKS:}
       checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}

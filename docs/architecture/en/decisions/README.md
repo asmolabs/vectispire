@@ -18,3 +18,4 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0012](0012-apache-2-0.md) | Licensing under Apache 2.0 |
 | [0013](0013-flyway-multi-dialect-migrations.md) | Flyway multi-dialect SQL migrations |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture |
+| [0015](0015-one-secrets-engine.md) | One secrets engine |

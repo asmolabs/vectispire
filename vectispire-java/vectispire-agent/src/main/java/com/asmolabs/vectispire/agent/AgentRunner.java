@@ -99,7 +99,6 @@ public class AgentRunner implements ApplicationRunner {
                         properties.images().syft(),
                         properties.images().grype(),
                         properties.images().gitleaks(),
-                        properties.images().betterleaks(),
                         properties.images().checkov(),
                         properties.images().semgrep()),
                 // Unpacked from the agent's own jar, for the same reason: `Path.of("rules")`

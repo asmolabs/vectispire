@@ -32,7 +32,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
 
         webApp -> apiApp "Sends API requests & fetches posture state" "JSON / REST API over HTTP"
         apiApp -> db "Reads & writes domain entities, scans, issues, and audit logs" "JDBC / JPA Hibernate"
-        apiApp -> dockerDaemon "Launches ephemeral scanner containers (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)" "Docker Socket / ContainerRunner"
+        apiApp -> dockerDaemon "Launches ephemeral scanner containers (Syft, Grype, Gitleaks, Checkov, Semgrep)" "Docker Socket / ContainerRunner"
         apiApp -> threatFeeds "Enriches vulnerabilities with KEV status, EPSS scores, and EOL metadata" "HTTPS"
         apiApp -> webhooks "Dispatches real-time alerts & outbox messages" "HTTP Webhooks / SMTP"
 
@@ -43,7 +43,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
         enterpriseApi -> complianceComp "Requests compliance summaries"
         enterpriseApi -> gateComp "Requests policy gate evaluation"
         enterpriseApi -> scanRunnerComp "Triggers manual scans"
-        scanRunnerComp -> dockerDaemon "Runs Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep"
+        scanRunnerComp -> dockerDaemon "Runs Syft, Grype, Gitleaks, Checkov, Semgrep"
         scanRunnerComp -> scanIngestorComp "Passes raw ScanArtifacts"
         scanIngestorComp -> issueSyncComp "Provides normalized Findings"
         issueSyncComp -> db "Persists Findings, Issues, and Triage events"

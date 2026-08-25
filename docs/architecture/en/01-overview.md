@@ -104,7 +104,7 @@ sequenceDiagram
 |---|---|---|---|
 | SBOM | `anchore/syft` | open (registry, daemon) | component inventory |
 | Vulnerabilities | `anchore/grype` | open (vulnerability database) | `vulnerability` findings |
-| Secrets | `gitleaks` & `betterleaks` | **cut off** | `secret` findings |
+| Secrets | `gitleaks` | **cut off** | `secret` findings |
 | IaC | `bridgecrew/checkov` | **cut off** | `iac` findings |
 | Source code | `semgrep/semgrep` | **cut off** | `sast` and `quality` findings |
 | Licenses | *(none)* | — | derived from the SBOM |

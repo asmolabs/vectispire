@@ -25,7 +25,7 @@ flowchart TB
     end
 
     subgraph TB3["Trust Boundary 3: Isolated Scanner Containers (TB3)"]
-        P5["P5: Analysis Containers (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)"]
+        P5["P5: Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)"]
     end
 
     subgraph TB4["Trust Boundary 4: Remote Agent (TB4)"]
@@ -84,7 +84,7 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Tampering** | Scanned repository embedding a malicious `.gitleaks.toml` configuration to ignore secret detection. | Concealing security flaws and bypassing audit controls. | **Server-side enforced configuration**: `SecretsScanner` and `BetterleaksScanner` pass internal `--config` and ignore target repo configs ([ADR 0006](../../en/decisions/0006-semgrep-rules-written-here.md)). |
+| **Tampering** | Scanned repository embedding a malicious `.gitleaks.toml` configuration to ignore secret detection. | Concealing security flaws and bypassing audit controls. | **Server-side enforced configuration**: `SecretsScanner` passes an internal `--config` and ignore target repo configs ([ADR 0006](../../en/decisions/0006-semgrep-rules-written-here.md)). |
 | **Elevation of Privilege** | Exploit attempt in scanner container parser to escape to host via Docker socket. | Complete takeover of the Vectispire host machine. | **No scanner container mounts the Docker socket**. Execution with `cap_drop: ALL`, `no-new-privileges`, and `read-only` source mounts. |
 
 ---
@@ -121,7 +121,7 @@ flowchart TB
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
 | **Tampering** | Crashed scanner returning empty list `[]`, causing backlog issues to be resolved. | Silent resolution of unpatched vulnerabilities in historical tracking. | **"None is not empty" principle** ([ADR 0007](../../en/decisions/0007-none-is-not-an-empty-list.md)): Failed scan step returns `Optional.empty()` and leaves backlog intact. |
-| **Tampering** | Duplicate issue injection during Gitleaks and Betterleaks output processing. | Backlog clutter and loss of existing VEX qualifications. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
+| **Tampering** | Duplicate issue injection during scanner output processing. | Backlog clutter and loss of existing VEX qualifications. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
 
 ---
 
@@ -134,11 +134,11 @@ flowchart TB
 
 ---
 
-### 🐳 Process P5: Isolated Analysis Containers (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)
+### 🐳 Process P5: Isolated Analysis Containers (Syft, Grype, Gitleaks, Checkov, Semgrep)
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Information Disclosure** | Analyzer container attempting to transmit scanned source code or secrets to external servers. | Exfiltration of intellectual property and valid tokens. | **Total network isolation (`network: none`)** for code and secret scanner containers (Gitleaks, Betterleaks, Checkov, Semgrep). |
+| **Information Disclosure** | Analyzer container attempting to transmit scanned source code or secrets to external servers. | Exfiltration of intellectual property and valid tokens. | **Total network isolation (`network: none`)** for code and secret scanner containers (Gitleaks, Checkov, Semgrep). |
 | **Elevation of Privilege** | Compromised analyzer binary attempting to write to host filesystem. | Host filesystem alteration. | Source directory mounted **read-only (`read-only`)**, unprivileged execution with `cap_drop: ALL`. |
 
 ---
@@ -148,7 +148,7 @@ flowchart TB
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
 | **Information Disclosure** | Theft of private SSH keys during a SQL database dump or leaked backup. | Compromise of enterprise Git access credentials. | Mandatory encryption at rest for SSH keys and integration secrets using **AES-256-GCM** via `EncryptionService`. |
-| **Information Disclosure** | Indefinite retention of raw secret scanner reports (`Gitleaks`/`Betterleaks`) containing cleartext tokens. | Token leaks upon direct database read. | Automatic raw payload purging (`scan.cves`) by retention task. `Finding` and `Issue` entities store **only file path and line number**—never cleartext secret values. |
+| **Information Disclosure** | Indefinite retention of raw secret scanner reports (`Gitleaks`) containing cleartext tokens. | Token leaks upon direct database read. | Automatic raw payload purging (`scan.cves`) by retention task. `Finding` and `Issue` entities store **only file path and line number**—never cleartext secret values. |
 | **Tampering** | Malicious deletion or modification of rows in `t_audit_log`. | Erasure of administrative action evidence. | **SHA-256 Hash Chain** linking each audit entry to the preceding one. `verifyIntegrity()` detects chain breaks immediately. |
 
 ---

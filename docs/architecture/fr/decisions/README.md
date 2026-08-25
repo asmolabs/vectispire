@@ -18,3 +18,4 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0012](0012-apache-2-0.md) | Licence Apache 2.0 |
 | [0013](0013-flyway-multi-dialect-migrations.md) | Migrations Flyway multi-dialectes nativement gérées |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Deux moteurs déployables, et SQLite comme fixture de test |
+| [0015](0015-one-secrets-engine.md) | Un seul moteur de secrets |

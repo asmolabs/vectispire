@@ -25,7 +25,7 @@ flowchart TB
     end
 
     subgraph TB3["Frontière de Confiance 3 : Conteneurs de Scan Isolés (TB3)"]
-        P5["P5 : Conteneurs d'Analyse (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)"]
+        P5["P5 : Conteneurs d'Analyse (Syft, Grype, Gitleaks, Checkov, Semgrep)"]
     end
 
     subgraph TB4["Frontière de Confiance 4 : Agent Distant (TB4)"]
@@ -84,7 +84,7 @@ flowchart TB
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
-| **Tampering** | Le code scanné inclut un fichier de configuration `.gitleaks.toml` malveillant pour ignorer la détection des secrets. | Masquage de failles de sécurité et contournement des contrôles d'audit. | **Règles imposées côté serveur** : `SecretsScanner` et `BetterleaksScanner` exécutent un `--config` interne et ignorent la configuration du dépôt scanné ([ADR 0006](../../fr/decisions/0006-semgrep-rules-written-here.md)). |
+| **Tampering** | Le code scanné inclut un fichier de configuration `.gitleaks.toml` malveillant pour ignorer la détection des secrets. | Masquage de failles de sécurité et contournement des contrôles d'audit. | **Règles imposées côté serveur** : `SecretsScanner` exécute un `--config` interne et ignorent la configuration du dépôt scanné ([ADR 0006](../../fr/decisions/0006-semgrep-rules-written-here.md)). |
 | **Elevation of Privilege** | Tentative d'exploitation d'une faille du parser de l'analyseur pour s'échapper du conteneur et accéder au socket Docker hôte. | Prise de contrôle totale du serveur hôte Vectispire. | **Aucun conteneur d'analyse ne monte le socket Docker**. Exécution avec `cap_drop: ALL`, `no-new-privileges` et montage du répertoire source en lecture seule (`read-only`). |
 
 ---
@@ -121,7 +121,7 @@ flowchart TB
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
 | **Tampering** | Un scanner plante et renvoie une liste vide `[]`, entraînant la clôture du backlog d'issues. | Suppression silencieuse des failles non corrigées dans le suivi historique. | **Principe "None is not empty"** ([ADR 0007](../../fr/decisions/0007-none-is-not-an-empty-list.md)) : Un scan échoué renvoie `Optional.empty()` et laisse le backlog inchangé. |
-| **Tampering** | Injection de doublons d'issues lors du traitement des résultats de Gitleaks et Betterleaks. | Pollution du backlog et perte des qualifications VEX existantes. | Calcul d'empreinte unique déterministe ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) avec déduplication par emplacement `(filePath + line)`. |
+| **Tampering** | Injection de doublons d'issues lors du traitement des résultats des scanners. | Pollution du backlog et perte des qualifications VEX existantes. | Calcul d'empreinte unique déterministe ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) avec déduplication par emplacement `(filePath + line)`. |
 
 ---
 
@@ -134,11 +134,11 @@ flowchart TB
 
 ---
 
-### 🐳 Processus P5 : Conteneurs d'Analyse Isolés (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)
+### 🐳 Processus P5 : Conteneurs d'Analyse Isolés (Syft, Grype, Gitleaks, Checkov, Semgrep)
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
-| **Information Disclosure** | Le conteneur d'analyse tente de transmettre le code source ou les secrets détectés vers un serveur externe. | Exfiltration de la propriété intellectuelle et d'identifiants valides. | **Isolation réseau totale (`network: none`)** pour tous les conteneurs d'analyse de secrets (Gitleaks, Betterleaks), IaC (Checkov) et SAST (Semgrep). |
+| **Information Disclosure** | Le conteneur d'analyse tente de transmettre le code source ou les secrets détectés vers un serveur externe. | Exfiltration de la propriété intellectuelle et d'identifiants valides. | **Isolation réseau totale (`network: none`)** pour tous les conteneurs d'analyse de secrets (Gitleaks), IaC (Checkov) et SAST (Semgrep). |
 | **Elevation of Privilege** | Un binaire d'analyse compromis tente de modifier le système de fichiers de l'hôte. | Altération du système de fichiers du serveur. | Répertoire source monté en **lecture seule (`read-only`)**, exécution sous utilisateur non privilégié avec `cap_drop: ALL`. |
 
 ---
@@ -148,7 +148,7 @@ flowchart TB
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
 | **Information Disclosure** | Vol des clés SSH privées lors d'un dump de la base de données SQL ou d'une sauvegarde leakée. | Compromission des accès Git de l'entreprise. | Chiffrement obligatoire au repos de toutes les clés SSH et secrets d'intégration en **AES-256-GCM** via `EncryptionService`. |
-| **Information Disclosure** | Conservation indéfinie des rapports bruts de secrets (`Gitleaks`/`Betterleaks`) contenant des jetons en clair. | Fuite d'identifiants valides en cas d'accès direct à la base. | Purge automatique des payloads bruts (`scan.cves`) par la tâche de rétention. Les entités `Finding` et `Issue` ne conservent **que le fichier et la ligne**, jamais la valeur du secret en clair. |
+| **Information Disclosure** | Conservation indéfinie des rapports bruts de secrets (`Gitleaks`) contenant des jetons en clair. | Fuite d'identifiants valides en cas d'accès direct à la base. | Purge automatique des payloads bruts (`scan.cves`) par la tâche de rétention. Les entités `Finding` et `Issue` ne conservent **que le fichier et la ligne**, jamais la valeur du secret en clair. |
 | **Tampering** | Suppression ou modification malveillante d'entrées du journal d'audit (`t_audit_log`). | Effacement des traces d'actions d'administration répréhensibles. | **Chaîne de hachage SHA-256** reliant chaque entrée à la précédente. La méthode `verifyIntegrity()` décèle immédiatement toute rupture. |
 
 ---

@@ -17,7 +17,7 @@ Le nom **Vectispire** reflète deux principes fondamentaux de la gouvernance de 
 
 - **Analyse Multi-Scanners Unifiée** :
   - **SBOM & Dépendances** : Syft et Grype.
-  - **Détection de Secrets** : Gitleaks et Betterleaks (analyse multi-moteurs avec déduplication).
+  - **Détection de Secrets** : Gitleaks, avec règles imposées côté serveur et déduplication par empreinte.
   - **Sécurité de l'Infrastructure (IaC)** : Checkov.
   - **Analyse Statique (SAST)** : Semgrep OSS.
   - **Revue de Code IA (Optionnelle)** : Intégration locale Ollama (Llama, etc.).

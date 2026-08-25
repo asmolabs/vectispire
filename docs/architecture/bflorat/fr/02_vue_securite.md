@@ -11,7 +11,7 @@
 1. **Confidentialité des Données au Repos** : Chiffrement systématique des secrets d'intégration et clés SSH privées.
 2. **Isolation Étanche du Code Scanné** : Aucun risque d'exfiltration de code source par les conteneurs d'analyse.
 3. **Infalsificabilité du Journal d'Audit** : Impossibilité d'altérer les traces d'actions d'administration et de qualification VEX.
-4. **Moindre Privilège des Agents Distants** : Interdiction totale d'accès direct à la base de données SQL par les agents.
+4. **Moindre Privilège des Agents Distants** : Les agents distants ne peuvent pas atteindre la base SQL — imposé par le graphe de modules, la violation échoue donc à la compilation — et ne détiennent jamais l'`ENCRYPTION_KEY`. Ils reçoivent *bien* des clés de déploiement de dépôt en mode `DELEGATED`, scellées vers la clé publique que l'agent a annoncée à l'enrôlement (X25519 → HKDF → AES-256-GCM) et auditées à chaque envoi ; `LOCAL`, le défaut, n'envoie rien. Énoncé en entier plutôt qu'en « les agents ne détiennent aucun identifiant », qui est l'affirmation la plus courte et la fausse — voir la [décision 0003](../../fr/decisions/0003-long-polling-for-agents.md).
 
 ---
 

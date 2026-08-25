@@ -10,7 +10,7 @@ Vectispire is a security tool, which does not make it secure: it makes it **inte
 | `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
 | Access to the Docker socket | process | root-equivalent on the host |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
-| Raw gitleaks/betterleaks reports | `scan.cves`, purged | **secrets in clear text** |
+| Raw gitleaks reports | `scan.cves`, purged | **secrets in clear text** |
 | Audit log | `audit_log`, chained | erases history |
 
 ## Trust boundaries

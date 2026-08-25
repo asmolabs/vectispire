@@ -12,7 +12,7 @@ Vectispire is an **Application Security Posture Management (ASPM)** and complian
 
 ### 1.1 Major Functional Goals
 1. **SBOM Inventory & Vulnerability Analysis (SCA)**: Component inventory and CVE detection via Syft & Grype.
-2. **Multi-Engine Secret Detection**: Dual secret scanning via Gitleaks and Betterleaks with location-based deduplication `(filePath + line)`.
+2. **Secret Detection**: Gitleaks with server-enforced rules, deduplicated by `IssueFingerprint`. One engine, deliberately — [decision 0015](../../en/decisions/0015-one-secrets-engine.md).
 3. **IaC & SAST Analysis**: Infrastructure configuration scanning (Checkov) and source code analysis (Semgrep).
 4. **Code Quality & AI Review**: Technical debt evaluation and local AI-assisted code review integration (Ollama).
 5. **Quality Gate & CI/CD Attestation**: Deterministic decision engine (`POST /api/v1/gate`) evaluating build compliance.

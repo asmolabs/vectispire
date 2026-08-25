@@ -44,16 +44,10 @@ vectispire:
     #
     # Whoever overrides one takes on what the digest was protecting: a tag pulls whatever came
     # down this morning, into a container that reads code nobody controls. Prefer a digest.
-    #
-    # `betterleaks` is the optional second secrets engine. Left blank it mirrors `gitleaks`, and
-    # the second pass is then skipped entirely rather than analysing the tree twice for results
-    # equal by construction. It must speak the gitleaks command line and accept the same
-    # `gitleaks.toml`, so today it is for a fork or a mirror — not for a different tool.
     images:
       syft: ${VECTISPIRE_IMAGE_SYFT:}
       grype: ${VECTISPIRE_IMAGE_GRYPE:}
       gitleaks: ${VECTISPIRE_IMAGE_GITLEAKS:}
-      betterleaks: ${VECTISPIRE_IMAGE_BETTERLEAKS:}
       checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
 

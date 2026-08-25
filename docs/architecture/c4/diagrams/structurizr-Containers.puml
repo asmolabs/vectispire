@@ -34,7 +34,7 @@ Rel(SoftwareDeveloper, VectispirePlatform.AngularFrontendUI, "Views findings and
 Rel(CICDPipelineJenkinsGitHubActionsGitLabCI, VectispirePlatform.SpringBootControlPlane, "Evaluates Quality Gate verdicts (POST /api/v1/gate)", $techn="HTTP/HTTPS (API Key)", $tags="", $link="")
 Rel(VectispirePlatform.AngularFrontendUI, VectispirePlatform.SpringBootControlPlane, "Sends API requests & fetches posture state", $techn="JSON / REST API over HTTP", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane, VectispirePlatform.DatabaseEngine, "Reads & writes domain entities, scans, issues, and audit logs", $techn="JDBC / JPA Hibernate", $tags="", $link="")
-Rel(VectispirePlatform.SpringBootControlPlane, VectispirePlatform.DockerDaemonScanners, "Launches ephemeral scanner containers (Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep)", $techn="Docker Socket / ContainerRunner", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane, VectispirePlatform.DockerDaemonScanners, "Launches ephemeral scanner containers (Syft, Grype, Gitleaks, Checkov, Semgrep)", $techn="Docker Socket / ContainerRunner", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane, ExternalThreatFeeds, "Enriches vulnerabilities with KEV status, EPSS scores, and EOL metadata", $techn="HTTPS", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane, NotificationSystems, "Dispatches real-time alerts & outbox messages", $techn="HTTP Webhooks / SMTP", $tags="", $link="")
 Rel(VectispirePlatform.VectispireRemoteAgent, VectispirePlatform.SpringBootControlPlane, "Fetches scan tasks via HTTP Long-Polling (GET /api/v1/agents/jobs)", $techn="HTTP/REST API (Agent Key)", $tags="", $link="")

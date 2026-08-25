@@ -31,10 +31,6 @@ public final class ScanRunner {
     private final ContainerRunner containers;
     private final DependencyScanner dependencies;
     private final SecretsScanner secrets;
-    private final com.asmolabs.vectispire.common.scanning.scanners.BetterleaksScanner betterleaks;
-    /** False when {@code betterleaks} is an alias of {@code gitleaks} — see the secrets step. */
-    private final boolean secondSecretEngine;
-
     private final IacScanner iac;
     private final SastScanner sast;
     private final RulePlacement rules;
@@ -71,8 +67,6 @@ public final class ScanRunner {
         this.containers = containers;
         this.dependencies = new DependencyScanner(containers, images);
         this.secrets = new SecretsScanner(containers, images.gitleaks());
-        this.betterleaks = new com.asmolabs.vectispire.common.scanning.scanners.BetterleaksScanner(containers, images.betterleaks());
-        this.secondSecretEngine = images.hasDistinctSecretEngines();
         this.iac = new IacScanner(containers, images.checkov());
         this.sast = new SastScanner(containers, images.semgrep());
         this.rules = new RulePlacement(bundledRules);
@@ -152,28 +146,12 @@ public final class ScanRunner {
                     // `ran(…)` restores the rule the rest of this method already follows: an
                     // analysis that did not happen leaves the artifact absent and the backlog
                     // untouched, and the step carries the reason.
-                    List<SecretsScanner.SecretFinding> found = ran(
+                    // One engine, and decision 0015 explains why there is not a second: the
+                    // seam that existed accepted only gitleaks-compatible images, which the
+                    // primary image override already covers.
+                    artifacts.secrets(ran(
                             secrets.scan(workspace, subPath),
-                            "the search for hardcoded secrets did not complete.");
-
-                    // **The second pass runs only when it is a second engine.** By default
-                    // `betterleaks` is an alias of `gitleaks` with the same rule file and the
-                    // same arguments, so running it means analysing the tree twice for results
-                    // that are equal by construction — one more container per scan, no more
-                    // coverage. The seam stays for an operator who points it at a different
-                    // engine; until then it costs nothing.
-                    if (secondSecretEngine) {
-                        // Evaluated outside the merge, so the failure of one is never absorbed
-                        // by the success of the other. A throw here abandons the whole step,
-                        // which is the point: half a secrets analysis is not a secrets analysis.
-                        List<SecretsScanner.SecretFinding> second = ran(
-                                betterleaks.scan(workspace, subPath),
-                                "the second secrets engine did not complete, so the analysis "
-                                        + "covers less than it claims.");
-                        found = SecretsScanner.merge(found, second);
-                    }
-
-                    artifacts.secrets(found);
+                            "the search for hardcoded secrets did not complete."));
                 });
             }
             if (task.runs(ScanTask.Step.IAC)) {

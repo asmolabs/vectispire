@@ -53,35 +53,6 @@ public final class SecretsScanner {
     public record SecretFinding(String rule, String description, String file, int line, String fingerprint) {}
 
     /**
-     * Two engines' results, as one list.
-     *
-     * <p><b>The deduplication decision, stated rather than left to emerge.</b> An identical
-     * finding — same rule, same file, same line, same tool fingerprint — reported by both engines
-     * is one finding, and collapsing it matters beyond tidiness: {@code IssueSyncService}
-     * increments {@code times_seen} once per finding, so a duplicate inside a single scan makes
-     * an issue look twice as persistent as it is.
-     *
-     * <p><b>What is deliberately not collapsed.</b> Two engines flagging the same line under
-     * <em>different rule names</em> stay two findings. Merging them would mean choosing which
-     * engine's rule identity survives, and that identity is what tells an analyst why the line
-     * was flagged; a disagreement between two engines is information, not noise. The cost is
-     * real and worth naming: with two genuinely different engines, one leaked credential can
-     * produce two issues, because {@code IssueFingerprint} includes the rule identifier.
-     *
-     * <p>That cost is also why the redundant default pass is skipped rather than deduplicated —
-     * see {@link ScannerImages#hasDistinctSecretEngines()}. Deduplication is the answer to two
-     * engines that disagree, not to running one engine twice.
-     *
-     * <p>Order is preserved, primary engine first: the list an analyst reads should start with
-     * the results of the scanner the deployment is actually configured around.
-     */
-    public static List<SecretFinding> merge(List<SecretFinding> primary, List<SecretFinding> secondary) {
-        java.util.LinkedHashSet<SecretFinding> merged = new java.util.LinkedHashSet<>(primary);
-        merged.addAll(secondary);
-        return List.copyOf(merged);
-    }
-
-    /**
      * The secrets found, or nothing at all.
      *
      * <p><b>Never returns an empty list to mean "I did not run".</b> An empty list means

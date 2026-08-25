@@ -11,7 +11,7 @@
 1. **Data Confidentiality at Rest**: Systematic encryption of integration secrets and private SSH deployment keys.
 2. **Watertight Source Code Isolation**: Zero risk of source code exfiltration by scanner containers.
 3. **Audit Log Tamper-Proofing**: Inability to modify administrative action traces or VEX triage decisions.
-4. **Least Privilege for Remote Agents**: Absolute restriction prohibiting remote agents from connecting directly to the SQL database.
+4. **Least Privilege for Remote Agents**: Remote agents cannot reach the SQL database — enforced by the module graph, so the violation fails to compile — and never hold `ENCRYPTION_KEY`. They *do* receive repository deployment keys in `DELEGATED` mode, sealed to the public key the agent announced at enrolment (X25519 → HKDF → AES-256-GCM) and audited on every send; `LOCAL`, the default, sends nothing. Stated in full rather than as "agents hold no credentials", which is the shorter claim and the false one — see [decision 0003](../../en/decisions/0003-long-polling-for-agents.md).
 
 ---
 

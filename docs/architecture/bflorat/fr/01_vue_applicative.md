@@ -12,7 +12,7 @@ Vectispire est une plateforme d'**Application Security Posture Management (ASPM)
 
 ### 1.1 Objectifs Fonctionnels Majeurs
 1. **Inventaire SBOM & Analyse de Vulnérabilités (SCA)** : Détection des paquets obsolètes et vulnérables via Syft & Grype.
-2. **Détection Multi-Moteurs de Secrets** : Détection couplée via Gitleaks et Betterleaks avec déduplication par emplacement `(filePath + line)`.
+2. **Détection de Secrets** : Gitleaks avec règles imposées côté serveur, dédupliquée par `IssueFingerprint`. Un seul moteur, délibérément — [décision 0015](../../fr/decisions/0015-one-secrets-engine.md).
 3. **Analyse IaC & SAST** : Analyse de la configuration d'infrastructure (Checkov) et du code source (Semgrep).
 4. **Qualité de Code & Revue IA** : Évaluation de la dette technique et intégration d'un module de revue de code assistée par IA (Ollama local).
 5. **Quality Gate & Attestation CI/CD** : Moteur de décision déterministe (`POST /api/v1/gate`) évaluant le passage des builds.

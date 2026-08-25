@@ -37,7 +37,6 @@ public record AgentProperties(
             @DefaultValue("") String syft,
             @DefaultValue("") String grype,
             @DefaultValue("") String gitleaks,
-            @DefaultValue("") String betterleaks,
             @DefaultValue("") String checkov,
             @DefaultValue("") String semgrep) {}
 
@@ -51,7 +50,7 @@ public record AgentProperties(
             String scannerEngine,
             String version) {
         this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, version,
-                new Images("", "", "", "", "", ""));
+                new Images("", "", "", "", ""));
     }
 
     public AgentProperties {
@@ -61,7 +60,7 @@ public record AgentProperties(
         retryDelay = clamp(retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
         heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
         // Absent means "no override", which is the same thing every blank field means.
-        images = images == null ? new Images("", "", "", "", "", "") : images;
+        images = images == null ? new Images("", "", "", "", "") : images;
     }
 
     private static Duration clamp(Duration value, Duration min, Duration max) {

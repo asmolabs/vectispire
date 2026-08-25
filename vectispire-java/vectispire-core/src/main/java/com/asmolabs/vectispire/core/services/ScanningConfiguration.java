@@ -86,7 +86,6 @@ public class ScanningConfiguration {
             @Value("${vectispire.scanning.images.syft:}") String syftImage,
             @Value("${vectispire.scanning.images.grype:}") String grypeImage,
             @Value("${vectispire.scanning.images.gitleaks:}") String gitleaksImage,
-            @Value("${vectispire.scanning.images.betterleaks:}") String betterleaksImage,
             @Value("${vectispire.scanning.images.checkov:}") String checkovImage,
             @Value("${vectispire.scanning.images.semgrep:}") String semgrepImage) {
         RulePlacement.RuleSetProvider provider =
@@ -95,7 +94,7 @@ public class ScanningConfiguration {
         return new ScanRunner(
                 new ContainerRunner(),
                 ScannerImages.PINNED.withOverrides(
-                        syftImage, grypeImage, gitleaksImage, betterleaksImage, checkovImage, semgrepImage),
+                        syftImage, grypeImage, gitleaksImage, checkovImage, semgrepImage),
                 bundledRules(bundledRulesOverride),
                 provider,
                 // Same policy as the agent: a changed host key blocks the scan rather than being

@@ -43,7 +43,6 @@ class ScannerContractTest {
      */
     private static final List<Class<?>> CONTAINER_SCANNERS = List.of(
             SecretsScanner.class,
-            BetterleaksScanner.class,
             IacScanner.class,
             SastScanner.class,
             DependencyScanner.class);
