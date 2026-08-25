@@ -208,3 +208,19 @@ tasks.register("integrationTestAll") {
     group = "verification"
     dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
 }
+
+/**
+ * A stable jar name, because four other files already assume one.
+ *
+ * `gradle.properties` sets a project version, so `bootJar` produced `vectispire-core-0.9.0.jar`
+ * while `Dockerfile`, `Dockerfile.agent`, `release.yml` and the nightly workflow all copy
+ * `vectispire-core.jar`. Every one of those steps failed on a file that never existed — and nothing
+ * noticed, because no CI job builds the images or runs a release.
+ *
+ * Pinned here rather than by teaching four callers to glob a version they do not care about:
+ * the version belongs in the manifest and in the release artifact's name, which `release.yml`
+ * applies itself when it renames the file.
+ */
+tasks.named<Jar>("bootJar") {
+    archiveFileName = "vectispire-core.jar"
+}

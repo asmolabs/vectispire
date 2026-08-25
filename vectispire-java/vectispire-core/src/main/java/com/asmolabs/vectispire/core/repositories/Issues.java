@@ -38,6 +38,31 @@ public interface Issues extends JpaRepository<IssueEntity, Long>, JpaSpecificati
             @Param("containerId") Long containerId);
 
     /**
+     * Every open issue counted once, grouped by target and by the three axes the compliance
+     * summary reports on.
+     *
+     * <p><b>One query for a page of targets, not nine per target.</b> The summary asked for four
+     * severities, the KEV flag and three finding types, per target, inside its loop — nine round
+     * trips per row, so a hundred-target estate produced nine hundred for one page. That is the
+     * shape {@code TriageEvents.findForIssues} was written to avoid, and it is invisible on the
+     * SQLite suite for the same reason: a demo database answers all nine before anyone notices.
+     *
+     * <p><b>Visibility is not applied here, deliberately, and that is safe because it is purely
+     * target-scoped.</b> {@code IssueFilters} restricts by {@code repoId}/{@code containerId} and
+     * nothing else, so grouping by target and reading only the groups whose target the caller can
+     * already see gives exactly the same numbers. The caller is responsible for that last step —
+     * which it does by iterating the visibility-filtered target list rather than this result.
+     *
+     * @return rows of {@code [repoId, containerId, severity, type, isKev, count]}
+     */
+    @Query("""
+            select i.repoId, i.containerId, i.severity, i.type, i.isKev, count(i.id)
+              from IssueEntity i
+             where i.state = :state
+             group by i.repoId, i.containerId, i.severity, i.type, i.isKev""")
+    List<Object[]> countOpenGroupedByTarget(@Param("state") String state);
+
+    /**
      * Open issues of one type, counted by the identifier that produced them.
      *
      * <p>Read from the issue alone: it carries its own type and identifier, and that

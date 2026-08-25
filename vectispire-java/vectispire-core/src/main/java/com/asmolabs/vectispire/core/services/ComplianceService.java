@@ -59,6 +59,75 @@ public class ComplianceService {
     }
 
     /**
+     * The open-issue counts for every target, read in one query.
+     *
+     * <p>Replaces nine counts per target inside the loop below. The rows carry
+     * {@code [repoId, containerId, severity, type, isKev, count]}; one pass over them fills every
+     * axis the summary reports, because a row contributes to its severity, its type <em>and</em>
+     * the KEV tally at once.
+     *
+     * <p>Visibility is applied by the caller, not by the query: the loop iterates the
+     * already-filtered target list and looks each one up here, so a group belonging to a target
+     * the caller cannot see is never read. That equivalence holds because issue visibility is
+     * target-scoped and nothing else — see {@code IssueFilters}.
+     */
+    private record TargetCounts(
+            long critical, long high, long medium, long low, long kev,
+            long secrets, long sast, long iac) {
+
+        static final TargetCounts NONE = new TargetCounts(0, 0, 0, 0, 0, 0, 0, 0);
+
+        TargetCounts plus(String severity, String type, boolean isKev, long n) {
+            Severity parsed = Severity.of(severity);
+            return new TargetCounts(
+                    critical + (parsed == Severity.CRITICAL ? n : 0),
+                    high + (parsed == Severity.HIGH ? n : 0),
+                    medium + (parsed == Severity.MEDIUM ? n : 0),
+                    low + (parsed == Severity.LOW ? n : 0),
+                    kev + (isKev ? n : 0),
+                    secrets + (FindingType.SECRET.wireName().equals(type) ? n : 0),
+                    // `QUALITY`, not `SAST`: what the summary has always counted here, kept as
+                    // it was rather than corrected in a change about query shape.
+                    sast + (FindingType.QUALITY.wireName().equals(type) ? n : 0),
+                    iac + (FindingType.IAC.wireName().equals(type) ? n : 0));
+        }
+
+        long total() {
+            return critical + high + medium + low;
+        }
+    }
+
+    /** Keyed the way the loop below identifies a target: repository id, or container id. */
+    private static String targetKey(Long repoId, Long containerId) {
+        return repoId != null ? "repo:" + repoId : "container:" + containerId;
+    }
+
+    private Map<String, TargetCounts> openCountsByTarget() {
+        Map<String, TargetCounts> counts = new java.util.HashMap<>();
+        for (Object[] row : issues.countOpenGroupedByTarget(IssueState.OPEN.wireName())) {
+            Long repoId = (Long) row[0];
+            Long containerId = (Long) row[1];
+            if (repoId == null && containerId == null) {
+                continue;
+            }
+            String key = targetKey(repoId, containerId);
+            counts.merge(
+                    key,
+                    TargetCounts.NONE.plus((String) row[2], (String) row[3], toBoolean(row[4]), ((Number) row[5]).longValue()),
+                    (a, b) -> new TargetCounts(
+                            a.critical() + b.critical(), a.high() + b.high(), a.medium() + b.medium(),
+                            a.low() + b.low(), a.kev() + b.kev(), a.secrets() + b.secrets(),
+                            a.sast() + b.sast(), a.iac() + b.iac()));
+        }
+        return counts;
+    }
+
+    /** SQLite hands back an Integer where the others hand back a Boolean. */
+    private static boolean toBoolean(Object value) {
+        return value instanceof Boolean flag ? flag : value instanceof Number n && n.intValue() != 0;
+    }
+
+    /**
      * What this deployment has switched on, read fresh on every evaluation.
      *
      * <p>Not cached: these are settings an administrator changes, and a compliance report built
@@ -141,8 +210,19 @@ public class ComplianceService {
         long sast = countOpenType(FindingType.QUALITY, null, null, allowed);
         long iac = countOpenType(FindingType.IAC, null, null, allowed);
 
-        boolean auditValid = audit.verify().broken() == null;
+        // **Bounded, and not the full verification.** `verify()` reads every audit row and says
+        // of itself that it is not for a page render; this checks that the recent entries still
+        // match their own hashes, which is the modification case. Deletion detection stays with
+        // /audit-log/verify and the mirror — and the compliance control already reports the
+        // mirror's absence, so the reader is not left thinking otherwise.
+        boolean auditValid = audit.recentEntriesMatchTheirHashes();
         ComplianceEngine.PlatformPosture platform = platformPosture();
+
+        // **Two queries for the whole page, not nine per target.** Both are read before the
+        // per-target loop below; see `openCountsByTarget` for why applying visibility in the
+        // loop rather than in the query is equivalent.
+        Map<String, TargetCounts> counts = openCountsByTarget();
+        Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 Math.max(1, totalTargets),
@@ -169,17 +249,21 @@ public class ComplianceService {
             String tid = (repoId != null ? "repo:" + repoId : "container:" + containerId);
             String type = (repoId != null ? "REPOSITORY" : "CONTAINER");
 
-            long tCrit = countOpen(Severity.CRITICAL, null, repoId, containerId, allowed);
-            long tHigh = countOpen(Severity.HIGH, null, repoId, containerId, allowed);
-            long tMed = countOpen(Severity.MEDIUM, null, repoId, containerId, allowed);
-            long tLow = countOpen(Severity.LOW, null, repoId, containerId, allowed);
-            long tKev = countOpen(null, true, repoId, containerId, allowed);
-            long tOverdue = countOverdueForTarget(repoId, containerId, allowed);
-            long tSec = countOpenType(FindingType.SECRET, repoId, containerId, allowed);
-            long tSast = countOpenType(FindingType.QUALITY, repoId, containerId, allowed);
-            long tIac = countOpenType(FindingType.IAC, repoId, containerId, allowed);
+            // Read from the two grouped queries taken before the loop, not asked per target.
+            // `tid` is the same key `openCountsByTarget` builds, and a target with no open issue
+            // simply has no group.
+            TargetCounts tCounts = counts.getOrDefault(tid, TargetCounts.NONE);
+            long tCrit = tCounts.critical();
+            long tHigh = tCounts.high();
+            long tMed = tCounts.medium();
+            long tLow = tCounts.low();
+            long tKev = tCounts.kev();
+            long tOverdue = overdueByTarget.getOrDefault(tid, 0L);
+            long tSec = tCounts.secrets();
+            long tSast = tCounts.sast();
+            long tIac = tCounts.iac();
 
-            long totalOpen = tCrit + tHigh + tMed + tLow;
+            long totalOpen = tCounts.total();
 
             boolean isObserved = targetPosture.observed();
             boolean isPassed = targetPosture.observed() && targetPosture.passed();
@@ -256,8 +340,19 @@ public class ComplianceService {
         long sast = countOpenType(FindingType.QUALITY, repoId, containerId, allowed);
         long iac = countOpenType(FindingType.IAC, repoId, containerId, allowed);
 
-        boolean auditValid = audit.verify().broken() == null;
+        // **Bounded, and not the full verification.** `verify()` reads every audit row and says
+        // of itself that it is not for a page render; this checks that the recent entries still
+        // match their own hashes, which is the modification case. Deletion detection stays with
+        // /audit-log/verify and the mirror — and the compliance control already reports the
+        // mirror's absence, so the reader is not left thinking otherwise.
+        boolean auditValid = audit.recentEntriesMatchTheirHashes();
         ComplianceEngine.PlatformPosture platform = platformPosture();
+
+        // **Two queries for the whole page, not nine per target.** Both are read before the
+        // per-target loop below; see `openCountsByTarget` for why applying visibility in the
+        // loop rather than in the query is equivalent.
+        Map<String, TargetCounts> counts = openCountsByTarget();
+        Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 totalTargets,
@@ -284,17 +379,19 @@ public class ComplianceService {
             String tid = (rId != null ? "repo:" + rId : "container:" + cId);
             String type = (rId != null ? "REPOSITORY" : "CONTAINER");
 
-            long tCrit = countOpen(Severity.CRITICAL, null, rId, cId, allowed);
-            long tHigh = countOpen(Severity.HIGH, null, rId, cId, allowed);
-            long tMed = countOpen(Severity.MEDIUM, null, rId, cId, allowed);
-            long tLow = countOpen(Severity.LOW, null, rId, cId, allowed);
-            long tKev = countOpen(null, true, rId, cId, allowed);
-            long tOverdue = countOverdueForTarget(rId, cId, allowed);
-            long tSec = countOpenType(FindingType.SECRET, rId, cId, allowed);
-            long tSast = countOpenType(FindingType.QUALITY, rId, cId, allowed);
-            long tIac = countOpenType(FindingType.IAC, rId, cId, allowed);
+            // Same two grouped reads as the other summary: one lookup, no query per target.
+            TargetCounts tCounts = counts.getOrDefault(tid, TargetCounts.NONE);
+            long tCrit = tCounts.critical();
+            long tHigh = tCounts.high();
+            long tMed = tCounts.medium();
+            long tLow = tCounts.low();
+            long tKev = tCounts.kev();
+            long tOverdue = overdueByTarget.getOrDefault(tid, 0L);
+            long tSec = tCounts.secrets();
+            long tSast = tCounts.sast();
+            long tIac = tCounts.iac();
 
-            long totalOpen = tCrit + tHigh + tMed + tLow;
+            long totalOpen = tCounts.total();
             boolean isObs = tp.observed();
             boolean isPass = tp.observed() && tp.passed();
 

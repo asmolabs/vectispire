@@ -67,6 +67,38 @@ public class SlaService {
     }
 
     /**
+     * The overdue count for every target at once.
+     *
+     * <p><b>One read for a page of targets.</b> The compliance summary asked this per row, which
+     * is the shape that turns one page into hundreds of round trips on a real estate. The rows
+     * are loaded rather than counted per group because the windows are per-severity instants,
+     * and expressing that as a grouped aggregate would put the policy into the query; the set is
+     * bounded by the number of *breaches*, which is small by construction — an estate where it
+     * is not has a problem this figure is meant to reveal.
+     *
+     * <p>Keyed as {@code repo:<id>} / {@code container:<id>}, the key the summary already uses.
+     */
+    public java.util.Map<String, Long> countOverdueByTarget(Visibility allowed) {
+        Map<Severity, Instant> thresholds = policy().overdueThresholds(clock.instant());
+        if (thresholds.isEmpty()) {
+            // Same reasoning as countOverdue: an empty `or (…)` has two readings and neither is
+            // safe to guess.
+            return java.util.Map.of();
+        }
+
+        java.util.Map<String, Long> perTarget = new java.util.HashMap<>();
+        for (IssueEntity issue : issues.findAll(overdue(thresholds, allowed).toSpecification())) {
+            Long repoId = issue.getRepoId();
+            Long containerId = issue.getContainerId();
+            if (repoId == null && containerId == null) {
+                continue;
+            }
+            perTarget.merge(repoId != null ? "repo:" + repoId : "container:" + containerId, 1L, Long::sum);
+        }
+        return perTarget;
+    }
+
+    /**
      * How many open issues are past their window, within what the caller may see.
      *
      * <p><b>Counted in the database, one severity at a time.</b> Assessing every row would mean

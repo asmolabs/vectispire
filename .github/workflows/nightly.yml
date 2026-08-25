@@ -103,6 +103,18 @@ jobs:
       - name: Start the control plane
         env:
           VECTISPIRE_DB_URL: jdbc:sqlite:${{ runner.temp }}/vectispire-e2e.db
+          # **SQLite cannot boot under the shipped `ddl-auto: validate`, and that is a known
+          # property rather than a defect here.** SQLite has type *affinities*, so it reports a
+          # `numeric` column back as FLOAT and Hibernate rejects every timestamp — which says
+          # something about SQLite and nothing about the mapping. The unit suite's profile sets
+          # exactly these two for exactly this reason; schema parity is the four-engine job's
+          # business, on the three engines that have real types.
+          #
+          # Found by running this job's steps by hand: without them the control plane exits on
+          # "Schema validation: wrong column type encountered in column [created_at]", and every
+          # E2E suite then fails on a connection refused that looks like a UI defect.
+          SPRING_JPA_HIBERNATE_DDL_AUTO: none
+          SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.community.dialect.SQLiteDialect
           ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
           VECTISPIRE_BOOTSTRAP_USERNAME: admin
           VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!

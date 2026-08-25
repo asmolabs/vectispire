@@ -128,6 +128,50 @@ public class AuditLogService {
     }
 
     /**
+     * How many recent entries the compliance summary checks.
+     *
+     * <p>Enough that tampering with something an operator did today is caught, small enough that
+     * the check costs one indexed read.
+     */
+    private static final int RECENT_INTEGRITY_WINDOW = 500;
+
+    /**
+     * The integrity of the most recent entries, without reading the table.
+     *
+     * <p><b>Why this exists.</b> {@link #verify()} says of itself that it reads the whole table
+     * and is "a deliberate verification, not something done on every page render" — and the
+     * compliance summary was doing exactly that, on a table that is the largest one a mature
+     * instance has, on every page load.
+     *
+     * <p><b>What it checks, and what it deliberately does not.</b> Each entry in the window is
+     * rehashed from its own fields and compared to the hash it stores: that is what detects a
+     * <em>modified</em> row, which is the realistic threat and the one the chain exists for. It
+     * does <b>not</b> check that predecessors still exist, because a window cannot — an entry at
+     * the edge legitimately points at one outside it, and reporting that would be an alarm
+     * raised by the boundary rather than by the log. Deletion detection stays with
+     * {@link #verify()} and, for the case the chain cannot see at all, with the mirror.
+     *
+     * <p>So a {@code false} here means "a recent entry no longer matches its own hash", which is
+     * a real finding. A {@code true} means "nothing recent was altered", not "the log is
+     * provably whole" — and §5.1 of the compliance document says so to the reader who acts on it.
+     */
+    @Transactional(readOnly = true)
+    public boolean recentEntriesMatchTheirHashes() {
+        for (AuditLogEntity row : entries.findRecent(org.springframework.data.domain.Limit.of(RECENT_INTEGRITY_WINDOW))) {
+            String stored = row.getEntryHash();
+            if (stored == null || stored.isBlank()) {
+                // Predates the chaining. Counting it as a break would report an alarm about a
+                // row nobody ever claimed was covered — the same reasoning as verifyChain's.
+                continue;
+            }
+            if (!stored.equals(AuditChain.computeEntryHash(verifiable(row).entry()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Empty {@code broken} when the chain is intact, otherwise the first break.
      *
      * <p>Reads the whole table: a deliberate verification, not something done on every page
