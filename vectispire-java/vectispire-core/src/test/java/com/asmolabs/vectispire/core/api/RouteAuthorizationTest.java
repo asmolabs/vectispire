@@ -12,12 +12,15 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -75,7 +78,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("three routes are open to anonymous callers, and each has a reason")
+    @DisplayName("the routes open to anonymous callers are the listed ones, and each has a reason")
     void onlyTheWaysInAreOpen() {
         List<String> open = new ArrayList<>();
         mappings.getHandlerMethods().forEach((info, handler) -> {
@@ -85,8 +88,8 @@ class RouteAuthorizationTest extends ApiTestBase {
         });
 
         // A further one is not forbidden — it is a review conversation, and this failing is how
-        // the conversation starts. The three below are the ways in, and each is anonymous because
-        // it runs *before* there is a session to present:
+        // the conversation starts. Each of the ones below is anonymous because it runs *before*
+        // there is a session to present, or because it is public by construction:
         //
         //   login            — the password exchange itself.
         //   methods          — which buttons the login screen should offer. Nothing sensitive: an
@@ -95,6 +98,19 @@ class RouteAuthorizationTest extends ApiTestBase {
         //   session/exchange — trades the one-time hand-off cookie the browser just received for
         //                      the session it stands for. It cannot require the session it is on
         //                      the way to producing, and the cookie is the credential.
+        //   mfa/verify       — the second half of that same exchange. It is called with the
+        //                      `mfa_token` step 1 returned and no bearer, because the bearer is
+        //                      what it is on the way to issuing.
+        //   badge.svg        — a shield rendered into READMEs and pull requests, which are read
+        //                      by people who have no account here.
+        //   public-key.pub   — a public key. Publishing it is the point.
+        //   tickets/webhook  — called by Jira, GitLab and ServiceNow, which hold a shared
+        //                      secret rather than a session; the handler verifies it.
+        //
+        // **Listing them is not enough** — the day one of these is missing from the chain's
+        // permitAll list it answers 401 and this test stays green. That is what
+        // `anOpenRouteIsReallyReachableWithoutCredentials` is for, and it is how the MFA
+        // lockout was eventually found.
         //
         assertThat(open).containsExactlyInAnyOrder(
                 "[/api/v1/auth/login]",
@@ -159,6 +175,79 @@ class RouteAuthorizationTest extends ApiTestBase {
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
                         asAdmin()))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    /**
+     * The probe the enumeration above cannot be.
+     *
+     * <p><b>Why this exists.</b> {@code /api/v1/auth/mfa/verify} carried {@code
+     * @OpenToAnonymous} and was <em>not</em> in the chain's {@code permitAll} list, so it fell
+     * to {@code anyRequest().authenticated()} and answered 401 before the controller was
+     * entered: every account with MFA enabled was locked out. The suite stayed green the whole
+     * time, because {@link #onlyTheWaysInAreOpen()} reads the annotation and the annotation was
+     * right. An annotation is a statement about intent; only a request through the real chain
+     * is a statement about behaviour.
+     *
+     * <p><b>The assertion is "a handler was reached", not "the status is not 401".</b> A route
+     * that is open to anonymous callers may still legitimately answer 401 from inside the
+     * handler — {@code /auth/login} does exactly that on bad credentials, and so does {@code
+     * session/exchange} on a stale cookie. Those are answers; a chain rejection is the absence
+     * of one. {@code MvcResult#getHandler()} tells them apart: the dispatcher records the
+     * handler at lookup time, so it is non-null whenever the request got that far and null
+     * whenever a filter short-circuited first.
+     *
+     * <p>It walks the mappings rather than a list, so a seventh open route is covered the day
+     * it is annotated, with nothing to remember.
+     */
+    @Test
+    @DisplayName("an open route is really reachable without credentials, chain included")
+    void anOpenRouteIsReallyReachableWithoutCredentials() throws Exception {
+        List<String> unreachable = new ArrayList<>();
+
+        for (var entry : mappings.getHandlerMethods().entrySet()) {
+            RequestMappingInfo info = entry.getKey();
+            HandlerMethod handler = entry.getValue();
+            if (!isOurs(handler) || !carries(handler, OpenToAnonymous.class)) {
+                continue;
+            }
+
+            HttpMethod method = firstMethodOf(info);
+            for (String pattern : patternsOf(info)) {
+                // A path variable's value is irrelevant here: what is under test is whether the
+                // chain let the request through, and it decides on the pattern, not the value.
+                String path = pattern.replaceAll("\\{[^}]+}", "1");
+
+                MvcResult result = mvc.perform(
+                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                        .request(method, path))
+                        .andReturn();
+
+                if (result.getHandler() == null) {
+                    unreachable.add(method + " " + pattern
+                            + " → refused by the filter chain with "
+                            + result.getResponse().getStatus());
+                }
+            }
+        }
+
+        assertThat(unreachable)
+                .as("these routes declare @OpenToAnonymous but the filter chain stops them "
+                        + "before the controller — add a matching permitAll in "
+                        + "SecurityConfiguration, or drop the annotation")
+                .isEmpty();
+    }
+
+    /** Empty means "every method": the mapping declared no restriction, so GET will do. */
+    private static HttpMethod firstMethodOf(RequestMappingInfo info) {
+        return info.getMethodsCondition().getMethods().stream()
+                .findFirst()
+                .map(requestMethod -> HttpMethod.valueOf(requestMethod.name()))
+                .orElse(HttpMethod.GET);
+    }
+
+    private static Set<String> patternsOf(RequestMappingInfo info) {
+        var patterns = info.getPathPatternsCondition();
+        return patterns == null ? Set.of() : patterns.getPatternValues();
     }
 
     private static boolean isOurs(HandlerMethod handler) {

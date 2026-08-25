@@ -46,6 +46,13 @@ vectispire:
     username: ${VECTISPIRE_BOOTSTRAP_USERNAME:${VECTISPIRE_BOOTSTRAP_USERNAME:${VECTISPIRE_BOOTSTRAP_USERNAME:}}}
     password: ${VECTISPIRE_BOOTSTRAP_PASSWORD:${VECTISPIRE_BOOTSTRAP_PASSWORD:${VECTISPIRE_BOOTSTRAP_PASSWORD:}}}
 
+  security:
+    # **Whose word to take for the client's address.** Empty means "nothing in front of us", so
+    # `X-Forwarded-For` is ignored entirely and the peer address is what the rate limiter counts.
+    # Behind a load balancer, name it here (address or CIDR, comma-separated) — otherwise every
+    # request arrives from the balancer and the whole estate shares one bucket.
+    trusted-proxies: ${VECTISPIRE_TRUSTED_PROXIES:}
+
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}
     idle-lifetime: ${VECTISPIRE_SESSION_IDLE:60m}

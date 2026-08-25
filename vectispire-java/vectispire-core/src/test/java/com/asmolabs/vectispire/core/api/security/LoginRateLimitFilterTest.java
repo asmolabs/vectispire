@@ -29,7 +29,7 @@ class LoginRateLimitFilterTest {
 
     @BeforeEach
     void setup() throws Exception {
-        filter = new LoginRateLimitFilter();
+        filter = new LoginRateLimitFilter("");
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         chain = mock(FilterChain.class);
@@ -108,5 +108,101 @@ class LoginRateLimitFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("a spoofed X-Forwarded-For buys nothing when no proxy is trusted")
+    void forwardedHeaderIsIgnoredWithoutATrustedProxy() throws Exception {
+        // **The bypass this filter used to have.** The header was taken at face value, so an
+        // attacker changed it on every request and was handed a fresh bucket each time. With no
+        // trusted proxy configured the header is not evidence of anything, and the peer address
+        // — which the attacker cannot choose — is what counts.
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("203.0.113.7");
+        when(request.getHeader("X-Forwarded-For"))
+                .thenReturn("1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7", "1.2.3.8",
+                        "1.2.3.9", "1.2.3.10", "1.2.3.11", "1.2.3.12", "1.2.3.13", "1.2.3.14");
+
+        for (int i = 0; i < 10; i++) {
+            filter.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
+    @DisplayName("a trusted proxy's X-Forwarded-For is honoured, so its clients are counted apart")
+    void forwardedHeaderIsHonouredBehindATrustedProxy() throws Exception {
+        LoginRateLimitFilter behindProxy = new LoginRateLimitFilter("10.0.0.0/8");
+
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
+
+        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.4");
+        for (int i = 0; i < 10; i++) {
+            behindProxy.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+
+        // The same proxy, a different client behind it: its own bucket, still full.
+        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.5");
+        behindProxy.doFilterInternal(request, response, chain);
+        verify(chain).doFilter(request, response);
+
+        reset(chain);
+
+        // And the exhausted one is still exhausted.
+        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.4");
+        behindProxy.doFilterInternal(request, response, chain);
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("the leftmost hop a client could have written is not the one counted")
+    void onlyTheHopBehindTheTrustedChainIsTaken() throws Exception {
+        LoginRateLimitFilter behindProxy = new LoginRateLimitFilter("10.0.0.0/8");
+
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
+
+        // The client prepends a value of its own; the real address is the rightmost untrusted
+        // hop, appended by the proxy. Exhausting under one forged prefix must exhaust the other.
+        when(request.getHeader("X-Forwarded-For")).thenReturn("1.1.1.1, 198.51.100.9, 10.0.0.1");
+        for (int i = 0; i < 10; i++) {
+            behindProxy.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+
+        when(request.getHeader("X-Forwarded-For")).thenReturn("9.9.9.9, 198.51.100.9, 10.0.0.1");
+        behindProxy.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("the MFA verification route is limited too, not just the password one")
+    void mfaVerificationIsLimited() throws Exception {
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/mfa/verify");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("192.0.2.10");
+
+        for (int i = 0; i < 10; i++) {
+            filter.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
     }
 }

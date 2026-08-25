@@ -1,3 +1,15 @@
+# **No default is a working secret.** Every value below that guards something is required and
+# unset: `docker compose up` without a `.env` now stops with "variable is not set" instead of
+# starting an instance whose encryption key, admin password and database password are the ones
+# printed in a public repository. The three that matter are marked `:?` — Compose refuses to
+# render the file at all when they are missing, which is the right moment to find out.
+#
+# Copy `.env.example` and fill it in, or export them:
+#
+#   ENCRYPTION_KEY=$(openssl rand -base64 32)
+#   MYSQL_PASSWORD=$(openssl rand -base64 24)
+#   VECTISPIRE_BOOTSTRAP_PASSWORD=$(openssl rand -base64 24)
+
 services:
   # --- Database (MySQL) -----------------------------------------------------------------
   db:
@@ -6,12 +18,16 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vectispire}
       MYSQL_USER: ${MYSQL_USER:-vectispire}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-vectispire_secure_db_pass}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_pass}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD — no default is provided on purpose}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD — no default is provided on purpose}
     volumes:
       - vectispire_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      # **Loopback, not every interface.** `"3306:3306"` publishes the database to the whole
+      # network the host sits on; the control plane reaches it over the compose network and
+      # needs no published port at all. This one is kept for the operator holding a SQL client,
+      # bound where only that operator can reach it.
+      - "127.0.0.1:3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -33,14 +49,26 @@ services:
     environment:
       VECTISPIRE_DB_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE:-vectispire}
       VECTISPIRE_DB_USER: ${MYSQL_USER:-vectispire}
-      VECTISPIRE_DB_PASSWORD: ${MYSQL_PASSWORD:-vectispire_secure_db_pass}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcyEh}
+      VECTISPIRE_DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD — no default is provided on purpose}
+      # Decrypts every deployment SSH key and integration token this instance holds. A shared
+      # default here would mean anyone with a copy of this repository can read them.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?generate one with `openssl rand -base64 32`}
       VECTISPIRE_BOOTSTRAP_USERNAME: ${VECTISPIRE_BOOTSTRAP_USERNAME:-admin}
-      VECTISPIRE_BOOTSTRAP_PASSWORD: ${VECTISPIRE_BOOTSTRAP_PASSWORD:-AdminVectispire2026!}
+      VECTISPIRE_BOOTSTRAP_PASSWORD: ${VECTISPIRE_BOOTSTRAP_PASSWORD:?set the first administrator password}
       VECTISPIRE_EMBEDDED_WORKER: ${VECTISPIRE_EMBEDDED_WORKER:-true}
+      # Empty means "nothing in front of us", so X-Forwarded-For is ignored and the peer address
+      # is the rate-limit key. Set it to the balancer's address or CIDR when there is one.
+      VECTISPIRE_TRUSTED_PROXIES: ${VECTISPIRE_TRUSTED_PROXIES:-}
     volumes:
       # Sibling container scanner execution (Syft, Grype, Semgrep, Gitleaks)
       - /var/run/docker.sock:/var/run/docker.sock
+    # **The socket is mounted, but the image runs as an unprivileged user.** Without this the
+    # control plane starts, looks healthy, and fails every scan with "permission denied" on the
+    # daemon — the Dockerfile says `--group-add` is required and this is compose's spelling of
+    # it. `docker` is the group name on most hosts; on some it is a numeric GID, which is what
+    # `stat -c '%g' /var/run/docker.sock` prints.
+    group_add:
+      - ${DOCKER_SOCKET_GROUP:-docker}
     depends_on:
       db:
         condition: service_healthy
@@ -59,9 +87,15 @@ services:
       - with-agent
     environment:
       VECTISPIRE_URL: http://control-plane:3180
+      # Not `:?` — Compose interpolates the whole file even for an inactive profile, so a
+      # required variable here would stop a plain `docker compose up` for everyone who never
+      # runs an agent. An empty token is not a weak secret, it is an agent that fails to enrol
+      # and says so.
       VECTISPIRE_AGENT_TOKEN: ${VECTISPIRE_AGENT_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - ${DOCKER_SOCKET_GROUP:-docker}
     depends_on:
       control-plane:
         condition: service_healthy

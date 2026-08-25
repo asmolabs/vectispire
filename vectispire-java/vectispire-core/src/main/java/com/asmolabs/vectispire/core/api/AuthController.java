@@ -66,7 +66,40 @@ public class AuthController {
     private final TotpService totp;
     private final Map<String, MfaChallenge> mfaChallenges = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public record MfaChallenge(Long userId, Instant expiresAt, String userAgent, String ipAddress) {}
+    /**
+     * **A TOTP code is six digits, so the number of tries is the whole security of the second
+     * factor.** Unlimited tries against a five-minute window is a million-code space explored at
+     * whatever rate the server sustains, which is not a second factor — it is a delay. Three,
+     * then the challenge is destroyed and the password exchange starts again.
+     */
+    private static final int MAX_MFA_ATTEMPTS = 3;
+
+    /**
+     * A bound on how many challenges may be held at once.
+     *
+     * <p>Each successful password exchange by an MFA-enabled account leaves one entry, and only
+     * a success or a later presentation removes it: an abandoned sign-in leaks the entry until
+     * the process restarts. The sweep in {@link #rememberChallenge} clears what has expired, and
+     * this cap is what stops the map growing without bound between two sweeps.
+     */
+    private static final int MAX_MFA_CHALLENGES = 10_000;
+
+    /**
+     * @param attempts counted on the challenge rather than on the account: the challenge is what
+     *     the attacker holds, and it is what gets destroyed. Mutable inside an otherwise
+     *     immutable record so a failure need not race a {@code put} against a concurrent one.
+     */
+    public record MfaChallenge(
+            Long userId,
+            Instant expiresAt,
+            String userAgent,
+            String ipAddress,
+            java.util.concurrent.atomic.AtomicInteger attempts) {
+
+        public MfaChallenge(Long userId, Instant expiresAt, String userAgent, String ipAddress) {
+            this(userId, expiresAt, userAgent, ipAddress, new java.util.concurrent.atomic.AtomicInteger());
+        }
+    }
 
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
     public record MfaEnableRequest(String secret, String code) {}
@@ -147,7 +180,7 @@ public class AuthController {
             case AuthService.Outcome.Success success -> {
                 if (success.user().getMfaEnabled()) {
                     String mfaToken = java.util.UUID.randomUUID().toString();
-                    mfaChallenges.put(
+                    rememberChallenge(
                             mfaToken,
                             new MfaChallenge(
                                     success.user().getId(),
@@ -185,13 +218,29 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
 
         if (!totp.verify(user, body.code())) {
+            // **The challenge dies on the last try, and that is the control.** Leaving it alive
+            // after a wrong code is what turns a six-digit secret into a five-minute exhaustive
+            // search: the attacker keeps the same token and keeps going. Counting on the
+            // challenge rather than the account also means a wrong guess cannot be used to lock
+            // a legitimate user out — the worst it costs them is re-entering their password.
+            boolean exhausted = challenge.attempts().incrementAndGet() >= MAX_MFA_ATTEMPTS;
+            if (exhausted) {
+                mfaChallenges.remove(body.mfaToken());
+            }
+
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_FAILURE,
                     user.getUsername(),
-                    "Invalid MFA verification code attempt",
+                    exhausted
+                            ? "MFA challenge destroyed after " + MAX_MFA_ATTEMPTS
+                                    + " invalid verification codes"
+                            : "Invalid MFA verification code attempt",
                     user.getUsername(),
                     request.getRemoteAddr(),
                     request.getHeader("User-Agent")));
+
+            // The same message either way: which of the two it is tells an attacker how many
+            // tries are left, and tells a legitimate user nothing they cannot see by trying.
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
         }
 
@@ -212,6 +261,37 @@ public class AuthController {
                 summaryOf(user),
                 false,
                 null);
+    }
+
+    /**
+     * Stores a challenge, sweeping the ones nobody came back for.
+     *
+     * <p>An abandoned sign-in — the user closes the tab between the password and the code —
+     * leaves an entry that only a later presentation of the same token would remove, and there
+     * will not be one. Sweeping on write rather than on a timer keeps the cost proportional to
+     * the traffic that creates the entries.
+     *
+     * <p>The cap after the sweep is the backstop for the case the sweep cannot help with: ten
+     * thousand <em>live</em> challenges means something is generating them faster than they
+     * expire, and refusing is better than growing. It answers 503 rather than 500 because the
+     * condition is transient by construction — five minutes clears it.
+     *
+     * <p><b>In memory, hence per-instance.</b> Two control planes behind a load balancer do not
+     * share this map: the code has to come back to the instance that issued the token, so a
+     * multi-instance deployment needs session affinity on {@code /api/v1/auth/**} until this
+     * moves to the database. Written down here because nothing else says it.
+     */
+    private void rememberChallenge(String token, MfaChallenge challenge) {
+        Instant now = clock.instant();
+        mfaChallenges.values().removeIf(held -> now.isAfter(held.expiresAt()));
+
+        if (mfaChallenges.size() >= MAX_MFA_CHALLENGES) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Too many sign-ins are awaiting verification. Try again in a few minutes.");
+        }
+
+        mfaChallenges.put(token, challenge);
     }
 
     @Operation(summary = "Setup MFA / TOTP", description = "Generates a new TOTP secret and QR code URI for 2FA setup.")

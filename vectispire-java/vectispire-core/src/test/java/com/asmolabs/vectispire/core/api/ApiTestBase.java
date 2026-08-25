@@ -72,9 +72,22 @@ abstract class ApiTestBase extends VectispireContextTest {
     private String adminToken;
     private String readerToken;
 
+    /**
+     * The rate limiter counts per client address, and MockMvc hands every test the same one.
+     *
+     * <p>It is part of the chain under test — removing it would be testing a chain nobody
+     * deploys — so it is emptied between tests instead. Without that, the suite's tenth sign-in
+     * exhausts the bucket and whichever test runs eleventh fails on a 429 that has nothing to do
+     * with what it asserts. The order tests run in is not stable, so neither is the failure:
+     * this is the shape of flakiness that gets a suite ignored rather than fixed.
+     */
+    @Autowired
+    private com.asmolabs.vectispire.core.api.security.LoginRateLimitFilter rateLimit;
+
     @BeforeEach
     void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
+        rateLimit.reset();
         adminToken = null;
         readerToken = null;
     }

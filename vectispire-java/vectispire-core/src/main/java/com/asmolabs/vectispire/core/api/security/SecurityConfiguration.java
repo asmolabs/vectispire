@@ -158,6 +158,19 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // require the session it is on the way to producing.
                         .requestMatchers("/api/v1/auth/methods").permitAll()
                         .requestMatchers("/api/v1/auth/session/exchange").permitAll()
+                        // **The second half of the password exchange, and it was missing.** The
+                        // handler has always carried `@OpenToAnonymous` — it is called with the
+                        // `mfa_token` login step 1 just returned and no bearer, because the
+                        // bearer is precisely what it is on the way to issuing. Without this
+                        // line the request fell through to `anyRequest().authenticated()` and
+                        // came back 401 before the controller was entered, which locked out
+                        // every account that had enabled MFA.
+                        //
+                        // `RouteAuthorizationTest` was green throughout: it enumerates the
+                        // annotations, and the annotation was right. What it did not do was send
+                        // an anonymous request through this chain. It does now — see
+                        // `anOpenRouteIsReallyReachableWithoutCredentials`.
+                        .requestMatchers("/api/v1/auth/mfa/verify").permitAll()
                         // The agent protocol authenticates by API key, resolved by the filter
                         // above; the controller refuses when no agent came out of it.
                         .requestMatchers("/api/v1/agent/**").permitAll()
