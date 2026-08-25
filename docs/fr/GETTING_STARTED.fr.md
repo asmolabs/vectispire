@@ -45,11 +45,34 @@ export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
 
 ---
 
-## 4. Gestion du Schéma & Migrations (Flyway)
+## 4. Base de données
 
-Le schéma est géré par **Flyway** (`src/main/resources/db/migration/{vendor}/`).
-- À chaque démarrage, Flyway applique automatiquement les migrations SQL natives nécessaires.
-- Hibernate est configuré en mode `ddl-auto: validate` pour garantir que les entités correspondent strictement au schéma.
+PostgreSQL ou MySQL 8. En développement, un conteneur est le chemin le plus court :
+
+```bash
+docker run -d --name vectispire-db -p 5432:5432 \
+  -e POSTGRES_USER=vectispire -e POSTGRES_PASSWORD=vectispire -e POSTGRES_DB=vectispire \
+  postgres:16-alpine
+```
+
+Le schéma appartient aux **migrations Flyway**, appliquées au démarrage :
+
+```bash
+# Flyway applique les migrations au démarrage — il n'y a aucune commande séparée à lancer.
+# Un nouveau changement est un nouveau script dans vectispire-core/src/main/resources/db/migration/<dialecte>/.
+```
+
+`ddl-auto` vaut `validate`, délibérément : un schéma synthétisé depuis les entités n'est pas
+celui que la production recevra, et tester contre lui laisserait passer une migration fautive.
+
+Il n'existe aucune page d'auto-inscription : le premier compte vient donc des variables
+d'amorçage — définissez-les avant le premier démarrage et le SUPERUSER est créé tant que la
+table des utilisateurs est vide :
+
+```bash
+VECTISPIRE_BOOTSTRAP_USERNAME=admin
+VECTISPIRE_BOOTSTRAP_PASSWORD=<au moins 8 caractères>
+```
 
 ---
 
@@ -68,18 +91,43 @@ Connectez-vous avec l'utilisateur `admin` et changez le mot de passe initial.
 
 ---
 
-## 6. Analyse de Sécurité assistée par IA (Optionnel)
+## 6. Optionnel : revue de code par IA (Ollama)
 
-Vectispire permet d'activer une revue de code assistée par LLM local via [Ollama](https://ollama.com) :
+Une option supplémentaire, désactivée par défaut : un LLM local, exécuté via [Ollama](https://ollama.com), qui relit le code source avec une invite « architecte sécurité », en complément léger de Grype/gitleaks/checkov — pas en remplacement. Activée, elle tourne automatiquement sur les analyses de dépôts ; son résultat narratif et ses constats normalisés (sévérité/titre/fichier) apparaissent dans la boîte de détail de l'analyse. Voir la documentation de `AiReviewService` et le §4 de [`TECHNICAL_DOCUMENTATION.fr.md`](TECHNICAL_DOCUMENTATION.fr.md) pour le câblage.
+
+Ollama s'exécute en natif ou dans Docker — Vectispire lui parle en HTTP simple dans les deux cas (`ai_review_ollama_url`, par défaut `http://localhost:11434`), et le choix ne concerne que la façon dont Ollama lui-même tourne. Il n'y a délibérément aucun réglage pour cela : l'endroit où Ollama tourne ne change rien à la manière dont Vectispire l'appelle.
+
+**Installation native (recommandée, en particulier sur Mac Apple Silicon)** — voir [ollama.com/download](https://ollama.com/download). Donne l'accélération GPU complète : Metal sur Apple Silicon, CUDA/ROCm sous Linux avec les bons pilotes.
+
 ```bash
-export VECTISPIRE_AI_REVIEW_ENABLED=true
-export VECTISPIRE_AI_REVIEW_URL=http://localhost:11434
-export VECTISPIRE_AI_REVIEW_MODEL=llama3.2
+ollama pull gemma4:12b-it-qat   # ~7,2 Go, ~9-10 Go de RAM/VRAM — défaut recommandé
+ollama pull gemma4:e4b-it-qat   # ~6,1 Go, plus léger et plus rapide, qualité de revue moindre
 ```
+
+**Docker** — plus simple à reproduire d'une machine à l'autre, mais sur **Mac Apple Silicon, Docker Desktop n'a aucun passage GPU/Metal** : le conteneur tourne donc sur CPU seul et l'inférence est nettement plus lente que l'application native. Sous Linux avec un GPU NVIDIA (+ nvidia-container-toolkit), l'accélération GPU reste possible dans le conteneur.
+
+```bash
+docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
+docker exec -it vectispire-ollama ollama pull gemma4:12b-it-qat
+docker exec -it vectispire-ollama ollama pull gemma4:e4b-it-qat   # facultatif, alternative plus légère
+```
+
+(Ajouter `--gpus all` pour le passage NVIDIA sous Linux.)
+
+Ensuite, depuis la page **Réglages** de Vectispire, section « Revue de code par IA » : activez la fonctionnalité, renseignez l'URL d'Ollama (par défaut `http://localhost:11434`, inchangée qu'Ollama tourne en natif ou en conteneur puisque celui-ci publie le même port sur l'hôte), et choisissez un modèle dans la liste — celle-ci est lue en direct depuis le `/api/tags` d'Ollama (ce que vous avez réellement tiré y apparaît), et non codée en dur. Si Ollama n'est pas encore joignable, la liste se rabat sur les deux modèles ci-dessus présentés comme suggestions plutôt que de rester vide.
+
+**La configuration est en base, pas dans l'environnement.** Cette section a longtemps décrit trois
+variables `VECTISPIRE_AI_REVIEW_*` qui n'existent nulle part dans le code : les suivre ne faisait
+rien. Les réglages réels sont `ai_review_enabled`, `ai_review_ollama_url` et `ai_review_model`,
+posés depuis l'interface — de sorte qu'un changement est audité et n'exige pas un redémarrage.
 
 ---
 
 ## 7. Déploiement Conteneurisé avec Docker & Docker Compose
+
+> **Note de structure.** La version anglaise traite ce sujet en sous-section 5.1 plutôt qu'en
+> section propre ; les deux documents couvrent le même contenu, la numérotation seule diffère à
+> partir d'ici. Consigné pour qu'un écart de plan ne se lise pas comme une dérive de traduction.
 
 Pour exécuter la suite complète (Base PostgreSQL + Control Plane Vectispire + Agent optionnel) en une seule commande :
 

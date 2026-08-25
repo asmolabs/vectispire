@@ -59,6 +59,15 @@ services:
       # Empty means "nothing in front of us", so X-Forwarded-For is ignored and the peer address
       # is the rate-limit key. Set it to the balancer's address or CIDR when there is one.
       VECTISPIRE_TRUSTED_PROXIES: ${VECTISPIRE_TRUSTED_PROXIES:-}
+      # **The audit mirror, on by default here and only here.** The application ships with it
+      # off, because writing to a path by default fails on a read-only filesystem. A compose
+      # deployment has a writable volume, so this is the one place the default can be "on".
+      #
+      # It is what closes the case the hash chain cannot see: deleting an entry nobody descends
+      # from — the last one written — leaves a chain that verifies perfectly. The mirror makes
+      # that deletion require a second edit, in a second medium, and a log collector normally
+      # ships the file off the host within seconds. Point a collector at this volume.
+      VECTISPIRE_AUDIT_MIRROR: ${VECTISPIRE_AUDIT_MIRROR:-/var/lib/vectispire/audit/audit-mirror.ndjson}
       # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
       VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
       VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
@@ -69,6 +78,10 @@ services:
     volumes:
       # Sibling container scanner execution (Syft, Grype, Semgrep, Gitleaks)
       - /var/run/docker.sock:/var/run/docker.sock
+      # The audit mirror's home. A named volume rather than a bind mount: it holds audit
+      # entries, and the image creates the directory owned by its unprivileged user so the
+      # volume inherits that owner instead of arriving root-owned.
+      - vectispire_audit:/var/lib/vectispire/audit
     # **The socket is mounted, but the image runs as an unprivileged user.** Without this the
     # control plane starts, looks healthy, and fails every scan with "permission denied" on the
     # daemon — the Dockerfile says `--group-add` is required and this is compose's spelling of
@@ -120,6 +133,8 @@ services:
 volumes:
   vectispire_data:
     name: vectispire_data
+  vectispire_audit:
+    name: vectispire_audit
 
 networks:
   vectispire-net:

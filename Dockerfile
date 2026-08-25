@@ -75,6 +75,20 @@ COPY LICENSE NOTICE ./
 # An unprivileged user. It still has to belong to the group that owns the Docker socket on the
 # host, which the deployment grants with `--group-add`.
 RUN addgroup -S vectispire && adduser -S -G vectispire vectispire
+
+# **Where the audit mirror lands, created here so the volume inherits its owner.**
+# The mirror is off by default in `application.yaml` — writing to a path by default fails on a
+# read-only filesystem, and an integrity control that warns on every start is one people learn to
+# ignore. A container deployment is the case where a writable volume does exist, so `compose`
+# switches it on by pointing `VECTISPIRE_AUDIT_MIRROR` here.
+#
+# The directory must exist *and* be owned by the unprivileged user before the volume is mounted:
+# Docker initialises an empty named volume from what it finds at the mount point, ownership
+# included. Without this the volume arrives root-owned, every append fails with a permission
+# error, and the mirror is present in configuration and absent in fact — the one outcome worse
+# than having no mirror.
+RUN mkdir -p /var/lib/vectispire/audit && chown vectispire:vectispire /var/lib/vectispire/audit
+
 USER vectispire
 
 EXPOSE 3180

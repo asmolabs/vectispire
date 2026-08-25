@@ -47,6 +47,32 @@ jobs:
       - name: Documentation links resolve
         run: python3 scripts/check-doc-links.py
 
+      # **The C4 diagrams are generated, or they are just pictures.** The committed artifacts had
+      # drifted from `workspace.dsl` — a different exporter's output, so running the documented
+      # script rewrote all of them. Nothing failed, because nothing compared them. This does.
+      #
+      # Only the `.puml` files, and deliberately: structurizr's text export is byte-for-byte
+      # reproducible (verified by exporting twice and diffing), while PlantUML's PNGs are a
+      # rendering of them and not worth gating on. A flaky drift check is worse than none — it
+      # teaches people to re-run the job until it passes.
+      - name: C4 diagrams match the model
+        run: |
+          mkdir -p /tmp/c4-check
+          docker run --rm -v "$PWD:/work" -v /tmp/c4-check:/out -w /work \
+            structurizr/structurizr export \
+            -w docs/architecture/c4/workspace.dsl -f plantuml/c4plantuml -o /out
+
+          for f in /tmp/c4-check/*.puml; do
+            committed="docs/architecture/c4/diagrams/$(basename "$f")"
+            if ! diff -u "$committed" "$f"; then
+              echo
+              echo "The committed C4 diagrams no longer match workspace.dsl."
+              echo "Run ./scripts/generate-c4-diagrams.sh and commit the result."
+              exit 1
+            fi
+          done
+          echo "C4 diagrams are in step with the model."
+
   jvm:
     runs-on: ubuntu-latest
     steps:
