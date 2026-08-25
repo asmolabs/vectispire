@@ -11,7 +11,7 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 ### Core Commands:
 * `scan` : Enqueue a security scan on a repository or container and optionally wait for completion (`--wait`).
 * `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS) or `1` (FAIL / break build).
-* `sbom` : Download the raw Software Bill of Materials (CycloneDX / SPDX JSON).
+* `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON.
 
 ---
 

@@ -2,7 +2,7 @@
 
 * **Project:** Vectispire — ASPM & Security Control Plane
 * **Template:** `bflorat/modele-da` — Architecture Document Template (Bertrand Florat)
-* **Status:** Approved · **Version:** 1.2 (2026-08-25 — gate scoped to its target, `t_issue` indexed)
+* **Status:** Approved · **Version:** 1.3 (2026-08-25 — the CPU quota now exists)
 
 ---
 
@@ -20,8 +20,10 @@
 3. **Horizontal Scaling**: Conflict-free across multiple instances, by two different mechanisms —
    the scan **scheduler** holds a lease in `t_leader_lease` because it *creates* work, and the scan
    **worker** needs none because claiming a queued row is itself the concurrency control. See §3.
-4. **Docker Memory Stability**: Enforced **memory and process-count** caps on scanner containers.
-   **No CPU quota is applied** — see §4.2, where the gap is stated rather than papered over.
+4. **Docker Resource Stability**: Enforced memory, process-count **and CPU** caps on scanner
+   containers. The CPU share was listed here for weeks and applied by no code; it exists as of
+   2026-08-25 and `ContainerHardeningTest` asserts every one of these flags on the request handed
+   to the daemon.
 
 ---
 
@@ -75,7 +77,13 @@ Every container execution is constrained to prevent host memory exhaustion:
   it is the cap this document previously omitted.
 - **Maximum Execution Timeout**: `15 minutes` per scanner step. Exceeding it triggers forced
   container termination.
-- **CPU Quota**: **none is applied.** `ContainerRunner` sets memory, PIDs and a timeout, and no CPU
-  limit of any kind. A scanner can therefore saturate every core for the duration of its timeout.
-  The timeout bounds how long that lasts; nothing bounds how much it takes. Left as a stated gap
-  rather than a silent one — the previous text claimed `2.0 vCPUs`, which no code enforced.
+- **CPU Quota**: **every core but one**, floored at one. Not a fixed number, because a fixed one
+  is wrong on both a two-core VM and a sixty-four-core builder, and because the harm is not that a
+  scanner works hard — semgrep and grype are CPU-bound, and starving them turns a five-minute scan
+  into a timeout, which is a denial of service delivered by the defence. The harm is that a
+  repository nobody controls takes the *last* core and leaves the control plane unable to answer a
+  gate call for fifteen minutes. Leaving one core is what separates those two.
+
+  This entry claimed `2.0 vCPUs` for weeks while no CPU limit of any kind was applied. It is now
+  applied, and asserted: nothing had ever checked any of these flags, which is how a control stays
+  documented and absent at the same time.

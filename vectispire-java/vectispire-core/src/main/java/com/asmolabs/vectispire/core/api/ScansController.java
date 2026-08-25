@@ -169,7 +169,13 @@ public class ScansController {
      * inventory has no SBOM, and an empty document would claim it inventoried nothing.
      */
     @Operation(summary = "Download scan SBOM", description = "Returns the complete Software Bill of Materials (SBOM) produced during this scan.")
-    @ApiResponse(responseCode = "200", description = "CycloneDX / SPDX SBOM JSON document")
+    @ApiResponse(
+            responseCode = "200",
+            // Syft's native JSON, served byte for byte — see decision 0016. This said "CycloneDX /
+            // SPDX" and served neither, which is what an integrator builds against before
+            // discovering the parse fails. The generated CycloneDX-with-VEX document is a
+            // different endpoint: /api/v1/cyclonedx.
+            description = "Syft native JSON SBOM document, exactly as the cataloguer produced it")
     @GetMapping(value = "/{id}/sbom", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> sbom(
             @AuthenticationPrincipal VectispirePrincipal principal,

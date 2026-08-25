@@ -88,7 +88,7 @@ flowchart TB
 ### 2.5. Moteur de Conformité & Preuves d'Audit (`ComplianceEngine`, `EvidenceVaultService`)
 - **Calcul Déterministe** : Scoring continu sur 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA) et 7 catégories d'évaluation sans heuristique opaque.
 - **Principe de Non-Dilution** : Un seul contrôle critique non conforme invalide l'ensemble du référentiel.
-- **Coffre-Fort de Preuves Certifiées** : Génération d'un paquet ZIP scellé avec manifest SHA-256, attestations In-Toto, déclarations OpenVEX, avis OASIS CSAF 2.0, SBOM CycloneDX/SPDX et chaîne d'audit signée.
+- **Coffre-Fort de Preuves Certifiées** : Génération d'un paquet ZIP scellé avec manifest SHA-256, attestations In-Toto, déclarations OpenVEX, avis OASIS CSAF 2.0, SBOM CycloneDX 1.6 avec VEX intégré et chaîne d'audit signée.
 
 ### 2.6. Gouvernance 4-Yeux & Ingestion VEX Amont (`IssueTriageService`, `VexIngestorService`)
 - **Principe des Quatre Yeux** : Les exemptions initiées par les développeurs basculent en `PENDING_APPROVAL`, conservant la Gate bloquante jusqu'à approbation explicite par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN`.

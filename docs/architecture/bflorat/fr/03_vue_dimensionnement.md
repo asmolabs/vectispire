@@ -2,7 +2,7 @@
 
 * **Projet :** Vectispire — ASPM & Control Plane de Sécurité
 * **Modèle :** `bflorat/modele-da` — Modèle de Dossier d'Architecture (Bertrand Florat)
-* **Statut :** Validé · **Version :** 1.2 (2026-08-25 — gate restreint à sa cible, `t_issue` indexée)
+* **Statut :** Validé · **Version :** 1.3 (2026-08-25 — le quota CPU existe désormais)
 
 ---
 
@@ -22,9 +22,10 @@
    distincts — le **planificateur** d'analyses détient un bail dans `t_leader_lease` parce qu'il
    *crée* du travail, et le **worker** n'en a pas besoin car réclamer une ligne en file est
    lui-même le contrôle de concurrence. Voir §3.
-4. **Stabilité Mémoire du Démon Docker** : Quotas de **mémoire et de nombre de processus** imposés
-   sur chaque conteneur. **Aucun quota CPU n'est appliqué** — voir §4.2, où le manque est énoncé
-   plutôt que masqué.
+4. **Stabilité des Ressources Docker** : Quotas de mémoire, de nombre de processus **et de CPU**
+   imposés sur chaque conteneur de scan. La part CPU était annoncée ici depuis des semaines sans
+   qu'aucun code ne l'applique ; elle existe depuis le 25 août 2026 et `ContainerHardeningTest`
+   vérifie chacun de ces drapeaux sur la requête remise au démon.
 
 ---
 
@@ -80,8 +81,14 @@ Chaque conteneur exécuté est contraint pour éviter l'épuisement mémoire de 
   mort, et c'est le plafond que ce document omettait.
 - **Timeout d'exécution maximal** : `15 minutes` par scanner. Un dépassement entraîne la
   destruction forcée du conteneur.
-- **Quota CPU** : **aucun n'est appliqué.** `ContainerRunner` pose la mémoire, les PID et un
-  timeout, et aucune limite CPU d'aucune sorte. Un scanner peut donc saturer tous les cœurs pendant
-  toute la durée de son timeout. Le timeout borne la durée ; rien ne borne la consommation. Laissé
-  comme un manque énoncé plutôt que taire — le texte précédent annonçait `2.0 vCPUs`, qu'aucun code
-  n'imposait.
+- **Quota CPU** : **tous les cœurs sauf un**, avec un plancher à un. Pas un nombre fixe, car un
+  nombre fixe est faux à la fois sur une VM à deux cœurs et sur un serveur de build à
+  soixante-quatre, et parce que le préjudice n'est pas qu'un scanner travaille dur — semgrep et
+  grype sont limités par le CPU, et les affamer transforme une analyse de cinq minutes en timeout,
+  soit un déni de service livré par la défense. Le préjudice est qu'un dépôt que personne ne
+  contrôle prenne le *dernier* cœur et laisse le plan de contrôle incapable de répondre à un appel
+  du gate pendant quinze minutes. Laisser un cœur est ce qui sépare les deux.
+
+  Cette entrée annonçait `2.0 vCPUs` depuis des semaines sans qu'aucune limite CPU ne soit
+  appliquée. Elle l'est désormais, et elle est vérifiée : rien n'avait jamais contrôlé aucun de ces
+  drapeaux, ce qui est la façon dont un contrôle reste documenté et absent en même temps.

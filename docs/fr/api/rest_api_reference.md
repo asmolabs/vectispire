@@ -46,7 +46,7 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Dépôts Git** | `DELETE` | `/api/v1/repositories/{id}` | Admin | Suppression d'un dépôt et purge en cascade de ses analyses. |
 | **Scans** | `GET` | `/api/v1/scans` | Compte | Historique des analyses de sécurité avec filtres par cible. |
 | **Scans** | `GET` | `/api/v1/scans/{id}` | Compte | Détail d'un scan et inventaire des constats (findings) observés. |
-| **Scans** | `GET` | `/api/v1/scans/{id}/sbom` | Compte | Téléchargement du fichier SBOM (CycloneDX / SPDX) issu du scan. |
+| **Scans** | `GET` | `/api/v1/scans/{id}/sbom` | Compte | Téléchargement du SBOM brut, tel que Syft l'a produit (JSON natif). Le document CycloneDX-avec-VEX généré est `/api/v1/cyclonedx` — voir la [décision 0016](../../architecture/fr/decisions/0016-no-spdx-document.md). |
 | **Vulnérabilités** | `GET` | `/api/v1/issues` | Compte | Consultation du backlog des vulnérabilités actives et résolues. |
 | **Vulnérabilités** | `GET` | `/api/v1/issues/{id}` | Compte | Consultation détaillée d'une vulnérabilité et de son historique. |
 | **Vulnérabilités** | `POST` | `/api/v1/issues/{id}/triage` | Lead/Admin | Décision de triage (Acceptation de risque, Faux-positif, Atténuation). |

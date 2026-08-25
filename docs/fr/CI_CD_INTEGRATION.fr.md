@@ -11,7 +11,7 @@ Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'i
 ### Commandes Principales :
 * `scan` : Déclenche une analyse de sécurité sur un dépôt ou un conteneur et attend optionnellement sa finalisation (`--wait`).
 * `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès) ou `1` (Échec / Blocage du build).
-* `sbom` : Télécharge le SBOM déterministe (CycloneDX / SPDX JSON).
+* `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft.
 
 ---
 

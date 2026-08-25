@@ -19,6 +19,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0013](0013-flyway-multi-dialect-migrations.md) | Migrations Flyway multi-dialectes nativement gérées |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Deux moteurs déployables, et SQLite comme fixture de test |
 | [0015](0015-one-secrets-engine.md) | Un seul moteur de secrets |
+| [0016](0016-no-spdx-document.md) | CycloneDX est le SBOM généré ; SPDX n'est pas produit |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes
@@ -30,7 +31,7 @@ raison.
 
 Une décision consignée sans son raisonnement est une ligne de changelog. Ce registre en comptait
 neuf au 25 août 2026 ; le périmètre des moteurs s'était renversé trois fois en six jours
-précisément parce qu'aucun enregistrement n'expliquait le renversement précédent. Les quinze
+précisément parce qu'aucun enregistrement n'expliquait le renversement précédent. Les seize
 portent maintenant leur argument. L'histoire des moteurs est celle qui mérite d'être lue de bout en
 bout — [0004](0004-sqlite-and-postgresql-only.md) → [0008](0008-postgresql-and-mysql.md) →
 [0009](0009-four-engines.md) → [0014](0014-two-engines-and-a-test-fixture.md) — parce qu'elle se

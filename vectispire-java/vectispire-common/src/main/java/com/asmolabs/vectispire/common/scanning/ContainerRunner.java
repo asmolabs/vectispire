@@ -211,6 +211,7 @@ public final class ContainerRunner {
                 .withBinds(request.binds().stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
                 .withNetworkMode(request.network() ? "bridge" : "none")
                 .withMemory(limits.memory())
+                .withNanoCPUs(limits.nanoCpus())
                 .withPidsLimit(limits.pids())
                 .withCapDrop(com.github.dockerjava.api.model.Capability.values())
                 .withSecurityOpts(List.of("no-new-privileges"))

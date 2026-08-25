@@ -13,7 +13,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Conformité au modèle de Dossier d'Architecture de Bertrand Florat (docs/architecture/bflorat/ : 5 vues applicative, sécurité, dimensionnement, infrastructure, développement).
    - Modélisation C4 Structurizr DSL (docs/architecture/c4/workspace.dsl) et automatisation des diagrammes.
    - Modélisation formelle des menaces STRIDE DFD (docs/architecture/security/).
-   - Registre des décisions d'architecture (ADR 0001 à 0015 dans docs/architecture/{en,fr}/decisions/), et la substance de chacune : une décision sans son raisonnement ne survit pas au renversement suivant.
+   - Registre des décisions d'architecture (ADR 0001 à 0016 dans docs/architecture/{en,fr}/decisions/), et la substance de chacune : une décision sans son raisonnement ne survit pas au renversement suivant.
    - Parité et synchronisation stricte bilingue (docs/fr/ et docs/en/).
 
 2. 🛡️ Sécurité & Cryptographie ("Security by Design") :
@@ -54,7 +54,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Compliance with the Bertrand Florat Architecture Model (docs/architecture/bflorat/: 5 self-contained views for application, security, dimensioning, infrastructure, and development).
    - C4 Structurizr DSL architecture-as-code modeling (docs/architecture/c4/workspace.dsl) and automated diagram generation.
    - Formal STRIDE DFD threat modeling (docs/architecture/security/).
-   - Architectural Decision Records registry (ADR 0001 through 0015 in docs/architecture/{en,fr}/decisions/), and the substance of each: a decision without its reasoning does not survive the next reversal.
+   - Architectural Decision Records registry (ADR 0001 through 0016 in docs/architecture/{en,fr}/decisions/), and the substance of each: a decision without its reasoning does not survive the next reversal.
    - Strict bilingual parity and synchronization across French and English trees (docs/fr/ and docs/en/).
 
 2. 🛡️ Security & Cryptography ("Security by Design"):
