@@ -21,6 +21,24 @@ public record ScannerImages(String syft, String grype, String gitleaks, String b
         this(syft, grype, gitleaks, gitleaks, checkov, semgrep);
     }
 
+    /**
+     * Whether the second secret engine is actually a second engine.
+     *
+     * <p>The five-argument constructor above aliases {@code betterleaks} to {@code gitleaks}, and
+     * {@link ScannerImages#PINNED} does the same: out of the box the "second" scanner is the same
+     * image, given the same rule file and the same arguments, differing only in the name of the
+     * report it writes. Running it buys coverage of exactly nothing and costs one more container
+     * per scan.
+     *
+     * <p>The seam is worth keeping — an operator can point {@code betterleaks} at a genuinely
+     * different engine — but it should cost nothing until they do. {@link
+     * com.asmolabs.vectispire.common.scanning.ScanRunner} asks this before running the second
+     * pass.
+     */
+    public boolean hasDistinctSecretEngines() {
+        return gitleaks != null && !gitleaks.equals(betterleaks);
+    }
+
     public static final ScannerImages PINNED = new ScannerImages(
             "anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026",
             "anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db",

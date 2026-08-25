@@ -43,9 +43,25 @@ Les conséquences s'inversent :
   `betterleaks` vers un moteur réellement différent — et alors le `gitleaks.toml` partagé, qu'un
   autre moteur n'a aucune raison de comprendre, devient le premier problème.
 
-La recommandation change en conséquence : décider si le second moteur est censé être un véritable
-second avis. Si oui, lui donner son propre fichier de règles et tester la déduplication
-inter-scanners. Si non, retirer la seconde passe et récupérer le temps d'analyse.
+**L'A2 est désormais tranché, et la décision est celle-ci.** La couture reste — un exploitant peut
+pointer `betterleaks` vers un autre moteur — mais elle ne coûte rien tant qu'il ne s'en sert pas :
+
+* `ScannerImages.hasDistinctSecretEngines()` compare les deux images, et `ScanRunner` n'exécute la
+  seconde passe **que si elles diffèrent**. L'installation par défaut cesse d'analyser chaque arbre
+  deux fois pour des résultats égaux par construction.
+* Quand deux vrais moteurs tournent, `SecretsScanner.merge` fusionne les constats **identiques**.
+  Ce n'est pas de la propreté : `IssueSyncService` incrémente `times_seen` une fois par constat, un
+  doublon dans une même analyse fait donc paraître une anomalie deux fois plus persistante qu'elle
+  n'est.
+* Deux moteurs signalant la même ligne sous **des noms de règle différents restent deux constats**,
+  volontairement. Les fusionner reviendrait à choisir quelle identité de règle survit, or c'est
+  cette identité qui dit à l'analyste pourquoi la ligne a été signalée — un désaccord entre moteurs
+  est une information. Le coût est nommé plutôt que caché : `IssueFingerprint` inclut
+  l'identifiant de règle, un même identifiant fuité peut donc devenir deux anomalies. C'est
+  précisément ce coût qui justifie de *sauter* la passe redondante plutôt que de la dédupliquer.
+
+Cinq assertions dans `SecretEngineMergeTest` verrouillent l'ensemble, y compris le fait que le jeu
+d'images épinglé n'a pas de second moteur.
 
 
 ---

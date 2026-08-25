@@ -42,9 +42,23 @@ The consequences invert:
   `betterleaks` at a genuinely different engine — at which point the shared `gitleaks.toml`, which
   another engine has no reason to understand, becomes the first problem.
 
-The recommendation changes accordingly: decide whether the second engine is meant to be a real
-second opinion. If yes, give it its own rule file and test the cross-scanner dedup. If no, remove
-the second pass and recover the scan time.
+**A2 is now settled, and the decision is this.** The seam stays — an operator may point
+`betterleaks` at a different engine — but it costs nothing until they use it:
+
+* `ScannerImages.hasDistinctSecretEngines()` compares the two images, and `ScanRunner` runs the
+  second pass **only when they differ**. The default install stops analysing every tree twice for
+  results equal by construction.
+* When two real engines run, `SecretsScanner.merge` collapses **identical** findings. That is not
+  tidiness: `IssueSyncService` increments `times_seen` once per finding, so a duplicate inside one
+  scan makes an issue look twice as persistent as it is.
+* Two engines flagging the same line under **different rule names stay two findings**, on purpose.
+  Collapsing them would mean choosing whose rule identity survives, and that identity is what tells
+  an analyst why the line was flagged — a disagreement between engines is information. The cost is
+  named rather than hidden: `IssueFingerprint` includes the rule id, so one credential can become
+  two issues. That cost is precisely why the redundant pass is *skipped* rather than deduplicated.
+
+Five assertions in `SecretEngineMergeTest` pin all of it, including that the pinned image set has
+no second engine.
 
 
 ---
