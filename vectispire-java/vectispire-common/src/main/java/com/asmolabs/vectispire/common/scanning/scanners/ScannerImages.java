@@ -22,6 +22,49 @@ public record ScannerImages(String syft, String grype, String gitleaks, String b
     }
 
     /**
+     * The pinned set with whatever the operator named instead.
+     *
+     * <p><b>This is the promise above, which nothing implemented.</b> The class documented that
+     * "each image stays overridable, because an operator running an internal mirror needs that"
+     * — and both construction sites passed {@link #PINNED} straight through, so no deployment
+     * could override anything without editing source. An air-gapped or regulated estate pulling
+     * from an internal registry could not run Vectispire at all, which is the case the sentence
+     * was written for.
+     *
+     * <p><b>Blank means "keep the pinned one", not "no image".</b> Configuration arrives as empty
+     * strings far more often than it arrives absent — an unset environment variable rendered
+     * into YAML is {@code ""} — and treating that as a deliberate choice would replace a pinned
+     * digest with nothing.
+     *
+     * <p>An operator overriding an image takes on what the digest was protecting: a tag pulls
+     * whatever came down this morning. That is their call to make, and it is exactly why this
+     * returns a new record rather than mutating the pinned constant — {@link #PINNED} stays the
+     * reference for anyone asking what Vectispire ships with.
+     */
+    public ScannerImages withOverrides(
+            String syft,
+            String grype,
+            String gitleaks,
+            String betterleaks,
+            String checkov,
+            String semgrep) {
+        return new ScannerImages(
+                pick(syft, this.syft),
+                pick(grype, this.grype),
+                pick(gitleaks, this.gitleaks),
+                // Falls back to the *effective* gitleaks, not the pinned one: an operator who
+                // overrides the primary engine and says nothing about the second means "the same
+                // one", which is what the alias has always meant.
+                pick(betterleaks, pick(gitleaks, this.gitleaks)),
+                pick(checkov, this.checkov),
+                pick(semgrep, this.semgrep));
+    }
+
+    private static String pick(String override, String pinned) {
+        return override == null || override.isBlank() ? pinned : override.trim();
+    }
+
+    /**
      * Whether the second secret engine is actually a second engine.
      *
      * <p>The five-argument constructor above aliases {@code betterleaks} to {@code gitleaks}, and

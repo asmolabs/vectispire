@@ -16,6 +16,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param heartbeat the interval between two signs of life during a scan. <b>Periodic, not tied
  *     to the scanner's steps</b>: a beat sent per step would go silent for the fifteen minutes
  *     Semgrep can take on a large repository, and the lease would lapse while it progresses
+ * @param images the scanner images, blank meaning "the pinned digest". <b>The agent needs these
+ *     more than the control plane does</b>: it is the component deployed on somebody else's
+ *     network, which is exactly where pulls go through an internal registry rather than to Docker
+ *     Hub. An agent that cannot name its registry cannot run at all there
  */
 @ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
@@ -25,7 +29,30 @@ public record AgentProperties(
         @DefaultValue("10s") Duration retryDelay,
         @DefaultValue("60s") Duration heartbeat,
         @DefaultValue("docker") String scannerEngine,
-        @DefaultValue("1") String version) {
+        @DefaultValue("1") String version,
+        @DefaultValue Images images) {
+
+    /** Blank keeps the digest the agent ships with — see {@code ScannerImages.withOverrides}. */
+    public record Images(
+            @DefaultValue("") String syft,
+            @DefaultValue("") String grype,
+            @DefaultValue("") String gitleaks,
+            @DefaultValue("") String betterleaks,
+            @DefaultValue("") String checkov,
+            @DefaultValue("") String semgrep) {}
+
+    /** The pinned scanner digests, for a caller with no opinion about the registry. */
+    public AgentProperties(
+            String url,
+            String token,
+            Duration claimWait,
+            Duration retryDelay,
+            Duration heartbeat,
+            String scannerEngine,
+            String version) {
+        this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, version,
+                new Images("", "", "", "", "", ""));
+    }
 
     public AgentProperties {
         url = url == null ? "" : url.trim().replaceAll("/+$", "");
@@ -33,6 +60,8 @@ public record AgentProperties(
         claimWait = clamp(claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
         retryDelay = clamp(retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
         heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
+        // Absent means "no override", which is the same thing every blank field means.
+        images = images == null ? new Images("", "", "", "", "", "") : images;
     }
 
     private static Duration clamp(Duration value, Duration min, Duration max) {

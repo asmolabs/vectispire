@@ -79,13 +79,23 @@ public class ScanningConfiguration {
             RuleSetService ruleSets,
             Clock clock,
             @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
-            @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh) {
+            @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
+            // Blank keeps the pinned digest — see ScannerImages.withOverrides. Named one by one
+            // rather than bound as a map so an unknown key is a startup failure instead of a
+            // scanner that silently keeps running the image the operator meant to replace.
+            @Value("${vectispire.scanning.images.syft:}") String syftImage,
+            @Value("${vectispire.scanning.images.grype:}") String grypeImage,
+            @Value("${vectispire.scanning.images.gitleaks:}") String gitleaksImage,
+            @Value("${vectispire.scanning.images.betterleaks:}") String betterleaksImage,
+            @Value("${vectispire.scanning.images.checkov:}") String checkovImage,
+            @Value("${vectispire.scanning.images.semgrep:}") String semgrepImage) {
         RulePlacement.RuleSetProvider provider =
                 contentHash -> ruleSets.byHash(contentHash).map(ruleSets::filesOf).orElse(List.of());
 
         return new ScanRunner(
                 new ContainerRunner(),
-                ScannerImages.PINNED,
+                ScannerImages.PINNED.withOverrides(
+                        syftImage, grypeImage, gitleaksImage, betterleaksImage, checkovImage, semgrepImage),
                 bundledRules(bundledRulesOverride),
                 provider,
                 // Same policy as the agent: a changed host key blocks the scan rather than being

@@ -17,3 +17,15 @@ vectispire:
     # Well under the lease, so one missed beat cannot expire a scan that is progressing.
     heartbeat: ${VECTISPIRE_AGENT_HEARTBEAT:60s}
     version: ${VECTISPIRE_VERSION:1}
+
+    # **The scanner images.** Blank keeps the pinned digest. An agent runs on somebody else's
+    # network, which is where a pull goes through an internal registry rather than to Docker Hub —
+    # so this matters more here than on the control plane. Overriding a digest with a tag hands
+    # back what the pin was protecting.
+    images:
+      syft: ${VECTISPIRE_IMAGE_SYFT:}
+      grype: ${VECTISPIRE_IMAGE_GRYPE:}
+      gitleaks: ${VECTISPIRE_IMAGE_GITLEAKS:}
+      betterleaks: ${VECTISPIRE_IMAGE_BETTERLEAKS:}
+      checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
+      semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}

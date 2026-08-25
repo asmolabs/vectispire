@@ -95,7 +95,13 @@ public class AgentRunner implements ApplicationRunner {
         RulePlacement.RuleSetProvider ruleSets = protocol::ruleSet;
         ScanRunner runner = new ScanRunner(
                 new ContainerRunner(),
-                ScannerImages.PINNED,
+                ScannerImages.PINNED.withOverrides(
+                        properties.images().syft(),
+                        properties.images().grype(),
+                        properties.images().gitleaks(),
+                        properties.images().betterleaks(),
+                        properties.images().checkov(),
+                        properties.images().semgrep()),
                 // Unpacked from the agent's own jar, for the same reason: `Path.of("rules")`
                 // resolved against whatever directory the agent was started in, and no such
                 // directory ships with it.

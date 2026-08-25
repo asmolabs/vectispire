@@ -93,4 +93,50 @@ class SecretEngineMergeTest {
         assertThat(SecretsScanner.merge(List.of(primary), List.of(secondary)))
                 .containsExactly(primary, secondary);
     }
+
+    @Test
+    @DisplayName("a blank override keeps the pinned digest, because unset config arrives as \"\"")
+    void blankOverridesKeepThePinnedDigests() {
+        // An unset environment variable rendered into YAML is the empty string, not absence.
+        // Treating that as a deliberate choice would replace a reviewed digest with nothing.
+        ScannerImages unchanged = ScannerImages.PINNED.withOverrides("", "  ", null, "", "", null);
+
+        assertThat(unchanged).isEqualTo(ScannerImages.PINNED);
+    }
+
+    @Test
+    @DisplayName("an internal registry can be named, which is what the class always claimed")
+    void imagesAreOverridable() {
+        // The Javadoc promised "each image stays overridable, because an operator running an
+        // internal mirror needs that" while both construction sites passed PINNED straight
+        // through. An air-gapped estate could not run Vectispire at all.
+        ScannerImages mirrored = ScannerImages.PINNED.withOverrides(
+                "registry.internal/syft@sha256:1", null, null, null, null, null);
+
+        assertThat(mirrored.syft()).isEqualTo("registry.internal/syft@sha256:1");
+        assertThat(mirrored.grype()).isEqualTo(ScannerImages.PINNED.grype());
+    }
+
+    @Test
+    @DisplayName("overriding the primary engine carries the second one with it")
+    void theSecondEngineFollowsThePrimaryUnlessNamed() {
+        // Saying nothing about the second engine has always meant "the same one". An operator
+        // who moves gitleaks to an internal mirror and says nothing else must not end up running
+        // their mirror *and* the public digest the alias used to point at.
+        ScannerImages mirrored = ScannerImages.PINNED.withOverrides(
+                null, null, "registry.internal/gitleaks@sha256:2", null, null, null);
+
+        assertThat(mirrored.betterleaks()).isEqualTo("registry.internal/gitleaks@sha256:2");
+        assertThat(mirrored.hasDistinctSecretEngines())
+                .as("mirroring the primary engine does not create a second one")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("naming a different second engine is what turns the second pass on")
+    void namingASecondEngineEnablesIt() {
+        ScannerImages two = ScannerImages.PINNED.withOverrides(null, null, null, OTHER, null, null);
+
+        assertThat(two.hasDistinctSecretEngines()).isTrue();
+    }
 }

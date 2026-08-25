@@ -59,6 +59,13 @@ services:
       # Empty means "nothing in front of us", so X-Forwarded-For is ignored and the peer address
       # is the rate-limit key. Set it to the balancer's address or CIDR when there is one.
       VECTISPIRE_TRUSTED_PROXIES: ${VECTISPIRE_TRUSTED_PROXIES:-}
+      # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
+      VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
+      VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
+      VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
+      VECTISPIRE_IMAGE_BETTERLEAKS: ${VECTISPIRE_IMAGE_BETTERLEAKS:-}
+      VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
+      VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
     volumes:
       # Sibling container scanner execution (Syft, Grype, Semgrep, Gitleaks)
       - /var/run/docker.sock:/var/run/docker.sock
@@ -92,6 +99,13 @@ services:
       # runs an agent. An empty token is not a weak secret, it is an agent that fails to enrol
       # and says so.
       VECTISPIRE_AGENT_TOKEN: ${VECTISPIRE_AGENT_TOKEN:-}
+      # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
+      VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
+      VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
+      VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
+      VECTISPIRE_IMAGE_BETTERLEAKS: ${VECTISPIRE_IMAGE_BETTERLEAKS:-}
+      VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
+      VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     group_add:
