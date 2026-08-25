@@ -3,110 +3,47 @@ title <size:24>Component View: Vectispire Platform - Spring Boot Control Plane</
 
 set separator none
 top to bottom direction
-skinparam ranksep 20
-skinparam nodesep 5
-hide stereotype
 
 <style>
   root {
-    BackgroundColor: #ffffff;
-    FontColor: #444444;
-  }
-  // Element,Component
-  .Element-RWxlbWVudCxDb21wb25lbnQ= {
-    BackgroundColor: #85bbf0;
-    LineColor: #5d82a8;
-    LineStyle: 0;
-    LineThickness: 2;
-    FontColor: #000000;
-    FontSize: 24;
-    HorizontalAlignment: center;
-    Shadowing: 0;
-    MaximumWidth: 450;
-  }
-  // Element,Container
-  .Element-RWxlbWVudCxDb250YWluZXI= {
-    BackgroundColor: #438dd5;
-    LineColor: #2e6295;
-    LineStyle: 0;
-    LineThickness: 2;
-    FontColor: #ffffff;
-    FontSize: 24;
-    HorizontalAlignment: center;
-    Shadowing: 0;
-    MaximumWidth: 450;
-  }
-  // Element,Container,Database
-  .Element-RWxlbWVudCxDb250YWluZXIsRGF0YWJhc2U= {
-    BackgroundColor: #438dd5;
-    LineColor: #2e6295;
-    LineStyle: 0;
-    LineThickness: 2;
-    FontColor: #ffffff;
-    FontSize: 24;
-    HorizontalAlignment: center;
-    Shadowing: 0;
-    MaximumWidth: 450;
-  }
-  // Relationship
-  .Relationship-UmVsYXRpb25zaGlw {
-    LineThickness: 2;
-    LineStyle: 10-10;
-    LineColor: #444444;
-    FontColor: #444444;
-    FontSize: 24;
-    MaximumWidth: 200;
-  }
-  // Spring Boot Control Plane
-  .Boundary-U3ByaW5nIEJvb3QgQ29udHJvbCBQbGFuZQ== {
-    BackgroundColor: #ffffff;
-    LineColor: #2e6295;
-    LineStyle: 0;
-    LineThickness: 2;
-    FontColor: #ffffff;
-    FontSize: 24;
-    HorizontalAlignment: center;
-    Shadowing: 0;
-  }
-  // Vectispire Platform
-  .Boundary-VmVjdGlzcGlyZSBQbGF0Zm9ybQ== {
-    BackgroundColor: #ffffff;
-    LineColor: #0b4884;
-    LineStyle: 0;
-    LineThickness: 2;
-    FontColor: #ffffff;
-    FontSize: 24;
-    HorizontalAlignment: center;
-    Shadowing: 0;
+    BackgroundColor: #ffffff
+    FontColor: #444444
   }
 </style>
 
-rectangle "Vectispire Platform\n<size:16>[Software System]</size>" <<Boundary-VmVjdGlzcGlyZSBQbGF0Zm9ybQ==>> {
-  rectangle "Spring Boot Control Plane\n<size:16>[Container: Spring Boot 4.1 / JDK 25]</size>" <<Boundary-U3ByaW5nIEJvb3QgQ29udHJvbCBQbGFuZQ==>> {
-    rectangle "==IssueSync Service\n<size:16>[Component: Java / IssueSyncService]</size>\n\nCalculates issue fingerprints (SHA-256) and reconciles state across scans." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.IssueSyncService
-    rectangle "==Compliance Service\n<size:16>[Component: Java / ComplianceService]</size>\n\nEvaluates NIS 2, DORA, ISO 27001, PCI-DSS frameworks at global & per-repo levels." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.ComplianceService
-    rectangle "==PolicyGate Service\n<size:16>[Component: Java / PolicyGate]</size>\n\nEvaluates Quality Gate rules against target issue posture." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.PolicyGateService
-    rectangle "==AuditLog Service\n<size:16>[Component: Java / AuditLogService]</size>\n\nMaintains SHA-256 hash-chained immutable audit records." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.AuditLogService
-    rectangle "==Encryption Service\n<size:16>[Component: Java / EncryptionService]</size>\n\nEncrypts SSH deployment keys at rest using AES-256-GCM." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.EncryptionService
-    rectangle "==API Controllers Layer\n<size:16>[Component: Spring REST Controllers]</size>\n\nHandles HTTP endpoints (/api/v1/compliance, /api/v1/gate, /api/v1/scans, /api/v1/issues)." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.APIControllersLayer
-    rectangle "==ScanRunner Engine\n<size:16>[Component: Java / ScanRunner]</size>\n\nOrchestrates repository clone and scanner container invocations." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine
-    rectangle "==ScanIngestor Service\n<size:16>[Component: Java / ScanIngestor]</size>\n\nNormalizes raw scanner outputs into findings and deduplicates secrets." <<Element-RWxlbWVudCxDb21wb25lbnQ=>> as VectispirePlatform.SpringBootControlPlane.ScanIngestorService
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Container>
+!include <C4/C4_Component>
+
+System_Boundary("VectispirePlatform_boundary", "Vectispire Platform", $tags="") {
+  Container_Boundary("VectispirePlatform.SpringBootControlPlane_boundary", "Spring Boot Control Plane", $tags="") {
+    Component(VectispirePlatform.SpringBootControlPlane.IssueSyncService, "IssueSync Service", $techn="Java / IssueSyncService", $descr="Calculates issue fingerprints (SHA-256) and reconciles state across scans.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.ComplianceService, "Compliance Service", $techn="Java / ComplianceService", $descr="Evaluates NIS 2, DORA, ISO 27001, PCI-DSS frameworks at global & per-repo levels.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.PolicyGateService, "PolicyGate Service", $techn="Java / PolicyGate", $descr="Evaluates Quality Gate rules against target issue posture.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.AuditLogService, "AuditLog Service", $techn="Java / AuditLogService", $descr="Maintains SHA-256 hash-chained immutable audit records.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.EncryptionService, "Encryption Service", $techn="Java / EncryptionService", $descr="Encrypts SSH deployment keys at rest using AES-256-GCM.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.APIControllersLayer, "API Controllers Layer", $techn="Spring REST Controllers", $descr="Handles HTTP endpoints (/api/v1/compliance, /api/v1/gate, /api/v1/scans, /api/v1/issues).", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine, "ScanRunner Engine", $techn="Java / ScanRunner", $descr="Orchestrates repository clone and scanner container invocations.", $tags="", $link="")
+    Component(VectispirePlatform.SpringBootControlPlane.ScanIngestorService, "ScanIngestor Service", $techn="Java / ScanIngestor", $descr="Normalizes raw scanner outputs into findings and deduplicates secrets.", $tags="", $link="")
   }
 
-  database "==Database Engine\n<size:16>[Container: PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)]</size>\n\nStores targets, scans, findings, issues, VEX triage history, audit logs, and system settings." <<Element-RWxlbWVudCxDb250YWluZXIsRGF0YWJhc2U=>> as VectispirePlatform.DatabaseEngine
-  rectangle "==Docker Daemon & Scanners\n<size:16>[Container: Docker Engine / ContainerRunner]</size>\n\nRuns isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis." <<Element-RWxlbWVudCxDb250YWluZXI=>> as VectispirePlatform.DockerDaemonScanners
+  ContainerDb(VectispirePlatform.DatabaseEngine, "Database Engine", $techn="PostgreSQL / MySQL / MariaDB / SQLite (Flyway Migrations)", $descr="Stores targets, scans, findings, issues, VEX triage history, audit logs, and system settings.", $tags="", $link="")
+  Container(VectispirePlatform.DockerDaemonScanners, "Docker Daemon & Scanners", $techn="Docker Engine / ContainerRunner", $descr="Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis.", $tags="", $link="")
 }
 
-VectispirePlatform.SpringBootControlPlane.APIControllersLayer --> VectispirePlatform.SpringBootControlPlane.ComplianceService <<Relationship-UmVsYXRpb25zaGlw>> : "Requests compliance summaries"
-VectispirePlatform.SpringBootControlPlane.APIControllersLayer --> VectispirePlatform.SpringBootControlPlane.PolicyGateService <<Relationship-UmVsYXRpb25zaGlw>> : "Requests policy gate evaluation"
-VectispirePlatform.SpringBootControlPlane.APIControllersLayer --> VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Triggers manual scans"
-VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine --> VectispirePlatform.DockerDaemonScanners <<Relationship-UmVsYXRpb25zaGlw>> : "Runs Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep"
-VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine --> VectispirePlatform.SpringBootControlPlane.ScanIngestorService <<Relationship-UmVsYXRpb25zaGlw>> : "Passes raw ScanArtifacts"
-VectispirePlatform.SpringBootControlPlane.ScanIngestorService --> VectispirePlatform.SpringBootControlPlane.IssueSyncService <<Relationship-UmVsYXRpb25zaGlw>> : "Provides normalized Findings"
-VectispirePlatform.SpringBootControlPlane.IssueSyncService --> VectispirePlatform.DatabaseEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Persists Findings, Issues, and Triage events"
-VectispirePlatform.SpringBootControlPlane.ComplianceService --> VectispirePlatform.DatabaseEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Queries target issue posture & metrics"
-VectispirePlatform.SpringBootControlPlane.PolicyGateService --> VectispirePlatform.DatabaseEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Queries open issues & SLA overdue status"
-VectispirePlatform.SpringBootControlPlane.AuditLogService --> VectispirePlatform.DatabaseEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Appends SHA-256 hash-chained audit log rows"
-VectispirePlatform.SpringBootControlPlane.EncryptionService --> VectispirePlatform.DatabaseEngine <<Relationship-UmVsYXRpb25zaGlw>> : "Encrypts/Decrypts private keys"
+Rel(VectispirePlatform.SpringBootControlPlane.APIControllersLayer, VectispirePlatform.SpringBootControlPlane.ComplianceService, "Requests compliance summaries", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.APIControllersLayer, VectispirePlatform.SpringBootControlPlane.PolicyGateService, "Requests policy gate evaluation", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.APIControllersLayer, VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine, "Triggers manual scans", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine, VectispirePlatform.DockerDaemonScanners, "Runs Syft, Grype, Gitleaks, Betterleaks, Checkov, Semgrep", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.ScanRunnerEngine, VectispirePlatform.SpringBootControlPlane.ScanIngestorService, "Passes raw ScanArtifacts", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.ScanIngestorService, VectispirePlatform.SpringBootControlPlane.IssueSyncService, "Provides normalized Findings", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.IssueSyncService, VectispirePlatform.DatabaseEngine, "Persists Findings, Issues, and Triage events", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.ComplianceService, VectispirePlatform.DatabaseEngine, "Queries target issue posture & metrics", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.PolicyGateService, VectispirePlatform.DatabaseEngine, "Queries open issues & SLA overdue status", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.AuditLogService, VectispirePlatform.DatabaseEngine, "Appends SHA-256 hash-chained audit log rows", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.EncryptionService, VectispirePlatform.DatabaseEngine, "Encrypts/Decrypts private keys", $techn="", $tags="", $link="")
 
+SHOW_LEGEND(true)
+hide stereotypes
 @enduml
