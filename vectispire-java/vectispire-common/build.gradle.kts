@@ -159,3 +159,39 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
 tasks.named("check") {
     dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }
+
+/**
+ * A second floor, for the half of this module that runs containers.
+ *
+ * **Lower than the domain's, and deliberately so.** `common.scanning` reaches a Docker daemon:
+ * the paths that matter most — a timeout, a non-zero exit, an unreadable report — need one to
+ * exercise, and they live in the integration campaign rather than here. Measuring it against the
+ * domain's bar would either fail honestly or push somebody to write unit tests that assert what a
+ * mock was told to return.
+ *
+ * No branch floor for the same reason: this code is mostly error branches whose other half needs
+ * a daemon.
+ */
+val scanningCoverage = tasks.register<JacocoCoverageVerification>("jacocoScanningCoverageVerification") {
+    dependsOn(tasks.test)
+    executionData(tasks.test.get())
+    sourceSets(sourceSets.main.get())
+    classDirectories.setFrom(
+        files(sourceSets.main.get().output.classesDirs.map {
+            fileTree(it) { include("com/asmolabs/vectispire/common/scanning/**") }
+        })
+    )
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.50".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(scanningCoverage)
+}

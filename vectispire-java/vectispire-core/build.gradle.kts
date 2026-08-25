@@ -312,3 +312,47 @@ val jibExtras = tasks.register<Copy>("jibExtras") {
 tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configureEach {
     dependsOn(jibExtras)
 }
+
+/**
+ * The control plane's own floor.
+ *
+ * **Why an aggregate and not one rule per layer.** The four packages below sit at 73% (services),
+ * 67% (api), 89% (persistence) and 57% (repositories), and the spread is not a quality gradient:
+ * a repository is a handful of query declarations whose real test is the integration campaign,
+ * while a service is where the branches live. Four separate floors would encode today's ratios as
+ * a target and fail the day somebody moves a method between layers for good reasons.
+ *
+ * Set just under the measured 71%: a floor catches a regression — a class added with no test, a
+ * suite deleted in a hurry — and is not an aspiration. The domain keeps its own, higher bar in
+ * `vectispire-common`, because that is the layer argued to be exhaustively testable.
+ *
+ * **Unit coverage only.** The integration campaign writes its own execution data and is not
+ * counted here; folding it in would make this number depend on whether somebody had a Docker
+ * daemon, which is the opposite of what a gate should do.
+ */
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                include(
+                    "com/asmolabs/vectispire/core/services/**",
+                    "com/asmolabs/vectispire/core/api/**",
+                    "com/asmolabs/vectispire/core/persistence/**",
+                    "com/asmolabs/vectispire/core/repositories/**")
+            }
+        })
+    )
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.68".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}

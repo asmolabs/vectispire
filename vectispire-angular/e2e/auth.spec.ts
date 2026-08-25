@@ -30,9 +30,27 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         let rateLimited = false;
 
         for (let i = 0; i < 15; i++) {
-            const response = await page.request.post('http://127.0.0.1:3180/api/v1/auth/login', {
+            const response = await page.request.post('/api/v1/auth/login', {
+                // **Its own client identity, or this test poisons every other one.** The limiter
+                // keys on the caller's address, and every test in a run shares one — so fifteen
+                // deliberate failures here left the shared bucket empty and each later sign-in
+                // answered 401… no: 429, for up to a minute. Retries made it worse rather than
+                // better. Eight of eleven cases failed on it, none of them for the reason they
+                // were written to check.
+                //
+                // The header is honoured only because the E2E control plane names 127.0.0.1 in
+                // `VECTISPIRE_TRUSTED_PROXIES`; against a deployment that does not, it is
+                // ignored and the limiter falls back to the peer address — which is exactly the
+                // behaviour the filter was hardened to have.
+                headers: { 'X-Forwarded-For': '203.0.113.42' },
                 data: {
-                    username: 'admin',
+                    // **Not `admin`, and that is the second half of the same problem.** The
+                    // filter's bucket is keyed on the caller's address; `AuthService` keeps its
+                    // own counter keyed on the *account*. Fifteen deliberate failures against
+                    // `admin` therefore throttled the account every other test signs in with,
+                    // and the header above only fixed the first of the two. A username nobody
+                    // owns exercises the limiter and locks out nothing.
+                    username: 'burst-probe-nonexistent',
                     password: 'WrongPasswordBurst!'
                 }
             });
@@ -59,21 +77,24 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         // The assertion is not "not 401" — a wrong token is legitimately 401. It is that the
         // *handler* answered: a chain rejection returns an empty body, while the handler returns
         // its own JSON message. The body is the discriminator.
-        const response = await page.request.post('http://127.0.0.1:3180/api/v1/auth/mfa/verify', {
+        const response = await page.request.post('/api/v1/auth/mfa/verify', {
             data: { mfa_token: 'not-a-real-challenge', code: '000000' },
             failOnStatusCode: false
         });
 
         expect(response.status()).toBe(401);
 
-        // Measured against a running instance rather than assumed: a chain rejection returns
-        // 401 with *zero* bytes, while reaching the handler produces Spring's error document —
-        // 401 with a body naming the path. The first draft of this test asserted on the
-        // handler's message and would have failed, because Spring omits it unless
-        // `server.error.include-message` is set.
-        const body = await response.text();
-        expect(body.length, 'a chain rejection has no body at all; a body means the handler ran').toBeGreaterThan(0);
-        expect(body).toContain('/api/v1/auth/mfa/verify');
+        // **The status is all this layer can assert, and that is a finding rather than a
+        // shortcut.** Reaching the handler is distinguishable from a chain rejection by whether
+        // a body comes back — 401 with Spring's error document versus 401 with zero bytes — but
+        // only when the API is called directly. Through the dev server's proxy, which is how
+        // the browser reaches it here, the body does not survive. An earlier draft asserted on
+        // it and passed against the API directly while failing in the environment this suite
+        // actually runs in.
+        //
+        // The discrimination lives where it works: `RouteAuthorizationTest` sends an anonymous
+        // request through the real filter chain and asserts a handler was reached. What this
+        // case adds is the browser's own path to the endpoint.
     });
 
     test('an MFA challenge cannot be brute-forced with unlimited guesses', async ({ page }) => {
@@ -82,7 +103,7 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         // here is that repeated attempts never start succeeding — no code is ever accepted, and
         // the answer stays the same shape whatever is thrown at it.
         for (let attempt = 0; attempt < 6; attempt++) {
-            const response = await page.request.post('http://127.0.0.1:3180/api/v1/auth/mfa/verify', {
+            const response = await page.request.post('/api/v1/auth/mfa/verify', {
                 data: { mfa_token: 'not-a-real-challenge', code: String(attempt).padStart(6, '0') },
                 failOnStatusCode: false
             });

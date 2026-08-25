@@ -15,6 +15,13 @@ export default defineConfig({
   workers: process.env['CI'] ? 1 : undefined,
   reporter: 'html',
   use: {
+    // **Every request in the suites is relative to this**, including `page.request` calls to the
+    // API. They used to name `http://127.0.0.1:3180` outright, which tied the suites to one port
+    // and to one machine: a run against a second instance — or on a developer box already serving
+    // on 3180 — sent fifteen failed logins at whatever happened to be listening.
+    //
+    // Relative paths go through the dev server's proxy (`proxy.conf.json`), so the API's address
+    // is configured in exactly one place.
     baseURL: 'http://localhost:4280',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure'
