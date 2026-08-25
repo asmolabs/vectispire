@@ -12,6 +12,8 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.repositories.FindingGraphQueries;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
@@ -19,6 +21,7 @@ import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,18 +55,29 @@ public class BlastRadiusService {
         this.scansRepo = scansRepo;
     }
 
+    /**
+     * The graph of what a package or a CVE reaches, <b>within what the caller may see</b>.
+     *
+     * <p><b>Two defects were repaired here together, and the smaller one was the reason I was
+     * sent.</b> The read was unbounded — every finding in the deployment, then a scan looked up
+     * one at a time, then the caller's query matched in Java. The other was that no
+     * {@link Visibility} was applied at any point, so a reader assigned one repository received an
+     * inventory of every other: target names, package names, versions and CVE identifiers.
+     *
+     * <p>They are repaired in one change because they are the same line. The filter that scopes
+     * the read to a target is the filter that authorizes it, and adding an index or a narrower
+     * query without the allowance would have made the leak faster.
+     */
     @Transactional(readOnly = true)
-    public BlastRadiusReport explore(String rawQuery) {
+    public BlastRadiusReport explore(String rawQuery, Visibility allowed) {
         String query = rawQuery != null ? rawQuery.trim() : "";
         boolean isCveQuery = query.toUpperCase().startsWith("CVE-");
 
-        Map<Long, RepositoryEntity> reposMap = repositoriesRepo.findAll().stream()
-                .collect(Collectors.toMap(RepositoryEntity::getId, r -> r));
-        Map<Long, ContainerEntity> containersMap = containersRepo.findAll().stream()
-                .collect(Collectors.toMap(ContainerEntity::getId, c -> c));
+        List<FindingGraphQueries.GraphRow> rows = findingsRepo.forGraph(query, isCveQuery, true, allowed);
 
-        List<FindingEntity> allFindings = findingsRepo.findAll();
-        List<IssueEntity> allIssues = issuesRepo.findAll();
+        // Named only for the targets that actually appeared, rather than by loading both tables.
+        Map<Long, RepositoryEntity> reposMap = namedRepositories(rows);
+        Map<Long, ContainerEntity> containersMap = namedContainers(rows);
 
         List<TargetImpact> targets = new ArrayList<>();
         Map<String, GraphNode> nodesMap = new HashMap<>();
@@ -74,14 +88,15 @@ public class BlastRadiusService {
         Set<String> uniqueCves = new HashSet<>();
         double maxCvss = 0.0;
 
-        // Group findings by scan
-        Map<Long, List<FindingEntity>> findingsByScan = allFindings.stream()
-                .collect(Collectors.groupingBy(FindingEntity::getScanId));
+        // The scan arrives with its findings rather than being fetched per group: that lookup
+        // was an N+1 sitting on top of a whole-table read.
+        Map<ScanEntity, List<FindingEntity>> findingsByScan = new LinkedHashMap<>();
+        for (FindingGraphQueries.GraphRow row : rows) {
+            findingsByScan.computeIfAbsent(row.scan(), key -> new ArrayList<>()).add(row.finding());
+        }
 
-        for (Map.Entry<Long, List<FindingEntity>> entry : findingsByScan.entrySet()) {
-            Long scanId = entry.getKey();
-            ScanEntity scan = scansRepo.findById(scanId).orElse(null);
-            if (scan == null) continue;
+        for (Map.Entry<ScanEntity, List<FindingEntity>> entry : findingsByScan.entrySet()) {
+            ScanEntity scan = entry.getKey();
 
             String targetKind = scan.getRepoId() != null ? "REPOSITORY" : "CONTAINER";
             Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
@@ -103,24 +118,11 @@ public class BlastRadiusService {
 
             List<FindingEntity> scanFindings = entry.getValue();
             for (FindingEntity finding : scanFindings) {
-                if (finding.getPackageName() == null || finding.getPackageName().isBlank() || "secret".equalsIgnoreCase(finding.getType())) {
-                    continue;
-                }
-
+                // The package-name and secret filters moved into the query; so did the match
+                // below. Kept as a single guard rather than removed, because the query is the
+                // contract and this is the assertion that it held.
                 String pkgName = finding.getPackageName();
                 String cveId = finding.getIdentifier();
-
-                boolean matches;
-                if (query.isBlank()) {
-                    matches = true;
-                } else if (isCveQuery) {
-                    matches = cveId != null && cveId.equalsIgnoreCase(query);
-                } else {
-                    matches = pkgName.toLowerCase().contains(query.toLowerCase())
-                            || (finding.getPurl() != null && finding.getPurl().toLowerCase().contains(query.toLowerCase()));
-                }
-
-                if (!matches) continue;
 
                 boolean isDirect = Boolean.TRUE.equals(finding.getIsDirectDependency());
                 if (isDirect) directCount++; else transitiveCount++;
@@ -194,11 +196,13 @@ public class BlastRadiusService {
                 new DependencyGraph(new ArrayList<>(nodesMap.values()), edges));
     }
 
+    /** The packages that reach the most targets, <b>within what the caller may see</b>. */
     @Transactional(readOnly = true)
-    public List<TopImpactPackage> getTopImpactPackages(int limit) {
-        List<FindingEntity> allFindings = findingsRepo.findAll();
-        Map<String, List<FindingEntity>> byPackage = allFindings.stream()
-                .filter(f -> f.getPackageName() != null && !f.getPackageName().isBlank())
+    public List<TopImpactPackage> getTopImpactPackages(int limit, Visibility allowed) {
+        // Blank query, secrets left in: this list never excluded them and does not need to — it
+        // already requires a package name, which a secret finding does not carry.
+        Map<String, List<FindingEntity>> byPackage = findingsRepo.forGraph("", false, false, allowed).stream()
+                .map(FindingGraphQueries.GraphRow::finding)
                 .collect(Collectors.groupingBy(FindingEntity::getPackageName));
 
         List<TopImpactPackage> topList = new ArrayList<>();
@@ -252,4 +256,28 @@ public class BlastRadiusService {
         if (purl.startsWith("pkg:docker") || purl.startsWith("pkg:oci")) return "OCI";
         return "Generic";
     }
+
+    /** The repositories named by these rows, and no others. */
+    private Map<Long, RepositoryEntity> namedRepositories(List<FindingGraphQueries.GraphRow> rows) {
+        Set<Long> ids = rows.stream()
+                .map(row -> row.scan().getRepoId())
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        return ids.isEmpty()
+                ? Map.of()
+                : repositoriesRepo.findAllById(ids).stream()
+                        .collect(Collectors.toMap(RepositoryEntity::getId, r -> r));
+    }
+
+    private Map<Long, ContainerEntity> namedContainers(List<FindingGraphQueries.GraphRow> rows) {
+        Set<Long> ids = rows.stream()
+                .map(row -> row.scan().getContainerId())
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        return ids.isEmpty()
+                ? Map.of()
+                : containersRepo.findAllById(ids).stream()
+                        .collect(Collectors.toMap(ContainerEntity::getId, c -> c));
+    }
+
 }

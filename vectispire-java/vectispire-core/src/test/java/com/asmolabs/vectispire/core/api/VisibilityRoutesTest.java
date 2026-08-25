@@ -13,10 +13,15 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.SettingsService;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +50,12 @@ class VisibilityRoutesTest extends ApiTestBase {
 
     @Autowired
     private SettingsService settings;
+
+    @Autowired
+    private Findings findings;
+
+    @Autowired
+    private Scans scans;
 
     @Test
     @DisplayName("open by default: an account with no assignment still sees everything")
@@ -180,6 +191,56 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.posture.totalCount").value(1));
     }
 
+    @Test
+    @DisplayName("the blast radius shows a restricted reader only their own targets")
+    void theBlastRadiusIsScoped() throws Exception {
+        // **The hole `Visibility` exists to prevent, found on the one screen nobody had checked.**
+        // Its own documentation says authorization spread across controllers is one chance per
+        // controller to forget one, and the forgotten one is the hole. This was it: the endpoint
+        // read every finding in the deployment and answered with target names, package names and
+        // CVE identifiers, to any authenticated account.
+        //
+        // The leak is not abstract. A blast-radius answer names the repository, the package and
+        // the version — an inventory of somebody else's estate, handed to a contractor assigned
+        // one repository.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        finding(mine, "log4j-core", "CVE-2021-44228");
+        finding(theirs, "spring-beans", "CVE-2022-22965");
+
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targets.length()").value(1))
+                .andExpect(jsonPath("$.targets[0].packageName").value("log4j-core"));
+
+        // The graph is the same data in another shape, and a scoping that stopped at the summary
+        // would leak it here instead.
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), reader))
+                .andExpect(jsonPath("$.graph.nodes[?(@.label == 'CVE-2022-22965')]").isEmpty());
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/top-impact"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].packageName").value("log4j-core"));
+    }
+
+    @Test
+    @DisplayName("an administrator still sees the whole estate's blast radius")
+    void theBlastRadiusIsWholeForAnAdministrator() throws Exception {
+        // Scoping must not become a ceiling on the people who assign the scopes.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        finding(mine, "log4j-core", "CVE-2021-44228");
+        finding(theirs, "spring-beans", "CVE-2022-22965");
+
+        mvc.perform(authenticated(get("/api/v1/blast-radius/explore"), asAdmin()))
+                .andExpect(jsonPath("$.targets.length()").value(2));
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }
@@ -218,6 +279,28 @@ class VisibilityRoutesTest extends ApiTestBase {
         repository.setUrl(url);
         repository.setBranch("main");
         return repositories.save(repository).getId();
+    }
+
+    /** A completed scan of one repository, carrying one vulnerable package. */
+    private void finding(long repoId, String packageName, String identifier) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        long scanId = scans.save(scan).getId();
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scanId);
+        finding.setType(FindingType.VULNERABILITY.wireName());
+        finding.setIdentifier(identifier);
+        finding.setSeverity(Severity.HIGH.wireName());
+        finding.setPackageName(packageName);
+        finding.setPackageVersion("1.0.0");
+        finding.setIsDirectDependency(true);
+        finding.setSource("grype");
+        finding.setCreatedAt(Instant.now());
+        findings.save(finding);
     }
 
     private long issue(long repoId, String identifier) {
