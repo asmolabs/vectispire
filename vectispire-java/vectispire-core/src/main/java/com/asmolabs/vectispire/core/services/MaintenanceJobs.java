@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Every job waits before its first run.</b> {@code fixedDelay} spaces out the runs that
  * follow and does nothing about the first, which otherwise fires the instant the context is
- * ready — while Liquibase has just finished, the pool is still filling, and an instance that is
+ * ready — while Flyway has just finished, the pool is still filling, and an instance that is
  * about to lose a startup race for the leader lease is competing for it. Half a minute costs
  * nothing and removes a whole class of "only on the first tick after a deploy".
  *

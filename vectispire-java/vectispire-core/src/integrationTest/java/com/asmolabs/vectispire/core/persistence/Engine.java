@@ -13,9 +13,9 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p><b>The four are not interchangeable, and pretending they are is how a portability defect
  * survives.</b> Three have real column types, so Hibernate can be asked to validate the
- * entities against the schema Liquibase built. SQLite has affinities instead — {@code datetime}
- * is stored as TEXT — so a type comparison there measures Liquibase's naming choices rather
- * than whether the mapping works. It is proven by writing a row and reading it back, which is
+ * entities against the schema the migrations built. SQLite has affinities instead — {@code
+ * datetime} is stored as TEXT — so a type comparison there measures how the migration happened to
+ * spell the column rather than whether the mapping works. It is proven by writing a row and reading it back, which is
  * the property that actually matters.
  *
  * <p>The concrete containers live in a package per module since Testcontainers 2: the classes

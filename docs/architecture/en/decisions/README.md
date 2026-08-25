@@ -14,7 +14,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0008](0008-postgresql-and-mysql.md) | PostgreSQL and MySQL support |
 | [0009](0009-four-engines.md) | Support four database engines |
 | [0010](0010-one-scan-runner.md) | Single concrete ScanRunner |
-| [0011](0011-liquibase-rather-than-flyway.md) | Choice of Flyway over Liquibase |
+| [0011](0011-liquibase-rather-than-flyway.md) | Liquibase, with hand-written structural DDL |
 | [0012](0012-apache-2-0.md) | Licensing under Apache 2.0 |
 | [0013](0013-flyway-multi-dialect-migrations.md) | Flyway multi-dialect SQL migrations |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture |
@@ -22,10 +22,16 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
-because they are **superseded**: their job is to point at what replaced them, and the reasoning
-lives in the record that did. [0012](0012-apache-2-0.md) is short and active, which is a gap rather
-than a choice.
+because they are **superseded** — but short is not the same as silent. Each one now says what it
+decided and **what proved it wrong**, because that is the part a reader needs and the part the
+record that replaced it cannot supply: a successor argues its own case, not the failure of its
+predecessor. [0001](0001-pluggable-scan-layer.md) is short for the same reason.
 
-A decision recorded without its reasoning is a changelog entry. This register had nine of those
-until the audits of 2026-08-25; the engine scope had reversed three times in six days precisely
-because no record explained the previous reversal.
+A decision recorded without its reasoning is a changelog entry. This register had nine of those on
+2026-08-25; the engine scope had reversed three times in six days precisely because no record
+explained the previous reversal. All fifteen now carry their argument. The engine history is the
+one worth reading end to end — [0004](0004-sqlite-and-postgresql-only.md) →
+[0008](0008-postgresql-and-mysql.md) → [0009](0009-four-engines.md) →
+[0014](0014-two-engines-and-a-test-fixture.md) — because it ends one engine away from where it
+started, and the records now say why the return was the expensive one and therefore the one that
+should hold.

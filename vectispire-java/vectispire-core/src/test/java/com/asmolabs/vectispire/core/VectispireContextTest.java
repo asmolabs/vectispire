@@ -33,11 +33,12 @@ public abstract class VectispireContextTest {
     /**
      * A database file nobody has touched, one per JVM.
      *
-     * <p>Not {@code drop-first}, which is the obvious way and does not work: Liquibase's {@code
-     * dropAll} issues a {@code DROP FOREIGN KEY} that SQLite has no generator for, so the context
-     * fails to start with a message about statement generators rather than about the schema. Not
-     * {@code :memory:} either — Liquibase and Hibernate open separate connections, and each would
-     * get its own empty database.
+     * <p>A fresh file rather than a cleaning step, so there is no teardown that can half-fail
+     * and leave the next class running against a schema nobody can describe.
+     *
+     * <p>Not {@code :memory:} either — Flyway and Hibernate open separate connections, and each
+     * would get its own empty database: the schema would be built in one and validated against
+     * another, and the failure reads as a missing table.
      */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {

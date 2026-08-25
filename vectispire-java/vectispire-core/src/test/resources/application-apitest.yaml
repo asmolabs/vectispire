@@ -1,6 +1,6 @@
 # The API suite's configuration.
 #
-# SQLite in a temporary file rather than in memory: Liquibase and Hibernate open their own
+# SQLite in a temporary file rather than in memory: Flyway and Hibernate open their own
 # connections, and `:memory:` gives each connection a *different* empty database — the schema
 # would be built in one and validated against another, and the failure reads as "missing table".
 spring:
