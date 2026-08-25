@@ -49,7 +49,7 @@ flowchart TB
     end
 
     subgraph persistence["persistence/ — entities, dialects, driver types"]
-        Ent["26 JPA entities · Flyway migrations"]
+        Ent["33 JPA entities · Flyway migrations"]
     end
 
     subgraph domain["domain/ — pure, depends on nothing"]

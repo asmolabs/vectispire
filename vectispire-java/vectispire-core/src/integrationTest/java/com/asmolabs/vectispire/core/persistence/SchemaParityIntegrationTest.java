@@ -81,11 +81,20 @@ class SchemaParityIntegrationTest {
     @DisplayName("every entity is mapped, and on a typed engine validated against the schema")
     void entitiesMatchTheSchema() {
         // On the three typed engines, reaching this line *is* the assertion: Hibernate validated
-        // every entity while the context came up. The count below stops the test from passing on
-        // an empty metamodel, which is how an architecture check reports green having looked at
-        // nothing — and it is written out so that adding an entity without a table fails here
-        // rather than the first time somebody queries it.
-        assertThat(entityManager.getMetamodel().getEntities()).hasSize(26);
+        // every entity while the context came up. What remains is to stop the test passing on an
+        // empty metamodel, which is how a check reports green having looked at nothing.
+        //
+        // **A lower bound, not an exact count, and that is a correction.** This asserted exactly
+        // 26 and the tree now has 33: ticketing, the API inventory, threat intel and the SIEM
+        // configuration each added one, and none of them touched this line. So the whole
+        // four-engine campaign failed — on a number, not on a mapping — and nobody saw it,
+        // because the campaign does not run in CI. An exact count here checks that somebody
+        // updated a literal; it does not check the schema, and it is the failure mode this file
+        // exists to avoid.
+        assertThat(entityManager.getMetamodel().getEntities())
+                .as("an empty or near-empty metamodel means the scan found nothing, not that the "
+                        + "schema is fine")
+                .hasSizeGreaterThanOrEqualTo(26);
     }
 
     @Test

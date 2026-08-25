@@ -122,7 +122,19 @@ public class ComplianceService {
         return counts;
     }
 
-    /** SQLite hands back an Integer where the others hand back a Boolean. */
+    /**
+     * Tolerant of a numeric flag, though no engine currently sends one.
+     *
+     * <p>Written on the assumption that SQLite would hand back an Integer where the others hand
+     * back a Boolean. **Measured afterwards, and that is not what happens**: the projection
+     * selects a mapped entity attribute, so Hibernate normalises it to {@code Boolean} on all
+     * four engines — replacing this with a plain cast passes everywhere.
+     *
+     * <p>Kept anyway, and the reason is narrow rather than superstitious: the day this projection
+     * reads a column the entity does not map, the normalisation goes with it. The comment is
+     * corrected rather than the code, because a defence whose stated reason is false is worse
+     * than no defence — somebody will trust the reason.
+     */
     private static boolean toBoolean(Object value) {
         return value instanceof Boolean flag ? flag : value instanceof Number n && n.intValue() != 0;
     }
