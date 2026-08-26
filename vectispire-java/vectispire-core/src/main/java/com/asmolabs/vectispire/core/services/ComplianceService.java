@@ -127,8 +127,8 @@ public class ComplianceService {
      *
      * <p>Written on the assumption that SQLite would hand back an Integer where the others hand
      * back a Boolean. **Measured afterwards, and that is not what happens**: the projection
-     * selects a mapped entity attribute, so Hibernate normalises it to {@code Boolean} on all
-     * four engines — replacing this with a plain cast passes everywhere.
+     * selects a mapped entity attribute, so Hibernate normalises it to {@code Boolean} on every
+     * engine the campaign runs — replacing this with a plain cast passes everywhere.
      *
      * <p>Kept anyway, and the reason is narrow rather than superstitious: the day this projection
      * reads a column the entity does not map, the normalisation goes with it. The comment is

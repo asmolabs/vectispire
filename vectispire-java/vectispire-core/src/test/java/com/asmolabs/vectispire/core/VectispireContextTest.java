@@ -15,7 +15,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * The whole application, on a real database, in the ordinary unit suite.
  *
  * <p><b>SQLite, so it runs on every build.</b> It needs no daemon, which is the difference
- * between a suite that runs and a suite somebody remembers to launch. What the four engines
+ * between a suite that runs and a suite somebody remembers to launch. What the engines
  * disagree about is the database campaign's business; what is under test here is behaviour they
  * all share — the queries, the transaction boundaries, and the wiring.
  *

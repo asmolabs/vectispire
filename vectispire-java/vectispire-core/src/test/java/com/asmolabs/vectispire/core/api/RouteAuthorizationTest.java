@@ -57,7 +57,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     private RequestMappingHandlerMapping mappings;
 
     @Test
-    @DisplayName("no handler is left without one of the four markers")
+    @DisplayName("no handler is left without one of the five markers")
     void everyHandlerIsMarked() {
         List<String> unmarked = new ArrayList<>();
 

@@ -196,7 +196,7 @@ public class TeamsController {
      * has been issued on the connection — which nothing here does. On that engine the cascade is
      * decoration: the team row would disappear and its membership rows would stay, so every
      * member would keep seeing everything the team owned, through rows pointing at a team that no
-     * longer exists. Revocation may not depend on which of four engines is underneath.
+     * longer exists. Revocation may not depend on which engine is underneath.
      *
      * <p><b>The channel was the one that got forgotten</b>, and it was measured on a real SQLite
      * file rather than assumed: deleting the team left the {@code t_team_webhook} row behind. It

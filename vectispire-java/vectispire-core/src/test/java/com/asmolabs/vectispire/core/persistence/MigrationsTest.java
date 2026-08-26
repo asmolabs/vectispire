@@ -23,8 +23,9 @@ import org.junit.jupiter.api.io.TempDir;
  * campaign minutes later or in a deployment.
  *
  * <p>It proves the migrations are <em>coherent</em>, not that they are <em>portable</em>. Portability
- * is what {@code SchemaParityIntegrationTest} is for, on all four engines, because the places
- * the engines disagree are exactly the places SQLite is most forgiving about.
+ * is what {@code SchemaParityIntegrationTest} is for, on both deployable engines and the
+ * fixture, because the places the engines disagree are exactly the places SQLite is most
+ * forgiving about.
  */
 @DisplayName("the schema migrations (Flyway)")
 class MigrationsTest {

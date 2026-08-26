@@ -14,7 +14,7 @@
 | **Frontend Interface** | Node LTS 24 / Angular 21 | npm Workspaces (`package.json` pinned `.nvmrc`) |
 | **Composants UI** | Optimus UI / Vanilla CSS | Tailwind CSS (Strict confirmations) |
 | **Tests d'Architecture** | ArchUnit 1.3 | Gradle `:vectispire-core:test` |
-| **Tests d'Intégration** | Testcontainers (4 SGBD) | `./gradlew integrationTestAll` |
+| **Tests d'Intégration** | Testcontainers — PostgreSQL, MySQL, fixture SQLite | `./gradlew integrationTestAll` |
 
 ---
 

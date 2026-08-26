@@ -17,7 +17,7 @@ plugins {
  *                        vectispire-common
  * ```
  *
- * **Only `repositories` may speak SQL.** Not for purity: the behaviour four engines disagree
+ * **Only `repositories` may speak SQL.** Not for purity: the behaviour the engines disagree
  * about — locking, upsert, boolean width, timestamp precision — has to sit where a
  * portability suite can reach it, and that is there. A service writing a query fails
  * `ArchitectureTest`.
