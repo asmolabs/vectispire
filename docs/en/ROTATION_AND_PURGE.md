@@ -138,6 +138,14 @@ new writes: mid-rotation, that reads exactly like success.
 
 ---
 
+> **The forge has changed since this was written, and the record is left as it stands.** This
+> section describes a purge actually carried out against GitHub on 6 August 2026, when the
+> repository was hosted there. The project's remote is now GitLab, so anybody repeating the
+> procedure needs GitLab's equivalent — its support request, its fork check — and, separately,
+> has to establish whether the GitHub repository still exists and still serves the objects.
+> Rewriting the commands below to name GitLab would turn an account of what happened into an
+> instruction that was never followed.
+
 ## 2. Purging unreferenced objects at GitHub
 
 ### 2.1 First check whether it is still needed

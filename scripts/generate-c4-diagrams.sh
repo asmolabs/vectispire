@@ -22,6 +22,21 @@ else
     exit 1
 fi
 
+# **The fingerprint CI compares against.**
+#
+# Regenerating the diagrams inside a pipeline turned out not to be portable: the Structurizr image
+# carries no shell, so it cannot be a GitLab job image, and reaching it through a Docker-in-Docker
+# daemon fails on permissions because the copied workspace is root-owned and the tool is not.
+#
+# So CI checks a weaker thing, and the weakness is worth stating rather than glossing: it verifies
+# that the committed diagrams were generated from *this* `workspace.dsl`, which catches the real
+# failure — somebody edits the model and forgets to regenerate. It does not catch a hand-edited
+# `.puml`, which the diff-based check did. Anybody hand-editing a generated file has already
+# decided to; the person who forgets is the one this protects.
+sha256() { command -v sha256sum > /dev/null && sha256sum "$1" | cut -d" " -f1 || shasum -a 256 "$1" | cut -d" " -f1; }
+sha256 "${C4_DIR}/workspace.dsl" > "${OUTPUT_DIR}/.workspace.sha256"
+echo "==> Recorded the model fingerprint in ${OUTPUT_DIR}/.workspace.sha256"
+
 echo "==> Rendering PNG diagrams from PlantUML files..."
 if command -v plantuml &> /dev/null; then
     plantuml -tpng "${OUTPUT_DIR}"/*.puml

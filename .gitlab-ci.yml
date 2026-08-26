@@ -1,0 +1,386 @@
+# The pipeline, on the forge the code actually lives on.
+#
+# **Why this file exists.** Every verification this project relies on was written as a GitHub
+# Action while the only remote is `git@gitlab.com:asmolabs_be/vectispire.git`. GitLab does not
+# execute `.github/workflows/`, so none of it had ever run: not the documentation link check, not
+# the C4 drift check, not the 1250 unit tests, not the images, not the engine campaign, not the
+# browser suites. The audit of 2026-08-25 established that; this is the answer to it.
+#
+# **The checks are carried over, not reinvented.** Where a GitHub job pinned a scanner by digest,
+# so does this one; where it asserted something specific, the assertion is verbatim. A rewrite
+# would have been a second opinion about what to check, and the point here is to make the existing
+# opinion run.
+#
+# **The one thing that could not be carried over is `docker run -v "$PWD:…"`, and the reason is
+# worth stating because it is the trap a reader will otherwise walk back into.** On GitHub the
+# daemon shares a filesystem with the job, so a bind mount of the checkout works. Here the daemon
+# is a *separate container* — `docker:dind` — and a bind mount names a path on **its** filesystem,
+# which does not contain the checkout. So every tool that used to be `docker run` against a mount
+# is instead the job's own `image:`, and the only jobs that speak to a daemon are the three that
+# genuinely need one: building images, building them the `Dockerfile` way, and Testcontainers.
+#
+# **Two assumptions, both worth contradicting if wrong.** GitLab.com shared runners with the
+# Docker executor; and the nightly campaigns fire from a *pipeline schedule*, which has to be
+# created in the project's CI/CD settings. Declaring a nightly job is not scheduling it, and a
+# nightly nobody scheduled is the exact shape of problem this file exists to end.
+
+stages:
+  - verify
+  - package
+  - nightly
+  - release
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  # A daemon is a liability in a container destroyed after one build: it costs memory to start and
+  # there is no second build for it to be fast for.
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+.jdk: &jdk
+  image: eclipse-temurin:25-jdk
+  cache:
+    key:
+      files: [vectispire-java/gradle/libs.versions.toml]
+    paths: [.gradle/caches, .gradle/wrapper]
+
+.node: &node
+  image: node:24
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm]
+
+# --- verify -------------------------------------------------------------------------------
+
+# The repository's own secrets, scanned with the engine the product ships — as the job's image
+# rather than through a daemon, because the checkout is right here.
+secrets:
+  stage: verify
+  image:
+    name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - gitleaks detect --source=. --config .gitleaks.toml --verbose
+
+links:
+  stage: verify
+  image: python:3.12-alpine
+  script:
+    - python3 scripts/check-doc-links.py
+
+# **The diagrams were generated from this model, or somebody edited one and forgot the other.**
+#
+# The GitHub job regenerated and diffed. That does not port: the Structurizr image carries no
+# shell, so it cannot be a GitLab job image, and driving it through the dind daemon fails on
+# permissions — the copied workspace is root-owned and the tool is not. Both were tried.
+#
+# So this checks a weaker thing and says so: the fingerprint of `workspace.dsl` recorded when the
+# diagrams were last generated. It catches the real failure — the model edited without
+# regenerating — and not a hand-edited `.puml`. Somebody hand-editing a generated file has already
+# decided to; the person who forgets is the one this protects.
+c4-drift:
+  stage: verify
+  image: alpine:3.21
+  script:
+    - apk add --no-cache coreutils
+    - |
+      recorded="$(cat docs/architecture/c4/diagrams/.workspace.sha256)"
+      actual="$(sha256sum docs/architecture/c4/workspace.dsl | cut -d' ' -f1)"
+      if [ "$recorded" != "$actual" ]; then
+        echo "workspace.dsl has changed since the diagrams were generated."
+        echo "  recorded: $recorded"
+        echo "  actual:   $actual"
+        echo "Run ./scripts/generate-c4-diagrams.sh and commit the result."
+        exit 1
+      fi
+      echo "C4 diagrams are in step with the model."
+
+jvm:
+  <<: *jdk
+  stage: verify
+  script:
+    - cd vectispire-java && ./gradlew build
+  artifacts:
+    when: always
+    paths: [vectispire-java/vectispire-core/build/libs/]
+    reports:
+      junit: [vectispire-java/*/build/test-results/test/TEST-*.xml]
+    expire_in: 1 week
+
+frontend:
+  <<: *node
+  stage: verify
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run build
+    - npm test
+  artifacts:
+    paths: [vectispire-angular/dist/]
+    expire_in: 1 week
+
+# The SBOM of what ships, and the vulnerabilities in it.
+#
+# **Both tools are digest-pinned and neither image has a shell**, which GitLab needs to run a
+# `script:`. So they are driven through the daemon — but with `create` + `cp` + `start -a` rather
+# than a bind mount, because the daemon is a separate container and a mount would name a path on
+# its filesystem. The tools only read their input and write to stdout, so the permission problem
+# that ruled this pattern out for the diagram export does not arise here. Verified by running
+# both against the real jar before this file was committed.
+sbom:
+  stage: verify
+  needs: [jvm]
+  image: docker:28-cli
+  services:
+    - name: docker:28-dind
+      alias: docker
+  script:
+    - |
+      docker create --name syft \
+        anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+        scan file:/tmp/app.jar -o cyclonedx-json
+      docker cp vectispire-java/vectispire-core/build/libs/vectispire-core.jar syft:/tmp/app.jar
+      docker start -a syft > vectispire-jvm.cdx.json
+      echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
+  artifacts:
+    paths: [vectispire-jvm.cdx.json]
+    expire_in: 1 month
+
+vulnerabilities:
+  stage: verify
+  needs: [sbom]
+  image: docker:28-cli
+  services:
+    - name: docker:28-dind
+      alias: docker
+  script:
+    # Reported in full first, then failed on. An operator reading the log wants the list before
+    # the verdict; a job that only prints "failed" sends them to run the tool themselves.
+    - |
+      run_grype() {
+        name="$1"; shift
+        docker rm -f "$name" > /dev/null 2>&1 || true
+        docker create --name "$name" \
+          anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+          sbom:/tmp/sbom.json "$@"
+        docker cp vectispire-jvm.cdx.json "$name":/tmp/sbom.json
+        docker start -a "$name"
+      }
+      run_grype report --only-fixed -o table
+      run_grype verdict --only-fixed --fail-on high -q -o table
+
+npm-audit:
+  <<: *node
+  stage: verify
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm audit --omit=dev --audit-level=high
+    # The whole tree for the record, including dev dependencies that never ship. Not allowed to
+    # fail the pipeline: a build tool's advisory is not a shipped vulnerability.
+    - npm audit || true
+
+# --- package ------------------------------------------------------------------------------
+
+# **The images, and proof they serve.** The defect that made this job necessary was a `COPY` of a
+# file the build never produced — green everywhere and broken on first run.
+#
+# The interface comes from `frontend`'s artifact rather than being rebuilt, and the daemon is
+# reached over TCP: Jib pushes through the Docker API, so nothing here needs a shared filesystem.
+images:
+  stage: package
+  needs: [frontend]
+  image: eclipse-temurin:25-jdk
+  services:
+    - name: docker:28-dind
+      alias: docker
+    - name: mysql:8
+      alias: db
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: vectispire
+        MYSQL_USER: vectispire
+        MYSQL_PASSWORD: vectispire
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends docker.io curl
+    - cd vectispire-java
+    - ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild -x test
+        -PuiDist="$CI_PROJECT_DIR/vectispire-angular/dist/vectispire/browser"
+    - cd ..
+    - |
+      docker run -d --name vectispire-smoke \
+        -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
+        -e VECTISPIRE_DB_USER=vectispire \
+        -e VECTISPIRE_DB_PASSWORD=vectispire \
+        -e ENCRYPTION_KEY="Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=" \
+        -e VECTISPIRE_BOOTSTRAP_PASSWORD="CiSmoke2026!" \
+        -e VECTISPIRE_EMBEDDED_WORKER=false \
+        vectispire:latest
+      # Probed from inside the daemon's network namespace: the job container and the container
+      # under test do not share `localhost`, which is the second half of the same lesson as the
+      # bind mounts above.
+      for attempt in $(seq 1 90); do
+        if docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
+             -sf http://localhost:3180/actuator/health > /dev/null 2>&1; then
+          echo "control plane image healthy after ${attempt}s"
+          docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
+            -sf -o /dev/null http://localhost:3180/ \
+            || { echo "the image serves the API but not the interface"; exit 1; }
+          echo "interface served"
+          exit 0
+        fi
+        sleep 1
+      done
+      echo "the image did not become healthy — last 100 lines:"
+      docker logs --tail 100 vectispire-smoke
+      exit 1
+  after_script:
+    - docker logs --tail 200 vectispire-smoke || true
+
+# --- nightly ------------------------------------------------------------------------------
+#
+# **Scheduled, not per-push, and the trade is deliberate.** Twenty minutes on every push would be
+# paid on every push and would teach people to skip CI; paid once a night it catches the same
+# regression within a day of it landing. What that concedes is real and worth naming: a
+# portability defect can be merged and sit on `develop` until the small hours.
+
+.nightly: &nightly
+  stage: nightly
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+databases:
+  <<: [*jdk, *nightly]
+  timeout: 40m
+  services:
+    - name: docker:28-dind
+      alias: docker
+  variables:
+    # Testcontainers reaches the daemon over the alias rather than a socket, and has to be told
+    # which host the published ports will appear on. Ryuk is off because the reaper cannot see
+    # across the dind boundary, and the runner destroys everything anyway.
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  script:
+    - cd vectispire-java && ./gradlew integrationTestAll
+  artifacts:
+    when: always
+    paths: [vectispire-java/vectispire-core/build/reports/tests/]
+    expire_in: 1 week
+
+# The `Dockerfile` route is the one that ships — it can chown the audit mirror's directory where
+# Jib can only set a mode — so it is built here even though `images` already built with Jib.
+# `docker build` uploads its context through the API, so this one needs no shared filesystem.
+dockerfiles:
+  <<: *nightly
+  image: docker:28-cli
+  services:
+    - name: docker:28-dind
+      alias: docker
+  timeout: 30m
+  script:
+    - docker build -f Dockerfile -t vectispire:nightly .
+    - docker build -f Dockerfile.agent -t vectispire-agent:nightly .
+    - docker run --rm --entrypoint sh vectispire:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+    - docker run --rm --entrypoint sh vectispire-agent:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+    - docker run --rm --entrypoint sh vectispire:nightly -c 'ls -ld /var/lib/vectispire/audit'
+
+# The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
+# the settings audit trail, and VEX triage.
+e2e:
+  <<: *nightly
+  image: mcr.microsoft.com/playwright:v1.49.1-noble
+  timeout: 30m
+  needs: [jvm]
+  variables:
+    VECTISPIRE_DB_URL: "jdbc:sqlite:$CI_PROJECT_DIR/e2e.db"
+    # SQLite cannot boot under the shipped `ddl-auto: validate` — its affinities report a
+    # timestamp column back as FLOAT, which says something about SQLite and nothing about the
+    # mapping. Schema parity is the `databases` job's business.
+    SPRING_JPA_HIBERNATE_DDL_AUTO: none
+    SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.community.dialect.SQLiteDialect
+    ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
+    VECTISPIRE_BOOTSTRAP_USERNAME: admin
+    VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!
+    VECTISPIRE_EMBEDDED_WORKER: "false"
+    # **Eleven browser sign-ins inside a minute is a burst by the only definition the server
+    # has**, and every test in a run comes from one address. Raised here, on a runner destroyed
+    # at the end of the job; the shipped default of ten is untouched, and the per-account
+    # throttle is unaffected by this setting.
+    VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: "200"
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+    - curl -fsSL "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jre/hotspot/normal/eclipse" -o /tmp/jre.tar.gz
+    - mkdir -p /opt/jre25 && tar -xzf /tmp/jre.tar.gz -C /opt/jre25 --strip-components=1
+    - npm ci
+    - |
+      /opt/jre25/bin/java -jar vectispire-java/vectispire-core/build/libs/vectispire-core.jar \
+        > control-plane.log 2>&1 &
+      echo $! > control-plane.pid
+      # Actuator's health endpoint, not the port: the process accepts connections before it can
+      # answer anything useful, and a suite that starts in that window fails on timing rather
+      # than on behaviour.
+      for attempt in $(seq 1 90); do
+        if curl -sf http://localhost:3180/actuator/health > /dev/null; then
+          echo "control plane up after ${attempt}s"; break
+        fi
+        if [ "$attempt" = "90" ]; then
+          echo "control plane did not become healthy — last 100 lines:"
+          tail -n 100 control-plane.log
+          exit 1
+        fi
+        sleep 1
+      done
+    - cd vectispire-angular && npx playwright test
+  after_script:
+    - kill "$(cat control-plane.pid)" 2>/dev/null || true
+  artifacts:
+    when: always
+    paths:
+      - control-plane.log
+      - vectispire-angular/playwright-report/
+      - vectispire-angular/test-results/
+    expire_in: 1 week
+
+# --- release ------------------------------------------------------------------------------
+#
+# **The signing identity changes with the forge, and the verification command has to follow.** The
+# GitHub workflow signed under `token.actions.githubusercontent.com`, and the documentation still
+# told users to verify against it — an instruction that cannot succeed, which is worse than none:
+# it teaches its reader that the check passed the day they mistype it into passing. On GitLab the
+# issuer is `https://gitlab.com` and the identity is this file's path at the tag.
+# `GETTING_STARTED` is corrected alongside this file.
+
+release:
+  <<: *jdk
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v/'
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+    - cd vectispire-java && ./gradlew build :vectispire-core:bootJar && cd ..
+    - export JAR="vectispire-${CI_COMMIT_TAG#v}.jar"
+    - cp vectispire-java/vectispire-core/build/libs/vectispire-core.jar "$JAR"
+    - curl -fsSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+    - chmod +x /usr/local/bin/cosign
+    - cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
+    # **Verified immediately, with the command a user will run.** A signature nobody has ever
+    # verified is a signature nobody knows the shape of.
+    - cosign verify-blob
+        --bundle "${JAR}.cosign.bundle"
+        --certificate-identity "${CI_PROJECT_URL}//.gitlab-ci.yml@refs/tags/${CI_COMMIT_TAG}"
+        --certificate-oidc-issuer "https://gitlab.com"
+        "$JAR"
+  artifacts:
+    paths:
+      - "vectispire-*.jar"
+      - "vectispire-*.jar.cosign.bundle"
+    expire_in: never

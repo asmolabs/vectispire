@@ -1,0 +1,25 @@
+# What this repository's own secret scan is allowed to ignore.
+#
+# **Two values, not two paths, and the distinction is the whole point.** Allowlisting a file
+# blinds the scan to everything that file ever holds afterwards, including the real key somebody
+# pastes into it next year. Allowlisting a value keeps every other string in every file in scope.
+#
+# Both entries are throwaway encryption keys for pipeline fixtures. They are base64, so what they
+# are is not visible at a glance — decoded, they read `e2e-test-key-not-a-secret-32b` and
+# `ci-smoke-key-not-a-secret-32b`. They exist because the control plane refuses to start without
+# an `ENCRYPTION_KEY`, and a job on a runner destroyed at the end of it needs one that is not a
+# secret. Chosen to say so in plaintext precisely so that a reader who finds them in a diff can
+# tell in one step.
+#
+# Used by the `secrets` job in `.gitlab-ci.yml`. Without it that job fails on its first run
+# against six deliberate fixtures, which is how a scanner earns the reputation of being noise.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Throwaway encryption keys for CI fixtures — their plaintext says so"
+regexes = [
+  '''ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=''',
+  '''Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=''',
+]

@@ -9,6 +9,13 @@ vérifiées en exécutant
 > `.github/workflows/` ; il n'existe aucun `.gitlab-ci.yml`. GitLab n'exécute pas GitHub Actions.
 > Confirmé avec le mainteneur au cours de cette passe.
 
+> **État de remédiation.** Les deux recommandations 🔴 ci-dessous sont closes. `.gitlab-ci.yml`
+> existe désormais et porte les treize jobs que décrivaient les workflows GitHub ; la vue
+> développement et la commande de vérification de signature sont corrigées. Trois choses ont
+> changé de forme au passage et sont consignées dans les commentaires du pipeline : le contrôle de
+> dérive C4 est plus faible que celui qu'il remplace, un `.gitleaks.toml` de dépôt a été
+> nécessaire pour six fixtures délibérées, et l'identité cosign suit le forgeron.
+
 ## Notes
 
 | Domaine | Note | Évolution | Ce qui a tranché |

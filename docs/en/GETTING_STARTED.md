@@ -162,8 +162,8 @@ running anything — a security tool you took on trust is a contradiction.
 ```bash
 cosign verify-blob \
   --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/Asmo1973/Vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://gitlab.com \
   vectispire-1.0.0.jar
 ```
 
@@ -173,7 +173,7 @@ signing was for.**
 - `--certificate-identity` names the **workflow file and the tag**, not the repository. Matching
   the repository alone would accept a signature minted by any workflow anybody can add to it,
   including one added in a pull request.
-- `--certificate-oidc-issuer` says the identity came from GitHub's token service. Without it, an
+- `--certificate-oidc-issuer` says the identity came from GitLab's token service. Without it, an
   identity string that merely *looks* like the one above is enough.
 - The `--bundle` carries the certificate and the signature together, so there is no second file to
   lose and no step at which an unverified certificate is substituted.

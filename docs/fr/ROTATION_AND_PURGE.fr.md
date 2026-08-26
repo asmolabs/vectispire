@@ -140,6 +140,14 @@ nouvelles écritures : en pleine rotation, cela ressemble exactement à un succ�
 
 ---
 
+> **Le forgeron a changé depuis la rédaction, et l'archive est laissée telle quelle.** Cette
+> section décrit une purge réellement menée contre GitHub le 6 août 2026, quand le dépôt y était
+> hébergé. Le remote du projet est désormais GitLab : quiconque rejoue la procédure a besoin de
+> l'équivalent GitLab — sa demande de support, sa vérification des forks — et doit établir
+> séparément si le dépôt GitHub existe encore et sert encore les objets. Réécrire les commandes
+> ci-dessous pour nommer GitLab transformerait un compte-rendu de ce qui s'est passé en une
+> instruction qui n'a jamais été suivie.
+
 ## 2. Purger les objets non référencés chez GitHub
 
 ### 2.1 Vérifier d'abord si c'est encore nécessaire

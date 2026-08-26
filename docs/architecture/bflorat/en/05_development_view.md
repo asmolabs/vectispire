@@ -33,7 +33,13 @@ domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  �
 
 ## 3. Continuous Integration Pipeline (CI/CD) & Supply Chain Security
 
-The CI pipeline automatically executes the following verification steps:
+The pipeline is [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml), and it is worth saying why the
+repository also holds `.github/workflows/`: the checks were written as GitHub Actions while the
+only remote is GitLab, so **none of them had ever run** — established by the audit of
+2026-08-25 and answered by that file. The GitHub workflows are kept as the record of what the
+checks were, and they are not what executes.
+
+The pipeline executes the following verification steps:
 
 ```mermaid
 flowchart LR
@@ -58,7 +64,9 @@ flowchart LR
 export VECTISPIRE_DB_URL="jdbc:mysql://localhost:3306/vectispire"
 export VECTISPIRE_DB_USER="vectispire"
 export VECTISPIRE_DB_PASSWORD="vectispire"
-export ENCRYPTION_KEY="dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcyEh"
+# Generated, not copied: a runbook that hands out a fixed key teaches the habit of using one,
+# and `docker-compose.yml` already refuses to start without one of your own.
+export ENCRYPTION_KEY="$(openssl rand -base64 32)"
 export VECTISPIRE_BOOTSTRAP_USERNAME="admin"
 export VECTISPIRE_BOOTSTRAP_PASSWORD="AdminVectispire2026!"
 cd vectispire-java && ./gradlew :vectispire-core:bootRun

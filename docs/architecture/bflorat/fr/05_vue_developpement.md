@@ -35,7 +35,13 @@ domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  �
 
 ## 3. Chaîne d'Intégration Continue (CI/CD) & Sécurité Supply Chain
 
-Le pipeline d'intégration continue exécute automatiquement les étapes de validation suivantes :
+Le pipeline est [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml), et il vaut la peine de dire
+pourquoi le dépôt contient aussi `.github/workflows/` : les contrôles ont été écrits comme des
+GitHub Actions alors que l'unique remote est GitLab, si bien qu'**aucun n'avait jamais tourné** —
+établi par l'audit du 25 août 2026 et corrigé par ce fichier. Les workflows GitHub sont conservés
+comme trace de ce qu'étaient les contrôles ; ce n'est pas eux qui s'exécutent.
+
+Le pipeline exécute les étapes de validation suivantes :
 
 ```mermaid
 flowchart LR
@@ -60,7 +66,9 @@ flowchart LR
 export VECTISPIRE_DB_URL="jdbc:mysql://localhost:3306/vectispire"
 export VECTISPIRE_DB_USER="vectispire"
 export VECTISPIRE_DB_PASSWORD="vectispire"
-export ENCRYPTION_KEY="dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcyEh"
+# Générée, pas recopiée : un runbook qui distribue une clé fixe enseigne l'habitude d'en
+# utiliser une, et `docker-compose.yml` refuse déjà de démarrer sans la vôtre.
+export ENCRYPTION_KEY="$(openssl rand -base64 32)"
 export VECTISPIRE_BOOTSTRAP_USERNAME="admin"
 export VECTISPIRE_BOOTSTRAP_PASSWORD="AdminVectispire2026!"
 cd vectispire-java && ./gradlew :vectispire-core:bootRun

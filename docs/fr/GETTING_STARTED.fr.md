@@ -186,8 +186,8 @@ contradiction.
 ```bash
 cosign verify-blob \
   --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/Asmo1973/Vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://gitlab.com \
   vectispire-1.0.0.jar
 ```
 
@@ -197,7 +197,7 @@ de ce pour quoi la signature existait.**
 - `--certificate-identity` nomme le **fichier de workflow et le tag**, pas le dépôt. Ne
   correspondre qu'au dépôt accepterait une signature forgée par n'importe quel workflow que
   quiconque peut y ajouter, y compris un workflow ajouté dans une pull request.
-- `--certificate-oidc-issuer` dit que l'identité vient du service de jetons de GitHub. Sans lui,
+- `--certificate-oidc-issuer` dit que l'identité vient du service de jetons de GitLab. Sans lui,
   une chaîne d'identité qui *ressemble* simplement à celle ci-dessus suffit.
 - Le `--bundle` porte ensemble le certificat et la signature, donc il n'y a pas de second fichier
   à perdre ni d'étape à laquelle un certificat non vérifié serait substitué.

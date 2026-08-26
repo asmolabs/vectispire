@@ -8,6 +8,13 @@
 > there is no `.gitlab-ci.yml`. GitLab does not execute GitHub Actions. Confirmed with the
 > maintainer during this pass.
 
+> **Remediation status.** Both 🔴 recommendations below are closed. `.gitlab-ci.yml` now exists
+> and carries the thirteen jobs the GitHub workflows described; the development view and the
+> signature-verification command are corrected. Three things changed shape in the process and are
+> recorded in the pipeline's own comments: the C4 drift check is weaker than the one it replaces,
+> a repository `.gitleaks.toml` was needed for six deliberate fixtures, and the cosign identity
+> moves with the forge.
+
 ## Scores
 
 | Domain | Score | Movement | What decided it |
