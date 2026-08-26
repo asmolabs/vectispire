@@ -31,4 +31,13 @@ blob-report/
 vectispire-angular/test-results/
 vectispire-angular/playwright-report/
 vectispire-angular/blob-report/
-vectispire-angular/.playwright/.gradle-ci/
+vectispire-angular/.playwright/
+
+# Gradle's CI-local home. It was appended to a file with no trailing newline and
+# spent 43 commits glued to the line above, ignoring nothing.
+.gradle-ci/
+
+# This machine's worktrees and session state. `.claude/agents/` is exempt: it is
+# tracked, shared, and `.claude/**` would have hidden the next agent added to it.
+.claude/*
+!.claude/agents/

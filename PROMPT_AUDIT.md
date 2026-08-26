@@ -38,8 +38,8 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX n'est pas produit, voir ADR 0016).
 
 Génère deux rapports d'analyse détaillés avec scores sur 10 et recommandations :
-- Un rapport en français dans docs/analysis/fr/YYYY-MM-DD_audit_approfondi_code_securite_doc.fr.md
-- Un rapport en anglais dans docs/analysis/en/YYYY-MM-DD_in_depth_code_security_doc_audit.en.md
+- Un rapport en français dans docs/analysis/fr/YYYY-MM-DD_HH_MM_SS_audit_approfondi_code_securite_doc.fr.md
+- Un rapport en anglais dans docs/analysis/en/YYYY-MM-DD_HH_MM_SS_in_depth_code_security_doc_audit.en.md
 - Met à jour docs/analysis/README.md pour référencer ces nouveaux rapports.
 ```
 
@@ -79,8 +79,8 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX documents are not produced, see ADR 0016).
 
 Generate two synchronized in-depth audit reports with domain scores and actionable recommendations:
-- French report in docs/analysis/fr/YYYY-MM-DD_audit_approfondi_code_securite_doc.fr.md
-- English report in docs/analysis/en/YYYY-MM-DD_in_depth_code_security_doc_audit.en.md
+- French report in docs/analysis/fr/YYYY-MM-DD_HH_MM_SS_audit_approfondi_code_securite_doc.fr.md
+- English report in docs/analysis/en/YYYY-MM-DD_HH_MM_SS_in_depth_code_security_doc_audit.en.md
 - Update docs/analysis/README.md to reference the generated reports.
 ```
 
