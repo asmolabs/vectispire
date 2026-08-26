@@ -9,7 +9,10 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
 import java.io.IOException;
 import java.net.CookieManager;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -114,18 +117,41 @@ class SingleSignOnIntegrationTest {
     }
 
     /**
-     * <b>{@code 127.0.0.1} and not {@code localhost}, and the reason is a JDK trap.</b>
+     * <b>A literal IPv4 address, and both halves of that are load-bearing.</b>
+     *
+     * <p><i>An address rather than a name</i>, because of a JDK trap:
      * {@link java.net.HttpCookie#domainMatches} refuses any domain with no embedded dot, so a
      * cookie set for {@code localhost} is stored by {@link CookieManager} and never sent back.
      * Keycloak's authentication session lives in such a cookie: the login form posts without it,
      * Keycloak re-renders the form, and the flow appears to fail on bad credentials that are
      * perfectly good. The same request through curl succeeds, which is how this was found.
      *
+     * <p><i>Resolved rather than hard-coded</i>, because {@code 127.0.0.1} is only the right
+     * answer when the daemon shares this process's network namespace. On CI it does not: the
+     * container is published on the {@code docker:dind} service, and the first nightly run
+     * failed with {@code Connection refused} against {@code http://127.0.0.1:32769}. Testcontainers
+     * knows the right host — {@code docker} there, via {@code TESTCONTAINERS_HOST_OVERRIDE} — and
+     * resolving it yields an address that is both reachable and dotted. Using that name directly
+     * would satisfy the second constraint and break the first: {@code domainMatches("docker")} is
+     * false, exactly like {@code localhost}.
+     *
      * <p>Keycloak derives the issuer of the tokens it signs from the host it was called on, so
      * the address used here has to be the one configured — hence one accessor for both.
      */
     private static String host() {
-        return "127.0.0.1";
+        String reported = KEYCLOAK_SERVER.getHost();
+        try {
+            for (InetAddress address : InetAddress.getAllByName(reported)) {
+                // IPv4 specifically: `::1` has no dot either, and would reopen the cookie trap.
+                if (address instanceof Inet4Address) {
+                    return address.getHostAddress();
+                }
+            }
+        } catch (UnknownHostException resolutionFailed) {
+            // Nothing useful to do here: the name Testcontainers reported is the best guess left,
+            // and the connection error that follows says more than a swallowed exception would.
+        }
+        return reported;
     }
 
     private static String issuer() {

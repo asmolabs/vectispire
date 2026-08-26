@@ -329,7 +329,11 @@ dockerfiles:
 # the settings audit trail, and VEX triage.
 e2e:
   <<: *nightly
-  image: mcr.microsoft.com/playwright:v1.49.1-noble
+  # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
+  # ships its browsers in this image and refuses to launch one it did not build; the tag
+  # carried over from the GitHub workflow was v1.49.1 and had drifted thirteen minor
+  # versions, which nobody could know because that workflow never ran.
+  image: mcr.microsoft.com/playwright:v1.62.1-noble
   timeout: 30m
   needs: [jvm]
   variables:
@@ -371,6 +375,16 @@ e2e:
         fi
         sleep 1
       done
+    # Checked before the browsers are needed: the mismatch is otherwise discovered after
+    # `npm ci` and a full Angular build, and reported against the image rather than this line.
+    - |
+      want="v$(node -p "require('@playwright/test/package.json').version")-noble"
+      have="${CI_JOB_IMAGE##*:}"
+      if [ "$want" != "$have" ]; then
+        echo "playwright image $have does not match the installed $want"
+        echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
+        exit 1
+      fi
     - cd vectispire-angular && npx playwright test
   after_script:
     - kill "$(cat control-plane.pid)" 2>/dev/null || true
