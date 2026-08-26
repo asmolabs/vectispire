@@ -421,6 +421,55 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
+    @Test
+    @DisplayName("the licence inventory shows a restricted reader only their own targets")
+    void theLicenceInventoryIsScoped() throws Exception {
+        // **The twenty-second, and a correction to the seventh audit, which claimed the licence
+        // service sat behind a security-lead guard.** Only `PUT /policy` does; the reader routes
+        // carried `@RequiresAccount` alone, so any account could pull the estate's component
+        // inventory — names, versions, targets — either whole or by naming any repo_id.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        licenseFinding(theirs, "gpl-lib");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isEmpty());
+
+        // Naming the neighbour outright must read as absence, not as data.
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/summary?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/inventory?repo_id=" + theirs), asAdmin()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an issue the reader may not see has no visible tickets")
+    void theTicketListIsScoped() throws Exception {
+        // The twenty-third: ticket keys, URLs and statuses of somebody else's backlog, listed by
+        // guessing an issue id.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-77");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/issues/" + theirIssue + "/tickets"), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/" + theirIssue + "/tickets"), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("provider", "jira", "ticketKey", "SEC-1",
+                                "ticketUrl", "https://jira.example.invalid/SEC-1"))))
+                .andExpect(status().isNotFound());
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }
@@ -459,6 +508,28 @@ class VisibilityRoutesTest extends ApiTestBase {
         repository.setUrl(url);
         repository.setBranch("main");
         return repositories.save(repository).getId();
+    }
+
+    /** One licence finding on a completed scan, which is what the inventory is built from. */
+    private void licenseFinding(long repoId, String packageName) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        long scanId = scans.save(scan).getId();
+
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scanId);
+        finding.setType("license");
+        finding.setIdentifier("GPL-3.0");
+        finding.setSeverity(Severity.HIGH.wireName());
+        finding.setPackageName(packageName);
+        finding.setPackageVersion("1.0.0");
+        finding.setIsDirectDependency(true);
+        finding.setSource("trivy-license");
+        finding.setCreatedAt(Instant.now());
+        findings.save(finding);
     }
 
     /** A completed scan of one repository, with nothing in it. */

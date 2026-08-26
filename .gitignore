@@ -31,4 +31,4 @@ blob-report/
 vectispire-angular/test-results/
 vectispire-angular/playwright-report/
 vectispire-angular/blob-report/
-vectispire-angular/.playwright/
+vectispire-angular/.playwright/.gradle-ci/
