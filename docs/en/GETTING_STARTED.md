@@ -207,5 +207,6 @@ rewrite before you read it.
 - [CI/CD & CLI Integration (`vectispire-cli`)](CI_CD_INTEGRATION.md) — Security Quality Gates & build breaker runner for GitLab CI, GitHub Actions, Bitbucket, and Jenkins.
 - [Bidirectional Ticketing](TICKETING_INTEGRATION.md) — Automatic issue creation and closure sync with Jira, GitLab, GitHub, and ServiceNow.
 - [Alerts & Notifications](NOTIFICATIONS_INTEGRATION.md) — Real-time alerting for Discord, Slack, and Microsoft Teams.
+- [Attack Path Visualizer](ATTACK_PATH_VISUALIZER.md) — Real-time exploit chain correlation (Ingress &rarr; API &rarr; RCE &rarr; Secret/DB).
 
 

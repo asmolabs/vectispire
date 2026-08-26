@@ -1,0 +1,379 @@
+<div class="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0 flex items-center gap-2">
+            <i class="pi pi-sitemap text-primary-500"></i>
+            <span>Visualiseur de Chemins d'Attaque (Attack Path Visualizer)</span>
+        </h1>
+        <p class="text-muted-color mt-1 mb-0 text-sm">
+            Cartographie des scénarios d'exploitation réels : <em>Internet / Ingress &rarr; API Endpoint &rarr; Composant Vulnérable (RCE) &rarr; Secret / Base de Données</em>.
+        </p>
+    </div>
+
+    <!-- Repository selector & controls -->
+    <div class="flex items-center gap-3">
+        <select
+            class="p-2 text-sm border rounded-lg bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 min-w-56 font-medium"
+            [ngModel]="selectedRepoId()"
+            (ngModelChange)="onRepoChange($event)"
+        >
+            @for (repo of repositories(); track repo.id) {
+                <option [value]="repo.id">{{ repo.displayName }}</option>
+            }
+        </select>
+
+        <p-button
+            [icon]="loading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="selectedRepoId() && loadGraph(selectedRepoId()!)"
+        />
+    </div>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<!-- KPI Header Cards -->
+@if (graph(); as g) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                Chemins Critiques Exploitables
+            </span>
+            <div class="flex items-baseline justify-between mt-2">
+                <span class="text-3xl font-extrabold" [ngClass]="g.criticalExploitablePaths > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-500'">
+                    {{ g.criticalExploitablePaths }}
+                </span>
+                <i class="pi pi-bolt text-rose-500 text-xl"></i>
+            </div>
+            <span class="text-xs text-surface-400 mt-1">Chaînes d'attaque directes depuis l'extérieur</span>
+        </div>
+
+        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                Score de Risque Topologique
+            </span>
+            <div class="flex items-baseline justify-between mt-2">
+                <span class="text-3xl font-extrabold" [ngClass]="getRiskScoreColor(g.riskScore)">
+                    {{ g.riskScore }} / 100
+                </span>
+                <i class="pi pi-shield text-primary-500 text-xl"></i>
+            </div>
+            <span class="text-xs text-surface-400 mt-1">Exposition x Exploitation x Criticité</span>
+        </div>
+
+        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                Points d'Entrée Exposés
+            </span>
+            <div class="flex items-baseline justify-between mt-2">
+                <span class="text-3xl font-extrabold text-amber-500">{{ endpointNodes().length }}</span>
+                <i class="pi pi-link text-amber-500 text-xl"></i>
+            </div>
+            <span class="text-xs text-surface-400 mt-1">Routes API publiques & non-authentifiées</span>
+        </div>
+
+        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                Composants Vulnérables Liés
+            </span>
+            <div class="flex items-baseline justify-between mt-2">
+                <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{ vulnNodes().length }}</span>
+                <i class="pi pi-box text-surface-400 text-xl"></i>
+            </div>
+            <span class="text-xs text-surface-400 mt-1">Dépendances critiques & RCE atteignables</span>
+        </div>
+    </div>
+
+    <!-- Main Visualizer Tabs -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
+        <div class="flex items-center gap-2">
+            <button
+                type="button"
+                (click)="activeTab.set('graph')"
+                [ngClass]="activeTab() === 'graph' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+            >
+                <i class="pi pi-sitemap"></i>
+                <span>Graphe Topologique Interactif</span>
+            </button>
+
+            <button
+                type="button"
+                (click)="activeTab.set('paths')"
+                [ngClass]="activeTab() === 'paths' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+            >
+                <i class="pi pi-list"></i>
+                <span>Scénarios d'Exploitation</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
+                    {{ g.attackPaths.length }}
+                </span>
+            </button>
+
+            <button
+                type="button"
+                (click)="activeTab.set('overview')"
+                [ngClass]="activeTab() === 'overview' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+            >
+                <i class="pi pi-chart-pie"></i>
+                <span>Vue d'Ensemble Flotte</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
+                    {{ overviewList().length }}
+                </span>
+            </button>
+        </div>
+
+        <!-- Filter toggle -->
+        @if (activeTab() === 'graph') {
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-surface-600 dark:text-surface-400 select-none">
+                <input type="checkbox" [ngModel]="filterCriticalOnly()" (ngModelChange)="filterCriticalOnly.set($event)" class="rounded text-primary focus:ring-primary" />
+                <span>Afficher uniquement les chemins critiques exploitables</span>
+            </label>
+        }
+    </div>
+
+    <!-- TAB 1: Interactive Topological Graph -->
+    @if (activeTab() === 'graph') {
+        <div class="relative p-6 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-950/40 shadow-inner overflow-x-auto min-h-[500px]">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-[900px] relative z-10">
+
+                <!-- Column 1: Ingress / Internet -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5 pb-2 border-b border-blue-200 dark:border-blue-900/40">
+                        <i class="pi pi-globe text-base"></i> 1. Exposition Ingress
+                    </div>
+                    @for (node of ingressNodes(); track node.id) {
+                        <div
+                            (click)="inspectNode(node)"
+                            [ngClass]="highlightedNodeIds().has(node.id) ? 'ring-2 ring-rose-500 shadow-rose-500/20' : ''"
+                            class="p-4 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/30 shadow-sm cursor-pointer hover:scale-[1.02] transition flex flex-col gap-2"
+                        >
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-blue-900 dark:text-blue-200">{{ node.label }}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-300">PUBLIC</span>
+                            </div>
+                            <span class="text-[11px] text-surface-500 dark:text-surface-400">{{ node.subtitle }}</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Column 2: Exposed API Endpoints -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pb-2 border-b border-amber-200 dark:border-amber-900/40">
+                        <i class="pi pi-link text-base"></i> 2. Endpoints API
+                    </div>
+                    @if (endpointNodes().length === 0) {
+                        <div class="p-4 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 text-xs text-muted-color text-center">
+                            Aucun endpoint API exposé ou non-authentifié.
+                        </div>
+                    }
+                    @for (node of endpointNodes(); track node.id) {
+                        <div
+                            (click)="inspectNode(node)"
+                            [ngClass]="highlightedNodeIds().has(node.id) ? 'ring-2 ring-rose-500 shadow-rose-500/20' : ''"
+                            class="p-3.5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm cursor-pointer hover:border-amber-400 dark:hover:border-amber-500 hover:scale-[1.02] transition flex flex-col gap-2"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-mono font-bold truncate text-surface-900 dark:text-surface-100">{{ node.label }}</span>
+                                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" size="small" />
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-surface-500">
+                                <span>{{ node.subtitle }}</span>
+                                @if (node.isExploitable) {
+                                    <span class="text-rose-500 font-bold flex items-center gap-1"><i class="pi pi-lock-open text-[10px]"></i> Unauth</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Column 3: Vulnerabilities & RCE Components -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5 pb-2 border-b border-rose-200 dark:border-rose-900/40">
+                        <i class="pi pi-shield text-base"></i> 3. Composants Vulnérables
+                    </div>
+                    @if (vulnNodes().length === 0) {
+                        <div class="p-4 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 text-xs text-muted-color text-center">
+                            Aucune vulnérabilité critique active.
+                        </div>
+                    }
+                    @for (node of vulnNodes(); track node.id) {
+                        <div
+                            (click)="inspectNode(node)"
+                            [ngClass]="highlightedNodeIds().has(node.id) ? 'ring-2 ring-rose-500 shadow-rose-500/20' : ''"
+                            class="p-3.5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm cursor-pointer hover:border-rose-400 dark:hover:border-rose-500 hover:scale-[1.02] transition flex flex-col gap-2"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold text-rose-600 dark:text-rose-400 truncate">{{ node.label }}</span>
+                                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" size="small" />
+                            </div>
+                            <span class="text-[11px] text-surface-500">{{ node.subtitle }}</span>
+                            @if (node.metadata?.['cvss']) {
+                                <div class="flex items-center gap-2 text-[10px] text-surface-400 font-mono">
+                                    <span>CVSS {{ node.metadata?.['cvss'] }}</span>
+                                    <span>·</span>
+                                    <span>EPSS {{ node.metadata?.['epss'] }}</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Column 4: Sinks / Assets / Database -->
+                <div class="flex flex-col gap-3">
+                    <div class="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5 pb-2 border-b border-purple-200 dark:border-purple-900/40">
+                        <i class="pi pi-database text-base"></i> 4. Assets & Données Sensibles
+                    </div>
+                    @for (node of sinkNodes(); track node.id) {
+                        <div
+                            (click)="inspectNode(node)"
+                            [ngClass]="highlightedNodeIds().has(node.id) ? 'ring-2 ring-rose-500 shadow-rose-500/20' : ''"
+                            class="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/50 bg-purple-50/50 dark:bg-purple-950/20 shadow-sm cursor-pointer hover:scale-[1.02] transition flex flex-col gap-2"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold text-purple-900 dark:text-purple-200 truncate flex items-center gap-1.5">
+                                    <i [class]="getNodeIcon(node.type)"></i>
+                                    {{ node.label }}
+                                </span>
+                                <p-tag severity="danger" value="IMPACT" size="small" />
+                            </div>
+                            <span class="text-[11px] text-surface-500 dark:text-surface-400">{{ node.subtitle }}</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- TAB 2: Actionable Attack Scenarios List -->
+    @if (activeTab() === 'paths') {
+        <div class="flex flex-col gap-4">
+            @for (path of g.attackPaths; track path.id) {
+                <div
+                    class="p-5 rounded-xl border bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col gap-3 transition"
+                    [ngClass]="path.isDirectlyExploitable ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/10' : 'border-surface-200 dark:border-surface-800'"
+                >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base font-bold text-surface-900 dark:text-surface-0">{{ path.title }}</span>
+                            @if (path.isDirectlyExploitable) {
+                                <span class="px-2 py-0.5 text-xs font-bold rounded bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                                    DIRECTEMENT EXPLOITABLE
+                                </span>
+                            }
+                        </div>
+                        <p-tag [severity]="getSeverityBadge(path.riskLevel)" [value]="path.riskLevel" />
+                    </div>
+
+                    <p class="text-sm text-surface-600 dark:text-surface-400 m-0 leading-relaxed">{{ path.description }}</p>
+
+                    <!-- Remediation Guidance Block -->
+                    <div class="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 text-xs text-blue-900 dark:text-blue-200 flex flex-col gap-1.5">
+                        <span class="font-bold flex items-center gap-1.5"><i class="pi pi-check-circle text-blue-500"></i> Plan de Remédiation Prioritaire :</span>
+                        <pre class="font-sans whitespace-pre-wrap m-0 leading-relaxed text-xs">{{ path.remediationAdvice }}</pre>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-800">
+                        <p-button
+                            [label]="selectedPath()?.id === path.id ? 'Désactiver le focus' : 'Focaliser sur le graphe'"
+                            icon="pi pi-eye"
+                            size="small"
+                            [outlined]="selectedPath()?.id !== path.id"
+                            (onClick)="focusPath(path); activeTab.set('graph')"
+                        />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- TAB 3: Fleet Overview Table -->
+    @if (activeTab() === 'overview') {
+        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm">
+            <p-table [value]="overviewList()" [rowHover]="true" styleClass="p-datatable-sm">
+                <ng-template #header>
+                    <tr>
+                        <th>Dépôt</th>
+                        <th>Chemins Critiques Exploitables</th>
+                        <th>Total Chemins</th>
+                        <th>Score de Risque Topologique</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-row>
+                    <tr>
+                        <td class="font-medium">{{ row.targetName }}</td>
+                        <td>
+                            <span class="font-bold" [ngClass]="row.criticalExploitablePaths > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-500'">
+                                {{ row.criticalExploitablePaths }}
+                            </span>
+                        </td>
+                        <td>{{ row.totalPaths }}</td>
+                        <td>
+                            <span class="font-bold" [ngClass]="getRiskScoreColor(row.riskScore)">
+                                {{ row.riskScore }} / 100
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            <p-button
+                                label="Inspecter"
+                                icon="pi pi-sitemap"
+                                size="small"
+                                [outlined]="true"
+                                (onClick)="onRepoChange(row.targetId); activeTab.set('graph')"
+                            />
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    }
+}
+
+<!-- Node Inspector Dialog -->
+<p-dialog
+    [visible]="nodeDetailsVisible()"
+    (visibleChange)="nodeDetailsVisible.set($event)"
+    [header]="'Détails du Nœud d\'Attaque'"
+    [modal]="true"
+    [style]="{ width: '600px', maxWidth: '90vw' }"
+    [draggable]="false"
+    [resizable]="false"
+>
+    @if (selectedNode(); as node) {
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i [class]="getNodeIcon(node.type)" class="text-xl"></i>
+                    <span class="text-base font-bold">{{ node.label }}</span>
+                </div>
+                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" />
+            </div>
+
+            <div class="p-3 rounded-lg bg-surface-100 dark:bg-surface-800 text-xs flex flex-col gap-1">
+                <span class="text-surface-500 font-semibold uppercase">Classification :</span>
+                <span class="font-medium">{{ node.subtitle }}</span>
+            </div>
+
+            @if (node.metadata) {
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-semibold text-surface-500 uppercase">Métadonnées Techniques :</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        @for (entry of node.metadata | keyvalue; track entry.key) {
+                            <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
+                                <span class="text-surface-400 font-semibold block uppercase text-[10px]">{{ entry.key }}</span>
+                                <span class="font-mono text-surface-800 dark:text-surface-200 break-all">{{ entry.value }}</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    <ng-template #footer>
+        <p-button label="Fermer" [text]="true" (onClick)="nodeDetailsVisible.set(false)" />
+    </ng-template>
+</p-dialog>

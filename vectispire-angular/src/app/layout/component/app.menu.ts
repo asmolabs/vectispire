@@ -43,6 +43,7 @@ export class AppMenu {
             { label: this.i18n.t('menu.blast_radius'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/blast-radius'] },
             { label: this.i18n.t('menu.licenses'), icon: 'pi pi-fw pi-book', routerLink: ['/licenses'] },
             { label: this.i18n.t('menu.attack_surface'), icon: 'pi pi-fw pi-compass', routerLink: ['/attack-surface'] },
+            { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] },
             { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
             { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] }
         ];

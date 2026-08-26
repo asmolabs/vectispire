@@ -80,7 +80,10 @@ import {
     RepositoryApisOverview,
     SbomDiffReport,
     SecurityDebtReport,
-    HighImpactFix
+    HighImpactFix,
+    AttackPathGraph,
+    AttackPathNode,
+    AttackPath
 } from './api.models';
 
 /**
@@ -751,6 +754,14 @@ export class ApiService {
         if (repoId) params = params.set('repoId', repoId);
         if (containerId) params = params.set('containerId', containerId);
         return this.http.get<HighImpactFix[]>('/api/v1/remediation/high-impact-fixes', { params });
+    }
+
+    getAttackPathGraph(repoId: number): Observable<AttackPathGraph> {
+        return this.http.get<AttackPathGraph>(`/api/v1/attack-paths/repositories/${repoId}`);
+    }
+
+    getAttackPathsOverview(): Observable<AttackPathGraph[]> {
+        return this.http.get<AttackPathGraph[]>('/api/v1/attack-paths/overview');
     }
 }
 
