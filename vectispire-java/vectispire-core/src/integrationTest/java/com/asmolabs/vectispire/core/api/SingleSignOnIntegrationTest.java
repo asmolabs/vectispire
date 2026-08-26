@@ -117,28 +117,21 @@ class SingleSignOnIntegrationTest {
     }
 
     /**
-     * <b>A literal IPv4 address, and both halves of that are load-bearing.</b>
-     *
-     * <p><i>An address rather than a name</i>, because of a JDK trap:
+     * <b>Both accessors return a dotted literal, and for the same JDK trap.</b>
      * {@link java.net.HttpCookie#domainMatches} refuses any domain with no embedded dot, so a
      * cookie set for {@code localhost} is stored by {@link CookieManager} and never sent back.
      * Keycloak's authentication session lives in such a cookie: the login form posts without it,
      * Keycloak re-renders the form, and the flow appears to fail on bad credentials that are
      * perfectly good. The same request through curl succeeds, which is how this was found.
      *
-     * <p><i>Resolved rather than hard-coded</i>, because {@code 127.0.0.1} is only the right
-     * answer when the daemon shares this process's network namespace. On CI it does not: the
-     * container is published on the {@code docker:dind} service, and the first nightly run
-     * failed with {@code Connection refused} against {@code http://127.0.0.1:32769}. Testcontainers
-     * knows the right host — {@code docker} there, via {@code TESTCONTAINERS_HOST_OVERRIDE} — and
-     * resolving it yields an address that is both reachable and dotted. Using that name directly
-     * would satisfy the second constraint and break the first: {@code domainMatches("docker")} is
-     * false, exactly like {@code localhost}.
-     *
-     * <p>Keycloak derives the issuer of the tokens it signs from the host it was called on, so
-     * the address used here has to be the one configured — hence one accessor for both.
+     * <p><b>They are two hosts, and one accessor for both was a latent defect.</b> It read
+     * correctly for as long as everything sat on loopback. Under {@code docker:dind} it does not:
+     * Keycloak is published on the daemon's container while the application under test runs in
+     * this JVM. Merging them sends one of the two somewhere nothing is listening — first the
+     * discovery call to {@code 127.0.0.1} with the container elsewhere, then, once that was
+     * "fixed" by resolving the daemon, the application's own requests to the daemon's address.
      */
-    private static String host() {
+    private static String keycloakHost() {
         String reported = KEYCLOAK_SERVER.getHost();
         try {
             for (InetAddress address : InetAddress.getAllByName(reported)) {
@@ -154,8 +147,18 @@ class SingleSignOnIntegrationTest {
         return reported;
     }
 
+    /**
+     * The application under test, which is always in this JVM — loopback everywhere, CI included.
+     * Keycloak derives the issuer of the tokens it signs from the host it was called on, and
+     * Spring derives {@code redirect_uri} from the host the browser used, so these two accessors
+     * are what the whole flow's addressing rests on.
+     */
+    private static String appHost() {
+        return "127.0.0.1";
+    }
+
     private static String issuer() {
-        return "http://" + host() + ":" + KEYCLOAK_SERVER.getMappedPort(8080) + "/realms/" + REALM;
+        return "http://" + keycloakHost() + ":" + KEYCLOAK_SERVER.getMappedPort(8080) + "/realms/" + REALM;
     }
 
     @LocalServerPort
@@ -256,7 +259,7 @@ class SingleSignOnIntegrationTest {
     }
 
     private String app(String path) {
-        return "http://" + host() + ":" + port + path;
+        return "http://" + appHost() + ":" + port + path;
     }
 
     /**
