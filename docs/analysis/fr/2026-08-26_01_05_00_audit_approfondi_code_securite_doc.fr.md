@@ -32,7 +32,7 @@ La documentation de Vectispire constitue une référence d'excellence industriel
      - `05_vue_developpement.md` : Guidelines d'ingénierie, gestion du cycle de vie, conventions de nommage, cycle de build Gradle/npm et suite de tests.
 2. **Architecture-as-Code & Diagrammes C4 Structurizr (`docs/architecture/c4/`)** :
    - Modélisation formelle dans [`workspace.dsl`](../../architecture/c4/workspace.dsl) aux 3 échelles C4 (System Context, Containers, Components).
-   - Automatisation via [`generate-c4-diagrams.sh`](../../scripts/generate-c4-diagrams.sh) avec génération des schémas vectoriels et PNG.
+   - Automatisation via [`generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh) avec génération des schémas vectoriels et PNG.
 3. **Modélisation Formelle des Menaces (STRIDE DFD)** :
    - Référentiel complet dans [`docs/architecture/security/`](../../architecture/security/) avec matrices de menaces et contre-mesures pour chaque entité externe (E1-E4), processus (P1-P5), data store (DS1-DS2) et flux de données (F1-F16).
 4. **Registre des Choix d'Architecture (ADR 0001 à 0013)** :

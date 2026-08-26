@@ -32,7 +32,7 @@ Vectispire's documentation stands as an industrial reference for exhaustiveness,
      - `05_development_view.md`: Engineering guidelines, lifecycle management, naming conventions, Gradle/npm build cycle, and test suites.
 2. **Architecture-as-Code & C4 Structurizr Diagrams (`docs/architecture/c4/`)**:
    - Formal modeling in [`workspace.dsl`](../../architecture/c4/workspace.dsl) across 3 C4 levels (System Context, Containers, Components).
-   - Automation script [`generate-c4-diagrams.sh`](../../scripts/generate-c4-diagrams.sh) generating vector PlantUML and PNG diagrams.
+   - Automation script [`generate-c4-diagrams.sh`](../../../scripts/generate-c4-diagrams.sh) generating vector PlantUML and PNG diagrams.
 3. **Formal Threat Modeling (STRIDE DFD)**:
    - Comprehensive model in [`docs/architecture/security/`](../../architecture/security/) detailing threat matrices and mitigations for all external entities (E1-E4), processes (P1-P5), data stores (DS1-DS2), and data flows (F1-F16).
 4. **Architectural Decision Records (ADR 0001 through 0013)**:
