@@ -19,27 +19,36 @@ rather than reproduced.
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTestAll   # two engines, needs Docker
+cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL, MySQL, SQLite fixture
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface
 npm test
 ```
 
-**CI runs the first, third, fourth and fifth of those, and not the second.** The four-engine
-campaign needs Docker and ten minutes; it is run by hand before a release. A green tick does not
-mean portability was checked.
+**CI is [`.gitlab-ci.yml`](.gitlab-ci.yml), and `.github/workflows/` is a fossil.** The only
+remote is GitLab, which does not execute GitHub Actions, so for most of this project's life
+*nothing had ever been verified by a machine* — the workflows are kept as a record of what the
+checks were, and they are not what runs. If you add a check, add it to `.gitlab-ci.yml` or it
+will not happen.
 
-CI also runs a **`supply-chain`** job that no local command mirrors: Syft builds an SBOM of the
-jar that ships and Grype fails on a fixable High finding, and `npm audit` blocks on production
-dependencies. It uses the scanner digests `ScannerImages` pins, so the same scanner version
-audits Vectispire as audits its targets.
+On every push, `verify` runs `secrets`, `links`, `c4-drift`, `jvm` (`./gradlew build`),
+`frontend` (`npm ci && npm run build && npm test`), `sbom`, `vulnerabilities` and `npm-audit`;
+then `package` runs `images`, which builds both images with Jib **and starts the control plane
+against a real MySQL** before believing them. Syft and Grype are digest-pinned to what
+`ScannerImages` pins, so the same scanner version audits Vectispire as audits its targets.
 
-A **`v*` tag** runs [`release.yml`](.github/workflows/release.yml): the suites on the tagged tree,
-then the jar and its SBOM signed with Sigstore keyless and published. It **verifies the signature
-it just made** before uploading anything, with the same command a consumer runs — a signature
-nobody has checked is a signature that does not work. `workflow_dispatch` exercises the whole path
-and publishes nothing.
+**`integrationTestAll` is in CI, but only nightly** — the `databases` job, 40 minutes, gated on
+`$CI_PIPELINE_SOURCE == "schedule"`, alongside `dockerfiles` and the Playwright `e2e` suite.
+Declaring a nightly job does not schedule it: the schedule has to exist in the project's CI/CD
+settings, and until it does these three have never run. **A green pipeline therefore does not
+mean portability or the browser paths were checked.** Run the campaign by hand before a release.
+
+A **`v*` tag** runs the `release` job: `./gradlew build`, then the jar signed with Sigstore
+keyless. It **verifies the signature it just made** before publishing anything, with the same
+command a consumer runs — a signature nobody has checked is a signature that does not work. The
+certificate identity is `${CI_PROJECT_URL}//.gitlab-ci.yml@refs/tags/${CI_COMMIT_TAG}` with
+issuer `https://gitlab.com`; both change if the file is renamed.
 
 ## Before you change anything
 
@@ -59,8 +68,19 @@ property**: an agent holding a database connection would also need `ENCRYPTION_K
 decrypts every deployment key Vectispire stores — see
 [decision 0003](docs/architecture/en/decisions/0003-long-polling-for-agents.md).
 
-**Three traps that cause silent data loss**, each with a decision behind it:
+**Four traps**, each with a decision or an executable rule behind it. The first leaks other
+accounts' data; the rest lose your own:
 
+- **A role marker is not authorization**, and this is the mistake made most often here.
+  `@RequiresAccount` proves the caller is signed in; it says nothing about *whose* estate the
+  response describes. Twenty-three routes carried a marker, passed `RouteAuthorizationTest`,
+  and served other accounts' repositories, containers and findings. A route naming a target
+  must resolve a `Visibility` — `VisibilityService.of(user, credentialRestriction)`, the
+  account's grant intersected with the credential's — and pass it to the query, or refuse
+  through `Visibilities.requireVisible(...)`, which answers **404 and never 403**: a refusal
+  has to be indistinguishable from an absence, or it confirms the thing exists.
+  `AuthorizationCoverageTest` is the rule that catches the omission, because four manual sweeps
+  did not converge — the twenty-first hole appeared hours after the twentieth was closed.
 - Anything entering an issue's **fingerprint** is a data contract. Changing a rule id, a
   finding type or a path normalization resolves every existing issue and recreates it,
   losing all triage — silently, across every target.
@@ -69,8 +89,11 @@ decrypts every deployment key Vectispire stores — see
   backlog ([0007](docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)). The same
   rule decides a scan's status — every step absent and something broken means the target was
   never examined, and `completed` would say the opposite.
-- **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, and
-  `SchemaParityIntegrationTest` checks on two engines that the entities agree with it.
+- **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, written by
+  hand *per dialect* under `db/migration/{postgresql,mysql,sqlite}/` — a migration is written
+  three times, and forgetting one is a startup failure on that engine only.
+  `SchemaParityIntegrationTest` checks on every engine the campaign runs that the entities agree
+  with it.
   Letting Hibernate reconcile the schema would mean two authorities for one schema, and the
   one that runs second wins silently.
 
