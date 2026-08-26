@@ -19,7 +19,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
 2. 🛡️ Sécurité & Cryptographie ("Security by Design") :
    - Protection anti-déni de service et rate limiting en amont (LoginRateLimitFilter avec Token-Bucket / Bucket4j).
    - Authentification et gestion des identifiants (hachage Argon2id, TOTP MFA, SCIM 2.0, OIDC).
-   - Chiffrement au repos AEAD (AES-256-GCM) et gestion des clés (VaultKmsProvider).
+   - Chiffrement au repos AEAD : AES-256-GCM, nonce 12 o, tag 128 bits, **AAD de contexte**, format préfixé `v2:` ; gestion des clés par VaultKmsProvider. Et le chiffrement en transit vers un agent : **SealedEnvelope, X25519 + HKDF + GCM** vers une clé éphémère publiée par l'agent, pour que le plan de contrôle sorte de la frontière de confiance du secret. Argon2id : 19 MiB, t=2, p=1, format PHC — les paramètres voyagent avec l'empreinte, donc relever le coût n'invalide pas l'existant.
    - Isolation et sandboxing des conteneurs scanners (cap_drop: ALL, read-only, network: none, aucun socket Docker monté dans un scanner — le plan de contrôle et l'agent en ont une, et c'est toute la raison d'être du bac à sable — plafonds mémoire/PID/CPU, fichiers de config internes imposés).
    - Isolation étanche de l'agent distant vectispire-agent (zéro JDBC, zéro ENCRYPTION_KEY, communication sortante HTTP Long-Polling uniquement).
    - Cloisonnement des locataires sur CHAQUE route : un marqueur de rôle (@RequiresAccount) prouve que l'appelant est connecté, jamais de qui la réponse décrit le patrimoine. Vérifier que toute route nommant une cible résout une Visibility (VisibilityService.of) ou refuse via Visibilities.requireVisible — qui répond 404 et jamais 403. AuthorizationCoverageTest encode la règle ; vingt-trois routes avaient fui avant qu'elle existe.
@@ -31,12 +31,12 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Isolation des couches et contrôle ArchUnit (ArchitectureTest : domain <- scanning <- persistence <- repositories <- services <- api).
    - Résilience et prévention de la perte silencieuse de données (règle ADR 0007 : Optional.empty() pour les scanners en échec, jamais de liste vide []).
    - Portabilité et migration multi-SGBD Flyway sur 2 moteurs réels (PostgreSQL, MySQL (SQLite for tests)) avec validation de schéma stricte (ddl-auto: validate).
-   - Moteur d'ingestion et déduplication intelligente multi-scanners (ex: Gitleaks) avec IssueFingerprint.
+   - Moteur d'ingestion et déduplication multi-scanners avec IssueFingerprint. **Vérifier qu'un vecteur littéral est épinglé** : les propriétés relationnelles (déterminisme, version exclue, cibles séparées) survivent toutes à un réordonnancement des champs, qui change pourtant chaque empreinte du parc et perd tout le triage en silence. Établi le 26 août 2026 en permutant deux champs : aucun test n'a échoué.
    - Coût des lectures : chercher les points d'entrée HTTP qui chargent une table entière ou requêtent par élément (N+1). Mesurer avec les compteurs Hibernate (getEntityLoadCount, getQueryExecutionCount) plutôt que raisonner ; sept points d'entrée chargeaient t_finding en entier avant qu'on les compte.
    - Frontend Angular 21 et couverture de tests end-to-end Playwright (vectispire-angular/e2e/).
 
 4. 📋 Conformité Réglementaire & Standards :
-   - Moteurs d'évaluation réglementaire intégrés (ComplianceService : CRA / Cyber Resilience Act, NIS 2, DORA, OWASP Top 10).
+   - Conformité réglementaire : **un évaluateur de posture, six cartographies** — et la distinction est le fait à vérifier. ComplianceEngine commute sur sept catégories de contrôle (VULNERABILITY_MANAGEMENT, SUPPLY_CHAIN, SECRETS_MANAGEMENT, SECURE_CODING, INFRASTRUCTURE_AS_CODE, GOVERNANCE, AUDIT_AND_LOGGING) et projette ce verdict sur six référentiels : NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2 — soit 24 contrôles, dont deux partageant une catégorie reçoivent le même résultat. C'est ce qu'est une cartographie ; parler de « six moteurs » surévend autant que d'en annoncer quatre en sous-évend. L'OWASP Top 10 vit dans son propre contrôleur. Vérifier aussi cappedByPlatform : un contrôle ne doit jamais être déclaré conforme sur la foi d'un mécanisme éteint.
    - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX n'est pas produit, voir ADR 0016).
 
 5. 🔁 Vérification réellement exécutée :
@@ -72,7 +72,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
 2. 🛡️ Security & Cryptography ("Security by Design"):
    - Upstream Anti-DoS and brute-force token-bucket rate limiting (LoginRateLimitFilter with Bucket4j).
    - Identity & Authentication controls (Argon2id hashing, TOTP MFA, SCIM 2.0, OIDC group sync).
-   - AEAD Encryption at rest (AES-256-GCM) and Key Management (VaultKmsProvider).
+   - AEAD encryption at rest: AES-256-GCM, 12-byte nonce, 128-bit tag, **context AAD**, `v2:`-prefixed format; key management through VaultKmsProvider. And encryption in transit to an agent: **SealedEnvelope, X25519 + HKDF + GCM** to an ephemeral key the agent publishes, so the control plane sits outside the secret's trust boundary. Argon2id: 19 MiB, t=2, p=1, PHC format — the parameters travel with the hash, so raising the cost later does not invalidate what is stored.
    - Hardened scanner container sandboxing (cap_drop: ALL, read-only mounts, network: none, no Docker socket inside a scanner — the control plane and the agent hold one, which is the whole reason the sandbox matters — memory/PID/CPU ceilings, enforced server-side config).
    - Watertight remote agent isolation in vectispire-agent (zero JDBC drivers, zero ENCRYPTION_KEY, outbound HTTP Long-Polling only).
    - Tenant isolation on EVERY route: a role marker (@RequiresAccount) proves the caller is signed in, never whose estate the response describes. Check that every route naming a target resolves a Visibility (VisibilityService.of) or refuses through Visibilities.requireVisible — which answers 404 and never 403. AuthorizationCoverageTest encodes the rule; twenty-three routes had leaked before it existed.
@@ -84,12 +84,12 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Enforced architectural layering via ArchUnit (ArchitectureTest: domain <- scanning <- persistence <- repositories <- services <- api).
    - Resilience against silent data loss (ADR 0007: Optional.empty() on scanner failures, never empty list []).
    - Multi-engine Flyway migrations verified on 2 databases (PostgreSQL, MySQL (SQLite for tests)) with strict validation (ddl-auto: validate).
-   - Multi-scanner ingestion and deduplication engine (e.g., Gitleaks) via IssueFingerprint.
+   - Multi-scanner ingestion and deduplication via IssueFingerprint. **Check that a literal vector is pinned**: the relational properties (determinism, version excluded, targets separate) all survive a reordering of the fields, which nonetheless changes every fingerprint in the estate and loses all triage in silence. Established on 26 August 2026 by swapping two fields: no test failed.
    - Cost of reads: hunt for HTTP endpoints that load a whole table or query per item (N+1). Measure with the Hibernate counters (getEntityLoadCount, getQueryExecutionCount) rather than reasoning; seven endpoints were reading all of t_finding before anyone counted.
    - Frontend Angular 21 and automated Playwright E2E test suites (vectispire-angular/e2e/).
 
 4. 📋 Regulatory & Standards Compliance:
-   - Built-in regulatory engines (ComplianceService: EU CRA / Cyber Resilience Act, NIS 2, DORA, OWASP Top 10).
+   - Regulatory compliance: **one posture evaluator, six mappings** — and the distinction is the fact to check. ComplianceEngine switches on seven control categories (VULNERABILITY_MANAGEMENT, SUPPLY_CHAIN, SECRETS_MANAGEMENT, SECURE_CODING, INFRASTRUCTURE_AS_CODE, GOVERNANCE, AUDIT_AND_LOGGING) and projects that verdict onto six frameworks: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2 — 24 controls, of which any two sharing a category receive the same result. That is what a mapping is; calling it "six engines" oversells exactly as much as announcing four undersells. The OWASP Top 10 lives in its own controller. Check cappedByPlatform too: a control must never be reported compliant on the strength of a mechanism that is switched off.
    - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX documents are not produced, see ADR 0016).
 
 5. 🔁 Verification that actually runs:

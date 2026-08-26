@@ -132,10 +132,24 @@ client works.
 
 ## 5. Regulatory — 9.3
 
-The prompt announces four frameworks. `ComplianceFramework` enumerates **six**: `NIS_2`,
-`ISO_27001`, `EU_CRA`, `DORA`, `PCI_DSS`, `SOC_2`, with the OWASP Top 10 living in its own
-controller. The supply-chain formats are produced, and **SPDX is declined and recorded**
-(ADR-0016) rather than claimed and absent.
+> **Refined after publication.** This report said "six frameworks implemented where the prompt
+> announces four". True, and misleading in the other direction: `ComplianceEngine` switches on
+> **the control's category alone** — seven categories — and projects that verdict onto the six
+> frameworks. Any two frameworks whose controls share a category therefore receive the **same**
+> result, differing only in identifier and wording. There is **one posture evaluator and six
+> mappings**, not six engines. Corrected here and in the prompt: "six engines" oversells exactly
+> as much as "four" undersells.
+
+`ComplianceFramework` enumerates six frameworks — `NIS_2`, `ISO_27001`, `EU_CRA`, `DORA`,
+`PCI_DSS`, `SOC_2` — which is **24 controls**, all evaluated, with the OWASP Top 10 in its own
+controller. It is a mapping, and that is what a mapping should be: one posture expressed in each
+framework's vocabulary.
+
+What earns the score here is elsewhere, and it reads in `cappedByPlatform`: **a control cannot be
+reported compliant on the strength of a mechanism that is switched off**. The javadoc says why —
+"compliant" against a control whose mechanism is disabled hands the reader their own diligence
+back as a conclusion. And **SPDX is declined and recorded** (ADR-0016) rather than claimed and
+absent.
 
 ---
 

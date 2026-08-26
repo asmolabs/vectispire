@@ -132,10 +132,23 @@ prouve que le client HTTP fonctionne.
 
 ## 5. Conformité — 9,3
 
-Le prompt annonce quatre cadres. `ComplianceFramework` en énumère **six** : `NIS_2`, `ISO_27001`,
-`EU_CRA`, `DORA`, `PCI_DSS`, `SOC_2`, l'OWASP Top 10 vivant dans son propre contrôleur. Les formats
-de chaîne d'approvisionnement sont produits, et **SPDX est refusé et consigné** (ADR-0016) plutôt
-que revendiqué à vide.
+> **Précision ajoutée après publication.** Ce rapport disait « six cadres implémentés là où le
+> prompt en annonce quatre ». Vrai, et trompeur dans l'autre sens : `ComplianceEngine` commute sur
+> **la catégorie du contrôle seule** — sept catégories — et projette ce verdict sur les six
+> référentiels. Deux cadres dont les contrôles partagent une catégorie reçoivent donc le **même**
+> résultat, seuls l'identifiant et le libellé changeant. Il y a **un évaluateur de posture et six
+> cartographies**, pas six moteurs. Corrigé ici et dans le prompt : « six moteurs » surévend
+> autant que « quatre » sous-évend.
+
+`ComplianceFramework` énumère six référentiels — `NIS_2`, `ISO_27001`, `EU_CRA`, `DORA`, `PCI_DSS`,
+`SOC_2` — soit **24 contrôles**, tous évalués, l'OWASP Top 10 vivant dans son propre contrôleur.
+C'est une cartographie, et c'est ce qu'une cartographie doit être : une posture unique exprimée
+dans le vocabulaire de chaque référentiel.
+
+Ce qui fait la note ici est ailleurs, et se lit dans `cappedByPlatform` : **un contrôle ne peut pas
+être déclaré conforme sur la foi d'un mécanisme éteint**. Le javadoc dit pourquoi — « conforme »
+face à un contrôle dont le mécanisme est coupé, c'est rendre au lecteur sa propre diligence sous
+forme de conclusion. Et **SPDX est refusé et consigné** (ADR-0016) plutôt que revendiqué à vide.
 
 ---
 
