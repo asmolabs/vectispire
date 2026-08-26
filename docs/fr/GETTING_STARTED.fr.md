@@ -244,4 +244,5 @@ dépendances que n'importe qui peut réécrire avant que vous ne la lisiez.
 - [Intégration CI/CD & Outil CLI (`vectispire-cli`)](CI_CD_INTEGRATION.fr.md) — Blocage des builds par Quality Gate (GitLab CI, GitHub Actions, Bitbucket, Jenkins).
 - [Ticketing Bidirectionnel](TICKETING_INTEGRATION.fr.md) — Synchronisation automatique des issues avec Jira, GitLab, GitHub et ServiceNow.
 - [Alertes et Notifications](NOTIFICATIONS_INTEGRATION.fr.md) — Intégration en temps réel avec Discord, Slack et Microsoft Teams.
+- [Visualiseur de Chemins d'Attaque](ATTACK_PATH_VISUALIZER.fr.md) — Corrélation des scénarios d'exploitation (Ingress &rarr; API &rarr; RCE &rarr; Secret/DB).
 

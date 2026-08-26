@@ -60,6 +60,7 @@
     "component_search": "Component search",
     "licenses": "Open Source Licenses",
     "attack_surface": "Attack Surface & APIs",
+    "attack_paths": "Attack Paths Visualizer",
     "owasp_report": "OWASP report",
     "compliance": "Compliance matrix",
     "epss": "EPSS Prioritization",

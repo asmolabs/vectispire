@@ -1390,3 +1390,44 @@ export interface SecurityDebtReport {
     eolDebtHours: number;
     topHighImpactFixes: HighImpactFix[];
 }
+
+export type AttackPathNodeType = 'INTERNET_INGRESS' | 'API_ENDPOINT' | 'VULNERABLE_COMPONENT' | 'SECRET' | 'DATABASE' | 'INFRASTRUCTURE';
+
+export interface AttackPathNode {
+    id: string;
+    label: string;
+    type: AttackPathNodeType;
+    severity: string;
+    isExploitable: boolean;
+    subtitle?: string;
+    metadata?: Record<string, string>;
+}
+
+export interface AttackPathEdge {
+    id: string;
+    source: string;
+    target: string;
+    label: string;
+    isCriticalPath: boolean;
+}
+
+export interface AttackPath {
+    id: string;
+    title: string;
+    description: string;
+    riskLevel: string;
+    isDirectlyExploitable: boolean;
+    nodeIds: string[];
+    remediationAdvice: string;
+}
+
+export interface AttackPathGraph {
+    targetId: number;
+    targetName: string;
+    totalPaths: number;
+    criticalExploitablePaths: number;
+    riskScore: number;
+    nodes: AttackPathNode[];
+    edges: AttackPathEdge[];
+    attackPaths: AttackPath[];
+}

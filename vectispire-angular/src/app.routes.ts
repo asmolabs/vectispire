@@ -48,6 +48,7 @@ export const appRoutes: Routes = [
             { path: 'notifications', loadComponent: () => import('./app/pages/notifications/notifications').then((m) => m.Notifications) },
             { path: 'licenses', loadComponent: () => import('./app/pages/licenses/licenses').then((m) => m.Licenses) },
             { path: 'attack-surface', loadComponent: () => import('./app/pages/attack-surface/attack-surface').then((m) => m.AttackSurface) },
+            { path: 'attack-paths', loadComponent: () => import('./app/pages/attack-paths/attack-paths').then((m) => m.AttackPaths) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
         ]
     },
