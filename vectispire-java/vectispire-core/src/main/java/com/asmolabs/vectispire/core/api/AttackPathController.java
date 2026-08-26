@@ -1,7 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.VisibilityService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.AttackPathService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,9 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AttackPathController {
 
     private final AttackPathService attackPathService;
+    private final VisibilityService visibility;
 
-    public AttackPathController(AttackPathService attackPathService) {
+    public AttackPathController(
+            AttackPathService attackPathService, VisibilityService visibility) {
         this.attackPathService = attackPathService;
+        this.visibility = visibility;
     }
 
     @Operation(
@@ -36,8 +44,13 @@ public class AttackPathController {
     @RequiresAccount
     @GetMapping("/repositories/{repoId}")
     public ResponseEntity<AttackPathGraph> getRepositoryAttackPath(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository unique ID", required = true)
             @PathVariable("repoId") Long repoId) {
+        // **This is a route map for compromising a target** — ingress, endpoint, vulnerability,
+        // secret, each hop flagged exploitable. It is the last thing in the product to hand to
+        // somebody who was not given the repository.
+        Visibilities.requireVisible(new ScanTarget.Repository(repoId), allowanceOf(principal));
         return attackPathService.getAttackPathGraph(repoId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -49,7 +62,11 @@ public class AttackPathController {
     @ApiResponse(responseCode = "200", description = "Attack path overview retrieved successfully")
     @RequiresAccount
     @GetMapping("/overview")
-    public List<AttackPathGraph> getOverview() {
-        return attackPathService.getOverview();
+    public List<AttackPathGraph> getOverview(@AuthenticationPrincipal VectispirePrincipal principal) {
+        return attackPathService.getOverview(allowanceOf(principal));
+    }
+
+    private Visibility allowanceOf(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 }

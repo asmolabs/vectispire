@@ -392,6 +392,35 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.hasAttestation").value(true));
     }
 
+    @Test
+    @DisplayName("an attack path is not shown for a target the reader was not given")
+    void theAttackPathIsScoped() throws Exception {
+        // **The twenty-first hole, and it arrived hours after the twenty were closed.** An attack
+        // path is "Ingress → API endpoint → Vulnerability → Secret/DB" with an exploitable flag on
+        // each hop — a route map for compromising a target. Both of its routes carried
+        // `@RequiresAccount` and resolved no allowance, which is the same shape as the scorecard
+        // and the API inventory before them.
+        //
+        // This case exists as much for the next feature as for this one: the seventh audit
+        // recommended a test that fails when a new controller serving target-scoped data resolves
+        // no `Visibility`, and the reason was that nothing stopped the twenty-first.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/attack-paths/repositories/" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        // The overview names every repository it can reach, so it is the same leak in list form.
+        mvc.perform(authenticated(get("/api/v1/attack-paths/overview"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        mvc.perform(authenticated(get("/api/v1/attack-paths/overview"), asAdmin()))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }

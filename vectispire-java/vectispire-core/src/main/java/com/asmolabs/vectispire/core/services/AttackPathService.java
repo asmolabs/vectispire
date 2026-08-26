@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNode;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
@@ -292,11 +294,24 @@ public class AttackPathService {
                 paths));
     }
 
+    /**
+     * Every attack path the caller may see.
+     *
+     * <p>The overview is the per-repository graph in list form, so it repeats the same
+     * disclosure: without an allowance it named every repository in the deployment and how to
+     * walk from its ingress to its secrets.
+     */
     @Transactional(readOnly = true)
-    public List<AttackPathGraph> getOverview() {
-        List<RepositoryEntity> allRepos = repositories.findAll();
+    public List<AttackPathGraph> getOverview(Visibility allowed) {
+        List<RepositoryEntity> visible = allowed.asFilter()
+                .map(targets -> repositories.findAllById(targets.stream()
+                        .filter(ScanTarget.Repository.class::isInstance)
+                        .map(target -> ((ScanTarget.Repository) target).id())
+                        .toList()))
+                .orElseGet(repositories::findAll);
+
         List<AttackPathGraph> graphs = new ArrayList<>();
-        for (RepositoryEntity repo : allRepos) {
+        for (RepositoryEntity repo : visible) {
             getAttackPathGraph(repo.getId()).ifPresent(graphs::add);
         }
         return graphs;
