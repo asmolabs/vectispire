@@ -1,6 +1,6 @@
 ---
 name: jvm-porter
-description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4 / JDK 25, three modules, four database engines. Use for any change to the Java control plane or the remote agent.
+description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4.1 / JDK 25, three modules, two deployable database engines and a SQLite test fixture. Use for any change to the Java control plane or the remote agent.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
@@ -25,8 +25,12 @@ Data on its classpath. An agent holding a database connection would also need th
 key, which decrypts every deployment key Vectispire stores (decision 0003). If you find yourself
 wanting the agent to look something up, the answer is a fourth protocol call, not a dependency.
 
-Inside `vectispire-core`: `api → services → repositories → persistence`, checked by
-`ArchitectureTest`. `vectispire-common/domain` depends on nothing but the JDK, BouncyCastle and
+The layer rule, checked by `ArchitectureTest`, has six layers and each one only reaches
+downwards:
+
+```
+  domain ◄── scanning ◄── persistence ◄── repositories ◄── services ◄── api
+``` `vectispire-common/domain` depends on nothing but the JDK, BouncyCastle and
 Jackson — no Spring, no JPA, no Docker client.
 
 ## What this codebase will not forgive
@@ -40,9 +44,16 @@ no log line, and a dashboard that looks better afterwards.
 path normalization. Change one and every existing issue is resolved and recreated, losing its
 triage, across every target.
 
-**`synchronize` stays off and the schema belongs to the changelog.** One Liquibase changelog,
-dialect differences expressed as properties. If you touch it, run `integrationTestAll` — the
-places the four engines disagree are precisely the places one engine is silent about.
+**Hibernate never writes the schema, and the migrations are not portable by accident.**
+`ddl-auto: validate`, and Flyway runs hand-written SQL kept *per dialect* under
+`db/migration/{postgresql,mysql,sqlite}/`. There is no single changelog and no dialect-abstraction
+layer: decision 0013 replaced Liquibase precisely because the generated DDL hid where the engines
+differ. A migration is therefore written three times, and forgetting one is a startup failure on
+that engine only.
+
+Run `integrationTestAll` whenever you touch it. It covers **two deployable engines, PostgreSQL and
+MySQL, plus SQLite as a test fixture** — decision 0014, which replaced the earlier claim of four.
+SQLite is not a deployment target; do not add behaviour that only it can satisfy.
 
 **Every `@Modifying` query carries `@Transactional`.** Spring Data does not add it. Without it
 the method works whenever a caller happens to have a transaction open and fails when none does,
@@ -52,9 +63,22 @@ which is how the omission survives review.
 bypassed. Use `TransactionTemplate` where a boundary is opened from inside a class — that is
 why `ScanDispatcher` and `OutboxService` do.
 
-**Every route declares who may call it.** One of `@RequiresAdministrator`, `@RequiresAccount`,
-`@RequiresAgentKey`, `@OpenToAnonymous`. `RouteAuthorizationTest` walks the registered mappings
-and fails on a handler carrying none, so a new endpoint is guarded or the build is red.
+**Every route declares who may call it.** One of `@RequiresAdministrator`,
+`@RequiresSecurityLead`, `@RequiresAccount`, `@RequiresAgentKey`, `@OpenToAnonymous`.
+`RouteAuthorizationTest` walks the registered mappings and fails on a handler carrying none, so a
+new endpoint is guarded or the build is red.
+
+**A role marker is not authorization, and this is the mistake that has been made most here.**
+`@RequiresAccount` proves the caller is signed in. It says nothing about *whose* estate the
+response describes. Twenty-three routes carried a marker, passed `RouteAuthorizationTest`, and
+returned other accounts' repositories, containers and findings. A route that names a target must
+also resolve a `Visibility` — `VisibilityService.of(user, credentialRestriction)` — and pass it to
+the query, or refuse through `Visibilities.requireVisible(...)`, which answers **404 and never
+403**: a refusal has to be indistinguishable from an absence, or it confirms the thing exists.
+
+`AuthorizationCoverageTest` is the rule that catches the omission: a controller either carries a
+role guard or names a `VisibilityService`. Four manual sweeps failed to converge before it was
+written — the twenty-first hole turned up hours after the twentieth was closed.
 
 ## Writing code here
 
