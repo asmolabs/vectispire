@@ -32,12 +32,24 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
              order by s.createdAt desc, c.name asc""")
     List<Object[]> search(@Param("name") String name, @Param("version") String version, Limit limit);
 
-    /** Every version of one component ever catalogued, for the filter the screen offers. */
+    /**
+     * Every version of one component, <b>with the target it was catalogued on</b>, for the filter
+     * the screen offers.
+     *
+     * <p><b>The join exists so the caller can be filtered, and it was added after the fact.</b>
+     * The first version of this query selected {@code distinct c.version} with no join at all, so
+     * it answered across the whole estate — a reader given one repository could ask "does anyone
+     * here run log4j 2.14.1" and be told. Its sibling {@code search}, four lines above, had
+     * filtered from the day it was written; this one had not, and nothing said so because the
+     * authorization rule is stated per controller and this controller does resolve a
+     * {@code Visibility} — for the other route.
+     */
     @Query("""
-            select distinct c.version from ComponentEntity c
-             where lower(c.name) like :name or lower(c.purl) like :name
+            select distinct c.version, s.repoId, s.containerId from ComponentEntity c, ScanEntity s
+             where c.scanId = s.id
+               and (lower(c.name) like :name or lower(c.purl) like :name)
              order by c.version desc""")
-    List<String> versionsOf(@Param("name") String name, Limit limit);
+    List<Object[]> versionsOf(@Param("name") String name, Limit limit);
 
     List<ComponentEntity> findByScanId(long scanId);
 

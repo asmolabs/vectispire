@@ -161,6 +161,16 @@ public interface Issues
     List<Object[]> countOpenByContainer(@Param("state") String state);
 
     /**
+     * Every issue whose state is none of {@code states}.
+     *
+     * <p><b>Exists so the threat-intel sync stops reading the table.</b> It used to call
+     * {@code findAll()} and drop closed and resolved rows in Java — the whole of {@code t_issue},
+     * estimated at half a million rows, loaded to keep a subset. The states are passed in rather
+     * than hard-coded here because the caller's definition of "still open" is the caller's.
+     */
+    List<IssueEntity> findByStateNotIn(java.util.Collection<String> states);
+
+    /**
      * Every issue in one state. <b>The whole estate</b> — for the security overview, which shows
      * every target, and for nothing that wants one.
      */

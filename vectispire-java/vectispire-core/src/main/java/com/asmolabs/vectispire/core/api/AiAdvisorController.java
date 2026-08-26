@@ -40,10 +40,14 @@ public class AiAdvisorController {
 
     @GetMapping("/status")
     public Map<String, Object> getStatus() {
+        // **The Ollama URL is deliberately absent.** It was published here to every signed-in
+        // account, and an internal service address is not a secret but it is a starting point:
+        // it names a host and a port on the network the control plane sits on, to a caller who
+        // may have been given nothing else. The screen needs to know whether the advisor works
+        // and which model answers — never where it lives.
         return Map.of(
                 "enabled", aiReviewService.isEnabled(),
                 "selectedModel", aiReviewService.selectedModel(),
-                "ollamaUrl", aiReviewService.ollamaUrl(),
                 "availableModels", aiReviewService.availableModels());
     }
 

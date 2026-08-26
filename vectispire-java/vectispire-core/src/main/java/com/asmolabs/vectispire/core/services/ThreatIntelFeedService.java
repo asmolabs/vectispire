@@ -15,8 +15,11 @@ import com.asmolabs.vectispire.core.repositories.ThreatIntelSyncs;
 import com.asmolabs.vectispire.core.repositories.ThreatIntels;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -86,15 +89,34 @@ public class ThreatIntelFeedService {
             }
         }
 
-        // Re-evaluate backlog
+        // **Re-evaluate the backlog in two queries, not one plus one per issue.** This read the
+        // whole of `t_issue` and filtered the closed rows in Java, then asked the intel table for
+        // one CVE at a time: half a million rows loaded and half a million queries, on an estate
+        // the size the dimensioning view assumes. The state filter is now SQL and the intel comes
+        // back in a single batch. What is unchanged on purpose is which issues qualify — "not
+        // closed and not resolved", passed as data so the definition stays the caller's.
         long updatedIssuesCount = 0;
-        List<IssueEntity> allOpenIssues = issuesRepo.findAll().stream()
-                .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
-                .toList();
+        List<IssueEntity> allOpenIssues = issuesRepo.findByStateNotIn(List.of("closed", "resolved"));
+
+        Map<String, ThreatIntelEntity> intelByCve = allOpenIssues.stream()
+                .map(IssueEntity::getIdentifier)
+                .filter(Objects::nonNull)
+                .map(id -> id.toLowerCase(Locale.ROOT))
+                .distinct()
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toList(),
+                        ids -> ids.isEmpty()
+                                ? Map.<String, ThreatIntelEntity>of()
+                                : intelRepo.findByCveIdInIgnoreCase(ids).stream()
+                                        .collect(Collectors.toMap(
+                                                intel -> intel.getCveId().toLowerCase(Locale.ROOT),
+                                                intel -> intel,
+                                                (left, right) -> left))));
 
         for (IssueEntity issue : allOpenIssues) {
             if (issue.getIdentifier() == null) continue;
-            Optional<ThreatIntelEntity> match = intelRepo.findByCveIdIgnoreCase(issue.getIdentifier());
+            Optional<ThreatIntelEntity> match = Optional.ofNullable(
+                    intelByCve.get(issue.getIdentifier().toLowerCase(Locale.ROOT)));
             if (match.isPresent()) {
                 ThreatIntelEntity intel = match.get();
                 boolean becameKev = !issue.isKev() && intel.isKev();

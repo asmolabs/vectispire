@@ -62,8 +62,7 @@ public class SecurityScorecardService {
                     .filter(l -> repoId.equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
-            boolean hasAttestation = scansRepo.findAll().stream()
-                    .anyMatch(s -> repoId.equals(s.getRepoId()) && "completed".equalsIgnoreCase(s.getStatus()));
+            boolean hasAttestation = scansRepo.existsByRepoIdAndStatusIgnoreCase(repoId, "completed");
 
             return computeScorecard(repoId, "repository", repo.getName(), openIssues, licenses, hasAttestation);
         });
@@ -83,8 +82,7 @@ public class SecurityScorecardService {
                     .filter(l -> containerId.equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
-            boolean hasAttestation = scansRepo.findAll().stream()
-                    .anyMatch(s -> containerId.equals(s.getContainerId()) && "completed".equalsIgnoreCase(s.getStatus()));
+            boolean hasAttestation = scansRepo.existsByContainerIdAndStatusIgnoreCase(containerId, "completed");
 
             return computeScorecard(containerId, "container", container.getImageName() + ":" + container.getTag(), openIssues, licenses, hasAttestation);
         });
@@ -111,6 +109,12 @@ public class SecurityScorecardService {
         List<LicenseEntry> licenses = licenseService.getInventory().stream()
                 .filter(entry -> permits(allowed, entry))
                 .toList();
+        // **This one stays a full read, and it is not the same defect as the two above.** Those
+        // asked "has this target completed a scan" and answered it by loading every scan in the
+        // deployment; both are now one indexed existence check. This asks "has *any target the
+        // caller may see* completed one", and the allowance is a set of targets rather than a
+        // column — so there is no derived query to ask it with. Named rather than left to look
+        // like an oversight.
         boolean hasAttestation = scansRepo.findAll().stream()
                 .filter(s -> allowed.permits(targetOf(s)))
                 .anyMatch(s -> "completed".equalsIgnoreCase(s.getStatus()));

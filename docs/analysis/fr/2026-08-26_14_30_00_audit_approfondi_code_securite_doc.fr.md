@@ -41,7 +41,7 @@ invérifiable depuis un poste.
 | **Sécurité & Cryptographie** | **8,3 / 10** | Tout ce que le prompt nomme existe et s'exécute — mais une **24ᵉ route non cloisonnée** subsiste |
 | **Qualité du Code** | **8,4 / 10** | Vingt lectures non bornées, dont deux sur des chemins chauds |
 | **Conformité & Standards** | **9,2 / 10** | Moteurs et formats présents ; SPDX honnêtement refusé (ADR-0016) |
-| **Vérification exécutée** | **8,0 / 10** | Le pipeline existe, tourne, et a trouvé de vrais défauts — mais ne part que si quelqu'un clique |
+| **Vérification exécutée** | **8,5 / 10** | Le pipeline existe, tourne, et a trouvé de vrais défauts ; aucun nocturne n'est encore passé au vert |
 
 ---
 
@@ -169,11 +169,16 @@ Vingt sites `findAll()` subsistent dans les services. Tous ne sont pas des défa
 **personne ne les distingue mécaniquement** : quatre tests seulement mesurent le coût aux
 compteurs Hibernate.
 
-### 🟡 B3 — 13 specs pour 28 pages frontales
+### 🟡 B3 — 11 pages sur 28 ont une spec
 
-Les 119 tests passent et couvrent ce qu'ils couvrent. Quinze pages n'ont aucune spec, dont
-plusieurs qui affichent des chiffres agrégés — exactement le genre d'écran où une erreur se lit
-comme une donnée.
+Les 119 tests passent et couvrent ce qu'ils couvrent. **Dix-sept pages n'ont aucune spec** — les
+13 fichiers de spec se concentrent sur 11 répertoires. Le chiffre corrigé après publication : la
+première version comptait les fichiers et non les pages, ce qui en flattait quatre.
+
+Toutes ne le méritent pas également. Le critère qui sépare est la quantité de *transformation* :
+une page qui affiche une réponse HTTP telle quelle ne peut se tromper que dans son gabarit, qu'un
+test unitaire ne lit pas. Les pages à `computed` — `licenses` (3), `attack-surface` (2), `teams`
+(2) — calculent des chiffres, et c'est là qu'une erreur se lit comme une donnée.
 
 ---
 
@@ -186,7 +191,7 @@ refusé et consigné vaut mieux qu'un format revendiqué et absent.
 
 ---
 
-## 6. Vérification réellement exécutée — 8,0
+## 6. Vérification réellement exécutée — 8,5
 
 C'est l'axe le plus jeune, et celui qui a le plus bougé aujourd'hui.
 
@@ -199,10 +204,17 @@ qui ne survit pas à `docker:dind`, et une image Playwright en retard de treize 
 mineures. Les deux corrigés le jour même. C'est la meilleure preuve possible que cet axe
 manquait.
 
+> **Correction du 26 août, après publication.** Ce rapport affirmait qu'aucun *schedule*
+> n'existait. **C'est faux** : le propriétaire du projet en a un de configuré. Je l'avais déduit
+> du fait que les nocturnes n'avaient jamais tourné, sans pouvoir consulter les réglages CI/CD —
+> aucun jeton d'API dans cette session. Déduire n'est pas mesurer, et l'axe 5 de ce prompt
+> interdit précisément cela. La note passe de 8,0 à **8,5** et la recommandation 5 tombe.
+
 **Ce qui plafonne la note :** les trois nocturnes (`databases`, `dockerfiles`, `e2e`) sont
-conditionnés à `$CI_PIPELINE_SOURCE == "schedule"`, et **aucun *schedule* n'existe**. Ils ne
-partent aujourd'hui que par un « Run pipeline » manuel. Un contrôle qui dépend de la mémoire de
-quelqu'un est exactement ce que cet axe existe pour interdire.
+conditionnés à `$CI_PIPELINE_SOURCE == "schedule"`. Le *schedule* **existe** ; ce qui reste non
+démontré, c'est qu'un pipeline planifié soit passé au vert de bout en bout — les deux exécutions
+observées le 26 août étaient manuelles, et les deux ont trouvé des défauts, corrigés depuis. Le
+premier nocturne vert sera la preuve, et il n'est pas encore là.
 
 ---
 
@@ -214,8 +226,7 @@ quelqu'un est exactement ce que cet axe existe pour interdire.
 | 🟠 2 | Remplacer les trois `scansRepo.findAll()` de `SecurityScorecardService` par `existsByRepoIdAndStatus` | lu dans le code ; **non mesuré aux compteurs** — à faire avant de crier victoire |
 | 🟠 3 | Borner `syncThreatIntel` : filtrer l'état en SQL, et joindre le renseignement en un lot | lu dans le code, non mesuré |
 | 🟡 4 | Retirer `ollamaUrl` de `/ai/status` | lu dans le code |
-| 🟡 5 | Créer le *schedule* nocturne dans les réglages CI/CD | **affirmé, non exécuté** — hors de portée d'un audit |
-| 🟡 6 | Donner une spec aux pages qui publient des chiffres agrégés | mesuré : 13 / 28 |
+| 🟡 6 | Donner une spec aux pages qui *calculent* — celles qui portent des `computed` — avant celles qui affichent | mesuré : 11 pages sur 28 ont une spec ; 3 des 17 restantes portent des `computed` |
 | 🟡 7 | Écrire le raisonnement d'ADR-0001, ou la marquer explicitement comme historique | mesuré par balayage des seize ADR |
 
 **Et une recommandation sur la méthode elle-même :** `AuthorizationCoverageTest` devrait

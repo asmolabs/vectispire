@@ -672,8 +672,8 @@ export class ApiService {
         return this.http.post<NotificationTestResult>(`/api/v1/notifications/test/${encodeURIComponent(channelType)}`, {});
     }
 
-    getAiAdvisorStatus(): Observable<{ enabled: boolean; selectedModel: string; ollamaUrl: string; availableModels: string[] }> {
-        return this.http.get<{ enabled: boolean; selectedModel: string; ollamaUrl: string; availableModels: string[] }>('/api/v1/ai-advisor/status');
+    getAiAdvisorStatus(): Observable<{ enabled: boolean; selectedModel: string; availableModels: string[] }> {
+        return this.http.get<{ enabled: boolean; selectedModel: string; availableModels: string[] }>('/api/v1/ai-advisor/status');
     }
 
     explainIssueWithAi(issueId: number): Observable<AiVulnerabilityAdvice> {

@@ -112,15 +112,48 @@ public class InventoryController {
                 truncated);
     }
 
-    /** The versions of one component that were ever catalogued, for the screen's second field. */
+    /**
+     * The versions of one component the caller may see, for the screen's second field.
+     *
+     * <p><b>Scoped like {@code search}, and it was not.</b> This route used to select distinct
+     * versions with no join and no principal, so it answered for the whole estate: a reader given
+     * one repository could ask "does anyone here run log4j 2.14.1" and be told, without reaching a
+     * single target. A version list is a smaller disclosure than an occurrence list, and it is the
+     * same disclosure in kind — it says who is exposed, which is the question this product exists
+     * to answer and therefore the one worth asking without permission.
+     *
+     * <p>Filtered after the query rather than in SQL, for the reason {@code search} gives: the
+     * restriction is a set of targets, and expressing it twice is how the two drift apart.
+     */
     @GetMapping("/versions")
-    public List<String> versions(@RequestParam String name) {
+    public List<String> versions(
+            @AuthenticationPrincipal VectispirePrincipal principal, @RequestParam String name) {
         if (name == null || name.isBlank()) {
             return List.of();
         }
-        return components.versionsOf("%" + name.trim().toLowerCase(Locale.ROOT) + "%", Limit.of(200)).stream()
+
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+
+        // The cap is applied to rows, and a row is a (version, target) pair, so a version present
+        // on many targets costs many rows. Deliberately generous for that reason: capping tightly
+        // here would drop versions the caller may see, which reads as "we do not run it".
+        return components.versionsOf("%" + name.trim().toLowerCase(Locale.ROOT) + "%", Limit.of(MAX_ROWS))
+                .stream()
+                .filter(row -> allowed.permits(targetOf(row)))
+                .map(row -> (String) row[0])
                 .filter(java.util.Objects::nonNull)
+                .distinct()
                 .toList();
+    }
+
+    /** The target a {@code (version, repoId, containerId)} row was catalogued on. */
+    private static ScanTarget targetOf(Object[] row) {
+        Long repoId = (Long) row[1];
+        Long containerId = (Long) row[2];
+        if (repoId != null) {
+            return new ScanTarget.Repository(repoId);
+        }
+        return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 
     private static ScanTarget targetOf(Occurrence occurrence) {

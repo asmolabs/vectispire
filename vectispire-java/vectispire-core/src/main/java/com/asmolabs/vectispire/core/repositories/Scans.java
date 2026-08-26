@@ -281,6 +281,19 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     void deleteByIdIn(@Param("ids") Collection<Long> ids);
 
     /**
+     * Whether one target has ever completed a scan.
+     *
+     * <p><b>A boolean asked as a boolean.</b> The scorecard used to answer this with
+     * {@code findAll().stream().anyMatch(...)} — every scan row in the deployment loaded and
+     * discarded, on a path served per page view — because the question reads naturally in Java
+     * and the cost only shows up on somebody else's data.
+     */
+    boolean existsByRepoIdAndStatusIgnoreCase(Long repoId, String status);
+
+    /** The container half of {@link #existsByRepoIdAndStatusIgnoreCase}. */
+    boolean existsByContainerIdAndStatusIgnoreCase(Long containerId, String status);
+
+    /**
      * One target's scans.
      *
      * <p>Added for the licence inventory, which read every scan in the deployment — and a scan

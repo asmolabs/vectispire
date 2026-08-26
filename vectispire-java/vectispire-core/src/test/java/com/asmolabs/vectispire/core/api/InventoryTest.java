@@ -1,20 +1,27 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.SettingsService;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 
 /**
  * "Do we ship this library, and in which release of ours?"
@@ -35,6 +42,9 @@ class InventoryTest extends ApiTestBase {
 
     @Autowired
     private Components components;
+
+    @Autowired
+    private SettingsService settings;
 
     @Test
     @DisplayName("answers with the project version the component shipped in")
@@ -126,6 +136,59 @@ class InventoryTest extends ApiTestBase {
         scan.setVersion(projectVersion);
         scan.setProjectType("maven");
         return scans.save(scan).getId();
+    }
+
+
+    @Test
+    @DisplayName("the version filter answers for the caller's targets, not the estate's")
+    void versionsAreScopedToTheCaller() throws Exception {
+        restrict();
+        long ours = seedRepository("Ours");
+        long theirs = seedRepository("Theirs");
+        seedComponent(seedScan(ours, "1.0.0"), "log4j-core", "2.14.1", "pkg:maven/log4j@2.14.1", true);
+        seedComponent(seedScan(theirs, "9.9.9"), "log4j-core", "2.17.2", "pkg:maven/log4j@2.17.2", true);
+
+        String reader = asReader();
+        assignDirectly(readerId(), ours);
+
+        // **The question this closes is an oracle, not a listing.** Before the scan was joined,
+        // this route answered "2.14.1 and 2.17.2" to anybody signed in — so a reader given one
+        // repository could learn that somebody else runs a version, which is the whole of what a
+        // vulnerability disclosure is worth. Their own version still comes back: the fix is a
+        // filter, not a refusal.
+        mvc.perform(authenticated(get("/api/v1/inventory/versions?name=log4j"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0]").value("2.14.1"));
+
+        mvc.perform(authenticated(get("/api/v1/inventory/versions?name=log4j"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    private void restrict() {
+        settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+    }
+
+    private void assignDirectly(long userId, long repositoryId) throws Exception {
+        mvc.perform(authenticated(put("/api/v1/users/" + userId + "/targets"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(List.of(Map.of("kind", "repository", "id", repositoryId)))))
+                .andExpect(status().isOk());
+    }
+
+    /** The reader account's identifier, read back through the administration listing. */
+    private long readerId() throws Exception {
+        String body = mvc.perform(authenticated(get("/api/v1/users"), asAdmin()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        for (var node : json.readTree(body).path("users")) {
+            if (node.path("username").asText("").startsWith("reader-")) {
+                return node.path("id").asLong();
+            }
+        }
+        throw new IllegalStateException("no reader account in the listing");
     }
 
     private void seedComponent(long scanId, String name, String version, String purl, Boolean direct) {

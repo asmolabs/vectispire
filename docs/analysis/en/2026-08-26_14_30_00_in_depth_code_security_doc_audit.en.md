@@ -39,7 +39,7 @@ and reachability across the `docker:dind` boundary, unverifiable from a workstat
 | **Security & Cryptography** | **8.3 / 10** | Everything the prompt names exists and runs — but a **24th unscoped route** remains |
 | **Code Quality** | **8.4 / 10** | Twenty unbounded reads, two of them on hot paths |
 | **Regulatory & Standards** | **9.2 / 10** | Engines and formats present; SPDX honestly declined (ADR-0016) |
-| **Verification that runs** | **8.0 / 10** | The pipeline exists, runs, and found real defects — but only fires when somebody clicks |
+| **Verification that runs** | **8.5 / 10** | The pipeline exists, runs, and found real defects; no nightly has gone green yet |
 
 ---
 
@@ -163,10 +163,16 @@ Twenty `findAll()` sites remain across the services. Not all are defects — `Se
 `TargetNaming` read tables bounded by the number of targets — but **nothing tells them apart
 mechanically**: only four tests measure cost with the Hibernate counters.
 
-### 🟡 B3 — 13 specs for 28 front-end pages
+### 🟡 B3 — 11 of 28 front-end pages have a spec
 
-The 119 tests pass and cover what they cover. Fifteen pages have no spec at all, several of them
-screens that publish aggregate figures — exactly where an error reads as data.
+The 119 tests pass and cover what they cover. **Seventeen pages have no spec at all** — the 13
+spec files cluster into 11 directories. Corrected after publication: the first count counted files
+rather than pages, which flattered four of them.
+
+They do not all deserve one equally. The dividing criterion is how much *transformation* a page
+does: a page that renders an HTTP response as-is can only be wrong in its template, which a unit
+test does not read. The pages carrying `computed` — `licenses` (3), `attack-surface` (2), `teams`
+(2) — calculate figures, and that is where an error reads as data.
 
 ---
 
@@ -179,7 +185,7 @@ format declined and recorded beats a format claimed and absent.
 
 ---
 
-## 6. Verification that runs — 8.0
+## 6. Verification that runs — 8.5
 
 The youngest axis, and the one that moved most today.
 
@@ -191,10 +197,17 @@ controls, `package` builds both images **and starts the control plane against a 
 not survive `docker:dind`, and a Playwright image thirteen minor versions behind. Both fixed the
 same day. That is the best possible evidence that this axis was missing.
 
+> **Corrected on 26 August, after publication.** This report claimed no schedule existed.
+> **That is wrong**: the project owner has one configured. I inferred it from the nightly jobs
+> never having run, without being able to read the CI/CD settings — no API token in this session.
+> Inferring is not measuring, and axis 5 of this prompt forbids exactly that. The score moves from
+> 8.0 to **8.5** and recommendation 5 falls away.
+
 **What caps the score:** the three nightly jobs (`databases`, `dockerfiles`, `e2e`) are gated on
-`$CI_PIPELINE_SOURCE == "schedule"`, and **no schedule exists**. Today they fire only from a
-manual "Run pipeline". A control that depends on somebody remembering is precisely what this
-axis exists to forbid.
+`$CI_PIPELINE_SOURCE == "schedule"`. The schedule **exists**; what remains undemonstrated is that
+a scheduled pipeline has gone green end to end — both runs observed on 26 August were manual, and
+both found defects, since fixed. The first green nightly will be the proof, and it has not
+arrived yet.
 
 ---
 
@@ -206,8 +219,7 @@ axis exists to forbid.
 | 🟠 2 | Replace the three `scansRepo.findAll()` in `SecurityScorecardService` with `existsByRepoIdAndStatus` | read in the code; **not measured with the counters** — do that before claiming victory |
 | 🟠 3 | Bound `syncThreatIntel`: filter state in SQL, and join the intel in one batch | read in the code, not measured |
 | 🟡 4 | Drop `ollamaUrl` from `/ai/status` | read in the code |
-| 🟡 5 | Create the nightly schedule in the CI/CD settings | **asserted, not executed** — beyond an audit's reach |
-| 🟡 6 | Give a spec to the pages that publish aggregate figures | measured: 13 / 28 |
+| 🟡 6 | Give a spec to the pages that *compute* — the ones carrying `computed` — before those that merely display | measured: 11 of 28 pages have a spec; 3 of the remaining 17 carry `computed` |
 | 🟡 7 | Write ADR-0001's reasoning, or mark it explicitly historical | measured by sweeping all sixteen ADRs |
 
 **And one recommendation about the method itself:** `AuthorizationCoverageTest` should detect,
