@@ -1,17 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from './support/session';
 
 test.describe('Authentication & Anti-Brute-Force E2E', () => {
 
-    test('successful login with bootstrapped admin credentials', async ({ page }) => {
-        await page.goto('/login');
+    test('valid credentials get you into the application', async ({ page }) => {
+        // **Through the shared helper, not a hard-coded password.** The bootstrap account is
+        // created with `mustChangePassword`, so the suites rotate it on first use; a case that
+        // named the bootstrap value passed once against a fresh database and failed on every run
+        // after. What is under test is unchanged: valid credentials end up inside the application.
+        await signIn(page);
 
-        await page.fill('#username', 'admin');
-        await page.fill('#password input', 'AdminVectispire2026!');
-
-        await page.click('button[type="submit"]');
-
-        // Initial admin bootstrap account redirects to change-password or dashboard
-        await expect(page).toHaveURL(/\/(dashboard|change-password|issues|overview|targets)/, { timeout: 10000 });
+        await expect(page).not.toHaveURL(/\/(login|change-password)/);
     });
 
     test('login fails with invalid credentials', async ({ page }) => {

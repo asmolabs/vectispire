@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { goTo, signIn } from './support/session';
 
 /**
  * The licence dashboard's headline figures, in a real browser against a real server.
@@ -41,15 +42,11 @@ test.describe('Licence dashboard figures', () => {
             route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
         );
 
-        await page.goto('/login');
-        await page.fill('#username', 'admin');
-        await page.fill('#password input', 'AdminVectispire2026!');
-        await page.click('button[type="submit"]');
-        await page.waitForURL(/\/(dashboard|change-password|issues|overview|targets)/, { timeout: 10000 });
+        await signIn(page);
     });
 
     test('adds strong copyleft and forbidden into one figure, counting an absent category as zero', async ({ page }) => {
-        await page.goto('/licenses');
+        await goTo(page, '/licenses');
 
         // 7 + (absent → 0). The unit spec pins the same sum; what is being checked here is that
         // it survives the whole path — sign-in, proxy, layout — and reaches a reader's eyes.
@@ -58,7 +55,7 @@ test.describe('Licence dashboard figures', () => {
     });
 
     test('shows the totals the server sent, not a placeholder', async ({ page }) => {
-        await page.goto('/licenses');
+        await goTo(page, '/licenses');
 
         // Asserting on the figures rather than on the page being visible: a body is visible on
         // an error page too, which is why two of this suite's older cases cannot fail.
