@@ -51,6 +51,10 @@ class SettingTest {
                         Setting.WEBHOOK_SIGNING_SECRET,
                         Setting.TICKET_BASE_URL,
                         Setting.TICKET_TOKEN,
+                        // Authenticates the tracker calling us. Whoever reads it can forge a
+                        // webhook and close somebody's finding, which is the whole reason it
+                        // exists — so it is a bearer capability in the same sense as the rest.
+                        Setting.TICKET_WEBHOOK_SECRET,
                         Setting.AI_REVIEW_OLLAMA_URL);
     }
 

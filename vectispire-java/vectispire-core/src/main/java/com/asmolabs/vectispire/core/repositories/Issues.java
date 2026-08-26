@@ -181,6 +181,13 @@ public interface Issues
      */
     List<IssueEntity> findByStateAndRepoId(String state, Long repoId);
 
+    /**
+     * Several targets' issues in one state, for a page that shows many.
+     *
+     * <p>Added for the attack path overview, which asked per repository inside a loop.
+     */
+    List<IssueEntity> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds);
+
     List<IssueEntity> findByStateAndRepoIdIsNullAndContainerId(String state, Long containerId);
 
     /**

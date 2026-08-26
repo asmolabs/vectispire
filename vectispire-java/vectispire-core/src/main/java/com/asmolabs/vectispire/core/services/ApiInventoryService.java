@@ -17,12 +17,14 @@ import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -161,6 +163,40 @@ public class ApiInventoryService {
     public void clearForRepository(long repositoryId) {
         apiEndpoints.deleteByRepositoryIdOrScanId(repositoryId, -1L);
         apiContracts.deleteByRepositoryIdOrScanId(repositoryId, -1L);
+    }
+
+    /**
+     * The endpoint views of several repositories, in two queries rather than two per repository.
+     *
+     * <p><b>Built for the attack path overview</b>, which called {@link #forRepository(long)} in a
+     * loop. The shadow-API status is computed per repository exactly as it is there — an endpoint
+     * is documented, undocumented or shadow relative to <em>its own</em> repository's contracts,
+     * so the grouping has to happen before the comparison, not after.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, List<EndpointView>> endpointViewsByRepository(Collection<Long> repositoryIds) {
+        if (repositoryIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, List<ApiEndpointEntity>> endpointsByRepo = apiEndpoints.findByRepositoryIdIn(repositoryIds)
+                .stream()
+                .filter(e -> e.getRepositoryId() != null)
+                .collect(Collectors.groupingBy(ApiEndpointEntity::getRepositoryId));
+        Map<Long, List<ApiContractEntity>> contractsByRepo = apiContracts.findByRepositoryIdIn(repositoryIds)
+                .stream()
+                .filter(c -> c.getRepositoryId() != null)
+                .collect(Collectors.groupingBy(ApiContractEntity::getRepositoryId));
+
+        Map<Long, List<EndpointView>> byRepository = new LinkedHashMap<>();
+        for (Long repositoryId : repositoryIds) {
+            byRepository.put(
+                    repositoryId,
+                    viewsOf(
+                            endpointsByRepo.getOrDefault(repositoryId, List.of()),
+                            contractsByRepo.getOrDefault(repositoryId, List.of())));
+        }
+        return byRepository;
     }
 
     /**
@@ -431,4 +467,82 @@ public class ApiInventoryService {
     private static String trim(String value, int max) {
         return value == null || value.length() <= max ? value : value.substring(0, max);
     }
+
+    /**
+     * Entities to views, with the shadow-API status they carry.
+     *
+     * <p>Extracted from {@code forRepository} verbatim so the batch path and the single-target
+     * path cannot drift: the deduplication keeps the latest row per method-and-path, and the
+     * status is computed against this repository's own contracts.
+     */
+    private static List<EndpointView> viewsOf(
+            List<ApiEndpointEntity> rawEndpointEntities, List<ApiContractEntity> contractEntities) {
+
+        Map<String, ApiEndpointEntity> byMethodPath = new LinkedHashMap<>();
+        for (ApiEndpointEntity e : rawEndpointEntities) {
+            byMethodPath.put(e.getHttpMethod().toUpperCase() + ":" + e.getPath(), e);
+        }
+        List<ApiEndpointEntity> endpointEntities = new ArrayList<>(byMethodPath.values());
+
+        List<ApiEndpoint> domainEndpoints = new ArrayList<>();
+        for (ApiEndpointEntity e : endpointEntities) {
+            domainEndpoints.add(new ApiEndpoint(
+                    e.getHttpMethod(),
+                    e.getPath(),
+                    Boolean.TRUE.equals(e.getAuthRequired()),
+                    e.getAuthType(),
+                    ApiVisibility.valueOf(e.getVisibility() != null ? e.getVisibility() : "UNKNOWN"),
+                    e.getFilePath(),
+                    e.getLineNumber(),
+                    e.getFramework(),
+                    e.getOperationId(),
+                    e.getSummary(),
+                    e.getTags()));
+        }
+
+        List<ApiContract> domainContracts = new ArrayList<>();
+        for (ApiContractEntity c : contractEntities) {
+            domainContracts.add(new ApiContract(
+                    c.getContractPath(),
+                    c.getFormat(),
+                    c.getTitle(),
+                    c.getVersion(),
+                    c.getEndpointsCount(),
+                    List.of()));
+        }
+
+        ShadowApiDiff diff = ShadowApiDiff.compute(domainEndpoints, domainContracts);
+        Set<String> shadowPathMethods = new HashSet<>();
+        for (ApiEndpoint se : diff.shadowEndpoints()) {
+            shadowPathMethods.add(se.method() + ":" + se.path());
+        }
+
+        List<EndpointView> views = new ArrayList<>();
+        for (ApiEndpointEntity e : endpointEntities) {
+            String key = e.getHttpMethod() + ":" + e.getPath();
+            String status = contractEntities.isEmpty()
+                    ? "UNDOCUMENTED"
+                    : (shadowPathMethods.contains(key) ? ShadowApiStatus.SHADOW_API.name() : ShadowApiStatus.DOCUMENTED.name());
+
+            views.add(new EndpointView(
+                    e.getId(),
+                    e.getScanId(),
+                    e.getRepositoryId(),
+                    e.getHttpMethod(),
+                    e.getPath(),
+                    Boolean.TRUE.equals(e.getAuthRequired()),
+                    e.getAuthType(),
+                    e.getVisibility(),
+                    e.getFilePath(),
+                    e.getLineNumber(),
+                    e.getFramework(),
+                    e.getOperationId(),
+                    e.getSummary(),
+                    e.getTags(),
+                    status,
+                    e.getCreatedAt()));
+        }
+        return views;
+    }
+
 }

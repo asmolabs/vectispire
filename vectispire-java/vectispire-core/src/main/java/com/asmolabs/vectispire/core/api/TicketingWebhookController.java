@@ -4,12 +4,15 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.IssueTriageService;
+import com.asmolabs.vectispire.core.services.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,7 +28,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,18 +49,21 @@ public class TicketingWebhookController {
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final Clock clock;
+    private final SettingsService settings;
 
     public TicketingWebhookController(
             Issues issues,
             IssueTriageService triageService,
             AuditLogService audit,
             ObjectMapper json,
-            Clock clock) {
+            Clock clock,
+            SettingsService settings) {
         this.issues = issues;
         this.triageService = triageService;
         this.audit = audit;
         this.json = json;
         this.clock = clock;
+        this.settings = settings;
     }
 
     public record WebhookSyncResult(boolean matched, Long issueId, String ticketRef, String actionTaken) {}
@@ -70,6 +78,9 @@ public class TicketingWebhookController {
             @Parameter(description = "Ticketing provider: jira, gitlab, github, servicenow", required = true)
             @PathVariable("provider") String providerStr,
             @RequestBody String rawPayload,
+            @RequestHeader(name = "X-Gitlab-Token", required = false) String gitlabToken,
+            @RequestHeader(name = "X-Hub-Signature-256", required = false) String githubSignature,
+            @RequestHeader(name = "X-Vectispire-Token", required = false) String sharedToken,
             HttpServletRequest request) {
 
         Optional<TicketProvider> providerOpt = TicketProvider.fromWireName(providerStr);
@@ -78,6 +89,31 @@ public class TicketingWebhookController {
         }
 
         TicketProvider provider = providerOpt.get();
+
+        // **The only anonymous mutating door in the system.** It cannot require a session — the
+        // caller is the tracker — and what it does on arrival is move a triage decision. The
+        // secret is what separates the tracker from anybody who guessed a ticket reference; when
+        // none is configured the route stays open, as it has been for every deployment so far,
+        // and the setting says so.
+        WebhookAuthenticity.Verdict verdict = WebhookAuthenticity.verify(
+                provider,
+                settings.get(Setting.TICKET_WEBHOOK_SECRET),
+                new WebhookAuthenticity.Presented(gitlabToken, githubSignature, sharedToken),
+                rawPayload);
+        if (verdict == WebhookAuthenticity.Verdict.REJECTED) {
+            // Audited, because a stream of these is somebody probing and the audit log is where
+            // that becomes visible. No detail in the response: a caller learning *which* header
+            // was wrong learns which tracker we expect.
+            audit.record(AuditLogService.Record.of(
+                    AuditOperation.LOGIN_BLOCKED,
+                    "ticket_webhook",
+                    "Rejected unsigned or wrongly signed " + provider + " webhook from "
+                            + request.getRemoteAddr(),
+                    "anonymous"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new WebhookSyncResult(false, null, null, "Webhook authentication failed"));
+        }
+
         JsonNode payload;
         try {
             payload = json.readTree(rawPayload);

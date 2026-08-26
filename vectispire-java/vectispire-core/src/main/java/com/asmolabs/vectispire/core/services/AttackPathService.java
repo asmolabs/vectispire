@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,12 +48,27 @@ public class AttackPathService {
         if (repoOpt.isEmpty()) {
             return Optional.empty();
         }
+        return Optional.of(buildGraph(
+                repoOpt.get(),
+                apiInventory.forRepository(repositoryId).endpoints(),
+                issues.findByRepositoryAndState(repositoryId, "open")));
+    }
 
-        RepositoryEntity repo = repoOpt.get();
+    /**
+     * The graph itself, from data already in hand.
+     *
+     * <p><b>Separated from the reads so the overview can batch them.</b> It used to call the
+     * per-target method in a loop, and each call was four queries — the repository, its endpoints,
+     * its contracts, its open issues — so a page over eleven targets cost thirty-four round trips
+     * where one target costs four. Nothing about the graph changed; only who fetched its inputs.
+     */
+    private AttackPathGraph buildGraph(
+            RepositoryEntity repo,
+            List<ApiInventoryService.EndpointView> endpoints,
+            List<IssueEntity> openIssues) {
+
+        Long repositoryId = repo.getId();
         String repoName = repo.getName() != null ? repo.getName() : repo.getUrl();
-
-        List<ApiInventoryService.EndpointView> endpoints = apiInventory.forRepository(repositoryId).endpoints();
-        List<IssueEntity> openIssues = issues.findByRepositoryAndState(repositoryId, "open");
 
         List<AttackPathNode> nodes = new ArrayList<>();
         List<AttackPathEdge> edges = new ArrayList<>();
@@ -283,7 +299,7 @@ public class AttackPathService {
         // Calculate Risk Score (0 - 100)
         int score = calculateRiskScore(criticalExploitableCount, unauthEndpoints.size(), criticalVulns.size(), secrets.size());
 
-        return Optional.of(new AttackPathGraph(
+        return new AttackPathGraph(
                 repositoryId,
                 repoName,
                 paths.size(),
@@ -291,7 +307,7 @@ public class AttackPathService {
                 score,
                 nodes,
                 edges,
-                paths));
+                paths);
     }
 
     /**
@@ -310,9 +326,26 @@ public class AttackPathService {
                         .toList()))
                 .orElseGet(repositories::findAll);
 
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+
+        // **Three reads for the page, not four per repository.** Endpoints, contracts and open
+        // issues are fetched for every visible target at once and handed to `buildGraph`, which
+        // is the same computation it always was on the same inputs.
+        List<Long> repoIds = visible.stream().map(RepositoryEntity::getId).toList();
+        Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
+                apiInventory.endpointViewsByRepository(repoIds);
+        Map<Long, List<IssueEntity>> issuesByRepo = issues
+                .findByStateAndRepoIdIn("open", repoIds).stream()
+                .collect(Collectors.groupingBy(IssueEntity::getRepoId));
+
         List<AttackPathGraph> graphs = new ArrayList<>();
         for (RepositoryEntity repo : visible) {
-            getAttackPathGraph(repo.getId()).ifPresent(graphs::add);
+            graphs.add(buildGraph(
+                    repo,
+                    endpointsByRepo.getOrDefault(repo.getId(), List.of()),
+                    issuesByRepo.getOrDefault(repo.getId(), List.of())));
         }
         return graphs;
     }

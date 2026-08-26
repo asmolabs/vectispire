@@ -193,6 +193,18 @@ public enum Setting {
                     + "settings.",
             "", Sensitivity.SECRET),
 
+    TICKET_WEBHOOK_SECRET("ticket_webhook_secret", SettingType.TEXT, Section.TICKETS,
+            "Inbound webhook secret",
+            "Authenticates the tracker calling **us**, which is the opposite direction from the access token "
+                    + "above. The webhook route is anonymous by necessity — Jira holds no session — and it moves "
+                    + "a triage decision, so without this an anonymous caller who guesses a ticket reference can "
+                    + "close a finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends "
+                    + "`X-Hub-Signature-256` as HMAC-SHA256 over the raw body; Jira and ServiceNow have no "
+                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. **Empty means "
+                    + "the route stays anonymous and unauthenticated**, which is where every existing deployment "
+                    + "is today: set it, then set the same value in the tracker.",
+            "", Sensitivity.SECRET),
+
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
             "The account address, required by Jira alongside the token for basic authentication. GitLab does "
