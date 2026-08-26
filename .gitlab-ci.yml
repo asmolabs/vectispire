@@ -64,7 +64,19 @@ secrets:
   variables:
     GIT_DEPTH: 0
   script:
-    - gitleaks detect --source=. --config .gitleaks.toml --verbose
+    # **Scanned against a baseline, and the distinction from a bigger allowlist matters.**
+    # `--source=.` with a full clone scans all 331 commits, so the first run surfaced 28 hits
+    # — every one of them in `zanshin/`, `backend/` or `tests/*.py`: directories the project
+    # shed when it was rewritten, in commits that can no longer be edited. Widening
+    # `.gitleaks.toml` to silence them would have blinded the scan to those *values* wherever
+    # they appear next. A baseline pins each hit to its commit, file, rule and line, so the
+    # same string in a new commit is a new finding and still fails.
+    #
+    # Regenerate deliberately, never to make a red job green:
+    #   gitleaks detect --source=. --config .gitleaks.toml \
+    #     --report-format json --report-path .gitleaks-baseline.json
+    - gitleaks detect --source=. --config .gitleaks.toml
+        --baseline-path .gitleaks-baseline.json --verbose
 
 links:
   stage: verify
@@ -196,13 +208,6 @@ images:
   services:
     - name: docker:28-dind
       alias: docker
-    - name: mysql:8
-      alias: db
-      variables:
-        MYSQL_ROOT_PASSWORD: root
-        MYSQL_DATABASE: vectispire
-        MYSQL_USER: vectispire
-        MYSQL_PASSWORD: vectispire
   script:
     - apt-get update && apt-get install -y --no-install-recommends docker.io curl
     - cd vectispire-java
@@ -210,7 +215,36 @@ images:
         -PuiDist="$CI_PROJECT_DIR/vectispire-angular/dist/vectispire/browser"
     - cd ..
     - |
-      docker run -d --name vectispire-smoke \
+      # **The database runs inside the daemon, not beside the job, and the first run proved why.**
+      # A GitLab `services:` entry is a sibling of the *job* container: the job can resolve `db`,
+      # the DinD daemon cannot. The smoke container is created by `docker run`, so it lives on the
+      # daemon's network and answered `UnknownHostException: db: Name does not resolve` — the
+      # same lesson as the bind mounts above, in its third costume. Anything the image under test
+      # must reach has to be a container on a network the daemon itself owns.
+      docker network create smoke
+      docker run -d --name db --network smoke \
+        -e MYSQL_ROOT_PASSWORD=root \
+        -e MYSQL_DATABASE=vectispire \
+        -e MYSQL_USER=vectispire \
+        -e MYSQL_PASSWORD=vectispire \
+        mysql:8
+      # Waited for before the application starts, not alongside it: Hikari is configured to fail
+      # fast, so a control plane that boots one second early does not retry — it exits, and the
+      # job reports a broken image when the truth is a slow database.
+      for attempt in $(seq 1 120); do
+        if docker run --rm --network smoke mysql:8 \
+             mysqladmin ping -h db -u vectispire -pvectispire --silent > /dev/null 2>&1; then
+          echo "database ready after ${attempt}s"
+          break
+        fi
+        if [ "$attempt" -eq 120 ]; then
+          echo "the database never became reachable — last 100 lines:"
+          docker logs --tail 100 db
+          exit 1
+        fi
+        sleep 1
+      done
+      docker run -d --name vectispire-smoke --network smoke \
         -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
         -e VECTISPIRE_DB_USER=vectispire \
         -e VECTISPIRE_DB_PASSWORD=vectispire \
@@ -238,6 +272,7 @@ images:
       exit 1
   after_script:
     - docker logs --tail 200 vectispire-smoke || true
+    - docker logs --tail 50 db || true
 
 # --- nightly ------------------------------------------------------------------------------
 #
