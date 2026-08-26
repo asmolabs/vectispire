@@ -163,7 +163,7 @@ Twenty `findAll()` sites remain across the services. Not all are defects — `Se
 `TargetNaming` read tables bounded by the number of targets — but **nothing tells them apart
 mechanically**: only four tests measure cost with the Hibernate counters.
 
-### 🟡 B3 — 11 of 28 front-end pages have a spec
+### 🟡 B3 — 16 of 28 front-end pages have a spec (11 when audited)
 
 The 119 tests pass and cover what they cover. **Seventeen pages have no spec at all** — the 13
 spec files cluster into 11 directories. Corrected after publication: the first count counted files

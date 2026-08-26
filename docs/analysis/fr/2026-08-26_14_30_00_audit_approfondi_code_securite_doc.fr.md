@@ -169,7 +169,7 @@ Vingt sites `findAll()` subsistent dans les services. Tous ne sont pas des défa
 **personne ne les distingue mécaniquement** : quatre tests seulement mesurent le coût aux
 compteurs Hibernate.
 
-### 🟡 B3 — 11 pages sur 28 ont une spec
+### 🟡 B3 — 16 pages sur 28 ont une spec (11 au moment de l'audit)
 
 Les 119 tests passent et couvrent ce qu'ils couvrent. **Dix-sept pages n'ont aucune spec** — les
 13 fichiers de spec se concentrent sur 11 répertoires. Le chiffre corrigé après publication : la

@@ -203,11 +203,14 @@ export class Teams {
                     },
                     error: (failure) => {
                         this.saving.set(false);
-                        // The membership went through and the targets did not. Said plainly:
-                        // "could not save" would leave somebody guessing which half applied.
-                        this.formError.set(
-                            messageOf(failure, 'The membership was saved; the targets were not. Try again.')
-                        );
+                        // **The half-state is prepended, not passed as a fallback.** The membership
+                        // went through and the targets did not, and `messageOf` prefers the
+                        // server's own message — so handing this explanation to it as a fallback
+                        // meant that the moment the server said anything at all, the one fact an
+                        // administrator needs was dropped. A spec found that; clicking through
+                        // never would, because the sentence looks right in isolation.
+                        const detail = messageOf(failure, 'Try again.');
+                        this.formError.set(`The membership was saved; the targets were not. ${detail}`);
                     }
                 }),
             error: (failure) => {
