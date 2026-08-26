@@ -98,11 +98,19 @@ Il épingle le comportement **correct** pour une liste vide, et n'exerce jamais 
 `apiContracts` **absent**. C'est précisément ainsi qu'un défaut de cette famille survit — le test
 qui l'entoure a l'air de le couvrir.
 
-### Correctif proposé
+### Correctif appliqué le jour même
 
-Passer les `Optional` jusqu'à `record`, et n'effacer que ce que l'on a de quoi remplacer. Un
-analyseur absent doit laisser sa moitié de l'inventaire intacte, exactement comme le SBOM trois
-lignes plus haut.
+Les deux `Optional` voyagent maintenant intacts jusqu'à `record`, qui **efface par moitié** — et
+seulement la moitié dont l'analyseur a rapporté quelque chose. Un analyseur absent laisse la sienne
+intacte, exactement comme le SBOM trois lignes plus haut.
+
+**La distinction est conservée dans les deux sens**, et c'est le point : *présent mais vide* efface
+toujours. Le cataloguer a tourné, la cible ne déclare plus de contrat, garder ceux d'hier serait
+l'erreur inverse.
+
+Prouvé par mutation contre une vraie base : rétablir la suppression inconditionnelle fait tomber le
+cas « absent » — contrats à zéro — et **lui seul**. Les deux situations sont donc bien distinguées,
+et pas seulement couvertes.
 
 ---
 
@@ -131,6 +139,6 @@ Ce qui plafonne toujours : **aucun pipeline nocturne n'est passé au vert.**
 
 | # | Action | Vérifié comment |
 |---|---|---|
-| 🔴 1 | Passer les `Optional` jusqu'à `ApiInventoryService.record` et n'effacer que ce qu'on remplace | **mesuré** : `record` supprime inconditionnellement, `ShadowApiDiff` traite « vide » comme « rien de déclaré » |
-| 🟡 2 | Un test d'ingestion pour `apiContracts` **absent** — pas seulement vide | mesuré : `ScanIngestorTest` ne couvre que le cas vide |
-| 🟡 3 | Balayer les autres `Optional` du domaine pour la même confusion | argumenté : deux sites trouvés ici, la famille n'a pas été balayée |
+| ✅ 1 | ~~Passer les `Optional` jusqu'à `record`~~ — **fait** le jour même | mutation : rétablir la suppression inconditionnelle fait échouer le cas « absent » et lui seul |
+| ✅ 2 | ~~Un test pour `apiContracts` absent~~ — **fait** : un cas d'ingestion et deux cas base de données | `ApiInventoryDatabaseTest` : absent laisse en place, vide efface |
+| ✅ 3 | ~~Balayer les autres `Optional`~~ — **fait, et la famille est saine** | mesuré : les douze autres consommateurs de `ScanArtifacts` passent par `ifPresent`, qui respecte la règle. Le seul `orElse` restant est `sbom().orElse(null)`, dont l'absence donne une directness *inconnue* et non *fausse* — épinglé par `unknownDirectnessIsNotFalse` |

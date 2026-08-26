@@ -20,6 +20,8 @@ vectispire-angular/openapi.json
 # Gradle build output for the JVM port
 vectispire-java/**/build/
 vectispire-java/**/.gradle/
+# Kotlin's incremental-compilation state for the buildSrc scripts.
+vectispire-java/**/.kotlin/
 **/bin/**
 *.class
 

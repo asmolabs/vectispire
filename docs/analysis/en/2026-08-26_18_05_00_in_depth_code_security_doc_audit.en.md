@@ -97,11 +97,19 @@ It pins the **correct** behaviour for an empty list, and never exercises the amb
 `apiContracts` **absent**. That is precisely how a defect of this family survives — the test beside
 it looks like coverage.
 
-### Proposed fix
+### Fixed the same day
 
-Pass the `Optional`s through to `record`, and delete only what there is something to replace. An
-absent analyzer must leave its half of the inventory alone, exactly as the SBOM does three lines
+Both `Optional`s now travel intact to `record`, which **clears per half** — and only the half whose
+analyzer reported. An absent analyzer leaves its own alone, exactly as the SBOM does three lines
 above.
+
+**The distinction is kept in both directions**, which is the point: *present but empty* still
+clears. The cataloguer ran, the target declares no contracts any more, and keeping yesterday's
+would be the opposite mistake.
+
+Proven by mutation against a real database: restoring the unconditional delete fails the "absent"
+case — contracts down to zero — and **only** that one. The two situations are therefore
+distinguished, not merely covered.
 
 ---
 
@@ -129,6 +137,6 @@ What still caps it: **no nightly pipeline has gone green.**
 
 | # | Action | How it was verified |
 |---|---|---|
-| 🔴 1 | Pass the `Optional`s through to `ApiInventoryService.record` and delete only what is replaced | **measured**: `record` deletes unconditionally, `ShadowApiDiff` reads "empty" as "nothing declared" |
-| 🟡 2 | An ingestion test for `apiContracts` **absent** — not merely empty | measured: `ScanIngestorTest` covers only the empty case |
-| 🟡 3 | Sweep the domain's other `Optional`s for the same confusion | argued: two sites found here, the family was not swept |
+| ✅ 1 | ~~Pass the `Optional`s through to `record`~~ — **done** the same day | mutation: restoring the unconditional delete fails the "absent" case and only that one |
+| ✅ 2 | ~~A test for `apiContracts` absent~~ — **done**: one ingestion case and two database cases | `ApiInventoryDatabaseTest`: absent leaves in place, empty clears |
+| ✅ 3 | ~~Sweep the other `Optional`s~~ — **done, and the family is clean** | measured: the twelve other consumers of `ScanArtifacts` go through `ifPresent`, which honours the rule. The one remaining `orElse` is `sbom().orElse(null)`, whose absence yields *unknown* directness rather than *false* — pinned by `unknownDirectnessIsNotFalse` |

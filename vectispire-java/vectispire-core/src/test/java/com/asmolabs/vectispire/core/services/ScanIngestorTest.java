@@ -307,10 +307,43 @@ class ScanIngestorTest {
         ScanEntity s = scan();
         customIngestor.ingest(s, artifacts);
 
+        // Explicitly empty travels as *present and empty*: the cataloguer ran and found no
+        // contracts, so the inventory is right to clear them.
         org.mockito.Mockito.verify(apiService).record(
                 org.mockito.ArgumentMatchers.eq(s),
-                org.mockito.ArgumentMatchers.eq(List.of(endpoint)),
-                org.mockito.ArgumentMatchers.eq(List.of()));
+                org.mockito.ArgumentMatchers.eq(Optional.of(List.of(endpoint))),
+                org.mockito.ArgumentMatchers.eq(Optional.of(List.<com.asmolabs.vectispire.common.domain.apis.ApiContract>of())));
+    }
+
+    @Test
+    @DisplayName("a cataloguer that did not run stays absent, instead of arriving as an empty list")
+    void anAbsentCataloguerIsNotAnEmptyInventory() {
+        ApiInventoryService apiService = mock(ApiInventoryService.class);
+        ScanIngestor customIngestor = new ScanIngestor(
+                sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                components, Optional.of(apiService),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var endpoint = new com.asmolabs.vectispire.common.domain.apis.ApiEndpoint(
+                "POST", "/api/v1/checkout", true, "Bearer",
+                com.asmolabs.vectispire.common.domain.apis.ApiVisibility.PUBLIC,
+                "src/Controller.java", 20, "Spring Web", "checkout", "Process checkout", "checkout");
+
+        // The endpoint extractor ran; the contract cataloguer fell over. Before this was pinned,
+        // the ingestor handed the inventory an empty contract list, the inventory deleted every
+        // contract the repository had, and `ShadowApiDiff` then reported *every* endpoint as a
+        // shadow API — a screen turned red by an analyzer failure rather than by an exposure.
+        ScanArtifacts artifacts = ScanArtifacts.builder()
+                .apiEndpoints(List.of(endpoint))
+                .build(Duration.ZERO);
+
+        ScanEntity s = scan();
+        customIngestor.ingest(s, artifacts);
+
+        org.mockito.Mockito.verify(apiService).record(
+                org.mockito.ArgumentMatchers.eq(s),
+                org.mockito.ArgumentMatchers.eq(Optional.of(List.of(endpoint))),
+                org.mockito.ArgumentMatchers.eq(Optional.<List<com.asmolabs.vectispire.common.domain.apis.ApiContract>>empty()));
     }
 
     private static com.fasterxml.jackson.databind.JsonNode sbom() {

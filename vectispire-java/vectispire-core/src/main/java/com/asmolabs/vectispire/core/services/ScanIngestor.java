@@ -122,13 +122,14 @@ public class ScanIngestor {
         // backlog alone.
         artifacts.sbom().ifPresent(sbom -> inventory.record(scan.getId(), sbom, graph));
 
-        // API Endpoints & Contracts inventory (Surface d'attaque & APIs)
+        // **The two Optionals travel intact, and that is the fix.** They used to be flattened
+        // with `orElse(List.of())` here, which handed the inventory "the cataloguer found no
+        // contracts" when the truth was "the cataloguer did not run" — and the inventory replaced
+        // the repository's contracts with nothing. Same rule as the SBOM three lines above; it was
+        // stated there and broken here.
         apiInventory.ifPresent(service -> {
             if (artifacts.apiEndpoints().isPresent() || artifacts.apiContracts().isPresent()) {
-                service.record(
-                        scan,
-                        artifacts.apiEndpoints().orElse(List.of()),
-                        artifacts.apiContracts().orElse(List.of()));
+                service.record(scan, artifacts.apiEndpoints(), artifacts.apiContracts());
             }
         });
 

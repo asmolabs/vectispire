@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -84,17 +85,42 @@ public class ApiInventoryService {
     }
 
     /**
-     * Records discovered API endpoints and contracts from a scan.
+     * Records what a scan discovered about a target's API surface.
+     *
+     * <p><b>Each half is replaced only when its analyzer actually ran, and that is the whole
+     * signature.</b> ADR-0007's rule — absent means "did not run", empty means "ran, found
+     * nothing" — used to be lost one caller earlier: {@code ScanIngestor} collapsed both
+     * {@code Optional}s with {@code orElse(List.of())}, and this method then deleted both tables
+     * unconditionally. A contract cataloguer that fell over therefore erased every contract the
+     * repository had.
+     *
+     * <p>The consequence was not a blank panel. {@link ShadowApiDiff} reads an empty contract list
+     * as <em>nothing declared</em> and reports every endpoint as a shadow API — correctly, on
+     * input that lied to it. The attack-surface screen turned entirely red because an analyzer
+     * failed, which is the exact shape ADR-0007 exists to forbid.
+     *
+     * <p>An <em>empty but present</em> list still clears its half. That is not the same case: the
+     * cataloguer ran and found nothing, so the target genuinely declares no contracts, and leaving
+     * yesterday's behind would be the opposite mistake.
      */
     @Transactional(propagation = Propagation.REQUIRED)
-    public void record(ScanEntity scan, List<ApiEndpoint> endpoints, List<ApiContract> contracts) {
+    public void record(
+            ScanEntity scan, Optional<List<ApiEndpoint>> endpointsFound, Optional<List<ApiContract>> contractsFound) {
         if (scan == null) return;
         long scanId = scan.getId();
         Long repoId = scan.getRepoId();
 
-        // Atomic cleanup of prior scan and repository state
-        apiEndpoints.deleteByRepositoryIdOrScanId(repoId, scanId);
-        apiContracts.deleteByRepositoryIdOrScanId(repoId, scanId);
+        List<ApiEndpoint> endpoints = endpointsFound.orElse(null);
+        List<ApiContract> contracts = contractsFound.orElse(null);
+
+        // Cleared per half, and only for the half whose analyzer reported. Deleting the other
+        // would be replacing knowledge with an absence of evidence.
+        if (endpointsFound.isPresent()) {
+            apiEndpoints.deleteByRepositoryIdOrScanId(repoId, scanId);
+        }
+        if (contractsFound.isPresent()) {
+            apiContracts.deleteByRepositoryIdOrScanId(repoId, scanId);
+        }
 
         if (endpoints != null && !endpoints.isEmpty()) {
             List<ApiEndpointEntity> entities = new ArrayList<>();
