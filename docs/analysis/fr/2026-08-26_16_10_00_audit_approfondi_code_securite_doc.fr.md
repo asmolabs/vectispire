@@ -74,9 +74,18 @@ journal — et un tableau de bord qui a l'air plus propre après.
 C'est le même défaut de forme que `WebhookAuthenticity`, qui *a* son vecteur HMAC épinglé
 (`6e9ef29b…`). Ici il en manque un.
 
-**Correctif :** un test qui affirme une valeur littérale pour une entrée fixe. Trois lignes. Il
-échouera au prochain changement d'algorithme — et c'est tout l'intérêt : la migration devient une
-décision consciente au lieu d'un effet de bord.
+**Correctif appliqué le jour même.** Un vecteur unique — `44c39a41c912df031c920698f4698aa76cdcf27617f2e99f4f6759de1f97851d`
+pour une entrée fixe — et le javadoc de classe reconcilié, car il argumentait *contre* les valeurs
+épinglées. Cet argument est à moitié juste : une *table* de hachages dorés épingle un algorithme
+sans dire ce qui compte en lui. Mais sa prémisse — « rouge sur un changement inoffensif » — ne tient
+pas ici : **il n'existe aucun changement inoffensif de la sortie de cette fonction**.
+
+Le test ne cherche donc pas à interdire le changement, mais à le rendre délibéré. Son message le
+dit : si ce test échoue, on ne met pas la constante à jour — on décide si les empreintes du parc
+sont migrées, et sinon on remet les champs en place.
+
+Vérifié dans les deux sens : la permutation qui passait ce matin échoue désormais sur
+`ff706b4e…`.
 
 ---
 
@@ -167,7 +176,7 @@ Le premier nocturne vert sera la preuve.
 
 | # | Action | Vérifié comment |
 |---|---|---|
-| 🟠 1 | Épingler un vecteur littéral dans `IssueFingerprintTest` | **mesuré** : deux champs permutés, tous les tests passent |
+| ✅ 1 | ~~Épingler un vecteur littéral dans `IssueFingerprintTest`~~ — **fait**, `44c39a41…` | mesuré deux fois : la permutation passait avant, elle échoue maintenant (`ff706b4e…`) |
 | 🟡 2 | Donner aux deux cas VEX une assertion capable d'échouer | mesuré : leur assertion est `body` visible |
 | 🟡 3 | Décrire `SealedEnvelope` dans la vue sécurité et dans le prompt | mesuré : X25519+HKDF présent, absent de la doc |
 | 🟡 4 | Faire porter la règle d'autorisation sur une convention de nommage des aides | argumenté, non implémenté |

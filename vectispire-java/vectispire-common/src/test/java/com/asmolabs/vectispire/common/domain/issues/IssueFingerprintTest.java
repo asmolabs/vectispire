@@ -10,11 +10,14 @@ import org.junit.jupiter.api.Test;
 /**
  * The fingerprint is checked by its properties, not by stored expected values.
  *
- * <p>A table of golden hashes would pin the current algorithm without saying what about it
- * matters; it goes green on a change that is correct and red on one that is harmless. These
- * tests state the two questions the fingerprint answers — <em>what makes two findings the same
- * issue</em>, and <em>what makes them different</em> — so a future change has to argue with the
- * property it breaks.
+ * <p>A <em>table</em> of golden hashes would pin the current algorithm without saying what about
+ * it matters. So the properties come first: they state the two questions the fingerprint answers
+ * — <em>what makes two findings the same issue</em>, and <em>what makes them different</em> — so a
+ * future change has to argue with the property it breaks.
+ *
+ * <p><b>And exactly one pinned value, below, because the properties alone were not enough.</b>
+ * Every one of them survives a reordering of the fields, which changes every fingerprint in the
+ * estate. Measured, not assumed: see {@link #theAlgorithmIsPinned()}.
  */
 @DisplayName("issue fingerprint")
 class IssueFingerprintTest {
@@ -24,6 +27,29 @@ class IssueFingerprintTest {
     private static IssueFingerprint.Input finding() {
         return new IssueFingerprint.Input(
                 REPO, FindingType.VULNERABILITY, "CVE-2024-1234", "pkg:pypi/requests@2.31.0", "requests", "requirements.txt");
+    }
+
+    /**
+     * One pinned value, and it is not a table of golden hashes.
+     *
+     * <p><b>The class comment above argues against stored expected values, and it is half right.</b>
+     * A table of them pins an algorithm without saying what matters about it. But the premise that
+     * such a test "goes green on a change that is correct" does not hold for this function: there
+     * is no correct change to its <em>output</em>. Any change resolves every open issue in every
+     * deployment and recreates it, losing triage, exemptions and review dates in silence.
+     *
+     * <p>So this is not here to forbid the change. It is here to make it deliberate. Established
+     * by measurement on 26 August 2026: swapping {@code target} and {@code type} inside
+     * {@code IssueFingerprint.of} left every property test green, and would have shipped.
+     *
+     * <p><b>If this test fails, the fix is not to update the constant.</b> It is to decide whether
+     * the estate's existing fingerprints are being migrated — and if they are not, to put the
+     * fields back.
+     */
+    @Test
+    @DisplayName("a known finding has a known fingerprint, so a silent algorithm change cannot ship")
+    void theAlgorithmIsPinned() {
+        assertThat(IssueFingerprint.of(finding())).isEqualTo("44c39a41c912df031c920698f4698aa76cdcf27617f2e99f4f6759de1f97851d");
     }
 
     @Nested

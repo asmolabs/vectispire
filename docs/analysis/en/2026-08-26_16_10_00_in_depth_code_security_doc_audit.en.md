@@ -74,9 +74,17 @@ cleaner afterwards.
 It is the same shape of defect as `WebhookAuthenticity`, which *does* pin its HMAC vector
 (`6e9ef29b…`). Here one is missing.
 
-**Fix:** a test asserting a literal value for a fixed input. Three lines. It will fail on the next
-algorithm change — which is the point: the migration becomes a deliberate decision instead of a
-side effect.
+**Fixed the same day.** One vector — `44c39a41c912df031c920698f4698aa76cdcf27617f2e99f4f6759de1f97851d`
+for a fixed input — and the class javadoc reconciled, because it argued *against* stored expected
+values. That argument is half right: a *table* of golden hashes pins an algorithm without saying
+what matters about it. But its premise — "red on a harmless change" — does not hold here: **there
+is no harmless change to this function's output**.
+
+So the test does not exist to forbid the change but to make it deliberate. Its own message says as
+much: if it fails, you do not update the constant — you decide whether the estate's fingerprints
+are being migrated, and if not, you put the fields back.
+
+Verified both ways: the swap that passed this morning now fails on `ff706b4e…`.
 
 ---
 
@@ -167,7 +175,7 @@ were manual and both found real defects, since fixed. The first green nightly wi
 
 | # | Action | How it was verified |
 |---|---|---|
-| 🟠 1 | Pin a literal vector in `IssueFingerprintTest` | **measured**: two fields swapped, every test passes |
+| ✅ 1 | ~~Pin a literal vector in `IssueFingerprintTest`~~ — **done**, `44c39a41…` | measured twice: the swap passed before, it fails now (`ff706b4e…`) |
 | 🟡 2 | Give the two VEX cases an assertion capable of failing | measured: their assertion is `body` visible |
 | 🟡 3 | Describe `SealedEnvelope` in the security view and in the prompt | measured: X25519+HKDF present, absent from the docs |
 | 🟡 4 | Rest the authorization rule on a naming convention for the helpers | argued, not implemented |
