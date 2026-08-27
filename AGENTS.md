@@ -26,7 +26,10 @@ npm run build                                     # the Angular interface
 npm test
 ```
 
-**CI is [`.gitlab-ci.yml`](.gitlab-ci.yml), and `.github/workflows/` is a fossil.** The only
+**CI is [`.gitlab-ci.yml`](.gitlab-ci.yml).** The GitHub Actions that preceded it are archived
+under [`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/) — moved out
+of `.github/` because a file there is a trigger, not a document, and pushing this repository to
+GitHub would start all three. The only
 remote is GitLab, which does not execute GitHub Actions, so for most of this project's life
 *nothing had ever been verified by a machine* — the workflows are kept as a record of what the
 checks were, and they are not what runs. If you add a check, add it to `.gitlab-ci.yml` or it
