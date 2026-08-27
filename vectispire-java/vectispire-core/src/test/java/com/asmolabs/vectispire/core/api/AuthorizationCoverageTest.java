@@ -45,11 +45,15 @@ class AuthorizationCoverageTest {
     /**
      * Controllers that serve nothing belonging to a scan target, with the reason for each.
      *
+     * <p><b>Shared with {@link RouteScopingTest}</b>, which works one level finer. Two copies of a
+     * security exemption list is one copy that goes stale, and the stale one is the one that
+     * exempts the next leak.
+     *
      * <p><b>Every entry is a claim somebody can check, which is why none of them says "admin".</b>
      * A list that grew by adding a name whenever the test went red would end up exempting the next
      * leak. Adding to it should feel like an argument, because it is one.
      */
-    private static final Set<String> NOT_TARGET_SCOPED = Set.of(
+    static final Set<String> NOT_TARGET_SCOPED = Set.of(
             // Identity and session: about the caller, not about a target.
             "AuthController",
             // The account's own preferences and the deployment's settings; the routes that change
