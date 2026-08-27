@@ -54,6 +54,34 @@ class AuthDatabaseTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a hash made under weaker parameters is rewritten on the way in")
+    void aStaleHashIsUpgradedOnSuccessfulLogin() {
+        // A hash at m=4096,t=1 — the shape a deployment carries after the cost has been raised
+        // past it. Derived by the same code under the old parameters rather than pasted as a
+        // literal: a fixture nobody can regenerate is one nobody dares touch.
+        UserEntity alice = users.findByUsername("alice").orElseThrow();
+        alice.setPassword(PasswordHasher.hash(PASSWORD, 4096, 1, 1));
+        users.save(alice);
+        assertThat(PasswordHasher.needsRehash(alice.getPassword())).isTrue();
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .as("an old hash still verifies under its own parameters — that is the point of PHC")
+                .isInstanceOf(AuthService.Outcome.Success.class);
+
+        // **The claim that had no implementation.** `PasswordHasher`'s javadoc promised the hash
+        // "can be rewritten on the next successful login"; `needsRehash` existed, was tested, and
+        // was called from no production code. Raising the cost would have left every existing
+        // account at the old parameters for ever.
+        String stored = users.findByUsername("alice").orElseThrow().getPassword();
+        assertThat(PasswordHasher.needsRehash(stored))
+                .as("the stored hash should now carry today's parameters")
+                .isFalse();
+        assertThat(PasswordHasher.verify(PASSWORD, stored))
+                .as("and it must still be the same password")
+                .isTrue();
+    }
+
+    @Test
     @DisplayName("a session is written, and resolves back")
     void aSessionSurvivesTheRoundTrip() {
         AuthService.LoginResult result = auth.login(request("alice", PASSWORD));
@@ -134,4 +162,5 @@ class AuthDatabaseTest extends VectispireContextTest {
     private static AuthService.LoginRequest request(String username, String password) {
         return new AuthService.LoginRequest(username, password, "browser-1", "curl/8", "10.0.0.1");
     }
+
 }

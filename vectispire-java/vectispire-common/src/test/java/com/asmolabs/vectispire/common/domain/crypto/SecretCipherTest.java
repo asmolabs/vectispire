@@ -15,6 +15,55 @@ class SecretCipherTest {
     private final EncryptionKey key = EncryptionKey.derive(EncryptionKey.generate());
     private final EncryptionKey otherKey = EncryptionKey.derive(EncryptionKey.generate());
 
+    /**
+     * One ciphertext from 26 August 2026, and the reason it is not a round trip.
+     *
+     * <p><b>Every other test here re-encrypts before it decrypts.</b> They pin properties —
+     * a fresh nonce each time, the context binding, another key refused — and every one of them
+     * stays green through a change to the wire format, because both halves move together. What
+     * breaks is the data already in the database, in production, on the day of the deployment.
+     *
+     * <p>So this vector is decrypt-only. It asks the one question the round trip cannot: <em>can
+     * today's code still read what an earlier version wrote?</em> A changed AAD construction, a
+     * different nonce length, a new version prefix — each would fail here and nowhere else.
+     *
+     * <p><b>If this fails, updating the constant is the wrong repair.</b> It means stored secrets
+     * became unreadable, and what is owed is a migration that re-encrypts them, or a reader that
+     * still understands the old format — the way {@code decryptWithAny} already carries a
+     * previous key across a rotation.
+     *
+     * <p>The key is a fixture and says so in its own plaintext: base64 of
+     * {@code kat-vector-key-not-a-secret-32by}.
+     */
+    @Nested
+    @DisplayName("what was written before")
+    class Compatibility {
+
+        private static final String FIXTURE_KEY = "a2F0LXZlY3Rvci1rZXktbm90LWEtc2VjcmV0LTMyYnk=";
+        private static final String WRITTEN_2026_08_26 =
+                "v2:LWcoBNnyN+hImt21g9QgLg2vlCOV0SIoFDq1++9B/PTWxJREGSvBr9ldmQp+rsu5ix2ZoGtN4hYQ4G8=";
+
+        @Test
+        @DisplayName("a secret sealed by an earlier build still opens")
+        void anOldCiphertextStillDecrypts() {
+            EncryptionKey fixture = EncryptionKey.derive(FIXTURE_KEY);
+
+            assertThat(cipher.decrypt(fixture, WRITTEN_2026_08_26, SecretCipher.privateKeyContext("k1")))
+                    .contains("ssh-ed25519 AAAA-not-a-real-key");
+        }
+
+        @Test
+        @DisplayName("and it is still bound to the context it was written under")
+        void theOldCiphertextIsStillContextBound() {
+            EncryptionKey fixture = EncryptionKey.derive(FIXTURE_KEY);
+
+            // The pair matters: a vector that decrypted under any context would pass the test
+            // above while proving the AAD had stopped being applied.
+            assertThat(cipher.decrypt(fixture, WRITTEN_2026_08_26, SecretCipher.privateKeyContext("k2")))
+                    .isEmpty();
+        }
+    }
+
     @Nested
     @DisplayName("round trip")
     class RoundTrip {

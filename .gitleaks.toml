@@ -22,4 +22,8 @@ description = "Throwaway encryption keys for CI fixtures — their plaintext say
 regexes = [
   '''ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=''',
   '''Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=''',
+  # Decoded: `kat-vector-key-not-a-secret-32by`. The key a pinned decrypt-only vector in
+  # `SecretCipherTest` was written under — it has to stay fixed, because the whole point of that
+  # test is that today's code can still read a ciphertext an earlier build produced.
+  '''a2F0LXZlY3Rvci1rZXktbm90LWEtc2VjcmV0LTMyYnk=''',
 ]

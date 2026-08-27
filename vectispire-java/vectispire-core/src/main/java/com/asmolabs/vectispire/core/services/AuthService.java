@@ -4,6 +4,8 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.core.persistence.LoginAttemptEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -32,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final Users users;
     private final UserSessions sessions;
@@ -144,6 +148,7 @@ public class AuthService {
         attempts.deleteByCounterKey(clientKey);
 
         UserEntity found = user.orElseThrow();
+        rehashIfStale(found, request.password());
         IssuedSession session = openSession(found, request, now);
         return new LoginResult(
                 new Outcome.Success(session, found),
@@ -263,4 +268,35 @@ public class AuthService {
         }
         return value.length() <= 255 ? value : value.substring(0, 255);
     }
+
+    /**
+     * Rewrites a password hash that was made under weaker parameters than today's.
+     *
+     * <p><b>The PHC format exists to make this possible, and nothing was doing it.</b>
+     * {@code PasswordHasher} stores {@code m=…,t=…,p=…} alongside every hash so that an old one
+     * still verifies under its own cost, and its javadoc promised the hash "can be rewritten on
+     * the next successful login". {@code needsRehash} was written, tested, and called from no
+     * production code at all — so raising Argon2id's cost would have left every existing account
+     * at the old parameters for ever, which is the whole thing the format was chosen to avoid.
+     *
+     * <p>Here and not at verification time: this runs only after the password was accepted, so a
+     * wrong guess never causes a write, and the plaintext is in hand exactly once.
+     *
+     * <p>A failure to save is swallowed on purpose. The sign-in succeeded and the stored hash is
+     * still valid under its own parameters; refusing the session over a housekeeping write would
+     * turn a cost upgrade into an outage.
+     */
+    private void rehashIfStale(UserEntity user, String password) {
+        if (!PasswordHasher.needsRehash(user.getPassword())) {
+            return;
+        }
+        try {
+            user.setPassword(PasswordHasher.hash(password));
+            users.save(user);
+        } catch (RuntimeException couldNotSave) {
+            log.warn("Could not rewrite the password hash for \"{}\" under current parameters.",
+                    user.getUsername(), couldNotSave);
+        }
+    }
+
 }

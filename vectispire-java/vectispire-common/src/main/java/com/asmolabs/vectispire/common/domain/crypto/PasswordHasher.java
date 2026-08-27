@@ -49,12 +49,28 @@ public final class PasswordHasher {
     private static final Base64.Decoder DECODER = Base64.getDecoder();
 
     public static String hash(String password) {
+        return hash(password, MEMORY_KIB, ITERATIONS, PARALLELISM);
+    }
+
+    /**
+     * Hashes under stated parameters rather than today's.
+     *
+     * <p><b>Public because the parameters are part of the contract, not an implementation
+     * detail.</b> Two callers need them: anything that has to produce a hash at a *past* cost —
+     * a migration rehearsal, a test that has to look like a deployment from before the last
+     * raise — and anything that has to raise the cost deliberately rather than by editing a
+     * constant. Without it, the only way to obtain an old-parameter hash was to paste a literal
+     * nobody could regenerate.
+     *
+     * <p>Ordinary code wants {@link #hash(String)}, which is this with the current numbers.
+     */
+    public static String hash(String password, int memoryKib, int iterations, int parallelism) {
         byte[] salt = new byte[SALT_BYTES];
         RANDOM.nextBytes(salt);
-        byte[] digest = derive(password, salt, MEMORY_KIB, ITERATIONS, PARALLELISM);
+        byte[] digest = derive(password, salt, memoryKib, iterations, parallelism);
 
         return "$argon2id$v=" + Argon2Parameters.ARGON2_VERSION_13
-                + "$m=" + MEMORY_KIB + ",t=" + ITERATIONS + ",p=" + PARALLELISM
+                + "$m=" + memoryKib + ",t=" + iterations + ",p=" + parallelism
                 + "$" + ENCODER.encodeToString(salt)
                 + "$" + ENCODER.encodeToString(digest);
     }
