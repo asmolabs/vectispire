@@ -12,6 +12,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.junit.jupiter.api.Test;
 
@@ -124,4 +125,53 @@ class SealedEnvelopeTest {
             throw new IllegalStateException(impossible);
         }
     }
+
+    /**
+     * One envelope from 26 August 2026, opened by a recipient key that never changes.
+     *
+     * <p><b>Every other test here seals before it opens, and that hides the failure that matters
+     * for this class.</b> A remote agent publishes its sealing key and the control plane seals to
+     * it; the two are separate deployments and they are not upgraded together. So the question a
+     * round trip cannot ask is whether a control plane built today still speaks to an agent built
+     * before it — a changed HKDF info string, a different nonce length, a new {@code sealed:v1:}
+     * prefix, and the handshake stops working in the field while every test stays green.
+     *
+     * <p>Unlike {@code SecretCipher}'s vector, nothing stored becomes unreadable: what breaks is a
+     * live protocol between versions. That is why this arrives second, and why it is still worth
+     * having — a protocol break discovered by an operator is discovered at the worst moment.
+     *
+     * <p>The recipient's private scalar says what it is in its own bytes:
+     * {@code kat-envelope-recipient-key-32byt}.
+     */
+    @Test
+    void anEnvelopeSealedByAnEarlierBuildStillOpens() {
+        SealedEnvelope envelopes = new SealedEnvelope();
+        X25519PrivateKeyParameters recipient = new X25519PrivateKeyParameters(
+                "kat-envelope-recipient-key-32byt".getBytes(java.nio.charset.StandardCharsets.UTF_8), 0);
+        SealedEnvelope.KeyPair keyPair = new SealedEnvelope.KeyPair(
+                "MCowBQYDK2VuAyEAXLnFpdiovM3OsClUD9dvTwANjDGuYcfrpUyYSzNjuEU=", recipient);
+
+        String sealedOn20260826 = "sealed:v1:MCowBQYDK2VuAyEAbncNOCviu61zaY2RNZTM0JDn5RIXih70OvIL7rj5lX5"
+                + "+BjJpVq6SAeNMd1aqXW+6kzFUWtHWaxIpjbhVwiueZ5f1ltFp3745AF81hokYGYQ67eHAM8m1XV7E7JEh";
+
+        assertThat(envelopes.open(keyPair, sealedOn20260826)).contains("agent-registration-token-not-real");
+    }
+
+    /**
+     * The pair to the vector above: an envelope addressed elsewhere must stay shut.
+     *
+     * <p>Without this, a build that had stopped deriving the session key from the recipient at all
+     * would pass the vector — it would open everything, including that one.
+     */
+    @Test
+    void thatEnvelopeDoesNotOpenForAnotherRecipient() {
+        SealedEnvelope envelopes = new SealedEnvelope();
+        SealedEnvelope.KeyPair stranger = envelopes.generateKeyPair();
+
+        String sealedOn20260826 = "sealed:v1:MCowBQYDK2VuAyEAbncNOCviu61zaY2RNZTM0JDn5RIXih70OvIL7rj5lX5"
+                + "+BjJpVq6SAeNMd1aqXW+6kzFUWtHWaxIpjbhVwiueZ5f1ltFp3745AF81hokYGYQ67eHAM8m1XV7E7JEh";
+
+        assertThat(envelopes.open(stranger, sealedOn20260826)).isEmpty();
+    }
+
 }
