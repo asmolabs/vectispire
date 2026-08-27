@@ -100,6 +100,33 @@ flowchart TB
 
 ---
 
+### Entité E5 : Fournisseur d'identité (connexion OIDC, provisionnement SCIM 2.0)
+
+*Ajoutée après la première version de ce modèle : ni la fédération ni le provisionnement
+n'existaient quand les entités ci-dessus ont été dessinées, et une entité qu'on ne dessine pas est
+une entité sur laquelle on ne raisonne pas.*
+
+| Catégorie STRIDE | Scénario de menace / Vecteur | Impact potentiel | Contrôle implémenté |
+|---|---|---|---|
+| **Spoofing** | Une identité du fournisseur revendique un compte Vectispire qu'on ne lui a jamais accordé, ou un second sujet se lie à un nom déjà attribué. | Prise de contrôle silencieuse d'un compte existant, administrateur compris. | La connexion est un **rattachement, pas un provisionnement** : une identité sans compte est refusée et journalisée (`Single sign-on refused: no account named …`), et un nom déjà lié à un autre sujet est refusé plutôt que re-lié. |
+| **Elevation of Privilege** | Un administrateur de l'IdP élève un rôle par SCIM plutôt que par Vectispire, contournant son quatre-yeux et son journal. | Changement de rôle sans imputabilité côté Vectispire. | `/scim/v2/Users` porte `@RequiresAdministrator` : le canal de provisionnement n'est pas un détour autour des contrôles de rôle, il est derrière le même. |
+| **Repudiation** | Un privilège accordé via le fournisseur ne laisse aucune trace ici. | Un changement dont personne ici ne peut rendre compte. | Le provisionnement écrit par les mêmes services que le chemin humain, donc `t_audit_log` l'enregistre avec son acteur. |
+
+---
+
+### Entité E6 : Outil de ticketing externe (webhooks Jira, GitLab, GitHub, ServiceNow)
+
+*Ajoutée après coup également. C'est le seul point d'entrée joignable sans compte, et c'est toute
+la raison pour laquelle il mérite son propre tableau.*
+
+| Catégorie STRIDE | Scénario de menace / Vecteur | Impact potentiel | Contrôle implémenté |
+|---|---|---|---|
+| **Spoofing** | N'importe qui sur le réseau poste un webhook forgé pour déplacer une décision de triage. | Une vulnérabilité non corrigée marquée résolue par un inconnu. | `WebhookAuthenticity` vérifie la convention propre à chaque fournisseur — `X-Gitlab-Token` verbatim, le HMAC de GitHub sur le corps brut, un jeton partagé pour ceux qui ne signent rien — avec `MessageDigest.isEqual` partout : ce point d'entrée répond à des appelants non authentifiés, et une comparaison octet par octet rendrait le secret devinable. |
+| **Spoofing** | Le même, sur un déploiement sans secret configuré. | Le précédent, non mitigé. | **Ouvert délibérément** : un secret non configuré laisse la route non authentifiée plutôt que de refuser le trafic, car durcir à la montée de version arrêterait la synchronisation de triage existante **en silence** — pire que le défaut qu'on ferme. `Setting.TICKET_WEBHOOK_SECRET` est l'interrupteur, et cette ligne est la raison de s'en servir. |
+| **Tampering** | Un payload légitime rejoué ré-applique une décision entre-temps annulée. | Un constat rouvert silencieusement re-résolu. | **Non mitigé.** Consigné ici plutôt que laissé à découvrir : rien dans la vérification n'est lié à un nonce ni à un horodatage. |
+
+---
+
 ### Processus P1 : Contrôleur API REST & Couche de Sécurité Backend
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
@@ -113,7 +140,7 @@ flowchart TB
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
-| **Elevation of Privilege** | L'orchestrateur utilise la clé SSH du serveur hôte pour cloner des dépôts réservés. | Clonage non autorisé de projets confidentiels non assignés à la cible. | Désactivation par défaut de la clé hôte (`host-ssh: false`) et isolation stricte des clés SSH d'accès chiffrées par cible (`t_ssh_key`). |
+| **Elevation of Privilege** | L'orchestrateur utilise la clé SSH du serveur hôte pour cloner des dépôts réservés. | Clonage non autorisé de projets confidentiels non assignés à la cible. | **Partiellement mitigé, et le risque résiduel est accepté plutôt qu'absent.** Une clé attachée à une cible l'emporte : `t_ssh_key` la conserve chiffrée, et un dépôt disposant de sa propre clé ne touche jamais à celle de l'hôte. Mais `host-ssh` vaut **`true` par défaut** — une version antérieure de ce tableau annonçait `false`, ce qui n'a jamais été le cas — si bien qu'un dépôt *sans* clé retombe sur le `~/.ssh` de l'hôte, que `docker-compose.yml` monte en lecture seule dans le plan de contrôle et dans l'agent. Sur une installation mono-équipe, cette clé atteint déjà toutes les cibles. **Sur une installation partagée, poser `VECTISPIRE_HOST_SSH=false`** : avec le repli actif, ajouter une URL suffit pour que Vectispire la clone avec une identité que personne ne lui a attachée. Épinglé par `ScanningDefaultsTest`, pour que le défaut ne bouge pas en silence. |
 | **Denial of Service** | Un projet gigantesque ou une boucle infinie dans une règle SAST bloque l'orchestrateur indéfiniment. | Blocage du worker et annulation des scans suivants. | Limites de ressources strictes (RAM max, CPU quota) et timeout d'exécution appliqués sur chaque conteneur par `ContainerRunner`. |
 
 ---

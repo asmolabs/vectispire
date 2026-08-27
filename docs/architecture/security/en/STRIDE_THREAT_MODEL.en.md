@@ -99,6 +99,32 @@ flowchart TB
 
 ---
 
+### Entity E5: Identity Provider (OIDC sign-on, SCIM 2.0 provisioning)
+
+*Added after the first version of this model: neither federation nor provisioning existed when the
+entities above were drawn, and an entity that is not drawn is not reasoned about.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | An identity from the provider claiming a Vectispire account it was never granted, or a second subject binding to a name that already belongs to someone. | Silent takeover of an existing account, including an administrator's. | Sign-on is a **binding, not a provisioning**: an identity with no account is refused and logged (`Single sign-on refused: no account named …`), and a name already bound to another subject is refused rather than rebound. |
+| **Elevation of Privilege** | An IdP administrator raising a role through SCIM rather than through Vectispire, bypassing its own four-eyes and audit path. | Role change with no Vectispire-side accountability. | `/scim/v2/Users` is `@RequiresAdministrator`: the provisioning channel is not a way around the role checks, it sits behind the same one. |
+| **Repudiation** | A privilege granted through the provider leaving no trace on this side. | A change nobody here can account for. | Provisioning writes through the same services as the human path, so `t_audit_log` records it with its actor. |
+
+---
+
+### Entity E6: External Issue Tracker (Jira, GitLab, GitHub, ServiceNow webhooks)
+
+*Also added afterwards. This is the only inbound entry point reachable without an account, which
+is the whole reason it is worth a table of its own.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Spoofing** | Anyone on the network posting a forged webhook to move a triage decision. | An unpatched vulnerability marked resolved by a stranger. | `WebhookAuthenticity` verifies each provider's own convention — `X-Gitlab-Token` verbatim, GitHub's HMAC over the raw body, a shared token for the trackers that sign nothing — with `MessageDigest.isEqual` throughout, because this endpoint answers unauthenticated callers and a byte-by-byte comparison would make the secret guessable. |
+| **Spoofing** | The same, on a deployment that has not configured a secret. | The above, unmitigated. | **Deliberately open**: an unset secret leaves the route unauthenticated rather than refusing traffic, because tightening it at upgrade would stop existing triage synchronisation *silently* — worse than the defect it closes. `Setting.TICKET_WEBHOOK_SECRET` is the switch, and this row is the reason to use it. |
+| **Tampering** | A replayed legitimate payload re-applying a decision that has since been reversed. | A reopened issue silently re-resolved. | **Not mitigated.** Recorded here rather than left to be discovered: nothing in the verification is nonce- or timestamp-bound. |
+
+---
+
 ### Process P1: REST API Controllers & Backend Security Layer
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
@@ -112,7 +138,7 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Elevation of Privilege** | Orchestrator using host SSH key to clone unauthorized Git repositories. | Unauthorized cloning of confidential private repos not assigned to the target. | Host SSH disabled by default (`host-ssh: false`) and per-target encrypted SSH key isolation (`t_ssh_key`). |
+| **Elevation of Privilege** | Orchestrator using host SSH key to clone unauthorized Git repositories. | Unauthorized cloning of confidential private repos not assigned to the target. | **Partially mitigated, and the residual risk is accepted rather than absent.** A key attached to a target wins: `t_ssh_key` holds it encrypted, and a repository with its own key never touches the host's. But `host-ssh` is **`true` by default** — an earlier version of this table said `false`, which was never true — so a repository with *no* key falls back to the host's `~/.ssh`, which `docker-compose.yml` mounts read-only into the control plane and the agent. On a single-team install that key already reaches every target. **On a shared install, set `VECTISPIRE_HOST_SSH=false`**: with the fallback on, adding a URL is enough to have Vectispire clone it with an identity nobody attached to it. Pinned by `ScanningDefaultsTest` so the default cannot move unnoticed. |
 | **Denial of Service** | Massive repository or infinite loop in SAST rule blocking orchestrator indefinitely. | Worker thread hang and cancellation of subsequent scans. | Enforced resource caps (RAM limit, CPU quota) and execution timeouts applied per container by `ContainerRunner`. |
 
 ---

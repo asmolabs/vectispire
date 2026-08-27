@@ -107,6 +107,6 @@ is what makes the one false entry expensive.
 
 | # | Action | How it was verified |
 |---|---|---|
-| 🔴 1 | Reconcile the STRIDE model with reality — **in both languages**. Either the default becomes `false` with its migration note, or the document states the real posture and the compensating control | **measured**: doc says `false`, `application.yaml` says `true`, `docker-compose.yml` mounts `${HOME}/.ssh` |
-| 🟠 2 | A test pinning the `host-ssh` default, whichever it is | measured: no test mentions it |
-| 🟡 3 | Hold the other STRIDE tables against the entities that did not exist when it was written (ticketing webhook, attack paths, SCIM) | not done: this pass checked the claims present, not the ones missing |
+| ✅ 1 | ~~Reconcile the STRIDE model with reality~~ — **done**: the default stays `true` (the operator's call), and the P2 row now states the real posture, the per-target key's precedence, and the `VECTISPIRE_HOST_SSH=false` to set on a shared install | rewritten in both languages |
+| ✅ 2 | ~~A test pinning the default~~ — **done**: `ScanningDefaultsTest` | mutation: flipping the default to `false` fails it |
+| ✅ 3 | ~~Hold the model against the missing entities~~ — **done**: E5 (identity provider) and E6 (ticketing webhooks) added | measured: `webhook`, `SCIM`, `OIDC` had **zero** occurrences in the model |

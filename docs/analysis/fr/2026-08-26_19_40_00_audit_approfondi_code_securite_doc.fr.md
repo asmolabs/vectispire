@@ -109,6 +109,6 @@ majoritairement exact**, ce qui rend l'entrée fausse d'autant plus coûteuse.
 
 | # | Action | Vérifié comment |
 |---|---|---|
-| 🔴 1 | Aligner le modèle STRIDE et la réalité — **dans les deux langues**. Soit le défaut passe à `false` avec sa note de migration, soit le document énonce la posture réelle et le contrôle compensatoire | **mesuré** : doc = `false`, `application.yaml` = `true`, `docker-compose.yml` monte `${HOME}/.ssh` |
-| 🟠 2 | Un test qui épingle le défaut de `host-ssh`, quel qu'il soit | mesuré : aucun test ne le mentionne |
-| 🟡 3 | Confronter les autres tableaux STRIDE aux entités qui n'existaient pas quand il a été écrit (webhook de ticketing, chemins d'attaque, SCIM) | non fait : ce passage a vérifié les affirmations présentes, pas les absences |
+| ✅ 1 | ~~Aligner le modèle STRIDE et la réalité~~ — **fait** : le défaut reste `true` (décision de l'exploitant), et la ligne P2 énonce la posture réelle, la précédence de la clé par cible, et le `VECTISPIRE_HOST_SSH=false` à poser sur une installation partagée | réécrit dans les deux langues |
+| ✅ 2 | ~~Un test qui épingle le défaut~~ — **fait** : `ScanningDefaultsTest` | mutation : passer le défaut à `false` le fait échouer |
+| ✅ 3 | ~~Confronter le modèle aux entités absentes~~ — **fait** : E5 (fournisseur d'identité) et E6 (webhooks de ticketing) ajoutées | mesuré : `webhook`, `SCIM`, `OIDC` avaient **zéro** occurrence dans le modèle |
