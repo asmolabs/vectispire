@@ -44,7 +44,7 @@ export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
 
 # Personnalisation de marque (White-labeling dans le header, rapports & exports)
 export VECTISPIRE_BRAND_NAME=Vectispire
-export VECTISPIRE_GITLAB_URL=https://gitlab.com/asmolabs_be/vectispire
+export VECTISPIRE_GITLAB_URL=https://github.com/asmolabs/vectispire
 ```
 
 ---
@@ -190,8 +190,8 @@ contradiction.
 ```bash
 cosign verify-blob \
   --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/v1.0.0" \
-  --certificate-oidc-issuer https://gitlab.com \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   vectispire-1.0.0.jar
 ```
 
@@ -201,13 +201,26 @@ de ce pour quoi la signature existait.**
 - `--certificate-identity` nomme le **fichier de workflow et le tag**, pas le dépôt. Ne
   correspondre qu'au dépôt accepterait une signature forgée par n'importe quel workflow que
   quiconque peut y ajouter, y compris un workflow ajouté dans une pull request.
-- `--certificate-oidc-issuer` dit que l'identité vient du service de jetons de GitLab. Sans lui,
-  une chaîne d'identité qui *ressemble* simplement à celle ci-dessus suffit.
+- `--certificate-oidc-issuer` dit que l'identité vient du service de jetons OIDC de GitHub. Sans
+  lui, une chaîne d'identité qui *ressemble* simplement à celle ci-dessus suffit.
 - Le `--bundle` porte ensemble le certificat et la signature, donc il n'y a pas de second fichier
   à perdre ni d'étape à laquelle un certificat non vérifié serait substitué.
 
 Remplacez le tag aux deux endroits pour vérifier une autre version : l'identité est par tag par
 conception, de sorte qu'un paquet d'une release ne vérifie pas le fichier d'une autre.
+
+**Les releases signées avant le 27 août 2026 portent une autre identité.** Le projet est passé de
+GitLab à GitHub, et l'identité du certificat nomme la forge, le dépôt et le fichier de workflow :
+elle a donc changé avec la bascule. Pour un tag antérieur, vérifiez avec l'ancien couple :
+
+```
+  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/<tag>"
+  --certificate-oidc-issuer https://gitlab.com
+```
+
+Qu'une identité ne soit pas portable d'une forge à l'autre est la propriété qui fonctionne, non un
+défaut : une signature affirme *quel workflow dans quel dépôt* a produit le fichier, et cela a
+changé.
 
 Il n'y a **aucune clé de signature** — Sigstore sans clé signe avec l'identité OIDC du workflow
 lui-même. C'est la propriété qui mérite d'être comprise : il n'existe aucune clé sous la garde de

@@ -33,11 +33,15 @@ domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  �
 
 ## 3. Continuous Integration Pipeline (CI/CD) & Supply Chain Security
 
-The pipeline is [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml), and it is worth saying why the
-repository also holds `.github/workflows/`: the checks were written as GitHub Actions while the
-only remote is GitLab, so **none of them had ever run** — established by the audit of
-2026-08-25 and answered by that file. The GitHub workflows are kept as the record of what the
-checks were, and they are not what executes.
+The pipeline is [`.github/workflows/`](../../../../.github/workflows/) — `ci.yml`, `nightly.yml`
+and `release.yml` — on GitHub, repository `asmolabs/vectispire`. The history is worth a sentence
+because it explains the shape: the checks were first written as GitHub Actions while the only
+remote was GitLab, so **none of them had ever run**, which the audit of 2026-08-25 established.
+They were then rewritten as [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml) to run somewhere, and
+rewritten a second time when the project moved to GitHub — a rewrite each way rather than a
+translation, because the Docker-in-Docker constraints invert with the daemon's location. The
+GitLab file is kept until GitHub's pipeline has been green through a full cycle including a tag,
+and it is not maintained.
 
 The pipeline executes the following verification steps:
 

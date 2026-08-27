@@ -35,11 +35,15 @@ domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  �
 
 ## 3. Chaîne d'Intégration Continue (CI/CD) & Sécurité Supply Chain
 
-Le pipeline est [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml), et il vaut la peine de dire
-pourquoi le dépôt contient aussi `.github/workflows/` : les contrôles ont été écrits comme des
-GitHub Actions alors que l'unique remote est GitLab, si bien qu'**aucun n'avait jamais tourné** —
-établi par l'audit du 25 août 2026 et corrigé par ce fichier. Les workflows GitHub sont conservés
-comme trace de ce qu'étaient les contrôles ; ce n'est pas eux qui s'exécutent.
+Le pipeline est [`.github/workflows/`](../../../../.github/workflows/) — `ci.yml`, `nightly.yml`
+et `release.yml` — sur GitHub, dépôt `asmolabs/vectispire`. L'histoire mérite une phrase parce
+qu'elle explique la forme actuelle : les contrôles ont d'abord été écrits comme des GitHub Actions
+alors que l'unique remote était GitLab, si bien qu'**aucun n'avait jamais tourné**, ce que l'audit
+du 25 août 2026 a établi. Ils ont ensuite été réécrits en [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml)
+pour tourner quelque part, puis réécrits une seconde fois au passage sur GitHub — une réécriture
+dans chaque sens plutôt qu'une traduction, parce que les contraintes Docker-in-Docker s'inversent
+selon l'endroit où vit le démon. Le fichier GitLab est conservé jusqu'à ce que le pipeline GitHub
+soit passé au vert sur un cycle complet, tag compris ; il n'est pas maintenu.
 
 Le pipeline exécute les étapes de validation suivantes :
 

@@ -41,7 +41,7 @@ Three environment variables matter before the first run:
 | `VECTISPIRE_PASSWORD_LOGIN` | `true`. `false` delegates authentication to the identity provider entirely — the second factor is then the realm's. Ignored, loudly, when no `VECTISPIRE_OIDC_ISSUER` is set: it would leave no way in |
 | `VECTISPIRE_AUDIT_MIRROR` | *none* — a path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so |
 | `VECTISPIRE_BRAND_NAME` | `Vectispire` — custom company or instance name displayed across the header, reports (PDF), and exports (SARIF, VEX, CSAF) |
-| `VECTISPIRE_GITLAB_URL` | `https://gitlab.com/asmolabs_be/vectispire` — reference GitLab URL displayed alongside the "Powered by Vectispire" footer mention |
+| `VECTISPIRE_GITLAB_URL` | `https://github.com/asmolabs/vectispire` — upstream repository URL displayed alongside the "Powered by Vectispire" footer mention. The variable name predates the move to GitHub and is kept because it is part of the public branding response |
 
 
 ## 4. Database
@@ -164,8 +164,8 @@ running anything — a security tool you took on trust is a contradiction.
 ```bash
 cosign verify-blob \
   --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/v1.0.0" \
-  --certificate-oidc-issuer https://gitlab.com \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   vectispire-1.0.0.jar
 ```
 
@@ -175,13 +175,25 @@ signing was for.**
 - `--certificate-identity` names the **workflow file and the tag**, not the repository. Matching
   the repository alone would accept a signature minted by any workflow anybody can add to it,
   including one added in a pull request.
-- `--certificate-oidc-issuer` says the identity came from GitLab's token service. Without it, an
-  identity string that merely *looks* like the one above is enough.
+- `--certificate-oidc-issuer` says the identity came from GitHub's OIDC token service. Without it,
+  an identity string that merely *looks* like the one above is enough.
 - The `--bundle` carries the certificate and the signature together, so there is no second file to
   lose and no step at which an unverified certificate is substituted.
 
 Replace the tag in both places when verifying another version: the identity is per-tag by design,
 so a bundle from one release does not verify a file from another.
+
+**Releases signed before 2026-08-27 carry a different identity.** The project moved from GitLab to
+GitHub, and the certificate identity names the forge, the repository and the workflow file — so it
+changed with the move. For a pre-move tag, verify against the old pair instead:
+
+```
+  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/<tag>"
+  --certificate-oidc-issuer https://gitlab.com
+```
+
+That an identity is not portable across forges is the property working, not a defect: a signature
+is a claim about *which workflow in which repository* produced the file, and that changed.
 
 There is **no signing key** — Sigstore keyless signs with the workflow's own OIDC identity. That is
 the property worth understanding: there is no key in anybody's custody to steal, rotate, or explain,

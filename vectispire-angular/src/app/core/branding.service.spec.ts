@@ -33,7 +33,7 @@ describe('BrandingService', () => {
 
     it('instantiates with default values', () => {
         expect(service.brandName()).toBe('Vectispire');
-        expect(service.gitlabUrl()).toBe('https://gitlab.com/asmolabs_be/vectispire');
+        expect(service.gitlabUrl()).toBe('https://github.com/asmolabs/vectispire');
     });
 
     it('loads custom brand parameters from API', async () => {
@@ -47,7 +47,7 @@ describe('BrandingService', () => {
         mockApi.signInMethods.mockReturnValue(throwError(() => new Error('Network error')));
         await service.init();
         expect(service.brandName()).toBe('Vectispire');
-        expect(service.gitlabUrl()).toBe('https://gitlab.com/asmolabs_be/vectispire');
+        expect(service.gitlabUrl()).toBe('https://github.com/asmolabs/vectispire');
         expect(service.isLoaded()).toBe(true);
     });
 });

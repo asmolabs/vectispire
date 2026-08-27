@@ -26,20 +26,25 @@ npm run build                                     # the Angular interface
 npm test
 ```
 
-**Two pipelines exist, and only one runs today.**
-[`.gitlab-ci.yml`](.gitlab-ci.yml) is the live one: GitLab is the forge, and every green tick you
-see came from it. [`.github/workflows/`](.github/workflows/) holds the port prepared for the move
-to GitHub — inert while the remote is GitLab, which does not read it, and **untested on a runner**
-until the first push over there.
+**GitHub is the forge.** The repository is `asmolabs/vectispire`; the pipeline that runs is
+[`.github/workflows/`](.github/workflows/) — `ci.yml`, `nightly.yml`, `release.yml`. It is a
+rewrite of the GitLab pipeline rather than a translation, because the Docker-in-Docker
+workarounds invert when the daemon shares the runner's filesystem: `docker run -v "$PWD:…"`
+works again, a job's `services:` share its network, and the nightly schedule is `cron:` **in the
+file** instead of a setting somebody has to remember to create.
 
-If you add a check before the move, add it to **both** or the move loses it. After the move,
-delete the GitLab file rather than leaving two; the ones that preceded this port are archived
-under [`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/), and the
-reason they had to leave `.github/` is written there. The only
-remote is GitLab, which does not execute GitHub Actions, so for most of this project's life
-*nothing had ever been verified by a machine* — the workflows are kept as a record of what the
-checks were, and they are not what runs. If you add a check, add it to `.gitlab-ci.yml` or it
-will not happen.
+[`.gitlab-ci.yml`](.gitlab-ci.yml) is the pipeline that ran before the move, kept until GitHub's
+own has been green on a runner for a full cycle including a tag. It is **not** maintained: a new
+check goes in `.github/workflows/`. Do not confuse it with
+[`ci/gitlab/vectispire-gate.gitlab-ci.yml`](ci/gitlab/vectispire-gate.gitlab-ci.yml), which is a
+template we ship for *other people's* pipelines and stays whatever forge we live on.
+
+Workflows from before this port are archived under
+[`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/); the reason they
+had to leave `.github/` is written there — a file under `.github/workflows/` is not a document,
+it is a trigger, and those would have fired on the first push. For most of this project's life
+the checks lived only in that inert directory while the sole remote was GitLab, which means
+*nothing had ever been verified by a machine* until 2026-08-25.
 
 On every push, `verify` runs `secrets`, `links`, `c4-drift`, `jvm` (`./gradlew build`),
 `frontend` (`npm ci && npm run build && npm test`), `sbom`, `vulnerabilities` and `npm-audit`;
@@ -47,17 +52,26 @@ then `package` runs `images`, which builds both images with Jib **and starts the
 against a real MySQL** before believing them. Syft and Grype are digest-pinned to what
 `ScannerImages` pins, so the same scanner version audits Vectispire as audits its targets.
 
-**`integrationTestAll` is in CI, but only nightly** — the `databases` job, 40 minutes, gated on
-`$CI_PIPELINE_SOURCE == "schedule"`, alongside `dockerfiles` and the Playwright `e2e` suite.
-Declaring a nightly job does not schedule it: the schedule has to exist in the project's CI/CD
-settings, and until it does these three have never run. **A green pipeline therefore does not
-mean portability or the browser paths were checked.** Run the campaign by hand before a release.
+**`integrationTestAll` is in CI, but only nightly** — the `databases` job, 40 minutes, in
+[`nightly.yml`](.github/workflows/nightly.yml) alongside `dockerfiles` and the Playwright `e2e`
+suite, on `cron: '30 2 * * *'`. On GitLab this depended on a schedule created in the project
+settings, invisible to anyone reading the repository, and it went unnoticed for two days; the
+`cron:` is in the file precisely so that gap cannot reopen. Note the GitHub rule behind it: a
+scheduled workflow runs from the **default branch only**, so a nightly living on `develop` and
+not on `main` does not fire. **A green push pipeline still does not mean portability or the
+browser paths were checked** — those are the nightly's, and a release should not go out on a
+nightly that has not been green.
 
 A **`v*` tag** runs the `release` job: `./gradlew build`, then the jar signed with Sigstore
 keyless. It **verifies the signature it just made** before publishing anything, with the same
 command a consumer runs — a signature nobody has checked is a signature that does not work. The
-certificate identity is `${CI_PROJECT_URL}//.gitlab-ci.yml@refs/tags/${CI_COMMIT_TAG}` with
-issuer `https://gitlab.com`; both change if the file is renamed.
+certificate identity is
+`https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>` with issuer
+`https://token.actions.githubusercontent.com`, and the job needs `permissions: id-token: write` or
+`cosign` fails at publication time rather than before it. Both halves of that identity are
+forge-bound: **renaming the workflow file, the repository, or the owner invalidates every
+signature a consumer has learned to verify**, which is why the repository was renamed before the
+first tag and not after.
 
 ## Before you change anything
 

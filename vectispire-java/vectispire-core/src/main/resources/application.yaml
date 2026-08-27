@@ -53,7 +53,7 @@ vectispire:
 
   branding:
     name: ${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:${VECTISPIRE_INSTANCE_NAME:Vectispire}}}
-    gitlab-url: ${VECTISPIRE_GITLAB_URL:https://gitlab.com/asmolabs_be/vectispire}
+    gitlab-url: ${VECTISPIRE_GITLAB_URL:https://github.com/asmolabs/vectispire}
 
   exports:
     # Named in SARIF's information URI and in a VEX document's identifier, so a document handed

@@ -9,7 +9,7 @@ export class BrandingService {
     private readonly api = inject(ApiService);
 
     readonly brandName = signal<string>('Vectispire');
-    readonly gitlabUrl = signal<string>('https://gitlab.com/asmolabs_be/vectispire');
+    readonly gitlabUrl = signal<string>('https://github.com/asmolabs/vectispire');
     readonly isLoaded = signal<boolean>(false);
 
     /**

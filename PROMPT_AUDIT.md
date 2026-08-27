@@ -40,8 +40,9 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX n'est pas produit, voir ADR 0016).
 
 5. 🔁 Vérification réellement exécutée :
-   - Le pipeline est .gitlab-ci.yml, sur GitLab. Vérifier que chaque contrôle dont le projet se réclame y figure ET s'y déclenche : les jobs nocturnes (databases, dockerfiles, e2e) dépendent d'un schedule à créer dans les réglages CI/CD, et un job déclaré n'est pas un job planifié.
-   - .github/workflows/ ne s'exécute pas : GitLab n'interprète pas les GitHub Actions. Toute affirmation renvoyant à ces fichiers est à traiter comme non vérifiée.
+   - Le pipeline est .github/workflows/ (ci.yml, nightly.yml, release.yml), sur GitHub, dépôt asmolabs/vectispire. Vérifier que chaque contrôle dont le projet se réclame y figure ET s'y déclenche — un job déclaré n'est pas un job qui a tourné. Le nocturne est planifié par cron: dans nightly.yml, mais GitHub n'exécute un workflow planifié que depuis la branche par défaut : un nocturne présent sur develop et absent de main ne se déclenche pas.
+   - .gitlab-ci.yml est le pipeline d'avant la bascule, conservé et non maintenu : il ne s'exécute plus. Toute affirmation qui s'y appuie est à traiter comme non vérifiée. Ne pas le confondre avec ci/gitlab/vectispire-gate.gitlab-ci.yml, qui est un template livré aux clients et reste valide.
+   - Ne pas croire ce paragraphe sur parole : git remote -v et la date du dernier run réussi disent quelle forge exécute quoi.
    - Distinguer partout « affirmé » de « exécuté ». Une garantie non exécutée n'est pas une garantie ; le dire explicitement dans le rapport plutôt que de la compter comme acquise.
 
 Méthode — non négociable :
@@ -93,8 +94,9 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX documents are not produced, see ADR 0016).
 
 5. 🔁 Verification that actually runs:
-   - The pipeline is .gitlab-ci.yml, on GitLab. Check that every control the project claims is both present AND triggered: the nightly jobs (databases, dockerfiles, e2e) depend on a pipeline schedule that must exist in the project's CI/CD settings, and a declared job is not a scheduled one.
-   - .github/workflows/ does not execute: GitLab does not interpret GitHub Actions. Treat any claim resting on those files as unverified.
+   - The pipeline is .github/workflows/ (ci.yml, nightly.yml, release.yml), on GitHub, repository asmolabs/vectispire. Check that every control the project claims is both present AND triggered — a declared job is not a job that ran. The nightly is scheduled by cron: inside nightly.yml, but GitHub runs a scheduled workflow from the default branch only: a nightly present on develop and absent from main does not fire.
+   - .gitlab-ci.yml is the pre-move pipeline, kept and unmaintained: it no longer executes. Treat any claim resting on it as unverified. Do not confuse it with ci/gitlab/vectispire-gate.gitlab-ci.yml, which is a template shipped to customers and remains valid.
+   - Do not take this paragraph on trust: git remote -v and the date of the last successful run say which forge executes what.
    - Separate "asserted" from "executed" throughout. A guarantee that is not executed is not a guarantee — say so in the report rather than scoring it as earned.
 
 Method — not negotiable:

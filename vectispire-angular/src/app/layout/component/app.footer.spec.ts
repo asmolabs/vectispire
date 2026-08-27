@@ -29,7 +29,7 @@ describe('AppFooter', () => {
                 label: null,
                 password: true,
                 brandName: 'Vectispire',
-                gitlabUrl: 'https://gitlab.com/asmolabs_be/vectispire'
+                gitlabUrl: 'https://github.com/asmolabs/vectispire'
             }))
         };
 
@@ -54,7 +54,7 @@ describe('AppFooter', () => {
 
     it('displays brand name and Powered by Vectispire with GitLab link', () => {
         branding.brandName.set('Acme Corp');
-        branding.gitlabUrl.set('https://gitlab.com/asmolabs_be/vectispire');
+        branding.gitlabUrl.set('https://github.com/asmolabs/vectispire');
         fixture.detectChanges();
 
         const element = fixture.nativeElement as HTMLElement;
@@ -64,7 +64,7 @@ describe('AppFooter', () => {
 
         const link = element.querySelector('a');
         expect(link).toBeTruthy();
-        expect(link?.getAttribute('href')).toBe('https://gitlab.com/asmolabs_be/vectispire');
+        expect(link?.getAttribute('href')).toBe('https://github.com/asmolabs/vectispire');
         expect(link?.getAttribute('target')).toBe('_blank');
     });
 });

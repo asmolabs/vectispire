@@ -12,7 +12,7 @@ that are not flattering.
 
 **Email `laurent.boucher@civadis.be` with `[vectispire-security]` in the subject.**
 
-Do not open a GitLab issue. The tracker is public to everyone with access to the project, and a
+Do not open a GitHub issue. The tracker is public to everyone with access to the project, and a
 report there is a disclosure before anyone has had a chance to fix it.
 
 Useful in a report, in rough order of usefulness:
@@ -107,7 +107,7 @@ passe ensuite — y compris ce qui n'est pas flatteur.
 
 **Écrire à `laurent.boucher@civadis.be` avec `[vectispire-security]` en objet.**
 
-Pas de ticket GitLab : le suivi est visible de tous ceux qui ont accès au projet, et un rapport
+Pas de ticket GitHub : le suivi est visible de tous ceux qui ont accès au projet, et un rapport
 là-bas est une divulgation avant que quiconque ait pu corriger.
 
 Utile dans un rapport, par ordre d'utilité :
