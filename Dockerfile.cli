@@ -16,5 +16,14 @@ RUN apk add --no-cache curl ca-certificates jq
 COPY scripts/vectispire-cli.sh /usr/local/bin/vectispire-cli
 RUN chmod +x /usr/local/bin/vectispire-cli && ln -s /usr/local/bin/vectispire-cli /usr/local/bin/vectispire
 
+# **Not root, and there was no reason it ever was.** This image curls an API and parses the
+# answer; it writes nothing and installs nothing at run time. Root here buys a CI runner the
+# ability to do damage on a mounted workspace it was only meant to read. Found by running the
+# product's own Checkov against its own Dockerfiles (CKV_DOCKER_3).
+RUN addgroup -S vectispire && adduser -S -G vectispire vectispire
+USER vectispire
+
+# checkov:skip=CKV_DOCKER_2: a one-shot command exits when it is done; a HEALTHCHECK would be
+# polling something that is not meant to still be running.
 ENTRYPOINT ["vectispire-cli"]
 CMD ["--help"]

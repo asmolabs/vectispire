@@ -36,4 +36,8 @@ COPY LICENSE NOTICE ./
 RUN addgroup -S vectispire && adduser -S -G vectispire vectispire
 USER vectispire
 
+# checkov:skip=CKV_DOCKER_2: the agent listens on nothing. It reaches the control plane by
+# outbound long-polling (decision 0003), so there is no port to probe and a HEALTHCHECK would
+# either be a second process or a lie. Its liveness is visible where it matters — the control
+# plane knows when an agent stopped asking for work.
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -184,6 +184,28 @@ vulnerabilities:
       run_grype report --only-fixed -o table
       run_grype verdict --only-fixed --fail-on high -q -o table
 
+# **The product's own scanner, pointed at the product.** Vectispire sells Checkov as one of its
+# engines and did not run it on itself — a prospect notices that before they notice anything else.
+#
+# The image is the digest `ScannerImages` pins, so the version auditing this repository is the
+# version auditing its targets. It carries a shell, so it is the job's image rather than something
+# driven through a daemon — the bind-mount trap at the top of this file does not arise.
+#
+# **Blocking, and it earns that by being green today**: 260 checks pass, and the two that do not
+# apply carry `checkov:skip` in the Dockerfile itself, with the reason beside the code rather than
+# in a flag here. A job admitted non-blocking "for now" is a job nobody ever makes blocking.
+dockerfile-policy:
+  stage: verify
+  image:
+    name: bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144
+    entrypoint: [""]
+  script:
+    - checkov --quiet --compact
+        --framework dockerfile,gitlab_ci
+        --directory .
+        --skip-path node_modules
+        --skip-path '\.claude'
+
 npm-audit:
   <<: *node
   stage: verify
