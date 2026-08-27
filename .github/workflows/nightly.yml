@@ -1,0 +1,145 @@
+# The campaigns too slow to pay for on every push.
+#
+# **Scheduled, not per-push, and the trade is deliberate.** Forty minutes on every push would be
+# paid on every push and would teach people to skip CI; paid once a night it catches the same
+# regression within a day of it landing. What that concedes is real and worth naming: a
+# portability defect can be merged and sit on `develop` until the small hours.
+#
+# **The schedule lives here, and that is the improvement the move buys.** On GitLab it was a
+# pipeline schedule in the project's settings — declared in one place, configured in another, and
+# invisible in review. Two of these three jobs sat unrun for days because nobody had created it.
+# A `cron:` in the file cannot be forgotten, and it shows up in a diff when it changes.
+
+name: nightly
+
+on:
+  schedule:
+    # 02:30 UTC. Late enough that the day's work has landed, early enough to read at breakfast.
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+
+jobs:
+  # Portability, against real servers.
+  #
+  # **The GitLab version needed `TESTCONTAINERS_HOST_OVERRIDE` and Ryuk switched off**, because
+  # Testcontainers spoke to a daemon in another container and the reaper could not see across that
+  # boundary. Here the daemon is the runner's own: Testcontainers finds it, publishes ports on
+  # localhost, and Ryuk works. Both variables are gone rather than carried over — a setting kept
+  # "just in case" is a setting nobody can explain later.
+  databases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: cd vectispire-java && ./gradlew integrationTestAll
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: engine-campaign-reports
+          path: vectispire-java/vectispire-core/build/reports/tests/
+          retention-days: 7
+
+  # The `Dockerfile` route is the one that ships — it can chown the audit mirror's directory where
+  # Jib can only set a mode — so it is built here even though `images` already built with Jib.
+  dockerfiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile -t vectispire:nightly .
+      - run: docker build -f Dockerfile.agent -t vectispire-agent:nightly .
+      - run: docker run --rm --entrypoint sh vectispire:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      - run: docker run --rm --entrypoint sh vectispire-agent:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      # The audit mirror's directory must exist and belong to the user the image runs as, which is
+      # the difference between this route and Jib's.
+      - run: docker run --rm --entrypoint sh vectispire:nightly -c 'ls -ld /var/lib/vectispire/audit'
+
+  # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
+  # the settings audit trail, and VEX triage.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
+      # ships its browsers in this image and refuses to launch one it did not build; the tag
+      # inherited from an earlier workflow had drifted thirteen minor versions, which nobody could
+      # know because that workflow never ran.
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      VECTISPIRE_DB_URL: jdbc:sqlite:/tmp/e2e.db
+      # SQLite cannot boot under the shipped `ddl-auto: validate` — its affinities report a
+      # timestamp column back as FLOAT, which says something about SQLite and nothing about the
+      # mapping. Schema parity is the `databases` job's business.
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.community.dialect.SQLiteDialect
+      ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
+      VECTISPIRE_BOOTSTRAP_USERNAME: admin
+      VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!
+      VECTISPIRE_EMBEDDED_WORKER: 'false'
+      # **Thirteen browser sign-ins inside a minute is a burst by the only definition the server
+      # has**, and every test in a run comes from one address. Raised here, on a runner destroyed
+      # at the end of the job; the shipped default of ten is untouched, and the per-account
+      # throttle is unaffected by this setting.
+      VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: cd vectispire-java && ./gradlew :vectispire-core:bootJar -x test
+      - run: npm ci
+      - name: start the control plane and wait for it to be able to answer
+        run: |
+          java -jar vectispire-java/vectispire-core/build/libs/vectispire-core.jar \
+            > control-plane.log 2>&1 &
+          echo $! > control-plane.pid
+          # Actuator's health endpoint, not the port: the process accepts connections before it
+          # can answer anything useful, and a suite that starts in that window fails on timing
+          # rather than on behaviour.
+          for attempt in $(seq 1 90); do
+            if curl -sf http://localhost:3180/actuator/health > /dev/null; then
+              echo "control plane up after ${attempt}s"; break
+            fi
+            if [ "$attempt" = "90" ]; then
+              echo "control plane did not become healthy — last 100 lines:"
+              tail -n 100 control-plane.log
+              exit 1
+            fi
+            sleep 1
+          done
+      # Checked before the browsers are needed: the mismatch is otherwise discovered after
+      # `npm ci` and a full Angular build, and reported against the image rather than this line.
+      - name: the Playwright image matches the installed Playwright
+        run: |
+          want="v$(node -p "require('@playwright/test/package.json').version")-noble"
+          have="v1.62.1-noble"
+          if [ "$want" != "$have" ]; then
+            echo "playwright image $have does not match the installed $want"
+            echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
+            exit 1
+          fi
+      - run: cd vectispire-angular && npx playwright test
+      - if: always()
+        run: kill "$(cat control-plane.pid)" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            control-plane.log
+            vectispire-angular/playwright-report/
+            vectispire-angular/test-results/
+          retention-days: 7

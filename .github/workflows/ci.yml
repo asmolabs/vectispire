@@ -1,0 +1,273 @@
+# The pipeline, on GitHub's runners.
+#
+# **A rewrite of `.gitlab-ci.yml`, not a translation of it.** The two forges differ in the one
+# place that shaped every hard decision in the GitLab file: there, the Docker daemon is a separate
+# container (`docker:dind`) and a bind mount names a path on *its* filesystem, not the job's. Here
+# the daemon is the runner's own, so `docker run -v "$PWD:…"` works — and the contortions the
+# GitLab file needed (`create` + `cp` + `start -a` for the shell-less scanners, a MySQL started
+# inside the daemon, `TESTCONTAINERS_HOST_OVERRIDE`) are not carried over. Copying them would be
+# cargo: they are correct answers to a question this runner does not ask.
+#
+# What is carried over unchanged is every *assertion*. Same digests, same thresholds, same
+# baseline. The point of a port is that the checks do not quietly get weaker.
+#
+# ⚠️ **Before this becomes the pipeline that matters, pin every `uses:` to a commit SHA.** A tag
+# is mutable and `actions/checkout@v4` is a moving target — the same reasoning that pins
+# `anchore/syft@sha256:…` below. Left at tags here because inventing SHAs would be worse than
+# saying this out loud.
+
+name: verify
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+# Least privilege by default. The release workflow raises what it needs, where it needs it.
+permissions:
+  contents: read
+
+# A superseded push has nothing to prove.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    container:
+      image: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+      options: --entrypoint=""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history: the scan reads commits, not the working tree.
+          fetch-depth: 0
+      # **Scanned against a baseline, and the distinction from a wider allowlist matters.** The
+      # first run over the full history surfaced 28 hits, every one in a directory the project
+      # shed when it was rewritten, in commits that can no longer be edited. Widening
+      # `.gitleaks.toml` would have blinded the scan to those *values* wherever they appear next;
+      # a baseline pins each hit to its commit, file, rule and line, so the same string in a new
+      # commit is a new finding and still fails.
+      - run: gitleaks detect --source=. --config .gitleaks.toml --baseline-path .gitleaks-baseline.json --verbose
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-doc-links.py
+
+  c4-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # **The diagrams were generated from this model, or somebody edited one and forgot the
+      # other.** This checks the weaker of the two things it could, and says so: the fingerprint
+      # of `workspace.dsl` recorded when the diagrams were last generated. It catches the real
+      # failure — the model edited without regenerating — and not a hand-edited `.puml`. Somebody
+      # hand-editing a generated file has already decided to; the person who forgets is the one
+      # this protects.
+      #
+      # Regenerating and diffing would be stronger and is possible here, unlike on GitLab where
+      # the Structurizr image has no shell. Left as it is so the port changes no assertion; worth
+      # revisiting on its own, deliberately.
+      - name: the C4 diagrams are in step with the model
+        run: |
+          recorded="$(cat docs/architecture/c4/diagrams/.workspace.sha256)"
+          actual="$(sha256sum docs/architecture/c4/workspace.dsl | cut -d' ' -f1)"
+          if [ "$recorded" != "$actual" ]; then
+            echo "workspace.dsl has changed since the diagrams were generated."
+            echo "  recorded: $recorded"
+            echo "  actual:   $actual"
+            echo "Run ./scripts/generate-c4-diagrams.sh and commit the result."
+            exit 1
+          fi
+          echo "C4 diagrams are in step with the model."
+
+  dockerfile-policy:
+    runs-on: ubuntu-latest
+    container:
+      image: bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144
+      options: --entrypoint=""
+    steps:
+      - uses: actions/checkout@v4
+      # **The product's own scanner, pointed at the product**, at the digest `ScannerImages`
+      # pins — so the version auditing this repository is the version auditing its targets.
+      #
+      # `--framework` now names `github_actions` rather than `gitlab_ci`: the pipeline being
+      # scanned is this file. It found two real things on the GitLab side before it was wired
+      # (a CLI image running as root, a missing healthcheck), which is why it is blocking.
+      - run: |
+          checkov --quiet --compact \
+            --framework dockerfile,github_actions \
+            --directory . \
+            --skip-path node_modules
+
+  jvm:
+    runs-on: ubuntu-latest
+    container: eclipse-temurin:25-jdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      - run: cd vectispire-java && ./gradlew build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jar
+          path: vectispire-java/vectispire-core/build/libs/
+          retention-days: 7
+
+  frontend:
+    runs-on: ubuntu-latest
+    container: node:24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --prefer-offline
+      - run: npm run build
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui
+          path: vectispire-angular/dist/
+          retention-days: 7
+
+  # The SBOM of what ships, and the vulnerabilities in it.
+  #
+  # **This is where the port simplifies most.** Neither tool image carries a shell, which on GitLab
+  # meant they could not be a job image and had to be driven `create` + `cp` + `start -a` because
+  # the daemon could not see the checkout. Here the daemon is the runner's, so a bind mount is
+  # both possible and obvious.
+  sbom:
+    runs-on: ubuntu-latest
+    needs: [jvm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: libs
+      - name: build the SBOM of the jar that ships
+        run: |
+          docker run --rm -v "$PWD/libs:/work:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan file:/work/vectispire-core.jar -o cyclonedx-json > vectispire-jvm.cdx.json
+          echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: vectispire-jvm.cdx.json
+          retention-days: 30
+
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    needs: [sbom]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+      # Reported in full first, then failed on. An operator reading the log wants the list before
+      # the verdict; a job that only prints "failed" sends them to run the tool themselves.
+      - name: report, then fail on a fixable high
+        run: |
+          grype() {
+            docker run --rm -v "$PWD:/work:ro" \
+              anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+              sbom:/work/vectispire-jvm.cdx.json "$@"
+          }
+          grype report --only-fixed -o table
+          grype verdict --only-fixed --fail-on high -q -o table
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    container: node:24
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci --prefer-offline
+      - run: npm audit --omit=dev --audit-level=high
+      # The whole tree for the record, including dev dependencies that never ship. Not allowed to
+      # fail the run: a build tool's advisory is not a shipped vulnerability.
+      - run: npm audit || true
+
+  # **The images, and proof they serve.** The defect that made this job necessary was a `COPY` of
+  # a file the build never produced — green everywhere and broken on first run.
+  #
+  # MySQL is started here as a container on a network this job creates, rather than as a
+  # `services:` block. On GitLab that was forced: a service is a sibling of the job container and
+  # invisible to the daemon that runs the image under test. Here either would work, and this one
+  # is kept because it is the arrangement that has actually been executed.
+  images:
+    runs-on: ubuntu-latest
+    needs: [jvm, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui
+          path: vectispire-angular/dist
+      - name: build both images with Jib
+        run: |
+          cd vectispire-java
+          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild -x test \
+            -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
+      - name: the control plane image starts, migrates and serves
+        run: |
+          docker network create smoke
+          docker run -d --name db --network smoke \
+            -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
+            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire mysql:8
+          # Waited for before the application starts, not alongside it: Hikari is configured to
+          # fail fast, so a control plane that boots one second early does not retry — it exits,
+          # and the job reports a broken image when the truth is a slow database.
+          for attempt in $(seq 1 120); do
+            if docker run --rm --network smoke mysql:8 \
+                 mysqladmin ping -h db -u vectispire -pvectispire --silent > /dev/null 2>&1; then
+              echo "database ready after ${attempt}s"; break
+            fi
+            if [ "$attempt" -eq 120 ]; then
+              echo "the database never became reachable — last 100 lines:"; docker logs --tail 100 db; exit 1
+            fi
+            sleep 1
+          done
+          docker run -d --name vectispire-smoke --network smoke \
+            -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
+            -e VECTISPIRE_DB_USER=vectispire \
+            -e VECTISPIRE_DB_PASSWORD=vectispire \
+            -e ENCRYPTION_KEY="Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=" \
+            -e VECTISPIRE_BOOTSTRAP_PASSWORD="CiSmoke2026!" \
+            -e VECTISPIRE_EMBEDDED_WORKER=false \
+            vectispire:latest
+          # Probed from inside the container's own network namespace: the runner and the container
+          # under test do not share `localhost`.
+          for attempt in $(seq 1 90); do
+            if docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
+                 -sf http://localhost:3180/actuator/health > /dev/null 2>&1; then
+              echo "control plane image healthy after ${attempt}s"
+              docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
+                -sf -o /dev/null http://localhost:3180/ \
+                || { echo "the image serves the API but not the interface"; exit 1; }
+              echo "interface served"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "the image did not become healthy — last 100 lines:"
+          docker logs --tail 100 vectispire-smoke
+          exit 1
+      - if: always()
+        run: docker logs --tail 200 vectispire-smoke || true

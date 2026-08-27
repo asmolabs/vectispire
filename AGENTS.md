@@ -26,10 +26,16 @@ npm run build                                     # the Angular interface
 npm test
 ```
 
-**CI is [`.gitlab-ci.yml`](.gitlab-ci.yml).** The GitHub Actions that preceded it are archived
-under [`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/) — moved out
-of `.github/` because a file there is a trigger, not a document, and pushing this repository to
-GitHub would start all three. The only
+**Two pipelines exist, and only one runs today.**
+[`.gitlab-ci.yml`](.gitlab-ci.yml) is the live one: GitLab is the forge, and every green tick you
+see came from it. [`.github/workflows/`](.github/workflows/) holds the port prepared for the move
+to GitHub — inert while the remote is GitLab, which does not read it, and **untested on a runner**
+until the first push over there.
+
+If you add a check before the move, add it to **both** or the move loses it. After the move,
+delete the GitLab file rather than leaving two; the ones that preceded this port are archived
+under [`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/), and the
+reason they had to leave `.github/` is written there. The only
 remote is GitLab, which does not execute GitHub Actions, so for most of this project's life
 *nothing had ever been verified by a machine* — the workflows are kept as a record of what the
 checks were, and they are not what runs. If you add a check, add it to `.gitlab-ci.yml` or it
