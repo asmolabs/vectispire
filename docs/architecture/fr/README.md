@@ -30,8 +30,10 @@ existent.
 - [`docs/fr/GETTING_STARTED.fr.md`](../../fr/GETTING_STARTED.fr.md) — installation et exécution.
 - [`docs/fr/TECHNICAL_DOCUMENTATION.fr.md`](../../fr/TECHNICAL_DOCUMENTATION.fr.md) — référence des
   modules et paramètres.
-- [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — rotation des clés et
-  purge des données brutes.
+- [`docs/fr/KEY_ROTATION.fr.md`](../../fr/KEY_ROTATION.fr.md) — faire tourner `ENCRYPTION_KEY`
+  sur un déploiement vivant, et ce qu'une rotation ne couvre pas.
+- [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — le compte rendu de
+  l'exposition d'identifiants d'août 2026 et de la purge GitHub. Un récit, pas une procédure.
 - [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des
   endpoints REST.
 - [`docs/fr/CI_CD_INTEGRATION.fr.md`](../../fr/CI_CD_INTEGRATION.fr.md) — guide d'intégration CI/CD

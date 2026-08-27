@@ -79,5 +79,6 @@ npm --workspace @vectispire/frontend start
 
 - [Guide de Démarrage](docs/fr/GETTING_STARTED.fr.md) (`docs/en/GETTING_STARTED.md` en anglais)
 - [Documentation Technique](docs/fr/TECHNICAL_DOCUMENTATION.fr.md) (`docs/en/TECHNICAL_DOCUMENTATION.md` en anglais)
-- [Rotation des Secrets et Purge](docs/fr/ROTATION_AND_PURGE.fr.md) (`docs/en/ROTATION_AND_PURGE.md` en anglais)
+- [Rotation d'`ENCRYPTION_KEY`](docs/fr/KEY_ROTATION.fr.md) (`docs/en/KEY_ROTATION.md` en anglais)
+- [Exposition d'identifiants d'août 2026 et purge](docs/fr/ROTATION_AND_PURGE.fr.md) — un compte rendu, pas une procédure
 - [Registre des Décisions d'Architecture (ADR)](docs/architecture/fr/decisions/README.md)

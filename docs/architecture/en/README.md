@@ -29,8 +29,10 @@ from the folder above — a reader who enters at this page should not have to gu
 - [`docs/en/GETTING_STARTED.md`](../../en/GETTING_STARTED.md) — install and run.
 - [`docs/en/TECHNICAL_DOCUMENTATION.md`](../../en/TECHNICAL_DOCUMENTATION.md) — reference for
   modules and settings.
-- [`docs/en/ROTATION_AND_PURGE.md`](../../en/ROTATION_AND_PURGE.md) — encryption key rotation and
-  purging.
+- [`docs/en/KEY_ROTATION.md`](../../en/KEY_ROTATION.md) — rotating `ENCRYPTION_KEY` on a live
+  deployment, and what a rotation does not cover.
+- [`docs/en/ROTATION_AND_PURGE.md`](../../en/ROTATION_AND_PURGE.md) — the record of the August 2026
+  credential exposure and the GitHub purge. An account of what happened, not a procedure.
 - [`docs/en/api/rest_api_reference.md`](../../en/api/rest_api_reference.md) — complete REST API
   endpoints reference.
 - [`docs/en/CI_CD_INTEGRATION.md`](../../en/CI_CD_INTEGRATION.md) — CI/CD integration guide &

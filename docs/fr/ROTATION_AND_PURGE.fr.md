@@ -105,38 +105,9 @@ ce qui limite les conséquences d'un agent compromis.
 
 ### 1.6 Faire tourner `ENCRYPTION_KEY` elle-même
 
-Utile au-delà de cet incident, et impossible jusqu'ici : changer `ENCRYPTION_KEY` rendait
-d'un coup tous les secrets stockés illisibles, et la procédure documentée consistait à ressaisir
-chaque valeur à la main.
-
-```bash
-ENCRYPTION_KEY="<nouvelle clé>" \
-VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<ancienne clé>" \
-cd vectispire-java && ./gradlew :vectispire-core:bootRun
-```
-
-L'ancienne clé sert **au déchiffrement uniquement** : toute écriture passe sous la nouvelle. Les
-valeurs migrent donc au fur et à mesure qu'elles sont ré-enregistrées, et la page *Clés SSH*
-affiche **« À tourner »** tant qu'une ligne dépend encore de l'ancienne — l'ancienne clé sort de
-l'environnement quand plus aucune ligne ne l'affiche. Plusieurs clés précédentes peuvent être
-listées, séparées par des virgules, pour une rotation interrompue.
-
-**En production, les deux moitiés appartiennent à des fichiers, pas à cette ligne de commande.**
-`ENCRYPTION_KEY_FILE` et `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` prennent des chemins — un
-montage de secret Docker ou Kubernetes — et gardent les deux clés hors de `/proc/<pid>/environ`,
-de `docker inspect`, des journaux de l'orchestrateur et de l'historique de ce shell. La seconde
-variable existe précisément pour ce moment : une rotation est le moment où deux clés sont
-vivantes en même temps, et sans elle l'ancienne clé — qui déchiffre encore de vraies lignes —
-devrait retourner dans l'environnement pour achever une rotation dont tout l'objet était d'en
-sortir la nouvelle. Le fichier contient la même liste, séparée par des virgules ou des retours à
-la ligne, une clé par ligne étant la forme lisible dès lors qu'elle n'est plus comprimée sur une
-ligne de shell.
-
-Définir une variable *et* sa forme `_FILE` ensemble est refusé au démarrage plutôt que
-départagé, de sorte que la migration de l'une vers l'autre est terminée quand vous le croyez. Et
-un chemin qui ne résout pas arrête l'application au lieu de démarrer sans clé — ce qui compte ici
-plus qu'ailleurs, car un déploiement sans clé continue de tout lire et ne refuse que les
-nouvelles écritures : en pleine rotation, cela ressemble exactement à un succès.
+**Déplacée vers [`KEY_ROTATION.fr.md`](KEY_ROTATION.fr.md).** C'était la seule partie de ce
+document qui survit à l'incident, et la laisser ici obligeait quiconque cherchait la procédure à
+lire le récit d'une exposition d'identifiants pour la trouver.
 
 ---
 

@@ -105,36 +105,9 @@ precisely what limits the consequences of a compromised agent.
 
 ### 1.6 Rotating `ENCRYPTION_KEY` itself
 
-Useful beyond this incident, and impossible until now: changing `ENCRYPTION_KEY` made every
-stored secret unreadable at once, and the documented procedure was to re-enter each value
-by hand.
-
-```bash
-ENCRYPTION_KEY="<new key>" \
-VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<old key>" \
-cd vectispire-java && ./gradlew :vectispire-core:bootRun
-```
-
-The old key is used **for decryption only**: every write goes under the new one. Values
-therefore migrate as they are re-saved, and the *SSH keys* page shows **"To rotate"** as
-long as a row still depends on the old one — the old key comes out of the environment when
-no row shows it any more. Several previous keys can be listed, comma-separated, for an
-interrupted rotation.
-
-**In production both halves belong in files, not on that command line.** `ENCRYPTION_KEY_FILE`
-and `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` take paths — a Docker or Kubernetes secret mount —
-and keep the two keys out of `/proc/<pid>/environ`, `docker inspect`, the orchestrator's logs and
-this shell's history. The second variable exists precisely for this moment: a rotation is when two
-keys are live at once, and without it the old key — which still decrypts real rows — would have to
-go back into the environment to finish a rotation whose whole point was getting the new one out of
-it. The file holds the same list, comma- or newline-separated, one key per line being the readable
-form once it is no longer squeezed onto a shell line.
-
-Setting a variable *and* its `_FILE` form together is refused at startup rather than ranked, so
-the migration from one to the other is finished when you think it is. And a path that does not
-resolve stops the application instead of starting with no key — which matters here more than
-anywhere, because a deployment with no key goes on reading everything it stored and only refuses
-new writes: mid-rotation, that reads exactly like success.
+**Moved to [`KEY_ROTATION.md`](KEY_ROTATION.md).** It was the one part of this document that
+outlives the incident, and leaving it here meant anybody looking for the procedure had to read an
+account of a credential exposure to find it.
 
 ---
 
