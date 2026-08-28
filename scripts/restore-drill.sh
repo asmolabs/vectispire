@@ -60,7 +60,7 @@ BLIND_VOL="${PREFIX}-mirror-empty"
 
 # Not a secret, and it must not look like one: the drill's database is created and destroyed
 # inside this script. A real deployment's key comes from ENCRYPTION_KEY_FILE — see the runbook.
-DRILL_KEY="ZHJpbGwta2V5LW5vdC1hLXNlY3JldC0zMmJ5dGVz"
+DRILL_KEY="ZHJpbGwtdmVjdG9yLWtleS1ub3QtYS1zZWNyZXQtMzI="
 BOOTSTRAP_PASSWORD="AdminVectispire2026!"
 ROTATED_PASSWORD="DrillVectispire2026!"
 MIRROR_PATH="/var/lib/vectispire/audit/audit.ndjson"

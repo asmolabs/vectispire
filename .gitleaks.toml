@@ -26,4 +26,8 @@ regexes = [
   # `SecretCipherTest` was written under — it has to stay fixed, because the whole point of that
   # test is that today's code can still read a ciphertext an earlier build produced.
   '''a2F0LXZlY3Rvci1rZXktbm90LWEtc2VjcmV0LTMyYnk=''',
+  # Decoded: `drill-vector-key-not-a-secret-32`. The nightly restore drill's throwaway key. It is
+  # in the script rather than a CI variable on purpose: the drill creates and destroys its own
+  # database inside one run, and a value nobody can look up is a value nobody can check is fake.
+  '''ZHJpbGwtdmVjdG9yLWtleS1ub3QtYS1zZWNyZXQtMzI=''',
 ]
