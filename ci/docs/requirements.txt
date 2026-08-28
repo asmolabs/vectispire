@@ -1,0 +1,11 @@
+# Les dépendances du site de documentation.
+#
+# Bornées à la majeure, pas épinglées au patch, contrairement aux images de scanners que la CI
+# épingle par digest. La différence est délibérée : un digest de scanner décide de ce qu'un scan
+# *trouve*, donc le laisser bouger fait varier un verdict sans que personne ne l'ait décidé. Ici
+# le pire qu'une version mineure puisse faire est de changer l'apparence d'une page.
+#
+# À épingler exactement le jour où une build reproductible du site devient un besoin réel — la
+# première build verte donne le numéro à écrire.
+mkdocs>=1.6,<2
+mkdocs-material>=9.5,<10

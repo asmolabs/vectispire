@@ -43,3 +43,6 @@ vectispire-angular/.playwright/
 # tracked, shared, and `.claude/**` would have hidden the next agent added to it.
 .claude/*
 !.claude/agents/
+
+# La build locale du site de documentation (mkdocs build / mkdocs serve).
+/site/

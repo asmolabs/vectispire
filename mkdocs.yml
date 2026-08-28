@@ -1,0 +1,122 @@
+# Le site de documentation publique, publié sur https://asmolabs.github.io/vectispire/
+#
+# **Le site n'est pas le dépôt.** `docs/` est le dossier de travail interne : 30 rapports d'audit
+# sécurité datés, deux modèles de menaces STRIDE, une revue sécurité/qualité, un dossier de
+# conformité, le registre d'architecture. Rien de tout cela n'est publié, et ce n'est pas une
+# question de longueur : un site public qui expose la liste des faiblesses connues et l'état de
+# leur remédiation rend un service à la mauvaise personne.
+#
+# Le site a donc sa propre source, `docs-site/`, écrite pour un lecteur qui *utilise* Vectispire
+# plutôt que pour quelqu'un qui le construit. Les deux arbres ne se croisent pas : `docs_dir` ne
+# voit pas `docs/`, donc aucun document interne ne peut se retrouver publié par accident — pas
+# même en devinant son URL, ce qu'une simple exclusion de navigation n'aurait pas empêché.
+
+site_name: Vectispire
+site_description: How to install, operate and administer Vectispire
+site_url: https://asmolabs.github.io/vectispire/
+repo_url: https://github.com/asmolabs/vectispire
+repo_name: asmolabs/vectispire
+edit_uri: edit/main/docs-site/
+copyright: Apache-2.0 — Asmolabs
+
+docs_dir: docs-site
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+# Les pages renvoient vers le code sur GitHub en URL absolue, jamais en relatif : le code n'est
+# pas sous `docs_dir` et un lien relatif vers lui ne pourrait que casser.
+validation:
+  omitted_files: warn
+  absolute_links: ignore
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Your first scan: getting-started/first-scan.md
+      - Reading the results: getting-started/reading-results.md
+  - User guide:
+      - Dashboard: guide/dashboard.md
+      - Repositories: guide/repositories.md
+      - Container images: guide/containers.md
+      - Scans: guide/scans.md
+      - Issues and triage: guide/issues.md
+      - Code quality: guide/quality.md
+      - Inventory and licenses: guide/inventory-and-licenses.md
+      - Risk analysis: guide/risk-analysis.md
+      - Compliance: guide/compliance.md
+      - History and evidence: guide/history.md
+      - Exports: guide/exports.md
+  - Integrations:
+      - CI policy gate: integrations/ci-gate.md
+      - Notifications: integrations/notifications.md
+      - Tracker tickets: integrations/ticketing.md
+  - Administration:
+      - Users and teams: administration/users-and-teams.md
+      - Single sign-on: administration/sso.md
+      - API keys: administration/api-keys.md
+      - SSH keys: administration/ssh-keys.md
+      - Gate policies: administration/gate-policies.md
+      - Agents: administration/agents.md
+      - Semgrep rule sets: administration/rule-sets.md
+      - Settings: administration/settings.md
+      - Audit log: administration/audit-log.md
+      - Rotation and purge: administration/maintenance.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - FAQ: reference/faq.md

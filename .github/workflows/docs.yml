@@ -1,0 +1,65 @@
+# Le site de documentation, publié sur https://asmolabs.github.io/vectispire/
+#
+# **Séparé de `verify` exprès.** La pipeline de vérification tourne sur chaque push et chaque
+# merge request ; publier depuis elle voudrait dire soit publier depuis une branche, soit ajouter
+# une condition de branche à un job qui n'en a pas besoin. Un workflow qui ne se déclenche que
+# sur `main` et seulement quand la source du site a changé dit ce qu'il fait dans son `on:`.
+#
+# Chaque `uses:` est épinglé à un SHA de commit, la version en commentaire de fin, comme dans
+# `ci.yml`. Un tag est mutable : `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` désigne ce que son propriétaire décide
+# aujourd'hui, et ce workflow détient `pages: write` et un jeton OIDC.
+
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - 'mkdocs.yml'
+      - 'ci/docs/requirements.txt'
+      - '.github/workflows/docs.yml'
+  # Pour republier sans commit — après avoir activé Pages, par exemple.
+  workflow_dispatch:
+
+# Lecture du dépôt, écriture sur Pages, et un jeton OIDC parce que `deploy-pages` s'authentifie
+# avec, sans secret à détenir.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une publication en cours n'est pas annulée : la page à moitié déployée serait servie.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ci/docs/requirements.txt
+      - run: pip install -r ci/docs/requirements.txt
+      # `--strict` transforme les avertissements en échec : un lien mort ou une page absente de
+      # la navigation arrête la publication au lieu de partir en ligne sans que personne ne lise
+      # le log.
+      - run: mkdocs build --strict
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
