@@ -30,4 +30,9 @@ regexes = [
   # in the script rather than a CI variable on purpose: the drill creates and destroys its own
   # database inside one run, and a value nobody can look up is a value nobody can check is fake.
   '''ZHJpbGwtdmVjdG9yLWtleS1ub3QtYS1zZWNyZXQtMzI=''',
+  # Decoded: `drill-key-not-a-secret-32bytes`. The drill's first key, superseded the same day
+  # because 30 bytes fell through to the passphrase branch. It stays listed because gitleaks
+  # scans history: the value is gone from the working tree and cannot leave the commit that
+  # introduced it without rewriting the branch, which is a far larger price than one line here.
+  '''ZHJpbGwta2V5LW5vdC1hLXNlY3JldC0zMmJ5dGVz''',
 ]
