@@ -143,3 +143,27 @@ jobs:
             vectispire-angular/playwright-report/
             vectispire-angular/test-results/
           retention-days: 7
+
+  # **The restore, executed.** A backup procedure nobody has run is a belief, and the one that
+  # matters here is not "does the dump load" — it is whether the audit mirror still witnesses what
+  # a restore lost. The drill takes a dump from a live control plane, performs audited actions
+  # after it, restores into an empty engine keeping the live mirror, and asserts the arithmetic;
+  # then it repeats the restore with the mirror thrown away and asserts that the loss has become
+  # invisible. If that second assertion ever stops holding, `docs/en/BACKUP_AND_RESTORE.md` is
+  # describing a hazard that no longer has that shape.
+  #
+  # Built through the Dockerfile rather than Jib: the drill drives the API and never loads a page,
+  # so the interface bundle Jib wants would be twenty minutes bought for nothing.
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile -t vectispire:latest .
+      - run: ./scripts/restore-drill.sh
+      - if: failure()
+        name: what the containers had to say
+        run: |
+          for c in drill-app-origin drill-app-restored drill-app-blind drill-db-origin drill-db-restored; do
+            echo "═══ $c"; docker logs --tail 80 "$c" 2>&1 || echo "  (absent)"
+          done

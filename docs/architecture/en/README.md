@@ -31,6 +31,9 @@ from the folder above — a reader who enters at this page should not have to gu
   modules and settings.
 - [`docs/en/KEY_ROTATION.md`](../../en/KEY_ROTATION.md) — rotating `ENCRYPTION_KEY` on a live
   deployment, and what a rotation does not cover.
+- [`docs/en/BACKUP_AND_RESTORE.md`](../../en/BACKUP_AND_RESTORE.md) — backing up the three states,
+  restoring, and why the audit mirror must not be restored alongside the database. Verified
+  nightly by `scripts/restore-drill.sh`.
 - [`docs/en/ROTATION_AND_PURGE.md`](../../en/ROTATION_AND_PURGE.md) — the record of the August 2026
   credential exposure and the GitHub purge. An account of what happened, not a procedure.
 - [`docs/en/api/rest_api_reference.md`](../../en/api/rest_api_reference.md) — complete REST API
