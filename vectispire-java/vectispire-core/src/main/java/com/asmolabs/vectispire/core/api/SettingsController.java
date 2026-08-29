@@ -192,7 +192,21 @@ public class SettingsController {
         if (urlAfter.isBlank()) {
             urlAfter = providerAfter == AiProvider.OPENAI ? AiReview.DEFAULT_OPENAI_URL : AiReview.DEFAULT_OLLAMA_URL;
         }
-        aiReview.requireLocalUnlessAcknowledged(providerAfter, urlAfter, remoteAfter);
+
+        // **A save that takes the acknowledgement away is never refused.** The check below asks
+        // whether the resulting configuration may send code off-site, and answers by refusing a
+        // public destination — which meant that switching the acknowledgement off while the
+        // provider was still `openai` produced a 422 naming a URL the operator had not touched.
+        // The only way out was to send both changes at once, and nothing said so. A guard that
+        // stops the configuration from becoming *safer* is pointing the wrong way.
+        //
+        // Letting it through costs nothing: `validatedUrl()` runs the same guard on every single
+        // review, so `openai` with the acknowledgement off simply sends nowhere. The refusal was
+        // buying a state that the review path already refused.
+        boolean withdrawsAcknowledgement = !remoteAfter && "true".equals(previousAcknowledgement);
+        if (!withdrawsAcknowledgement) {
+            aiReview.requireLocalUnlessAcknowledged(providerAfter, urlAfter, remoteAfter);
+        }
 
         // All validated before any is written: a partial write would leave the configuration
         // half-way between two intended states.
@@ -348,7 +362,16 @@ public class SettingsController {
      *
      * <p>It reports rather than throws: "unreachable" is an answer to the question the button
      * asks, not an error in asking it.
+     *
+     * <p><b>Narrowed to whoever may configure the endpoint</b>, which is the same set as the route
+     * that writes it rather than the narrower administrator marker — testing a field one is
+     * allowed to edit should not need a second account. Under the class marker alone it was
+     * reachable by any signed-in reader, and it answers with the configured URL: the one value
+     * `ai_review_ollama_url` is marked {@code SECRET} to keep out of exactly those hands, since an
+     * internal model endpoint describes the estate's topology. It also makes the server open an
+     * outbound connection on the caller's say-so, which is not a reader's to spend.
      */
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')")
     @PostMapping("/ollama-test")
     public OllamaCheck testOllama() {
         String model = aiReview.selectedModel();
