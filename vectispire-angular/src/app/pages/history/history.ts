@@ -8,7 +8,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
-import type { HistoryDossier, HistoryRepository, HistoryScan } from '../../core/api.models';
+import type { HistoryDossier, HistoryIssue, HistoryRepository, HistoryScan } from '../../core/api.models';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     critical: 'danger',
@@ -18,6 +18,30 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     negligible: 'secondary',
     unknown: 'secondary'
 };
+
+/**
+ * Severity as a rank, in the order the issues screen already uses.
+ *
+ * **Numeric and not the word, because the word sorts wrong.** Alphabetically "low" falls between
+ * "high" and "medium", so a table sorting the label puts a low finding above a medium one — a
+ * reader scanning the top of the list for what matters would be reading the wrong rows. The rank
+ * is attached to each row for the same reason: the table sorts what it is given, and giving it
+ * the label is giving it the alphabet.
+ *
+ * An unrecognised value ranks last rather than first: a severity nobody has mapped is not
+ * evidence of danger, and putting it above "critical" would push the real ones down.
+ */
+const SEVERITY_RANK: Record<string, number> = {
+    critical: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
+    negligible: 4,
+    unknown: 5
+};
+
+/** A finding carrying its rank, so the column can sort on a number the reader never sees. */
+type RankedIssue = HistoryIssue & { severityRank: number };
 
 /** Triage statuses in words. Open table: an unknown value is shown raw rather than hidden. */
 const TRIAGE_LABELS: Record<string, string> = {
@@ -78,7 +102,7 @@ export class History {
 
     open(repository: HistoryRepository): void {
         this.api.historyDossier(repository.id).subscribe({
-            next: (file) => this.dossier.set(file),
+            next: (file) => this.dossier.set(ranked(file)),
             error: () => this.error.set('This target’s dossier could not be loaded.')
         });
     }
@@ -128,4 +152,29 @@ export class History {
         }
         return issue.filePath ?? '—';
     }
+}
+
+/**
+ * Ranks and orders every scan's findings, worst first.
+ *
+ * <p>Done on arrival rather than left to the table's default order, which is the server's — the
+ * order rows were written, in which a critical finding can sit below thirty low ones. The reader
+ * of this page is answering "was this taken seriously"; the answer must be at the top.
+ *
+ * <p>Copies rather than sorting in place: the dossier is what the exports read, and a shared array
+ * reordered underneath them would change a PDF's contents as a side effect of opening a screen.
+ */
+function ranked(dossier: HistoryDossier): HistoryDossier {
+    return {
+        ...dossier,
+        scans: dossier.scans.map((scan) => ({
+            ...scan,
+            issues: scan.issues
+                .map((issue): RankedIssue => ({
+                    ...issue,
+                    severityRank: SEVERITY_RANK[issue.severity ?? 'unknown'] ?? SEVERITY_RANK['unknown']
+                }))
+                .sort((left, right) => left.severityRank - right.severityRank)
+        }))
+    };
 }

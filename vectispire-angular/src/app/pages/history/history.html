@@ -122,11 +122,18 @@
                         [value]="scan.issues"
                         dataKey="id"
                         styleClass="p-datatable-sm mt-2"
+                        sortField="severityRank"
+                        [sortOrder]="1"
                         [paginator]="scan.issues.length > 15"
                         [rows]="15">
                         <ng-template #header>
                             <tr>
-                                <th style="width: 7rem">{{ 'history.severity' | translate }}</th>
+                                <!-- Sorted on the rank and not on the label: alphabetically "low"
+                                     lands between "high" and "medium". -->
+                                <th style="width: 7rem" pSortableColumn="severityRank">
+                                    {{ 'history.severity' | translate }}
+                                    <p-sortIcon field="severityRank" />
+                                </th>
                                 <th style="width: 12rem">{{ 'history.identifier' | translate }}</th>
                                 <th>{{ 'history.component' | translate }}</th>
                                 <th style="width: 7rem">{{ 'history.state' | translate }}</th>
