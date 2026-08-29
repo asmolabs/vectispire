@@ -83,7 +83,7 @@
     "settings": "Paramètres",
     "settings_general": "Paramètres & SLA",
     "settings_scanners": "Moteurs & Scanners",
-    "settings_ai": "Revue IA (Ollama)",
+    "settings_ai": "IA",
     "settings_integrations": "Intégrations & SIEM",
     "settings_threat_intel": "Threat Intelligence"
   },
@@ -357,7 +357,7 @@
     "tabs": {
       "general": "Paramètres & SLA",
       "scanners": "Moteurs & Scanners",
-      "ai": "Revue IA (Ollama)",
+      "ai": "IA",
       "integrations": "Intégrations & SIEM",
       "threat_intel": "Threat Intelligence"
     },
@@ -373,7 +373,7 @@
       "end_of_life": "Obsolescence & Fin de vie (EOL)",
       "source_code": "Code source & SAST",
       "enrichment": "Enrichissement & Threat Intelligence",
-      "local_ai": "Revue IA locale (Ollama)",
+      "local_ai": "Revue IA",
       "ticketing": "Intégration Ticketing (Jira / GitHub / GitLab)",
       "notifications": "Notifications & Alertes",
       "retention": "Rétention & Purge des données"
@@ -436,8 +436,16 @@
         "help": "Signe chaque payload avec HMAC-SHA256 dans l'en-tête X-Vectispire-Signature (chiffré au repos)."
       },
       "ai_review_enabled": {
-        "label": "Activer la revue IA locale (Ollama)",
-        "help": "Permet d'évaluer le contexte et la sévérité réelle des failles localement sans fuite de données vers un cloud tiers."
+        "label": "Activer la revue IA",
+        "help": "Évalue le contexte et la sévérité réelle des failles. Le code analysé part vers le fournisseur choisi ci-dessous : local avec Ollama, chez un tiers avec une API publique."
+      },
+      "ai_review_provider": {
+        "label": "Fournisseur",
+        "help": "« Ollama » garde le code sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
+      },
+      "ai_review_openai_url": {
+        "label": "URL de l'API compatible OpenAI",
+        "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie le code chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
       },
       "ai_review_ollama_url": {
         "label": "URL de l'instance Ollama",

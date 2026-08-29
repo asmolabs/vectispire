@@ -55,7 +55,11 @@ class SettingTest {
                         // webhook and close somebody's finding, which is the whole reason it
                         // exists — so it is a bearer capability in the same sense as the rest.
                         Setting.TICKET_WEBHOOK_SECRET,
-                        Setting.AI_REVIEW_OLLAMA_URL);
+                        Setting.AI_REVIEW_OLLAMA_URL,
+                        // Spends the account it belongs to. Stored encrypted and written through
+                        // its own route, like the tracker token — the marker here is what keeps
+                        // the catalog from handing the row to every signed-in account.
+                        Setting.AI_REVIEW_OPENAI_KEY);
     }
 
     @Test

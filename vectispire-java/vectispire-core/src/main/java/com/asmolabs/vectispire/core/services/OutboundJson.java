@@ -53,9 +53,26 @@ public class OutboundJson {
      * @param label what the operator would call this destination, for the message they will read
      */
     public Optional<JsonNode> get(String url, OutboundPolicy policy, String label) {
+        return get(url, policy, label, Map.of());
+    }
+
+    /**
+     * The same, for a catalogue that will not answer an anonymous caller.
+     *
+     * <p>Plain pairs rather than a request builder, for the reason {@code OutboundPost} gives:
+     * a header is a header, and taking a builder here would pin this signature to one HTTP client.
+     *
+     * @param headers what this destination needs beyond the content type, typically authentication
+     */
+    public Optional<JsonNode> get(
+            String url, OutboundPolicy policy, String label, Map<String, String> headers) {
+        Map<String, String> all = new java.util.LinkedHashMap<>(headers);
+        // Accept last: a caller cannot quietly turn this into a request for something else.
+        all.put("Accept", "application/json");
+
         PinnedHttpSender.Response response = sender.send(
                 guard.validateAndResolve(url, policy, label),
-                Map.of("Accept", "application/json"),
+                Map.copyOf(all),
                 null,
                 TIMEOUT,
                 label);

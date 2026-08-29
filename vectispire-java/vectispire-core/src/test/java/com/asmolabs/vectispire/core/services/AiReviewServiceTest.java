@@ -7,10 +7,13 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -28,6 +31,7 @@ class AiReviewServiceTest {
     private SettingsService settings;
     private OutboundJson get;
     private OutboundPost post;
+    private EncryptionService encryption;
     private AiReviewService service;
 
     @BeforeEach
@@ -35,12 +39,13 @@ class AiReviewServiceTest {
         settings = mock(SettingsService.class);
         get = mock(OutboundJson.class);
         post = mock(OutboundPost.class);
-        service = new AiReviewService(settings, get, post, JSON);
+        encryption = mock(EncryptionService.class);
+        service = new AiReviewService(settings, get, post, JSON, encryption);
 
         when(settings.get(any())).thenReturn("");
         when(settings.isEnabled(any())).thenReturn(false);
         when(post.validate(anyString(), any(), anyString())).thenAnswer(call -> call.getArgument(0));
-        when(get.get(anyString(), any(), anyString())).thenReturn(Optional.empty());
+        when(get.get(anyString(), any(), anyString(), any())).thenReturn(Optional.empty());
         when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"message\":{\"content\":\"No issue found.\"}}");
     }
@@ -76,7 +81,7 @@ class AiReviewServiceTest {
     @Test
     @DisplayName("an unreachable Ollama yields suggestions, never an empty list presented as installed")
     void modelListingFallsBack() {
-        when(get.get(anyString(), any(), anyString()))
+        when(get.get(anyString(), any(), anyString(), any()))
                 .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
 
         assertThat(service.availableModels()).isEqualTo(AiReview.FALLBACK_MODEL_SUGGESTIONS);
@@ -84,7 +89,7 @@ class AiReviewServiceTest {
 
     @Test
     void listsTheModelsActuallyInstalled() throws Exception {
-        when(get.get(contains("/api/tags"), any(), anyString()))
+        when(get.get(contains("/api/tags"), any(), anyString(), any()))
                 .thenReturn(Optional.of(JSON.readTree("{\"models\":[{\"name\":\"gemma4:12b\"},{\"name\":\"qwen3:8b\"}]}")));
 
         assertThat(service.availableModels()).containsExactly("gemma4:12b", "qwen3:8b");
@@ -107,6 +112,72 @@ class AiReviewServiceTest {
         // review has to know it did not get one.
         assertThatThrownBy(() -> service.reviewCode("class A {}"))
                 .isInstanceOf(OutboundJson.OutboundFailureException.class);
+    }
+
+    @Test
+    @DisplayName("OpenAI is reached on its own path, and its answer is read where it actually sits")
+    void openAiSpeaksItsOwnProtocol() {
+        when(settings.get(Setting.AI_REVIEW_PROVIDER)).thenReturn("openai");
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
+                .thenReturn("{\"choices\":[{\"message\":{\"content\":\"One issue found.\"}}]}");
+
+        assertThat(service.reviewCode("class A {}")).isEqualTo("One issue found.");
+        // Reading Ollama's shape here would yield "", which is indistinguishable from a model that
+        // answered nothing — a review silently reporting no findings is the worst of the failures.
+        verify(post).postForResponse(contains("/chat/completions"), any(), any(), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("the outbound rule is the provider's, not OpenAI's: a public endpoint still needs the acknowledgement")
+    void openAiIsHeldToTheSameGuard() {
+        when(settings.get(Setting.AI_REVIEW_PROVIDER)).thenReturn("openai");
+
+        service.validatedUrl();
+
+        // The whole point of keying the guard on the URL: picking OpenAI does not itself open the
+        // door, and pointing "openai" at a local server does not need it opened.
+        verify(post).validate(contains("api.openai.com"), eq(OutboundPolicy.INTERNAL_REQUIRED), anyString());
+    }
+
+    @Test
+    @DisplayName("an unreadable API key sends no header rather than sending the ciphertext")
+    // `ArgumentCaptor.forClass` cannot carry the map's type parameters, and the build is -Werror.
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void anUndecryptableKeyIsNotSentAsOne() {
+        when(settings.get(Setting.AI_REVIEW_PROVIDER)).thenReturn("openai");
+        when(settings.get(Setting.AI_REVIEW_OPENAI_KEY)).thenReturn("not-decryptable-by-any-key");
+        when(encryption.inspect(anyString(), anyString())).thenReturn(
+                new SecretCipher.Decrypted("", SecretCipher.SecretState.UNREADABLE));
+
+        service.reviewCode("class A {}");
+
+        org.mockito.ArgumentCaptor<java.util.Map<String, String>> headers =
+                org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(post).postForResponse(anyString(), any(), any(), anyString(), headers.capture(), any());
+        // Putting the blob in the header fails as "invalid API key" and sends the operator to
+        // rotate a key that was never the problem. Missing is diagnosable; wrong is not.
+        assertThat(headers.getValue()).doesNotContainKey("Authorization");
+    }
+
+    @Test
+    @DisplayName("without the acceptance, the save is held to an internal destination")
+    void savingWithoutAcknowledgementDemandsALocalEndpoint() {
+        service.requireLocalUnlessAcknowledged(AiProvider.OPENAI, "https://api.openai.com/v1", false);
+
+        // The same guard, and the same policy, as the review itself — so "looks internal" is never
+        // the test: INTERNAL_REQUIRED resolves the name before deciding.
+        verify(post).validate(
+                eq("https://api.openai.com/v1"), eq(OutboundPolicy.INTERNAL_REQUIRED), anyString());
+    }
+
+    @Test
+    @DisplayName("with the acceptance recorded, the save stops asking")
+    void anAcknowledgedConfigurationIsNotSecondGuessed() {
+        service.requireLocalUnlessAcknowledged(AiProvider.OPENAI, "https://api.openai.com/v1", true);
+
+        // Whether that public address is reachable is the review's problem, not the form's. Asking
+        // here would refuse a legitimate endpoint that happens to be down while somebody edits.
+        verify(post, never()).validate(anyString(), any(), anyString());
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.core.services.AiReviewService;
 import com.asmolabs.vectispire.core.services.AuditLogService;
@@ -12,6 +13,7 @@ import com.asmolabs.vectispire.core.services.NotificationService;
 import com.asmolabs.vectispire.core.services.SettingsService;
 import com.asmolabs.vectispire.core.services.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -142,15 +144,57 @@ public class SettingsController {
             Setting setting = Setting.byKey(entry.getKey())
                     .orElseThrow(() -> new IllegalArgumentException("Unknown setting: \"" + entry.getKey() + "\"."));
             String value = entry.getValue() == null ? "" : entry.getValue().trim();
+            // **The acceptance record is written by this server or not at all.** It is in the
+            // catalog so a screen can display it; accepting it on the wire would let the person
+            // who opened the public endpoint also choose whose name and date sit against that
+            // decision, which is the one thing the record exists to prevent.
+            if (setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_BY
+                    || setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_AT) {
+                throw new IllegalArgumentException(
+                        setting.label() + " is recorded by the server when the public endpoint is turned on, "
+                                + "and cannot be set here.");
+            }
             setting.validate(value).ifPresent(problem -> {
                 throw new IllegalArgumentException(setting.label() + " — " + problem);
             });
             changes.add(new Change(setting, value));
         }
 
+        // **The AI destination is checked against the state this save will produce**, not the one
+        // in the database now: half of it may be in this very request. Done before any write, like
+        // every other validation here — a refusal has to leave the configuration untouched.
+        Map<Setting, String> pending = new java.util.EnumMap<>(Setting.class);
+        changes.forEach(change -> pending.put(change.setting(), change.value()));
+        String previousAcknowledgement = settings.get(Setting.AI_REVIEW_ALLOW_REMOTE);
+        boolean remoteAfter = "true".equals(
+                pending.getOrDefault(Setting.AI_REVIEW_ALLOW_REMOTE, previousAcknowledgement));
+        AiProvider providerAfter = AiProvider.of(
+                pending.getOrDefault(Setting.AI_REVIEW_PROVIDER, settings.get(Setting.AI_REVIEW_PROVIDER)));
+        String urlAfter = providerAfter == AiProvider.OPENAI
+                ? pending.getOrDefault(Setting.AI_REVIEW_OPENAI_URL, aiReview.openAiUrl())
+                : pending.getOrDefault(Setting.AI_REVIEW_OLLAMA_URL, aiReview.ollamaUrl());
+        if (urlAfter.isBlank()) {
+            urlAfter = providerAfter == AiProvider.OPENAI ? AiReview.DEFAULT_OPENAI_URL : AiReview.DEFAULT_OLLAMA_URL;
+        }
+        aiReview.requireLocalUnlessAcknowledged(providerAfter, urlAfter, remoteAfter);
+
         // All validated before any is written: a partial write would leave the configuration
         // half-way between two intended states.
         changes.forEach(change -> settings.set(change.setting(), change.value()));
+
+        // **The acceptance is stamped here, by the server, or erased here.** Recorded after the
+        // write so it describes a configuration that exists, and only on the transition — saving
+        // an unrelated setting while the switch is already on must not rewrite whose decision it
+        // was, or the record would name whoever edited the screen last.
+        if (pending.containsKey(Setting.AI_REVIEW_ALLOW_REMOTE)
+                && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
+            if (remoteAfter) {
+                aiReview.recordRiskAcknowledgement(
+                        principal.user().map(user -> user.getUsername()).orElse(""), Instant.now());
+            } else {
+                aiReview.clearRiskAcknowledgement();
+            }
+        }
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.SETTING_UPDATED,
@@ -265,7 +309,17 @@ public class SettingsController {
      * @param detail what to do about it, in a sentence, because a boolean pair is a puzzle
      */
     public record OllamaCheck(
-            boolean reachable, boolean modelInstalled, String model, String url, List<String> models, String detail) {}
+            boolean reachable,
+            boolean modelInstalled,
+            String model,
+            String url,
+            List<String> models,
+            String detail,
+            String provider,
+            // **Not "the code left the estate" — "a destination outside it is permitted".** Whether
+            // this URL actually resolves outside is the guard's answer, made per request; claiming
+            // more than that here would be a badge that is wrong in both directions.
+            boolean remoteAllowed) {}
 
     /**
      * Asks the configured Ollama what it holds.
@@ -282,13 +336,30 @@ public class SettingsController {
     @PostMapping("/ollama-test")
     public OllamaCheck testOllama() {
         String model = aiReview.selectedModel();
+        AiProvider provider = aiReview.provider();
+        // Two forms on purpose: `name` goes into sentences a person reads, `wireName` into the
+        // field a client compares against.
+        String name = provider.displayName();
+        boolean remoteAllowed = aiReview.allowRemote();
         String url;
         try {
             url = aiReview.validatedUrl();
         } catch (RuntimeException refused) {
             // A public URL with no acknowledgement lands here. It is a configuration answer, and
             // the operator needs the reason rather than a red cross.
-            return new OllamaCheck(false, false, model, aiReview.ollamaUrl(), List.of(), refused.getMessage());
+            return new OllamaCheck(
+                    false, false, model, aiReview.baseUrl(), List.of(), refused.getMessage(),
+                    provider.wireName(), remoteAllowed);
+        }
+
+        // **Checked before the call, not after it fails.** OpenAI answers an unauthenticated
+        // request with a 401 that `availableModels` swallows into "unreachable" — sending the
+        // operator to check a network path that is fine, over a key they never set.
+        if (provider == AiProvider.OPENAI && !aiReview.hasOpenAiKey()) {
+            return new OllamaCheck(false, false, model, url, List.of(),
+                    "No API key is stored for " + url + ". Set one, or point this at a local endpoint that "
+                            + "authenticates nobody.",
+                    provider.wireName(), remoteAllowed);
         }
 
         List<String> models = aiReview.availableModels();
@@ -296,11 +367,13 @@ public class SettingsController {
         // dropdown and wrong for a test: the fallback list is indistinguishable from an installed
         // one unless the URL is asked a second time. Equality with the suggestions is what
         // separates "the host answered" from "the host did not".
-        boolean reachable = !models.equals(AiReview.FALLBACK_MODEL_SUGGESTIONS);
+        boolean reachable = !models.equals(AiReview.FALLBACK_MODEL_SUGGESTIONS)
+                && !models.equals(AiReview.OPENAI_MODEL_SUGGESTIONS);
 
         if (!reachable) {
             return new OllamaCheck(false, false, model, url, List.of(),
-                    "No answer from " + url + ". Is Ollama running, and reachable from this process?");
+                    "No answer from " + url + ". Is " + name + " running, and reachable from this process?",
+                    provider.wireName(), remoteAllowed);
         }
         boolean installed = models.contains(model);
         return new OllamaCheck(
@@ -310,8 +383,48 @@ public class SettingsController {
                 url,
                 models,
                 installed
-                        ? "Reachable, and \"" + model + "\" is installed."
-                        : "Reachable, but \"" + model + "\" is not installed there. Pull it, or pick one of the "
-                                + models.size() + " it holds.");
+                        ? "Reachable, and \"" + model + "\" is available."
+                        : "Reachable, but \"" + model + "\" is not available there. Pick one of the "
+                                + models.size() + " it offers.",
+                provider.wireName(),
+                remoteAllowed);
+    }
+
+    /**
+     * Stores the API key for an OpenAI-compatible endpoint.
+     *
+     * <p>Its own route for the same reasons as the tracker token and the webhook secret: encrypted
+     * at rest, never rendered back into a form, and an exception at every step of the generic path
+     * is an exception somebody eventually forgets.
+     */
+    @RequiresAdministrator
+    @PutMapping("/ai-openai-key")
+    public Map<String, Boolean> setOpenAiKey(
+            @RequestBody SecretRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        String key = body == null || body.secret() == null ? "" : body.secret();
+        aiReview.setOpenAiKey(key);
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                Setting.AI_REVIEW_OPENAI_KEY.key(),
+                // Never the value: whoever reads this table would otherwise be able to spend the
+                // account, and the audit log is deliberately never purged.
+                key.isBlank()
+                        ? "AI provider API key cleared."
+                        : "AI provider API key stored.",
+                principal.user().map(user -> user.getUsername()).orElse(null),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return Map.of("configured", !key.isBlank());
+    }
+
+    /** Whether a key is stored. Never the key — see the route above. */
+    @GetMapping("/ai-openai-key")
+    public Map<String, Boolean> openAiKeyState() {
+        return Map.of("configured", aiReview.hasOpenAiKey());
     }
 }

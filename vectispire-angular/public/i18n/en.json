@@ -83,7 +83,7 @@
     "settings": "Settings",
     "settings_general": "Settings & SLAs",
     "settings_scanners": "Scanners & Engines",
-    "settings_ai": "AI Review (Ollama)",
+    "settings_ai": "AI",
     "settings_integrations": "Integrations & SIEM",
     "settings_threat_intel": "Threat Intelligence"
   },
@@ -357,7 +357,7 @@
     "tabs": {
       "general": "Settings & SLAs",
       "scanners": "Scanners & Engines",
-      "ai": "AI Review (Ollama)",
+      "ai": "AI",
       "integrations": "Integrations & SIEM",
       "threat_intel": "Threat Intelligence"
     },
@@ -373,7 +373,7 @@
       "end_of_life": "End of Life",
       "source_code": "Source Code",
       "enrichment": "Enrichment",
-      "local_ai": "Local AI Model Review (Ollama)",
+      "local_ai": "AI Review",
       "ticketing": "Ticketing (Jira, GitHub Issues, GitLab)",
       "notifications": "Notifications",
       "retention": "Retention & Purge"

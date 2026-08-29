@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
+import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputNumberModule } from '@openng/optimus-ui/inputnumber';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -12,6 +13,54 @@ import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { OllamaCheck, SettingDefinition, SiemConfig, SiemTestResult, ThreatIntelSyncStatus } from '../../core/api.models';
+
+/**
+ * Settings that are written through their own route and must never appear in the generic form.
+ *
+ * <p>A secret rendered by the catalog is a secret the generic save path will write in clear and
+ * the audit log will record by value — that path stores what it is handed and names every change
+ * `key = value`. These three are encrypted at rest by a route of their own, and each has a field
+ * on this screen that shows "configured" instead of the value.
+ */
+const WRITE_ONLY_SECRETS = new Set(['ticket_token', 'notification_webhook_secret', 'ai_review_openai_key']);
+
+/**
+ * Settings the server stamps and the form may only display.
+ *
+ * <p>They are in the catalog so this screen can show who accepted the data-leak risk and when —
+ * and out of the generic list because an editable field would let the person who opened the public
+ * endpoint also write whose decision it was. The server refuses them on the wire as well; this set
+ * is what keeps the screen from offering an input that would only ever produce an error.
+ */
+const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_risk_acknowledged_at']);
+
+/**
+ * Whether a URL names this machine or its own network — a best-effort read, for a warning only.
+ *
+ * <p><b>Never the authority.</b> The server's outbound guard resolves the name and decides; this
+ * exists so the screen can warn while the operator types, before anything is saved. It errs
+ * towards "not local": a banner that appears when it need not is a question, and one that stays
+ * hidden when it should not is a leak nobody was told about.
+ */
+function isLocalEndpoint(url: string): boolean {
+    let host: string;
+    try {
+        host = new URL(url.trim()).hostname.toLowerCase();
+    } catch {
+        return false;
+    }
+    if (host === 'localhost' || host.endsWith('.localhost') || host === '::1' || host.endsWith('.internal')) {
+        return true;
+    }
+    if (host === '127.0.0.1' || host.startsWith('127.')) {
+        return true;
+    }
+    // The private IPv4 ranges, and IPv6 unique-local.
+    return /^10\./.test(host)
+        || /^192\.168\./.test(host)
+        || /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+        || /^f[cd][0-9a-f]{2}:/.test(host);
+}
 
 const SEVERITIES = [
     { label: 'Critical', value: 'critical' },
@@ -28,7 +77,7 @@ export type SettingsTab = 'general' | 'scanners' | 'ai' | 'integrations' | 'thre
 @Component({
     selector: 'app-settings',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, ToggleSwitchModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, ToggleSwitchModule, TranslatePipe],
     templateUrl: './settings.html'
 })
 export class Settings {
@@ -74,6 +123,43 @@ export class Settings {
     readonly savingWebhookSecret = signal(false);
     readonly webhookCopied = signal<string | null>(null);
     webhookSecretInput = '';
+
+    readonly openAiKeyConfigured = signal(false);
+    readonly savingOpenAiKey = signal(false);
+    openAiKeyInput = '';
+
+    /** The two wire protocols, offered as a list so the provider is picked rather than typed. */
+    readonly aiProviders = [
+        { label: 'Ollama — a model on a host you run', value: 'ollama' },
+        { label: 'OpenAI-compatible API', value: 'openai' }
+    ];
+
+    /** Which one is selected right now, read from the settings the form holds. */
+    readonly aiProvider = computed(() => this.values()['ai_review_provider'] ?? 'ollama');
+
+    /** The URL in use, named in the warning so it points at something the operator can check. */
+    readonly aiEndpoint = computed(() =>
+        this.aiProvider() === 'openai'
+            ? (this.values()['ai_review_openai_url'] || 'https://api.openai.com/v1')
+            : (this.values()['ai_review_ollama_url'] || 'http://localhost:11434'));
+
+    /**
+     * Whether the current configuration permits the code to leave the estate.
+     *
+     * <p>Two conditions, not one: the acknowledgement is what opens the guard, and the endpoint is
+     * what it opens onto. Either alone is not a leak — an acknowledged setting pointing at
+     * localhost sends nothing, and OpenAI's address without the acknowledgement is refused before
+     * the request is made.
+     */
+    readonly aiSendsCodeOffSite = computed(() => {
+        if (this.values()['ai_review_allow_remote_url'] !== 'true') {
+            return false;
+        }
+        const url = this.aiProvider() === 'openai'
+            ? (this.values()['ai_review_openai_url'] ?? '')
+            : (this.values()['ai_review_ollama_url'] ?? '');
+        return !isLocalEndpoint(url);
+    });
 
     readonly siemConfig = signal<SiemConfig | null>(null);
     readonly savingSiem = signal(false);
@@ -129,7 +215,11 @@ export class Settings {
                     model: '',
                     url: '',
                     models: [],
-                    detail: 'The connection test could not be run.'
+                    detail: 'The connection test could not be run.',
+                    provider: this.aiProvider(),
+                    // The check never ran, so it learned nothing about the destination. The banner
+                    // above is driven by the form's own values, not by this.
+                    remoteAllowed: false
                 });
             }
         });
@@ -209,6 +299,39 @@ export class Settings {
             queryParamsHandling: 'merge'
         });
     }
+
+    /** The rows this card renders: everything but the write-only secrets. See {@link WRITE_ONLY_SECRETS}. */
+    visibleSettings(section: { settings: SettingDefinition[] }): SettingDefinition[] {
+        return section.settings.filter(
+            (setting) => !WRITE_ONLY_SECRETS.has(setting.key) && !SERVER_STAMPED.has(setting.key));
+    }
+
+    /** Who accepted the data-leak risk, and when — empty strings when nobody has. */
+    readonly riskAcknowledgedBy = computed(() => this.values()['ai_review_risk_acknowledged_by'] ?? '');
+    readonly riskAcknowledgedAt = computed(() => this.values()['ai_review_risk_acknowledged_at'] ?? '');
+
+    /**
+     * Asks before opening the public endpoint, never before closing it.
+     *
+     * <p>The confirmation is on the dangerous direction only. A dialog in front of "stop sending
+     * our code to a third party" trains people to dismiss the one in front of "start".
+     */
+    setAllowRemote(enabled: boolean): void {
+        if (!enabled) {
+            this.set('ai_review_allow_remote_url', 'false');
+            return;
+        }
+        this.riskConfirmVisible.set(true);
+    }
+
+    confirmRiskAndAllowRemote(): void {
+        this.riskConfirmVisible.set(false);
+        // Only the switch is set here. The name and the date against it are the server's to write,
+        // on the save that follows — this screen cannot be the source of its own acknowledgement.
+        this.set('ai_review_allow_remote_url', 'true');
+    }
+
+    readonly riskConfirmVisible = signal(false);
 
     isSectionVisible(section: { name: string; settings: SettingDefinition[] }): boolean {
         const tab = this.activeTab();
@@ -323,6 +446,25 @@ export class Settings {
         });
     }
 
+    saveOpenAiKey(): void {
+        this.savingOpenAiKey.set(true);
+        this.error.set(null);
+        this.api.setOpenAiKey(this.openAiKeyInput).subscribe({
+            next: ({ configured }) => {
+                this.savingOpenAiKey.set(false);
+                this.openAiKeyConfigured.set(configured);
+                // Cleared from the model at the same time as from the field, like the tracker
+                // token: keeping it would leave the key reachable in the open tab.
+                this.openAiKeyInput = '';
+                this.saved.set(true);
+            },
+            error: (response) => {
+                this.savingOpenAiKey.set(false);
+                this.error.set(messageOf(response, 'Saving the API key failed.'));
+            }
+        });
+    }
+
     saveWebhookSecret(): void {
         this.savingWebhookSecret.set(true);
         this.error.set(null);
@@ -380,6 +522,11 @@ export class Settings {
         this.api.webhookSecretState().subscribe({
             next: ({ configured }) => this.webhookSecretConfigured.set(configured),
             error: () => this.webhookSecretConfigured.set(false)
+        });
+
+        this.api.openAiKeyState().subscribe({
+            next: ({ configured }) => this.openAiKeyConfigured.set(configured),
+            error: () => this.openAiKeyConfigured.set(false)
         });
 
         this.api.getThreatIntelStatus().subscribe({

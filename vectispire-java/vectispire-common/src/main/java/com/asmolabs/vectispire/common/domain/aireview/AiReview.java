@@ -27,6 +27,34 @@ public final class AiReview {
     public static final String DEFAULT_MODEL = "gemma4:12b-it-qat";
 
     /**
+     * OpenAI's API root, without the {@code /chat/completions} the caller appends.
+     *
+     * <p>A setting rather than a constant in the end, because the same wire protocol is what
+     * Azure OpenAI and most self-hosted gateways speak: a deployment that must not call
+     * {@code api.openai.com} directly points this at its own gateway and keeps everything else.
+     */
+    public static final String DEFAULT_OPENAI_URL = "https://api.openai.com/v1";
+
+    /**
+     * Left blank on purpose.
+     *
+     * <p>Model names on a hosted API are retired and renamed on the provider's schedule, not on
+     * ours. A constant here would be a default that starts returning "model not found" one
+     * morning, from a setting nobody touched — so the screen asks for the name instead, and the
+     * list below is offered as a starting point rather than as an answer.
+     */
+    public static final String DEFAULT_OPENAI_MODEL = "";
+
+    /**
+     * Names to type during setup, never presented as available.
+     *
+     * <p>Unlike Ollama's, this list cannot be checked against an installation: what the account
+     * may call is a property of the account. The connection test is what turns a guess into a
+     * fact.
+     */
+    public static final List<String> OPENAI_MODEL_SUGGESTIONS = List.of("gpt-4o-mini", "gpt-4o");
+
+    /**
      * Five minutes.
      *
      * <p>Generous on purpose: the failure it replaces was a ten-second ceiling that reported

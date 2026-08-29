@@ -229,6 +229,10 @@ class OwaspReportTest extends ApiTestBase {
             Mockito.when(ai.selectedModel()).thenReturn("gemma4:12b-it-qat");
             Mockito.when(ai.validatedUrl()).thenReturn("http://localhost:11434");
             Mockito.when(ai.availableModels()).thenReturn(models);
+            // Stubbed rather than left to Mockito's null: the check names the provider in the
+            // sentence it returns, and these cases are about the Ollama one.
+            Mockito.when(ai.provider())
+                    .thenReturn(com.asmolabs.vectispire.common.domain.aireview.AiProvider.OLLAMA);
             return new SettingsController(
                     Mockito.mock(com.asmolabs.vectispire.core.services.SettingsService.class),
                     Mockito.mock(com.asmolabs.vectispire.core.services.TicketService.class),
@@ -258,7 +262,9 @@ class OwaspReportTest extends ApiTestBase {
 
             assertThat(check.reachable()).isTrue();
             assertThat(check.modelInstalled()).isFalse();
-            assertThat(check.detail()).contains("is not installed there");
+            // "available" rather than "installed": nothing is installed on a hosted API, and one
+            // sentence now serves both providers.
+            assertThat(check.detail()).contains("is not available there");
         }
 
         @Test

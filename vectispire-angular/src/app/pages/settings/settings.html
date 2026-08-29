@@ -39,6 +39,38 @@
             <ng-template #title>{{ getSectionTitle(section) }}</ng-template>
 
             @if (isModelReview(section)) {
+                <!-- **The warning is above the fields, not below them.** It describes what the
+                     settings underneath will cause, and a caution read after the decision is a
+                     caution nobody acted on. -->
+                @if (aiSendsCodeOffSite()) {
+                    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+                        <div class="flex flex-col gap-1">
+                            <span class="font-semibold">
+                                Risk of data leak — the source code of every scanned repository leaves your estate.
+                            </span>
+                            <span class="text-sm">
+                                This configuration sends the analysed code to <strong>{{ aiEndpoint() }}</strong>, a host
+                                outside your network, in the body of each request. That includes private repositories, and
+                                whatever secrets are still committed in them. The third party applies their own retention,
+                                their own jurisdiction and their own training policy to what they receive — check your
+                                contract with them, and check that the code you scan is yours to send. Point the URL at an
+                                endpoint on your own network, or clear the acknowledgement below, and nothing leaves.
+                            </span>
+                        </div>
+                    </p-message>
+                }
+
+                <!-- The record, read-only: this screen displays it and the server writes it. -->
+                @if (riskAcknowledgedBy()) {
+                    <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">
+                        Data-leak risk accepted by <strong>{{ riskAcknowledgedBy() }}</strong>
+                        @if (riskAcknowledgedAt()) {
+                            on {{ riskAcknowledgedAt() | date: 'dd/MM/yyyy HH:mm' : 'UTC' }} UTC
+                        }
+                        — recorded when the public endpoint was turned on. Turning it back off erases this.
+                    </p-message>
+                }
+
                 <div class="flex flex-wrap items-center gap-3 mb-4">
                     <p-button [label]="'settings.test_connection' | translate" icon="pi pi-bolt" severity="secondary" size="small"
                               [loading]="testingOllama()" (onClick)="testOllama()" />
@@ -49,10 +81,36 @@
                         </p-message>
                     }
                 </div>
+
+                <!-- Write-only, like the tracker token: the field shows whether a key is stored,
+                     never the key. Kept out of the generic list for the same reason. -->
+                <div class="flex flex-col gap-2 mb-5">
+                    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                        <label for="openai-key" class="font-medium min-w-0 flex-1">
+                            API key
+                            @if (openAiKeyConfigured()) {
+                                <span class="text-green-600 text-sm font-normal">— stored</span>
+                            } @else {
+                                <span class="text-muted-color text-sm font-normal">— none stored</span>
+                            }
+                        </label>
+                        <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                            <input pInputText id="openai-key" type="password" class="w-full sm:w-96 max-w-full"
+                                   [(ngModel)]="openAiKeyInput" placeholder="sk-…" autocomplete="off" />
+                            <p-button [label]="'common.save' | translate" [loading]="savingOpenAiKey()"
+                                      (onClick)="saveOpenAiKey()" />
+                        </div>
+                    </div>
+                    <small class="text-muted-color max-w-3xl">
+                        Sent as <code>Authorization: Bearer</code> to the OpenAI-compatible endpoint. Stored encrypted and
+                        never returned by any route — saving an empty field clears it, which is what a local endpoint that
+                        authenticates nobody wants.
+                    </small>
+                </div>
             }
 
             <div class="flex flex-col gap-5">
-                @for (setting of section.settings; track setting.key) {
+                @for (setting of visibleSettings(section); track setting.key) {
                     <div class="flex flex-col gap-2">
                         <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                             <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ getSettingLabel(setting) }}</label>
@@ -60,8 +118,16 @@
                             <div class="shrink-0 w-full sm:w-auto">
                                 @switch (setting.type) {
                                     @case ('boolean') {
-                                        <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
-                                                        (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
+                                        <!-- The acknowledgement switch goes through a confirmation
+                                             and a server-side stamp; every other boolean is saved
+                                             as typed. -->
+                                        @if (setting.key === 'ai_review_allow_remote_url') {
+                                            <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                                            (ngModelChange)="setAllowRemote($event)" />
+                                        } @else {
+                                            <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                                            (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
+                                        }
                                     }
                                     @case ('integer') {
                                         <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
@@ -74,9 +140,20 @@
                                                   [fluid]="true" styleClass="w-full sm:w-48" />
                                     }
                                     @default {
-                                        <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
-                                               [ngModel]="values()[setting.key]"
-                                               (ngModelChange)="set(setting.key, $event)" />
+                                        <!-- The provider is a choice, not free text: the two values
+                                             it accepts differ in whether the code leaves the estate,
+                                             and a typo reads as "ollama" by design. -->
+                                        @if (setting.key === 'ai_review_provider') {
+                                            <p-select [inputId]="setting.key" [options]="aiProviders"
+                                                      optionLabel="label" optionValue="value"
+                                                      [ngModel]="values()[setting.key]"
+                                                      (ngModelChange)="set(setting.key, $event)"
+                                                      [fluid]="true" styleClass="w-full sm:w-96" />
+                                        } @else {
+                                            <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
+                                                   [ngModel]="values()[setting.key]"
+                                                   (ngModelChange)="set(setting.key, $event)" />
+                                        }
                                     }
                                 }
                             </div>
@@ -320,3 +397,28 @@
 @if (sections().length === 0 && !error()) {
     <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
 }
+
+<!-- **Shown when opening the public endpoint, never when closing it.** The switch is not flipped
+     until this is accepted, and the name and date against the decision are written by the server
+     on the save that follows — not by this screen. -->
+<p-dialog header="Accept the data-leak risk" [(visible)]="riskConfirmVisible" [modal]="true" [style]="{ width: '34rem' }">
+    <div class="flex flex-col gap-3">
+        <p class="m-0">
+            Turning this on allows Vectispire to send <strong>the source code of every scanned repository</strong>
+            to <strong>{{ aiEndpoint() }}</strong> — including private repositories, and whatever secrets are still
+            committed in them.
+        </p>
+        <p class="m-0">
+            The receiving party applies their own retention, their own jurisdiction and their own training policy to
+            what they receive. Check your contract with them, and check that the code you scan is yours to send.
+        </p>
+        <p class="m-0 text-muted-color text-sm">
+            Your account name and the current date are recorded against this decision, and shown on this screen until
+            somebody turns it back off. The action is written to the audit log, which is never purged.
+        </p>
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="riskConfirmVisible.set(false)" />
+        <p-button label="I accept the risk" severity="danger" (onClick)="confirmRiskAndAllowRemote()" />
+    </ng-template>
+</p-dialog>

@@ -242,6 +242,15 @@ export class ApiService {
         return this.http.put<{ configured: boolean }>('/api/v1/settings/webhook-secret', { secret });
     }
 
+    /** Whether an API key is stored for the model provider. The key itself is never returned. */
+    openAiKeyState(): Observable<{ configured: boolean }> {
+        return this.http.get<{ configured: boolean }>('/api/v1/settings/ai-openai-key');
+    }
+
+    setOpenAiKey(secret: string): Observable<{ configured: boolean }> {
+        return this.http.put<{ configured: boolean }>('/api/v1/settings/ai-openai-key', { secret });
+    }
+
     /** What the upstream catalogue holds right now, and the licence text at that commit. */
     ruleCatalogue() {
         return this.http.get<CataloguePreview>('/api/v1/rule-sets/catalogue');

@@ -949,7 +949,7 @@ export interface OwaspReport {
     createdAt: string;
 }
 
-/** What the configured Ollama answered when asked what it holds. */
+/** What the configured model endpoint answered when asked what it offers. */
 export interface OllamaCheck {
     reachable: boolean;
     /** Separate from `reachable`: a reachable host without the model is the usual misconfiguration. */
@@ -958,6 +958,10 @@ export interface OllamaCheck {
     url: string;
     models: string[];
     detail: string;
+    /** `ollama` or `openai` — which wire protocol was spoken. */
+    provider: string;
+    /** Whether a destination outside the estate is permitted. Not "the code left" — see the server. */
+    remoteAllowed: boolean;
 }
 
 /** Where an issue was seen: one scan, and the project version that scan read. */

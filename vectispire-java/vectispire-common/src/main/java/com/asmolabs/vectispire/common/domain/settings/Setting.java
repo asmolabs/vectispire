@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.settings;
 
+import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
@@ -234,6 +235,17 @@ public enum Setting {
                     + "being an input controlled by a third party.",
             "false"),
 
+    AI_REVIEW_PROVIDER("ai_review_provider", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Provider",
+            "**`ollama` keeps the code on a machine you run. `openai` sends it to OpenAI.** That is the whole "
+                    + "difference, and it is not a performance one: with `openai`, the source of every scanned "
+                    + "repository — including private ones, and whatever secrets are still committed in them — "
+                    + "leaves your estate in the body of an HTTPS request to a third party, who applies their own "
+                    + "retention and their own jurisdiction to it. Check what your contract with them says about "
+                    + "training and retention before turning this on, and check whether the code you scan is "
+                    + "yours to send. Requires an API key, and the acknowledgement below.",
+            AiProvider.OLLAMA.wireName()),
+
     AI_REVIEW_OLLAMA_URL("ai_review_ollama_url", SettingType.TEXT, Section.MODEL_REVIEW,
             "Ollama service URL",
             "**This endpoint receives the scanned repository's source code.** The risk is therefore not that it "
@@ -241,9 +253,27 @@ public enum Setting {
                     + "channel looks like. A public destination is refused unless explicitly acknowledged below.",
             AiReview.DEFAULT_OLLAMA_URL, Sensitivity.SECRET),
 
+    AI_REVIEW_OPENAI_URL("ai_review_openai_url", SettingType.TEXT, Section.MODEL_REVIEW,
+            "OpenAI-compatible API URL",
+            "The API root, without `/chat/completions` — it is appended. **Public and local are both allowed, "
+                    + "and the same rule decides which**: this URL goes through the outbound guard exactly like "
+                    + "the Ollama one, so a public destination is refused until the acknowledgement below is on. "
+                    + "Left at OpenAI's own address, the code goes to OpenAI. Pointed at vLLM, LM Studio, "
+                    + "llama.cpp or an internal gateway — anything speaking the same wire protocol — it never "
+                    + "leaves, and no acknowledgement is needed.",
+            AiReview.DEFAULT_OPENAI_URL),
+
+    AI_REVIEW_OPENAI_KEY("ai_review_openai_key", SettingType.TEXT, Section.MODEL_REVIEW,
+            "OpenAI API key",
+            "Sent as `Authorization: Bearer`. Stored encrypted, like a tracker token, and never returned by any "
+                    + "route — a screen shows whether one is configured, never the key. A local endpoint that "
+                    + "authenticates nobody can be left without one.",
+            "", Sensitivity.SECRET),
+
     AI_REVIEW_MODEL("ai_review_model", SettingType.TEXT, Section.MODEL_REVIEW,
             "Model",
-            "The name as Ollama knows it. It does not have to be installed already to be saved here.",
+            "The name as the provider knows it — an Ollama tag, or a model your OpenAI account may call. It does "
+                    + "not have to exist yet to be saved here; the connection test is what says whether it does.",
             AiReview.DEFAULT_MODEL),
 
     AI_REVIEW_TIMEOUT_SECONDS("ai_review_timeout_seconds", SettingType.INTEGER, Section.MODEL_REVIEW,
@@ -255,10 +285,30 @@ public enum Setting {
             String.valueOf(AiReview.DEFAULT_TIMEOUT_SECONDS)),
 
     AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
-            "Allow a remote Ollama",
+            "Allow a public model endpoint",
             "Off by default, and it is the most consequential setting on this screen: turning it on allows "
-                    + "source code to be sent to a public host.",
+                    + "**the source code of every scanned repository to be sent to a host outside your estate** — "
+                    + "OpenAI's API, or any other public address entered above. Leave it off and both providers "
+                    + "are held to a destination on your own network. It governs the URL, not the provider: a "
+                    + "local OpenAI-compatible endpoint needs nothing acknowledged.",
             "false"),
+
+    // **Who accepted the risk, and when.** Written by the server when the switch above is turned
+    // on, never by a client: an acknowledgement a caller can assert is not an acknowledgement, and
+    // the question an auditor asks is not "was the box ticked" but "by whom, and on what date".
+    // Cleared when the switch goes back off, so the record always describes the state as it is
+    // rather than a decision somebody has since reversed.
+    AI_REVIEW_RISK_ACKNOWLEDGED_BY("ai_review_risk_acknowledged_by", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Data-leak risk accepted by",
+            "The account that turned on the public endpoint, recorded by the server at that moment. Empty means "
+                    + "nobody has — which is also what it says after somebody turned it back off.",
+            ""),
+
+    AI_REVIEW_RISK_ACKNOWLEDGED_AT("ai_review_risk_acknowledged_at", SettingType.TEXT, Section.MODEL_REVIEW,
+            "Data-leak risk accepted on",
+            "When that acceptance was recorded, in UTC. The audit log holds the same event and is never purged; "
+                    + "this row is what the screen can show without a query.",
+            ""),
 
     // **The four windows, and the reason each is a setting rather than a constant.** A
     // remediation policy is written by an organisation, not by a tool: the numbers below are the
