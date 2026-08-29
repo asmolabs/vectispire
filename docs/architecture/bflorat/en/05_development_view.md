@@ -37,7 +37,7 @@ The pipeline is [`.github/workflows/`](../../../../.github/workflows/) — `ci.y
 and `release.yml` — on GitHub, repository `asmolabs/vectispire`. The history is worth a sentence
 because it explains the shape: the checks were first written as GitHub Actions while the only
 remote was GitLab, so **none of them had ever run**, which the audit of 2026-08-25 established.
-They were then rewritten as [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml) to run somewhere, and
+They were then rewritten as `.gitlab-ci.yml` to run somewhere, and
 rewritten a second time when the project moved to GitHub — a rewrite each way rather than a
 translation, because the Docker-in-Docker constraints invert with the daemon's location. The
 GitLab file is kept until GitHub's pipeline has been green through a full cycle including a tag,

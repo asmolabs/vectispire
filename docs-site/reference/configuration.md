@@ -52,7 +52,7 @@ Once any account exists, both are ignored.
 | Variable | Default |
 |---|---|
 | `VECTISPIRE_BRAND_NAME` | `Vectispire` — header, PDF reports, and SARIF / VEX / CSAF exports |
-| `VECTISPIRE_GITLAB_URL` | The reference URL shown beside the "Powered by Vectispire" footer |
+| `VECTISPIRE_GITLAB_URL` | `https://github.com/asmolabs/vectispire` — the source URL shown beside the "Powered by Vectispire" footer. The name is a leftover from when the project was hosted on GitLab; the setting is forge-agnostic and its default is not a GitLab URL. |
 
 ## API documentation
 

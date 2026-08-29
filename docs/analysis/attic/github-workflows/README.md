@@ -5,7 +5,7 @@ them ever executed**. The only remote was GitLab, which does not interpret `.git
 so every check they describe — the link check, the C4 drift check, 1250 unit tests, the images,
 the engine campaign, the browser suites, the release signature — was asserted and never run. The
 [audit of 25 August 2026](../../en/2026-08-25_ci_that_never_ran_audit.en.md) established it, and
-[`.gitlab-ci.yml`](../../../../.gitlab-ci.yml) was written in answer.
+`.gitlab-ci.yml` was written in answer.
 
 ## Why they are here and not under `.github/`
 

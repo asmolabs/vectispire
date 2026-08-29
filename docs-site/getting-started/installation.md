@@ -104,18 +104,26 @@ before running anything — a security tool you took on trust is a contradiction
 ```bash
 cosign verify-blob \
   --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://gitlab.com/asmolabs_be/vectispire//.gitlab-ci.yml@refs/tags/v1.0.0" \
-  --certificate-oidc-issuer https://gitlab.com \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   vectispire-1.0.0.jar
 ```
 
 Each flag pins something, and dropping any one of them gives back most of what signing was
 for. `--certificate-identity` names the **workflow file and the tag**, not the repository:
 matching the repository alone would accept a signature minted by any workflow anybody can
-add to it, including one added in a merge request. `--certificate-oidc-issuer` says the
-identity came from the forge's token service — without it, a string that merely *looks*
-like the identity above is enough. Replace the tag in both places for another version; the
+add to it, including one added in a pull request. `--certificate-oidc-issuer` says the
+identity came from GitHub's token service — without it, a string that merely *looks* like
+the identity above is enough. Replace the tag in both places for another version; the
 identity is per-tag by design.
+
+!!! warning "Releases signed before the move to GitHub"
+    The signing identity belongs to the forge that ran the workflow, so a release built on
+    the old GitLab pipeline verifies against `https://gitlab.com` and that pipeline's path,
+    not against the command above. Verifying a signature with the wrong issuer cannot
+    succeed — and an instruction that cannot succeed is worse than none, because it teaches
+    its reader that the check passed the day they mistype it into passing. Use the identity
+    of the forge that built the artefact you hold.
 
 There is no signing key. Sigstore keyless signs with the workflow's own OIDC identity, so
 there is nothing in anybody's custody to steal or rotate.

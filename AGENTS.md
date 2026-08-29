@@ -33,11 +33,15 @@ workarounds invert when the daemon shares the runner's filesystem: `docker run -
 works again, a job's `services:` share its network, and the nightly schedule is `cron:` **in the
 file** instead of a setting somebody has to remember to create.
 
-[`.gitlab-ci.yml`](.gitlab-ci.yml) is the pipeline that ran before the move, kept until GitHub's
-own has been green on a runner for a full cycle including a tag. It is **not** maintained: a new
-check goes in `.github/workflows/`. Do not confuse it with
-[`ci/gitlab/vectispire-gate.gitlab-ci.yml`](ci/gitlab/vectispire-gate.gitlab-ci.yml), which is a
-template we ship for *other people's* pipelines and stays whatever forge we live on.
+`.gitlab-ci.yml` is **gone**, and with it the GitLab remote. It had been kept as a fallback until
+GitHub's pipeline had been green for a full cycle including a tag; abandoning GitLab as a forge
+ended the reason to hold it rather than the condition. It is recoverable from history if that
+turns out to have been early — `git log -- .gitlab-ci.yml` finds it.
+
+Do not read that as GitLab leaving the product. [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](ci/gitlab/vectispire-gate.gitlab-ci.yml)
+is a template we ship for *other people's* pipelines, GitLab tickets are a tracker integration and
+SARIF is exported for GitLab among others. Those stay whatever forge we live on — the thing we
+abandoned is where our own code lives, which has nothing to do with where our users' code lives.
 
 Workflows from before this port are archived under
 [`docs/analysis/attic/github-workflows/`](docs/analysis/attic/github-workflows/); the reason they

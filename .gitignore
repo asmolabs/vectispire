@@ -44,5 +44,7 @@ vectispire-angular/.playwright/
 .claude/*
 !.claude/agents/
 
+# L'environnement Python et la build locale du site de documentation.
+/.venv/
 # La build locale du site de documentation (mkdocs build / mkdocs serve).
 /site/

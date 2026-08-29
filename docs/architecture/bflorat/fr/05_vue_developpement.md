@@ -39,7 +39,7 @@ Le pipeline est [`.github/workflows/`](../../../../.github/workflows/) — `ci.y
 et `release.yml` — sur GitHub, dépôt `asmolabs/vectispire`. L'histoire mérite une phrase parce
 qu'elle explique la forme actuelle : les contrôles ont d'abord été écrits comme des GitHub Actions
 alors que l'unique remote était GitLab, si bien qu'**aucun n'avait jamais tourné**, ce que l'audit
-du 25 août 2026 a établi. Ils ont ensuite été réécrits en [`.gitlab-ci.yml`](../../../../.gitlab-ci.yml)
+du 25 août 2026 a établi. Ils ont ensuite été réécrits en `.gitlab-ci.yml`
 pour tourner quelque part, puis réécrits une seconde fois au passage sur GitHub — une réécriture
 dans chaque sens plutôt qu'une traduction, parce que les contraintes Docker-in-Docker s'inversent
 selon l'endroit où vit le démon. Le fichier GitLab est conservé jusqu'à ce que le pipeline GitHub

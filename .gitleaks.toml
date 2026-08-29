@@ -11,7 +11,7 @@
 # secret. Chosen to say so in plaintext precisely so that a reader who finds them in a diff can
 # tell in one step.
 #
-# Used by the `secrets` job in `.gitlab-ci.yml`. Without it that job fails on its first run
+# Used by the `secrets` job in `.github/workflows/ci.yml`. Without it that job fails on its first run
 # against six deliberate fixtures, which is how a scanner earns the reputation of being noise.
 
 [extend]
