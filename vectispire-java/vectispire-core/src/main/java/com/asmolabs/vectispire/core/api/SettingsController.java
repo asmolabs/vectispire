@@ -121,7 +121,13 @@ public class SettingsController {
                     setting.label(),
                     setting.help(),
                     setting.defaultValue(),
-                    setting.isSecret() && !isAdmin ? null : stored.getOrDefault(setting.key(), setting.defaultValue()),
+                    // **A credential's value leaves for nobody, an administrator included.** What
+                    // is stored is a ciphertext; returning it puts the encrypted blob in a browser
+                    // tab and a proxy log, and it is of no use to a form that cannot re-submit it
+                    // anyway. The screens ask "is one configured" through the route that owns it.
+                    setting.isEncrypted() || (setting.isSecret() && !isAdmin)
+                            ? null
+                            : stored.getOrDefault(setting.key(), setting.defaultValue()),
                     stored.containsKey(setting.key())));
         }
         return new Catalog(views);
@@ -153,6 +159,16 @@ public class SettingsController {
                 throw new IllegalArgumentException(
                         setting.label() + " is recorded by the server when the public endpoint is turned on, "
                                 + "and cannot be set here.");
+            }
+            // **A credential has one door, and this is not it.** Each of these has a route that
+            // encrypts the value before it reaches the database; this path stores what it is
+            // handed. Left open, it wrote tracker tokens, webhook secrets and provider keys in the
+            // clear — 200 OK, no warning — and the audit description below would then have carried
+            // the value itself into a log that is deliberately never purged.
+            if (setting.isEncrypted()) {
+                throw new IllegalArgumentException(
+                        setting.label() + " is a credential and is written by its own route, which encrypts it. "
+                                + "Setting it here would store it in the clear.");
             }
             setting.validate(value).ifPresent(problem -> {
                 throw new IllegalArgumentException(setting.label() + " — " + problem);
@@ -426,5 +442,43 @@ public class SettingsController {
     @GetMapping("/ai-openai-key")
     public Map<String, Boolean> openAiKeyState() {
         return Map.of("configured", aiReview.hasOpenAiKey());
+    }
+
+    /**
+     * Stores the secret the tracker presents when it calls us.
+     *
+     * <p>It had no route of its own and was read straight out of the settings table, which is how
+     * it came to be the one credential stored in the clear <em>by design</em>. It authenticates the
+     * only anonymous mutating route in the system: a holder can close somebody's finding.
+     */
+    @RequiresAdministrator
+    @PutMapping("/ticket-webhook-secret")
+    public Map<String, Boolean> setTicketWebhookSecret(
+            @RequestBody SecretRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        String secret = body == null || body.secret() == null ? "" : body.secret();
+        tickets.setWebhookSecret(secret);
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                Setting.TICKET_WEBHOOK_SECRET.key(),
+                // Never the value: it would let whoever reads this table forge a triage decision,
+                // and the audit log is deliberately never purged.
+                secret.isBlank()
+                        ? "Inbound webhook secret cleared — the webhook route accepts anonymous callers again."
+                        : "Inbound webhook secret stored — the webhook route authenticates its caller.",
+                principal.user().map(user -> user.getUsername()).orElse(null),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return Map.of("configured", !secret.isBlank());
+    }
+
+    /** Whether one is configured. Never the secret — see the route above. */
+    @GetMapping("/ticket-webhook-secret")
+    public Map<String, Boolean> ticketWebhookSecretState() {
+        return Map.of("configured", tickets.hasWebhookSecret());
     }
 }

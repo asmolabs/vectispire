@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.IssueTriageService;
 import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.TicketService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,6 +51,7 @@ public class TicketingWebhookController {
     private final ObjectMapper json;
     private final Clock clock;
     private final SettingsService settings;
+    private final TicketService tickets;
 
     public TicketingWebhookController(
             Issues issues,
@@ -57,13 +59,15 @@ public class TicketingWebhookController {
             AuditLogService audit,
             ObjectMapper json,
             Clock clock,
-            SettingsService settings) {
+            SettingsService settings,
+            TicketService tickets) {
         this.issues = issues;
         this.triageService = triageService;
         this.audit = audit;
         this.json = json;
         this.clock = clock;
         this.settings = settings;
+        this.tickets = tickets;
     }
 
     public record WebhookSyncResult(boolean matched, Long issueId, String ticketRef, String actionTaken) {}
@@ -97,7 +101,10 @@ public class TicketingWebhookController {
         // and the setting says so.
         WebhookAuthenticity.Verdict verdict = WebhookAuthenticity.verify(
                 provider,
-                settings.get(Setting.TICKET_WEBHOOK_SECRET),
+                // Decrypted, not read raw: the row now holds a ciphertext. Comparing the presented
+                // token against the stored blob would refuse every legitimate call, and the
+                // rejection reads exactly like an attacker probing.
+                tickets.webhookSecret(),
                 new WebhookAuthenticity.Presented(gitlabToken, githubSignature, sharedToken),
                 rawPayload);
         if (verdict == WebhookAuthenticity.Verdict.REJECTED) {

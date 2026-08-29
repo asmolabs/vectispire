@@ -111,8 +111,9 @@ public enum Setting {
                     + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
                     + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
                     + "arrives and will ignore it. Empty means unsigned, which is what every existing "
-                    + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route.",
-            "", Sensitivity.SECRET),
+                    + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route — "
+                    + "only by `PUT /api/v1/settings/webhook-secret`.",
+            "", Sensitivity.ENCRYPTED),
 
     MAIL_RECIPIENTS("notification_mail_to", SettingType.TEXT, Section.NOTIFICATIONS,
             "E-mail recipients",
@@ -191,8 +192,8 @@ public enum Setting {
             "Access token",
             "Grants write access to the tracker, which is a different class of secret from a webhook URL: it is "
                     + "therefore encrypted at rest like an SSH key, not stored in the clear alongside the other "
-                    + "settings.",
-            "", Sensitivity.SECRET),
+                    + "settings. Written only by `PUT /api/v1/settings/ticket-token`.",
+            "", Sensitivity.ENCRYPTED),
 
     TICKET_WEBHOOK_SECRET("ticket_webhook_secret", SettingType.TEXT, Section.TICKETS,
             "Inbound webhook secret",
@@ -203,8 +204,9 @@ public enum Setting {
                     + "`X-Hub-Signature-256` as HMAC-SHA256 over the raw body; Jira and ServiceNow have no "
                     + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. **Empty means "
                     + "the route stays anonymous and unauthenticated**, which is where every existing deployment "
-                    + "is today: set it, then set the same value in the tracker.",
-            "", Sensitivity.SECRET),
+                    + "is today: set it, then set the same value in the tracker. Encrypted at rest and written only by "
+                    + "`PUT /api/v1/settings/ticket-webhook-secret`.",
+            "", Sensitivity.ENCRYPTED),
 
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
@@ -268,7 +270,7 @@ public enum Setting {
             "Sent as `Authorization: Bearer`. Stored encrypted, like a tracker token, and never returned by any "
                     + "route — a screen shows whether one is configured, never the key. A local endpoint that "
                     + "authenticates nobody can be left without one.",
-            "", Sensitivity.SECRET),
+            "", Sensitivity.ENCRYPTED),
 
     AI_REVIEW_MODEL("ai_review_model", SettingType.TEXT, Section.MODEL_REVIEW,
             "Model",
@@ -375,18 +377,41 @@ public enum Setting {
     }
 
     /**
-     * Whether the <b>value</b> is a secret, even though the key is not.
+     * How much protection a value needs, which is <b>two questions and not one</b>.
      *
-     * <p>A Slack, Teams or Discord webhook URL is not configuration: it is a bearer capability.
-     * Whoever knows it can post in the channel — the very channel where the team awaits
-     * Vectispire's alerts, hence the one where a forged message carries most weight. Reading it
-     * requires no write permission, which made it reachable by any account.
+     * <p>They were the same value once, and the conflation cost exactly what conflations cost. A
+     * webhook URL and a tracker token were both {@code SECRET}; that marker was read in one place,
+     * the catalog's <em>read</em> side, and meant "do not show this to a non-administrator". No
+     * branch anywhere in the write path consulted it. So the settings with a dedicated encrypting
+     * route also stayed writable through the generic one, which stored what it was handed —
+     * in the clear, 200 OK — and then returned it verbatim to every administrative role. The doc
+     * comment on those settings said "encrypted at rest, never returned by any route"; both halves
+     * were false through that door.
      *
-     * <p>The screen therefore receives "configured" without the value.
+     * <p>Splitting them is what makes the guarantee checkable rather than remembered.
      */
     public enum Sensitivity {
+
+        /** Ordinary configuration. Readable by any signed-in account. */
         PLAIN,
-        SECRET
+
+        /**
+         * Stored as written, hidden from non-administrators.
+         *
+         * <p>For a value that is a capability rather than a credential: a webhook URL is enough to
+         * post in the channel where a team awaits Vectispire's alerts, and an internal model
+         * endpoint describes the estate's topology. Both are still edited as ordinary fields.
+         */
+        SECRET,
+
+        /**
+         * A credential: encrypted at rest, written only by its own route, never returned.
+         *
+         * <p>The generic write path refuses these outright, so there is no second door to forget,
+         * and the catalog omits the value for everybody — an administrator has no more use for a
+         * ciphertext than anybody else, and returning it puts the stored blob in a browser tab.
+         */
+        ENCRYPTED
     }
 
     private final String key;
@@ -437,8 +462,21 @@ public enum Setting {
         return defaultValue;
     }
 
+    /**
+     * Whether the value must be withheld from a non-administrator.
+     *
+     * <p>True for both protected kinds. An encrypted credential is withheld from everybody — see
+     * the caller — but it is a secret in this sense too, and a reader that only asked
+     * {@code == SECRET} would have started serving credentials to ordinary accounts the moment one
+     * was reclassified.
+     */
     public boolean isSecret() {
-        return sensitivity == Sensitivity.SECRET;
+        return sensitivity == Sensitivity.SECRET || sensitivity == Sensitivity.ENCRYPTED;
+    }
+
+    /** Whether this is a credential: encrypted at rest, written by its own route, never returned. */
+    public boolean isEncrypted() {
+        return sensitivity == Sensitivity.ENCRYPTED;
     }
 
     /** Empty when the value is acceptable, otherwise the message to show. */

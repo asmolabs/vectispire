@@ -85,12 +85,41 @@ public class TicketService {
             return stored;
         }
 
-        SecretCipher.Decrypted secret = encryption.inspect(stored, TOKEN_CONTEXT);
-        if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
-            log.error("The tracker token cannot be decrypted by any configured key — ticket creation disabled.");
-            return "";
-        }
-        return secret.plainText();
+        // Tolerates a token written before this setting was encrypted — reported, never silent.
+        // See EncryptionService.readSecret for why refusing it outright would disable the
+        // integration rather than protect the row.
+        return encryption.readSecret(stored, TOKEN_CONTEXT, "The tracker access token");
+    }
+
+    /** Binds the inbound webhook secret to its own row, like the token above. */
+    public static final String WEBHOOK_SECRET_CONTEXT = "setting:ticket_webhook_secret";
+
+    /**
+     * The secret the tracker presents when it calls us, decrypted.
+     *
+     * <p>Read through the same tolerant path as the token: this one authenticates <b>the only
+     * anonymous mutating route in the system</b>, so a value that stops being readable does not
+     * fail closed in a way anybody notices — it makes the route refuse the real tracker, and a
+     * triage decision simply stops arriving.
+     */
+    public String webhookSecret() {
+        return encryption.readSecret(
+                settings.get(Setting.TICKET_WEBHOOK_SECRET).trim(),
+                WEBHOOK_SECRET_CONTEXT,
+                "The inbound webhook secret");
+    }
+
+    /** Whether one is configured, for a screen that must not show it. */
+    public boolean hasWebhookSecret() {
+        return !settings.get(Setting.TICKET_WEBHOOK_SECRET).trim().isEmpty();
+    }
+
+    /** Stores it encrypted. Blank clears it, which leaves the webhook route anonymous. */
+    public void setWebhookSecret(String rawSecret) {
+        String value = rawSecret == null ? "" : rawSecret.trim();
+        settings.set(
+                Setting.TICKET_WEBHOOK_SECRET,
+                value.isEmpty() ? "" : encryption.encrypt(value, WEBHOOK_SECRET_CONTEXT));
     }
 
     /** Stores the token encrypted, bound to its own setting key. */

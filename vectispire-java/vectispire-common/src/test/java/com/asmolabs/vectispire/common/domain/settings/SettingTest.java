@@ -63,6 +63,34 @@ class SettingTest {
     }
 
     @Test
+    @DisplayName("a credential is marked ENCRYPTED, which is a stronger claim than SECRET")
+    void credentialsAreMarkedEncrypted() {
+        // **The list that must not grow by accident.** `SECRET` means "do not show this to a
+        // non-administrator" and nothing more — no branch in the write path ever consulted it,
+        // which is how three credentials with a dedicated encrypting route stayed writable, in the
+        // clear, through the generic one. `ENCRYPTED` is the marker the write path refuses on.
+        //
+        // Adding a credential without it fails here rather than being discovered in a database
+        // backup, which is the only other way anybody finds out.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::isEncrypted))
+                .containsExactlyInAnyOrder(
+                        Setting.TICKET_TOKEN,
+                        Setting.TICKET_WEBHOOK_SECRET,
+                        Setting.WEBHOOK_SIGNING_SECRET,
+                        Setting.AI_REVIEW_OPENAI_KEY);
+    }
+
+    @Test
+    @DisplayName("every encrypted credential is also withheld from a non-administrator")
+    void everyCredentialIsAlsoASecret() {
+        // The two questions are separate, but not independent in this direction: a value worth
+        // encrypting is never a value worth serving to any signed-in account. A reader asking
+        // `== SECRET` would have started doing exactly that the moment one was reclassified.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::isEncrypted))
+                .allMatch(Setting::isSecret);
+    }
+
+    @Test
     @DisplayName("the dangerous switches are off by default")
     void dangerousDefaultsAreOff() {
         // Each of these, on, sends something somewhere it was not going before.

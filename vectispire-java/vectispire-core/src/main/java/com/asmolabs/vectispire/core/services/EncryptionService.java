@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.crypto.KmsProvider;
 import com.asmolabs.vectispire.common.domain.crypto.LocalKmsProvider;
+import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.core.services.crypto.VaultKmsProvider;
@@ -133,5 +134,41 @@ public class EncryptionService {
 
     public Decrypted inspect(String encrypted, String context) {
         return kms.inspect(encrypted, context);
+    }
+
+    /**
+     * Reads a stored credential, tolerating one written before it was encrypted.
+     *
+     * <p><b>Why the tolerance exists, and why it is not silent.</b> The generic settings route used
+     * to accept these values and store them verbatim. Deployments therefore hold rows that carry a
+     * working credential with no {@code v2:} prefix, and {@link SecretCipher} answers UNREADABLE to
+     * anything it did not write — so decrypting strictly would not protect those rows, it would
+     * disable the integration that depends on them, on upgrade, without a message. A tracker would
+     * simply stop being reached; a webhook route would start refusing its own tracker.
+     *
+     * <p>So a legacy value is used and <b>reported at warn on every read</b>, naming the setting
+     * and what to do. Re-saving through the owning route encrypts it and the warning stops. It is
+     * not re-encrypted here on the operator's behalf: a read that writes is a surprise inside every
+     * caller, and the row is already in the clear — reading it changes nothing about that.
+     *
+     * @return the credential, or empty when none is stored or none can be read
+     */
+    public String readSecret(String stored, String context, String label) {
+        String value = stored == null ? "" : stored.trim();
+        if (value.isEmpty()) {
+            return "";
+        }
+        if (!value.startsWith(SecretCipher.FORMAT_PREFIX)) {
+            log.warn("{} is stored in the clear — it predates encryption, or was written through a route that did "
+                    + "not encrypt it. It still works. Save it again from the settings screen to encrypt it.", label);
+            return value;
+        }
+        Decrypted secret = inspect(value, context);
+        if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
+            log.error("{} cannot be decrypted by any configured key — the feature that uses it is disabled until "
+                    + "it is set again.", label);
+            return "";
+        }
+        return secret.plainText();
     }
 }

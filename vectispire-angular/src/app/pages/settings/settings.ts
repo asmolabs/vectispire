@@ -19,10 +19,16 @@ import type { OllamaCheck, SettingDefinition, SiemConfig, SiemTestResult, Threat
  *
  * <p>A secret rendered by the catalog is a secret the generic save path will write in clear and
  * the audit log will record by value — that path stores what it is handed and names every change
- * `key = value`. These three are encrypted at rest by a route of their own, and each has a field
- * on this screen that shows "configured" instead of the value.
+ * `key = value`. Each is encrypted at rest by a route of its own, and has a field on this
+ * screen that shows "configured" instead of the value. The server refuses them on the generic
+ * route as well — this list keeps the form from offering an input that would only ever error.
  */
-const WRITE_ONLY_SECRETS = new Set(['ticket_token', 'notification_webhook_secret', 'ai_review_openai_key']);
+const WRITE_ONLY_SECRETS = new Set([
+    'ticket_token',
+    'notification_webhook_secret',
+    'ticket_webhook_secret',
+    'ai_review_openai_key'
+]);
 
 /**
  * Settings the server stamps and the form may only display.
@@ -123,6 +129,10 @@ export class Settings {
     readonly savingWebhookSecret = signal(false);
     readonly webhookCopied = signal<string | null>(null);
     webhookSecretInput = '';
+
+    readonly ticketWebhookSecretConfigured = signal(false);
+    readonly savingTicketWebhookSecret = signal(false);
+    ticketWebhookSecretInput = '';
 
     readonly openAiKeyConfigured = signal(false);
     readonly savingOpenAiKey = signal(false);
@@ -446,6 +456,23 @@ export class Settings {
         });
     }
 
+    saveTicketWebhookSecret(): void {
+        this.savingTicketWebhookSecret.set(true);
+        this.error.set(null);
+        this.api.setTicketWebhookSecret(this.ticketWebhookSecretInput).subscribe({
+            next: ({ configured }) => {
+                this.savingTicketWebhookSecret.set(false);
+                this.ticketWebhookSecretConfigured.set(configured);
+                this.ticketWebhookSecretInput = '';
+                this.saved.set(true);
+            },
+            error: (response) => {
+                this.savingTicketWebhookSecret.set(false);
+                this.error.set(messageOf(response, 'Saving the webhook secret failed.'));
+            }
+        });
+    }
+
     saveOpenAiKey(): void {
         this.savingOpenAiKey.set(true);
         this.error.set(null);
@@ -522,6 +549,11 @@ export class Settings {
         this.api.webhookSecretState().subscribe({
             next: ({ configured }) => this.webhookSecretConfigured.set(configured),
             error: () => this.webhookSecretConfigured.set(false)
+        });
+
+        this.api.ticketWebhookSecretState().subscribe({
+            next: ({ configured }) => this.ticketWebhookSecretConfigured.set(configured),
+            error: () => this.ticketWebhookSecretConfigured.set(false)
         });
 
         this.api.openAiKeyState().subscribe({

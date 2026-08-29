@@ -195,6 +195,31 @@
             <small class="text-muted-color max-w-3xl">
                 {{ 'settings.token_hint' | translate }}
             </small>
+
+            <!-- The opposite direction from the token above: this one authenticates the tracker
+                 calling us. Write-only, like the token, now that it is encrypted at rest. -->
+            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 mt-5">
+                <label for="ticket-webhook-secret" class="font-medium min-w-0 flex-1">
+                    Inbound webhook secret
+                    @if (ticketWebhookSecretConfigured()) {
+                        <span class="text-green-600 text-sm font-normal">— stored</span>
+                    } @else {
+                        <span class="text-muted-color text-sm font-normal">— none stored</span>
+                    }
+                </label>
+                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                    <input pInputText id="ticket-webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
+                           [(ngModel)]="ticketWebhookSecretInput" autocomplete="off" />
+                    <p-button [label]="'common.save' | translate" [loading]="savingTicketWebhookSecret()"
+                              (onClick)="saveTicketWebhookSecret()" />
+                </div>
+            </div>
+            <small class="text-muted-color max-w-3xl">
+                Authenticates the tracker calling <strong>us</strong>. The webhook route is anonymous by necessity —
+                Jira holds no session — and it moves a triage decision, so while this is empty anyone who guesses a
+                ticket reference can close a finding. Set the same value in the tracker. Encrypted at rest and never
+                returned; saving an empty field clears it.
+            </small>
         </div>
     </p-card>
 

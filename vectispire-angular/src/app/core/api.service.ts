@@ -242,6 +242,15 @@ export class ApiService {
         return this.http.put<{ configured: boolean }>('/api/v1/settings/webhook-secret', { secret });
     }
 
+    /** Whether the inbound webhook secret is set. The secret itself is never returned. */
+    ticketWebhookSecretState(): Observable<{ configured: boolean }> {
+        return this.http.get<{ configured: boolean }>('/api/v1/settings/ticket-webhook-secret');
+    }
+
+    setTicketWebhookSecret(secret: string): Observable<{ configured: boolean }> {
+        return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-webhook-secret', { secret });
+    }
+
     /** Whether an API key is stored for the model provider. The key itself is never returned. */
     openAiKeyState(): Observable<{ configured: boolean }> {
         return this.http.get<{ configured: boolean }>('/api/v1/settings/ai-openai-key');

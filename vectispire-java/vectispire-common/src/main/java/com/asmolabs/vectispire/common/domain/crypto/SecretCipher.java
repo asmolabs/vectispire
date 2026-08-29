@@ -30,7 +30,15 @@ import org.bouncycastle.util.Arrays;
  */
 public final class SecretCipher {
 
-    private static final String FORMAT_PREFIX = "v2:";
+    /**
+     * The marker every ciphertext this class writes carries.
+     *
+     * <p>Public because a caller has to be able to ask "was this value ever encrypted" without
+     * attempting a decryption: {@link #decryptWithAny} answers UNREADABLE both to a value written
+     * under a lost key and to one that was never encrypted at all, and those two call for opposite
+     * handling — the first is a fault, the second is a row waiting to be migrated.
+     */
+    public static final String FORMAT_PREFIX = "v2:";
     private static final int NONCE_LENGTH_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
     private static final int TAG_LENGTH_BYTES = TAG_LENGTH_BITS / 8;
