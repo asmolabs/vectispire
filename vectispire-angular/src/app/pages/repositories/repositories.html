@@ -161,6 +161,22 @@
                 its deployment key. Left empty, any agent may take it.
             </small>
         </div>
+        <div class="flex flex-col gap-2">
+            <label for="ssh-key" class="font-medium">Deployment key <span class="text-muted-color font-normal">(optional)</span></label>
+            <p-select
+                inputId="ssh-key"
+                [options]="sshKeyOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="form.sshKeyId"
+                styleClass="w-full" />
+            <small class="text-muted-color">
+                The key used to clone this repository. Declared on the <a routerLink="/ssh-keys" class="underline">SSH keys</a>
+                page first. <strong>Left as "no key", a private repository fails to clone</strong>: the scan falls
+                back to the SSH configuration of the machine running the worker, which the provider
+                has no reason to recognise.
+            </small>
+        </div>
         <app-schedule-fields idPrefix="repository" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
         @if (formError(); as message) {
             <!-- The server's wording is what names the rejected cron field by field; a generic

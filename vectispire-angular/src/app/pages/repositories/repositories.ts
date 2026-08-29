@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -8,10 +8,11 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { DataViewModule } from '@openng/optimus-ui/dataview';
+import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { MonitoredRepository, SecurityScorecard } from '../../core/api.models';
+import type { MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
@@ -21,7 +22,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, SelectModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe],
     templateUrl: './repositories.html'
 })
 export class Repositories {
@@ -57,8 +58,27 @@ export class Repositories {
         requiredAgentLabel: '',
         scanIntervalMinutes: null as number | null,
         scanCron: '',
+        // The empty string is "no key", and it is a value the server acts on rather than one it
+        // ignores — see the comment on the payload in `submit`.
+        sshKeyId: '',
         tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
     };
+
+    /**
+     * The deployment keys this form can attach.
+     *
+     * <p>Loaded once, next to the repository list. The choice belongs on this screen because the
+     * key is a property of the target: a repository with none falls back to the host's own SSH,
+     * which fails on a private repository with "requires authentication" — an error that asks for
+     * exactly this field.
+     */
+    readonly sshKeys = signal<SshKeySummary[]>([]);
+
+    /** `null` is not offered as an option value: the server distinguishes "" from absent. */
+    readonly sshKeyOptions = computed(() => [
+        { label: 'No key — use this machine’s own SSH configuration', value: '' },
+        ...this.sshKeys().map((key) => ({ label: key.name, value: key.id }))
+    ]);
 
     /** Exposed to the template: the list says what each target's schedule is, because a
      *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
@@ -69,6 +89,9 @@ export class Repositories {
 
     constructor() {
         this.reload();
+        // A failure here leaves the list empty rather than blocking the form: the operator can
+        // still edit everything else, and "no key" stays selectable.
+        this.api.sshKeys().subscribe({ next: (keys) => this.sshKeys.set(keys) });
     }
 
     reload(): void {
@@ -145,9 +168,10 @@ export class Repositories {
                   requiredAgentLabel: repository.requiredAgentLabel ?? '',
                   scanIntervalMinutes: repository.scanIntervalMinutes,
                   scanCron: repository.scanCron ?? '',
+                  sshKeyId: repository.sshKeyId ?? '',
                   tier: repository.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
-            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
+            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', sshKeyId: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -173,7 +197,11 @@ export class Repositories {
             scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
             // Always sent, empty included: the empty string is the only value the update path
             // distinguishes from "leave alone", so it is the only way to remove an expression.
-            scanCron: this.form.scanCron.trim()
+            scanCron: this.form.scanCron.trim(),
+            // Same rule, same reason. Sending `undefined` when the operator picked "no key" would
+            // leave the old key attached while this form showed none — and the next clone would
+            // use a credential the screen says is gone.
+            sshKeyId: this.form.sshKeyId
         };
 
         this.saving.set(true);

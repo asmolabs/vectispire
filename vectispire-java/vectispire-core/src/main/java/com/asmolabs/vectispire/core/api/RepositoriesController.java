@@ -115,7 +115,12 @@ public class RepositoriesController {
             Integer scanIntervalMinutes,
             String scanCron,
             @JsonProperty("required_agent_label") String requiredAgentLabel,
-            UUID sshKeyId,
+            // **A string and not a `UUID`, for the same reason the fields above are strings.** The
+            // update path reads absent as "leave alone", so a typed `UUID` gives the operator no
+            // way to say "no key any more" — null would be indistinguishable from "unchanged", and
+            // the form would show the key detached while the next clone still used it. The empty
+            // string is the explicit clear; a malformed one is a 400 rather than a silent no-op.
+            String sshKeyId,
             String tier) {}
 
     public record QueuedScan(Long id, String status) {}
@@ -178,7 +183,7 @@ public class RepositoriesController {
         // Normalized on entry: without it, "Production" here and "production" on the agent would
         // never meet, and the scan would wait for an agent that is present.
         repository.setRequiredAgentLabel(AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
-        repository.setSshKeyId(body.sshKeyId());
+        repository.setSshKeyId(sshKeyId(body.sshKeyId()));
         repository.setTier(body.tier() != null ? AssetTier.fromString(body.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
         RepositoryEntity saved = repositories.save(repository);
@@ -250,7 +255,7 @@ public class RepositoriesController {
                     AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
         }
         if (body.sshKeyId() != null) {
-            repository.setSshKeyId(body.sshKeyId());
+            repository.setSshKeyId(sshKeyId(body.sshKeyId()));
         }
         if (body.tier() != null) {
             repository.setTier(AssetTier.fromString(body.tier()).name());
@@ -384,5 +389,25 @@ public class RepositoriesController {
     private static String optional(String value) {
         String trimmed = trim(value);
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * Reads the deployment key the form named, where blank means "no key".
+     *
+     * <p>Rejecting a malformed identifier here rather than storing it matters: a repository
+     * pointing at a key that does not exist falls back to the host's own SSH and fails at clone
+     * time with "requires authentication" — an error that names neither the wrong identifier nor
+     * this form. The 400 arrives while the operator is still looking at the field.
+     */
+    private static UUID sshKeyId(String value) {
+        String trimmed = trim(value);
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException malformed) {
+            throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid SSH key identifier.");
+        }
     }
 }
