@@ -33,6 +33,10 @@ flowchart TB
         E4["E4: Remote Agent Worker (Vectispire Agent)"]
     end
 
+    subgraph TB5["Trust Boundary 5: Model Review Endpoint (TB5) — a host you run, or a third party"]
+        E7["E7: Model Endpoint (Ollama / OpenAI-compatible API)"]
+    end
+
     %% Data Flows
     E1 -->|"F1: Authentication & VEX Triage (HTTPS)"| P1
     E2 -->|"F2: Gate Evaluation (POST /api/v1/gate - API Key)"| P1
@@ -54,6 +58,8 @@ flowchart TB
 
     E4 -.->|"F15: Long-Polling Job Fetch (GET /api/v1/agent/jobs)"| P1
     E4 -->|"F16: Launch Local Analysis Containers"| P5
+
+    P1 ==>|"F17: Repository Source Code for Model Review (HTTPS)"| E7
 ```
 
 ---
@@ -125,6 +131,25 @@ is the whole reason it is worth a table of its own.*
 
 ---
 
+### Entity E7: Model Review Endpoint (Ollama, or an OpenAI-compatible API)
+
+*Added last, and it should have been first. This is the only flow that sends **the source code
+being analysed** out of the process, and the model had no entry for it at all — neither here nor in
+the security view — through several audits. It is listed as an external entity even when the
+operator runs it themselves, because "the destination is a machine I control" is a configuration
+value, not a property of the design.*
+
+| STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
+|---|---|---|---|
+| **Information Disclosure** | The endpoint is a public address, so the source of every scanned repository — private ones, and whatever secrets are still committed in them — leaves the estate in a request body, under somebody else's retention policy and jurisdiction. | Complete loss of source confidentiality, silently and repository by repository. | The outbound guard runs `INTERNAL_REQUIRED` by default: `OutboundPost.validate` **resolves the name** and refuses a public address rather than pattern-matching the string. Lifting it requires `Setting.AI_REVIEW_ALLOW_REMOTE`, whose help text says what it costs. Revalidated on **every review** (`AiReview.validatedUrl`), not only when saved, so a row written straight into the database does not bypass it. |
+| **Repudiation** | Nobody can say who decided the code could leave, or when — the switch is a boolean and a boolean has no author. | An unanswerable question at the first audit that asks it. | `AI_REVIEW_RISK_ACKNOWLEDGED_BY` / `_AT` are stamped **by the server** from the authenticated session and its own clock, refused on the wire (`SettingsController.update`), and erased when the switch goes back off. `t_audit_log` carries the same event and is never purged. |
+| **Spoofing** | A destination on the internal network that is not the model — a typo, or DNS moved under the deployment. | Source code posted to whatever answers. | Partially mitigated. The guard proves the address is internal, not that the host is the intended one. TLS pinning is available through `PinnedHttpSender` but is not required for this destination. |
+| **Tampering** | The endpoint returns findings the operator acts on; a compromised one can hide a real vulnerability or invent one. | Misdirected remediation effort, or a real issue dismissed. | The review is **advisory and additive**: `AiReview` findings never suppress a scanner's, and the gate verdict is computed without them ([ADR 0005](../../en/decisions/0005-quality-never-blocks-the-gate.md)). |
+| **Denial of Service** | A slow or unavailable endpoint holding the request path open. | Reviews pile up; the screen that asked for one waits. | `AI_REVIEW_TIMEOUT_SECONDS` bounds every call, and a failed review is `Optional.empty()` rather than an empty result ([ADR 0007](../../en/decisions/0007-none-is-not-an-empty-list.md)) — the report says the review did not run instead of showing a clean one. |
+| **Information Disclosure** | The API key for a third-party endpoint read out of the settings table or a screen. | An account somebody else can spend. | `AI_REVIEW_OPENAI_KEY` is `Sensitivity.ENCRYPTED`: written only through `PUT /settings/ai-openai-key`, which encrypts it, refused by the generic settings route, and returned by no route at all — a screen is told whether one exists. |
+
+---
+
 ### Process P1: REST API Controllers & Backend Security Layer
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
@@ -189,10 +214,17 @@ is the whole reason it is worth a table of its own.*
 
 ---
 
-### Data Flows in Transit (Data Flows: F1 to F16)
+### Data Flows in Transit — the flows whose *transit* carries a threat of its own
+
+*The heading here read "Data Flows: F1 to F16" over five rows, which at a glance reads as sixteen
+flows analysed. It is not what the section is. Every flow in the diagram **is** analysed — at its
+two endpoints, in the entity, process and data-store matrices above, which is where a threat
+against `P5` or `DS2` belongs. What follows is the smaller set where the crossing itself is the
+exposure, independently of what sits at either end. The others are deliberately not repeated here.*
 
 | DFD Flow | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|---|
 | **F1, F2 (HTTP API)** | **Information Disclosure** | Interception of credentials or API tokens in transit over network. | Theft of user sessions or CI API tokens. | Mandatory HTTPS with TLS 1.3/1.2 and strict security headers (HSTS, CSP, X-Content-Type-Options). |
 | **F12, F14 (Ingestion)** | **Tampering** | Injecting duplicate issues or altering findings during DB transit. | Backlog clutter and loss of VEX triage state. | Deterministic fingerprinting ([`IssueFingerprint`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/domain/issues/IssueFingerprint.java)) with location deduplication `(filePath + line)`. |
 | **F15 (Long-Polling Agent)** | **Elevation of Privilege** | Remote agent attempting SQL injection via job fetching stream. | SQL injection and direct database access. | Agent communicates exclusively via structured JSON DTOs over REST API with zero JDBC or direct SQL access ([ADR 0003](../../en/decisions/0003-long-polling-for-agents.md)). |
+| **F17 (Model Review)** | **Information Disclosure** | The one flow that carries the *analysed source code* out of the process. Whether it crosses the estate boundary is a setting, which is exactly why the crossing is listed separately from the endpoint at E7. | Loss of source confidentiality to whoever operates the destination. | Destination resolved and refused unless internal, on every call; the exception is a recorded, server-stamped acknowledgement. See **E7**. |

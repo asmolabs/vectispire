@@ -37,6 +37,31 @@ yet anybody's committed mistake.
 
 ---
 
+## 0. Remediation status — all four findings closed
+
+*Added after the audit, on the same day. Each line names what closes it and the mutation that
+proves the assertion can fail. Full suite after the changes: **1320 JVM tests, 0 failures**
+(1292 before), **146 Angular tests, 0 failures**, **730 links, 0 broken**.*
+
+| # | Finding | Closed by | Proof it can fail |
+|---|---|---|---|
+| §3.1 | Secrets written in the clear by the generic route | **Not mine.** `Sensitivity.ENCRYPTED` splits "hide this" from "encrypt this"; the write path refuses the four credentials, the catalog withholds them from administrators too, and the tracker webhook secret — the one credential stored in the clear *by design* — gained the route it never had. `SettingTest.credentialsAreMarkedEncrypted` pins the list. | Re-ran the audit probe over HTTP: `PUT /api/v1/settings {"ticket_token":…}` → **400**, nothing stored. |
+| §3.2 | Consent to send code off-site could not be withdrawn | A save that *removes* the acknowledgement skips the pre-save destination check — the resulting configuration is strictly less permissive, and `validatedUrl()` refuses it at every review anyway. `AiReviewConsentTest`, 5 cases. | Restored the unconditional check → **2 tests fail**. |
+| §3.3 | The credential routes were guarded but untested | `SettingsRoutesTest`: every writing route answers 403 to a reader and 200 to an administrator, over the real filter chain. | Removed `@RequiresAdministrator` from `/ai-openai-key` → **1 test fails**. |
+| §3.4 | The model review was absent from the STRIDE model | **E7** added as an entity with six rows, **TB5** and **F17** in the DFD, both languages. The flow table's heading no longer claims sixteen flows over five rows; it says what the section is and where the rest are analysed. | n/a — documentation. Bilingual parity checked by grep; 730 links still resolve. |
+
+### And one new finding, found while closing §3.3
+
+`POST /api/v1/settings/ollama-test` carried no method-level guard, so the class marker
+`@RequiresAccount` applied: **any signed-in reader could run it**, and it answers with the
+configured endpoint URL — the single value `ai_review_ollama_url` is marked `SECRET` to keep out of
+exactly those hands. It also made the server open an outbound connection on a reader's say-so. Now
+narrowed to the same roles that may write the setting. Verified by execution before and after; the
+assertion fails when the guard is removed.
+
+---
+
+
 ## 1. What I executed
 
 Everything in this table was run. Nothing in it was inferred from reading a file.

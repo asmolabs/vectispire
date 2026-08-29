@@ -34,6 +34,10 @@ flowchart TB
         E4["E4 : Agent Distant Worker (Vectispire Agent)"]
     end
 
+    subgraph TB5["Frontière de Confiance 5 : Endpoint de Revue par Modèle (TB5) — une machine que vous exploitez, ou un tiers"]
+        E7["E7 : Endpoint de Modèle (Ollama / API compatible OpenAI)"]
+    end
+
     %% Flux de données (Data Flows)
     E1 -->|"F1 : Authentification & Triage VEX (HTTPS)"| P1
     E2 -->|"F2 : Évaluation Gate (POST /api/v1/gate - API Key)"| P1
@@ -55,6 +59,8 @@ flowchart TB
 
     E4 -.->|"F15 : Long-Polling Job Fetch (GET /api/v1/agent/jobs)"| P1
     E4 -->|"F16 : Lancement des Conteneurs d'Analyse Locaux"| P5
+
+    P1 ==>|"F17 : Code Source du Dépôt pour Revue par Modèle (HTTPS)"| E7
 ```
 
 ---
@@ -97,6 +103,7 @@ flowchart TB
 |---|---|---|---|
 | **Spoofing** | Un agent non autorisé tente de se connecter au plan de contrôle pour récupérer des travaux de scan. | Exfiltration du code des projets ou falsification des rapports d'analyse. | Authentification obligatoire par jeton d'agent révoquable (`t_agent`) et protocole exclusif HTTP Long-Polling (`/api/v1/agent/jobs`). |
 | **Elevation of Privilege** | Un agent distant compromis tente d'exécuter des requêtes SQL directement sur la base de données centrale. | Lecture/modification non autorisée de la base de données d'entreprise. | **Isolation stricte de l'agent (`vectispire-agent`)** : aucun pilote JDBC ni dépendance DB n'existe sur le classpath de l'agent. L'agent ne possède pas la clé `ENCRYPTION_KEY` ([ADR 0003](../../fr/decisions/0003-long-polling-for-agents.md)). |
+| **F17 (Revue par modèle)** | **Information Disclosure** | Le seul flux qui emporte le *code source analysé* hors du processus. Qu'il franchisse ou non la frontière du patrimoine est un réglage — c'est précisément pourquoi la traversée est listée à part de l'extrémité E7. | Perte de confidentialité du code au profit de qui exploite la destination. | Destination résolue et refusée sauf si interne, à chaque appel ; l'exception est un acquittement nominatif estampillé par le serveur. Voir **E7**. |
 
 ---
 
@@ -124,6 +131,25 @@ la raison pour laquelle il mérite son propre tableau.*
 | **Spoofing** | N'importe qui sur le réseau poste un webhook forgé pour déplacer une décision de triage. | Une vulnérabilité non corrigée marquée résolue par un inconnu. | `WebhookAuthenticity` vérifie la convention propre à chaque fournisseur — `X-Gitlab-Token` verbatim, le HMAC de GitHub sur le corps brut, un jeton partagé pour ceux qui ne signent rien — avec `MessageDigest.isEqual` partout : ce point d'entrée répond à des appelants non authentifiés, et une comparaison octet par octet rendrait le secret devinable. |
 | **Spoofing** | Le même, sur un déploiement sans secret configuré. | Le précédent, non mitigé. | **Ouvert délibérément** : un secret non configuré laisse la route non authentifiée plutôt que de refuser le trafic, car durcir à la montée de version arrêterait la synchronisation de triage existante **en silence** — pire que le défaut qu'on ferme. `Setting.TICKET_WEBHOOK_SECRET` est l'interrupteur, et cette ligne est la raison de s'en servir. |
 | **Tampering** | Un payload légitime rejoué ré-applique une décision entre-temps annulée. | Un constat rouvert silencieusement re-résolu. | **Non mitigé.** Consigné ici plutôt que laissé à découvrir : rien dans la vérification n'est lié à un nonce ni à un horodatage. |
+
+---
+
+### Entité E7 : Endpoint de revue par modèle (Ollama, ou une API compatible OpenAI)
+
+*Ajoutée en dernier, alors qu'elle aurait dû l'être en premier. C'est le seul flux qui fait sortir
+du processus **le code source analysé**, et le modèle n'en portait aucune entrée — ni ici, ni dans
+la vue sécurité — pendant plusieurs audits. Elle est listée comme entité externe même lorsque
+l'opérateur l'héberge lui-même : « la destination est une machine que je contrôle » est une valeur
+de configuration, pas une propriété de la conception.*
+
+| Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
+|---|---|---|---|
+| **Information Disclosure** | L'endpoint est une adresse publique : la source de chaque dépôt scanné — les dépôts privés, et les secrets qui y sont encore commités — quitte le patrimoine dans un corps de requête, sous la politique de rétention et la juridiction d'un tiers. | Perte complète de la confidentialité du code, en silence et dépôt par dépôt. | La garde sortante applique `INTERNAL_REQUIRED` par défaut : `OutboundPost.validate` **résout le nom** et refuse une adresse publique au lieu de reconnaître un motif dans la chaîne. La lever exige `Setting.AI_REVIEW_ALLOW_REMOTE`, dont l'aide dit ce qu'elle coûte. Revalidée à **chaque revue** (`AiReview.validatedUrl`), et pas seulement à l'enregistrement : une ligne écrite directement en base ne la contourne pas. |
+| **Repudiation** | Personne ne peut dire qui a décidé que le code pouvait sortir, ni quand — l'interrupteur est un booléen, et un booléen n'a pas d'auteur. | Une question sans réponse au premier audit qui la pose. | `AI_REVIEW_RISK_ACKNOWLEDGED_BY` / `_AT` sont estampillés **par le serveur** depuis la session authentifiée et son horloge, refusés sur le fil (`SettingsController.update`), et effacés quand l'interrupteur repasse à zéro. `t_audit_log` porte le même événement et n'est jamais purgé. |
+| **Spoofing** | Une destination du réseau interne qui n'est pas le modèle — une faute de frappe, ou un DNS déplacé sous le déploiement. | Code source posté à ce qui répond. | Partiellement mitigé. La garde prouve que l'adresse est interne, pas que l'hôte est celui qu'on visait. L'épinglage TLS existe via `PinnedHttpSender` mais n'est pas exigé pour cette destination. |
+| **Tampering** | L'endpoint renvoie des constats sur lesquels l'opérateur agit ; compromis, il peut masquer une vraie vulnérabilité ou en inventer une. | Effort de remédiation mal dirigé, ou vrai problème écarté. | La revue est **consultative et additive** : les constats d'`AiReview` n'effacent jamais ceux d'un scanner, et le verdict de gate est calculé sans eux ([ADR 0005](../../fr/decisions/0005-quality-never-blocks-the-gate.md)). |
+| **Denial of Service** | Un endpoint lent ou indisponible qui retient le chemin de requête ouvert. | Les revues s'accumulent ; l'écran qui en a demandé une attend. | `AI_REVIEW_TIMEOUT_SECONDS` borne chaque appel, et une revue en échec vaut `Optional.empty()` plutôt qu'un résultat vide ([ADR 0007](../../fr/decisions/0007-none-is-not-an-empty-list.md)) — le rapport dit que la revue n'a pas tourné au lieu d'en montrer une propre. |
+| **Information Disclosure** | La clé d'API d'un endpoint tiers lue dans la table des réglages ou sur un écran. | Un compte que quelqu'un d'autre peut dépenser. | `AI_REVIEW_OPENAI_KEY` est `Sensitivity.ENCRYPTED` : écrite uniquement par `PUT /settings/ai-openai-key`, qui la chiffre, refusée par la route générique des réglages, et renvoyée par aucune route — un écran apprend qu'une clé existe, jamais laquelle. |
 
 ---
 
@@ -191,7 +217,14 @@ la raison pour laquelle il mérite son propre tableau.*
 
 ---
 
-### Flux de Données en Transit (Data Flows : F1 à F16)
+### Flux de Données en Transit — les flux dont le *transit* porte une menace propre
+
+*L'intitulé disait ici « Data Flows : F1 à F16 » au-dessus de cinq lignes, ce qui se lit au premier
+regard comme seize flux analysés. Ce n'est pas ce qu'est cette section. Chaque flux du diagramme
+**est** analysé — à ses deux extrémités, dans les matrices d'entités, de processus et de magasins
+de données ci-dessus, là où une menace visant `P5` ou `DS2` a sa place. Ce qui suit est l'ensemble
+plus restreint où la traversée elle-même est l'exposition, indépendamment de ce qui se trouve à
+chaque bout. Les autres ne sont délibérément pas répétés ici.*
 
 | Flux DFD | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|---|

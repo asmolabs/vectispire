@@ -39,6 +39,31 @@ concernant sont marqués *(arbre de travail)* et ne sont l'erreur commise de per
 
 ---
 
+## 0. État de remédiation — les quatre constats sont fermés
+
+*Ajouté après l'audit, le même jour. Chaque ligne nomme ce qui ferme le constat et la mutation qui
+prouve que l'assertion peut échouer. Suite complète après les changements : **1320 tests JVM,
+0 échec** (1292 avant), **146 tests Angular, 0 échec**, **730 liens, 0 cassé**.*
+
+| # | Constat | Fermé par | Preuve qu'il peut échouer |
+|---|---|---|---|
+| §3.1 | Secrets écrits en clair par la route générique | **Pas de mon fait.** `Sensitivity.ENCRYPTED` sépare « masquer ceci » de « chiffrer ceci » ; le chemin d'écriture refuse les quatre credentials, le catalogue les retient aussi aux administrateurs, et le secret de webhook du tracker — le seul credential stocké en clair *par conception* — a gagné la route qu'il n'avait pas. `SettingTest.credentialsAreMarkedEncrypted` épingle la liste. | Sonde d'audit rejouée en HTTP : `PUT /api/v1/settings {"ticket_token":…}` → **400**, rien de stocké. |
+| §3.2 | Le consentement à l'envoi hors du parc ne pouvait pas être retiré | Un enregistrement qui *retire* l'acquittement saute la vérification d'avant-sauvegarde — la configuration résultante est strictement moins permissive, et `validatedUrl()` la refuse de toute façon à chaque revue. `AiReviewConsentTest`, 5 cas. | Vérification inconditionnelle rétablie → **2 tests échouent**. |
+| §3.3 | Les routes de credentials étaient gardées, non testées | `SettingsRoutesTest` : chaque route d'écriture répond 403 à un lecteur et 200 à un administrateur, à travers la vraie chaîne de filtres. | `@RequiresAdministrator` retiré de `/ai-openai-key` → **1 test échoue**. |
+| §3.4 | La revue par modèle absente du modèle STRIDE | **E7** ajoutée comme entité avec six lignes, **TB5** et **F17** dans le DFD, dans les deux langues. L'intitulé du tableau des flux ne revendique plus seize flux au-dessus de cinq lignes ; il dit ce qu'est la section et où le reste est analysé. | s.o. — documentation. Parité bilingue vérifiée par grep ; 730 liens résolvent toujours. |
+
+### Et un constat nouveau, trouvé en fermant le §3.3
+
+`POST /api/v1/settings/ollama-test` ne portait aucune garde de méthode : le marqueur de classe
+`@RequiresAccount` s'appliquait, donc **tout lecteur connecté pouvait la lancer** — et elle répond
+avec l'URL de l'endpoint configuré, la valeur même que `ai_review_ollama_url` est marquée `SECRET`
+pour tenir hors de ces mains. Elle faisait aussi ouvrir au serveur une connexion sortante sur la
+parole d'un lecteur. Elle est désormais restreinte aux rôles qui peuvent écrire le réglage. Vérifié
+par exécution avant et après ; l'assertion échoue quand la garde est retirée.
+
+---
+
+
 ## 1. Ce que j'ai exécuté
 
 Tout ce tableau a été lancé. Rien n'y a été déduit de la lecture d'un fichier.
