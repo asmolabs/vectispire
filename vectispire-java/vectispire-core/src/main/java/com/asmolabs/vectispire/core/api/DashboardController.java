@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
@@ -208,11 +209,15 @@ public class DashboardController {
         // Every issue, not only the open ones: an issue resolved inside the window has to be
         // counted as open on the days before it was resolved, or the curve would start at today's
         // backlog and pretend the history was always this good.
+        // **Two columns, not every row.** Read as entities this loaded one managed object per
+        // issue in the estate to take two timestamps off each — measured linear, at a constant
+        // query count. The projection asks the database for exactly what the curve is made of.
         List<BacklogTrend.Lifespan> lifespans = issues
-                .findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification())
+                .findBy(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification(),
+                        query -> query.as(IssueRows.Lifespan.class).all())
                 .stream()
-                .map(issue -> new BacklogTrend.Lifespan(issue.getFirstSeenAt(), issue.getResolvedAt()))
+                .map(row -> new BacklogTrend.Lifespan(row.firstSeenAt(), row.resolvedAt()))
                 .toList();
 
         BacklogTrend.Series series = BacklogTrend.over(lifespans, from, to);
@@ -233,22 +238,28 @@ public class DashboardController {
         int window = Math.clamp(days, 7, MAX_TREND_DAYS);
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
 
-        List<com.asmolabs.vectispire.core.persistence.IssueEntity> allIssues = issues
-                .findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification());
+        // Five columns per issue, not the row: this plots a point per issue and reads nothing
+        // else off it. Materialising the entities made the page cost one managed object per issue
+        // in the estate — the same shape as the backlog curve above, and measured the same way.
+        List<IssueRows.Observation> allIssues = issues
+                .findBy(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification(),
+                        query -> query.as(IssueRows.Observation.class).all());
 
-        List<Long> repoIds = allIssues.stream().map(com.asmolabs.vectispire.core.persistence.IssueEntity::getRepoId).filter(java.util.Objects::nonNull).distinct().toList();
-        List<Long> containerIds = allIssues.stream().map(com.asmolabs.vectispire.core.persistence.IssueEntity::getContainerId).filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> repoIds = allIssues.stream().map(IssueRows.Observation::repoId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> containerIds = allIssues.stream().map(IssueRows.Observation::containerId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
         TargetNaming.Names names = naming.forIds(repoIds, containerIds);
 
         List<PostureTrendAnalytics.IssueObservation> observations = allIssues.stream()
                 .map(i -> new PostureTrendAnalytics.IssueObservation(
-                        i.getRepoId() != null ? i.getRepoId() : i.getContainerId(),
-                        i.getRepoId() != null ? "REPOSITORY" : "CONTAINER",
-                        names.of(i.getRepoId(), i.getContainerId()),
-                        i.getSeverity() != null ? i.getSeverity() : "MEDIUM",
-                        i.getFirstSeenAt(),
-                        i.getResolvedAt()))
+                        i.repoId() != null ? i.repoId() : i.containerId(),
+                        i.repoId() != null ? "REPOSITORY" : "CONTAINER",
+                        names.of(i.repoId(), i.containerId()),
+                        i.severity() != null ? i.severity() : "MEDIUM",
+                        i.firstSeenAt(),
+                        i.resolvedAt()))
                 .toList();
 
         return PostureTrendAnalytics.calculate(window, clock.instant(), observations);

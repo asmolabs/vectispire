@@ -87,9 +87,15 @@ public class SlaService {
         }
 
         java.util.Map<String, Long> perTarget = new java.util.HashMap<>();
-        for (IssueEntity issue : issues.findAll(overdue(thresholds, allowed).toSpecification())) {
-            Long repoId = issue.getRepoId();
-            Long containerId = issue.getContainerId();
+        // **Two columns.** This groups overdue issues by the target they belong to and reads
+        // nothing else off them, so loading entities cost one managed object per overdue issue in
+        // the estate — the same shape as the four reads `ReadCostRoutesTest` pins, and the one
+        // that kept the compliance summary linear after the other four were projected.
+        for (com.asmolabs.vectispire.core.repositories.IssueRows.Attribution row : issues.findBy(
+                overdue(thresholds, allowed).toSpecification(),
+                query -> query.as(com.asmolabs.vectispire.core.repositories.IssueRows.Attribution.class).all())) {
+            Long repoId = row.repoId();
+            Long containerId = row.containerId();
             if (repoId == null && containerId == null) {
                 continue;
             }

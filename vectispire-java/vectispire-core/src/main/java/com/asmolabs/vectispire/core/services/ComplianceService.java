@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;
@@ -247,9 +248,16 @@ public class ComplianceService {
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
 
         // MTTR calculation over resolved issues
-        List<MttrCalculator.ResolvedIssue> resolved = issues.findAll(new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, null, null, false, false, null, allowed).toSpecification())
+        // Three columns, not every resolved row: a mean time to remediate is an average over
+        // severity and two dates, and reading the entities made the summary cost one managed
+        // object per resolved issue in the estate.
+        List<MttrCalculator.ResolvedIssue> resolved = issues.findBy(
+                        new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, null, null,
+                                false, false, null, allowed).toSpecification(),
+                        query -> query.as(IssueRows.Resolution.class).all())
                 .stream()
-                .map(i -> new MttrCalculator.ResolvedIssue(Severity.of(i.getSeverity()), i.getFirstSeenAt(), i.getResolvedAt()))
+                .map(row -> new MttrCalculator.ResolvedIssue(
+                        Severity.of(row.severity()), row.firstSeenAt(), row.resolvedAt()))
                 .toList();
 
         MttrCalculator.MttrResult mttr = MttrCalculator.calculate(resolved);
@@ -376,10 +384,14 @@ public class ComplianceService {
 
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
 
-        List<MttrCalculator.ResolvedIssue> resolved = issues.findAll(new IssueFilters(
-                IssueState.RESOLVED.wireName(), null, null, null, repoId, containerId, false, false, null, allowed).toSpecification())
+        // The same projection as the estate-wide summary above, narrowed to one target.
+        List<MttrCalculator.ResolvedIssue> resolved = issues.findBy(
+                        new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, repoId, containerId,
+                                false, false, null, allowed).toSpecification(),
+                        query -> query.as(IssueRows.Resolution.class).all())
                 .stream()
-                .map(i -> new MttrCalculator.ResolvedIssue(Severity.of(i.getSeverity()), i.getFirstSeenAt(), i.getResolvedAt()))
+                .map(row -> new MttrCalculator.ResolvedIssue(
+                        Severity.of(row.severity()), row.firstSeenAt(), row.resolvedAt()))
                 .toList();
 
         MttrCalculator.MttrResult mttr = MttrCalculator.calculate(resolved);

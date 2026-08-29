@@ -177,6 +177,15 @@ public interface Issues
     List<IssueEntity> findByState(String state);
 
     /**
+     * The same rows, in whatever narrow shape the caller declares.
+     *
+     * <p>For the readers that want a handful of columns from every issue in the deployment. The
+     * entity form above loads one managed object per row, which the estate-wide overview paid on
+     * every dashboard open — see {@code IssueRows}.
+     */
+    <T> List<T> findByState(String state, Class<T> shape);
+
+    /**
      * One target's issues in one state.
      *
      * <p><b>Why two methods rather than one taking both ids.</b> A single query would need

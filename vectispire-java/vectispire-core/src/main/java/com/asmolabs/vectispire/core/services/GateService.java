@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -252,9 +253,13 @@ public class GateService {
     /** Every target's open issues, for the overview — which is the one caller that needs them all. */
     private Map<ScanTarget, List<GateIssue>> openIssuesByTarget() {
         Map<ScanTarget, List<GateIssue>> byTarget = new HashMap<>();
-        for (IssueEntity issue : issues.findByState(IssueState.OPEN.wireName())) {
-            targetOf(issue).ifPresent(target ->
-                    byTarget.computeIfAbsent(target, key -> new ArrayList<>()).add(IssueViews.forGate(issue)));
+        // **Projected, because this one is estate-wide.** Its per-target sibling above reads one
+        // target's issues and can afford entities; this reads every open issue in the deployment,
+        // and the dashboard opens on every sign-in. Ten columns instead of the row, measured by
+        // `ReadCostRoutesTest`.
+        for (IssueRows.GateRow row : issues.findByState(IssueState.OPEN.wireName(), IssueRows.GateRow.class)) {
+            targetOf(row).ifPresent(target ->
+                    byTarget.computeIfAbsent(target, key -> new ArrayList<>()).add(IssueViews.forGate(row)));
         }
         return byTarget;
     }
@@ -299,6 +304,17 @@ public class GateService {
         }
         if (issue.getContainerId() != null) {
             return Optional.of(new ScanTarget.Container(issue.getContainerId()));
+        }
+        return Optional.empty();
+    }
+
+    /** The same attribution, from a projected row. */
+    private static Optional<ScanTarget> targetOf(IssueRows.GateRow row) {
+        if (row.repoId() != null) {
+            return Optional.of(new ScanTarget.Repository(row.repoId()));
+        }
+        if (row.containerId() != null) {
+            return Optional.of(new ScanTarget.Container(row.containerId()));
         }
         return Optional.empty();
     }

@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
@@ -38,6 +39,26 @@ public final class IssueViews {
                 issue.getFixVersions(),
                 issue.getIsKev(),
                 triageOf(issue));
+    }
+
+    /**
+     * The same view, built from a projection instead of an entity.
+     *
+     * <p>Identical field for field — the mapping is duplicated rather than shared because the two
+     * inputs have no common supertype, and inventing one to save nine lines would put an interface
+     * on a persistence entity for the benefit of a query.
+     */
+    public static GateIssue forGate(IssueRows.GateRow row) {
+        return new GateIssue(
+                row.id() == null ? 0L : row.id(),
+                IssueState.OPEN.wireName().equals(row.state()),
+                FindingType.fromWireName(row.type()).orElse(null),
+                Severity.of(row.severity()),
+                row.identifier(),
+                row.packageName(),
+                row.fixVersions(),
+                row.isKev(),
+                TriageStatus.fromWireName(row.triageStatus()).orElse(TriageStatus.UNDER_REVIEW));
     }
 
     /** What a ticket's title and body read. */
