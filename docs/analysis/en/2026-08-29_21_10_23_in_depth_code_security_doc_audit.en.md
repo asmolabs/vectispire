@@ -36,6 +36,42 @@ scored without measuring:
 
 ---
 
+## 0. Remediation status — both findings closed
+
+*Added after the audit. Full verification after the changes: **1326 JVM tests** (1320 before, +6),
+**0 failures**, and the three-engine campaign green again — **PostgreSQL 29, MySQL 29, SQLite 29** —
+which matters here because a DTO projection generates different SQL on each dialect.*
+
+| # | Finding | Closed by | Proof it can fail |
+|---|---|---|---|
+| §3.1 | Four-eyes did not cover `FIXED` | The queue is entered on `status().isSettled()` — the property that already means "takes this out of the gate verdict" — instead of on `NOT_AFFECTED` by name, in `IssueTriageService`, and the approval branch in `apply` is widened to match. Two cases added to `BulkTriageRoutesTest`: a reader declaring `fixed` is queued, and the requester cannot then grant their own. | Both new cases fail against the old condition — they were written before the fix and failed. |
+| §3.2 | Whole-table reads | Five reads converted to column projections through `IssueRows` (`Lifespan`, `Resolution`, `Observation`, `Attribution`, `GateRow`). `ReadCostRoutesTest` pins four routes with Hibernate's entity-load counter. | Put one `findAll` back in `SlaService` → **1 test fails**. |
+
+### The ordering problem the fix uncovered
+
+Widening the queue broke a neighbouring rule, and the interaction is worth recording. `Triage.decide`
+requires a VEX justification for `PENDING_APPROVAL` — sound while the queue could only hold
+exemptions, since a dismissal with no justification exports as an invalid VEX statement. A queued
+**fix** is not an exemption and has no such justification to give, so every `fixed` from a reader
+came back 400.
+
+The fix is an ordering, not an exception: validate the decision the operator actually asked for,
+then queue the result. `resolveRequest` (on the request, before validation) became
+`queueIfNotApprover` (on the decision, after it). A dismissal still cannot reach the queue without
+its justification; a fix is no longer asked for one.
+
+### And a correction to §3.2's attribution
+
+The audit named four `findAll` sites. Measuring the fix found **five**, and one of the four was
+wrong: `/api/v1/dashboard` does not read through `DashboardController:237` but through
+`GateService.openIssuesByTarget()`, and the compliance summary stayed linear after four
+conversions because of a fifth read nobody had named — `SlaService.countOverdueByTarget`, which
+loads every overdue issue in the estate to group them by target and reads two columns off each.
+The measurement found it; reading the four named sites would not have.
+
+---
+
+
 ## 1. What I executed
 
 | Control | Command | Result |

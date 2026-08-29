@@ -36,6 +36,43 @@ constats ci-dessous sont du terrain que des audits antérieurs ont noté sans le
 
 ---
 
+## 0. État de remédiation — les deux constats sont fermés
+
+*Ajouté après l'audit. Vérification complète après les changements : **1326 tests JVM** (1320 avant,
++6), **0 échec**, et la campagne trois moteurs de nouveau verte — **PostgreSQL 29, MySQL 29,
+SQLite 29** — ce qui compte ici, une projection DTO ne générant pas le même SQL sur chaque dialecte.*
+
+| # | Constat | Fermé par | Preuve qu'il peut échouer |
+|---|---|---|---|
+| §3.1 | Les quatre yeux ne couvraient pas `FIXED` | La file d'approbation s'ouvre sur `status().isSettled()` — la propriété qui signifie déjà « sort du verdict de gate » — au lieu de nommer `NOT_AFFECTED`, dans `IssueTriageService`, et la branche d'approbation d'`apply` est élargie de même. Deux cas ajoutés à `BulkTriageRoutesTest` : un lecteur qui déclare `fixed` est mis en file, et le demandeur ne peut ensuite pas s'accorder son propre correctif. | Les deux nouveaux cas échouent contre l'ancienne condition — écrits avant le correctif, ils ont échoué. |
+| §3.2 | Lectures de table entière | Cinq lectures converties en projections de colonnes via `IssueRows` (`Lifespan`, `Resolution`, `Observation`, `Attribution`, `GateRow`). `ReadCostRoutesTest` épingle quatre routes avec le compteur d'entités d'Hibernate. | Un `findAll` remis dans `SlaService` → **1 test échoue**. |
+
+### Le problème d'ordre que le correctif a mis au jour
+
+Élargir la file a cassé une règle voisine, et l'interaction mérite d'être consignée.
+`Triage.decide` exige une justification VEX pour `PENDING_APPROVAL` — ce qui était juste tant que la
+file ne pouvait contenir que des exemptions, une exemption sans justification s'exportant en
+statement VEX invalide. Un **correctif** mis en file n'est pas une exemption et n'a pas de
+justification de ce genre à donner : chaque `fixed` d'un lecteur revenait donc en 400.
+
+Le correctif est un ordre, pas une exception : valider la décision que l'opérateur a réellement
+demandée, puis mettre le résultat en file. `resolveRequest` (sur la requête, avant validation) est
+devenu `queueIfNotApprover` (sur la décision, après). Une exemption ne peut toujours pas entrer en
+file sans sa justification ; un correctif ne s'en voit plus réclamer une.
+
+### Et une correction de l'attribution du §3.2
+
+L'audit nommait quatre sites `findAll`. La mesure du correctif en a trouvé **cinq**, et l'un des
+quatre était faux : `/api/v1/dashboard` ne lit pas par `DashboardController:237` mais par
+`GateService.openIssuesByTarget()`, et le sommaire de conformité est resté linéaire après quatre
+conversions à cause d'une cinquième lecture que personne n'avait nommée —
+`SlaService.countOverdueByTarget`, qui charge chaque constat en retard du parc pour les grouper par
+cible et n'en lit que deux colonnes. C'est la mesure qui l'a trouvée ; relire les quatre sites
+nommés ne l'aurait pas fait.
+
+---
+
+
 ## 1. Ce que j'ai exécuté
 
 | Contrôle | Commande | Résultat |
