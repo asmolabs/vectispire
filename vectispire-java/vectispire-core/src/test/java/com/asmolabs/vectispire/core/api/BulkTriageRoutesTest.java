@@ -175,6 +175,86 @@ class BulkTriageRoutesTest extends ApiTestBase {
                         .isEqualTo(TriageStatus.NOT_AFFECTED.wireName()));
     }
 
+    @Test
+    @DisplayName("a reader declaring an issue fixed queues it too, because fixed settles it just the same")
+    void fixedGoesThroughApprovalAsWell() throws Exception {
+        long target = repository("https://example.invalid/fixed4eyes.git");
+        long issueId = issue(target, "CVE-FIXED-1");
+
+        // **The hole this closes.** The queue was entered on `NOT_AFFECTED` alone, so a reader
+        // could not argue an issue away — and could declare it repaired, alone, in one request.
+        // `TriageStatus` marks both as settling, and settling is what stops failing a build.
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(issueId),
+                                        "status", "fixed",
+                                        "comment", "Patched in 2.1.0"))),
+                        asReader()))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(issueId))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .as("a reader settled an issue as fixed with nobody else involved")
+                        .isEqualTo(TriageStatus.PENDING_APPROVAL.wireName()));
+
+        // And a second pair of eyes settles it, which is the half that has to keep working.
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(issueId),
+                                        "status", "fixed",
+                                        "comment", "Verified against the release"))),
+                        asSecurityChampion()))
+                .andExpect(status().isOk());
+
+        assertThat(issues.findById(issueId))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .isEqualTo(TriageStatus.FIXED.wireName()));
+    }
+
+    @Test
+    @DisplayName("the account that asked for a fix to be accepted cannot be the one that accepts it")
+    void theRequesterCannotApproveTheirOwnFixed() throws Exception {
+        long target = repository("https://example.invalid/selffixed.git");
+        long issueId = issue(target, "CVE-FIXED-2");
+        String requester = tokenFor("self-fixer", Role.USER, false);
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(issueId),
+                                        "status", "fixed",
+                                        "comment", "Patched"))),
+                        requester))
+                .andExpect(status().isOk());
+
+        // Promoted, so the role gate now lets them approve — which is exactly the case a role
+        // gate alone cannot catch, and the reason `requireASecondPairOfEyes` counts people.
+        promoteToSecurityChampion("self-fixer");
+
+        mvc.perform(authenticated(
+                        post("/api/v1/issues/triage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of(
+                                        "ids", List.of(issueId),
+                                        "status", "fixed",
+                                        "comment", "Approving my own"))),
+                        requester))
+                .andExpect(status().isBadRequest());
+
+        assertThat(issues.findById(issueId))
+                .get()
+                .satisfies(issue -> assertThat(issue.getTriageStatus())
+                        .as("the requester granted their own fixed")
+                        .isEqualTo(TriageStatus.PENDING_APPROVAL.wireName()));
+    }
+
     /** The promotion the scenario above turns on: same account, approver role now. */
     private void promoteToSecurityChampion(String username) {
         var user = users.findByUsername(username).orElseThrow();

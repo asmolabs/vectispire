@@ -52,8 +52,7 @@ public class IssueTriageService {
 
     @Transactional
     public IssueEntity triage(long issueId, Triage.Request request, boolean canApprove) {
-        Triage.Request effectiveRequest = resolveRequest(request, canApprove);
-        Triage.Decision decision = Triage.decide(effectiveRequest, clock.instant());
+        Triage.Decision decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
 
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new InvalidTriageException("Issue not found."));
@@ -71,8 +70,7 @@ public class IssueTriageService {
 
     @Transactional
     public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request, boolean canApprove) {
-        Triage.Request effectiveRequest = resolveRequest(request, canApprove);
-        Triage.Decision decision = Triage.decide(effectiveRequest, clock.instant());
+        Triage.Decision decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
 
         List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
         for (Long issueId : issueIds) {
@@ -83,17 +81,40 @@ public class IssueTriageService {
         return issues.saveAll(triaged);
     }
 
-    private static Triage.Request resolveRequest(Triage.Request request, boolean canApprove) {
-        if (!canApprove && request != null && request.status() == TriageStatus.NOT_AFFECTED) {
-            // A non-approver requesting NOT_AFFECTED creates a PENDING_APPROVAL exemption request
-            return new Triage.Request(
-                    TriageStatus.PENDING_APPROVAL,
-                    request.actor(),
-                    request.justification(),
-                    request.comment(),
-                    request.expiresIn());
+    /**
+     * Sends a settling decision to the approval queue when its author cannot approve.
+     *
+     * <p><b>Both settling statuses, not just the dismissal.</b> The test was
+     * {@code == NOT_AFFECTED}, and {@link TriageStatus} marks two statuses as settling: an issue
+     * declared {@code FIXED} stops failing builds exactly as a dismissed one does. So four-eyes
+     * held the door a non-approver was most likely to be refused at, and left the other one open —
+     * a reader could not argue an issue away, and could declare it repaired, alone, in one request.
+     * The setting's own help text promised both.
+     *
+     * <p>Asking {@link TriageStatus#isSettled()} rather than naming the statuses again is the
+     * point: the property already means "takes this out of the gate verdict", so a status added
+     * later is covered the day it is marked settling, instead of the day somebody remembers this
+     * line.
+     *
+     * <p><b>Applied after {@link Triage#decide}, and that ordering is the whole subtlety.</b>
+     * {@code decide} requires a VEX justification for {@code PENDING_APPROVAL}, which was sound
+     * while the queue could only hold exemptions — a dismissal with no justification exports as an
+     * invalid VEX statement. A queued <em>fix</em> is not an exemption and needs no such
+     * justification. Validating what the operator actually asked for and queueing the result
+     * afterwards keeps both rules true: a dismissal still cannot reach the queue without its
+     * justification, and a fix is no longer asked for one it has no way to give.
+     */
+    private static Triage.Decision queueIfNotApprover(Triage.Decision decision, boolean canApprove) {
+        if (canApprove || decision.status() == null || !decision.status().isSettled()) {
+            return decision;
         }
-        return request;
+        return new Triage.Decision(
+                TriageStatus.PENDING_APPROVAL,
+                decision.justification(),
+                decision.comment(),
+                decision.triagedBy(),
+                decision.triagedAt(),
+                decision.expiresAt());
     }
 
     /**
@@ -101,8 +122,11 @@ public class IssueTriageService {
      */
     private IssueEntity apply(IssueEntity issue, Triage.Decision decision) {
         String previous = issue.getTriageStatus();
+        // Settling, not dismissing — the counterpart of the widening in `queueIfNotApprover`. Without
+        // it a queued `FIXED` would be granted as an ordinary edit: no approval recorded in the
+        // history, and `requireASecondPairOfEyes` never reached, so the requester could grant it.
         String origin = (TriageStatus.PENDING_APPROVAL.wireName().equals(previous)
-                && decision.status() == TriageStatus.NOT_AFFECTED) ? APPROVAL : MANUAL;
+                && decision.status() != null && decision.status().isSettled()) ? APPROVAL : MANUAL;
 
         if (APPROVAL.equals(origin)) {
             requireASecondPairOfEyes(issue, decision);
@@ -133,7 +157,7 @@ public class IssueTriageService {
     /**
      * Four eyes, counted as two people rather than as two roles.
      *
-     * <p><b>What the role gate alone does not do.</b> {@link #resolveRequest} downgrades a
+     * <p><b>What the role gate alone does not do.</b> {@link #queueIfNotApprover} downgrades a
      * dismissal to {@code PENDING_APPROVAL} when its author cannot approve, which produces a
      * queue — and nothing after that compared the approver to the requester. A Security
      * Champion could therefore raise an exemption and approve it in the same session, and the
