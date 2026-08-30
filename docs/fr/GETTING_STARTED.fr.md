@@ -183,7 +183,8 @@ vérifié.
 
 ## 9. Vérifier une release
 
-Chaque release porte quatre fichiers : le jar, son SBOM, et un paquet Sigstore pour chacun.
+Chaque release porte quatre fichiers — le jar, son SBOM, et un paquet Sigstore pour chacun — et
+deux images de conteneur signées.
 Vérifiez avant de lancer quoi que ce soit — un outil de sécurité pris sur parole est une
 contradiction.
 
@@ -220,6 +221,44 @@ cosign verify-blob \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   vectispire-1.0.0.cdx.json
 ```
+
+### Exécuter depuis les images publiées
+
+Une release publie aussi deux images de conteneur, de sorte que rien n'a besoin d'être compilé
+pour exécuter ce logiciel :
+
+```bash
+docker pull ghcr.io/asmolabs/vectispire:1.0.0
+docker pull ghcr.io/asmolabs/vectispire-agent:1.0.0
+```
+
+**Vérifiez-les avant de les exécuter, et vérifiez par empreinte.** Un tag est un pointeur mutable :
+signer `:1.0.0` ne dit rien de ce vers quoi `:1.0.0` pointera la semaine prochaine — c'est la
+raison même pour laquelle chaque action de ce dépôt est épinglée par SHA :
+
+```bash
+DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:1.0.0 \
+           --format '{{.Manifest.Digest}}')
+
+cosign verify \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
+```
+
+Chaque image porte un SBOM CycloneDX sous forme d'attestation signée, et non de fichier posé à
+côté — une liste de composants que n'importe qui peut remplacer ne prouve rien :
+
+```bash
+cosign verify-attestation --type cyclonedx \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "ghcr.io/asmolabs/vectispire@${DIGEST}" | jq -r '.payload' | base64 -d | jq '.predicate.components | length'
+```
+
+**Épinglez l'empreinte dans ce qui l'exécute.** `image: ghcr.io/asmolabs/vectispire@sha256:…` dans
+un fichier compose ou un manifeste, c'est le déploiement qui correspond à ce que vous avez
+vérifié ; `:latest`, c'est un déploiement qui change sous vos pieds sans diff.
 
 **Les releases signées avant le 27 août 2026 portent une autre identité.** Le projet est passé de
 GitLab à GitHub, et l'identité du certificat nomme la forge, le dépôt et le fichier de workflow :

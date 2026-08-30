@@ -245,6 +245,28 @@ tasks.named<Jar>("bootJar") {
  * **The base is pinned by digest**, for the reason `ScannerImages` gives: a tool that audits
  * everybody else's supply chain cannot pull a floating tag and run whatever comes down.
  */
+/**
+ * Where the image is published, and what it is called there.
+ *
+ * **The defaults reproduce the old hardcoded values exactly**, so `jibDockerBuild` with no
+ * arguments still produces `vectispire:latest` — the tag `docker-compose.yml` names and the CI
+ * smoke job runs. Nothing local changes; what changes is that a release can now aim somewhere
+ * that is not the developer's own daemon.
+ *
+ * Before this, `to { image = "vectispire:latest" }` was a local tag and nothing else: no
+ * registry, no digest, no way for anyone to run this software without building it first. An
+ * internal deployment meant a JDK, a Gradle cache and a compile on every host.
+ *
+ *   -PimageNamespace=ghcr.io/asmolabs   the registry and owner; empty means a bare local tag
+ *   -PimageTag=0.9.0                    the primary tag
+ *   -PimageExtraTags=latest,0.9         additional tags, comma-separated
+ */
+val imageNamespace = (findProperty("imageNamespace") as String?)?.trim().orEmpty()
+val imageName = if (imageNamespace.isEmpty()) "vectispire" else "$imageNamespace/vectispire"
+val imageTag = (findProperty("imageTag") as String?)?.trim().takeIf { !it.isNullOrEmpty() } ?: "latest"
+val imageExtraTags = (findProperty("imageExtraTags") as String?)
+    ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+
 jib {
     from {
         // eclipse-temurin:25-jre-alpine, resolved with
@@ -258,7 +280,8 @@ jib {
         }
     }
     to {
-        image = "vectispire:latest"
+        image = "$imageName:$imageTag"
+        tags = imageExtraTags
     }
     container {
         ports = listOf("3180")

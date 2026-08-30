@@ -53,6 +53,13 @@ tasks.named<Jar>("bootJar") {
  * component that runs on somebody else's network — the one where an unused binary matters most.
  * It opens no port, so none is declared.
  */
+/** Same three properties as the control plane — see `vectispire-core/build.gradle.kts`. */
+val imageNamespace = (findProperty("imageNamespace") as String?)?.trim().orEmpty()
+val imageName = if (imageNamespace.isEmpty()) "vectispire-agent" else "$imageNamespace/vectispire-agent"
+val imageTag = (findProperty("imageTag") as String?)?.trim().takeIf { !it.isNullOrEmpty() } ?: "latest"
+val imageExtraTags = (findProperty("imageExtraTags") as String?)
+    ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet().orEmpty()
+
 jib {
     from {
         // eclipse-temurin:25-jre-alpine, pinned by digest like every other image this project runs.
@@ -65,7 +72,8 @@ jib {
         }
     }
     to {
-        image = "vectispire-agent:latest"
+        image = "$imageName:$imageTag"
+        tags = imageExtraTags
     }
     container {
         user = "1000:1000"

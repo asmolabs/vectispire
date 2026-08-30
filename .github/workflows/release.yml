@@ -37,6 +37,12 @@ permissions:
   # Sigstore keyless signing needs the workflow's OIDC token. Granted here and nowhere else:
   # every other workflow in this repository is read-only.
   id-token: write
+  # **Publishing the container images.** Before this, nothing this project built was reachable
+  # without compiling it: `jib.to.image` was the local tag `vectispire:latest`, so an internal
+  # deployment meant a JDK, a Gradle cache and a build on every host that wanted to run it.
+  # GHCR is the default because it authenticates with the token this job already holds — no
+  # secret to create, nothing to rotate, and it works on the first tag.
+  packages: write
 
 jobs:
   release:
@@ -52,6 +58,16 @@ jobs:
 
       - name: the suites, on the tagged tree
         run: cd vectispire-java && ./gradlew build :vectispire-core:bootJar
+
+      # The control plane image serves the interface, so the interface has to exist before the
+      # image is built. `ci.yml` passes this between jobs as an artifact; here it is one job, so
+      # it is built in place.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --prefer-offline
+      - run: npm run build
 
       - name: name the artifact after the tag
         run: |
@@ -123,6 +139,83 @@ jobs:
               "$FILE"
           done
 
+      # ----------------------------------------------------------------------------------
+      # The container images: built, pushed, signed and verified by digest.
+      # ----------------------------------------------------------------------------------
+      #
+      # **This is what makes the software installable.** Everything above produces a jar, which
+      # is the right artifact for someone who already has a JDK and reads release notes. A team
+      # that wants to run this internally wants `docker pull` and a compose file — and until
+      # now there was none, because `jib.to.image` named a tag on the developer's own daemon.
+      #
+      # Only on a tag, for the same reason the release itself is: a rehearsal runs from a branch,
+      # where `GITHUB_REF_NAME` is the branch name, and publishing `:develop` to a public
+      # registry is not something anybody asked for.
+      - name: publish the images
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          # Lower-cased because a registry path must be, and `asmolabs/Vectispire` is a push
+          # error that only appears on the one run nobody wants to debug.
+          NAMESPACE: ghcr.io/${{ github.repository_owner }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAMESPACE="$(echo "$NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+          echo "NAMESPACE=$NAMESPACE" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "${{ github.token }}" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          cd vectispire-java
+          # `jib`, not `jibDockerBuild`: this pushes to the registry directly rather than
+          # through a local daemon, so there is no intermediate copy to disagree with.
+          ./gradlew :vectispire-core:jib :vectispire-agent:jib -x test \
+            -PimageNamespace="$NAMESPACE" \
+            -PimageTag="$VERSION" \
+            -PimageExtraTags=latest \
+            -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
+
+      # **Signed by digest, never by tag.** A tag is a mutable pointer: signing `:0.9.0` says
+      # nothing about what `:0.9.0` resolves to tomorrow, which is the whole failure mode the
+      # jar signing above exists to prevent. The digest is the image.
+      - name: sign and verify both images
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # **Paired explicitly rather than derived from the image name.** The first version of
+          # this loop wrote `${NAME}_DIGEST` into `$GITHUB_ENV`, which for the agent produces
+          # `vectispire-agent_DIGEST` — not a variable at all. A hyphen cannot appear in a shell
+          # identifier, so `${vectispire-agent_DIGEST}` is parameter expansion with a default:
+          # "if $vectispire is unset, use the string agent_DIGEST". It would not have failed. It
+          # would have put that literal into the release notes.
+          set -- "vectispire:CORE" "vectispire-agent:AGENT"
+          for PAIR in "$@"; do
+            NAME="${PAIR%%:*}"
+            SLOT="${PAIR##*:}"
+            REF="${NAMESPACE}/${NAME}:${VERSION}"
+            DIGEST="$(docker buildx imagetools inspect "$REF" --format '{{.Manifest.Digest}}')"
+            echo "$NAME -> $DIGEST"
+
+            cosign sign --yes "${NAMESPACE}/${NAME}@${DIGEST}"
+
+            # The same identity the jar carries, so one instruction verifies everything a
+            # release ships rather than two that drift apart.
+            cosign verify \
+              --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              "${NAMESPACE}/${NAME}@${DIGEST}" > /dev/null
+            echo "  signature verified"
+
+            # An SBOM of the image, attached to the image, signed with it — the components a
+            # consumer reads to decide whether an advisory concerns them. Attached as an
+            # attestation rather than a loose file: a loose SBOM beside an image is a file
+            # anybody can swap.
+            docker run --rm -v "$PWD:/work" \
+              anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+              scan "registry:${NAMESPACE}/${NAME}@${DIGEST}" -o cyclonedx-json > "/tmp/${NAME}.cdx.json"
+            cosign attest --yes --predicate "/tmp/${NAME}.cdx.json" \
+              --type cyclonedx "${NAMESPACE}/${NAME}@${DIGEST}"
+            echo "  SBOM attested"
+
+            echo "${SLOT}_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
+          done
+
       # Kept for the rehearsal, which has no tag to publish against and must leave something a
       # human can inspect.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -147,5 +240,21 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --notes "Verify before running anything — see docs/en/GETTING_STARTED.md §8. The certificate identity is per-tag: \`https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}\`" \
+            --notes "$(cat <<NOTES
+          Verify before running anything — see \`docs/en/GETTING_STARTED.md\` §8. The certificate
+          identity is per-tag, and the same one for every artefact below:
+
+              https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}
+
+          **Container images** — signed and carrying an attested CycloneDX SBOM. Pull by digest to
+          get the bytes that were signed; the tag is a convenience, the digest is the image.
+
+              docker pull ${NAMESPACE}/vectispire@${CORE_DIGEST}
+              docker pull ${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}
+
+          Also tagged \`${VERSION}\` and \`latest\`.
+
+          **Jar** — attached below with its SBOM and a Sigstore bundle for each.
+          NOTES
+          )" \
             "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle"

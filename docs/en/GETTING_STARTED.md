@@ -158,8 +158,9 @@ a run without Docker fails loudly rather than reporting green having verified no
 
 ## 8. Verifying a release
 
-Each release carries four files: the jar, its SBOM, and a Sigstore bundle for each. Verify before
-running anything — a security tool you took on trust is a contradiction.
+Each release carries four files — the jar, its SBOM, and a Sigstore bundle for each — and two
+signed container images. Verify before running anything: a security tool you took on trust is a
+contradiction.
 
 ```bash
 cosign verify-blob \
@@ -194,6 +195,43 @@ cosign verify-blob \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   vectispire-1.0.0.cdx.json
 ```
+
+### Running it from the published images
+
+A release also publishes two container images, so nothing has to be compiled to run this:
+
+```bash
+docker pull ghcr.io/asmolabs/vectispire:1.0.0
+docker pull ghcr.io/asmolabs/vectispire-agent:1.0.0
+```
+
+**Verify them before running them, and verify by digest.** A tag is a mutable pointer — signing
+`:1.0.0` says nothing about what `:1.0.0` resolves to next week, which is the same reason every
+action in this repository is pinned by SHA:
+
+```bash
+DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:1.0.0 \
+           --format '{{.Manifest.Digest}}')
+
+cosign verify \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
+```
+
+Each image carries a CycloneDX SBOM as a signed attestation rather than a loose file beside it —
+a component list anybody can swap is not evidence of anything:
+
+```bash
+cosign verify-attestation --type cyclonedx \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "ghcr.io/asmolabs/vectispire@${DIGEST}" | jq -r '.payload' | base64 -d | jq '.predicate.components | length'
+```
+
+**Pin the digest in whatever runs it.** `image: ghcr.io/asmolabs/vectispire@sha256:…` in a compose
+file or a manifest is the deployment that matches what you verified; `:latest` is a deployment
+that changes under you without a diff.
 
 **Releases signed before 2026-08-27 carry a different identity.** The project moved from GitLab to
 GitHub, and the certificate identity names the forge, the repository and the workflow file — so it
