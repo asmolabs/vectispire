@@ -171,7 +171,10 @@ npm --workspace @vectispire/frontend start            # UI on http://localhost:4
 The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
 against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
-to validate the entities against the schema Flyway really built, on all two engines.
+to validate the entities against the schema Flyway really built, on both deployable engines. It
+runs against the SQLite fixture too, but with `validate` relaxed there — SQLite reports a
+timestamp column back as `FLOAT`, which says something about SQLite's type affinities and nothing
+about the mapping.
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
@@ -345,14 +348,18 @@ The database file is not part of the repository (it holds password hashes and en
 
 ### Choosing a database
 
-Four engines are supported — PostgreSQL and MySQL, with SQLite as the test fixture — and **each is
-exercised by the full integration campaign**. Flyway applies native migrations per dialect
-under `db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), ensuring complete
-fidelity and avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL`
-at the engine; it is read from the URL, and MySQL is the default — the engine `docker-compose.yml`
-ships, so the shortest path and the documented one agree. A portability defect is
-invisible to reading and to a single engine; running all four is the only way it gets found, and
-it found several.
+**Two engines are deployable — PostgreSQL and MySQL — and SQLite is a test fixture, not a third
+option.** That distinction is [ADR 0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md),
+which superseded an earlier decision to support four; this page said "four" for five days after
+that reversal, which is how a register stops being the thing anybody reads. All three targets are
+exercised by the full integration campaign — the fixture included, because a fixture nobody runs
+is a fixture nobody can trust. Flyway applies native migrations per dialect under
+`db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), ensuring complete fidelity and
+avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL` at the engine; it is read from
+the URL, and MySQL is the default — the engine `docker-compose.yml` ships, so the shortest path
+and the documented one agree. A portability defect is invisible to reading and to a single
+engine; running the campaign across all three is the only way it gets found, and it found
+several.
 
 | | PostgreSQL | MySQL | SQLite *(test fixture)* |
 |---|---|---|---|
@@ -430,13 +437,19 @@ Two things to know:
 ```bash
 cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
 cd vectispire-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
-cd vectispire-java && ./gradlew integrationTestAll # all two engines — ten minutes, needs Docker
+cd vectispire-java && ./gradlew integrationTestAll # both engines + the fixture — needs Docker
 npm ci && npm run build && npm test                # the Angular interface
 ```
 
-Around 840 unit tests, and five integration classes run against real servers. **CI runs the
-first command and the Angular ones, and not the four-engine campaign**: it needs Docker and ten
-minutes, and is run by hand before a release. A green tick does not mean portability was checked.
+The unit, architecture and HTTP suites run on every push; seven integration classes run against
+real servers, 29 cases on each of PostgreSQL, MySQL and SQLite. **No count is quoted here on
+purpose** — this page said "around 840" long after the figure had passed 1300, because a number
+in prose is a number nothing re-reads. `scripts/check-doc-facts.py` pins the claims that *can* be
+checked against the tree, and a test count is not one of them: it changes with every commit,
+which makes it the wrong kind of fact to write down. `verify` runs the first command and the Angular
+ones; the engine campaign belongs to `nightly.yml`, which fires on a schedule from the default
+branch. **A green tick on a push therefore does not mean portability was checked** — the nightly
+is what checks it, and only on whatever the default branch holds.
 
 **The integration suites do not skip.** There is no "skip if the database is missing" guard,
 deliberately: a suite that skips itself reports green having verified nothing. The harness starts

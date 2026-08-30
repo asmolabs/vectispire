@@ -36,9 +36,27 @@ concurrency:
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false
 
+# **Every job below carries a `timeout-minutes`, and the reason is a run that hung.**
+# `nightly.yml` has bounded its four jobs since it was written; this file bounded none, and on
+# 30 August the `images` job stopped inside `docker run` and sat there. Its own loops are capped
+# — 120 one-second attempts for the database, 90 for application health, three and a half
+# minutes at worst — so the wait was outside the logic, which is exactly the case a step timeout
+# cannot cover and a job timeout can.
+#
+# **A hanging job is worse than a failing one.** GitHub's default ceiling is six hours, so the
+# run reports neither success nor failure for that whole time: the commits under it are not
+# green and not red, they are *unanswered*, and nothing downstream — no branch rule, no reviewer,
+# no audit — treats "unanswered" as a signal. A red job at minute 30 is information.
+#
+# The budgets are the measured durations with generous headroom, not round numbers: on run #17
+# `secrets` took 7s, `links` 4s, `c4-drift` 6s, `dockerfile-policy` 22s, `sbom` 23s,
+# `npm-audit` 36s, `vulnerabilities` 57s, `frontend` 61s and `jvm` 4m15. Anything approaching
+# these ceilings has stopped doing what it was measured doing.
+
 jobs:
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     container:
       image: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
       options: --entrypoint=""
@@ -55,14 +73,29 @@ jobs:
       # commit is a new finding and still fails.
       - run: gitleaks detect --source=. --config .gitleaks.toml --baseline-path .gitleaks-baseline.json --verbose
 
-  links:
+  docs-consistency:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: python3 scripts/check-doc-links.py
+      # **A link that resolves is not a sentence that is true.** The link check and the
+      # bilingual parity count both passed for five consecutive audits while `README.md`
+      # announced "Four engines are supported" and `README.fr.md` — its own counterpart — said
+      # two engines and a test fixture, five days after ADR 0014 recorded that reversal. Parity
+      # counted files; nothing read them. This reads them, against the tree that decides the
+      # answer: the engine list Gradle iterates, the migration directories Flyway carries, the
+      # compliance catalogue's own enum.
+      #
+      # It found a live one on its first run, in the other direction: the compliance guide said
+      # "five major international regulatory frameworks" above a list of six, in both languages.
+      # Underselling costs the same as overselling — a reader who checks is the one who gets it
+      # wrong.
+      - run: python3 scripts/check-doc-facts.py
 
   c4-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # **The diagrams were generated from this model, or somebody edited one and forgot the
@@ -90,6 +123,7 @@ jobs:
 
   dockerfile-policy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     container:
       image: bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144
       options: --entrypoint=""
@@ -109,6 +143,7 @@ jobs:
 
   jvm:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container: eclipse-temurin:25-jdk
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -128,6 +163,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container: node:24
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -152,6 +188,7 @@ jobs:
   # both possible and obvious.
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [jvm]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -173,6 +210,7 @@ jobs:
 
   vulnerabilities:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [sbom]
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -194,6 +232,7 @@ jobs:
 
   npm-audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container: node:24
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -212,6 +251,7 @@ jobs:
   # is kept because it is the arrangement that has actually been executed.
   images:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [jvm, frontend]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

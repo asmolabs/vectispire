@@ -86,7 +86,7 @@ flowchart TB
 - **Docker Socket Sanitization**: No scan container has access to `/var/run/docker.sock`. For container image scanning, Vectispire exports image tarballs locally and mounts them read-only.
 
 ### 2.5. Regulatory Compliance Engine & Evidence Vault (`ComplianceEngine`, `EvidenceVaultService`)
-- **Deterministic Scoring**: Real-time evaluation across 5 frameworks (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA) and 7 assessment categories.
+- **Deterministic Scoring**: Real-time evaluation across 6 frameworks (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA, SOC 2) and 7 assessment categories.
 - **Strict Non-Dilution**: A single non-compliant critical control invalidates the overall compliance status of the framework.
 - **Certified Evidence Bundles**: Generates cryptographically sealed ZIP archives with SHA-256 manifests, In-Toto attestations, OpenVEX statements, OASIS CSAF 2.0 advisories, CycloneDX 1.6 SBOMs with embedded VEX, and signed HMAC audit trails.
 

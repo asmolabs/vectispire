@@ -1,6 +1,6 @@
 # Moteur de Calcul de la Conformité Réglementaire & Coffre-Fort de Preuves
 
-Le sous-système de conformité réglementaire de Vectispire (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) évalue automatiquement et de manière déterministe la posture de sécurité de votre organisation par rapport à cinq référentiels internationaux majeurs :
+Le sous-système de conformité réglementaire de Vectispire (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) évalue automatiquement et de manière déterministe la posture de sécurité de votre organisation par rapport à six référentiels internationaux majeurs :
 
 - **Directive NIS 2** (UE 2022/2555 — Gestion des risques cyber & Sécurité de la chaîne d'approvisionnement)
 - **Règlement DORA** (UE 2022/2554 — Résilience opérationnelle numérique pour le secteur financier)
@@ -164,11 +164,11 @@ $$\text{Score Global} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score
 Vectispire produit des paquets de preuves directement opposables aux auditeurs externes :
 
 1. **Rapport PDF Exécutif (`/api/v1/compliance/export.pdf`)** :
-   - Synthèse de la posture, scores par référentiel, détail des 20 contrôles et plan de remédiation priorisé.
+   - Synthèse de la posture, scores par référentiel, détail des 24 contrôles et plan de remédiation priorisé.
 2. **Paquet de Preuves Certifié (`/api/v1/compliance/evidence-bundle.zip`)** :
    - `manifest.json` & `manifest.json.sig` : Manifeste d'audit scellé et sa signature détachée Cosign (ECDSA P-256).
    - `00_vectispire_public_key.pub` : Clé publique PEM de l'instance pour vérification indépendante.
-   - `01_compliance_frameworks.json` : Évaluations continues des 5 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA).
+   - `01_compliance_frameworks.json` : Évaluations continues des 6 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
    - `02_immutable_audit_log.jsonl` : Journal d'audit scellé HMAC-SHA256.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
    - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE (RFC 9615).

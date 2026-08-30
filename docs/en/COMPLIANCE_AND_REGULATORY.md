@@ -1,6 +1,6 @@
 # Regulatory Compliance Calculation Engine
 
-Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) continuously and automatically evaluates your organization's security posture against five major international regulatory frameworks:
+Vectispire's regulatory compliance module (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) continuously and automatically evaluates your organization's security posture against six major international regulatory frameworks:
 
 - **NIS 2 Directive** (EU 2022/2555 — Cybersecurity Risk-Management & Supply Chain Security)
 - **DORA** (EU 2022/2554 — Digital Operational Resilience Act for Financial Entities)
@@ -170,11 +170,11 @@ $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Scor
 ## 5. Certified Audit Evidence Vault
 
 Vectispire exports cryptographically sealed evidence packages ready for external auditors:
-- **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 5 frameworks, 20 controls, and prioritized remediation roadmap.
+- **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 6 frameworks, 24 controls, and prioritized remediation roadmap.
 - **Evidence Bundle ZIP (`/api/v1/compliance/evidence-bundle.zip`)**:
   - `manifest.json` & `manifest.json.sig`: Sealed evidence manifest with detached Cosign signature (ECDSA P-256).
   - `00_vectispire_public_key.pub`: Active instance public key for independent auditor verification.
-  - `01_compliance_frameworks.json`: Continuous compliance assessments across NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA.
+  - `01_compliance_frameworks.json`: Continuous compliance assessments across all 6 frameworks: NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2.
   - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
   - `04_attestations/`: in-toto attestations and signed DSSE envelopes (RFC 9615).
