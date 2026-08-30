@@ -39,7 +39,7 @@ broken**; `check-doc-facts.py` **23 numeric claims, 0 contradicted**.*
 
 | # | Recommendation | Done by | Evidence |
 |---|---|---|---|
-| 2 | Bound the jobs, and fix what made one slow | **All seventeen jobs across all four workflows** carry a `timeout-minutes` — `release.yml` and `docs.yml` had none either. But a ceiling alone would only have turned run #17 red, so the **container-per-probe loops are gone too**: the database wait is now a `docker exec` into the running container, and the health probe is one container that retries internally instead of up to 90 that each retry once. Both bounds are wall-clock now, so the log and the ceiling share a unit. | `yaml.safe_load` over all four files: **0 jobs without `timeout-minutes`**. The probe was exercised locally on all three paths: healthy → **0**, nothing listening → **1** at the deadline +1 s, API-but-no-interface → **2**. The `exec` wait completed in **6 s** against 67 min for the loop it replaces |
+| 2 | Bound the jobs, and fix what made one slow | **All seventeen jobs across all four workflows** carry a `timeout-minutes` — `release.yml` and `docs.yml` had none either. But a ceiling alone would only have turned run #17 red, so the **container-per-probe loops are gone too**: the database wait is now a `docker exec` into the running container, and the health probe is one container that retries internally instead of up to 90 that each retry once. Both bounds are wall-clock now, so the log and the ceiling share a unit. | `yaml.safe_load` over all four files: **0 jobs without `timeout-minutes`**. The probe was exercised locally on all three paths: healthy → **0**, nothing listening → **1** at the deadline +1 s, API-but-no-interface → **2**. The `exec` wait completed in **6 s** locally — and on the runner, **run #21 ran `images` in 2.4 min against 67.3** |
 | 3 | Pin and verify `cosign` | Version **v3.1.3** — what `latest` resolved to at pinning time, so no behaviour changes — and digest `4629c757…` verified by `sha256sum -c` **before** `install`. Downloaded to `/tmp` rather than straight to `/usr/local/bin`: writing first and checking after leaves an unverified executable on `PATH` in the window between the two. | The digest was **obtained and then re-verified by actually downloading the binary**; checkov re-parses and passes |
 | 6 | "four engines" and "840 tests" | **The README now says two deployable engines and a fixture, citing ADR 0014.** The test count is *removed* rather than corrected: a number that moves with every commit is the wrong kind of fact to write in prose. And parity now extends to figures — see below. | `grep -niE "four engines\|all four\|840"` → **0**; both READMEs cite 0014 |
 | 7 | The i18n rule | **The floor of 40 becomes an exact count of 54**, plus a **ratchet** at 89 on hard-coded labels. A ratchet rather than a ban: `src/app` holds 89 across 14 files, and a rule that fails on its first run is a rule that gets switched off. | **Putting the two hard-coded labels back fails `npm test`, exit 1** — it went green this morning. The ratchet fires on its own: one label added without touching any key → **90 > 89, exit 1** |
@@ -239,6 +239,17 @@ it would not have told anyone why.
 says: `docker exec` into the running database instead of a new client container per probe, and a
 *single* probe container that retries internally instead of one per attempt. Then the number in
 the log and the number in the ceiling are the same unit.
+
+**Done, and measured on the runner rather than argued.** Run #21, the first to carry the fix:
+
+| | run #17 (before) | run #21 (after) |
+|---|---|---|
+| `images` job | **67.3 min** | **2.4 min** |
+| whole run | 71.7 min | **6.9 min** |
+
+Twenty-eight times faster, same assertions, and the 30-minute ceiling that would have failed the
+old run now sits an order of magnitude clear of the new one. A ceiling is only honest over a job
+whose cost is understood.
 ---
 
 ### 3.3 🔴 The signing workflow downloads its signing tool from a mutable URL, unverified — inside the job that holds `id-token: write`

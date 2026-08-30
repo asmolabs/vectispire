@@ -40,7 +40,7 @@ parité bilingue *par comptage de fichiers* sans jamais lire ce que les deux fic
 
 | # | Recommandation | Fait par | Preuve |
 |---|---|---|---|
-| 2 | Borner les jobs, et corriger ce qui en rendait un lent | **Les dix-sept jobs des quatre workflows** portent un `timeout-minutes` — `release.yml` et `docs.yml` n'en avaient pas non plus. Mais un plafond seul n'aurait fait que rendre le run #17 rouge : les **boucles à un conteneur par sonde disparaissent** aussi. L'attente de la base est un `docker exec` dans le conteneur déjà lancé, et la sonde de santé est un conteneur qui réessaie en interne au lieu de 90 qui réessaient une fois chacun. Les deux bornes sont en temps réel, donc le log et le plafond partagent une unité. | `yaml.safe_load` sur les quatre fichiers : **0 job sans `timeout-minutes`**. La sonde a été exercée localement sur ses trois chemins : sain → **0**, rien à l'écoute → **1** à l'échéance +1 s, API-mais-pas-l'interface → **2**. L'attente par `exec` aboutit en **6 s** contre 67 min pour la boucle qu'elle remplace |
+| 2 | Borner les jobs, et corriger ce qui en rendait un lent | **Les dix-sept jobs des quatre workflows** portent un `timeout-minutes` — `release.yml` et `docs.yml` n'en avaient pas non plus. Mais un plafond seul n'aurait fait que rendre le run #17 rouge : les **boucles à un conteneur par sonde disparaissent** aussi. L'attente de la base est un `docker exec` dans le conteneur déjà lancé, et la sonde de santé est un conteneur qui réessaie en interne au lieu de 90 qui réessaient une fois chacun. Les deux bornes sont en temps réel, donc le log et le plafond partagent une unité. | `yaml.safe_load` sur les quatre fichiers : **0 job sans `timeout-minutes`**. La sonde a été exercée localement sur ses trois chemins : sain → **0**, rien à l'écoute → **1** à l'échéance +1 s, API-mais-pas-l'interface → **2**. L'attente par `exec` aboutit en **6 s** en local — et sur le runner, **le run #21 exécute `images` en 2,4 min contre 67,3** |
 | 3 | Épingler et vérifier `cosign` | Version **v3.1.3** — ce que `latest` résolvait au moment d'épingler, donc aucun changement de comportement — et empreinte `4629c757…` vérifiée par `sha256sum -c` **avant** `install`. Téléchargé dans `/tmp` et non directement dans `/usr/local/bin` : écrire d'abord et vérifier ensuite laisse un exécutable non vérifié sur le `PATH` pendant la fenêtre entre les deux. | L'empreinte a été **obtenue puis re-vérifiée en téléchargeant réellement le binaire** ; checkov reparse et valide |
 | 6 | « four engines » et « 840 tests » | **Le README dit maintenant deux moteurs déployables et une fixture, en citant l'ADR 0014.** Le compte de tests est *retiré* plutôt que corrigé : un nombre qui bouge à chaque commit est le mauvais genre de fait à écrire en prose. Et la parité s'étend aux chiffres — voir ci-dessous. | `grep -niE "four engines\|all four\|840"` → **0** ; les deux README citent 0014 |
 | 7 | La règle i18n | **Le plancher de 40 devient un compte exact de 54**, plus un **cliquet** à 89 sur les libellés en dur. Le cliquet plutôt que l'interdiction : `src/app` en porte 89 sur 14 fichiers, et une règle qui échoue à sa première exécution est une règle qu'on désactive. | **Remettre les deux libellés en dur fait échouer `npm test`, exit 1** — il passait vert ce matin. Le cliquet se déclenche seul : un libellé ajouté sans toucher aucune clé → **90 > 89, exit 1** |
@@ -242,6 +242,17 @@ il n'aurait dit à personne pourquoi.
 borne dise ce qu'elle dit : `docker exec` dans la base déjà lancée plutôt qu'un conteneur client
 par sonde, et *un seul* conteneur de sonde qui réessaie en interne plutôt qu'un par tentative.
 Alors le nombre dans le log et le nombre dans le plafond sont la même unité.
+
+**Fait, et mesuré sur le runner plutôt qu'argumenté.** Run #21, le premier à porter le correctif :
+
+| | run #17 (avant) | run #21 (après) |
+|---|---|---|
+| job `images` | **67,3 min** | **2,4 min** |
+| run entier | 71,7 min | **6,9 min** |
+
+Vingt-huit fois plus rapide, à assertions identiques, et le plafond de 30 minutes qui aurait fait
+échouer l'ancien run est désormais à un ordre de grandeur du nouveau. Un plafond n'est honnête que
+posé sur un job dont on comprend le coût.
 ---
 
 ### 3.3 🔴 Le workflow qui signe télécharge son outil de signature depuis une URL mutable, sans vérification — dans le job qui détient `id-token: write`
