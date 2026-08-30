@@ -402,7 +402,9 @@
     "active_cisa_kev": "Active CISA KEV Exploits",
     "last_sync": "Last Synchronized",
     "sync_now_btn": "Synchronize Threat Intel Feed Now",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "ai_provider_ollama": "Ollama — a model on a host you run",
+    "ai_provider_openai": "OpenAI-compatible API"
   },
   "ssh_keys": {
     "title": "SSH keys",
@@ -679,4 +681,3 @@
     "no_high_risk_found": "No unauthenticated sensitive endpoints detected across all repositories."
   }
 }
-

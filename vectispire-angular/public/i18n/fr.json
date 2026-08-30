@@ -508,7 +508,9 @@
     "active_cisa_kev": "Exploits CISA KEV actifs",
     "last_sync": "Dernière synchronisation",
     "sync_now_btn": "Synchroniser le flux Threat Intel maintenant",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "ai_provider_ollama": "Ollama — un modèle sur une machine que vous exploitez",
+    "ai_provider_openai": "API compatible OpenAI"
   },
   "ssh_keys": {
     "title": "Clés SSH",
@@ -785,4 +787,3 @@
     "no_high_risk_found": "Aucun endpoint sensible non protégé détecté sur l'ensemble des dépôts."
   }
 }
-

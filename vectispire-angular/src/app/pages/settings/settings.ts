@@ -138,11 +138,21 @@ export class Settings {
     readonly savingOpenAiKey = signal(false);
     openAiKeyInput = '';
 
-    /** The two wire protocols, offered as a list so the provider is picked rather than typed. */
-    readonly aiProviders = [
-        { label: 'Ollama — a model on a host you run', value: 'ollama' },
-        { label: 'OpenAI-compatible API', value: 'openai' }
-    ];
+    /**
+     * The two wire protocols, offered as a list so the provider is picked rather than typed.
+     *
+     * <p>A computed, like `tabs` above and for the same reason: these labels are the only two on
+     * this screen that were English literals, so a French operator picked their model provider
+     * from an untranslated list. Reading `translations()` is what makes the list redraw when the
+     * language changes rather than keeping whatever was loaded first.
+     */
+    readonly aiProviders = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('settings.ai_provider_ollama'), value: 'ollama' },
+            { label: this.i18n.t('settings.ai_provider_openai'), value: 'openai' }
+        ];
+    });
 
     /** Which one is selected right now, read from the settings the form holds. */
     readonly aiProvider = computed(() => this.values()['ai_review_provider'] ?? 'ollama');

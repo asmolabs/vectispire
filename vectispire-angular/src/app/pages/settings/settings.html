@@ -144,7 +144,7 @@
                                              it accepts differ in whether the code leaves the estate,
                                              and a typo reads as "ollama" by design. -->
                                         @if (setting.key === 'ai_review_provider') {
-                                            <p-select [inputId]="setting.key" [options]="aiProviders"
+                                            <p-select [inputId]="setting.key" [options]="aiProviders()"
                                                       optionLabel="label" optionValue="value"
                                                       [ngModel]="values()[setting.key]"
                                                       (ngModelChange)="set(setting.key, $event)"

@@ -10,7 +10,7 @@
         "watch": "ng build --watch --configuration development",
         "format": "prettier --write \"src/**/*.{ts,html,scss,css}\" --cache",
         "lint": "ng lint",
-        "test": "node scripts/check-assets.mjs && ng test",
+        "test": "node scripts/check-assets.mjs && node scripts/check-i18n-keys.mjs && ng test",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "generate:api": "openapi-typescript openapi.json -o src/app/core/api.generated.ts"
