@@ -24,6 +24,7 @@ site_dir: site
 
 theme:
   name: material
+  custom_dir: docs-site-overrides
   language: en
   icon:
     repo: fontawesome/brands/github
@@ -54,7 +55,69 @@ theme:
         name: Switch to light mode
 
 plugins:
+  # **La recherche vient d'abord et l'i18n ensuite** : `static-i18n` reconstruit l'index de
+  # recherche par langue, ce qu'il ne peut faire que si `search` est déjà enregistré.
   - search
+  # Le site en deux langues, avec une URL par langue plutôt qu'un basculement côté client.
+  #
+  # **Le suffixe est dans le nom du fichier.** `installation.md` est l'anglais,
+  # `installation.fr.md` le français ; la page anglaise reste à `/getting-started/installation/`
+  # et la française arrive à `/fr/getting-started/installation/`. Aucune page ne bouge d'URL,
+  # donc aucun lien existant ne casse.
+  #
+  # `fallback_to_default: true` sert la version anglaise sous l'URL française tant que la
+  # traduction n'existe pas. C'est une dégradation choisie, pas un oubli : l'alternative est un
+  # 404 sur une page que le sélecteur de langue vient de proposer, ce qui est pire. Le bandeau
+  # ci-dessous le dit au lecteur au lieu de le lui laisser deviner.
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: fr
+          name: Français
+          build: true
+          nav_translations:
+            Home: Accueil
+            Getting started: Démarrer
+            Installation: Installation
+            Your first scan: Premier scan
+            Reading the results: Lire les résultats
+            User guide: Guide d'utilisation
+            Dashboard: Tableau de bord
+            Repositories: Dépôts
+            Container images: Images de conteneur
+            Scans: Scans
+            Issues and triage: Constats et triage
+            Code quality: Qualité du code
+            Inventory and licenses: Inventaire et licences
+            Risk analysis: Analyse de risque
+            Compliance: Conformité
+            History and evidence: Historique et preuves
+            Exports: Exports
+            Integrations: Intégrations
+            CI policy gate: Barrière CI
+            Notifications: Notifications
+            Tracker tickets: Tickets
+            Administration: Administration
+            Users and teams: Utilisateurs et équipes
+            Single sign-on: Authentification unique
+            API keys: Clés d'API
+            SSH keys: Clés SSH
+            Gate policies: Politiques de barrière
+            Agents: Agents
+            Semgrep rule sets: Jeux de règles Semgrep
+            Settings: Réglages
+            Audit log: Journal d'audit
+            Rotation and purge: Rotation et purge
+            Reference: Référence
+            Configuration: Configuration
+            FAQ: FAQ
 
 markdown_extensions:
   - admonition
