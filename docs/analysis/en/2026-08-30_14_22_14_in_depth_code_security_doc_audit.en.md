@@ -10,9 +10,10 @@ does not have them**. `main` is the default branch, which is the only branch Git
 scheduled workflow from: this morning's nightly, green, certified the tree *before* the fixes. The
 remediation is written; it is not in force.
 
-And the run that should have caught up has not finished: **the `verify` run for the tip of
-`develop` has been stuck for three hours** in its `images` job. The commits carrying the
-remediation are, at this minute, verified by no forge at all.
+And the run that should have caught up was still going: the `verify` run for the tip of
+`develop` sat `in_progress` for three hours. I first wrote that up as a hang; **it was not one —
+it finished successfully in 67.3 minutes**, and running that long on every push turned out to be
+the more interesting fact. See §3.2, which is a correction as much as a finding.
 
 | Domain | Score | Movement |
 |---|---|---|
@@ -38,7 +39,7 @@ broken**; `check-doc-facts.py` **23 numeric claims, 0 contradicted**.*
 
 | # | Recommendation | Done by | Evidence |
 |---|---|---|---|
-| 2 | `timeout-minutes` on `ci.yml` | **All seventeen jobs across all four workflows**, not just `ci.yml`: `release.yml` and `docs.yml` had none either. The budgets are run #17's measured durations with headroom — `secrets` 7 s → 10 min, `jvm` 4 m 15 → 30 min — and the header says why a hanging job is worse than a red one: it reports *nothing*, and nothing is the one answer no procedure handles. | `yaml.safe_load` over all four files: **0 jobs without `timeout-minutes`** |
+| 2 | Bound the jobs, and fix what made one slow | **All seventeen jobs across all four workflows** carry a `timeout-minutes` — `release.yml` and `docs.yml` had none either. But a ceiling alone would only have turned run #17 red, so the **container-per-probe loops are gone too**: the database wait is now a `docker exec` into the running container, and the health probe is one container that retries internally instead of up to 90 that each retry once. Both bounds are wall-clock now, so the log and the ceiling share a unit. | `yaml.safe_load` over all four files: **0 jobs without `timeout-minutes`**. The probe was exercised locally on all three paths: healthy → **0**, nothing listening → **1** at the deadline +1 s, API-but-no-interface → **2**. The `exec` wait completed in **6 s** against 67 min for the loop it replaces |
 | 3 | Pin and verify `cosign` | Version **v3.1.3** — what `latest` resolved to at pinning time, so no behaviour changes — and digest `4629c757…` verified by `sha256sum -c` **before** `install`. Downloaded to `/tmp` rather than straight to `/usr/local/bin`: writing first and checking after leaves an unverified executable on `PATH` in the window between the two. | The digest was **obtained and then re-verified by actually downloading the binary**; checkov re-parses and passes |
 | 6 | "four engines" and "840 tests" | **The README now says two deployable engines and a fixture, citing ADR 0014.** The test count is *removed* rather than corrected: a number that moves with every commit is the wrong kind of fact to write in prose. And parity now extends to figures — see below. | `grep -niE "four engines\|all four\|840"` → **0**; both READMEs cite 0014 |
 | 7 | The i18n rule | **The floor of 40 becomes an exact count of 54**, plus a **ratchet** at 89 on hard-coded labels. A ratchet rather than a ban: `src/app` holds 89 across 14 files, and a rule that fails on its first run is a rule that gets switched off. | **Putting the two hard-coded labels back fails `npm test`, exit 1** — it went green this morning. The ratchet fires on its own: one label added without touching any key → **90 > 89, exit 1** |
@@ -121,7 +122,7 @@ after things that are gone and past things that have arrived since.
 
 | Workflow | Runs | From | Last verdict |
 |---|---|---|---|
-| `verify` (`ci.yml`) | 17 | `develop` and `main` | **#17 in progress since 11:26 — stuck**, see §3.2 |
+| `verify` (`ci.yml`) | 17 | `develop` and `main` | success — but **#17 took 67 min in `images`** against 4 min for the next slowest, see §3.2 |
 | `nightly` | 2 | `main`, `schedule` | success (29 Aug 09:17, 30 Aug 08:29) |
 | `docs` | 1 | `main` | **failure**, see §3.5 |
 | `release` | **0** | — | **never triggered** |
@@ -184,41 +185,60 @@ nothing scheduled executes.
 
 ---
 
-### 3.2 🔴 The run for the tip of `develop` has been stuck for three hours, and no job in `ci.yml` has a `timeout-minutes`
+### 3.2 🔴 A smoke job counts container starts as if they were seconds, and took 67 minutes to do three and a half minutes of work
+
+**Corrected after the fact, and the correction is the finding.** While this audit was running,
+run #17 sat `in_progress` for three hours with its `images` job showing no completion, and I
+wrote it up as hung — a job that would hold a runner to GitHub's six-hour ceiling while
+reporting neither success nor failure. **It was not hung. It finished, successfully, in 67.3
+minutes**, and I only know that because pushing the remediation made me look again:
 
 ```
 $ curl .../actions/runs/33308940758/jobs
-images  in_progress  started 11:31:05Z
-    5  build both images with Jib                            success
-    6  the control plane image starts, migrates and serves    IN PROGRESS
-    7  docker logs --tail 200 vectispire-smoke                pending
+images   success   67.3 min      <- every other job: 0.1 to 4.2 min
+jvm      success    4.2 min
+frontend success    1.0 min
 ```
 
-At 12:22 UTC, step 6 has been running for **51 minutes**, and the run for nearly three hours. This
-is not the step's logic taking its time: both of its loops are bounded — 120 one-second attempts
-for MySQL, 90 for application health — three and a half minutes at worst. The hang is elsewhere,
-in a `docker run` that does not return.
+The ceiling claim was wrong. What is underneath it is worse than what I claimed, because a slow
+green is invisible in a way a red never is — this job had been taking over an hour on every run
+and nothing said so.
 
-What makes the hang expensive rather than merely annoying:
+**The cause is in the waiting loops, and it is a units error.** Both of them spawn a *container
+per attempt* while reporting attempts as seconds:
+
+```yaml
+for attempt in $(seq 1 120); do
+  if docker run --rm --network smoke mysql:8 mysqladmin ping ...; then
+    echo "database ready after ${attempt}s"; break        # <- an attempt is not a second
+  fi
+  sleep 1
+done
+```
+
+An attempt costs a container create, start, run and remove. The health probe does the same with
+`curlimages/curl`, up to 90 times. So a loop documented as bounded at 120 seconds is really
+bounded at 120 × (1s + container overhead), and on a loaded runner that is an hour. Measured
+locally, the same wait done by `docker exec` into the already-running database completes in
+**6 seconds**.
+
+**And `ci.yml` bounded no job at all**, while `nightly.yml` had bounded all four of its own since
+it was written:
 
 ```
 $ grep -n "timeout-minutes" .github/workflows/*.yml
-nightly.yml:37    timeout-minutes: 40
-nightly.yml:57    timeout-minutes: 30
-nightly.yml:72    timeout-minutes: 30
-nightly.yml:159   timeout-minutes: 30
+nightly.yml:37,57,72,159   40, 30, 30, 30
+ci.yml                     (nothing)
 ```
 
-**`nightly.yml` bounds all four of its jobs. `ci.yml` bounds none of them.** The job will therefore
-occupy a runner up to GitHub's six-hour ceiling before being killed, and the run will read "in
-progress" that whole time — which is to say it will report neither success nor failure on the
-commits carrying the remediation. A hanging pipeline is not a red pipeline: it says nothing, and
-saying nothing is the one answer no procedure handles.
+That is still worth fixing on its own — a job that genuinely hangs reports *nothing*, and nothing
+is the one answer no procedure handles. But a timeout would only ever have turned this run red;
+it would not have told anyone why.
 
-**Recommendation 2.** Add `timeout-minutes` to every job in `ci.yml`, `images` first — it is the
-only one talking to a Docker daemon, so the only one that can hang on something that is not
-computation. `nightly.yml`'s value (30) is the repository's own precedent.
-
+**Recommendation 2.** Both halves. Bound every job, and fix the loops so the bound means what it
+says: `docker exec` into the running database instead of a new client container per probe, and a
+*single* probe container that retries internally instead of one per attempt. Then the number in
+the log and the number in the ceiling are the same unit.
 ---
 
 ### 3.3 🔴 The signing workflow downloads its signing tool from a mutable URL, unverified — inside the job that holds `id-token: write`
@@ -548,7 +568,7 @@ swallowing a false positive costs more than writing it down.
 | # | Recommendation | Priority | Verified how |
 |---|---|---|---|
 | 1 | **Merge `develop` into `main`** — without it, nothing the 17th and 18th audits fixed is executed by anything scheduled | 🔴 | `git rev-list --count origin/main..develop` → **5**; `git ls-tree origin/main`: `ReadCostSweepTest` and `check-i18n-keys.mjs` **absent**, `ReadCostRoutesTest` **present**, `sbom` **absent** from `release.yml` |
-| 2 | `timeout-minutes` on every `ci.yml` job | 🔴 | jobs API: `images` running 51 min on a step bounded at 3 min 30; `grep timeout-minutes` → 4 in `nightly.yml`, **0** in `ci.yml` |
+| 2 | Bound every job **and** fix the container-per-probe loops | 🔴 | jobs API: `images` **67.3 min** on a step bounded on paper at 3 min 30; the same wait by `docker exec` measured locally at **6 s**; `grep timeout-minutes` → 4 in `nightly.yml`, **0** in `ci.yml` |
 | 3 | Pin and verify `cosign` | 🔴 | `release.yml:75-79` read; `git log -S` → introduced by `8b56333` on 27 August, never flagged since |
 | 4 | Trigger `release.yml` (after 1 and 3) | 🟠 | **asserted, not executed** — 0 tags, 0 releases, absent from all 20 runs. Needs your credentials |
 | 5 | Enable GitHub Pages then re-run `docs` | 🟠 | `mkdocs build --strict` **passes** locally; the failure is `configure-pages`, and `has_pages: false` |
@@ -567,10 +587,13 @@ tests that nothing scheduled executes.**
 The prompt asks that when a score drops, the report say whether the ground got worse or an earlier
 audit scored what it had not measured. Both, and not in the same boxes.
 
-**The ground moved, temporarily, in 3.1 and 3.2.** Five unmerged commits and one hung run are
-states, not design defects; they are settled by a merge and a line of YAML. But they are states
-that hollow out everything a green board asserts, and that is why the verification axis falls to
-6.5 rather than to 8.
+**The ground moved in 3.1, and 3.2 is something else again.** Five unmerged commits is a state,
+not a design defect, settled by a merge — but a state that hollows out everything a green board
+asserts. 3.2 is a defect that had been shipping for as long as the job existed, passing green at
+sixty-seven minutes a run, and I nearly filed it as a transient hang. **That I got it wrong on
+the first pass is the part worth keeping**: I inferred a hang from a run that was merely slow,
+and only measuring the completed job showed the units error underneath. The verification axis
+falls to 6.5 for both.
 
 **Three audits scored what they had not measured**, and it is better to name that than to spread
 it around:

@@ -10,9 +10,11 @@ sont sur `develop` et **`main` ne les a pas**. Or `main` est la branche par déf
 depuis laquelle GitHub déclenche un workflow planifié : le nocturne de ce matin, vert, a certifié
 l'arbre *d'avant* les correctifs. La remédiation est écrite ; elle n'est pas en vigueur.
 
-Et l'exécution qui aurait dû le rattraper n'a pas abouti : **le run `verify` de la tête de
-`develop` est bloqué depuis trois heures** dans son étape `images`. Les commits qui portent la
-remédiation ne sont, à cette minute, vérifiés par aucune forge.
+Et l'exécution qui aurait dû le rattraper tournait encore : le run `verify` de la tête de
+`develop` est resté `in_progress` trois heures. Je l'ai d'abord écrit comme un blocage ; **ce n'en
+était pas un — il a fini avec succès en 67,3 minutes**, et le fait qu'il tourne aussi longtemps à
+chaque poussée s'est révélé plus intéressant. Voir §3.2, qui est une correction autant qu'un
+constat.
 
 | Domaine | Note | Mouvement |
 |---|---|---|
@@ -38,7 +40,7 @@ parité bilingue *par comptage de fichiers* sans jamais lire ce que les deux fic
 
 | # | Recommandation | Fait par | Preuve |
 |---|---|---|---|
-| 2 | `timeout-minutes` sur `ci.yml` | **Les dix-sept jobs des quatre workflows**, pas seulement `ci.yml` : `release.yml` et `docs.yml` n'en avaient pas non plus. Les budgets sont les durées mesurées du run #17 avec de la marge — `secrets` 7 s → 10 min, `jvm` 4 min 15 → 30 min — et l'en-tête dit pourquoi un job qui pend est pire qu'un job rouge : il ne rapporte *rien*, et rien n'est la seule réponse qu'aucune procédure ne traite. | `yaml.safe_load` sur les quatre fichiers : **0 job sans `timeout-minutes`** |
+| 2 | Borner les jobs, et corriger ce qui en rendait un lent | **Les dix-sept jobs des quatre workflows** portent un `timeout-minutes` — `release.yml` et `docs.yml` n'en avaient pas non plus. Mais un plafond seul n'aurait fait que rendre le run #17 rouge : les **boucles à un conteneur par sonde disparaissent** aussi. L'attente de la base est un `docker exec` dans le conteneur déjà lancé, et la sonde de santé est un conteneur qui réessaie en interne au lieu de 90 qui réessaient une fois chacun. Les deux bornes sont en temps réel, donc le log et le plafond partagent une unité. | `yaml.safe_load` sur les quatre fichiers : **0 job sans `timeout-minutes`**. La sonde a été exercée localement sur ses trois chemins : sain → **0**, rien à l'écoute → **1** à l'échéance +1 s, API-mais-pas-l'interface → **2**. L'attente par `exec` aboutit en **6 s** contre 67 min pour la boucle qu'elle remplace |
 | 3 | Épingler et vérifier `cosign` | Version **v3.1.3** — ce que `latest` résolvait au moment d'épingler, donc aucun changement de comportement — et empreinte `4629c757…` vérifiée par `sha256sum -c` **avant** `install`. Téléchargé dans `/tmp` et non directement dans `/usr/local/bin` : écrire d'abord et vérifier ensuite laisse un exécutable non vérifié sur le `PATH` pendant la fenêtre entre les deux. | L'empreinte a été **obtenue puis re-vérifiée en téléchargeant réellement le binaire** ; checkov reparse et valide |
 | 6 | « four engines » et « 840 tests » | **Le README dit maintenant deux moteurs déployables et une fixture, en citant l'ADR 0014.** Le compte de tests est *retiré* plutôt que corrigé : un nombre qui bouge à chaque commit est le mauvais genre de fait à écrire en prose. Et la parité s'étend aux chiffres — voir ci-dessous. | `grep -niE "four engines\|all four\|840"` → **0** ; les deux README citent 0014 |
 | 7 | La règle i18n | **Le plancher de 40 devient un compte exact de 54**, plus un **cliquet** à 89 sur les libellés en dur. Le cliquet plutôt que l'interdiction : `src/app` en porte 89 sur 14 fichiers, et une règle qui échoue à sa première exécution est une règle qu'on désactive. | **Remettre les deux libellés en dur fait échouer `npm test`, exit 1** — il passait vert ce matin. Le cliquet se déclenche seul : un libellé ajouté sans toucher aucune clé → **90 > 89, exit 1** |
@@ -124,7 +126,7 @@ public, `has_pages: false`.
 
 | Workflow | Exécutions | Depuis | Dernier verdict |
 |---|---|---|---|
-| `verify` (`ci.yml`) | 17 | `develop` et `main` | **#17 en cours depuis 11:26 — bloqué**, voir §3.2 |
+| `verify` (`ci.yml`) | 17 | `develop` et `main` | succès — mais **#17 a mis 67 min dans `images`** contre 4 min pour le suivant, voir §3.2 |
 | `nightly` | 2 | `main`, `schedule` | succès (29 août 09:17, 30 août 08:29) |
 | `docs` | 1 | `main` | **échec**, voir §3.5 |
 | `release` | **0** | — | **jamais déclenché** |
@@ -187,41 +189,59 @@ corrigé sur une branche que rien de planifié n'exécute.
 
 ---
 
-### 3.2 🔴 Le run de la tête de `develop` est bloqué depuis trois heures, et aucun job de `ci.yml` n'a de `timeout-minutes`
+### 3.2 🔴 Un job de fumée compte des démarrages de conteneur comme des secondes, et a mis 67 minutes à faire trois minutes et demie de travail
+
+**Corrigé après coup, et la correction est le constat.** Pendant cet audit, le run #17 est resté
+`in_progress` trois heures, son job `images` sans complétion, et je l'ai écrit comme bloqué — un
+job qui occuperait un runner jusqu'au plafond de six heures de GitHub sans rapporter ni succès ni
+échec. **Il n'était pas bloqué. Il a fini, avec succès, en 67,3 minutes**, et je ne le sais que
+parce que pousser la remédiation m'a fait regarder à nouveau :
 
 ```
 $ curl .../actions/runs/33308940758/jobs
-images  in_progress  démarré 11:31:05Z
-    5  build both images with Jib                        success
-    6  the control plane image starts, migrates and serves   IN PROGRESS
-    7  docker logs --tail 200 vectispire-smoke               pending
+images   success   67,3 min      <- tous les autres jobs : de 0,1 à 4,2 min
+jvm      success    4,2 min
+frontend success    1,0 min
 ```
 
-À 14:22 locale (12:22 UTC), l'étape 6 tourne depuis **51 minutes**, et le run depuis près de
-trois heures. Ce n'est pas la logique de l'étape qui traîne : ses deux boucles sont bornées —
-120 tentatives d'une seconde pour MySQL, 90 pour la santé de l'application — soit 3 min 30 au
-pire. Le blocage est ailleurs, dans un `docker run` qui ne rend pas la main.
+L'affirmation du plafond était fausse. Ce qu'il y a dessous est pire que ce que j'affirmais, parce
+qu'un vert lent est invisible là où un rouge ne l'est jamais : ce job prenait plus d'une heure à
+chaque exécution et rien ne le disait.
 
-Ce qui rend le blocage coûteux plutôt que gênant :
+**La cause est dans les boucles d'attente, et c'est une erreur d'unité.** Toutes deux démarrent
+*un conteneur par tentative* tout en rapportant des tentatives comme des secondes :
+
+```yaml
+for attempt in $(seq 1 120); do
+  if docker run --rm --network smoke mysql:8 mysqladmin ping ...; then
+    echo "database ready after ${attempt}s"; break        # <- une tentative n'est pas une seconde
+  fi
+  sleep 1
+done
+```
+
+Une tentative coûte une création, un démarrage, une exécution et une suppression de conteneur. La
+sonde de santé fait de même avec `curlimages/curl`, jusqu'à 90 fois. Une boucle documentée comme
+bornée à 120 secondes est donc bornée à 120 × (1 s + surcoût de conteneur), et sur un runner
+chargé cela fait une heure. Mesurée localement, la même attente faite par `docker exec` dans la
+base déjà lancée aboutit en **6 secondes**.
+
+**Et `ci.yml` ne bornait aucun job**, quand `nightly.yml` bornait ses quatre depuis toujours :
 
 ```
 $ grep -n "timeout-minutes" .github/workflows/*.yml
-nightly.yml:37    timeout-minutes: 40
-nightly.yml:57    timeout-minutes: 30
-nightly.yml:72    timeout-minutes: 30
-nightly.yml:159   timeout-minutes: 30
+nightly.yml:37,57,72,159   40, 30, 30, 30
+ci.yml                     (rien)
 ```
 
-**`nightly.yml` borne ses quatre jobs. `ci.yml` n'en borne aucun.** Le job va donc occuper un
-runner jusqu'au plafond de six heures de GitHub avant d'être tué, et le run restera « en cours »
-tout ce temps — c'est-à-dire qu'il ne rapportera ni succès ni échec sur les commits qui portent
-la remédiation. Un pipeline qui pend n'est pas un pipeline rouge : il ne dit rien, et ne rien
-dire est la seule réponse qu'aucune procédure ne traite.
+Cela reste à corriger pour soi-même — un job qui pend vraiment ne rapporte *rien*, et rien est la
+seule réponse qu'aucune procédure ne traite. Mais un délai n'aurait fait que rendre ce run rouge ;
+il n'aurait dit à personne pourquoi.
 
-**Recommandation 2.** Ajouter `timeout-minutes` à chaque job de `ci.yml`, le job `images` en
-premier — il est le seul à parler à un démon Docker, donc le seul à pouvoir se bloquer sur
-quelque chose qui n'est pas du calcul. La valeur de `nightly.yml` (30) est le précédent du dépôt.
-
+**Recommandation 2.** Les deux moitiés. Borner chaque job, et corriger les boucles pour que la
+borne dise ce qu'elle dit : `docker exec` dans la base déjà lancée plutôt qu'un conteneur client
+par sonde, et *un seul* conteneur de sonde qui réessaie en interne plutôt qu'un par tentative.
+Alors le nombre dans le log et le nombre dans le plafond sont la même unité.
 ---
 
 ### 3.3 🔴 Le workflow qui signe télécharge son outil de signature depuis une URL mutable, sans vérification — dans le job qui détient `id-token: write`
@@ -557,7 +577,7 @@ le 29 août, et parce que taire un faux positif coûte plus cher que l'écrire.
 | # | Recommandation | Priorité | Vérifiée comment |
 |---|---|---|---|
 | 1 | **Fusionner `develop` dans `main`** — sans quoi rien de ce que les 17e et 18e audits ont corrigé n'est exécuté par quoi que ce soit de planifié | 🔴 | `git rev-list --count origin/main..develop` → **5** ; `git ls-tree origin/main` : `ReadCostSweepTest` et `check-i18n-keys.mjs` **absents**, `ReadCostRoutesTest` **présent**, `sbom` **absent** de `release.yml` |
-| 2 | `timeout-minutes` sur chaque job de `ci.yml` | 🔴 | API des jobs : `images` en cours depuis 51 min sur une étape bornée à 3 min 30 ; `grep timeout-minutes` → 4 dans `nightly.yml`, **0** dans `ci.yml` |
+| 2 | Borner chaque job **et** corriger les boucles à un conteneur par sonde | 🔴 | API des jobs : `images` **67,3 min** sur une étape bornée sur le papier à 3 min 30 ; la même attente par `docker exec` mesurée localement à **6 s** ; `grep timeout-minutes` → 4 dans `nightly.yml`, **0** dans `ci.yml` |
 | 3 | Épingler et vérifier `cosign` | 🔴 | `release.yml:75-79` lu ; `git log -S` → introduit par `8b56333` le 27 août, jamais relevé depuis |
 | 4 | Déclencher `release.yml` (après 1 et 3) | 🟠 | **affirmé, non exécuté** — 0 tag, 0 release, absent des 20 runs. Demande vos identifiants |
 | 5 | Activer GitHub Pages puis relancer `docs` | 🟠 | `mkdocs build --strict` **passe** en local ; l'échec est `configure-pages`, et `has_pages: false` |
@@ -577,10 +597,13 @@ planifié n'exécute.**
 Le prompt demande de dire, quand une note baisse, si le terrain s'est dégradé ou si un audit
 précédent avait noté ce qu'il n'avait pas mesuré. Les deux, et pas dans les mêmes cases.
 
-**Le terrain a bougé, temporairement, en 3.1 et 3.2.** Cinq commits non fusionnés et un run
-bloqué sont des états, pas des défauts de conception ; ils se règlent en une fusion et une ligne
-de YAML. Mais ce sont des états qui vident de leur contenu tout ce qu'un tableau vert affirme, et
-c'est pour cela que l'axe vérification tombe à 6,5 et non à 8.
+**Le terrain a bougé en 3.1, et le 3.2 est encore autre chose.** Cinq commits non fusionnés,
+c'est un état, pas un défaut de conception, et il se règle par une fusion — mais un état qui vide de
+son contenu tout ce qu'un tableau vert affirme. Le 3.2 est autre chose : un défaut qui tournait
+depuis que ce job existe, vert à soixante-sept minutes la course, et que j'ai failli classer comme
+un blocage passager. **M'être trompé au premier passage est ce qu'il faut en retenir** : j'ai
+déduit un blocage d'un run seulement lent, et seule la mesure du job terminé a montré l'erreur
+d'unité en dessous. L'axe vérification tombe à 6,5 pour les deux.
 
 **Trois audits ont noté ce qu'ils n'avaient pas mesuré**, et il vaut mieux le nommer que le
 répartir :

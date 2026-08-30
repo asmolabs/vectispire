@@ -277,16 +277,25 @@ jobs:
           # Waited for before the application starts, not alongside it: Hikari is configured to
           # fail fast, so a control plane that boots one second early does not retry — it exits,
           # and the job reports a broken image when the truth is a slow database.
-          for attempt in $(seq 1 120); do
-            if docker run --rm --network smoke mysql:8 \
-                 mysqladmin ping -h db -u vectispire -pvectispire --silent > /dev/null 2>&1; then
-              echo "database ready after ${attempt}s"; break
-            fi
-            if [ "$attempt" -eq 120 ]; then
-              echo "the database never became reachable — last 100 lines:"; docker logs --tail 100 db; exit 1
+          #
+          # **`exec` into the running database, not a fresh container per probe.** This loop used
+          # to be `docker run --rm mysql:8 mysqladmin ping`, up to 120 times, printing "ready
+          # after ${attempt}s" as though an attempt cost a second. An attempt costs a container
+          # create, start, run and remove; on 30 August this step took **67 minutes** for work
+          # bounded, on paper, at three and a half. It passed, which is the reason nobody looked:
+          # a slow green is invisible in a way a red is not.
+          #
+          # The bound is now wall-clock and the message reports wall-clock, so the number in the
+          # log and the number in the ceiling mean the same thing.
+          deadline=$(( $(date +%s) + 120 ))
+          until docker exec db mysqladmin ping -h 127.0.0.1 -u vectispire -pvectispire --silent > /dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "the database never became reachable in 120s — last 100 lines:"
+              docker logs --tail 100 db; exit 1
             fi
             sleep 1
           done
+          echo "database ready after $(( 120 - (deadline - $(date +%s)) ))s"
           docker run -d --name vectispire-smoke --network smoke \
             -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
             -e VECTISPIRE_DB_USER=vectispire \
@@ -297,20 +306,34 @@ jobs:
             vectispire:latest
           # Probed from inside the container's own network namespace: the runner and the container
           # under test do not share `localhost`.
-          for attempt in $(seq 1 90); do
-            if docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
-                 -sf http://localhost:3180/actuator/health > /dev/null 2>&1; then
-              echo "control plane image healthy after ${attempt}s"
-              docker run --rm --network container:vectispire-smoke curlimages/curl:8.11.1 \
-                -sf -o /dev/null http://localhost:3180/ \
-                || { echo "the image serves the API but not the interface"; exit 1; }
-              echo "interface served"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "the image did not become healthy — last 100 lines:"
-          docker logs --tail 100 vectispire-smoke
-          exit 1
+          #
+          # **One probe container that loops, not one container per probe.** Same defect as the
+          # database wait above, and the larger half of the 67 minutes: this spawned a fresh
+          # `curlimages/curl` for every one of up to 90 attempts. The retry now happens *inside*
+          # a single container, so the loop costs one container start and the deadline is real
+          # seconds.
+          #
+          # Exit 2 is kept distinct from exit 1 on purpose: "answers the API but not the
+          # interface" is a packaging failure — the UI never made it into the image — and reads
+          # nothing like "never came up".
+          set +e
+          docker run --rm --network container:vectispire-smoke --entrypoint sh \
+            curlimages/curl:8.11.1 -c '
+              deadline=$(( $(date +%s) + 180 ))
+              until curl -sf http://localhost:3180/actuator/health > /dev/null 2>&1; do
+                [ "$(date +%s)" -ge "$deadline" ] && exit 1
+                sleep 1
+              done
+              curl -sf -o /dev/null http://localhost:3180/ || exit 2
+              exit 0'
+          probe=$?
+          set -e
+          case "$probe" in
+            0) echo "the control plane image is healthy and serves the interface"; exit 0 ;;
+            2) echo "the image serves the API but not the interface — the UI is missing from it"
+               docker logs --tail 100 vectispire-smoke; exit 1 ;;
+            *) echo "the image did not become healthy in 180s — last 100 lines:"
+               docker logs --tail 100 vectispire-smoke; exit 1 ;;
+          esac
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
