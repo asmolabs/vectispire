@@ -13,7 +13,7 @@
 # artifacts that have to agree on a port. It also makes `connect-src 'self'` a true statement
 # rather than an aspiration.
 #
-# See `docs/architecture/04-runtime-and-deployment.md` for the filtering-proxy configuration
+# See `docs/architecture/en/04-runtime-and-deployment.md` for the filtering-proxy configuration
 # (`DOCKER_HOST`, one variable, no code change) and — more importantly — for why that proxy
 # shrinks the blast radius without closing the escape.
 #

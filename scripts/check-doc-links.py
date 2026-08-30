@@ -54,6 +54,39 @@ def markdown_files(root: str):
                 yield os.path.join(current, name)
 
 
+# Files that are not Markdown but point readers at Markdown anyway. A `docs/...md` path written
+# in a Dockerfile comment or a compose file is an instruction to a person — usually a person in
+# the middle of deploying — and it breaks exactly like a link does.
+#
+# **This was added because one was broken.** `Dockerfile` line 16 sent its reader to
+# `docs/architecture/04-runtime-and-deployment.md` for the filtering-proxy configuration; the
+# file lives at `docs/architecture/en/04-runtime-and-deployment.md` and has since the
+# architecture tree became bilingual. Every Markdown link to it was correct, so the link check
+# was green for weeks — it walked `*.md` and nothing else, and the one dead pointer sat in the
+# file somebody reads while standing up a deployment.
+PROSE_REFERENCES = ("Dockerfile", "Dockerfile.agent", "Dockerfile.cli",
+                    "docker-compose.yml", ".env.example")
+
+# A bare `docs/...` path mentioned in running text or a comment, backticked or not.
+DOC_PATH = re.compile(r"(?<![\w/.-])(docs/[\w./-]+\.md)")
+
+
+def broken_doc_paths_in(path: str, root: str) -> list[str]:
+    """Markdown paths named by a non-Markdown file, resolved from the repository root."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            text = handle.read()
+    except OSError:
+        return []
+
+    broken = []
+    for match in DOC_PATH.finditer(text):
+        target = match.group(1)
+        if not os.path.exists(os.path.join(root, target)):
+            broken.append(f"{target}  (named here, but no such file)")
+    return broken
+
+
 def broken_links_in(path: str) -> list[str]:
     with open(path, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
@@ -98,6 +131,17 @@ def main() -> int:
         broken = broken_links_in(path)
         if broken:
             failures[os.path.relpath(path, root)] = broken
+
+    # The same check over the files that point at documentation without being documentation.
+    for name in PROSE_REFERENCES:
+        candidate = os.path.join(root, name)
+        if not os.path.exists(candidate):
+            continue
+        with open(candidate, encoding="utf-8", errors="replace") as handle:
+            checked += len(DOC_PATH.findall(handle.read()))
+        broken = broken_doc_paths_in(candidate, root)
+        if broken:
+            failures[name] = failures.get(name, []) + broken
 
     total_broken = sum(len(v) for v in failures.values())
     print(f"{checked} relative links checked, {total_broken} broken")

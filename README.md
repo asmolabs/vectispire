@@ -137,7 +137,7 @@ configuration of whichever machine scans. Secrets, IaC and source-code analysis 
 apply to an image and stay `null` — declaring them scanned would silently resolve their
 whole history for that target.
 
-See [`docs/architecture/04-runtime-and-deployment.md`](docs/architecture/en/04-runtime-and-deployment.md)
+See [`docs/architecture/en/04-runtime-and-deployment.md`](docs/architecture/en/04-runtime-and-deployment.md)
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
