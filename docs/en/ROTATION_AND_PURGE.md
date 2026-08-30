@@ -111,13 +111,17 @@ account of a credential exposure to find it.
 
 ---
 
-> **The forge has changed since this was written, and the record is left as it stands.** This
-> section describes a purge actually carried out against GitHub on 6 August 2026, when the
-> repository was hosted there. The project's remote is now GitLab, so anybody repeating the
-> procedure needs GitLab's equivalent — its support request, its fork check — and, separately,
-> has to establish whether the GitHub repository still exists and still serves the objects.
-> Rewriting the commands below to name GitLab would turn an account of what happened into an
-> instruction that was never followed.
+> **The record is left as it stands; only the facts around it are kept current.** This section
+> describes a purge actually carried out on 6 August 2026 against the repository
+> `Asmo1973/Vectispire`. Rewriting the commands below would turn an account of what happened into
+> an instruction that was never followed, so they stay as they were run.
+>
+> **Where the project lives now, checked rather than remembered.** `git remote -v` answers
+> `git@github.com:asmolabs/vectispire.git`. The forge went to GitLab after this was written and
+> came back to GitHub on 27 August 2026; an earlier revision of this note said the remote was
+> GitLab and sent its reader looking for a GitLab support form. **The remaining action below
+> concerns the old repository, not the current one** — they are two different repositories, not a
+> rename.
 
 ## 2. Purging unreferenced objects at GitHub
 
@@ -133,9 +137,24 @@ gh api repos/Asmo1973/Vectispire/commits/92df73d --jq .sha   # 404 = purged, 200
 Or in a browser: `https://github.com/Asmo1973/Vectispire/commit/92df73d`. If the page renders,
 the object is still there.
 
-These commands could **not** be run conclusively here: `gh` is not authenticated on this
-machine and the repository is private, so the 404s obtained mean nothing. To be redone on
-your side before writing to GitHub.
+**Still not conclusive from here, and for a narrower reason than before.** Run unauthenticated
+on 30 August 2026, `Asmo1973/Vectispire` and all five SHAs answer **404** — but an
+unauthenticated 404 is what a private repository, a deleted one and a purged object all look
+like, so it settles nothing. This needs an authenticated session with access to that repository,
+which is your side of the work.
+
+**What *was* settled, on the current repository, which is public.** These are facts, not
+inferences:
+
+| Check | Result |
+|---|---|
+| `GET /repos/asmolabs/vectispire` | `visibility: public`, `forks_count: 0`, `network_count: 0`, created 2026-08-27 |
+| The five old SHAs against it | `422` × 5 — the objects are not in this repository |
+| `git rev-list --objects --all \| grep -iE '\.sqlite\|id_rsa\|\.pem$'` | empty, over 391 commits |
+| `gitleaks detect` over the full history | 377 commits, no leaks |
+
+So the current repository carries nothing from the incident and has no forks to propagate it.
+What is open is the old one.
 
 ### 2.2 Check for forks
 

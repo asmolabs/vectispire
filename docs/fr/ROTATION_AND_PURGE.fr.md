@@ -111,13 +111,18 @@ lire le récit d'une exposition d'identifiants pour la trouver.
 
 ---
 
-> **Le forgeron a changé depuis la rédaction, et l'archive est laissée telle quelle.** Cette
-> section décrit une purge réellement menée contre GitHub le 6 août 2026, quand le dépôt y était
-> hébergé. Le remote du projet est désormais GitLab : quiconque rejoue la procédure a besoin de
-> l'équivalent GitLab — sa demande de support, sa vérification des forks — et doit établir
-> séparément si le dépôt GitHub existe encore et sert encore les objets. Réécrire les commandes
-> ci-dessous pour nommer GitLab transformerait un compte-rendu de ce qui s'est passé en une
-> instruction qui n'a jamais été suivie.
+> **L'archive est laissée telle quelle ; seuls les faits qui l'entourent sont tenus à jour.**
+> Cette section décrit une purge réellement menée le 6 août 2026 contre le dépôt
+> `Asmo1973/Vectispire`. Réécrire les commandes ci-dessous transformerait un compte-rendu de ce
+> qui s'est passé en une instruction qui n'a jamais été suivie : elles restent telles qu'elles
+> ont été lancées.
+>
+> **Où vit le projet aujourd'hui, vérifié plutôt que retenu de mémoire.** `git remote -v` répond
+> `git@github.com:asmolabs/vectispire.git`. La forge est passée à GitLab après la rédaction de ce
+> texte, puis revenue à GitHub le 27 août 2026 ; une révision antérieure de cette note affirmait
+> que le remote était GitLab et envoyait son lecteur chercher un formulaire de support GitLab.
+> **L'action restante ci-dessous concerne l'ancien dépôt, pas le dépôt actuel** — ce sont deux
+> dépôts distincts, et non un renommage.
 
 ## 2. Purger les objets non référencés chez GitHub
 
@@ -133,9 +138,24 @@ gh api repos/Asmo1973/Vectispire/commits/92df73d --jq .sha   # 404 = purgé, 200
 Ou dans un navigateur : `https://github.com/Asmo1973/Vectispire/commit/92df73d`. Si la page
 s'affiche, l'objet est toujours là.
 
-Ces commandes n'ont **pas** pu être exécutées de manière concluante ici : `gh` n'est pas
-authentifié sur cette machine et le dépôt est privé, donc les 404 obtenus ne signifient rien. À
-refaire de votre côté avant d'écrire à GitHub.
+**Toujours pas concluant depuis ici, mais pour une raison plus étroite qu'avant.** Lancées sans
+authentification le 30 août 2026, `Asmo1973/Vectispire` et les cinq empreintes répondent
+**404** — or un 404 non authentifié est exactement ce que produisent un dépôt privé, un dépôt
+supprimé et un objet purgé. Cela ne tranche rien. Il faut une session authentifiée ayant accès à
+ce dépôt, et c'est votre part du travail.
+
+**Ce qui, en revanche, a été tranché sur le dépôt actuel, qui est public.** Ce sont des faits, pas
+des déductions :
+
+| Vérification | Résultat |
+|---|---|
+| `GET /repos/asmolabs/vectispire` | `visibility: public`, `forks_count: 0`, `network_count: 0`, créé le 2026-08-27 |
+| Les cinq anciennes empreintes contre lui | `422` × 5 — les objets ne sont pas dans ce dépôt |
+| `git rev-list --objects --all \| grep -iE '\.sqlite\|id_rsa\|\.pem$'` | vide, sur 391 commits |
+| `gitleaks detect` sur tout l'historique | 377 commits, aucune fuite |
+
+Le dépôt actuel ne porte donc rien de l'incident et n'a aucun fork pour le propager. Ce qui reste
+ouvert, c'est l'ancien.
 
 ### 2.2 Vérifier l'absence de forks
 
