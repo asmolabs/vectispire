@@ -40,7 +40,7 @@
                          window to change one value out of three would cost more than it
                          protects. The server refuses anyway whatever would lock everybody
                          out. -->
-                    <p-select [options]="roles" optionLabel="label" optionValue="value" [ngModel]="user.role"
+                    <p-select [options]="roles()" optionLabel="label" optionValue="value" [ngModel]="user.role"
                               (ngModelChange)="changeRole(user, $event)" [disabled]="busy() === user.id" styleClass="w-full" />
                 </td>
                 <td>
@@ -86,7 +86,7 @@
         </div>
         <div class="flex flex-col gap-2">
             <label for="role" class="font-medium">Role</label>
-            <p-select id="role" [options]="roles" optionLabel="label" optionValue="value" [(ngModel)]="form.role" styleClass="w-full" />
+            <p-select id="role" [options]="roles()" optionLabel="label" optionValue="value" [(ngModel)]="form.role" styleClass="w-full" />
         </div>
         <div class="flex flex-col gap-2">
             <label for="password" class="font-medium">Initial password</label>

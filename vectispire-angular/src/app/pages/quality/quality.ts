@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -26,6 +27,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     templateUrl: './quality.html'
 })
 export class Quality {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     readonly overview = signal<QualityOverview | null>(null);
     readonly error = signal<string | null>(null);
@@ -39,9 +41,9 @@ export class Quality {
 
     groups(data: QualityOverview) {
         return [
-            { title: 'Most frequent rules', rows: data.topRules },
-            { title: 'Most affected files', rows: data.topFiles },
-            { title: 'Densest repositories', rows: data.topTargets }
+            { title: this.i18n.t('quality.tables.most_frequent_rules'), rows: data.topRules },
+            { title: this.i18n.t('quality.tables.most_affected_files'), rows: data.topFiles },
+            { title: this.i18n.t('quality.tables.densest_repositories'), rows: data.topTargets }
         ];
     }
 

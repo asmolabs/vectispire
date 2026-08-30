@@ -1,5 +1,6 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { Component, computed, inject, PLATFORM_ID, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { $t, updatePreset, updateSurfacePalette } from '@openng/optimus-ui-themes';
@@ -96,6 +97,7 @@ declare type SurfacesType = {
     }
 })
 export class AppConfigurator {
+    private readonly i18n = inject(I18nService);
     router = inject(Router);
 
     config: Optimus = inject(Optimus);
@@ -111,8 +113,8 @@ export class AppConfigurator {
     showMenuModeButton = signal(!this.router.url.includes('auth'));
 
     menuModeOptions = [
-        { label: 'Static', value: 'static' },
-        { label: 'Overlay', value: 'overlay' }
+        { label: this.i18n.t('layout.menu_mode.static'), value: 'static' },
+        { label: this.i18n.t('layout.menu_mode.overlay'), value: 'overlay' }
     ];
 
     ngOnInit() {

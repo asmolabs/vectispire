@@ -38,7 +38,8 @@
     "optional": "optionnel",
     "required": "requis",
     "enabled": "Activé",
-    "disabled": "Désactivé"
+    "disabled": "Désactivé",
+    "all_targets": "Toutes les cibles"
   },
   "topbar": {
     "appearance": "Apparence",
@@ -128,7 +129,12 @@
     "severity_high": "Élevé",
     "severity_medium": "Moyen",
     "severity_low": "Faible",
-    "backlog_by_severity": "Backlog par sévérité"
+    "backlog_by_severity": "Backlog par sévérité",
+    "chart": {
+      "open_backlog": "Backlog ouvert",
+      "opened": "Apparus",
+      "resolved": "Résolus"
+    }
   },
   "security": {
     "title": "Sécurité",
@@ -174,7 +180,8 @@
     "url_label": "URL du dépôt Git",
     "branch_label": "Branche par défaut",
     "ssh_key_label": "Clé SSH de déploiement",
-    "delete_confirm": "Êtes-vous sûr de vouloir supprimer ce dépôt ?"
+    "delete_confirm": "Êtes-vous sûr de vouloir supprimer ce dépôt ?",
+    "no_key_host_ssh": "Aucune clé — utiliser la configuration SSH de cette machine"
   },
   "containers": {
     "title": "Images Conteneurs",
@@ -222,7 +229,35 @@
     "transitive_dep": "importé par une autre dépendance (transitif)",
     "fix_none_published": "aucun correctif publié",
     "times_seen": "fois",
-    "time_seen_single": "fois"
+    "time_seen_single": "fois",
+    "vex": {
+      "component_not_present": "Composant absent",
+      "vulnerable_code_not_present": "Code vulnérable absent",
+      "vulnerable_code_not_in_execute_path": "Code vulnérable hors du chemin d'exécution",
+      "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
+      "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
+    },
+    "states": {
+      "open": "Ouvert",
+      "resolved": "Résolu",
+      "all": "Tous"
+    },
+    "types": {
+      "vulnerability": "Vulnérabilité",
+      "secret": "Secret exposé",
+      "iac": "Configuration d'infrastructure",
+      "license": "Licence",
+      "eol": "Fin de support",
+      "sast": "Code vulnérable",
+      "quality": "Qualité du code"
+    },
+    "triage_status": {
+      "under_review": "En cours d'examen",
+      "pending_approval": "En attente d'approbation",
+      "affected": "Affecté",
+      "not_affected": "Non affecté",
+      "fixed": "Corrigé"
+    }
   },
   "compliance": {
     "title": "Conformité réglementaire & Posture de sécurité",
@@ -237,7 +272,22 @@
     "frameworks_count": "Référentiels actifs",
     "compliance_score": "Score de conformité",
     "controls_breakdown": "Détail des exigences et contrôles techniques",
-    "controls_desc": "Évaluation en temps réel des contrôles de sécurité et conservation des preuves d'audit"
+    "controls_desc": "Évaluation en temps réel des contrôles de sécurité et conservation des preuves d'audit",
+    "frameworks": {
+      "nis2": "Directive NIS 2",
+      "iso27001": "ISO/IEC 27001:2022",
+      "eu_cra": "Cyber Resilience Act (EU CRA)",
+      "dora": "DORA",
+      "pci_dss": "PCI-DSS v4.0",
+      "soc2": "SOC 2 Type II",
+      "nis2_desc": "UE 2022/2555 — Chaîne d'approvisionnement et gestion des vulnérabilités",
+      "iso27001_desc": "Contrôles de sécurité de l'information, Annexe A",
+      "eu_cra_desc": "Sécurité des produits numériques et notification CSIRT sous 24 h",
+      "dora_desc": "UE 2022/2554 — Résilience opérationnelle numérique",
+      "pci_dss_desc": "Standard de sécurité des données de paiement",
+      "soc2_desc": "AICPA Trust Services Criteria — Sécurité et intégrité de l'audit"
+    },
+    "global_view": "🌐 Vue globale — tout le parc"
   },
   "licenses": {
     "title": "Gouvernance des licences Open Source & Risque Copyleft",
@@ -326,7 +376,12 @@
     "distinct_rules": "règles distinctes",
     "files_affected": "fichiers concernés",
     "no_finding": "Aucun constat.",
-    "see_every_finding": "Voir tous les constats de qualité"
+    "see_every_finding": "Voir tous les constats de qualité",
+    "tables": {
+      "most_frequent_rules": "Règles les plus fréquentes",
+      "most_affected_files": "Fichiers les plus touchés",
+      "densest_repositories": "Dépôts les plus denses"
+    }
   },
   "rule_sets": {
     "title": "Jeux de règles Semgrep",
@@ -360,12 +415,6 @@
       "ai": "IA",
       "integrations": "Intégrations & SIEM",
       "threat_intel": "Threat Intelligence"
-    },
-    "severities": {
-      "critical": "Critique",
-      "high": "Élevé",
-      "medium": "Moyen",
-      "low": "Faible"
     },
     "sections": {
       "remediation_slas": "Délais de remédiation SLA",
@@ -532,7 +581,15 @@
     "public_key_label": "Clé publique",
     "public_key_placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... deploy@vectispire",
     "public_key_hint": "Optionnelle mais recommandée : permet à Vectispire d'afficher l'empreinte sans avoir à déchiffrer la partie privée.",
-    "delete_confirm": "Êtes-vous sûr de vouloir supprimer cette clé ? Les dépôts associés échoueront lors de leur prochaine analyse."
+    "delete_confirm": "Êtes-vous sûr de vouloir supprimer cette clé ? Les dépôts associés échoueront lors de leur prochaine analyse.",
+    "encryption_status": {
+      "current": "OK",
+      "current_hint": "Chiffrée avec la clé de chiffrement actuelle.",
+      "rotate": "À faire tourner",
+      "unreadable": "Illisible",
+      "previous_key_hint": "Chiffrée avec une clé de chiffrement précédente. Enregistrez-la à nouveau pour la passer sous ENCRYPTION_KEY — et si elle date de la clé par défaut publiée dans le dépôt, sa moitié privée est publique : générez une nouvelle paire.",
+      "unreadable_hint": "Aucune clé configurée ne déchiffre cette valeur : le prochain clone qui en a besoin échouera. Ajoutez la clé précédente à VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS, ou remplacez cette clé SSH."
+    }
   },
   "agents": {
     "title": "Centre de contrôle des agents & File d'attente",
@@ -583,7 +640,13 @@
     "status_busy": "En cours d'analyse",
     "status_routable": "Prêt pour attribution",
     "status_blocked": "Bloqué (aucun agent avec ce label)",
-    "agents_title": "Agents d'analyse enregistrés"
+    "agents_title": "Agents d'analyse enregistrés",
+    "credentials_modes": {
+      "local": "Clés locales",
+      "local_hint": "L'agent utilise ses propres identifiants git. Vectispire ne lui envoie aucune clé.",
+      "delegated": "Clés déléguées",
+      "delegated_hint": "Vectispire envoie la clé de déploiement du dépôt. Exige un lien chiffré — l'agent est refusé sinon."
+    }
   },
   "api_keys": {
     "title": "Clés API",
@@ -608,7 +671,17 @@
     "target_all": "Toutes les cibles",
     "delete_confirm": "Êtes-vous sûr de vouloir révoquer cette clé API ?",
     "token_modal_title": "Clé API générée",
-    "token_modal_desc": "Conservez précieusement ce jeton. Pour des raisons de sécurité, il ne pourra plus jamais être affiché."
+    "token_modal_desc": "Conservez précieusement ce jeton. Pour des raisons de sécurité, il ne pourra plus jamais être affiché.",
+    "scopes_list": {
+      "read": "Lecture",
+      "read_hint": "Consulter les constats, les scans et les rapports.",
+      "scan": "Déclencher un scan",
+      "scan_hint": "Mettre en file un scan sur une cible existante.",
+      "export": "Export",
+      "export_hint": "Récupérer SARIF, OpenVEX, SBOM.",
+      "agent": "Agent",
+      "agent_hint": "Réclamer et exécuter des scans. Cette portée exécute du code : ne l'accordez qu'à un agent."
+    }
   },
   "users": {
     "title": "Gestion des utilisateurs",
@@ -649,7 +722,14 @@
     "fail_high": "Bloquer sur failles Élevées",
     "fail_kev": "Bloquer sur failles CISA KEV",
     "fail_unreachable": "Appliquer sur failles non-atteignables",
-    "save_policy": "Enregistrer la politique"
+    "save_policy": "Enregistrer la politique",
+    "severity_rules": {
+      "none": "Aucune règle de gravité — activement exploités seulement",
+      "critical": "Critique et au-dessus",
+      "high": "Élevée et au-dessus",
+      "medium": "Moyenne et au-dessus",
+      "low": "Faible et au-dessus"
+    }
   },
   "scorecard": {
     "title": "Scorecard de sécurité & Note de posture",
@@ -723,7 +803,8 @@
     "user": "Utilisateur",
     "ciso": "Responsable Sécurité / CISO",
     "admin": "Administrateur",
-    "superuser": "Super-administrateur"
+    "superuser": "Super-administrateur",
+    "security_champion": "Référent sécurité"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -784,6 +865,39 @@
     "no_contracts_found": "Aucun contrat OpenAPI / Swagger découvert.",
     "high_risk_banner_title": "Exposition Critique de la Surface d'Attaque Détectée",
     "high_risk_banner_desc": "Ces routes sont accessibles sans authentification ou exposent des fonctionnalités administratives sensibles.",
-    "no_high_risk_found": "Aucun endpoint sensible non protégé détecté sur l'ensemble des dépôts."
+    "no_high_risk_found": "Aucun endpoint sensible non protégé détecté sur l'ensemble des dépôts.",
+    "methods": {
+      "all": "Toutes les méthodes",
+      "get": "GET",
+      "post": "POST",
+      "put": "PUT",
+      "delete": "DELETE",
+      "patch": "PATCH"
+    },
+    "visibility": {
+      "all": "Toutes visibilités",
+      "public": "Public (exposé)",
+      "internal": "Interne",
+      "unknown": "Inconnu"
+    },
+    "auth": {
+      "all": "Tous statuts d'authentification",
+      "required": "Authentification requise",
+      "none": "Non authentifié (public)"
+    }
+  },
+  "severities": {
+    "critical": "Critique",
+    "high": "Élevée",
+    "medium": "Moyenne",
+    "low": "Faible",
+    "negligible": "Négligeable",
+    "unknown": "Inconnue"
+  },
+  "layout": {
+    "menu_mode": {
+      "static": "Statique",
+      "overlay": "Superposé"
+    }
   }
 }

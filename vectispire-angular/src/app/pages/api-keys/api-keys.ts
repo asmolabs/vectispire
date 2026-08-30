@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -17,12 +18,6 @@ import type { ApiKeySummary } from '../../core/api.models';
 
 /** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
  *  grants the right to execute code. */
-const SCOPES = [
-    { value: 'read', label: 'Read', hint: 'View findings, scans and reports.' },
-    { value: 'scan', label: 'Trigger a scan', hint: 'Queue a scan on an existing target.' },
-    { value: 'export', label: 'Export', hint: 'Retrieve SARIF, OpenVEX, SBOM.' },
-    { value: 'agent', label: 'Agent', hint: 'Claim and run scans. This scope executes code: grant it only to an agent.' }
-];
 
 /** One side of the target list, or nothing at all: a missing or non-array side means that kind of
  *  target simply is not offered, which is the degraded-but-usable state the form expects. */
@@ -40,8 +35,17 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './api-keys.html'
 })
 export class ApiKeys {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
-    readonly scopes = SCOPES;
+    readonly scopes = computed(() => {
+        this.i18n.translations();
+        return [
+            { value: 'read', label: this.i18n.t('api_keys.scopes_list.read'), hint: this.i18n.t('api_keys.scopes_list.read_hint') },
+            { value: 'scan', label: this.i18n.t('api_keys.scopes_list.scan'), hint: this.i18n.t('api_keys.scopes_list.scan_hint') },
+            { value: 'export', label: this.i18n.t('api_keys.scopes_list.export'), hint: this.i18n.t('api_keys.scopes_list.export_hint') },
+            { value: 'agent', label: this.i18n.t('api_keys.scopes_list.agent'), hint: this.i18n.t('api_keys.scopes_list.agent_hint') }
+        ];
+    });
 
     readonly keys = signal<ApiKeySummary[]>([]);
     readonly targetOptions = signal<{ label: string; value: string }[]>([]);
@@ -96,7 +100,7 @@ export class ApiKeys {
     }
 
     scopeLabel(scope: string): string {
-        return SCOPES.find((entry) => entry.value === scope)?.label ?? scope;
+        return this.scopes().find((entry) => entry.value === scope)?.label ?? scope;
     }
 
     toggleScope(scope: string, checked: boolean): void {

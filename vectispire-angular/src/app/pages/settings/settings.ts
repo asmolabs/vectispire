@@ -68,13 +68,6 @@ function isLocalEndpoint(url: string): boolean {
         || /^f[cd][0-9a-f]{2}:/.test(host);
 }
 
-const SEVERITIES = [
-    { label: 'Critical', value: 'critical' },
-    { label: 'High', value: 'high' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'Low', value: 'low' }
-];
-
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 
@@ -108,10 +101,10 @@ export class Settings {
     readonly severities = computed(() => {
         this.i18n.translations();
         return [
-            { label: this.i18n.t('settings.severities.critical'), value: 'critical' },
-            { label: this.i18n.t('settings.severities.high'), value: 'high' },
-            { label: this.i18n.t('settings.severities.medium'), value: 'medium' },
-            { label: this.i18n.t('settings.severities.low'), value: 'low' }
+            { label: this.i18n.t('severities.critical'), value: 'critical' },
+            { label: this.i18n.t('severities.high'), value: 'high' },
+            { label: this.i18n.t('severities.medium'), value: 'medium' },
+            { label: this.i18n.t('severities.low'), value: 'low' }
         ];
     });
 

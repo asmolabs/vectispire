@@ -96,27 +96,36 @@ export class AttackSurface implements OnInit, OnDestroy {
     readonly filterVisibility = signal<string>('ALL');
     readonly filterAuth = signal<string>('ALL');
 
-    readonly methodOptions = [
-        { label: 'Toutes les méthodes', value: 'ALL' },
-        { label: 'GET', value: 'GET' },
-        { label: 'POST', value: 'POST' },
-        { label: 'PUT', value: 'PUT' },
-        { label: 'DELETE', value: 'DELETE' },
-        { label: 'PATCH', value: 'PATCH' }
-    ];
+    readonly methodOptions = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('attack_surface.methods.all'), value: 'ALL' },
+            { label: this.i18n.t('attack_surface.methods.get'), value: 'GET' },
+            { label: this.i18n.t('attack_surface.methods.post'), value: 'POST' },
+            { label: this.i18n.t('attack_surface.methods.put'), value: 'PUT' },
+            { label: this.i18n.t('attack_surface.methods.delete'), value: 'DELETE' },
+            { label: this.i18n.t('attack_surface.methods.patch'), value: 'PATCH' }
+        ];
+    });
 
-    readonly visibilityOptions = [
-        { label: 'Toutes visibilités', value: 'ALL' },
-        { label: 'Public (Exposé)', value: 'PUBLIC' },
-        { label: 'Interne', value: 'INTERNAL' },
-        { label: 'Inconnu', value: 'UNKNOWN' }
-    ];
+    readonly visibilityOptions = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('attack_surface.visibility.all'), value: 'ALL' },
+            { label: this.i18n.t('attack_surface.visibility.public'), value: 'PUBLIC' },
+            { label: this.i18n.t('attack_surface.visibility.internal'), value: 'INTERNAL' },
+            { label: this.i18n.t('attack_surface.visibility.unknown'), value: 'UNKNOWN' }
+        ];
+    });
 
-    readonly authOptions = [
-        { label: 'Tous statuts auth', value: 'ALL' },
-        { label: 'Authentifié requis', value: 'AUTH' },
-        { label: 'Non authentifié (Public)', value: 'UNAUTH' }
-    ];
+    readonly authOptions = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('attack_surface.auth.all'), value: 'ALL' },
+            { label: this.i18n.t('attack_surface.auth.required'), value: 'AUTH' },
+            { label: this.i18n.t('attack_surface.auth.none'), value: 'UNAUTH' }
+        ];
+    });
 
     ngOnInit(): void {
         this.loadData();

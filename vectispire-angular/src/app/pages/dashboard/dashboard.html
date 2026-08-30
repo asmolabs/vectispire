@@ -53,7 +53,7 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <span>{{ 'dashboard.backlog_over_time' | translate }}</span>
                 <div class="flex gap-2">
-                    @for (choice of windows; track choice.value) {
+                    @for (choice of windows(); track choice.value) {
                         <p-button [label]="choice.label" size="small" [outlined]="window() !== choice.value" (onClick)="loadTrends(choice.value)" />
                     }
                 </div>
@@ -286,7 +286,7 @@
         <p-card styleClass="xl:col-span-1">
             <ng-template #title>{{ 'dashboard.open_backlog_severity' | translate }}</ng-template>
             <div class="flex flex-col gap-3">
-                @for (level of severities; track level.key) {
+                @for (level of severities(); track level.key) {
                     <div class="flex items-center justify-between">
                         <p-tag [value]="level.label" [severity]="level.severity" />
                         <a [routerLink]="['/issues']" [queryParams]="{ severity: level.key, state: 'open' }" class="text-xl font-semibold">

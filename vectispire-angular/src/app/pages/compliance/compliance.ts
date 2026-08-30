@@ -50,9 +50,10 @@ export class Compliance {
     readonly error = signal<string | null>(null);
 
     readonly targetOptions = computed(() => {
+        this.i18n.translations();
         const list = this.targetsList();
         return [
-            { label: '🌐 Vue Globale — Toute l\'organisation', value: 'ALL' },
+            { label: this.i18n.t('compliance.global_view'), value: 'ALL' },
             ...list.map((t) => ({
                 label: `${t.type === 'REPOSITORY' ? '📁' : '📦'} ${t.name}`,
                 value: t.targetId
@@ -78,21 +79,24 @@ export class Compliance {
     readonly importSuccess = signal<string | null>(null);
     readonly importError = signal<string | null>(null);
 
-    readonly frameworks = [
-        { key: 'NIS_2', label: 'NIS 2 Directive', desc: 'EU 2022/2555 — Supply Chain & Vulnerability Mgmt' },
-        { key: 'ISO_27001', label: 'ISO/IEC 27001:2022', desc: 'Annex A Information Security Controls' },
-        { key: 'EU_CRA', label: 'Cyber Resilience Act (EU CRA)', desc: 'EU Digital Products Security & 24h CSIRT Notification' },
-        { key: 'DORA', label: 'DORA', desc: 'EU 2022/2554 — Digital Operational Resilience' },
-        { key: 'PCI_DSS', label: 'PCI-DSS v4.0', desc: 'Payment Card Security Standard' },
-        { key: 'SOC_2', label: 'SOC 2 Type II', desc: 'AICPA Trust Services Criteria — Security & Audit Integrity' }
-    ];
+    readonly frameworks = computed(() => {
+        this.i18n.translations();
+        return [
+            { key: 'NIS_2', label: this.i18n.t('compliance.frameworks.nis2'), desc: this.i18n.t('compliance.frameworks.nis2_desc') },
+            { key: 'ISO_27001', label: this.i18n.t('compliance.frameworks.iso27001'), desc: this.i18n.t('compliance.frameworks.iso27001_desc') },
+            { key: 'EU_CRA', label: this.i18n.t('compliance.frameworks.eu_cra'), desc: this.i18n.t('compliance.frameworks.eu_cra_desc') },
+            { key: 'DORA', label: this.i18n.t('compliance.frameworks.dora'), desc: this.i18n.t('compliance.frameworks.dora_desc') },
+            { key: 'PCI_DSS', label: this.i18n.t('compliance.frameworks.pci_dss'), desc: this.i18n.t('compliance.frameworks.pci_dss_desc') },
+            { key: 'SOC_2', label: this.i18n.t('compliance.frameworks.soc2'), desc: this.i18n.t('compliance.frameworks.soc2_desc') }
+        ];
+    });
 
     frameworkLabel(key: string): string {
-        return this.frameworks.find((f) => f.key === key)?.label ?? key.replace('_', ' ');
+        return this.frameworks().find((f) => f.key === key)?.label ?? key.replace('_', ' ');
     }
 
     frameworkDesc(key: string): string {
-        return this.frameworks.find((f) => f.key === key)?.desc ?? key;
+        return this.frameworks().find((f) => f.key === key)?.desc ?? key;
     }
 
     readonly orderedEvaluations = computed<ComplianceEvaluation[]>(() => {

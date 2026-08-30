@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -14,14 +15,6 @@ import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
-const CREDENTIALS = [
-    { label: 'Local keys', value: 'local', hint: 'The agent uses its own git credentials. Vectispire sends it no key.' },
-    {
-        label: 'Delegated keys',
-        value: 'delegated',
-        hint: 'Vectispire sends the repository deployment key. Requires an encrypted link — the agent is refused otherwise.'
-    }
-];
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
@@ -32,8 +25,15 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './agents.html'
 })
 export class Agents implements OnInit, OnDestroy {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
-    readonly credentials = CREDENTIALS;
+    readonly credentials = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('agents.credentials_modes.local'), value: 'local', hint: this.i18n.t('agents.credentials_modes.local_hint') },
+            { label: this.i18n.t('agents.credentials_modes.delegated'), value: 'delegated', hint: this.i18n.t('agents.credentials_modes.delegated_hint') }
+        ];
+    });
 
     readonly agents = signal<AgentSummary[]>([]);
     readonly activity = signal<AgentActivitySummary | null>(null);
@@ -68,7 +68,7 @@ export class Agents implements OnInit, OnDestroy {
     }
 
     hintFor(mode: string): string {
-        return CREDENTIALS.find((entry) => entry.value === mode)?.hint ?? '';
+        return this.credentials().find((entry) => entry.value === mode)?.hint ?? '';
     }
 
     formatDuration(seconds: number): string {

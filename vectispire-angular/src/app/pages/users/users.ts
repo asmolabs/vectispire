@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -13,14 +14,6 @@ import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import type { UserSummary } from '../../core/api.models';
 
-const ROLES = [
-    { label: 'User', value: 'USER' },
-    { label: 'Security Champion', value: 'SECURITY_CHAMPION' },
-    { label: 'CISO / Security Lead', value: 'CISO' },
-    { label: 'Administrator', value: 'ADMIN' },
-    { label: 'Superuser', value: 'SUPERUSER' }
-];
-
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
@@ -30,8 +23,18 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './users.html'
 })
 export class Users {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
-    readonly roles = ROLES;
+    readonly roles = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('roles.user'), value: 'USER' },
+            { label: this.i18n.t('roles.security_champion'), value: 'SECURITY_CHAMPION' },
+            { label: this.i18n.t('roles.ciso'), value: 'CISO' },
+            { label: this.i18n.t('roles.admin'), value: 'ADMIN' },
+            { label: this.i18n.t('roles.superuser'), value: 'SUPERUSER' }
+        ];
+    });
 
     readonly users = signal<UserSummary[]>([]);
     readonly currentUserId = signal<number | null>(null);

@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -13,18 +14,18 @@ import { LastScanTag } from '../../shared/last-scan';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
  *  data: otherwise two successive loads could present them differently. */
-const SEVERITIES = [
-    { key: 'critical', label: 'Critical', severity: 'danger' as const },
-    { key: 'high', label: 'High', severity: 'warn' as const },
-    { key: 'medium', label: 'Medium', severity: 'secondary' as const },
-    { key: 'low', label: 'Low', severity: 'secondary' as const }
+const SEVERITY_TILES = [
+    { key: 'critical', severity: 'danger' as const },
+    { key: 'high', severity: 'warn' as const },
+    { key: 'medium', severity: 'secondary' as const },
+    { key: 'low', severity: 'secondary' as const }
 ];
 
 /** The windows offered. Days, because that is the unit the route clamps and the axis shows. */
-const WINDOWS = [
-    { label: '30 days', value: 30 },
-    { label: '90 days', value: 90 },
-    { label: '1 year', value: 365 }
+const WINDOW_DAYS = [
+    { key: 'window_30d', value: 30 },
+    { key: 'window_90d', value: 90 },
+    { key: 'window_1y', value: 365 }
 ];
 
 /**
@@ -50,9 +51,16 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './dashboard.html'
 })
 export class Dashboard {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
-    readonly severities = SEVERITIES;
-    readonly windows = WINDOWS;
+    readonly severities = computed(() => {
+        this.i18n.translations();
+        return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(`severities.${tile.key}`) }));
+    });
+    readonly windows = computed(() => {
+        this.i18n.translations();
+        return WINDOW_DAYS.map((w) => ({ value: w.value, label: this.i18n.t(`dashboard.${w.key}`) }));
+    });
 
     readonly data = signal<DashboardOverview | null>(null);
     readonly securityDebt = signal<SecurityDebtReport | null>(null);
@@ -157,7 +165,7 @@ export class Dashboard {
             labels: points.map((point) => point.day.slice(5)),
             datasets: [
                 {
-                    label: 'Open backlog',
+                    label: this.i18n.t('dashboard.chart.open_backlog'),
                     data: points.map((point) => point.open),
                     borderColor: themeColour('--p-primary-500', '#3b82f6'),
                     backgroundColor: 'rgba(59, 130, 246, 0.15)',
@@ -168,7 +176,7 @@ export class Dashboard {
                     yAxisID: 'y'
                 },
                 {
-                    label: 'Opened',
+                    label: this.i18n.t('dashboard.chart.opened'),
                     data: points.map((point) => point.opened),
                     borderColor: '#f97316',
                     pointRadius: 0,
@@ -176,7 +184,7 @@ export class Dashboard {
                     yAxisID: 'flows'
                 },
                 {
-                    label: 'Resolved',
+                    label: this.i18n.t('dashboard.chart.resolved'),
                     data: points.map((point) => point.resolved),
                     borderColor: '#22c55e',
                     pointRadius: 0,

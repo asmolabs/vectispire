@@ -323,7 +323,7 @@
         </div>
         <div class="flex flex-col gap-2">
             <label for="mode" class="font-medium">{{ 'agents.credentials' | translate }}</label>
-            <p-select id="mode" [options]="credentials" optionLabel="label" optionValue="value" [(ngModel)]="form.credentialsMode" styleClass="w-full" />
+            <p-select id="mode" [options]="credentials()" optionLabel="label" optionValue="value" [(ngModel)]="form.credentialsMode" styleClass="w-full" />
             <small class="text-muted-color">{{ hintFor(form.credentialsMode) }}</small>
         </div>
         <div class="flex flex-col gap-2">

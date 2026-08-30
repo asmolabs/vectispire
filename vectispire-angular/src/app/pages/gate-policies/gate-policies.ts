@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -70,6 +71,7 @@ interface Draft {
     templateUrl: './gate-policies.html'
 })
 export class GatePolicies {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
 
     readonly catalogue = signal<GatePoliciesResponse | null>(null);
@@ -84,13 +86,16 @@ export class GatePolicies {
     readonly overrides = computed(() => this.catalogue()?.policies.filter((policy) => policy.kind !== 'global') ?? []);
     readonly builtIn = computed(() => this.catalogue()?.built_in ?? null);
 
-    readonly severities = [
-        { label: 'No severity rule — actively exploited only', value: 'none' },
-        { label: 'Critical and above', value: 'critical' },
-        { label: 'High and above', value: 'high' },
-        { label: 'Medium and above', value: 'medium' },
-        { label: 'Low and above', value: 'low' }
-    ];
+    readonly severities = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('gate_policies.severity_rules.none'), value: 'none' },
+            { label: this.i18n.t('gate_policies.severity_rules.critical'), value: 'critical' },
+            { label: this.i18n.t('gate_policies.severity_rules.high'), value: 'high' },
+            { label: this.i18n.t('gate_policies.severity_rules.medium'), value: 'medium' },
+            { label: this.i18n.t('gate_policies.severity_rules.low'), value: 'low' }
+        ];
+    });
 
     scope: Scope = { kind: 'global', id: null };
     scopeLabel = 'the global policy';

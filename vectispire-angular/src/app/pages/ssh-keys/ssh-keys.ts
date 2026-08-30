@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -21,23 +22,6 @@ import type { EncryptionState, SshKeySummary } from '../../core/api.models';
  * that no configured key reads will fail the next clone that needs it — at scan time, on a
  * worker thread, hours later, with a message that will look like a network problem.
  */
-const ENCRYPTION_LABELS: Record<EncryptionState, { label: string; severity: 'success' | 'warn' | 'danger'; hint: string }> = {
-    current: { label: 'OK', severity: 'success', hint: 'Encrypted with the current encryption key.' },
-    previous_key: {
-        label: 'Rotate',
-        severity: 'warn',
-        hint:
-            'Encrypted with a previous encryption key. Save it again to move it under ENCRYPTION_KEY — ' +
-            'and if it dates from the default key published in the repository, its private half is public: generate a new pair.'
-    },
-    unreadable: {
-        label: 'Unreadable',
-        severity: 'danger',
-        hint:
-            'No configured key decrypts this value: the next clone that needs it will fail. ' +
-            'Add the previous key to VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS, or replace this SSH key.'
-    }
-};
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
@@ -48,6 +32,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './ssh-keys.html'
 })
 export class SshKeys {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
 
     readonly keys = signal<SshKeySummary[]>([]);
@@ -81,7 +66,16 @@ export class SshKeys {
     }
 
     badge(state: EncryptionState) {
-        return ENCRYPTION_LABELS[state] ?? ENCRYPTION_LABELS.unreadable;
+        const severities: Record<EncryptionState, 'success' | 'warn' | 'danger'> = {
+            current: 'success', previous_key: 'warn', unreadable: 'danger'
+        };
+        const key = state in severities ? state : 'unreadable';
+        const suffix = key === 'previous_key' ? 'previous_key' : key;
+        return {
+            label: this.i18n.t(`ssh_keys.encryption_status.${suffix === 'previous_key' ? 'rotate' : suffix}`),
+            severity: severities[key],
+            hint: this.i18n.t(`ssh_keys.encryption_status.${suffix}_hint`)
+        };
     }
 
     /** A public key runs to a 400-character line: shortened, like image digests, or it

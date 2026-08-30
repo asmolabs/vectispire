@@ -203,7 +203,7 @@
             </div>
 
             <p-select
-                [options]="methodOptions"
+                [options]="methodOptions()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="filterMethod()"
@@ -212,7 +212,7 @@
             />
 
             <p-select
-                [options]="visibilityOptions"
+                [options]="visibilityOptions()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="filterVisibility()"
@@ -221,7 +221,7 @@
             />
 
             <p-select
-                [options]="authOptions"
+                [options]="authOptions()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="filterAuth()"

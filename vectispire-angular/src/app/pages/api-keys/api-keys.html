@@ -78,7 +78,7 @@
 
         <div class="flex flex-col gap-2">
             <span class="font-medium">{{ 'api_keys.scopes_label' | translate }}</span>
-            @for (scope of scopes; track scope.value) {
+            @for (scope of scopes(); track scope.value) {
                 <div class="flex items-start gap-2">
                     <p-checkbox [inputId]="scope.value" [binary]="true" [ngModel]="form.scopes.includes(scope.value)"
                                 (ngModelChange)="toggleScope(scope.value, $event)" />

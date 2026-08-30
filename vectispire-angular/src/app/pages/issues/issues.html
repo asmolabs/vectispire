@@ -3,12 +3,12 @@
     <p class="text-muted-color mb-4">{{ 'issues.subtitle' | translate }}</p>
 
     <div class="flex flex-wrap gap-3 mb-4">
-        <p-select [(ngModel)]="state" [options]="states" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
-        <p-select [(ngModel)]="severity" [options]="severities" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Severity" [showClear]="true" />
-        <p-select [(ngModel)]="type" [options]="types" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
+        <p-select [(ngModel)]="state" [options]="states()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
+        <p-select [(ngModel)]="severity" [options]="severities()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Severity" [showClear]="true" />
+        <p-select [(ngModel)]="type" [options]="types()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
         <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
                   placeholder="Target" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
-        <p-select [(ngModel)]="triageFilter" [options]="triageOptions" optionLabel="label" optionValue="value" (onChange)="reload(0)"
+        <p-select [(ngModel)]="triageFilter" [options]="triageOptions()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
                   placeholder="Triage" [showClear]="true" />
         <p-iconfield>
             <p-inputicon class="pi pi-search" />
@@ -187,13 +187,13 @@
     <div class="flex flex-col gap-4">
         <div>
             <label class="block font-medium mb-2">{{ 'issues.triage_dialog_title' | translate }}</label>
-            <p-select [(ngModel)]="triageStatus" [options]="triageOptions" optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
+            <p-select [(ngModel)]="triageStatus" [options]="triageOptions()" optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
         </div>
 
         @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
             <div>
                 <label class="block font-medium mb-2">{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label>
-                <p-select [(ngModel)]="triageJustification" [options]="justifications" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" appendTo="body" />
+                <p-select [(ngModel)]="triageJustification" [options]="justifications()" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" appendTo="body" />
                 <small class="text-muted-color">Required by the VEX standard: without it the exported statement would carry no information.</small>
             </div>
         }

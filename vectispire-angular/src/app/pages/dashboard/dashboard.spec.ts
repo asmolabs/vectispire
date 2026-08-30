@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 /**
  * The backlog trend, and the one figure that must not be rounded to zero.
@@ -31,6 +32,14 @@ describe('the backlog trend', () => {
             imports: [Dashboard],
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
+
+        // **The series names come from the bundle, so the bundle is what the test loads.**
+        // Asserting the keys instead would pin that `t()` was called and nothing about whether
+        // the key resolves — and an unresolved key renders as itself, which is precisely the
+        // failure a reader would see on screen.
+        TestBed.inject(I18nService).translations.set({
+            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved' } }
+        });
 
         fixture = TestBed.createComponent(Dashboard);
         http = TestBed.inject(HttpTestingController);

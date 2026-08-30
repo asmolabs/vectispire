@@ -144,7 +144,7 @@
             <label for="policy-severity">Fail the build at</label>
             <p-select
                 inputId="policy-severity"
-                [options]="severities"
+                [options]="severities()"
                 optionLabel="label"
                 optionValue="value"
                 [(ngModel)]="draft.failOnSeverity"

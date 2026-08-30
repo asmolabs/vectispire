@@ -69,7 +69,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 54;
+const EXPECTED_KEYS = 132;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(
@@ -82,17 +82,23 @@ if (referenced.size !== EXPECTED_KEYS) {
     process.exit(1);
 }
 
-// **Le cliquet sur les libellés en dur.** Refuser tout littéral serait la bonne règle et la
-// mauvaise décision aujourd'hui : `src/app` en porte 89, répartis sur 14 fichiers, parce que
-// l'interface n'est traduite qu'en partie. Une règle qui échoue dès sa première exécution est
-// une règle qu'on désactive.
+// **Plus aucun libellé en dur, et le plafond est à zéro.**
 //
-// Un plafond qui ne peut que descendre bloque le *prochain* libellé en dur sans exiger que les
-// 89 soient traduits aujourd'hui. Le retirer d'un cran quand on en traduit un est gratuit ; en
-// ajouter un exige de lever le plafond, ce qui se lit dans le diff et se défend en revue.
-// C'est la forme que `MAY_GROW` a dans `ReadCostSweepTest`, pour la même raison : une liste
-// qui s'allonge à chaque rougeur finit par exempter le défaut suivant.
-const HARDCODED_LABEL_CEILING = 89;
+// Ce fichier a d'abord porté un cliquet à 89 : `src/app` en comptait autant, sur 14 fichiers,
+// et une règle qui échoue dès sa première exécution est une règle qu'on désactive. Le cliquet
+// était la bonne forme tant que la dette existait — il bloquait le *prochain* sans exiger que
+// les 89 soient traduits le jour même.
+//
+// Ils l'ont été. Le plafond descend donc à 0, et le cliquet devient une interdiction : c'est
+// la règle qu'on voulait depuis le début, et elle n'est tenable que maintenant.
+//
+// Ce que les 89 cachaient, et qui ne se voyait pas en les comptant : l'écran n'était pas
+// « anglais en dur », il était **bilingue en dur dans les deux mauvais sens**. La surface
+// d'attaque, la conformité et les licences portaient des libellés français figés, que le
+// lecteur anglophone recevait tels quels ; les constats, le tableau de bord et les rôles
+// portaient de l'anglais figé, que le lecteur francophone recevait tels quels. Aucune
+// préférence de langue n'en changeait un seul.
+const HARDCODED_LABEL_CEILING = 0;
 const literalLabel = /\b(?:label|title|placeholder|header|hint)\s*:\s*'([^']{2,})'/g;
 let hardcoded = 0;
 const worstOffenders = new Map();
@@ -105,13 +111,11 @@ for (const file of walk(join(root, 'src/app'))) {
     }
 }
 if (hardcoded > HARDCODED_LABEL_CEILING) {
+    console.error(`${hardcoded} libellé(s) en dur dans src/app, alors que le plafond est 0.`);
     console.error(
-        `${hardcoded} libellés en dur dans src/app, plafond ${HARDCODED_LABEL_CEILING} : ` +
-        `${hardcoded - HARDCODED_LABEL_CEILING} de trop.`);
-    console.error(
-        `Un libellé écrit en clair est un libellé qu'un opérateur francophone lira en anglais. ` +
-        `Routez-le par i18n.t et ajoutez la clé aux deux bundles. Le plafond ne monte que si ` +
-        `vous décidez qu'il doit monter, et ce diff-là se défend en revue.`);
+        `Un libellé écrit en clair est un libellé que la préférence de langue ne touche pas : ` +
+        `il s'affichera dans la langue où il a été tapé, à tout le monde. Routez-le par ` +
+        `i18n.t et ajoutez la clé aux deux bundles.`);
     for (const [file, count] of [...worstOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
         console.error(`  ${count.toString().padStart(3)}  ${file}`);
     }

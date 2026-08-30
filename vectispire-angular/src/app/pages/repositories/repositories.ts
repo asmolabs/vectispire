@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -26,6 +27,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './repositories.html'
 })
 export class Repositories {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
 
@@ -76,7 +78,7 @@ export class Repositories {
 
     /** `null` is not offered as an option value: the server distinguishes "" from absent. */
     readonly sshKeyOptions = computed(() => [
-        { label: 'No key — use this machine’s own SSH configuration', value: '' },
+        { label: this.i18n.t('repositories.no_key_host_ssh'), value: '' },
         ...this.sshKeys().map((key) => ({ label: key.name, value: key.id }))
     ]);
 

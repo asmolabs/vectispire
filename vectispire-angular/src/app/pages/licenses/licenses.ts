@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -39,6 +40,7 @@ import type {
     templateUrl: './licenses.html'
 })
 export class Licenses {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
 
     readonly summary = signal<LicenseSummary | null>(null);
@@ -58,7 +60,7 @@ export class Licenses {
     readonly selectedCompliance = signal<string>('ALL');
 
     readonly targetOptions = computed(() => {
-        const options: { label: string; value: string }[] = [{ label: 'All targets / Toutes les cibles', value: 'ALL' }];
+        const options: { label: string; value: string }[] = [{ label: this.i18n.t('common.all_targets'), value: 'ALL' }];
         for (const r of this.repos()) {
             options.push({ label: `Repository: ${r.displayName || r.name}`, value: `repo:${r.id}` });
         }

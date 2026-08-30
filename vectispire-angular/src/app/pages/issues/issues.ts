@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -19,13 +20,6 @@ import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.models';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
-const VEX_JUSTIFICATIONS = [
-    { value: 'component_not_present', label: 'Composant absent' },
-    { value: 'vulnerable_code_not_present', label: 'Vulnerable code not present' },
-    { value: 'vulnerable_code_not_in_execute_path', label: 'Vulnerable code not in the execute path' },
-    { value: 'vulnerable_code_cannot_be_controlled_by_adversary', label: 'Not controllable by an adversary' },
-    { value: 'inline_mitigations_already_exist', label: 'Inline mitigations already exist' }
-];
 
 /**
  * The backlog, and triage.
@@ -53,6 +47,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './issues.html'
 })
 export class Issues {
+    private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     private readonly route = inject(ActivatedRoute);
 
@@ -110,21 +105,31 @@ export class Issues {
      */
     readonly targets = signal<{ label: string; value: string }[]>([]);
 
-    readonly states = [
-        { label: 'Open', value: 'open' },
-        { label: 'Resolved', value: 'resolved' },
-        { label: 'All', value: 'all' }
-    ];
-    readonly severities = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'].map((value) => ({ label: value, value }));
-    readonly types = [
-        { label: 'Vulnerability', value: 'vulnerability' },
-        { label: 'Exposed secret', value: 'secret' },
-        { label: 'Infrastructure configuration', value: 'iac' },
-        { label: 'License', value: 'license' },
-        { label: 'End of life', value: 'eol' },
-        { label: 'Vulnerable code', value: 'sast' },
-        { label: 'Code quality', value: 'quality' }
-    ];
+    readonly states = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('issues.states.open'), value: 'open' },
+            { label: this.i18n.t('issues.states.resolved'), value: 'resolved' },
+            { label: this.i18n.t('issues.states.all'), value: 'all' }
+        ];
+    });
+    readonly severities = computed(() => {
+        this.i18n.translations();
+        return ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
+            .map((value) => ({ label: this.i18n.t(`severities.${value}`), value }));
+    });
+    readonly types = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('issues.types.vulnerability'), value: 'vulnerability' },
+            { label: this.i18n.t('issues.types.secret'), value: 'secret' },
+            { label: this.i18n.t('issues.types.iac'), value: 'iac' },
+            { label: this.i18n.t('issues.types.license'), value: 'license' },
+            { label: this.i18n.t('issues.types.eol'), value: 'eol' },
+            { label: this.i18n.t('issues.types.sast'), value: 'sast' },
+            { label: this.i18n.t('issues.types.quality'), value: 'quality' }
+        ];
+    });
 
     triageOpen = false;
     triageStatus = 'under_review';
@@ -152,17 +157,29 @@ export class Issues {
      */
     private bulk = false;
 
-    readonly justifications = VEX_JUSTIFICATIONS;
+    readonly justifications = computed(() => {
+        this.i18n.translations();
+        return [
+            { value: 'component_not_present', label: this.i18n.t('issues.vex.component_not_present') },
+            { value: 'vulnerable_code_not_present', label: this.i18n.t('issues.vex.vulnerable_code_not_present') },
+            { value: 'vulnerable_code_not_in_execute_path', label: this.i18n.t('issues.vex.vulnerable_code_not_in_execute_path') },
+            { value: 'vulnerable_code_cannot_be_controlled_by_adversary', label: this.i18n.t('issues.vex.vulnerable_code_cannot_be_controlled_by_adversary') },
+            { value: 'inline_mitigations_already_exist', label: this.i18n.t('issues.vex.inline_mitigations_already_exist') }
+        ];
+    });
 
     /** One list for the filter, the dialog and the row's label: three copies of the triage
      *  vocabulary would drift, and the first symptom is a filter offering a status no row shows. */
-    readonly triageOptions = [
-        { label: 'Under review', value: 'under_review' },
-        { label: 'Pending approval', value: 'pending_approval' },
-        { label: 'Affected', value: 'affected' },
-        { label: 'Not affected', value: 'not_affected' },
-        { label: 'Fixed', value: 'fixed' }
-    ];
+    readonly triageOptions = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('issues.triage_status.under_review'), value: 'under_review' },
+            { label: this.i18n.t('issues.triage_status.pending_approval'), value: 'pending_approval' },
+            { label: this.i18n.t('issues.triage_status.affected'), value: 'affected' },
+            { label: this.i18n.t('issues.triage_status.not_affected'), value: 'not_affected' },
+            { label: this.i18n.t('issues.triage_status.fixed'), value: 'fixed' }
+        ];
+    });
 
     constructor() {
         const params = this.route.snapshot.queryParamMap;
@@ -263,7 +280,7 @@ export class Issues {
      * a type Vectispire does not know is a type somebody added and nobody wired to this screen.
      */
     typeLabel(type: string): string {
-        return this.types.find((option) => option.value === type)?.label ?? type;
+        return this.types().find((option) => option.value === type)?.label ?? type;
     }
 
     severityColour(severity: string | null): 'danger' | 'warn' | 'info' | 'secondary' {
@@ -320,7 +337,7 @@ export class Issues {
     }
 
     triageLabel(status: string): string {
-        return this.triageOptions.find((option) => option.value === status)?.label ?? status;
+        return this.triageOptions().find((option) => option.value === status)?.label ?? status;
     }
 
     openTriage(issue: Issue): void {
