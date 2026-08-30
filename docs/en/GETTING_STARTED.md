@@ -183,6 +183,18 @@ signing was for.**
 Replace the tag in both places when verifying another version: the identity is per-tag by design,
 so a bundle from one release does not verify a file from another.
 
+**Verify the SBOM the same way.** It is signed by the same run, with the same identity, and it is
+the file you read to decide whether an advisory applies to you — an unsigned component list is one
+anybody can rewrite:
+
+```bash
+cosign verify-blob \
+  --bundle vectispire-1.0.0.cdx.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-1.0.0.cdx.json
+```
+
 **Releases signed before 2026-08-27 carry a different identity.** The project moved from GitLab to
 GitHub, and the certificate identity names the forge, the repository and the workflow file — so it
 changed with the move. For a pre-move tag, verify against the old pair instead:

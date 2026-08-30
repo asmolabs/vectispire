@@ -28,7 +28,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # **The one workflow that writes.** Creating the release is what makes the verification
+  # procedure in `GETTING_STARTED` have a file to point at: before this, the artifacts lived in
+  # a 90-day workflow artifact that only a signed-in user who could find the run could fetch,
+  # while the documentation described a public download. Scoped to this workflow, which runs on
+  # a tag and on a manual rehearsal and on nothing else.
+  contents: write
   # Sigstore keyless signing needs the workflow's OIDC token. Granted here and nowhere else:
   # every other workflow in this repository is read-only.
   id-token: write
@@ -53,6 +58,19 @@ jobs:
           JAR="vectispire-${TAG#v}.jar"
           cp vectispire-java/vectispire-core/build/libs/vectispire-core.jar "$JAR"
           echo "JAR=$JAR" >> "$GITHUB_ENV"
+          echo "SBOM=${JAR%.jar}.cdx.json" >> "$GITHUB_ENV"
+
+      # **The SBOM of the jar that ships, not of the source tree.** `ci.yml` builds one on every
+      # push and throws it away after 30 days; a release needs its own, taken from the exact file
+      # being signed, at the same syft digest so the two are comparable. `GETTING_STARTED` §8 has
+      # promised this file since before it was produced — this is the step that makes the sentence
+      # true rather than the sentence that has to be corrected.
+      - name: the SBOM of the jar being signed
+        run: |
+          docker run --rm -v "$PWD:/work:ro" \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan "file:/work/${JAR}" -o cyclonedx-json > "$SBOM"
+          echo "components: $(grep -o '\"bom-ref\"' "$SBOM" | wc -l)"
 
       - name: install cosign
         run: |
@@ -60,24 +78,49 @@ jobs:
             https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
           chmod +x /usr/local/bin/cosign
 
-      - name: sign
-        run: cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
+      - name: sign both, because both are downloaded
+        run: |
+          cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
+          # An unsigned SBOM is a list of components anybody can rewrite, which is the one thing
+          # a consumer reads to decide whether a CVE applies to them.
+          cosign sign-blob --yes --bundle "${SBOM}.cosign.bundle" "$SBOM"
 
       # **Verified immediately, with the command a user will run.** A signature nobody has ever
       # verified is a signature nobody knows the shape of — and this step is what makes the
       # instruction in GETTING_STARTED a tested claim rather than a hopeful one.
       - name: verify, before anything is published
         run: |
-          cosign verify-blob \
-            --bundle "${JAR}.cosign.bundle" \
-            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "$JAR"
+          for FILE in "$JAR" "$SBOM"; do
+            cosign verify-blob \
+              --bundle "${FILE}.cosign.bundle" \
+              --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              "$FILE"
+          done
 
+      # Kept for the rehearsal, which has no tag to publish against and must leave something a
+      # human can inspect.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release
           path: |
             ${{ env.JAR }}
             ${{ env.JAR }}.cosign.bundle
+            ${{ env.SBOM }}
+            ${{ env.SBOM }}.cosign.bundle
           retention-days: 90
+
+      # **Only on a tag.** `workflow_dispatch` runs from a branch, where `GITHUB_REF_NAME` is the
+      # branch name: publishing there would create a release called `develop` signed with a
+      # branch identity, which is neither verifiable by the documented command nor something
+      # anybody asked for. The rehearsal exercises build, SBOM, sign and verify — everything that
+      # can break — and stops here, which is what "publishes nothing" has always meant.
+      - name: publish the release the documentation tells people to verify
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Verify before running anything — see docs/en/GETTING_STARTED.md §8. The certificate identity is per-tag: \`https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}\`" \
+            "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle"

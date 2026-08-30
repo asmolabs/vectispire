@@ -209,6 +209,18 @@ de ce pour quoi la signature existait.**
 Remplacez le tag aux deux endroits pour vérifier une autre version : l'identité est par tag par
 conception, de sorte qu'un paquet d'une release ne vérifie pas le fichier d'une autre.
 
+**Vérifiez le SBOM de la même façon.** Il est signé par la même exécution, avec la même identité,
+et c'est le fichier que vous lisez pour décider si un avis vous concerne — une liste de composants
+non signée est une liste que n'importe qui peut réécrire :
+
+```bash
+cosign verify-blob \
+  --bundle vectispire-1.0.0.cdx.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-1.0.0.cdx.json
+```
+
 **Les releases signées avant le 27 août 2026 portent une autre identité.** Le projet est passé de
 GitLab à GitHub, et l'identité du certificat nomme la forge, le dépôt et le fichier de workflow :
 elle a donc changé avec la bascule. Pour un tag antérieur, vérifiez avec l'ancien couple :
