@@ -9,6 +9,25 @@
 # `ci.yml`. Un tag est mutable : `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` désigne ce que son propriétaire décide
 # aujourd'hui, et ce workflow détient `pages: write` et un jeton OIDC.
 
+# **Ce workflow est le seul à déployer sur Pages, et il y a une raison de le dire ici.**
+# Le 30 août, `static.yml` — le modèle « Deploy static content to Pages » proposé par GitHub — a
+# été ajouté pour activer le site. Il téléverse `path: '.'`, c'est-à-dire *le dépôt entier*, sans
+# construire mkdocs. Trois conséquences, dans l'ordre de gravité :
+#
+#   1. `docs/` s'est retrouvé publié : 30 rapports d'audit datés, deux modèles de menaces STRIDE,
+#      la liste des faiblesses connues et l'état de leur remédiation. L'en-tête de `mkdocs.yml`
+#      explique que `docs_dir` ne voit pas `docs/` précisément pour que cela ne puisse pas
+#      arriver « pas même en devinant son URL ». Téléverser la racine contourne la protection en
+#      un `path:`.
+#   2. Le site ne fonctionnait pas : sans `mkdocs build`, la racine n'a pas d'`index.html`, donc
+#      `/vectispire/` répondait 404 pendant que `/vectispire/README.md` répondait 200.
+#   3. Deux workflows visaient l'environnement `github-pages` avec le même groupe de concurrence
+#      `pages` : le dernier arrivé écrase l'autre.
+#
+# Pour activer Pages, la source doit être **GitHub Actions** dans les réglages du dépôt ; c'est
+# tout ce qui manquait. Aucun second workflow n'est nécessaire, et un second workflow est
+# exactement ce qui casse celui-ci.
+
 name: docs
 
 on:
