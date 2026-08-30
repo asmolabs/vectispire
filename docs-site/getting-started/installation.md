@@ -82,6 +82,39 @@ VECTISPIRE_BOOTSTRAP_PASSWORD=<at least 8 characters>
 
 Once any account exists, both variables are ignored. Change that password at first login.
 
+## Where to run it
+
+**Vectispire is built for an internal network, not for the public internet.** It is an
+operations console for a team that already has access to the code it scans, and its design
+assumes that everyone who can reach the login page is somebody you would have given a login
+to anyway.
+
+That assumption is load-bearing, so it is worth stating plainly rather than leaving it to be
+inferred from the defaults:
+
+- The control plane publishes port `3180` on **every interface** of its host. That is
+  deliberate — you have to reach the interface — but it means a host with a public address
+  serves Vectispire to the internet the moment it starts. The database, by contrast, is
+  published on loopback only; the difference is intentional and visible in
+  `docker-compose.yml`.
+- A signed-in user who can register a repository can make the control plane clone a URL they
+  chose. That is the product working as intended, and it is also why *who can sign in* is the
+  boundary that matters most.
+
+If the host is reachable from outside your network, put it behind something — a VPN, an
+identity-aware proxy, or a firewall rule — before anything else. If you terminate TLS in front
+of it, name the proxy in `vectispire.security.trusted-proxies`; left empty, the rate limiter
+counts the proxy's address rather than the caller's and stops protecting anyone.
+
+### Two settings that change with the size of the install
+
+| Setting | Default | Change it when |
+|---|---|---|
+| `VECTISPIRE_HOST_SSH` | `true` | **More than one team shares the install.** With the fallback on, a repository with no key of its own is cloned using the host's `~/.ssh` identity — so adding a URL is enough to have Vectispire clone it as that identity. On a single-team install the host key already reaches every target and the fallback costs nothing; on a shared one, set it to `false` and attach a deployment key per repository. |
+| `TICKET_WEBHOOK_SECRET` | unset | **You wire a tracker webhook.** Unset, the webhook route accepts unauthenticated calls rather than refusing them — chosen so that an upgrade does not silently stop existing triage synchronisation. Set it as soon as the route is reachable by anything you do not control. Note that verification is not replay-bound: a legitimate payload replayed re-applies its decision. |
+
+Both are recorded with their reasoning in the project's threat model.
+
 ## Running from source
 
 ```bash
