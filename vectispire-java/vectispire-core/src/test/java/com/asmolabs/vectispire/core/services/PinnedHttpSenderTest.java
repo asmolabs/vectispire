@@ -99,6 +99,64 @@ class PinnedHttpSenderTest {
                 .hasMessageContaining("never checked");
     }
 
+    /**
+     * A real 302 to an unchecked host, refused twice over.
+     *
+     * <p><b>Why this exists.</b> Removing {@code disableRedirectHandling()} left all 1326 tests
+     * green: the four cases around it prove the pin, and none of them ever issued a redirect. The
+     * outer layer could be deleted without a sound, which is the shape of assertion this project
+     * has shipped before.
+     *
+     * <p><b>What it asserts is the outer layer specifically.</b> The status is 302 and the body is
+     * the redirect's, not the target's — the client did not follow it. That is a different claim
+     * from {@link #anUncheckedHostIsRefused()}, which builds the host mismatch by hand: this one
+     * makes a server produce it. Measured on 30 August 2026, both layers hold independently —
+     * with redirects re-enabled the pinned resolver still refuses {@code elsewhere.invalid} — so
+     * this is defence in depth, and each belt now has a test of its own.
+     */
+    @Test
+    @DisplayName("a redirect to an unchecked host is not followed")
+    void aRedirectIsNotFollowed() throws IOException {
+        HttpServer target = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        target.createContext("/loot", exchange -> {
+            byte[] body = "REACHED-THE-UNCHECKED-HOST".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(body);
+            }
+        });
+        target.start();
+
+        HttpServer approved = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        approved.createContext("/redirect", exchange -> {
+            // The metadata endpoint, in miniature: a host the guard approved answering with a
+            // Location pointing somewhere it never saw.
+            exchange.getResponseHeaders().add(
+                    "Location", "http://elsewhere.invalid:" + target.getAddress().getPort() + "/loot");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        approved.start();
+
+        try {
+            OutboundUrlGuard.Destination destination = new OutboundUrlGuard.Destination(
+                    "http://" + UNRESOLVABLE_HOST + ":" + approved.getAddress().getPort() + "/redirect",
+                    UNRESOLVABLE_HOST,
+                    List.of(InetAddress.getLoopbackAddress()));
+
+            PinnedHttpSender.Response response =
+                    new PinnedHttpSender().send(destination, Map.of(), "{}", Duration.ofSeconds(5), "webhook");
+
+            assertThat(response.status())
+                    .as("the redirect was followed instead of being handed back to the caller")
+                    .isEqualTo(302);
+            assertThat(response.body()).doesNotContain("REACHED-THE-UNCHECKED-HOST");
+        } finally {
+            target.stop(0);
+            approved.stop(0);
+        }
+    }
+
     @Test
     @DisplayName("a destination with no checked address is refused, not sent unpinned")
     void nothingToPinMeansNothingIsSent() {

@@ -14,11 +14,15 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.ThreatIntelSyncs;
 import com.asmolabs.vectispire.core.repositories.ThreatIntels;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,6 +186,50 @@ public class ThreatIntelFeedService {
         return getKnownThreatIntelFeed().stream()
                 .filter(r -> r.cveId().equalsIgnoreCase(cveId.trim()))
                 .findFirst();
+    }
+
+    /**
+     * The intel for many CVE ids in one query, with the same fallback {@link #lookupCve} applies.
+     *
+     * <p><b>Why this exists.</b> The fleet summary asked {@code lookupCve} once per open issue,
+     * which is one {@code select} per row: 468 queries for 620 issues, measured. The answer was
+     * always the same shape — a map from id to record — so the loop was paying per item for a
+     * lookup that a single {@code in} clause answers.
+     *
+     * <p><b>The fallback is the part that cannot be dropped.</b> A caller that only batched the
+     * database read would silently lose the ten curated records below for any deployment whose
+     * feed has never synced, and KEV entries are exactly the ones that must not go missing. Keyed
+     * lower-case throughout because the two sources do not agree on case — the same reason
+     * {@code findByCveIdInIgnoreCase} is hand-written JPQL.
+     */
+    public Map<String, ThreatIntelRecord> lookupCves(Collection<String> cveIds) {
+        Set<String> wanted = cveIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(id -> id.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, ThreatIntelRecord> found = new HashMap<>();
+        for (ThreatIntelEntity e : intelRepo.findByCveIdInIgnoreCase(wanted)) {
+            found.put(e.getCveId().toLowerCase(Locale.ROOT), new ThreatIntelRecord(
+                    e.getCveId(),
+                    e.isKev(),
+                    e.getEpssScore(),
+                    e.getEpssPercentile(),
+                    e.getDateAdded(),
+                    "Database synchronized record"));
+        }
+
+        for (ThreatIntelRecord curated : getKnownThreatIntelFeed()) {
+            String key = curated.cveId().toLowerCase(Locale.ROOT);
+            if (wanted.contains(key)) {
+                found.putIfAbsent(key, curated);
+            }
+        }
+        return Map.copyOf(found);
     }
 
     private List<ThreatIntelRecord> getKnownThreatIntelFeed() {

@@ -24,6 +24,45 @@ class EpssRoutesTest extends ApiTestBase {
     @Autowired
     private Issues issuesRepo;
 
+    /**
+     * The field is called {@code topPriorities}, and it used to return the whole estate.
+     *
+     * <p>Sixty open issues, deliberately more than the fifty the ranking returns, and the check is
+     * two-sided: the list is cut <b>and</b> the figures beside it are not. A cut that also shrank
+     * {@code totalVulnerabilities} would under-report the backlog on the one screen an operator
+     * reads it from, which is worse than the unbounded list it replaces.
+     */
+    @Test
+    @DisplayName("the ranking is a top, and cutting it does not shrink the counts beside it")
+    void theRankingIsCutButTheCountsAreNot() throws Exception {
+        String token = asAdmin();
+
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/wide-estate");
+        repo.setUrl("https://example.invalid/wide-estate.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+
+        for (int index = 0; index < 60; index++) {
+            IssueEntity issue = new IssueEntity();
+            issue.setRepoId(repo.getId());
+            issue.setType("sca");
+            issue.setIdentifier("CVE-2030-" + index);
+            issue.setSeverity("HIGH");
+            issue.setState("open");
+            issue.setTriageStatus("untriaged");
+            issue.setFingerprint("fp-wide-" + index);
+            issue.setFirstSeenAt(Instant.now());
+            issue.setLastSeenAt(Instant.now());
+            issuesRepo.save(issue);
+        }
+
+        mvc.perform(authenticated(get("/api/v1/epss/priorities"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.topPriorities.length()").value(50))
+                .andExpect(jsonPath("$.totalVulnerabilities").value(60));
+    }
+
     @Test
     @DisplayName("retrieves EPSS fleet summary and priority rankings")
     void retrievesPriorities() throws Exception {

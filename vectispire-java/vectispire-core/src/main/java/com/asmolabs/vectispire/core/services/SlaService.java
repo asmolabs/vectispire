@@ -89,7 +89,7 @@ public class SlaService {
         java.util.Map<String, Long> perTarget = new java.util.HashMap<>();
         // **Two columns.** This groups overdue issues by the target they belong to and reads
         // nothing else off them, so loading entities cost one managed object per overdue issue in
-        // the estate — the same shape as the four reads `ReadCostRoutesTest` pins, and the one
+        // the estate — the same shape as the reads `ReadCostSweepTest` watches, and the one
         // that kept the compliance summary linear after the other four were projected.
         for (com.asmolabs.vectispire.core.repositories.IssueRows.Attribution row : issues.findBy(
                 overdue(thresholds, allowed).toSpecification(),

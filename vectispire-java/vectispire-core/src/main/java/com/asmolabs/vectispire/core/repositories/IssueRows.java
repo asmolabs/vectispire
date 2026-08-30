@@ -55,6 +55,72 @@ public final class IssueRows {
             Boolean isKev,
             String triageStatus) {}
 
+    /**
+     * What an exploitation-probability ranking weighs, and nothing else.
+     *
+     * <p>Wide, like {@link GateRow}, because the ranking genuinely reads twelve fields — a CVE id,
+     * the two scores it combines, whether it is actively exploited, whether it is reachable, and
+     * enough to name the target and label the row. It still excludes what travels with an issue
+     * and is never ranked on: the CVSS vector string, the file path, the triage history, the
+     * fix versions.
+     *
+     * <p>{@code state} is here because the caller filters {@code closed} and {@code resolved} in
+     * Java rather than borrowing {@code excludeSettled}, which means something adjacent — see
+     * {@code EpssPrioritizationService.getFleetSummary}.
+     */
+    public record EpssRow(
+            Long id,
+            Long repoId,
+            Long containerId,
+            String state,
+            String type,
+            String severity,
+            String identifier,
+            String description,
+            String packageName,
+            Double cvssScore,
+            Double epssScore,
+            Boolean isKev,
+            String reachability) {}
+
+    /**
+     * The three columns a security grade is computed from.
+     *
+     * <p>A scorecard subtracts on severity, on whether the issue is actively exploited and on
+     * whether it is reachable, and reports counts. It never names an issue, which is why nothing
+     * identifying is here — and why the portfolio grade was materialising 624 managed rows to read
+     * four fields off each.
+     *
+     * <p>{@code state} rides along because the three callers narrow {@code closed} and
+     * {@code resolved} in Java after the specification has run, rather than in it.
+     */
+    public record Posture(String state, String severity, Boolean isKev, String reachability) {}
+
+    /**
+     * What an attack graph draws a node from.
+     *
+     * <p>The widest shape here, because a graph node is genuinely labelled, badged and annotated:
+     * the CVE, the package and version it sits in, the two scores, whether it is exploited,
+     * whether it is reachable, and the file for a secret. It still leaves behind the triage
+     * history, the fix versions, the CVSS vector and the timestamps, which no node shows.
+     *
+     * <p>{@code repoId} is here to group rows by target on the overview, not to be drawn.
+     */
+    public record GraphNode(
+            Long id,
+            Long repoId,
+            String type,
+            String severity,
+            String identifier,
+            String description,
+            String packageName,
+            String packageVersion,
+            String filePath,
+            Double cvssScore,
+            Double epssScore,
+            Boolean isKev,
+            String reachability) {}
+
     /** What a posture trend plots: which target, how bad, and over which window. */
     public record Observation(
             Long repoId, Long containerId, String severity, Instant firstSeenAt, Instant resolvedAt) {}

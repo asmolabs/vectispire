@@ -5,13 +5,14 @@ import com.asmolabs.vectispire.common.domain.attackpath.AttackPathEdge;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNode;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +43,35 @@ public class AttackPathService {
         this.issues = issues;
     }
 
+    /**
+     * How many vulnerability nodes and how many secret nodes one target contributes.
+     *
+     * <p>A graph is a picture. Past a couple of dozen nodes it stops being one, and the overview
+     * draws every visible repository on the same canvas — so the ceiling is per target, not per
+     * page. The counts a reader acts on are unaffected: {@code totalPaths} and
+     * {@code criticalExploitablePaths} are computed before the cut.
+     */
+    private static final int NODES_PER_TARGET = 10;
+
+    /**
+     * Actively exploited first, then severity, then reachable ahead of unknown.
+     *
+     * <p>The same order the ranking elsewhere uses, and the reason the cut is defensible: what
+     * survives it is what an operator would have looked at first anyway.
+     */
+    private static final Comparator<IssueRows.GraphNode> WORST_FIRST = Comparator
+            .comparing((IssueRows.GraphNode i) -> Boolean.TRUE.equals(i.isKev()) ? 0 : 1)
+            .thenComparing(i -> switch (i.severity() == null ? "" : i.severity().toUpperCase(Locale.ROOT)) {
+                case "CRITICAL" -> 0;
+                case "HIGH" -> 1;
+                case "MEDIUM" -> 2;
+                case "LOW" -> 3;
+                default -> 4;
+            })
+            .thenComparing(i -> "REACHABLE".equalsIgnoreCase(i.reachability()) ? 0 : 1)
+            // Ties broken on the id so two runs of the same estate draw the same picture.
+            .thenComparing(i -> i.id() == null ? Long.MAX_VALUE : i.id());
+
     @Transactional(readOnly = true)
     public Optional<AttackPathGraph> getAttackPathGraph(Long repositoryId) {
         Optional<RepositoryEntity> repoOpt = repositories.findById(repositoryId);
@@ -51,7 +81,7 @@ public class AttackPathService {
         return Optional.of(buildGraph(
                 repoOpt.get(),
                 apiInventory.forRepository(repositoryId).endpoints(),
-                issues.findByRepositoryAndState(repositoryId, "open")));
+                issues.findByRepositoryAndState(repositoryId, "open", IssueRows.GraphNode.class)));
     }
 
     /**
@@ -65,7 +95,7 @@ public class AttackPathService {
     private AttackPathGraph buildGraph(
             RepositoryEntity repo,
             List<ApiInventoryService.EndpointView> endpoints,
-            List<IssueEntity> openIssues) {
+            List<IssueRows.GraphNode> openIssues) {
 
         Long repositoryId = repo.getId();
         String repoName = repo.getName() != null ? repo.getName() : repo.getUrl();
@@ -131,47 +161,59 @@ public class AttackPathService {
         }
 
         // 3. Map Vulnerable Components (Critical / High / Reachable / KEV)
-        List<IssueEntity> criticalVulns = new ArrayList<>();
-        List<IssueEntity> secrets = new ArrayList<>();
+        List<IssueRows.GraphNode> criticalVulns = new ArrayList<>();
+        List<IssueRows.GraphNode> secrets = new ArrayList<>();
 
-        for (IssueEntity issue : openIssues) {
-            String type = issue.getType() != null ? issue.getType().toLowerCase(Locale.ROOT) : "";
-            String sev = issue.getSeverity() != null ? issue.getSeverity().toUpperCase(Locale.ROOT) : "LOW";
+        for (IssueRows.GraphNode issue : openIssues) {
+            String type = issue.type() != null ? issue.type().toLowerCase(Locale.ROOT) : "";
+            String sev = issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "LOW";
 
             if (type.contains("secret") || type.contains("gitleaks") || "secret".equals(type)) {
                 secrets.add(issue);
-            } else if ("CRITICAL".equals(sev) || "HIGH".equals(sev) || issue.isKev() || "REACHABLE".equalsIgnoreCase(issue.getReachability())) {
+            } else if ("CRITICAL".equals(sev) || "HIGH".equals(sev) || Boolean.TRUE.equals(issue.isKev()) || "REACHABLE".equalsIgnoreCase(issue.reachability())) {
                 criticalVulns.add(issue);
             }
         }
 
-        int vulnCounter = 0;
-        for (IssueEntity vuln : criticalVulns) {
-            vulnCounter++;
-            String vulnNodeId = "vuln-" + (vuln.getId() != null ? vuln.getId() : vulnCounter);
-            String label = (vuln.getIdentifier() != null ? vuln.getIdentifier() : "Vuln")
-                    + (vuln.getPackageName() != null ? " (" + vuln.getPackageName() + ")" : "");
+        // **The graph is cut here, and the cut is the point.** Every critical vulnerability and
+        // every secret became a node, so a repository with four hundred open issues drew four
+        // hundred nodes: a picture nobody can read, built by a read that grows with the estate.
+        // Ranked first, then cut — cutting before the ranking would draw an arbitrary ten and
+        // label them the worst. `totalPaths` below still counts everything.
+        criticalVulns.sort(WORST_FIRST);
+        secrets.sort(WORST_FIRST);
+        int criticalVulnsFound = criticalVulns.size();
+        int secretsFound = secrets.size();
+        criticalVulns = criticalVulns.stream().limit(NODES_PER_TARGET).collect(Collectors.toList());
+        secrets = secrets.stream().limit(NODES_PER_TARGET).collect(Collectors.toList());
 
-            boolean isRceOrCritical = "CRITICAL".equalsIgnoreCase(vuln.getSeverity()) || vuln.isKev() || (vuln.getDescription() != null && vuln.getDescription().toLowerCase(Locale.ROOT).contains("remote code execution"));
-            boolean isExploitable = !unauthEndpoints.isEmpty() || "REACHABLE".equalsIgnoreCase(vuln.getReachability());
+        int vulnCounter = 0;
+        for (IssueRows.GraphNode vuln : criticalVulns) {
+            vulnCounter++;
+            String vulnNodeId = "vuln-" + (vuln.id() != null ? vuln.id() : vulnCounter);
+            String label = (vuln.identifier() != null ? vuln.identifier() : "Vuln")
+                    + (vuln.packageName() != null ? " (" + vuln.packageName() + ")" : "");
+
+            boolean isRceOrCritical = "CRITICAL".equalsIgnoreCase(vuln.severity()) || Boolean.TRUE.equals(vuln.isKev()) || (vuln.description() != null && vuln.description().toLowerCase(Locale.ROOT).contains("remote code execution"));
+            boolean isExploitable = !unauthEndpoints.isEmpty() || "REACHABLE".equalsIgnoreCase(vuln.reachability());
 
             Map<String, String> meta = new LinkedHashMap<>();
-            if (vuln.getIdentifier() != null) meta.put("cve", vuln.getIdentifier());
-            if (vuln.getPackageName() != null) meta.put("package", vuln.getPackageName());
-            if (vuln.getPackageVersion() != null) meta.put("version", vuln.getPackageVersion());
-            if (vuln.getCvssScore() != null) meta.put("cvss", String.valueOf(vuln.getCvssScore()));
-            if (vuln.getEpssScore() != null) meta.put("epss", String.format(Locale.ROOT, "%.2f%%", vuln.getEpssScore() * 100));
-            meta.put("isKev", String.valueOf(vuln.isKev()));
-            meta.put("reachability", vuln.getReachability() != null ? vuln.getReachability() : "UNKNOWN");
-            if (vuln.getFilePath() != null) meta.put("filePath", vuln.getFilePath());
+            if (vuln.identifier() != null) meta.put("cve", vuln.identifier());
+            if (vuln.packageName() != null) meta.put("package", vuln.packageName());
+            if (vuln.packageVersion() != null) meta.put("version", vuln.packageVersion());
+            if (vuln.cvssScore() != null) meta.put("cvss", String.valueOf(vuln.cvssScore()));
+            if (vuln.epssScore() != null) meta.put("epss", String.format(Locale.ROOT, "%.2f%%", vuln.epssScore() * 100));
+            meta.put("isKev", String.valueOf(Boolean.TRUE.equals(vuln.isKev())));
+            meta.put("reachability", vuln.reachability() != null ? vuln.reachability() : "UNKNOWN");
+            if (vuln.filePath() != null) meta.put("filePath", vuln.filePath());
 
             nodes.add(new AttackPathNode(
                     vulnNodeId,
                     label,
                     AttackPathNodeType.VULNERABLE_COMPONENT,
-                    vuln.getSeverity() != null ? vuln.getSeverity().toUpperCase(Locale.ROOT) : "HIGH",
+                    vuln.severity() != null ? vuln.severity().toUpperCase(Locale.ROOT) : "HIGH",
                     isExploitable,
-                    (isRceOrCritical ? "RCE Potentielle · " : "") + (vuln.isKev() ? "Actively Exploited (CISA KEV)" : "Exécutable"),
+                    (isRceOrCritical ? "RCE Potentielle · " : "") + (Boolean.TRUE.equals(vuln.isKev()) ? "Actively Exploited (CISA KEV)" : "Exécutable"),
                     meta));
 
             // Link from exposed endpoints to this vulnerable component
@@ -208,26 +250,26 @@ public class AttackPathService {
                 Map.of("asset", "PostgreSQL / MySQL Storage", "impact", "Data Exfiltration & Integrity Loss")));
 
         if (!criticalVulns.isEmpty()) {
-            for (IssueEntity vuln : criticalVulns) {
-                String vulnNodeId = "vuln-" + vuln.getId();
+            for (IssueRows.GraphNode vuln : criticalVulns) {
+                String vulnNodeId = "vuln-" + vuln.id();
                 edges.add(new AttackPathEdge(
                         "edge-" + vulnNodeId + "-" + dbSinkId,
                         vulnNodeId,
                         dbSinkId,
                         "EXFILTRATES_DATA",
-                        "CRITICAL".equalsIgnoreCase(vuln.getSeverity()) || vuln.isKev()));
+                        "CRITICAL".equalsIgnoreCase(vuln.severity()) || Boolean.TRUE.equals(vuln.isKev())));
             }
         }
 
         int secretCounter = 0;
-        for (IssueEntity secret : secrets) {
+        for (IssueRows.GraphNode secret : secrets) {
             secretCounter++;
-            String secretNodeId = "secret-" + (secret.getId() != null ? secret.getId() : secretCounter);
-            String label = secret.getIdentifier() != null ? secret.getIdentifier() : "Hardcoded Secret";
+            String secretNodeId = "secret-" + (secret.id() != null ? secret.id() : secretCounter);
+            String label = secret.identifier() != null ? secret.identifier() : "Hardcoded Secret";
 
             Map<String, String> meta = new LinkedHashMap<>();
-            if (secret.getFilePath() != null) meta.put("filePath", secret.getFilePath());
-            if (secret.getDescription() != null) meta.put("description", secret.getDescription());
+            if (secret.filePath() != null) meta.put("filePath", secret.filePath());
+            if (secret.description() != null) meta.put("description", secret.description());
 
             nodes.add(new AttackPathNode(
                     secretNodeId,
@@ -241,7 +283,7 @@ public class AttackPathService {
             if (!criticalVulns.isEmpty()) {
                 edges.add(new AttackPathEdge(
                         "edge-vuln-" + secretNodeId,
-                        "vuln-" + criticalVulns.get(0).getId(),
+                        "vuln-" + criticalVulns.get(0).id(),
                         secretNodeId,
                         "COMPROMISES_CREDENTIALS",
                         true));
@@ -260,28 +302,28 @@ public class AttackPathService {
         if (!unauthEndpoints.isEmpty() && !criticalVulns.isEmpty()) {
             criticalExploitableCount++;
             ApiInventoryService.EndpointView unauthEp = unauthEndpoints.get(0);
-            IssueEntity topVuln = criticalVulns.get(0);
+            IssueRows.GraphNode topVuln = criticalVulns.get(0);
 
             paths.add(new AttackPath(
                     "path-rce-exfil",
                     "Chaîne RCE & Exfiltration Non-Authentifiée",
-                    "Un attaquant externe peut appeler l'endpoint non-authentifié '" + unauthEp.method() + " " + unauthEp.path() + "', déclencher l'exécution de code sur " + topVuln.getIdentifier() + " et compromettre la base de données ou les secrets.",
+                    "Un attaquant externe peut appeler l'endpoint non-authentifié '" + unauthEp.method() + " " + unauthEp.path() + "', déclencher l'exécution de code sur " + topVuln.identifier() + " et compromettre la base de données ou les secrets.",
                     "CRITICAL",
                     true,
-                    List.of(ingressId, "ep-" + unauthEp.id(), "vuln-" + topVuln.getId(), dbSinkId),
-                    "1. Restreindre l'accès à " + unauthEp.path() + " par authentification Bearer ou API Key.\n2. Mettre à jour la dépendance " + topVuln.getPackageName() + " vers la version corrigée.\n3. Isoler le conteneur et restreindre les privilèges réseau vers la base de données."));
+                    List.of(ingressId, "ep-" + unauthEp.id(), "vuln-" + topVuln.id(), dbSinkId),
+                    "1. Restreindre l'accès à " + unauthEp.path() + " par authentification Bearer ou API Key.\n2. Mettre à jour la dépendance " + topVuln.packageName() + " vers la version corrigée.\n3. Isoler le conteneur et restreindre les privilèges réseau vers la base de données."));
         }
 
         if (!secrets.isEmpty()) {
             criticalExploitableCount++;
-            IssueEntity firstSecret = secrets.get(0);
+            IssueRows.GraphNode firstSecret = secrets.get(0);
             paths.add(new AttackPath(
                     "path-secret-leak",
                     "Exposition Directe de Secret de Production",
-                    "Secret en clair détecté dans '" + firstSecret.getFilePath() + "'. Permet un accès direct aux ressources sans franchissement de périmètre.",
+                    "Secret en clair détecté dans '" + firstSecret.filePath() + "'. Permet un accès direct aux ressources sans franchissement de périmètre.",
                     "CRITICAL",
                     true,
-                    List.of(ingressId, "secret-" + firstSecret.getId(), dbSinkId),
+                    List.of(ingressId, "secret-" + firstSecret.id(), dbSinkId),
                     "1. Révoquer immédiatement la clé/mot de passe compromis.\n2. Migrer le secret vers un gestionnaire sécurisé (HashiCorp Vault, AWS Secrets Manager).\n3. Nettoyer l'historique Git."));
         }
 
@@ -296,8 +338,11 @@ public class AttackPathService {
                     "Maintenir la surveillance continue et les scans périodiques."));
         }
 
-        // Calculate Risk Score (0 - 100)
-        int score = calculateRiskScore(criticalExploitableCount, unauthEndpoints.size(), criticalVulns.size(), secrets.size());
+        // **Scored on what the target has, not on what the picture shows.** The node lists were
+        // cut to keep the graph readable; a risk score computed from the cut would fall when a
+        // repository crossed the ceiling, which is the one direction it must never move.
+        int score = calculateRiskScore(
+                criticalExploitableCount, unauthEndpoints.size(), criticalVulnsFound, secretsFound);
 
         return new AttackPathGraph(
                 repositoryId,
@@ -336,9 +381,9 @@ public class AttackPathService {
         List<Long> repoIds = visible.stream().map(RepositoryEntity::getId).toList();
         Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
                 apiInventory.endpointViewsByRepository(repoIds);
-        Map<Long, List<IssueEntity>> issuesByRepo = issues
-                .findByStateAndRepoIdIn("open", repoIds).stream()
-                .collect(Collectors.groupingBy(IssueEntity::getRepoId));
+        Map<Long, List<IssueRows.GraphNode>> issuesByRepo = issues
+                .findByStateAndRepoIdIn("open", repoIds, IssueRows.GraphNode.class).stream()
+                .collect(Collectors.groupingBy(IssueRows.GraphNode::repoId));
 
         List<AttackPathGraph> graphs = new ArrayList<>();
         for (RepositoryEntity repo : visible) {

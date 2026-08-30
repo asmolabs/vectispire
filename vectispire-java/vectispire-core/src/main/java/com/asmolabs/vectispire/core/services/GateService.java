@@ -256,7 +256,7 @@ public class GateService {
         // **Projected, because this one is estate-wide.** Its per-target sibling above reads one
         // target's issues and can afford entities; this reads every open issue in the deployment,
         // and the dashboard opens on every sign-in. Ten columns instead of the row, measured by
-        // `ReadCostRoutesTest`.
+        // `ReadCostSweepTest`.
         for (IssueRows.GateRow row : issues.findByState(IssueState.OPEN.wireName(), IssueRows.GateRow.class)) {
             targetOf(row).ifPresent(target ->
                     byTarget.computeIfAbsent(target, key -> new ArrayList<>()).add(IssueViews.forGate(row)));

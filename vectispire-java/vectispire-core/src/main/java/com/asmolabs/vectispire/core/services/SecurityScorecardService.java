@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -50,10 +51,11 @@ public class SecurityScorecardService {
         return gitRepo.findById(repoId).map(repo -> {
             // The route is guarded by the controller; this narrows the *read*, which used to be
             // the whole table filtered down to one repository afterwards.
-            List<IssueEntity> openIssues = issuesRepo
-                    .findAll(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))))
+            List<IssueRows.Posture> openIssues = issuesRepo
+                    .findBy(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))),
+                            query -> query.as(IssueRows.Posture.class).all())
                     .stream()
-                    .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
+                    .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                     .toList();
 
             // **The filter was passed to the stream and not to the query.** The unfiltered call
@@ -72,10 +74,11 @@ public class SecurityScorecardService {
         return containerRepo.findById(containerId).map(container -> {
             // The repository form was narrowed and this one was not, in the same change — which
             // is what a sweep is for and what reading the diff was not enough to catch.
-            List<IssueEntity> openIssues = issuesRepo
-                    .findAll(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))))
+            List<IssueRows.Posture> openIssues = issuesRepo
+                    .findBy(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))),
+                            query -> query.as(IssueRows.Posture.class).all())
                     .stream()
-                    .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
+                    .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                     .toList();
 
             List<LicenseEntry> licenses = licenseService.getInventory(null, containerId).stream()
@@ -96,8 +99,10 @@ public class SecurityScorecardService {
      * is both a leak and a number that means nothing about anything they can act on.
      */
     public SecurityScorecard getGlobalScorecard(Visibility allowed) {
-        List<IssueEntity> openIssues = issuesRepo.findAll(openWithin(allowed)).stream()
-                .filter(i -> !"closed".equalsIgnoreCase(i.getState()) && !"resolved".equalsIgnoreCase(i.getState()))
+        List<IssueRows.Posture> openIssues = issuesRepo
+                .findBy(openWithin(allowed), query -> query.as(IssueRows.Posture.class).all())
+                .stream()
+                .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
 
         // **Narrowed here and not in the query, and the difference is worth stating.** The
@@ -126,7 +131,7 @@ public class SecurityScorecardService {
             Long targetId,
             String targetKind,
             String targetName,
-            List<IssueEntity> issues,
+            List<IssueRows.Posture> issues,
             List<LicenseEntry> licenses,
             boolean hasAttestation) {
 
@@ -138,10 +143,10 @@ public class SecurityScorecardService {
         long kevCount = 0;
         long overdueCount = 0;
 
-        for (IssueEntity issue : issues) {
-            String sev = issue.getSeverity() != null ? issue.getSeverity().toUpperCase() : "UNKNOWN";
-            boolean isKev = issue.isKev();
-            boolean isReachable = ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.getReachability());
+        for (IssueRows.Posture issue : issues) {
+            String sev = issue.severity() != null ? issue.severity().toUpperCase() : "UNKNOWN";
+            boolean isKev = Boolean.TRUE.equals(issue.isKev());
+            boolean isReachable = ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.reachability());
 
             if (isKev) {
                 kevCount++;

@@ -141,6 +141,19 @@ public interface Issues
              order by i.type asc, i.identifier asc, i.id asc""")
     List<IssueEntity> findByRepositoryAndState(@Param("repoId") Long repoId, @Param("state") String state);
 
+    /**
+     * The same rows and the same order, in whatever narrow shape the caller declares.
+     *
+     * <p>The attack graph reads thirteen columns off each issue and none of the rest; it was
+     * materialising a managed row per issue to do it.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.repoId = :repoId and i.state = :state
+             order by i.type asc, i.identifier asc, i.id asc""")
+    <T> List<T> findByRepositoryAndState(
+            @Param("repoId") Long repoId, @Param("state") String state, Class<T> shape);
+
     /** One repository's open issues, for a page that shows one target rather than all of them. */
     @Query("""
             select count(i.id) from IssueEntity i
@@ -206,6 +219,9 @@ public interface Issues
      * <p>Added for the attack path overview, which asked per repository inside a loop.
      */
     List<IssueEntity> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds);
+
+    /** The same rows, in whatever narrow shape the caller declares — see {@code IssueRows}. */
+    <T> List<T> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds, Class<T> shape);
 
     List<IssueEntity> findByStateAndRepoIdIsNullAndContainerId(String state, Long containerId);
 
