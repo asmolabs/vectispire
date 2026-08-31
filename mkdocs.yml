@@ -45,6 +45,9 @@ theme:
       accent: indigo
       toggle:
         icon: material/weather-night
+        # **Traduite par langue plus bas, dans `languages:`.** Cette chaîne-là n'appartient
+        # pas au thème : elle est écrite ici, donc `reconfigure_material` ne la voit pas et
+        # « Rechercher » se retrouvait en français à côté de « Switch to dark mode ».
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
@@ -82,6 +85,27 @@ plugins:
         - locale: fr
           name: Français
           build: true
+          # Ce que le plugin ne peut pas déduire : les chaînes que ce fichier écrit lui-même.
+          site_name: Vectispire
+          site_description: Installer, exploiter et administrer Vectispire
+          copyright: Apache-2.0 — Asmolabs
+          theme:
+            language: fr
+            palette:
+              - media: "(prefers-color-scheme: light)"
+                scheme: default
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/weather-night
+                  name: Passer au thème sombre
+              - media: "(prefers-color-scheme: dark)"
+                scheme: slate
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/weather-sunny
+                  name: Passer au thème clair
           nav_translations:
             Home: Accueil
             Getting started: Démarrer
