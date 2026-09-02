@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -133,7 +134,7 @@ public class SettingsController {
         return new Catalog(views);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')")
+    @RequiresSecurityLead
     @PutMapping
     public Map<String, Integer> update(
             @RequestBody Map<String, String> body,
@@ -363,15 +364,15 @@ public class SettingsController {
      * <p>It reports rather than throws: "unreachable" is an answer to the question the button
      * asks, not an error in asking it.
      *
-     * <p><b>Narrowed to whoever may configure the endpoint</b>, which is the same set as the route
-     * that writes it rather than the narrower administrator marker — testing a field one is
-     * allowed to edit should not need a second account. Under the class marker alone it was
+     * <p><b>Narrowed to whoever may configure the endpoint</b> — the same marker as the route that
+     * writes it, rather than the narrower administrator one: testing a field one is allowed to
+     * edit should not need a second account. Under the class marker alone it was
      * reachable by any signed-in reader, and it answers with the configured URL: the one value
      * `ai_review_ollama_url` is marked {@code SECRET} to keep out of exactly those hands, since an
      * internal model endpoint describes the estate's topology. It also makes the server open an
      * outbound connection on the caller's say-so, which is not a reader's to spend.
      */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')")
+    @RequiresSecurityLead
     @PostMapping("/ollama-test")
     public OllamaCheck testOllama() {
         String model = aiReview.selectedModel();

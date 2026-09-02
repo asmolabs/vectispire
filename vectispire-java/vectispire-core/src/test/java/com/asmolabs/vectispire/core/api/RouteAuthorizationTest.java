@@ -137,6 +137,65 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the security lead expression and the enum's idea of a global scope agree")
+    void theSecurityLeadRolesAreTheSameInBothPlaces() {
+        // **The parity the administrator marker had and this one did not.** `Role` explains that
+        // it carries its flags on the constant rather than in a second list, because two lists
+        // over one set diverge — and then the expression below is that second list. The case
+        // above holds the administrator pair together; this one holds the other pair, which was
+        // free to drift.
+        //
+        // Paired with `hasGlobalSecurityScope` and not with some list of its own, because that is
+        // what the marker means: these routes read and write the estate's whole security posture,
+        // which is the same privilege as seeing every target without being assigned one. A role
+        // that gains one and not the other is a decision somebody should have to make twice.
+        String expression = RequiresSecurityLead.class.getAnnotation(PreAuthorize.class).value();
+
+        for (Role role : Role.values()) {
+            boolean named = expression.contains("'" + role.name() + "'");
+            assertThat(named)
+                    .as("%s %s a global security scope in Role, so it should %sbe in the expression",
+                            role,
+                            role.hasGlobalSecurityScope() ? "has" : "does not have",
+                            role.hasGlobalSecurityScope() ? "" : "not ")
+                    .isEqualTo(role.hasGlobalSecurityScope());
+        }
+    }
+
+    @Test
+    @DisplayName("no route states its own role list instead of wearing a marker")
+    void noHandlerSpellsOutItsOwnRoleList() throws Exception {
+        // **Two routes used to.** `SettingsController` wrote `hasAnyRole('SUPERUSER', 'ADMIN',
+        // 'CISO')` in full, twice, in inline `@PreAuthorize` annotations — a third copy of the
+        // list that no test tied to anything, on the route that writes every platform setting.
+        // The marker requirement above could not see them: the class carries `@RequiresAccount`,
+        // so every handler in it was already marked, and the inline expression that narrowed them
+        // was invisible to a check that only asks whether a marker is present.
+        //
+        // The rule is not "no `@PreAuthorize`" — the markers are themselves meta-annotated with
+        // one. It is that a handler must not carry its own, because a marker can be kept in step
+        // with `Role` and a literal cannot.
+        List<String> spellingItOut = new ArrayList<>();
+        for (HandlerMethod handler : mappings.getHandlerMethods().values()) {
+            if (!isOurs(handler)) {
+                continue;
+            }
+            // The method's own annotation, not one inherited from a marker: `getAnnotation` on the
+            // method reports what is written there, and a meta-annotation on a marker is not.
+            PreAuthorize direct = handler.getMethod().getAnnotation(PreAuthorize.class);
+            if (direct != null) {
+                spellingItOut.add(handler.getBeanType().getSimpleName() + "#" + handler.getMethod().getName()
+                        + " → " + direct.value());
+            }
+        }
+
+        assertThat(spellingItOut)
+                .as("these handlers name roles directly; give them a marker instead, so `Role` "
+                        + "stays the one place a role list is written")
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("a route marked for administrators is refused to an ordinary account")
     void administratorRoutesRefuseAReader() throws Exception {
         // One concrete probe behind the enumeration: the annotations above prove the rule is
