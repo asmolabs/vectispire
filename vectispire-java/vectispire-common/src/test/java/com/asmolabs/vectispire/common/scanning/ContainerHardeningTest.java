@@ -41,10 +41,11 @@ class ContainerHardeningTest {
 
     private CreateContainerCmd createCommand;
     private ContainerRunner runner;
+    private DockerClient docker;
 
     @BeforeEach
     void stubTheDaemon() {
-        DockerClient docker = mock(DockerClient.class, RETURNS_DEEP_STUBS);
+        docker = mock(DockerClient.class, RETURNS_DEEP_STUBS);
 
         // Present, so `run` does not try to pull.
         InspectImageCmd inspect = mock(InspectImageCmd.class, RETURNS_DEEP_STUBS);
@@ -131,6 +132,76 @@ class ContainerHardeningTest {
         assertThat(config.getReadonlyRootfs()).isTrue();
         assertThat(config.getCapDrop()).containsExactlyInAnyOrder(Capability.values());
         assertThat(config.getNanoCPUs()).isEqualTo(ScannerLimits.DEFAULT.nanoCpus());
+    }
+
+    @Test
+    @DisplayName("the quota is the daemon's cores, not this JVM's — the machines are not the same one")
+    void theQuotaFollowsTheDaemonAndNotTheJvm() {
+        // **The failure this reproduces.** `ScannerLimits.DEFAULT` counts the cores of the host
+        // running the JVM. On a ten-core Mac behind a Docker Desktop VM given four, that asks for
+        // nine, and the daemon does not round down — it refuses the create with "Range of CPUs is
+        // from 0.01 to 4.00, as there are only 4 CPUs available" and no scan runs at all.
+        //
+        // Four is the number Docker Desktop reported on the machine where this was found.
+        whenTheDaemonReports(4);
+        ScannerLimits generous = new ScannerLimits(
+                ScannerLimits.DEFAULT.memory(), 512, java.time.Duration.ofMinutes(15),
+                ScannerLimits.allButOne(10));
+        runner = new ContainerRunner(docker, generous);
+
+        runUnderTest();
+
+        assertThat(capturedHostConfig().getNanoCPUs())
+                .as("all but one of the four the daemon has, not the nine the JVM can see")
+                .isEqualTo(ScannerLimits.allButOne(4));
+    }
+
+    @Test
+    @DisplayName("a quota an operator set below the host's is left alone")
+    void aDeliberatelySmallQuotaSurvives() {
+        // The clamp is a `min`, so it works in both directions: it exists to stop a request the
+        // daemon would refuse, not to raise everything to the host's ceiling.
+        whenTheDaemonReports(16);
+        ScannerLimits modest = new ScannerLimits(
+                ScannerLimits.DEFAULT.memory(), 512, java.time.Duration.ofMinutes(15), 1_000_000_000L);
+        runner = new ContainerRunner(docker, modest);
+
+        runUnderTest();
+
+        assertThat(capturedHostConfig().getNanoCPUs())
+                .as("one CPU, because that is what was asked for")
+                .isEqualTo(1_000_000_000L);
+    }
+
+    @Test
+    @DisplayName("a daemon that will not answer leaves the configured quota standing")
+    void anUnreachableDaemonIsNotASecondFailure() {
+        // A daemon that cannot answer `info` is not about to create a container either, so the
+        // create below reports the real problem. What must not happen is this lookup becoming a
+        // second, more confusing way for the same outage to surface.
+        when(docker.infoCmd()).thenThrow(new IllegalStateException("daemon unreachable"));
+
+        runUnderTest();
+
+        assertThat(capturedHostConfig().getNanoCPUs()).isEqualTo(ScannerLimits.DEFAULT.nanoCpus());
+    }
+
+    private void whenTheDaemonReports(int cores) {
+        com.github.dockerjava.api.command.InfoCmd info =
+                mock(com.github.dockerjava.api.command.InfoCmd.class);
+        com.github.dockerjava.api.model.Info reported =
+                mock(com.github.dockerjava.api.model.Info.class);
+        when(reported.getNCPU()).thenReturn(cores);
+        when(info.exec()).thenReturn(reported);
+        when(docker.infoCmd()).thenReturn(info);
+    }
+
+    private void runUnderTest() {
+        try {
+            runner.run(ContainerRun.of("scanner:pinned", List.of("--version"), List.of(), "probe"));
+        } catch (RuntimeException expected) {
+            // The run fails past the create; the request is what is under test.
+        }
     }
 
     private HostConfig capturedHostConfig() {

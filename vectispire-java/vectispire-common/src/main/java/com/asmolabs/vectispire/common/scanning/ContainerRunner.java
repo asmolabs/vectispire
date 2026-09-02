@@ -79,6 +79,16 @@ public final class ContainerRunner {
     private final DockerClient docker;
     private final ScannerLimits limits;
 
+    /**
+     * The CPU quota this daemon will actually accept, resolved once.
+     *
+     * <p>Not a field set in the constructor: {@code ContainerRunner} is built while Spring wires
+     * the context, and asking a daemon that is not running would turn "no Docker today" into "the
+     * application does not start". Resolved on the first run instead, where a missing daemon is
+     * already the failure being reported.
+     */
+    private volatile Long daemonNanoCpus;
+
     public ContainerRunner() {
         this(defaultClient(), ScannerLimits.DEFAULT);
     }
@@ -203,6 +213,43 @@ public final class ContainerRunner {
         }
     }
 
+    /**
+     * The CPU quota, clamped to the machine that will honour it.
+     *
+     * <p><b>The count in {@link ScannerLimits#DEFAULT} is this JVM's, and the container runs on the
+     * daemon's host.</b> Those differ whenever Docker Desktop is in the way — a Mac with ten cores
+     * behind a VM given four — and the daemon does not quietly round down: it refuses the create
+     * with <em>"Range of CPUs is from 0.01 to 4.00, as there are only 4 CPUs available"</em>, and
+     * every scan on that machine fails. Asking {@code docker info} is the only way to know, because
+     * only the daemon knows.
+     *
+     * <p>Clamped with {@code min} rather than replaced, so the rule works in both directions: a
+     * quota an operator deliberately set lower than the host survives, and one larger than the host
+     * can grant comes down to {@linkplain ScannerLimits#allButOne all but one} of the daemon's
+     * cores — still leaving the control plane a core to answer a gate call on.
+     *
+     * <p>If the daemon will not say, the configured value stands. That is not a fallback worth
+     * much — a daemon that cannot answer {@code info} is not about to create a container — but it
+     * keeps this from being a second way for the same outage to be reported.
+     */
+    private long acceptableNanoCpus() {
+        Long resolved = daemonNanoCpus;
+        if (resolved != null) {
+            return resolved;
+        }
+        long quota = limits.nanoCpus();
+        try {
+            Integer cores = docker.infoCmd().exec().getNCPU();
+            if (cores != null && cores > 0) {
+                quota = Math.min(quota, ScannerLimits.allButOne(cores));
+            }
+        } catch (RuntimeException daemonWillNotSay) {
+            // Deliberately swallowed: see above. The create that follows reports the real problem.
+        }
+        daemonNanoCpus = quota;
+        return quota;
+    }
+
     public ContainerResult run(ContainerRun request) {
         Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
         ensureImagePresent(request.image(), request.label());
@@ -211,7 +258,7 @@ public final class ContainerRunner {
                 .withBinds(request.binds().stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
                 .withNetworkMode(request.network() ? "bridge" : "none")
                 .withMemory(limits.memory())
-                .withNanoCPUs(limits.nanoCpus())
+                .withNanoCPUs(acceptableNanoCpus())
                 .withPidsLimit(limits.pids())
                 .withCapDrop(com.github.dockerjava.api.model.Capability.values())
                 .withSecurityOpts(List.of("no-new-privileges"))
