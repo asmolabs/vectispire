@@ -70,7 +70,7 @@
                 label="Vérifier Signature"
                 (click)="openVerifier()"
             ></button>
-            @if (isSecurityLead()) {
+            @if (canReadGovernance()) {
                 <button
                     pButton
                     icon="pi pi-shield"

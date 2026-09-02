@@ -804,7 +804,8 @@
     "ciso": "Responsable Sécurité / CISO",
     "admin": "Administrateur",
     "superuser": "Super-administrateur",
-    "security_champion": "Référent sécurité"
+    "security_champion": "Référent sécurité",
+    "auditor": "Auditeur (lecture seule)"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",

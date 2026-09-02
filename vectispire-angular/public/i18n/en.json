@@ -698,7 +698,8 @@
     "ciso": "CISO / Security Lead",
     "admin": "Administrator",
     "superuser": "Superuser",
-    "security_champion": "Security Champion"
+    "security_champion": "Security Champion",
+    "auditor": "Auditor (read-only)"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",

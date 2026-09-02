@@ -29,6 +29,8 @@ export class Users {
         this.i18n.translations();
         return [
             { label: this.i18n.t('roles.user'), value: 'USER' },
+            // Between USER and the roles that act: sees the whole estate, changes none of it.
+            { label: this.i18n.t('roles.auditor'), value: 'AUDITOR' },
             { label: this.i18n.t('roles.security_champion'), value: 'SECURITY_CHAMPION' },
             { label: this.i18n.t('roles.ciso'), value: 'CISO' },
             { label: this.i18n.t('roles.admin'), value: 'ADMIN' },

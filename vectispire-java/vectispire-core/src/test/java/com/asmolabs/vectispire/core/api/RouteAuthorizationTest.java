@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -40,13 +41,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @DisplayName("every route declares who may call it")
 class RouteAuthorizationTest extends ApiTestBase {
 
-    private static final List<Class<? extends Annotation>> MARKERS =
-            List.of(
-                    RequiresAdministrator.class,
-                    RequiresSecurityLead.class,
-                    RequiresAccount.class,
-                    RequiresAgentKey.class,
-                    OpenToAnonymous.class);
+    private static final List<Class<? extends Annotation>> MARKERS = AuthorizationMarkers.ALL;
 
     /**
      * The MVC mapping by name: Actuator registers a second one for its own endpoints, and
@@ -57,7 +52,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     private RequestMappingHandlerMapping mappings;
 
     @Test
-    @DisplayName("no handler is left without one of the five markers")
+    @DisplayName("no handler is left without one of the six markers")
     void everyHandlerIsMarked() {
         List<String> unmarked = new ArrayList<>();
 
@@ -72,7 +67,8 @@ class RouteAuthorizationTest extends ApiTestBase {
 
         assertThat(unmarked)
                 .as("a route with no marker is reachable on whatever the filter chain happens to "
-                        + "say — add @RequiresAccount, @RequiresAdministrator, @RequiresAgentKey "
+                        + "say — add @RequiresAccount, @RequiresAdministrator, "
+                        + "@RequiresSecurityLead, @RequiresGovernanceRead, @RequiresAgentKey "
                         + "or @OpenToAnonymous")
                 .isEmpty();
     }
@@ -137,19 +133,13 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("the security lead expression and the enum's idea of a global scope agree")
-    void theSecurityLeadRolesAreTheSameInBothPlaces() {
-        // **The parity the administrator marker had and this one did not.** `Role` explains that
-        // it carries its flags on the constant rather than in a second list, because two lists
-        // over one set diverge — and then the expression below is that second list. The case
-        // above holds the administrator pair together; this one holds the other pair, which was
-        // free to drift.
-        //
-        // Paired with `hasGlobalSecurityScope` and not with some list of its own, because that is
-        // what the marker means: these routes read and write the estate's whole security posture,
-        // which is the same privilege as seeing every target without being assigned one. A role
-        // that gains one and not the other is a decision somebody should have to make twice.
-        String expression = RequiresSecurityLead.class.getAnnotation(PreAuthorize.class).value();
+    @DisplayName("the governance read expression and the enum's idea of a global scope agree")
+    void theGovernanceReadersAreTheSameInBothPlaces() {
+        // **Reading the posture and seeing the estate are one privilege, and this says so.** What
+        // these routes disclose is the security posture of every target there is; giving that to
+        // an account whose visibility is three repositories would be a way around the scope
+        // rather than a smaller version of it.
+        String expression = RequiresGovernanceRead.class.getAnnotation(PreAuthorize.class).value();
 
         for (Role role : Role.values()) {
             boolean named = expression.contains("'" + role.name() + "'");
@@ -159,6 +149,31 @@ class RouteAuthorizationTest extends ApiTestBase {
                             role.hasGlobalSecurityScope() ? "has" : "does not have",
                             role.hasGlobalSecurityScope() ? "" : "not ")
                     .isEqualTo(role.hasGlobalSecurityScope());
+        }
+    }
+
+    @Test
+    @DisplayName("the security lead expression and the enum's idea of a governance writer agree")
+    void theSecurityLeadRolesAreTheSameInBothPlaces() {
+        // **The parity the administrator marker had and this one did not.** `Role` explains that
+        // it carries its flags on the constant rather than in a second list, because two lists
+        // over one set diverge — and then the expression below is that second list. The case
+        // above holds the administrator pair together; this one holds the other pair, which was
+        // free to drift.
+        //
+        // Paired with `canWriteGovernance` and not with `hasGlobalSecurityScope`, which is what it
+        // used to mean. AUDITOR is exactly the role that separates the two: it sees the whole
+        // estate and changes none of it, so a single flag can no longer answer both questions.
+        String expression = RequiresSecurityLead.class.getAnnotation(PreAuthorize.class).value();
+
+        for (Role role : Role.values()) {
+            boolean named = expression.contains("'" + role.name() + "'");
+            assertThat(named)
+                    .as("%s %s write governance in Role, so it should %sbe in the expression",
+                            role,
+                            role.canWriteGovernance() ? "may" : "may not",
+                            role.canWriteGovernance() ? "" : "not ")
+                    .isEqualTo(role.canWriteGovernance());
         }
     }
 
@@ -234,6 +249,51 @@ class RouteAuthorizationTest extends ApiTestBase {
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
                         asAdmin()))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @DisplayName("an auditor reads the governance it is there to inspect")
+    void anAuditorMayRead() throws Exception {
+        // The reason the role exists. Before it, every one of these required a marker that also
+        // granted the power to rewrite what it shows.
+        for (String route : List.of(
+                "/api/v1/audit-log", "/api/v1/gate/policies", "/api/v1/siem/config",
+                "/api/v1/threat-intel/status", "/api/v1/rule-sets")) {
+            mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(route),
+                            asAuditor()))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                            .status().isOk());
+        }
+    }
+
+    @Test
+    @DisplayName("an auditor changes nothing, and an ordinary account still reads none of it")
+    void anAuditorMayNotWrite() throws Exception {
+        // **The half that makes the role worth having.** A reader that could also write would be a
+        // CISO with a different name; the split between the two markers is the whole point, and a
+        // class-level marker quietly re-applied to a writing method would undo it silently.
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .delete("/api/v1/gate/policies/repository/1"),
+                        asAuditor()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .status().isForbidden());
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .post("/api/v1/threat-intel/sync"),
+                        asAuditor()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .status().isForbidden());
+
+        // Widening the read marker must not have widened it to everybody: USER is still out.
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .get("/api/v1/audit-log"),
+                        asReader()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .status().isForbidden());
     }
 
     /**

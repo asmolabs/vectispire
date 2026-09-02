@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
@@ -45,7 +46,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/gate/policies")
-@RequiresSecurityLead
+@RequiresGovernanceRead
 public class GatePoliciesController {
 
     private final GateService gate;
@@ -118,6 +119,7 @@ public class GatePoliciesController {
     }
 
     /** The global policy: what every target inherits unless it has one of its own. */
+    @RequiresSecurityLead
     @PutMapping("/global")
     public PolicyView storeGlobal(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -127,6 +129,7 @@ public class GatePoliciesController {
         return store(PolicyScope.global(), "the global policy", principal, request, body);
     }
 
+    @RequiresSecurityLead
     @PutMapping("/{kind}/{id}")
     public PolicyView storeForTarget(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -146,6 +149,7 @@ public class GatePoliciesController {
      * override is gone whether or not it ever existed, which is the same sentence for "done"
      * and for "you were looking at a stale screen".
      */
+    @RequiresSecurityLead
     @DeleteMapping("/{kind}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void clear(

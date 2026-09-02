@@ -113,6 +113,11 @@ abstract class ApiTestBase extends VectispireContextTest {
         return tokenFor("ciso-" + System.nanoTime(), Role.CISO, false);
     }
 
+    /** A live session for an auditor: sees the whole estate, changes none of it. */
+    protected String asAuditor() {
+        return tokenFor("auditor-" + System.nanoTime(), Role.AUDITOR, false);
+    }
+
     /** A live session for a Security Champion account. */
     protected String asSecurityChampion() {
         return tokenFor("champion-" + System.nanoTime(), Role.SECURITY_CHAMPION, false);

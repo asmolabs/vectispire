@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.AuditLogService;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/threat-intel")
-@RequiresSecurityLead
+@RequiresGovernanceRead
 public class ThreatIntelController {
 
     private final ThreatIntelFeedService threatIntelService;
@@ -34,6 +35,7 @@ public class ThreatIntelController {
         return threatIntelService.getStatus();
     }
 
+    @RequiresSecurityLead
     @PostMapping("/sync")
     public ThreatIntelSyncStatus sync(
             @AuthenticationPrincipal VectispirePrincipal principal,

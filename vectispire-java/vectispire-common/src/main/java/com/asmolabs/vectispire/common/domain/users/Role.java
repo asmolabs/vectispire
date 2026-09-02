@@ -15,28 +15,56 @@ import java.util.Optional;
  * grants or withholds administration.
  */
 public enum Role {
-    SUPERUSER(true, true, true),
-    ADMIN(true, true, true),
-    CISO(false, true, true),
-    SECURITY_CHAMPION(false, false, true),
-    USER(false, false, false);
+    SUPERUSER(true, true, true, true),
+    ADMIN(true, true, true, true),
+    CISO(false, true, true, true),
+    SECURITY_CHAMPION(false, false, true, false),
+    AUDITOR(false, true, false, false),
+    USER(false, false, false, false);
 
     private final boolean administrative;
     private final boolean globalSecurityScope;
     private final boolean canApproveTriage;
+    private final boolean canWriteGovernance;
 
-    Role(boolean administrative, boolean globalSecurityScope, boolean canApproveTriage) {
+    Role(
+            boolean administrative,
+            boolean globalSecurityScope,
+            boolean canApproveTriage,
+            boolean canWriteGovernance) {
         this.administrative = administrative;
         this.globalSecurityScope = globalSecurityScope;
         this.canApproveTriage = canApproveTriage;
+        this.canWriteGovernance = canWriteGovernance;
     }
 
     public boolean isAdministrative() {
         return administrative;
     }
 
+    /**
+     * Sees the whole estate without being assigned to any of it — <b>and may read its governance</b>.
+     *
+     * <p>The two travel together on purpose. Reading the audit log, the compliance evidence or the
+     * gate policy tells you the security posture of every target there is; granting that to an
+     * account whose visibility is a handful of repositories would be a way around the scope, not a
+     * lesser privilege than it.
+     */
     public boolean hasGlobalSecurityScope() {
         return globalSecurityScope;
+    }
+
+    /**
+     * May <b>change</b> what governance says — the gate policy, the rule sets, the SIEM
+     * destination, the licence policy.
+     *
+     * <p><b>Separated from reading it because {@link #AUDITOR} exists.</b> Until this flag, the two
+     * were one privilege and the marker on those routes sat at class level, so somebody who had to
+     * inspect the posture was necessarily somebody who could rewrite it. Whoever is asked to check
+     * the work should not be able to change it first.
+     */
+    public boolean canWriteGovernance() {
+        return canWriteGovernance;
     }
 
     public boolean canApproveTriage() {

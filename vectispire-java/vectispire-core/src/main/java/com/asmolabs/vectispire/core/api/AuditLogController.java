@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.services.AuditLogService;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** The audit trail, and its integrity. Administrators and CISOs. */
 @RestController
 @RequestMapping("/api/v1/audit-log")
-@RequiresSecurityLead
+@RequiresGovernanceRead
 public class AuditLogController {
 
     private static final int DEFAULT_PAGE_SIZE = 50;

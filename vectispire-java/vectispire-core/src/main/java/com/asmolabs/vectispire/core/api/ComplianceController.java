@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.AuditLogService;
@@ -126,7 +127,7 @@ public class ComplianceController {
     // log, which `/api/v1/audit-log` has always reserved to a security lead — so a reader could
     // obtain by export what they were refused by route. It is also a compliance officer's
     // artifact by nature: signed, dated, and meant for somebody outside the team.
-    @RequiresSecurityLead
+    @RequiresGovernanceRead
     @GetMapping(value = "/evidence-bundle.zip", produces = "application/zip")
     public ResponseEntity<byte[]> exportEvidenceBundle(
             @AuthenticationPrincipal VectispirePrincipal principal,

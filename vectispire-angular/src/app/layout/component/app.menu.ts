@@ -73,10 +73,14 @@ export class AppMenu {
             }
         ];
 
-        if (this.session.isAdmin() || this.session.isSecurityLead()) {
+        if (this.session.isAdmin() || this.session.canReadGovernance()) {
             const adminItems: MenuItem[] = [];
 
-            if (this.session.isSecurityLead()) {
+            // **Read, not write.** These three pages show the posture; the routes behind them are
+            // `@RequiresGovernanceRead`, so an auditor reaches them. Gating the menu on
+            // `isSecurityLead` would have left that account an empty sidebar in front of pages
+            // that answer 200 — a permission granted on the server and withheld by the client.
+            if (this.session.canReadGovernance()) {
                 adminItems.push(
                     { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
                     { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },

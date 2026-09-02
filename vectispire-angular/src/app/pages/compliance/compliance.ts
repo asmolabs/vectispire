@@ -34,6 +34,8 @@ export class Compliance {
      * so the button goes with the permission.
      */
     readonly isSecurityLead = this.session.isSecurityLead;
+    /** The evidence bundle is a read: importing VEX beside it is not. */
+    readonly canReadGovernance = this.session.canReadGovernance;
     readonly i18n = inject(I18nService);
     readonly Math = Math;
 

@@ -2,7 +2,15 @@ import { Injectable, computed, signal } from '@angular/core';
 
 /** The server writes them in upper case (`user.entity.ts`). */
 export const ADMIN_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN'];
+/** The roles that may **change** governance: the gate policy, the rule sets, the SIEM destination. */
 export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO'];
+/**
+ * The roles that may **read** it — a wider set, and the reason `AUDITOR` exists.
+ *
+ * Mirrors `@RequiresGovernanceRead` on the server. A screen that hid a read-only page behind
+ * `isSecurityLead` would show an auditor an empty menu and a route that answers 200.
+ */
+export const GOVERNANCE_READER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'AUDITOR'];
 export const TRIAGE_APPROVER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION'];
 import { AuthenticatedUser } from './api.models';
 
@@ -36,6 +44,7 @@ export class SessionStore {
      */
     readonly isAdmin = computed(() => ADMIN_ROLES.includes(this.role()));
     readonly isSecurityLead = computed(() => SECURITY_LEAD_ROLES.includes(this.role()));
+    readonly canReadGovernance = computed(() => GOVERNANCE_READER_ROLES.includes(this.role()));
     readonly isSecurityChampion = computed(() => this.role() === 'SECURITY_CHAMPION');
     readonly canApproveTriage = computed(() => TRIAGE_APPROVER_ROLES.includes(this.role()));
     readonly isCiso = computed(() => this.role() === 'CISO');

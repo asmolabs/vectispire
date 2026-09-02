@@ -58,12 +58,12 @@ class RouteScopingTest {
             Pattern.compile("Visibility\\b|visibility\\.of\\(|Visibilities\\.|allowanceOf\\(|\\.permits\\(");
 
     /**
-     * Matched by simple name and without the {@code @}, because both forms occur: one route
-     * carries {@code @com.asmolabs.vectispire.core.api.security.OpenToAnonymous} fully qualified,
-     * and a first draft of this rule reported it as unguarded.
+     * Built from {@link AuthorizationMarkers}, which is the one place the set of markers is
+     * written. It used to be spelled out here, and a marker added elsewhere left this rule
+     * reporting every route that adopted it as unguarded.
      */
-    private static final Pattern ROLE_GUARD = Pattern.compile(
-            "@(?:[\\w.]+\\.)?(?:RequiresAdministrator|RequiresSecurityLead|RequiresAgentKey|OpenToAnonymous)\\b");
+    private static final Pattern ROLE_GUARD =
+            Pattern.compile(AuthorizationMarkers.roleGuardPattern());
 
     /**
      * Routes that name no target, with the reason for each.

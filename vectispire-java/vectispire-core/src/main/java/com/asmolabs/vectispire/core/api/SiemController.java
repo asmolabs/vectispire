@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/siem")
-@RequiresSecurityLead
+@RequiresGovernanceRead
 public class SiemController {
 
     private final SiemExporterService exporterService;
@@ -55,6 +56,7 @@ public class SiemController {
                 .orElseGet(() -> new SiemConfigResponse(false, "WEBHOOK", null, false, "HIGH", null));
     }
 
+    @RequiresSecurityLead
     @PutMapping("/config")
     public SiemConfigResponse updateConfig(
             @RequestBody SiemConfigRequest request,
@@ -85,6 +87,7 @@ public class SiemController {
         return toResponse(saved);
     }
 
+    @RequiresSecurityLead
     @PostMapping("/test")
     public SiemExporterService.TestResult testConnection(@RequestBody SiemTestRequest request) {
         return exporterService.testConnection(request.endpoint(), request.authHeader());

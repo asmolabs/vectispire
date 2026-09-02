@@ -93,9 +93,9 @@ class AuthorizationCoverageTest {
                 String source = Files.readString(file, StandardCharsets.UTF_8);
 
                 // A role that sees everything by construction is an allowance, stated differently.
-                boolean guardedByRole = source.contains("@RequiresAdministrator")
-                        || source.contains("@RequiresSecurityLead")
-                        || source.contains("@RequiresAgentKey");
+                // Asked of `AuthorizationMarkers` rather than spelled out: this list was one of
+                // three, and it did not learn about the governance-read marker on its own.
+                boolean guardedByRole = AuthorizationMarkers.statesARole(source);
                 boolean resolvesAllowance = source.contains("VisibilityService")
                         || source.contains("Visibilities.");
 

@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.services.RuleSetService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.NoSuchElementException;
+import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/rule-sets")
-@RequiresSecurityLead
+@RequiresGovernanceRead
 public class RuleSetsController {
 
     private final RuleSetService ruleSets;
@@ -91,6 +92,7 @@ public class RuleSetsController {
      * archive to extract server-side, and therefore no path traversal to guard against. The
      * names are recorded and never used as paths.
      */
+    @RequiresSecurityLead
     @PostMapping
     public Uploaded upload(
             @RequestBody UploadRequest body,
@@ -151,6 +153,7 @@ public class RuleSetsController {
      * through the same impact preview, because a fetched set can destroy triage exactly as an
      * uploaded one can — more so, since it is larger.
      */
+    @RequiresSecurityLead
     @PostMapping("/catalogue")
     public Uploaded fetchCatalogue(
             @RequestBody CatalogueRequest body,
@@ -216,6 +219,7 @@ public class RuleSetsController {
      * <p>{@code note} is what the operator was shown when they confirmed. Recording it is what
      * makes "why did four hundred issues close that afternoon" answerable six months later.
      */
+    @RequiresSecurityLead
     @PostMapping("/{id}/activate")
     public Map<String, Object> activate(
             @PathVariable long id,
@@ -239,6 +243,7 @@ public class RuleSetsController {
     }
 
     /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */
+    @RequiresSecurityLead
     @PostMapping("/deactivate")
     public Map<String, Object> deactivate(
             @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
