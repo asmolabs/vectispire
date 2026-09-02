@@ -1,9 +1,24 @@
 @if (scan(); as value) {
-    <p-tag [value]="label(value.status)" [severity]="severity(value.status)" />
-    <div class="text-sm text-muted-color mt-1">{{ value.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
-    @if (value.error) {
-        <div class="text-sm text-red-500 mt-1">{{ value.error }}</div>
-    }
+    <!--
+        Width-capped, and the message clamped to two lines.
+
+        Not because the error is unimportant, but because it is the server's raw text: a failed
+        clone reports a whole git stderr. This block sits inside the row of the entity it
+        describes, in a group that cannot shrink, so at its intrinsic width it pushed the row
+        wide enough to break the layout — the repositories whose last scan had failed, and only
+        those, displayed differently from the rest. The full text stays one hover away, and the
+        scan page repeats it in full in its own banner — **and every screen that renders this
+        block links to that page**, which is the part that makes clamping honest rather than
+        merely tidy. Two lines and not one because the first line of a clone or registry failure
+        is usually the command, and the cause is on the second.
+    -->
+    <div class="max-w-64">
+        <p-tag [value]="label(value.status)" [severity]="severity(value.status)" />
+        <div class="text-sm text-muted-color mt-1">{{ value.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
+        @if (value.error) {
+            <div class="text-sm text-red-500 mt-1 line-clamp-2" [title]="value.error">{{ value.error }}</div>
+        }
+    </div>
 } @else {
     <span class="text-muted-color">{{ 'scans.never_scanned' | translate }}</span>
 }

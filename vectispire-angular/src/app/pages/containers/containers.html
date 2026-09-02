@@ -59,7 +59,19 @@
                     </div>
 
                     <div class="flex items-center gap-4 shrink-0">
-                        <app-last-scan [scan]="container.lastScan" />
+                        <!--
+                            Linked to the scan, as the repository list and the dashboard already
+                            were. Without it this screen was the one place a failure had no way
+                            out: the tag said "failed", the message underneath was clipped to the
+                            width of the block, and the full text existed only in a `title`
+                            attribute — which is nothing at all on a touch device. The scan page
+                            shows it whole, and this is the route to it.
+                        -->
+                        @if (container.lastScan; as scan) {
+                            <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
+                        } @else {
+                            <app-last-scan [scan]="null" />
+                        }
 
                         @if (isAdmin()) {
                             <div class="whitespace-nowrap">
