@@ -88,7 +88,8 @@ même nom, posé au niveau classe sur huit contrôleurs, ce qui confondait consu
 | `@RequiresAdministrator` | SUPERUSER, ADMIN | Comptes, équipes, clés, agents, réglages |
 | `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Écriture** : politique de barrière, jeux de règles, destination SIEM, politique de licences |
 | `@RequiresGovernanceRead` | + AUDITOR | **Lecture** : journal d'audit, preuves de conformité, barrières, jeux de règles, config SIEM |
-| `@RequiresWriteAccount` | tous sauf AUDITOR | **Agir** : trier une anomalie, ouvrir un ticket, lancer une revue OWASP ou une explication par modèle |
+| `@RequiresPlatformGovernor` | SUPERUSER seul | **Les règles** : qui voit quelles cibles (`target_visibility`), et faut-il deux personnes pour écarter une vulnérabilité (`triage_four_eyes_required`) |
+| `@RequiresWriteAccount` | tous sauf AUDITOR et SUPERUSER | **Agir** : trier une anomalie, ouvrir un ticket, lancer une revue OWASP ou une explication par modèle |
 | `@RequiresAccount` | tout compte connecté | Le reste, restreint ensuite par la visibilité |
 
 Ces trois listes de rôles ne sont pas recopiées : `RouteAuthorizationTest` vérifie que chaque

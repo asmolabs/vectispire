@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
+import com.asmolabs.vectispire.core.api.security.RequiresPlatformGovernor;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -53,7 +54,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     private RequestMappingHandlerMapping mappings;
 
     @Test
-    @DisplayName("no handler is left without one of the seven markers")
+    @DisplayName("no handler is left without one of the eight markers")
     void everyHandlerIsMarked() {
         List<String> unmarked = new ArrayList<>();
 
@@ -251,6 +252,42 @@ class RouteAuthorizationTest extends ApiTestBase {
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/gate/policies"),
                         asAdmin()))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @DisplayName("the governor expression and the enum's idea of governing agree")
+    void theGovernorsAreTheSameInBothPlaces() {
+        String expression = RequiresPlatformGovernor.class.getAnnotation(PreAuthorize.class).value();
+
+        for (Role role : Role.values()) {
+            boolean named = expression.contains("'" + role.name() + "'");
+            assertThat(named)
+                    .as("%s %s govern the platform in Role, so it should %sbe in the expression",
+                            role, role.governsPlatform() ? "does" : "does not",
+                            role.governsPlatform() ? "" : "not ")
+                    .isEqualTo(role.governsPlatform());
+        }
+    }
+
+    @Test
+    @DisplayName("the account that can lift the rule cannot act under it")
+    void theGovernorCausesNoEffects() {
+        // **La propriété qui ferme la double validation, énoncée comme une invariante et non
+        // comme une liste.** Le contournement était : éteindre le contrôle, régler seul, rallumer.
+        // Retirer le droit d'approuver ne l'aurait pas fermé — le service règle la décision de
+        // tout le monde quand le réglage est éteint. Ce qui le ferme est qu'aucun rôle ne détienne
+        // les deux moitiés à la fois.
+        for (Role role : Role.values()) {
+            if (role.governsPlatform()) {
+                assertThat(role.canCauseEffects())
+                        .as("%s peut lever la règle : il ne doit pas pouvoir agir sous elle", role)
+                        .isFalse();
+                assertThat(role.canApproveTriage())
+                        .as("%s peut lever la règle : approuver serait la même faille", role)
+                        .isFalse();
+            }
+        }
+        assertThat(Role.values()).anyMatch(Role::governsPlatform);
     }
 
     @Test

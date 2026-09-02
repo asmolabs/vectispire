@@ -18,9 +18,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
  *
  * <p>The set is exactly {@code Role.canCauseEffects()}, and {@code RouteAuthorizationTest} holds
  * the two together. It is deliberately wide: an ordinary user belongs in it, because triaging is
- * ordinary work. Only the account whose whole purpose is to look is outside.
+ * ordinary work.
+ *
+ * <p><b>Two accounts sit outside it, for opposite reasons.</b> {@code AUDITOR} is there to look and
+ * nothing else. {@code SUPERUSER} is outside because it is the one role that may lift the rules —
+ * see {@code Role.governsPlatform()} — and an account that can switch four-eyes approval off must
+ * not be able to settle an issue while it is off, or the control is decorative.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.TYPE})
-@PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER')")
 public @interface RequiresWriteAccount {}

@@ -50,7 +50,7 @@ class AiEndpointAcknowledgementTest {
         aiReview = mock(AiReviewService.class);
         controller = new SettingsController(
                 settings, mock(TicketService.class), mock(AuditLogService.class), aiReview,
-                mock(NotificationService.class));
+                mock(NotificationService.class), mock(com.asmolabs.vectispire.core.repositories.Users.class));
 
         // Nothing configured yet: every setting reads as its stored-empty state.
         when(settings.get(any(Setting.class))).thenReturn("");

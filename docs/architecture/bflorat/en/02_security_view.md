@@ -81,7 +81,8 @@ at class level across eight controllers, which conflated inspecting with modifyi
 | `@RequiresAdministrator` | SUPERUSER, ADMIN | Accounts, teams, keys, agents, settings |
 | `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Write**: gate policy, rule sets, SIEM destination, licence policy |
 | `@RequiresGovernanceRead` | + AUDITOR | **Read**: audit log, compliance evidence, gate policies, rule sets, SIEM config |
-| `@RequiresWriteAccount` | everyone but AUDITOR | **Act**: triage an issue, open a ticket, run an OWASP review or a model explanation |
+| `@RequiresPlatformGovernor` | SUPERUSER only | **The rules**: who sees which targets (`target_visibility`), and whether writing off a vulnerability needs a second person (`triage_four_eyes_required`) |
+| `@RequiresWriteAccount` | everyone but AUDITOR and SUPERUSER | **Act**: triage an issue, open a ticket, run an OWASP review or a model explanation |
 | `@RequiresAccount` | any signed-in account | Everything else, narrowed afterwards by visibility |
 
 These three role lists are not copies: `RouteAuthorizationTest` asserts that each expression matches

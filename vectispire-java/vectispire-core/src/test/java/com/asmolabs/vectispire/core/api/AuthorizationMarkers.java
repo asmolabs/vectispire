@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
+import com.asmolabs.vectispire.core.api.security.RequiresPlatformGovernor;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import java.lang.annotation.Annotation;
@@ -33,6 +34,7 @@ final class AuthorizationMarkers {
     /** Every marker, as annotation types. */
     static final List<Class<? extends Annotation>> ALL = List.of(
             RequiresAdministrator.class,
+            RequiresPlatformGovernor.class,
             RequiresSecurityLead.class,
             RequiresGovernanceRead.class,
             RequiresWriteAccount.class,

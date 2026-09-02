@@ -27,6 +27,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.AccessDeniedException;
+import java.util.Set;
+import java.util.Arrays;
+import com.asmolabs.vectispire.core.repositories.Users;
 
 /**
  * The settings, read by everybody and written by administrators.
@@ -48,23 +52,36 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresAccount
 public class SettingsController {
 
+    /** Les sections dont le contenu est une règle, pas un réglage. */
+    private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
+            Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE);
+
+    private static final List<String> APPROVER_ROLES = Arrays.stream(Role.values())
+            .filter(Role::canApproveTriage)
+            .map(Enum::name)
+            .toList();
+
     private final SettingsService settings;
     private final TicketService tickets;
     private final AuditLogService audit;
     private final AiReviewService aiReview;
     private final NotificationService notifications;
+    /** Lu pour une seule question : reste-t-il quelqu'un pour approuver ? */
+    private final Users users;
 
     public SettingsController(
             SettingsService settings,
             TicketService tickets,
             AuditLogService audit,
             AiReviewService aiReview,
-            NotificationService notifications) {
+            NotificationService notifications,
+            Users users) {
         this.settings = settings;
         this.tickets = tickets;
         this.audit = audit;
         this.aiReview = aiReview;
         this.notifications = notifications;
+        this.users = users;
     }
 
     /**
@@ -166,6 +183,31 @@ public class SettingsController {
             // handed. Left open, it wrote tracker tokens, webhook secrets and provider keys in the
             // clear — 200 OK, no warning — and the audit description below would then have carried
             // the value itself into a log that is deliberately never purged.
+            // **Les deux réglages qui décident des règles, réservés au gouverneur.** Ce sont
+            // `target_visibility` — qui voit quelles cibles — et `triage_four_eyes_required` —
+            // faut-il deux personnes pour écarter une vulnérabilité. La double validation était
+            // contournable par quiconque pouvait à la fois l'éteindre et trier : éteindre, régler
+            // seul, rallumer, une entrée d'audit pour seule trace. Ce qui ferme le trou n'est pas
+            // de retirer le droit d'approuver — le service règle la décision de tout le monde quand
+            // le réglage est éteint — mais de casser la conjonction. Le seul rôle qui peut lever la
+            // règle est celui qui ne peut pas agir sous elle.
+            if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(principal)) {
+                throw new AccessDeniedException(
+                        setting.label() + " décide d'une règle et non d'un réglage : seul un "
+                                + "super-administrateur peut la changer, parce qu'il est le seul "
+                                + "qui ne puisse pas en tirer parti.");
+            }
+            // **Activer un contrôle à deux personnes demande qu'il y en ait deux.** Sans ce garde,
+            // l'activer sur une installation qui n'a pas d'approbateur actif met chaque décision
+            // dans une file que personne ne peut vider — un contrôle qui bloque au lieu de
+            // contrôler, et dont la panne ne se voit qu'au premier triage.
+            if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value) && noApproverExists()) {
+                throw new IllegalArgumentException(
+                        "Aucun compte actif ne peut approuver un triage : activer la double "
+                                + "validation mettrait chaque décision dans une file que personne "
+                                + "ne peut vider. Créez d'abord un administrateur, un CISO ou un "
+                                + "référent sécurité.");
+            }
             if (setting.isEncrypted()) {
                 throw new IllegalArgumentException(
                         setting.label() + " is a credential and is written by its own route, which encrypts it. "
@@ -505,4 +547,24 @@ public class SettingsController {
     public Map<String, Boolean> ticketWebhookSecretState() {
         return Map.of("configured", tickets.hasWebhookSecret());
     }
+
+    /** Le rôle qui décide des règles, et le seul qui ne puisse pas agir sous elles. */
+    private static boolean governsPlatform(VectispirePrincipal principal) {
+        return principal.user().flatMap(u -> Role.of(u.getRole())).map(Role::governsPlatform).orElse(false);
+    }
+
+    /**
+     * Reste-t-il quelqu'un pour approuver ?
+     *
+     * <p>Compté en base et non déduit d'un rôle : la question porte sur les comptes <em>actifs</em>,
+     * et un parc peut très bien déclarer un rôle que personne ne détient.
+     */
+    private boolean noApproverExists() {
+        return users.countActiveAdministratorsExcluding(APPROVER_ROLES, -1L) == 0;
+    }
+
+    private static boolean isTruthy(String value) {
+        return "true".equalsIgnoreCase(value) || "1".equals(value);
+    }
+
 }

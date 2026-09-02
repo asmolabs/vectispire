@@ -15,30 +15,38 @@ import java.util.Optional;
  * grants or withholds administration.
  */
 public enum Role {
-    SUPERUSER(true, true, true, true, true),
-    ADMIN(true, true, true, true, true),
-    CISO(false, true, true, true, true),
-    SECURITY_CHAMPION(false, false, true, false, true),
-    AUDITOR(false, true, false, false, false),
-    USER(false, false, false, false, true);
+    /**
+     * <b>Governs the platform, and operates nothing.</b> See {@link #governsPlatform()} — it is the
+     * only role that may change the two settings defining the rules, and the only administrative
+     * one that may neither triage nor approve.
+     */
+    SUPERUSER(true, true, false, true, false, true),
+    ADMIN(true, true, true, true, true, false),
+    CISO(false, true, true, true, true, false),
+    SECURITY_CHAMPION(false, false, true, false, true, false),
+    AUDITOR(false, true, false, false, false, false),
+    USER(false, false, false, false, true, false);
 
     private final boolean administrative;
     private final boolean globalSecurityScope;
     private final boolean canApproveTriage;
     private final boolean canWriteGovernance;
     private final boolean canCauseEffects;
+    private final boolean governsPlatform;
 
     Role(
             boolean administrative,
             boolean globalSecurityScope,
             boolean canApproveTriage,
             boolean canWriteGovernance,
-            boolean canCauseEffects) {
+            boolean canCauseEffects,
+            boolean governsPlatform) {
         this.administrative = administrative;
         this.globalSecurityScope = globalSecurityScope;
         this.canApproveTriage = canApproveTriage;
         this.canWriteGovernance = canWriteGovernance;
         this.canCauseEffects = canCauseEffects;
+        this.governsPlatform = governsPlatform;
     }
 
     public boolean isAdministrative() {
@@ -95,6 +103,31 @@ public enum Role {
      */
     public boolean canCauseEffects() {
         return canCauseEffects;
+    }
+
+    /**
+     * May change the two settings that decide the rules everyone else plays by: who can see which
+     * targets, and whether writing off a vulnerability needs a second person.
+     *
+     * <p><b>True for {@link #SUPERUSER} alone, and it is what finally distinguishes it from
+     * {@link #ADMIN}.</b> The two carried identical flags — same powers, two names — so the accounts
+     * screen offered an elevation that did not exist and somebody would eventually have built a
+     * rule on it.
+     *
+     * <p><b>It comes with a subtraction, and the subtraction is the point.</b> A governor causes no
+     * effects and approves nothing. Four-eyes approval was defeatable by anyone who could both
+     * switch it off and triage — disable, settle alone, switch back on, with only an audit entry
+     * left behind. Removing the right to approve would not have closed that: with the setting off,
+     * {@code IssueTriageService} settles everybody's decision, approver or not. What closes it is
+     * breaking the <em>conjunction</em>. The account that can lift the rule cannot act under it, so
+     * lifting it buys that account nothing.
+     *
+     * <p>The cost is deliberate and worth stating: on an installation whose only account is the one
+     * the bootstrap created, nobody can triage until a working account is made. That is what a
+     * root account is for.
+     */
+    public boolean governsPlatform() {
+        return governsPlatform;
     }
 
     /**
