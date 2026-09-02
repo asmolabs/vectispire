@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,6 +35,7 @@ final class AuthorizationMarkers {
             RequiresAdministrator.class,
             RequiresSecurityLead.class,
             RequiresGovernanceRead.class,
+            RequiresWriteAccount.class,
             RequiresAccount.class,
             RequiresAgentKey.class,
             OpenToAnonymous.class);
@@ -41,6 +43,10 @@ final class AuthorizationMarkers {
     /**
      * The markers that answer "who", as opposed to {@link RequiresAccount}, which answers only
      * "somebody signed in" and therefore says nothing about which targets they may see.
+     *
+     * <p>{@link RequiresWriteAccount} belongs here: it does name who may call — everyone but a
+     * read-only account. It is the widest of them, which is the point. The routes it guards are
+     * ordinary work, and only the account that exists to look sits outside it.
      */
     static final List<Class<? extends Annotation>> ROLE_GUARDS = ALL.stream()
             .filter(marker -> marker != RequiresAccount.class)

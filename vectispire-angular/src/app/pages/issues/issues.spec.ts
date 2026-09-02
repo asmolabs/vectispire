@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 
 /**
@@ -275,15 +276,34 @@ describe('triaging a selection', () => {
         expect(http.expectOne('/api/v1/issues/triage').request.body.ids).toEqual([11, 22, 33]);
     });
 
-    it('offers the action only once something is ticked', () => {
+    it('offers the action only once something is ticked, and says what it will do', () => {
         const component = fixture.componentInstance;
-        expect(fixture.nativeElement.textContent).not.toContain('Triage selected');
+        const session = TestBed.inject(SessionStore);
+        const as = (role: string) =>
+            session.user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
+
+        as('CISO');
+        expect(fixture.nativeElement.textContent).not.toContain('(2)');
 
         component.selected.set([component.issues()[0], component.issues()[1]]);
         fixture.detectChanges();
 
         // The count is on the button because "Save" looks the same for one row and for forty.
-        expect(fixture.nativeElement.textContent).toContain('Triage selected (2)');
+        expect(fixture.nativeElement.textContent).toContain('Trier (2)');
+
+        // **Le libellé est la promesse.** Un compte sans droit d'approbation peut trier, mais sa
+        // décision part en file : l'écran l'annonçait « Triage » comme aux autres, et il le
+        // découvrait après coup en voyant le tag passer en « En attente d'approbation ».
+        as('USER');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain('Envoyer pour approbation (2)');
+        expect(fixture.nativeElement.textContent).not.toContain('Trier (2)');
+
+        // Un auditeur constate et ne décide pas : le contrôle est absent, pas grisé.
+        as('AUDITOR');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).not.toContain('(2)');
+        expect(fixture.nativeElement.textContent).toContain('constate et ne décide pas');
     });
 });
 

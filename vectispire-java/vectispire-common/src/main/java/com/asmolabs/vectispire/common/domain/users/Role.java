@@ -15,27 +15,30 @@ import java.util.Optional;
  * grants or withholds administration.
  */
 public enum Role {
-    SUPERUSER(true, true, true, true),
-    ADMIN(true, true, true, true),
-    CISO(false, true, true, true),
-    SECURITY_CHAMPION(false, false, true, false),
-    AUDITOR(false, true, false, false),
-    USER(false, false, false, false);
+    SUPERUSER(true, true, true, true, true),
+    ADMIN(true, true, true, true, true),
+    CISO(false, true, true, true, true),
+    SECURITY_CHAMPION(false, false, true, false, true),
+    AUDITOR(false, true, false, false, false),
+    USER(false, false, false, false, true);
 
     private final boolean administrative;
     private final boolean globalSecurityScope;
     private final boolean canApproveTriage;
     private final boolean canWriteGovernance;
+    private final boolean canCauseEffects;
 
     Role(
             boolean administrative,
             boolean globalSecurityScope,
             boolean canApproveTriage,
-            boolean canWriteGovernance) {
+            boolean canWriteGovernance,
+            boolean canCauseEffects) {
         this.administrative = administrative;
         this.globalSecurityScope = globalSecurityScope;
         this.canApproveTriage = canApproveTriage;
         this.canWriteGovernance = canWriteGovernance;
+        this.canCauseEffects = canCauseEffects;
     }
 
     public boolean isAdministrative() {
@@ -69,6 +72,29 @@ public enum Role {
 
     public boolean canApproveTriage() {
         return canApproveTriage;
+    }
+
+    /**
+     * May do something that leaves a trace — record a triage decision, open a ticket in somebody
+     * else's tracker, send a target's findings to a model.
+     *
+     * <p><b>False for {@link #AUDITOR} alone, and that is the whole content of the flag.</b> The
+     * role was added with the sentence "sees the whole estate and changes nothing, anywhere"
+     * written into its documentation, and the sentence was not true: triage, ticket creation and
+     * the OWASP review all sat behind {@code @RequiresAccount}, so a read-only account could settle
+     * an issue, create a GitLab issue, and put a target's finding list on a wire towards a host an
+     * operator configured.
+     *
+     * <p>Distinct from {@link #canWriteGovernance}, which is about the <em>rules</em> — the gate
+     * policy, the rule sets, the SIEM destination. This one is about the <em>work</em>: an ordinary
+     * account does it every day, and an auditor never does any of it.
+     *
+     * <p>Distinct from {@link #canApproveTriage} too, and the pair is a two-level model worth
+     * stating: recording a decision is one permission, having it settle rather than queue is
+     * another. A developer holds the first and not the second; an auditor holds neither.
+     */
+    public boolean canCauseEffects() {
+        return canCauseEffects;
     }
 
     /**

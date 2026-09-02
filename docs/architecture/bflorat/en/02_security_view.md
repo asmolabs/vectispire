@@ -67,6 +67,12 @@ Strict endpoint authorization via Spring Security:
   them: the only account that could inspect the posture was one that could rewrite it. Whoever
   checks the work should not be able to change it first.
 
+  **The role lied for a day, and that is worth recording.** It shipped on 1 September with that
+  sentence in its documentation while six write routes carried only `@RequiresAccount`: an auditor
+  could settle an issue, open a ticket in a customer's tracker, and send a target's finding list to
+  a model host. Closed on 2 September by `@RequiresWriteAccount`, after enumerating every non-GET
+  route a plain signed-in account can reach — not only the ones anybody suspected.
+
 **Reading governance and writing it are two separate markers** (2026-09-02). They were one, applied
 at class level across eight controllers, which conflated inspecting with modifying.
 
@@ -75,6 +81,7 @@ at class level across eight controllers, which conflated inspecting with modifyi
 | `@RequiresAdministrator` | SUPERUSER, ADMIN | Accounts, teams, keys, agents, settings |
 | `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Write**: gate policy, rule sets, SIEM destination, licence policy |
 | `@RequiresGovernanceRead` | + AUDITOR | **Read**: audit log, compliance evidence, gate policies, rule sets, SIEM config |
+| `@RequiresWriteAccount` | everyone but AUDITOR | **Act**: triage an issue, open a ticket, run an OWASP review or a model explanation |
 | `@RequiresAccount` | any signed-in account | Everything else, narrowed afterwards by visibility |
 
 These three role lists are not copies: `RouteAuthorizationTest` asserts that each expression matches

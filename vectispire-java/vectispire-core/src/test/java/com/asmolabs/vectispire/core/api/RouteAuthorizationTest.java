@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ class RouteAuthorizationTest extends ApiTestBase {
     private RequestMappingHandlerMapping mappings;
 
     @Test
-    @DisplayName("no handler is left without one of the six markers")
+    @DisplayName("no handler is left without one of the seven markers")
     void everyHandlerIsMarked() {
         List<String> unmarked = new ArrayList<>();
 
@@ -68,7 +69,8 @@ class RouteAuthorizationTest extends ApiTestBase {
         assertThat(unmarked)
                 .as("a route with no marker is reachable on whatever the filter chain happens to "
                         + "say — add @RequiresAccount, @RequiresAdministrator, "
-                        + "@RequiresSecurityLead, @RequiresGovernanceRead, @RequiresAgentKey "
+                        + "@RequiresSecurityLead, @RequiresGovernanceRead, @RequiresWriteAccount, "
+                        + "@RequiresAgentKey "
                         + "or @OpenToAnonymous")
                 .isEmpty();
     }
@@ -252,6 +254,25 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the write expression and the enum's idea of causing an effect agree")
+    void theWritersAreTheSameInBothPlaces() {
+        // The widest marker of the set, and the one whose width is the point: triaging is ordinary
+        // work, so an ordinary user belongs inside it. Only the account whose whole purpose is to
+        // look sits outside.
+        String expression = RequiresWriteAccount.class.getAnnotation(PreAuthorize.class).value();
+
+        for (Role role : Role.values()) {
+            boolean named = expression.contains("'" + role.name() + "'");
+            assertThat(named)
+                    .as("%s %s cause effects in Role, so it should %sbe in the expression",
+                            role,
+                            role.canCauseEffects() ? "may" : "may not",
+                            role.canCauseEffects() ? "" : "not ")
+                    .isEqualTo(role.canCauseEffects());
+        }
+    }
+
+    @Test
     @DisplayName("an auditor reads the governance it is there to inspect")
     void anAuditorMayRead() throws Exception {
         // The reason the role exists. Before it, every one of these required a marker that also
@@ -286,6 +307,25 @@ class RouteAuthorizationTest extends ApiTestBase {
                         asAuditor()))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .status().isForbidden());
+
+        // **Les six routes qui faisaient mentir le rôle.** `AUDITOR` est documenté — dans son
+        // propre javadoc, dans la vue sécurité, dans le guide — comme ne changeant rien nulle
+        // part. Ces six-là ne portaient que `@RequiresAccount`, donc il pouvait régler une
+        // anomalie, ouvrir un ticket chez un client, et envoyer la liste des constats d'une cible
+        // vers un hôte de modèle.
+        for (var route : java.util.List.of(
+                "/api/v1/issues/1/triage", "/api/v1/issues/triage",
+                "/api/v1/issues/1/tickets", "/api/v1/repositories/1/owasp-review",
+                "/api/v1/ai-advisor/explain/issue/1", "/api/v1/ai-advisor/explain/cve/CVE-2021-44228")) {
+            mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                    .post(route)
+                                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                    .content("{}"),
+                            asAuditor()))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                            .status().isForbidden());
+        }
 
         // Widening the read marker must not have widened it to everybody: USER is still out.
         mvc.perform(authenticated(

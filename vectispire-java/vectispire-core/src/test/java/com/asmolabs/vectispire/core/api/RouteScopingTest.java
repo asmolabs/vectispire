@@ -102,6 +102,7 @@ class RouteScopingTest {
     void everyRouteIsScopedOrExempt() throws IOException {
         List<Route> routes = new ArrayList<>();
         List<String> unscoped = new ArrayList<>();
+        int mappingsSeen = 0;
 
         try (Stream<Path> files = Files.list(CONTROLLERS)) {
             for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Controller.java")).toList()) {
@@ -119,6 +120,13 @@ class RouteScopingTest {
                     continue;
                 }
 
+                // Counted before the guards filter anything: this is what the self-check below
+                // is actually about.
+                Matcher every = MAPPING.matcher(source);
+                while (every.find()) {
+                    mappingsSeen++;
+                }
+
                 Set<String> trustedHelpers = helpersThatResolveAnAllowance(source);
 
                 for (Route route : routesOf(name, source)) {
@@ -131,10 +139,17 @@ class RouteScopingTest {
             }
         }
 
-        assertThat(routes)
+        // **The self-check counts mappings, not survivors.** It used to assert that more than
+        // sixty *unscoped-or-checked* routes came out of the parser — but a route that gains a
+        // role guard leaves that population, so every time the project did the right thing the
+        // number fell. On 2 September six routes were marked `@RequiresWriteAccount` and it
+        // reached 59: a rule failing because the estate improved. What the check means is "the
+        // parser found the controllers and read them", and the honest measure of that is how many
+        // mapping annotations it saw at all, which only a real parsing failure drives to zero.
+        assertThat(mappingsSeen)
                 .as("no routes were parsed: the path or the parser is wrong, and a rule that "
                         + "inspects nothing passes forever")
-                .hasSizeGreaterThan(60);
+                .isGreaterThan(60);
 
         assertThat(unscoped)
                 .as("these routes serve data without stating who may see it. Resolve a Visibility, "

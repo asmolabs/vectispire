@@ -73,6 +73,13 @@ L'application applique un contrôle strict sur tous les endpoints REST via Sprin
   était un compte capable de la réécrire. Qui vérifie le travail ne devrait pas pouvoir le changer
   d'abord.
 
+  **Le rôle a menti pendant une journée, et cela vaut d'être consigné.** Il a été livré le
+  1er septembre avec cette phrase dans sa documentation, alors que six routes d'écriture ne
+  portaient que `@RequiresAccount` : un auditeur pouvait régler une anomalie, ouvrir un ticket
+  chez un client, et envoyer la liste des constats d'une cible vers un hôte de modèle. Refermé le
+  2 septembre par `@RequiresWriteAccount`, après avoir énuméré toutes les routes non-GET qu'un
+  simple compte connecté atteint — et non les seules qu'on soupçonnait.
+
 **Lire la gouvernance et l'écrire sont deux marqueurs distincts** (2026-09-02). Ils portaient le
 même nom, posé au niveau classe sur huit contrôleurs, ce qui confondait consulter et modifier.
 
@@ -81,6 +88,7 @@ même nom, posé au niveau classe sur huit contrôleurs, ce qui confondait consu
 | `@RequiresAdministrator` | SUPERUSER, ADMIN | Comptes, équipes, clés, agents, réglages |
 | `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Écriture** : politique de barrière, jeux de règles, destination SIEM, politique de licences |
 | `@RequiresGovernanceRead` | + AUDITOR | **Lecture** : journal d'audit, preuves de conformité, barrières, jeux de règles, config SIEM |
+| `@RequiresWriteAccount` | tous sauf AUDITOR | **Agir** : trier une anomalie, ouvrir un ticket, lancer une revue OWASP ou une explication par modèle |
 | `@RequiresAccount` | tout compte connecté | Le reste, restreint ensuite par la visibilité |
 
 Ces trois listes de rôles ne sont pas recopiées : `RouteAuthorizationTest` vérifie que chaque

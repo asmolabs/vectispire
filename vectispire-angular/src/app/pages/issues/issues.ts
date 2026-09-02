@@ -52,6 +52,15 @@ export class Issues {
     private readonly route = inject(ActivatedRoute);
 
     readonly session = inject(SessionStore);
+    /**
+     * **Deux signaux, pas un.** `canCauseEffects` dit si le compte peut trier du tout — faux pour
+     * un auditeur seul. `canApproveTriage` dit si sa décision clôt ou part en file d'approbation.
+     * Les deux existaient dans `session.store` et n'étaient lus nulle part : le même écran
+     * s'affichait pour les six rôles, si bien qu'un auditeur se voyait offrir « Triage selected »
+     * et qu'un développeur lisait « Clore » sur un bouton qui ouvre une demande.
+     */
+    readonly canTriage = this.session.canCauseEffects;
+    readonly canApprove = this.session.canApproveTriage;
 
     readonly limit = 50;
     readonly issues = signal<Issue[]>([]);

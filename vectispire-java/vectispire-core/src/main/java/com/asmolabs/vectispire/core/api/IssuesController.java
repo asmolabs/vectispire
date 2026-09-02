@@ -48,6 +48,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * The backlog and its triage.
@@ -294,6 +295,7 @@ public class IssuesController {
      * hence the optional review date, at which the issue returns to {@code under_review} with
      * its justification intact.
      */
+    @RequiresWriteAccount
     @PostMapping("/{id}/triage")
     public IssueEntity triage(
             @PathVariable long id,
@@ -346,6 +348,7 @@ public class IssuesController {
      * would let a batch containing one invisible issue triage the ones before it and then answer
      * 404 — a partial write reported as a failure, which is the worst of the two.
      */
+    @RequiresWriteAccount
     @PostMapping("/triage")
     public List<IssueEntity> triageMany(
             @RequestBody BulkTriageRequest body,

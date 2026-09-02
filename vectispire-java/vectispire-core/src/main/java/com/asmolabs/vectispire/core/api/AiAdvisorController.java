@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * AI Fix & Exploit Advisor endpoints for contextual vulnerability explanation and remediation.
@@ -51,6 +52,7 @@ public class AiAdvisorController {
                 "availableModels", aiReviewService.availableModels());
     }
 
+    @RequiresWriteAccount
     @PostMapping("/explain/issue/{issueId}")
     public AiVulnerabilityAdvice explainIssue(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -67,6 +69,7 @@ public class AiAdvisorController {
         return aiReviewService.explainVulnerability(issue);
     }
 
+    @RequiresWriteAccount
     @PostMapping("/explain/cve/{cveId}")
     public AiVulnerabilityAdvice explainCve(
             @AuthenticationPrincipal VectispirePrincipal principal,

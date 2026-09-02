@@ -60,10 +60,32 @@
         than they meant to. It is absent, not disabled, while nothing is ticked — there is no
         batch to explain.
     -->
-    @if (selected().length > 0) {
+    <!--
+        **Le bouton dit ce qui va réellement se passer.** Un compte sans droit d'approbation peut
+        trier — sa décision part en file au lieu de clore — et l'écran annonçait « Triage » aux
+        deux, si bien qu'il découvrait la file après coup, en voyant le tag passer en « En attente
+        d'approbation ». L'information arrivait ; elle arrivait après la décision.
+    -->
+    @if (selected().length > 0 && canTriage()) {
         <div class="flex items-center gap-3 mb-3">
-            <p-button [label]="'Triage selected (' + selected().length + ')'" size="small" (onClick)="openBulkTriage()" />
-            <span class="text-muted-color text-sm">One decision, written to every selected issue — or to none of them.</span>
+            <p-button [label]="(canApprove() ? 'Trier' : 'Envoyer pour approbation') + ' (' + selected().length + ')'"
+                      size="small" (onClick)="openBulkTriage()" />
+            <span class="text-muted-color text-sm">
+                @if (canApprove()) {
+                    One decision, written to every selected issue — or to none of them.
+                } @else {
+                    Votre décision part en approbation : un référent sécurité ou un CISO la validera.
+                }
+            </span>
+        </div>
+    }
+    <!--
+        Absents et non désactivés pour un compte en lecture seule : un bouton grisé invite à
+        chercher pourquoi, une absence accompagnée de sa raison explique d'elle-même.
+    -->
+    @if (selected().length > 0 && !canTriage()) {
+        <div class="flex items-center gap-3 mb-3 text-muted-color text-sm">
+            Ce compte constate et ne décide pas — le triage appartient aux équipes qui portent les cibles.
         </div>
     }
 

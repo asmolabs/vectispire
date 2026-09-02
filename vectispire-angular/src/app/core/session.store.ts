@@ -12,6 +12,13 @@ export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CI
  */
 export const GOVERNANCE_READER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'AUDITOR'];
 export const TRIAGE_APPROVER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION'];
+/**
+ * The roles that may **do** something — record a triage decision, open a ticket, run a review.
+ *
+ * Mirrors `@RequiresWriteAccount`. Deliberately wide: triaging is ordinary work, so an ordinary
+ * user belongs here. Only `AUDITOR`, whose whole purpose is to look, sits outside.
+ */
+export const EFFECT_CAUSING_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER'];
 import { AuthenticatedUser } from './api.models';
 
 /**
@@ -46,7 +53,14 @@ export class SessionStore {
     readonly isSecurityLead = computed(() => SECURITY_LEAD_ROLES.includes(this.role()));
     readonly canReadGovernance = computed(() => GOVERNANCE_READER_ROLES.includes(this.role()));
     readonly isSecurityChampion = computed(() => this.role() === 'SECURITY_CHAMPION');
+    /**
+     * Their triage decision **settles**. A signed-in account that lacks this may still triage —
+     * the decision goes to the approval queue instead — which is why the two signals below are
+     * separate and why a screen needs both to say the right thing.
+     */
     readonly canApproveTriage = computed(() => TRIAGE_APPROVER_ROLES.includes(this.role()));
+    /** They may act at all. False for an auditor, and for nobody else. */
+    readonly canCauseEffects = computed(() => EFFECT_CAUSING_ROLES.includes(this.role()));
     readonly isCiso = computed(() => this.role() === 'CISO');
     /** The account must change its password before reaching anything else. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);

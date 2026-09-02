@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * The OWASP posture report of one repository.
@@ -99,6 +100,7 @@ public class OwaspController {
                 .orElseThrow(() -> new NoSuchElementException("No OWASP report has been produced for this target."));
     }
 
+    @RequiresWriteAccount
     @PostMapping
     public Report run(
             @AuthenticationPrincipal VectispirePrincipal principal,

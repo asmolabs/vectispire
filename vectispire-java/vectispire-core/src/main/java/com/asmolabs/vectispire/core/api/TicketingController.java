@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * Bidirectional incident & ticketing integration (Jira, GitHub, GitLab).
@@ -62,6 +63,7 @@ public class TicketingController {
         return tickets.findByIssueIdOrderByCreatedAtDesc(issueId);
     }
 
+    @RequiresWriteAccount
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public IssueTicketEntity create(
