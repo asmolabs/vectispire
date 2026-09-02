@@ -33,9 +33,9 @@
 
 | Entité / Table | Estimation Volumétrique (100 Cibles, 10 000 Scans) | Stratégie de Gestion & Optimisation |
 |---|---|---|
-| **`t_scan` (Historique scans)** | ~ 100 000 lignes / an | Nettoyage des métadonnées de scans obsolètes via `RetentionService`. |
-| **`t_finding` (Constats bruts)** | ~ 500 000 lignes | Transitoire, purgé périodiquement par la tâche de rétention. |
-| **`t_issue` (Backlog réconcilié)** | ~ 10 000 à 50 000 anomalies uniques | `(state, repo_id)` et `(state, container_id)` pour le gate et le sommaire de conformité, `(fingerprint)` pour la recherche d'identité par finding à l'ingestion. Ajoutés le 2026-08-25 : cette table ne portait **aucun index** alors que ce document en annonçait trois, et `SchemaParityIntegrationTest` vérifie désormais leur existence sur chaque moteur, si bien qu'un refactoring ne peut plus les faire disparaître en silence. |
+| **`t_scan` (Historique scans)** | ~ 100 000 lignes / an | Nettoyage des métadonnées de scans obsolètes via `RetentionService`. Ajoutés le 2026-09-02 : `(repo_id, id)` et `(container_id, id)`, parce que « le dernier scan par cible » est une sous-requête corrélée — sans index sur `repo_id`, la liste des dépôts était quadratique en nombre de scans. |
+| **`t_finding` (Constats bruts)** | ~ 500 000 lignes | Transitoire, purgé périodiquement par la tâche de rétention. Ajoutés le 2026-09-02 : `(scan_id)`, `(package_name)` et `(issue_id)`. **La plus grande table du schéma ne portait rien d'autre que sa clé primaire** — `scan_id` était déclaré par un `references` en ligne, forme qui ne crée d'index sur aucun des trois moteurs. |
+| **`t_issue` (Backlog réconcilié)** | ~ 10 000 à 50 000 anomalies uniques | `(state, repo_id)` et `(state, container_id)` pour le gate et le sommaire de conformité, `(fingerprint)` pour la recherche d'identité par finding à l'ingestion, et `(identifier)` depuis le 2026-09-02 parce que le générateur CycloneDX et l'ingesteur VEX cherchent par CVE dans une boucle. Ajoutés le 2026-08-25 : cette table ne portait **aucun index** alors que ce document en annonçait trois, et `SchemaParityIntegrationTest` vérifie désormais leur existence sur chaque moteur, si bien qu'un refactoring ne peut plus les faire disparaître en silence. |
 | **`t_audit_log` (Journal scellé)** | ~ 50 000 entrées d'audit / an | Immuable, stockage d'empreintes SHA-256 compactes. |
 
 ---
@@ -92,3 +92,12 @@ Chaque conteneur exécuté est contraint pour éviter l'épuisement mémoire de 
   Cette entrée annonçait `2.0 vCPUs` depuis des semaines sans qu'aucune limite CPU ne soit
   appliquée. Elle l'est désormais, et elle est vérifiée : rien n'avait jamais contrôlé aucun de ces
   drapeaux, ce qui est la façon dont un contrôle reste documenté et absent en même temps.
+
+  **Le compte de cœurs est celui du démon, et pas celui de la JVM** (2026-09-02). La limite était
+  calculée depuis `availableProcessors()`, qui compte les cœurs de la machine portant le plan de
+  contrôle — alors que le conteneur s'exécute sur la machine portant le démon. Les deux diffèrent
+  dès que Docker Desktop est interposé, que `DOCKER_HOST` pointe ailleurs, ou que le plan de
+  contrôle est lui-même conteneurisé avec son propre quota. Ce n'est pas une erreur conservatrice :
+  Docker n'arrondit pas vers le bas, il refuse la création avec *« Range of CPUs is from 0.01 to
+  N »* et plus aucun scan ne démarre. `ContainerRunner` interroge maintenant `docker info` et borne
+  le quota à tous les cœurs du démon sauf un. Dimensionnez donc la **VM du démon**, pas l'hôte.

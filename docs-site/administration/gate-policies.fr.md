@@ -3,6 +3,12 @@
 **Administration → Politiques de barrière.** Une politique globale, redéfinie par cible là où
 c'est nécessaire.
 
+!!! info "Qui lit, qui modifie"
+    Lire une politique est ouvert aux administrateurs, au CISO et au rôle **Auditeur**. En changer
+    une — la politique globale, une redéfinition par cible, une suppression — demande un
+    administrateur ou le CISO. Un auditeur voit exactement ce que la barrière impose, et ne peut
+    pas l'adoucir.
+
 ## Stockée et versionnée
 
 Une politique est stockée et porte une version, avec un **« pourquoi » conservé avec la

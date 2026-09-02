@@ -64,8 +64,32 @@ L'application applique un contrôle strict sur tous les endpoints REST via Sprin
   consigné dans le journal d'audit scellé SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
   (`SETTING_UPDATED`).
 - `ROLE_USER` / `ROLE_SECURITY_CHAMPION` : Consultation du posture dashboard et qualification des
-  vulnérabilités.
-- `ROLE_CI` : Exécution exclusive des requêtes de Gate (`POST /api/v1/gate`).
+  vulnérabilités. Le référent sécurité peut approuver un triage, mais dans le seul périmètre que sa
+  visibilité lui donne — il n'a pas de portée globale.
+- `ROLE_AUDITOR` (2026-09-02) : **lit la gouvernance et n'en écrit rien.** Portée globale, aucune
+  approbation, aucune écriture nulle part. Le rôle existe parce que jusqu'à cette date la lecture
+  du journal d'audit, des preuves de conformité, de la politique de barrière et de la destination
+  SIEM demandait le même marqueur que leur écriture : le seul compte capable d'inspecter la posture
+  était un compte capable de la réécrire. Qui vérifie le travail ne devrait pas pouvoir le changer
+  d'abord.
+
+**Lire la gouvernance et l'écrire sont deux marqueurs distincts** (2026-09-02). Ils portaient le
+même nom, posé au niveau classe sur huit contrôleurs, ce qui confondait consulter et modifier.
+
+| Marqueur | Rôles | Ce qu'il ouvre |
+|---|---|---|
+| `@RequiresAdministrator` | SUPERUSER, ADMIN | Comptes, équipes, clés, agents, réglages |
+| `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Écriture** : politique de barrière, jeux de règles, destination SIEM, politique de licences |
+| `@RequiresGovernanceRead` | + AUDITOR | **Lecture** : journal d'audit, preuves de conformité, barrières, jeux de règles, config SIEM |
+| `@RequiresAccount` | tout compte connecté | Le reste, restreint ensuite par la visibilité |
+
+Ces trois listes de rôles ne sont pas recopiées : `RouteAuthorizationTest` vérifie que chaque
+expression correspond exactement au drapeau de `Role` qui la définit, et refuse toute route qui
+écrirait sa propre liste au lieu de porter un marqueur.
+
+Le gate (`POST /api/v1/gate`) ne demande **aucun rôle particulier** : il porte `@RequiresAccount`
+et s'appelle en pratique avec une clé API, dont les scopes sont un axe d'autorisation séparé. Ce
+document annonçait un `ROLE_CI` qui n'a jamais existé.
 
 ---
 

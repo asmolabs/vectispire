@@ -2,6 +2,11 @@
 
 Un registre immuable et chaîné par empreintes de ce qui a été fait, et par qui.
 
+!!! info "Qui peut le lire"
+    Les administrateurs, le CISO, et le rôle **Auditeur** — qui lit cette page et ne change rien,
+    nulle part. Avant que ce rôle existe, ouvrir le journal d'audit à quelqu'un revenait à lui
+    donner aussi le droit de réécrire la politique qu'il venait vérifier.
+
 ## Pourquoi une chaîne
 
 Chaque entrée est chaînée à la précédente, si bien qu'une entrée ne peut être modifiée ou

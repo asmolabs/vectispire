@@ -13,9 +13,26 @@ stays intact — which is the point of deactivating rather than deleting one.
 
 ## Roles
 
-Roles decide what a person can do. SUPERUSER is the role that can administer other
-accounts, and it is the one to hand out sparingly: the audit log is only as meaningful as
-the number of people who can change what it records.
+Roles decide what a person may **do**; teams decide what they may **see**. The two are independent
+by design: granting a role does not widen someone's scope, except for the three roles that
+explicitly carry a global one.
+
+| Role | What it can do |
+|---|---|
+| **User** | Sees and triages the findings of its own targets. Cannot single-handedly approve a decision that settles an issue while four-eyes approval is on. |
+| **Security Champion** | As above, and may approve a triage — but only within the scope its teams grant. |
+| **Auditor** | Sees the whole estate and **changes nothing**, anywhere. Reads the audit log, the compliance evidence, the gate policy, the rule sets and the SIEM configuration. Approves no triage. |
+| **CISO / Security Lead** | Sees the whole estate, approves triages, and **writes** governance: gate policies, rule sets, SIEM destination, licence policy, settings. Does not administer accounts. |
+| **Administrator** | All of the above, plus accounts, teams, API keys, SSH keys and agents. |
+| **Superuser** | Identical to Administrator today. Created by the installation's bootstrap. |
+
+**The auditor is worth a note.** It exists because "looking" and "being able to change" used to be
+the same permission: the only way to open the audit log to someone was to also grant them the right
+to rewrite the policy they had come to check. If you have to show your posture to an assessor, a
+customer or an internal function, that is the role — not CISO.
+
+Hand out administrative roles sparingly: the audit log is only as meaningful as the number of
+people who can change what it records.
 
 ## Teams and visibility
 

@@ -5,6 +5,10 @@ shell, an unverified TLS certificate. No other scanner here sees any of that.
 
 It is **off by default**, and it runs with the network disabled like every other scanner.
 
+!!! info "Who can read, who can change"
+    Reading the rule sets and their impact is open to administrators, the CISO and the **Auditor**
+    role. Uploading a set, activating or deactivating one requires an administrator or the CISO.
+
 ## Why you have to install rules yourself
 
 **Vectispire bundles a single rule.**

@@ -58,8 +58,32 @@ Strict endpoint authorization via Spring Security:
   role gate alone lets one person hold both halves.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
   sealed audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
-- `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage.
-- `ROLE_CI`: Dedicated Gate evaluation execution (`POST /api/v1/gate`).
+- `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage. A
+  security champion may approve a triage, but only within the scope its visibility grants — it has
+  no global reach.
+- `ROLE_AUDITOR` (2026-09-02): **reads governance and writes none of it.** Global scope, no
+  approval, no write anywhere. The role exists because until that date, reading the audit log, the
+  compliance evidence, the gate policy and the SIEM destination required the same marker as writing
+  them: the only account that could inspect the posture was one that could rewrite it. Whoever
+  checks the work should not be able to change it first.
+
+**Reading governance and writing it are two separate markers** (2026-09-02). They were one, applied
+at class level across eight controllers, which conflated inspecting with modifying.
+
+| Marker | Roles | What it opens |
+|---|---|---|
+| `@RequiresAdministrator` | SUPERUSER, ADMIN | Accounts, teams, keys, agents, settings |
+| `@RequiresSecurityLead` | SUPERUSER, ADMIN, CISO | **Write**: gate policy, rule sets, SIEM destination, licence policy |
+| `@RequiresGovernanceRead` | + AUDITOR | **Read**: audit log, compliance evidence, gate policies, rule sets, SIEM config |
+| `@RequiresAccount` | any signed-in account | Everything else, narrowed afterwards by visibility |
+
+These three role lists are not copies: `RouteAuthorizationTest` asserts that each expression matches
+exactly the `Role` flag that defines it, and refuses any route that spells out its own list instead
+of wearing a marker.
+
+The gate (`POST /api/v1/gate`) requires **no particular role**: it carries `@RequiresAccount` and is
+called in practice with an API key, whose scopes are a separate authorization axis. This document
+claimed a `ROLE_CI` that never existed.
 
 ---
 

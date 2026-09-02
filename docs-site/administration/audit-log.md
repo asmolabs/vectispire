@@ -2,6 +2,11 @@
 
 An immutable, hash-chained record of what was done and by whom.
 
+!!! info "Who can read it"
+    Administrators, the CISO, and the **Auditor** role — which reads this page and changes nothing
+    anywhere. Before that role existed, opening the audit log to somebody meant also granting them
+    the power to rewrite the policy they had come to check.
+
 ## Why a chain
 
 Each entry is chained to the one before it, so an entry cannot be altered or removed

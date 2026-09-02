@@ -31,9 +31,9 @@
 
 | Entity / Table | Volumetric Estimate (100 Targets, 10,000 Scans) | Management & Optimization Strategy |
 |---|---|---|
-| **`t_scan` (Scan history)** | ~ 100,000 rows / year | Pruning old scan execution metadata via `RetentionService`. |
-| **`t_finding` (Raw findings)** | ~ 500,000 rows | Transient data, purged periodically by retention task. |
-| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | `(state, repo_id)` and `(state, container_id)` for the gate and the compliance summary, `(fingerprint)` for the per-finding identity lookup at ingestion. Added 2026-08-25: this table had carried **no index at all** while this document claimed three, and `SchemaParityIntegrationTest` now asserts they exist on every engine, so a refactor cannot drop them quietly. |
+| **`t_scan` (Scan history)** | ~ 100,000 rows / year | Pruning old scan execution metadata via `RetentionService`. Added 2026-09-02: `(repo_id, id)` and `(container_id, id)`, because "the latest scan per target" is a correlated subquery — with no index on `repo_id`, the repository list was quadratic in the number of scans. |
+| **`t_finding` (Raw findings)** | ~ 500,000 rows | Transient data, purged periodically by retention task. Added 2026-09-02: `(scan_id)`, `(package_name)` and `(issue_id)`. **The largest table in the schema carried nothing but its primary key** — `scan_id` was declared by an inline `references`, a form that creates no index on any of the three engines. |
+| **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | `(state, repo_id)` and `(state, container_id)` for the gate and the compliance summary, `(fingerprint)` for the per-finding identity lookup at ingestion, and `(identifier)` since 2026-09-02 because the CycloneDX generator and the VEX ingestor look up by CVE inside a loop. Added 2026-08-25: this table had carried **no index at all** while this document claimed three, and `SchemaParityIntegrationTest` now asserts they exist on every engine, so a refactor cannot drop them quietly. |
 | **`t_audit_log` (Sealed log)** | ~ 50,000 audit entries / year | Immutable, compact SHA-256 hash storage. |
 
 ---
@@ -87,3 +87,12 @@ Every container execution is constrained to prevent host memory exhaustion:
   This entry claimed `2.0 vCPUs` for weeks while no CPU limit of any kind was applied. It is now
   applied, and asserted: nothing had ever checked any of these flags, which is how a control stays
   documented and absent at the same time.
+
+  **The core count is the daemon's, not the JVM's** (2026-09-02). The limit was derived from
+  `availableProcessors()`, which counts the cores of the machine running the control plane — while
+  the container runs on the machine running the daemon. The two differ whenever Docker Desktop is
+  in the way, whenever `DOCKER_HOST` points elsewhere, and whenever the control plane is itself
+  containerised with a quota of its own. Asking the wrong machine is not a conservative error:
+  Docker does not round down, it refuses the create with *"Range of CPUs is from 0.01 to N"* and no
+  scan starts at all. `ContainerRunner` now asks `docker info` and clamps to all but one of the
+  daemon's cores. Size the **daemon's VM**, not the host.

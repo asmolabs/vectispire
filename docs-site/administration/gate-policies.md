@@ -2,6 +2,11 @@
 
 **Administration → Gate policies.** One global policy, overridden per target where needed.
 
+!!! info "Who can read, who can change"
+    Reading a policy is open to administrators, the CISO and the **Auditor** role. Changing one —
+    the global policy, a per-target override, a deletion — requires an administrator or the CISO.
+    An auditor sees exactly what the gate enforces and cannot soften it.
+
 ## Stored and versioned
 
 A policy is stored and carries a version, along with a **"why", kept with the version**.

@@ -6,6 +6,11 @@ cela.
 
 Il est **désactivé par défaut**, et s'exécute réseau désactivé comme tous les autres scanners.
 
+!!! info "Qui lit, qui modifie"
+    Lire les jeux de règles et leur impact est ouvert aux administrateurs, au CISO et au rôle
+    **Auditeur**. Téléverser un jeu, en activer ou en désactiver un demande un administrateur ou
+    le CISO.
+
 ## Pourquoi vous devez installer les règles vous-même
 
 **Vectispire n'embarque qu'une seule règle.**
