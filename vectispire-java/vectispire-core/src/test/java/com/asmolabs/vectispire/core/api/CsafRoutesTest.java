@@ -65,7 +65,13 @@ class CsafRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.document.category").value("csaf_vex"))
                 .andExpect(jsonPath("$.document.csaf_version").value("2.0"))
                 .andExpect(jsonPath("$.vulnerabilities[0].cve").value("CVE-2023-44487"))
-                .andExpect(jsonPath("$.vulnerabilities[0].product_status.known_not_affected").isArray());
+                // **Ce cas exigeait que le produit figure dans `known_not_affected`.** Dans un
+                // document CSAF, cette liste est une déclaration formelle de non-exposition faite à
+                // qui le lit. Elle était remplie depuis la colonne d'atteignabilité, c'est-à-dire
+                // depuis une corrélation de texte qui n'avait pas trouvé le nom du paquet. Le
+                // produit est maintenant déclaré affecté tant que personne ne l'a disculpé.
+                .andExpect(jsonPath("$.vulnerabilities[0].product_status.known_not_affected").doesNotExist())
+                .andExpect(jsonPath("$.vulnerabilities[0].product_status.known_affected").isArray());
     }
 
     @Test

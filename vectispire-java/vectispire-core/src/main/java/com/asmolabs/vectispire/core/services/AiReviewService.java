@@ -319,8 +319,17 @@ public class AiReviewService {
 
         if (isEnabled()) {
             try {
+                // **`not_affected` n'est pas dans les choix offerts, et c'est délibéré.** Le champ
+                // `Reachability` passé ici vaut REACHABLE quand un constat de code mentionne le
+                // paquet, et UNKNOWN sinon — une corrélation de texte, pas un graphe d'appels. Un
+                // modèle à qui l'on tend cette valeur et l'option `code_not_reachable` produit une
+                // exonération plausible et infondée, qui arrive pré-remplie devant un développeur.
+                // Exonérer reste une décision de personne ; le modèle explique et propose un
+                // correctif.
                 String prompt = String.format(
-                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, Reachability: %s, KEV: %s, EPSS: %s. Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"not_affected|affected|under_investigation\",\"vex_justification\":\"code_not_reachable|vulnerable_code_cannot_be_controlled_by_adversary\",\"vex_statement\":\"...\"}",
+                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, CodeEvidence: %s, KEV: %s, EPSS: %s. "
+                                + "CodeEvidence is a text correlation between the package name and code findings, not call-graph analysis: never present it as proof that the vulnerable method is or is not invoked. "
+                                + "Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"affected|under_investigation\",\"vex_statement\":\"...\"}",
                         id, pkg, ver, fix, reachability, isKev, epss);
 
                 String text = chat(List.of(

@@ -210,8 +210,9 @@ public class CycloneDxGeneratorService {
     }
 
     private Analysis mapAnalysis(String triageStatus, String triageJustification, String comment, String reachability, String state) {
-        boolean notAffected = "not_affected".equalsIgnoreCase(triageStatus)
-                || ReachabilityStatus.UNREACHABLE.name().equalsIgnoreCase(reachability);
+        // Triage clears a component; reachability does not — same reason as the CSAF and OpenVEX
+        // generators. `reachability` is still read below, to *raise* concern, never to remove it.
+        boolean notAffected = "not_affected".equalsIgnoreCase(triageStatus);
         boolean fixed = "resolved".equalsIgnoreCase(state) || "fixed".equalsIgnoreCase(triageStatus);
         boolean underReview = "under_review".equalsIgnoreCase(triageStatus)
                 || "pending_approval".equalsIgnoreCase(triageStatus);

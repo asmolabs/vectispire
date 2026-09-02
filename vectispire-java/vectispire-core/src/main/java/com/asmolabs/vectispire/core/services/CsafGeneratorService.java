@@ -59,8 +59,10 @@ public class CsafGeneratorService {
                     pkg + " " + version,
                     Map.of("purl", issue.getPurl() != null ? issue.getPurl() : "pkg:generic/" + pkg + "@" + version)));
 
-            boolean notAffected = "not_affected".equalsIgnoreCase(issue.getTriageStatus())
-                    || ReachabilityStatus.UNREACHABLE.name().equalsIgnoreCase(issue.getReachability());
+            // A person's triage clears a product. The reachability column does not: it was set
+            // by a substring search that did not match, and this line published that as
+            // `known_not_affected` in a document nobody approved.
+            boolean notAffected = "not_affected".equalsIgnoreCase(issue.getTriageStatus());
             boolean fixed = "resolved".equalsIgnoreCase(issue.getState()) || "fixed".equalsIgnoreCase(issue.getTriageStatus());
             boolean underInvestigation = "under_review".equalsIgnoreCase(issue.getTriageStatus())
                     || "pending_approval".equalsIgnoreCase(issue.getTriageStatus());
@@ -127,7 +129,11 @@ public class CsafGeneratorService {
                     pkg + " " + version,
                     Map.of("purl", finding.getPurl() != null ? finding.getPurl() : "pkg:generic/" + pkg + "@" + version)));
 
-            boolean notAffected = ReachabilityStatus.UNREACHABLE.name().equalsIgnoreCase(finding.getReachability());
+            // **Never from reachability.** That column was set by a substring search that did not
+            // match, and this line put the product in the CSAF `known_not_affected` list on the
+            // strength of it — a machine-readable exoneration nobody approved. A component is
+            // cleared here only when a person triaged it as such.
+            boolean notAffected = false;
             CsafDocument.ProductStatus productStatus = new CsafDocument.ProductStatus(
                     notAffected ? List.of(productId) : null,
                     notAffected ? null : List.of(productId),

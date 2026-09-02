@@ -26,7 +26,11 @@ public record OpenVexDocument(
                 "Document Creator",
                 timestamp != null ? timestamp : Instant.now(),
                 1,
-                "Vectispire Reachability & Exploitability Engine",
+                // **Le nom que porte chaque document exporté.** Il annonçait un « Reachability &
+                // Exploitability Engine » alors que la corrélation d'atteignabilité rapproche des
+                // textes sans suivre de graphe d'appels — et ce champ `tooling` est précisément ce
+                // qu'un lecteur regarde pour juger du poids d'une affirmation.
+                "Vectispire ASPM",
                 statements != null ? statements : List.of());
     }
 }

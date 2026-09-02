@@ -39,7 +39,7 @@ class ReachabilityAnalysisTest {
     }
 
     @Test
-    @DisplayName("marks vulnerable dependency as UNREACHABLE when SAST ran but found no calls")
+    @DisplayName("no matching code finding is UNKNOWN, not a clean bill of health")
     void detectsUnreachableVulnerability() {
         FindingEntity scaFinding = new FindingEntity();
         scaFinding.setPackageName("log4j-core");
@@ -52,11 +52,17 @@ class ReachabilityAnalysisTest {
 
         analyzer.analyzeAndEnrich(scaFinding, List.of(scaFinding, sastFinding));
 
-        assertThat(scaFinding.getReachability()).isEqualTo("UNREACHABLE");
+        // **Ce cas exigeait UNREACHABLE, et c'était le cœur du défaut.** L'analyseur ne suit aucun
+        // graphe d'appels : il cherche le nom du paquet en sous-chaîne dans les constats Semgrep du
+        // scan. Ne rien trouver signifiait « non atteignable », donc `not_affected` dans OpenVEX et
+        // `known_not_affected` dans CSAF — l'absence de preuve publiée comme une preuve d'absence,
+        // sur un produit dont l'analyse de code est désactivée par défaut et qui ne livre qu'une
+        // règle Semgrep. Cet analyseur peut lever la main ; il ne peut disculper personne.
+        assertThat(scaFinding.getReachability()).isEqualTo("UNKNOWN");
         assertThat(scaFinding.getReachableSymbols()).isNull();
 
         IssueEntity issue = new IssueEntity();
         analyzer.enrichIssue(issue, List.of(scaFinding));
-        assertThat(issue.getReachability()).isEqualTo("UNREACHABLE");
+        assertThat(issue.getReachability()).isEqualTo("UNKNOWN");
     }
 }

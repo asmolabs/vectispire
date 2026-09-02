@@ -81,13 +81,7 @@ public class VexGeneratorService {
                 : "pkg:generic/" + (finding.getPackageName() != null ? finding.getPackageName() : "unknown") + "@" + (finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest");
 
         String reachability = finding.getReachability();
-        if (ReachabilityStatus.UNREACHABLE.name().equalsIgnoreCase(reachability)) {
-            return OpenVexStatement.notAffected(
-                    cve,
-                    purl,
-                    VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH,
-                    "Vectispire static analysis verified no direct call path invokes the vulnerable code.");
-        }
+        // No `not_affected` from reachability — see the note on the issue-level statement below.
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(reachability)) {
             String traces = finding.getReachableSymbols() != null ? " Traces: " + finding.getReachableSymbols() : "";
@@ -120,14 +114,6 @@ public class VexGeneratorService {
         if ("false_positive".equalsIgnoreCase(issue.getTriageStatus()) || "accepted_risk".equalsIgnoreCase(issue.getTriageStatus())) {
             String justification = issue.getTriageJustification() != null ? issue.getTriageJustification() : "Accepted under documented security exception.";
             return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_EXIST, justification);
-        }
-
-        if (ReachabilityStatus.UNREACHABLE.name().equalsIgnoreCase(issue.getReachability())) {
-            return OpenVexStatement.notAffected(
-                    cve,
-                    purl,
-                    VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH,
-                    "Vectispire static analysis verified no direct call path invokes the vulnerable code.");
         }
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.getReachability())) {
