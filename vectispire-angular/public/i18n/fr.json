@@ -86,7 +86,8 @@
     "settings_scanners": "Moteurs & Scanners",
     "settings_ai": "IA",
     "settings_integrations": "Intégrations & SIEM",
-    "settings_threat_intel": "Threat Intelligence"
+    "settings_threat_intel": "Threat Intelligence",
+    "attestation": "Attestation"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -790,8 +791,6 @@
     "confirm_pw_label": "Confirmation",
     "min_length_msg": "Au moins 12 caractères.",
     "change_pw_btn": "Modifier le mot de passe",
-    "access_denied_title": "Accès refusé",
-    "access_denied_desc": "Vous ne disposez pas des autorisations requises. Veuillez contacter un administrateur.",
     "go_dashboard_btn": "Retour au tableau de bord",
     "error_title": "Une erreur est survenue",
     "error_desc": "La ressource demandée n'est pas disponible.",
@@ -909,5 +908,23 @@
     "page_asked": "Page demandée :",
     "back_to_dashboard": "Retour au tableau de bord",
     "somewhere_useful": "Aller où vous pouvez agir"
+  },
+  "attestation": {
+    "title": "Attestation",
+    "established": "État établi le",
+    "targets": "cibles suivies",
+    "download": "Télécharger le paquet daté",
+    "recheck": "Revérifier la chaîne",
+    "open_audit_log": "Journal d'audit",
+    "chain_intact": "Chaîne d'audit intacte",
+    "chain_broken": "Chaîne d'audit rompue",
+    "entries": "entrées",
+    "verified": "vérifiées",
+    "unverifiable": "antérieures au chaînage",
+    "frameworks": "Référentiels",
+    "frameworks_note": "Quatre contrôles par référentiel, projetés depuis sept catégories : deux référentiels partageant une catégorie reçoivent le même résultat.",
+    "no_compliance": "La conformité n'a pas pu être lue.",
+    "bundle": "Paquet de preuves",
+    "bundle_desc": "La clé publique de vérification, les six référentiels évalués, le journal d'audit complet, les décisions de triage et leurs justifications, les attestations in-toto en enveloppe DSSE, les avis OpenVEX et CSAF signés, la conformité des licences et le CycloneDX signé."
   }
 }

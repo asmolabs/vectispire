@@ -1061,7 +1061,12 @@ export interface ComplianceControlAssessment {
 }
 
 export interface ComplianceEvaluation {
-    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS' | 'EU_CRA';
+    /**
+     * **Six, et `SOC_2` manquait.** Le serveur en déclare six depuis toujours ; ce type en listait
+     * cinq, si bien qu'un `switch` exhaustif sur ce champ aurait omis SOC 2 sans que le
+     * compilateur le signale — l'exhaustivité se mesure au type, pas à la réalité.
+     */
+    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS' | 'EU_CRA' | 'SOC_2';
     scorePercentage: number;
     overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
     controls: ComplianceControlAssessment[];

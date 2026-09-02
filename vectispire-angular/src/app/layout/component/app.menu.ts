@@ -82,6 +82,7 @@ export class AppMenu {
             // that answer 200 — a permission granted on the server and withheld by the client.
             if (this.session.canReadGovernance()) {
                 adminItems.push(
+                    { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
                     { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
                     { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
                     { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }

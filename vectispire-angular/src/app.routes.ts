@@ -51,12 +51,12 @@ export const appRoutes: Routes = [
             { path: 'attack-surface', loadComponent: () => import('./app/pages/attack-surface/attack-surface').then((m) => m.AttackSurface) },
             { path: 'attack-paths', loadComponent: () => import('./app/pages/attack-paths/attack-paths').then((m) => m.AttackPaths) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) },
+            { path: 'attestation', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/attestation/attestation').then((m) => m.Attestation) },
             { path: 'forbidden', loadComponent: () => import('./app/pages/forbidden/forbidden').then((m) => m.Forbidden) }
         ]
     },
     { path: 'change-password', loadComponent: () => import('./app/pages/auth/change-password').then((m) => m.ChangePassword) },
     { path: 'login', loadComponent: () => import('./app/pages/auth/login').then((m) => m.Login) },
-    { path: 'access', loadComponent: () => import('./app/pages/auth/access').then((m) => m.Access) },
     { path: 'error', loadComponent: () => import('./app/pages/auth/error').then((m) => m.Error) },
     { path: 'notfound', loadComponent: () => import('./app/pages/notfound/notfound').then((m) => m.Notfound) },
     { path: '**', redirectTo: '/notfound' }

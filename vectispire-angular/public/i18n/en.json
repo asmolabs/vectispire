@@ -86,7 +86,8 @@
     "settings_scanners": "Scanners & Engines",
     "settings_ai": "AI",
     "settings_integrations": "Integrations & SIEM",
-    "settings_threat_intel": "Threat Intelligence"
+    "settings_threat_intel": "Threat Intelligence",
+    "attestation": "Attestation"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -684,8 +685,6 @@
     "confirm_pw_label": "Confirmation",
     "min_length_msg": "At least 12 characters.",
     "change_pw_btn": "Change the password",
-    "access_denied_title": "Access Denied",
-    "access_denied_desc": "You do not have the necessary permissions. Please contact an administrator.",
     "go_dashboard_btn": "Go to Dashboard",
     "error_title": "Error Occurred",
     "error_desc": "Requested resource is not available.",
@@ -803,5 +802,23 @@
     "page_asked": "Page requested:",
     "back_to_dashboard": "Back to the dashboard",
     "somewhere_useful": "Go where you can act"
+  },
+  "attestation": {
+    "title": "Attestation",
+    "established": "State established on",
+    "targets": "monitored targets",
+    "download": "Download the dated bundle",
+    "recheck": "Re-verify the chain",
+    "open_audit_log": "Audit log",
+    "chain_intact": "Audit chain intact",
+    "chain_broken": "Audit chain broken",
+    "entries": "entries",
+    "verified": "verified",
+    "unverifiable": "predating the chaining",
+    "frameworks": "Frameworks",
+    "frameworks_note": "Four controls per framework, projected from seven categories: two frameworks sharing a category receive the same result.",
+    "no_compliance": "Compliance could not be read.",
+    "bundle": "Evidence bundle",
+    "bundle_desc": "The verification public key, the six evaluated frameworks, the complete audit log, triage decisions with their justifications, in-toto attestations in DSSE envelopes, signed OpenVEX and CSAF advisories, licence compliance and the signed CycloneDX."
   }
 }

@@ -1,0 +1,85 @@
+<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'attestation.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">
+            {{ 'attestation.established' | translate }}
+            <strong>{{ establishedAt() | date: 'dd/MM/yyyy HH:mm' }}</strong>
+            @if (establishedBy()) { · {{ establishedBy() }} }
+            @if (compliance(); as summary) {
+                · {{ summary.totalMonitoredTargets }} {{ 'attestation.targets' | translate }}
+            }
+        </p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <p-button [label]="'attestation.download' | translate" icon="pi pi-download"
+                  [loading]="downloading()" (onClick)="download()" />
+        <p-button [label]="'attestation.recheck' | translate" icon="pi pi-refresh" [outlined]="true"
+                  [loading]="rechecking()" (onClick)="recheck()" />
+        <p-button [label]="'attestation.open_audit_log' | translate" icon="pi pi-history"
+                  [text]="true" routerLink="/audit-log" />
+    </div>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<!--
+    **La chaîne d'abord.** C'est la seule affirmation de cette page qui se démontre sur-le-champ :
+    le reste est une mesure. `broken` nomme l'entrée où la chaîne rompt, `unverifiable` compte les
+    entrées antérieures au chaînage — ni une preuve ni une alarme, et les confondre ferait passer
+    un historique ancien pour une altération.
+-->
+@if (chain(); as c) {
+    <div class="rounded-lg border p-4 mb-4"
+         [class.border-green-600]="c.intact" [class.bg-green-50]="c.intact" [class.dark:bg-green-900/20]="c.intact"
+         [class.border-red-600]="!c.intact" [class.bg-red-50]="!c.intact" [class.dark:bg-red-900/20]="!c.intact">
+        <div class="flex flex-wrap items-center gap-3">
+            <i class="pi text-xl" [class.pi-verified]="c.intact" [class.pi-exclamation-triangle]="!c.intact"
+               [class.text-green-700]="c.intact" [class.text-red-700]="!c.intact"></i>
+            <span class="font-semibold" [class.text-green-700]="c.intact" [class.text-red-700]="!c.intact">
+                {{ (c.intact ? 'attestation.chain_intact' : 'attestation.chain_broken') | translate }}
+            </span>
+            <span class="text-sm text-muted-color">
+                {{ c.total }} {{ 'attestation.entries' | translate }} ·
+                {{ c.verified }} {{ 'attestation.verified' | translate }} ·
+                {{ c.unverifiable }} {{ 'attestation.unverifiable' | translate }}
+            </span>
+        </div>
+        @if (c.broken) {
+            <div class="mt-2 font-mono text-sm text-red-700">{{ c.broken }}</div>
+        }
+    </div>
+}
+
+<h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.frameworks' | translate }}</h2>
+<p class="text-muted-color text-sm mt-0 mb-3">{{ 'attestation.frameworks_note' | translate }}</p>
+
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    @for (f of frameworks(); track f.framework) {
+        <div class="rounded-lg border p-3 flex flex-col gap-1" style="border-color: var(--surface-border)">
+            <span class="text-xs text-muted-color font-mono">{{ frameworkLabel(f.framework) }}</span>
+            <span class="text-2xl font-semibold"
+                  [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
+                  [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
+                  [class.text-red-700]="statusTone(f.overallStatus) === 'no'">{{ f.scorePercentage }}&nbsp;%</span>
+            <span class="text-xs font-semibold"
+                  [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
+                  [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
+                  [class.text-red-700]="statusTone(f.overallStatus) === 'no'">{{ f.overallStatus }}</span>
+        </div>
+    } @empty {
+        <div class="col-span-full text-muted-color">{{ 'attestation.no_compliance' | translate }}</div>
+    }
+</div>
+
+<!--
+    **Le contenu du paquet est décrit, pas listé.** Les neuf sections portent des noms de fichiers
+    que le serveur fixe ; les recopier ici créerait une seconde liste qui divergerait au premier
+    renommage, sans que rien ne le signale. Nommer ce qu'elles contiennent reste vrai plus
+    longtemps que nommer comment elles s'appellent.
+-->
+<h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.bundle' | translate }}</h2>
+<div class="rounded-lg border p-4" style="border-color: var(--surface-border)">
+    <p class="m-0 text-muted-color">{{ 'attestation.bundle_desc' | translate }}</p>
+</div>
