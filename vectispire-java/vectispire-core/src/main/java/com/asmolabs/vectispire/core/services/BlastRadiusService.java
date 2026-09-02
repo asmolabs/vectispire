@@ -196,50 +196,50 @@ public class BlastRadiusService {
                 new DependencyGraph(new ArrayList<>(nodesMap.values()), edges));
     }
 
-    /** The packages that reach the most targets, <b>within what the caller may see</b>. */
+    /**
+     * The packages that reach the most targets, <b>within what the caller may see</b>.
+     *
+     * <p>This is the landing list of the blast-radius screen, so it runs on every open — and it
+     * used to run by reading every finding in the deployment through {@code forGraph("")},
+     * hydrating two entities per row and grouping them here. The grouping is now the database's,
+     * and what arrives is one small tuple per distinct package.
+     *
+     * <p>The scoring stayed: {@code calculateScore} is capped arithmetic over the aggregates, and
+     * a few thousand packages cost nothing to score. Sorting stayed with it, because the score is
+     * what the list is ordered by and it does not exist until the arithmetic has run.
+     *
+     * <p><b>The dispersion it scores is a count of targets, and it used to be a count of scans.</b>
+     * Those differ by the whole scan history: a package in one repository scanned nightly counted
+     * as thirty. The term saturates at five, so within a week of scheduled scanning every package
+     * in the estate carried the full forty points and the ranking was decided by CVSS alone — the
+     * column headed "Cibles" both overstated the reach and stopped distinguishing anything. It
+     * also disagreed with {@link #explore}, which counted targets properly and put a different
+     * number under the same word one screen away.
+     */
     @Transactional(readOnly = true)
     public List<TopImpactPackage> getTopImpactPackages(int limit, Visibility allowed) {
-        // Blank query, secrets left in: this list never excluded them and does not need to — it
-        // already requires a package name, which a secret finding does not carry.
-        Map<String, List<FindingEntity>> byPackage = findingsRepo.forGraph("", false, false, allowed).stream()
-                .map(FindingGraphQueries.GraphRow::finding)
-                .collect(Collectors.groupingBy(FindingEntity::getPackageName));
+        return findingsRepo.packageImpacts(allowed).stream()
+                .map(impact -> {
+                    // Absent is not zero in the aggregate, but it is here: the score treats a
+                    // package nobody has scored as carrying no severity, which is what the Java
+                    // this replaces did with `orElse(0.0)`.
+                    double maxCvss = impact.maxCvss() != null ? impact.maxCvss() : 0.0;
+                    int direct = (int) impact.directUsages();
+                    int transitive = (int) impact.transitiveUsages();
+                    // Targets, not scans: a repository scanned nightly is one target.
+                    int targets = (int) impact.distinctTargets();
+                    int cves = (int) impact.distinctCves();
 
-        List<TopImpactPackage> topList = new ArrayList<>();
-
-        for (Map.Entry<String, List<FindingEntity>> entry : byPackage.entrySet()) {
-            String pkg = entry.getKey();
-            List<FindingEntity> list = entry.getValue();
-
-            Set<Long> uniqueScans = list.stream().map(FindingEntity::getScanId).collect(Collectors.toSet());
-            int direct = (int) list.stream().filter(f -> Boolean.TRUE.equals(f.getIsDirectDependency())).count();
-            int transitive = list.size() - direct;
-
-            Set<String> cves = list.stream()
-                    .map(FindingEntity::getIdentifier)
-                    .filter(id -> id != null && id.toUpperCase().startsWith("CVE-"))
-                    .collect(Collectors.toSet());
-
-            double maxCvss = list.stream()
-                    .map(FindingEntity::getCvssScore)
-                    .filter(s -> s != null)
-                    .max(Double::compareTo)
-                    .orElse(0.0);
-
-            String ecosystem = list.stream()
-                    .map(FindingEntity::getPurl)
-                    .filter(p -> p != null)
-                    .map(this::extractEcosystem)
-                    .findFirst()
-                    .orElse("Generic");
-
-            int score = BlastRadiusReport.calculateScore(uniqueScans.size(), direct, transitive, cves.size(), maxCvss);
-
-            topList.add(new TopImpactPackage(
-                    pkg, ecosystem, uniqueScans.size(), direct, transitive, cves.size(), maxCvss, score));
-        }
-
-        return topList.stream()
+                    return new TopImpactPackage(
+                            impact.packageName(),
+                            extractEcosystem(impact.anyPurl()),
+                            targets,
+                            direct,
+                            transitive,
+                            cves,
+                            maxCvss,
+                            BlastRadiusReport.calculateScore(targets, direct, transitive, cves, maxCvss));
+                })
                 .sorted(Comparator.comparingInt(TopImpactPackage::blastRadiusScore).reversed())
                 .limit(limit > 0 ? limit : 10)
                 .toList();
