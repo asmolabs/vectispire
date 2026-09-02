@@ -337,3 +337,74 @@ jobs:
           esac
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
+
+  # **La campagne moteurs, sur le changement qui touche au schéma.**
+  #
+  # Elle ne vivait que dans `nightly.yml`, et GitHub ne déclenche un workflow planifié que depuis
+  # la branche par défaut : une migration fusionnée dans `develop` attendait donc que `main`
+  # rattrape son retard avant qu'un moteur ne l'exécute une seule fois. Le 2 septembre, trois
+  # migrations se trouvaient dans cet écart en même temps, dont une posant vingt-quatre clés
+  # étrangères et supprimant des lignes orphelines. Le nocturne reste ; ceci fait qu'il n'est plus
+  # le seul endroit où la campagne existe.
+  #
+  # **Elle se déclenche aussi sur les poussées directes, pas seulement sur les pull requests.**
+  # L'écart ci-dessus a précisément été creusé par des commits poussés droit sur `develop` : ne
+  # filtrer que les pull requests aurait laissé passer chacun d'eux, c'est-à-dire exactement la
+  # panne que ce job existe pour empêcher.
+  #
+  # Pas de `container:` ici, contrairement à `jvm` plus haut : Testcontainers a besoin du démon du
+  # runner, qu'un conteneur de job ne peut pas atteindre. Même forme que le job `databases` de
+  # `nightly.yml`, délibérément.
+  migration-changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          # Par l'environnement plutôt qu'interpolé dans le script : ces valeurs viennent de
+          # GitHub et non d'un contributeur, mais la règle ne souffre pas d'exception locale.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # **Indéterminé veut dire « exécuter ».** Une plage qu'on ne sait pas résoudre — une
+          # branche nouvelle, une poussée forcée, un historique tronqué — n'est pas une preuve
+          # qu'aucune migration n'a changé. Le repli va donc vers la campagne, pas vers le silence.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — la campagne est exécutée par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BASE" HEAD | grep -q 'src/main/resources/db/migration/'; then
+            echo "une migration a changé — la campagne est exécutée"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "aucune migration touchée — la campagne est ignorée"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [migration-changes]
+    # Ignoré plutôt qu'exécuté à vide : un job qui rapporte vert sans rien avoir fait est un
+    # signal que personne ne peut lire, et ce fichier tient qu'« inattendu » n'est pas un signal.
+    if: needs.migration-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: cd vectispire-java && ./gradlew integrationTestAll
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: engine-campaign-reports-verify
+          path: vectispire-java/vectispire-core/build/reports/tests/
+          retention-days: 7
