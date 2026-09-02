@@ -172,6 +172,79 @@ class SchemaParityIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("the cascades the schema declares are declared to the engine, on every engine")
+    void theForeignKeysExist() throws Exception {
+        // **Twenty-four of these were decoration on MySQL for the life of the project.** They are
+        // written `references t_x(id) on delete cascade` inline, inside the column definition — a
+        // form MySQL parses and discards, leaving no constraint, no index and no cascade. V19 adds
+        // them as real table-level constraints; PostgreSQL had them from the inline form all along
+        // and SQLite records them without enforcing them until the pragma is issued.
+        //
+        // So what this asserts is that the engine has been *told*, which is the part the three
+        // agree on and the part a migration can lose. That SQLite then acts on it is
+        // `ForeignKeyEnforcementTest`, in the unit suite where that engine lives.
+
+        assertThat(referencedParents("t_scan"))
+                .as("a scan belongs to a repository or an image, and outlives neither")
+                .contains("t_repository", "t_container");
+        assertThat(referencedParents("t_finding"))
+                .as("a finding belongs to the scan that produced it, and points at the issue it "
+                        + "was folded into")
+                .contains("t_scan", "t_issue");
+        assertThat(referencedParents("t_issue"))
+                .as("an issue belongs to a target and names the scans that first and last saw it")
+                .contains("t_repository", "t_container", "t_scan");
+        assertThat(referencedParents("t_component")).contains("t_scan");
+        assertThat(referencedParents("t_ai_review_result")).contains("t_scan");
+        assertThat(referencedParents("t_api_endpoint")).contains("t_scan", "t_repository");
+        assertThat(referencedParents("t_api_contract")).contains("t_scan", "t_repository");
+        assertThat(referencedParents("t_issue_triage_event")).contains("t_issue", "t_scan");
+        assertThat(referencedParents("t_issue_ticket"))
+                .as("the one that was always written table-level, and always worked")
+                .contains("t_issue");
+
+        assertThat(referencedParents("t_session"))
+                .as("a session cannot outlive the account it authenticates — the orphan is a "
+                        + "credential with no owner")
+                .contains("t_user");
+        assertThat(referencedParents("t_user_target")).contains("t_user");
+        assertThat(referencedParents("t_team_member")).contains("t_team", "t_user");
+        assertThat(referencedParents("t_team_target")).contains("t_team");
+        assertThat(referencedParents("t_team_webhook"))
+                .as("a channel URL is a bearer capability, and this one was measured outliving "
+                        + "its team")
+                .contains("t_team");
+
+        assertThat(referencedParents("t_agent")).contains("t_api_key");
+        assertThat(referencedParents("t_repository")).contains("t_ssh_key");
+    }
+
+    /**
+     * The parent tables {@code table} declares a foreign key into, lowercased.
+     *
+     * <p>{@code getImportedKeys} rather than a catalog query, for the reason the index reader
+     * gives: three engines, three catalogs, one question.
+     */
+    private Set<String> referencedParents(String table) throws Exception {
+        Set<String> parents = new HashSet<>();
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            for (String name : new String[] {table, table.toUpperCase(Locale.ROOT)}) {
+                try (ResultSet keys =
+                        metadata.getImportedKeys(connection.getCatalog(), null, name)) {
+                    while (keys.next()) {
+                        String parent = keys.getString("PKTABLE_NAME");
+                        if (parent != null) {
+                            parents.add(parent.toLowerCase(Locale.ROOT));
+                        }
+                    }
+                }
+            }
+        }
+        return parents;
+    }
+
     /**
      * The columns an index on {@code table} <b>leads with</b>, lowercased.
      *

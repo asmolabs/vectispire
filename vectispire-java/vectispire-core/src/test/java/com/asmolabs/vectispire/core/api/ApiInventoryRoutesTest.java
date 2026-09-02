@@ -176,8 +176,19 @@ class ApiInventoryRoutesTest extends ApiTestBase {
         repo.setBranch("main");
         repo = repositoriesRepo.save(repo);
 
+        // **A real scan, not a number.** These two endpoints used to be attached to scans 999 and
+        // 1000, which never existed — the row was an orphan the moment it was written, and the
+        // engine accepted it because SQLite enforces no foreign key until the pragma is issued.
+        // Now that it is, the fabrication is refused, which is the point of enforcing it.
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repo.getId());
+        scan.setBranch("main");
+        scan.setStatus("completed");
+        scan.setCreatedAt(Instant.now());
+        scan = scansRepo.save(scan);
+
         ApiEndpointEntity ep = new ApiEndpointEntity();
-        ep.setScanId(999L);
+        ep.setScanId(scan.getId());
         ep.setRepositoryId(repo.getId());
         ep.setHttpMethod("GET");
         ep.setPath("/api/v1/ping");
@@ -194,8 +205,15 @@ class ApiInventoryRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.endpoints").isEmpty());
 
+        ScanEntity second = new ScanEntity();
+        second.setRepoId(repo.getId());
+        second.setBranch("main");
+        second.setStatus("completed");
+        second.setCreatedAt(Instant.now());
+        second = scansRepo.save(second);
+
         ApiEndpointEntity ep2 = new ApiEndpointEntity();
-        ep2.setScanId(1000L);
+        ep2.setScanId(second.getId());
         ep2.setRepositoryId(repo.getId());
         ep2.setHttpMethod("GET");
         ep2.setPath("/api/v1/health");
