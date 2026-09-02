@@ -111,37 +111,92 @@ class SchemaParityIntegrationTest {
     @Test
     @DisplayName("the columns the hot paths filter on are indexed, on every engine")
     void theHotLookupsAreIndexed() throws Exception {
-        // **An index nobody checks is an index a refactor drops.** This table carried none at all
+        // **An index nobody checks is an index a refactor drops.** t_issue carried none at all
         // for the whole life of the project while a published document claimed three, so the
         // assertion is that they exist rather than that somebody remembered to write them.
+        //
+        // The list grew past t_issue once the same crossing — every query method against every
+        // declared index — was done for the rest of the schema. Each entry below names the caller
+        // that waits on it, so an index this test defends can be argued with rather than merely
+        // obeyed.
         //
         // Read through `DatabaseMetaData` rather than a catalog query: `pg_indexes`,
         // `information_schema.statistics` and `pragma index_list` are three different questions,
         // and the campaign exists to ask one question of three engines.
-        Set<String> indexedFirstColumns = new HashSet<>();
+
+        assertThat(indexedFirstColumns("t_issue"))
+                .as("the gate reads one target's open issues on every build, and the compliance "
+                        + "summary groups the open backlog — both lead with `state`; the "
+                        + "fingerprint is looked up once per ingested finding; and the CycloneDX "
+                        + "generator matches on `identifier` inside a loop over CVEs")
+                .contains("state", "fingerprint", "identifier");
+
+        assertThat(indexedFirstColumns("t_finding"))
+                .as("the join every finding read follows, and the group key of the blast-radius "
+                        + "list — on the largest table in the schema, which had nothing but its "
+                        + "primary key")
+                .contains("scan_id", "package_name", "issue_id");
+
+        assertThat(indexedFirstColumns("t_scan"))
+                .as("`findLatestPerRepository` correlates `max(id)` per target once per row, so "
+                        + "an unindexed repo_id makes the repository list quadratic in scans")
+                .contains("repo_id", "container_id");
+
+        assertThat(indexedFirstColumns("t_login_attempt"))
+                .as("the rate limiter reads this on every login attempt, and a brute-force "
+                        + "attempt is when the table is largest")
+                .contains("counter_key");
+
+        assertThat(indexedFirstColumns("t_team_member"))
+                .as("`VisibilityService` resolves memberships on every authenticated request, and "
+                        + "the primary key `(team_id, user_id)` cannot answer it in this direction")
+                .contains("user_id");
+
+        assertThat(indexedFirstColumns("t_api_key"))
+                .as("every API-key authentication: the pipelines and the agents")
+                .contains("prefix");
+
+        assertThat(indexedFirstColumns("t_outbox_message"))
+                .as("the poller's `findDue`, on a schedule")
+                .contains("status");
+
+        // The child tables of a scan: read with it, purged with it by `TargetDeletionService`.
+        // Three of them carried an index that led with the wrong column, which is the case this
+        // assertion exists to catch — `getIndexInfo` would have reported an index on the table
+        // and said nothing about it being unusable for this lookup.
+        for (String table :
+                new String[] {"t_component", "t_api_endpoint", "t_api_contract", "t_ai_review_result"}) {
+            assertThat(indexedFirstColumns(table))
+                    .as("%s is read and purged by scan", table)
+                    .contains("scan_id");
+        }
+    }
+
+    /**
+     * The columns an index on {@code table} <b>leads with</b>, lowercased.
+     *
+     * <p>Leading columns and not merely mentioned ones, because that is the distinction that
+     * decides whether a lookup can use the index at all: {@code (name, version, scan_id)} contains
+     * scan_id and is useless for finding a scan's components. Both cases of the table name are
+     * asked, since the engines disagree on how they fold identifiers.
+     */
+    private Set<String> indexedFirstColumns(String table) throws Exception {
+        Set<String> leading = new HashSet<>();
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
-            for (String table : new String[] {"t_issue", "T_ISSUE"}) {
+            for (String name : new String[] {table, table.toUpperCase(Locale.ROOT)}) {
                 try (ResultSet indexes = metadata.getIndexInfo(
-                        connection.getCatalog(), null, table, false, false)) {
+                        connection.getCatalog(), null, name, false, false)) {
                     while (indexes.next()) {
                         String column = indexes.getString("COLUMN_NAME");
                         if (column != null && indexes.getShort("ORDINAL_POSITION") == 1) {
-                            indexedFirstColumns.add(column.toLowerCase(Locale.ROOT));
+                            leading.add(column.toLowerCase(Locale.ROOT));
                         }
                     }
                 }
             }
         }
-
-        assertThat(indexedFirstColumns)
-                .as("the gate reads one target's open issues on every build, and the compliance "
-                        + "summary groups the open backlog — both lead with `state`")
-                .contains("state");
-        assertThat(indexedFirstColumns)
-                .as("the fingerprint is looked up once per ingested finding: a scan producing two "
-                        + "thousand findings would otherwise scan this table two thousand times")
-                .contains("fingerprint");
+        return leading;
     }
 
     @Test
