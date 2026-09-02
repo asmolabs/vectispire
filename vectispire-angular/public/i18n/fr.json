@@ -900,5 +900,14 @@
       "static": "Statique",
       "overlay": "Superposé"
     }
+  },
+  "forbidden": {
+    "need_administrator": "Cette page est réservée aux administrateurs",
+    "need_security_lead": "Cette page modifie la gouvernance de la plateforme",
+    "need_governance_read": "Cette page montre la posture de tout le parc",
+    "your_role": "Votre compte est",
+    "page_asked": "Page demandée :",
+    "back_to_dashboard": "Retour au tableau de bord",
+    "somewhere_useful": "Aller où vous pouvez agir"
   }
 }

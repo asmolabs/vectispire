@@ -94,6 +94,16 @@ export class AppMenu {
                     { label: this.i18n.t('menu.agents'), icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
                     { label: this.i18n.t('menu.users'), icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
                     { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
+                );
+            }
+
+            // **Les réglages suivent la règle du serveur, qui est `@RequiresSecurityLead`.**
+            // Ils étaient rangés avec les entrées d'administration, si bien qu'un CISO pouvait
+            // écrire un réglage — la route l'autorise — sans jamais voir le lien pour y aller.
+            // Le décalage n'était visible d'aucun côté : le serveur disait oui, le menu ne
+            // proposait rien, et personne ne se plaint d'une porte qu'il ne voit pas.
+            if (this.session.isSecurityLead()) {
+                adminItems.push(
                     { label: this.i18n.t('menu.settings_general'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] },
                     { label: this.i18n.t('menu.settings_scanners'), icon: 'pi pi-fw pi-sliders-h', routerLink: ['/settings'], queryParams: { tab: 'scanners' } },
                     { label: this.i18n.t('menu.settings_ai'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/settings'], queryParams: { tab: 'ai' } },

@@ -794,5 +794,14 @@
       "static": "Static",
       "overlay": "Overlay"
     }
+  },
+  "forbidden": {
+    "need_administrator": "This page is for administrators",
+    "need_security_lead": "This page changes the platform's governance",
+    "need_governance_read": "This page shows the whole estate's posture",
+    "your_role": "Your account is",
+    "page_asked": "Page requested:",
+    "back_to_dashboard": "Back to the dashboard",
+    "somewhere_useful": "Go where you can act"
   }
 }

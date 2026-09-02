@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AppLayout } from './app/layout/component/app.layout';
+import { requires } from './app/core/role.guard';
 
 /**
  * Three paths changed with the interface's translation: `/depots`, `/securite` and `/qualite`
@@ -23,15 +24,15 @@ export const appRoutes: Routes = [
             { path: 'dashboard', loadComponent: () => import('./app/pages/dashboard/dashboard').then((m) => m.Dashboard) },
             { path: 'repositories', loadComponent: () => import('./app/pages/repositories/repositories').then((m) => m.Repositories) },
             { path: 'containers', loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers) },
-            { path: 'ssh-keys', loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
-            { path: 'users', loadComponent: () => import('./app/pages/users/users').then((m) => m.Users) },
-            { path: 'teams', loadComponent: () => import('./app/pages/teams/teams').then((m) => m.Teams) },
-            { path: 'api-keys', loadComponent: () => import('./app/pages/api-keys/api-keys').then((m) => m.ApiKeys) },
-            { path: 'audit-log', loadComponent: () => import('./app/pages/audit-log/audit-log').then((m) => m.AuditLog) },
-            { path: 'settings', loadComponent: () => import('./app/pages/settings/settings').then((m) => m.Settings) },
-            { path: 'agents', loadComponent: () => import('./app/pages/agents/agents').then((m) => m.Agents) },
-            { path: 'gate-policies', loadComponent: () => import('./app/pages/gate-policies/gate-policies').then((m) => m.GatePolicies) },
-            { path: 'rule-sets', loadComponent: () => import('./app/pages/rule-sets/rule-sets').then((m) => m.RuleSets) },
+            { path: 'ssh-keys', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
+            { path: 'users', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/users/users').then((m) => m.Users) },
+            { path: 'teams', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/teams/teams').then((m) => m.Teams) },
+            { path: 'api-keys', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/api-keys/api-keys').then((m) => m.ApiKeys) },
+            { path: 'audit-log', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/audit-log/audit-log').then((m) => m.AuditLog) },
+            { path: 'settings', canActivate: [requires('security-lead')], loadComponent: () => import('./app/pages/settings/settings').then((m) => m.Settings) },
+            { path: 'agents', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/agents/agents').then((m) => m.Agents) },
+            { path: 'gate-policies', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/gate-policies/gate-policies').then((m) => m.GatePolicies) },
+            { path: 'rule-sets', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/rule-sets/rule-sets').then((m) => m.RuleSets) },
             { path: 'scans/:id', loadComponent: () => import('./app/pages/scans/scan-detail').then((m) => m.ScanDetailPage) },
             { path: 'security', loadComponent: () => import('./app/pages/security/security').then((m) => m.Security) },
             { path: 'issues', loadComponent: () => import('./app/pages/issues/issues').then((m) => m.Issues) },
@@ -49,7 +50,8 @@ export const appRoutes: Routes = [
             { path: 'licenses', loadComponent: () => import('./app/pages/licenses/licenses').then((m) => m.Licenses) },
             { path: 'attack-surface', loadComponent: () => import('./app/pages/attack-surface/attack-surface').then((m) => m.AttackSurface) },
             { path: 'attack-paths', loadComponent: () => import('./app/pages/attack-paths/attack-paths').then((m) => m.AttackPaths) },
-            { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) }
+            { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) },
+            { path: 'forbidden', loadComponent: () => import('./app/pages/forbidden/forbidden').then((m) => m.Forbidden) }
         ]
     },
     { path: 'change-password', loadComponent: () => import('./app/pages/auth/change-password').then((m) => m.ChangePassword) },
