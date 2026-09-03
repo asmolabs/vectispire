@@ -37,6 +37,8 @@ public class ComplianceService {
     private final AuditLogService audit;
     private final EncryptionService encryption;
     private final SettingsService settings;
+    /** Lue pour une seule question : par quelle porte entre-t-on, et y en a-t-il deux ? */
+    private final SignInMethodPolicy signIn;
 
     public ComplianceService(
             GateService gate,
@@ -47,7 +49,8 @@ public class ComplianceService {
             SlaService sla,
             AuditLogService audit,
             EncryptionService encryption,
-            SettingsService settings) {
+            SettingsService settings,
+            SignInMethodPolicy signIn) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
@@ -57,6 +60,7 @@ public class ComplianceService {
         this.audit = audit;
         this.encryption = encryption;
         this.settings = settings;
+        this.signIn = signIn;
     }
 
     /**
@@ -156,7 +160,11 @@ public class ComplianceService {
                 encryption.isConfigured(),
                 encryption.isExternallyManaged(),
                 audit.mirrorConfigured(),
-                settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED));
+                settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED),
+                // Deux lectures de champ : la politique de connexion est fixée au démarrage, pas
+                // par un réglage, donc elle ne peut pas avoir changé depuis.
+                signIn.singleSignOnAvailable(),
+                signIn.passwordAllowed());
     }
 
     public record TargetCompliance(

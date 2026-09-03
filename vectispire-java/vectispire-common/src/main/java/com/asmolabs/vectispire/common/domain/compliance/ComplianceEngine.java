@@ -58,18 +58,29 @@ public final class ComplianceEngine {
      *     that, and an instance without one has an audit trail weaker than its score suggests
      * @param fourEyesRequired an exemption raised by a developer needs a second person. Off, the
      *     gate is advisory: whoever finds a vulnerability can dismiss it
+     * @param singleSignOnConfigured an identity provider vouches for who is signing in. **The audit
+     *     chain proves an entry was not altered; it does not prove the name on it.** That name is
+     *     only worth what the sign-in behind it was worth, and this posture had no opinion on
+     *     authentication at all — so a deployment could be reported compliant against PCI DSS and
+     *     SOC 2, both of which require a second factor, while accepting a password and nothing else
+     * @param passwordLoginOpen a local password is still exchangeable for a session. Beside a
+     *     configured provider this is not neutral: it is a way around whatever second factor the
+     *     realm enforces, which is the reason {@code VECTISPIRE_PASSWORD_LOGIN=false} exists
      */
     public record PlatformPosture(
             boolean encryptionConfigured,
             boolean externalKms,
             boolean auditMirrorConfigured,
-            boolean fourEyesRequired) {
+            boolean fourEyesRequired,
+            boolean singleSignOnConfigured,
+            boolean passwordLoginOpen) {
 
         /**
          * Everything on. Named rather than written as four literals so a test that does not care
          * about the platform says so, and a test that does care is impossible to misread.
          */
-        public static final PlatformPosture FULLY_ENABLED = new PlatformPosture(true, true, true, true);
+        public static final PlatformPosture FULLY_ENABLED =
+                new PlatformPosture(true, true, true, true, true, false);
     }
 
     /**
@@ -157,15 +168,19 @@ public final class ComplianceEngine {
                                     + "this control counts only what was found in the scanned repositories",
                             "Set ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) and re-save the stored credentials.");
 
-            // The one the audit chain cannot answer for itself, stated where an assessor reads it.
-            case AUDIT_AND_LOGGING -> platform.auditMirrorConfigured()
+            // **Deux plafonds ici, et le second porte sur l'identité.** Le premier tient à ce que
+            // la chaîne ne peut pas prouver d'elle-même — qu'aucune entrée n'a été supprimée. Le
+            // second tient à ce qu'elle ne prouve pas non plus : que le nom porté par une entrée
+            // est celui de la personne qui a agi. Une chaîne intacte au-dessus d'un mot de passe
+            // partageable est une traçabilité plus faible que son score.
+            case AUDIT_AND_LOGGING -> authenticationCap(platform.auditMirrorConfigured()
                     ? assessment
                     : capped(assessment, 70,
                             "No audit mirror is configured. The hash chain makes a modified entry detectable, "
                                     + "but it cannot detect the deletion of an entry nobody descends from — "
                                     + "the last one written, which is the one an attacker removes",
                             "Configure vectispire.audit.mirror-path and ship the file off the host, so the "
-                                    + "deletion has to be performed twice in two media.");
+                                    + "deletion has to be performed twice in two media."), platform);
 
             case GOVERNANCE -> platform.fourEyesRequired()
                     ? assessment
@@ -176,6 +191,38 @@ public final class ComplianceEngine {
 
             default -> assessment;
         };
+    }
+
+    /**
+     * The ceiling that identity puts on accountability.
+     *
+     * <p>Three states, and the middle one is the one people miss. No provider at all is the
+     * weakest: whoever signs the report is vouching for a local password with no second factor.
+     * A provider <em>beside</em> an open password is better and still not what it claims — the
+     * realm's second factor is bypassable by the door next to it, which is the whole reason
+     * {@code VECTISPIRE_PASSWORD_LOGIN=false} exists. Both doors closed but one is the state the
+     * control describes, and it is left alone.
+     */
+    private static ComplianceEvaluation.ControlAssessment authenticationCap(
+            ComplianceEvaluation.ControlAssessment assessment, PlatformPosture platform) {
+
+        if (!platform.singleSignOnConfigured()) {
+            return capped(assessment, 65,
+                    "No identity provider is configured, so every account signs in with a local "
+                            + "password and no second factor. The audit chain proves an entry was not "
+                            + "altered; it cannot prove the name on it belongs to the person who acted",
+                    "Set VECTISPIRE_OIDC_ISSUER so the organisation's own authentication policy — "
+                            + "including its second factor — stands behind every entry in this log.");
+        }
+        if (platform.passwordLoginOpen()) {
+            return capped(assessment, 85,
+                    "An identity provider is configured, and local password sign-in is still open "
+                            + "beside it. Whatever second factor the realm enforces can be walked "
+                            + "around through the other door",
+                    "Set VECTISPIRE_PASSWORD_LOGIN=false once single sign-on is verified working. "
+                            + "It is refused, loudly, while no provider is configured.");
+        }
+        return assessment;
     }
 
     /** Keeps the lower of the two scores, and never reports better than PARTIAL. */

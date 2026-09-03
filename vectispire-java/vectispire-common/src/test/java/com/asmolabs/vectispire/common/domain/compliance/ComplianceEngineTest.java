@@ -70,7 +70,7 @@ class ComplianceEngineTest {
         // configured at all — reported "Zero exposed plaintext credentials" and scored 100. The
         // finding was true and the conclusion was not.
         ComplianceEngine.PlatformPosture noKey =
-                new ComplianceEngine.PlatformPosture(false, false, true, true);
+                new ComplianceEngine.PlatformPosture(false, false, true, true, true, false);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noKey),
@@ -92,7 +92,7 @@ class ComplianceEngineTest {
         // one nobody descends from — the last one written. An assessor who finds that out
         // themselves discounts everything else in the report.
         ComplianceEngine.PlatformPosture noMirror =
-                new ComplianceEngine.PlatformPosture(true, true, false, true);
+                new ComplianceEngine.PlatformPosture(true, true, false, true, true, false);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noMirror),
@@ -108,7 +108,7 @@ class ComplianceEngineTest {
     @DisplayName("governance is not satisfied by passing gates alone when four-eyes is off")
     void governanceControlDependsOnFourEyes() {
         ComplianceEngine.PlatformPosture noFourEyes =
-                new ComplianceEngine.PlatformPosture(true, true, true, false);
+                new ComplianceEngine.PlatformPosture(true, true, true, false, true, false);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noFourEyes),
@@ -132,10 +132,58 @@ class ComplianceEngineTest {
                 true);
 
         var assessment = control(
-                ComplianceEngine.evaluateAll(leaking, new ComplianceEngine.PlatformPosture(false, false, true, true)),
+                ComplianceEngine.evaluateAll(leaking, new ComplianceEngine.PlatformPosture(false, false, true, true, true, false)),
                 ComplianceControl.Category.SECRETS_MANAGEMENT);
 
         assertThat(assessment.status()).isEqualTo(ComplianceControl.Status.NON_COMPLIANT);
         assertThat(assessment.scorePercentage()).isZero();
     }
+
+    @Test
+    @DisplayName("a local password with no provider caps accountability, whatever the chain says")
+    void noProviderCapsAuditability() {
+        ComplianceEngine.PlatformPosture passwordOnly =
+                new ComplianceEngine.PlatformPosture(true, true, true, true, false, true);
+
+        // **Le trou que ceci ferme.** La posture n'avait aucune opinion sur l'authentification :
+        // un déploiement pouvait être déclaré conforme à PCI DSS et SOC 2 — qui exigent tous deux
+        // un second facteur — en n'acceptant qu'un mot de passe local. La chaîne d'audit prouve
+        // qu'une entrée n'a pas été altérée ; elle ne prouve pas que le nom qu'elle porte est
+        // celui de la personne qui a agi.
+        assertThat(auditControls(passwordOnly))
+                .allSatisfy(control -> {
+                    assertThat(control.status()).isNotEqualTo(ComplianceControl.Status.COMPLIANT);
+                    assertThat(control.scorePercentage()).isLessThanOrEqualTo(65);
+                    assertThat(control.details()).contains("no second factor");
+                });
+    }
+
+    @Test
+    @DisplayName("a provider beside an open password is better, and still not what it claims")
+    void anOpenPasswordBesideAProviderIsStillABypass() {
+        // L'état que l'on manque : le fournisseur est là, la porte d'à côté aussi. Le second
+        // facteur du realm se contourne par elle.
+        ComplianceEngine.PlatformPosture both =
+                new ComplianceEngine.PlatformPosture(true, true, true, true, true, true);
+
+        assertThat(auditControls(both))
+                .allSatisfy(control -> {
+                    assertThat(control.scorePercentage()).isLessThanOrEqualTo(85);
+                    assertThat(control.details()).contains("walked around");
+                });
+
+        // Et les deux portes réglées comme le contrôle le décrit : aucun plafond.
+        assertThat(auditControls(ComplianceEngine.PlatformPosture.FULLY_ENABLED))
+                .allSatisfy(control -> assertThat(control.details()).doesNotContain("walked around"));
+    }
+
+    /** Les contrôles de journalisation de tous les référentiels, sous une posture donnée. */
+    private static java.util.List<ComplianceEvaluation.ControlAssessment> auditControls(
+            ComplianceEngine.PlatformPosture platform) {
+        return ComplianceEngine.evaluateAll(CLEAN, platform).stream()
+                .flatMap(evaluation -> evaluation.controls().stream())
+                .filter(control -> control.control().category() == ComplianceControl.Category.AUDIT_AND_LOGGING)
+                .toList();
+    }
+
 }

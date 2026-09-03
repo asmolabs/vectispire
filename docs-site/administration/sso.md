@@ -34,6 +34,17 @@ VECTISPIRE_OIDC_ISSUER=https://keycloak.internal/realms/company
 
 Plus the client credentials your provider issues.
 
+### What the compliance report says about it
+
+The audit log's controls are **capped while authentication is weaker than the report claims**. No
+provider at all caps them at 65 %: the hash chain proves an entry was not altered, it cannot prove
+the name on it belongs to whoever acted. A provider *beside* an open password caps them at 85 % —
+the realm's second factor can be walked around through the other door.
+
+This is deliberately a number rather than a refusal. PCI DSS and SOC 2 both require a second
+factor, and a report that scored them compliant while Vectispire accepted a password alone was
+handing an assessor their own diligence back as a conclusion.
+
 ### Turning off password login
 
 ```bash

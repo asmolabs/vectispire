@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api.security;
+package com.asmolabs.vectispire.core.services;
 
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -27,6 +27,13 @@ import org.springframework.stereotype.Component;
  * for without one, the password stays enabled and the reason is logged at error level. This is
  * the same decision `OidcConfiguration` makes by hanging on the issuer variable rather than on a
  * bean: an optional feature that is off must be absent, never present and refusing.
+ *
+ * <p><b>Dans la couche services et non dans l'API, et ce n'est pas un rangement.</b> Cette classe
+ * ne sert aucune route : elle énonce une propriété de la plateforme, que l'API consulte comme la
+ * conformité la consulte. Elle vivait à côté de la configuration de sécurité, et le jour où
+ * `ComplianceService` a eu besoin de savoir par quelle porte on entre, la règle de couches
+ * d'ArchUnit a refusé — un service ne lit pas l'API. Le refus était juste : c'était la classe qui
+ * était au mauvais étage.
  *
  * <p><b>The way back, because there has to be one.</b> A realm that is unreachable, or a client
  * secret rotated without warning, leaves a deployment where nobody can sign in at all. The

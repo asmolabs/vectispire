@@ -7,7 +7,6 @@ import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.SignInMethodPolicy;
 import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
@@ -40,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.asmolabs.vectispire.core.services.SignInMethodPolicy;
 
 /**
  * Signing in, signing out, and "who am I".
