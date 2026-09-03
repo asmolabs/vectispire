@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -17,6 +17,7 @@ import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLab
 
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-agents',
@@ -24,7 +25,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './agents.html'
 })
-export class Agents implements OnInit, OnDestroy {
+export class Agents implements OnInit {
     private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     readonly credentials = computed(() => {
@@ -51,20 +52,26 @@ export class Agents implements OnInit, OnDestroy {
 
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
-    private timerHandle: any = null;
+    /**
+     * **Ne compte que pendant qu'il y a quelque chose à attendre.**
+     *
+     * Cet écran interrogeait le serveur toutes les cinq secondes sans condition — 720 requêtes par
+     * heure et par onglet ouvert, y compris sur un parc où rien ne tourne. Le premier chargement
+     * dit s'il y a de l'activité ; le compteur ne démarre que si oui, et s'arrête dès que la file
+     * est vide.
+     */
+    private readonly hasActivity = computed(() => {
+        const activity = this.activity();
+        return (activity?.runningScans?.length ?? 0) > 0 || (activity?.pendingScans?.length ?? 0) > 0;
+    });
+
+    constructor() {
+        pollWhile(this.hasActivity, () => this.refreshActivity());
+    }
 
     ngOnInit(): void {
         this.reload();
-        // Auto-refresh activity every 5 seconds to track running scans and pending queues live
-        this.timerHandle = setInterval(() => {
-            this.refreshActivity();
-        }, 5000);
-    }
-
-    ngOnDestroy(): void {
-        if (this.timerHandle) {
-            clearInterval(this.timerHandle);
-        }
+        this.refreshActivity();
     }
 
     hintFor(mode: string): string {

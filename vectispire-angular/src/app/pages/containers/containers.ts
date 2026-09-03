@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -16,6 +16,7 @@ import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-containers',
@@ -69,7 +70,17 @@ export class Containers {
         return match ? value.replace(match[1], match[1].slice(0, 12) + '…') : value;
     }
 
+    /**
+     * **Un scan lancé doit se voir avancer.** Cet écran annonce « mis en file » puis ne bougeait
+     * plus : le bouton avait l'air sans effet, alors que le travail attendait un worker. Le
+     * compteur ne tourne que tant qu'un scan de cette liste n'est pas réglé, et s'arrête tout
+     * seul quand le dernier a fini — un parc au repos ne coûte rien.
+     */
+    private readonly scanInFlight = computed(() =>
+        anyScanRunning(this.containers().map((row) => row.lastScan)));
+
     constructor() {
+        pollWhile(this.scanInFlight, () => this.reload());
         this.reload();
     }
 

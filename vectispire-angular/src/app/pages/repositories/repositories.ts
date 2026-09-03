@@ -19,6 +19,7 @@ import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-repositories',
@@ -89,7 +90,17 @@ export class Repositories {
     /** The row being edited, or null when the dialog is adding one. */
     readonly editing = signal<MonitoredRepository | null>(null);
 
+    /**
+     * **Un scan lancé doit se voir avancer.** Cet écran annonce « mis en file » puis ne bougeait
+     * plus : le bouton avait l'air sans effet, alors que le travail attendait un worker. Le
+     * compteur ne tourne que tant qu'un scan de cette liste n'est pas réglé, et s'arrête tout
+     * seul quand le dernier a fini — un parc au repos ne coûte rien.
+     */
+    private readonly scanInFlight = computed(() =>
+        anyScanRunning(this.repositories().map((row) => row.lastScan)));
+
     constructor() {
+        pollWhile(this.scanInFlight, () => this.reload());
         this.reload();
         // A failure here leaves the list empty rather than blocking the form: the operator can
         // still edit everything else, and "no key" stays selectable.
