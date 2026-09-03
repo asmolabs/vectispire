@@ -26,6 +26,20 @@ Every later one matches on the provider's **subject**, not the username. A usern
 stable for the life of a person: people marry, change teams, get renamed by an HR import.
 The subject is.
 
+## Groups become teams, and leaving one takes it away
+
+When the token carries a `groups` claim, each value is matched against a **team name** and the
+account joins the teams that match.
+
+It also **leaves** the ones no longer claimed — but only the ones the provider granted. A team an
+administrator assigned by hand, or SCIM provisioned, is never removed by a sign-on: each channel
+reconciles its own memberships, so two directories cannot undo each other's work and a login cannot
+silently erase somebody's deliberate decision.
+
+An **empty or absent claim removes nothing**. A forgotten mapper is a configuration fault, not a
+statement that this person belongs to no team, and revoking on that basis would cut everybody off
+the first time a mapper was misconfigured.
+
 ## Configuration
 
 ```bash

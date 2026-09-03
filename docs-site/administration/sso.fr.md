@@ -27,6 +27,21 @@ Toutes les suivantes s'appuient sur le **sujet** du fournisseur, pas sur le nom 
 Un nom d'utilisateur n'est pas stable sur la vie d'une personne : on se marie, on change
 d'équipe, un import RH vous renomme. Le sujet, lui, l'est.
 
+## Les groupes deviennent des équipes, et en sortir les retire
+
+Quand le jeton porte une revendication `groups`, chaque valeur est appariée à un **nom d'équipe**
+et le compte rejoint celles qui correspondent.
+
+Il **quitte** aussi celles qui ne sont plus revendiquées — mais uniquement celles que le
+fournisseur avait accordées. Une équipe attribuée à la main par un administrateur, ou provisionnée
+par SCIM, n'est jamais retirée par une connexion : chaque canal réconcilie ses propres
+appartenances, si bien que deux annuaires ne peuvent pas défaire le travail l'un de l'autre et
+qu'une connexion ne peut pas effacer en silence une décision délibérée.
+
+Une revendication **vide ou absente ne retire rien**. Un mapper oublié est une panne de
+configuration, pas une déclaration que cette personne n'appartient à aucune équipe — révoquer sur
+cette base couperait tout le monde au premier réglage manqué.
+
 ## Configuration
 
 ```bash

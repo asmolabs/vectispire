@@ -48,6 +48,11 @@ import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 @RequiresAdministrator
 public class ScimGroupsController {
 
+    // **SCIM marque ses lignes, et c'est ce qui évite que deux annuaires se disputent.** La
+    // réconciliation de la revendication OIDC ne retire que les appartenances qu'elle a posées ;
+    // sans cette marque, les siennes seraient indistinguables et la première connexion emporterait
+    // ce que le provisionnement venait d'écrire.
+
     private final Teams teams;
     private final TeamMembers members;
     private final Users users;
@@ -111,7 +116,7 @@ public class ScimGroupsController {
         if (dto.members() != null) {
             for (ScimGroupDto.Member m : dto.members()) {
                 resolveUserId(m.value()).ifPresent(userId ->
-                        members.save(new TeamMemberEntity(saved.getId(), userId)));
+                        members.save(new TeamMemberEntity(saved.getId(), userId, TeamMemberEntity.Origin.SCIM)));
             }
         }
 
@@ -151,7 +156,7 @@ public class ScimGroupsController {
         if (dto.members() != null) {
             for (ScimGroupDto.Member m : dto.members()) {
                 resolveUserId(m.value()).ifPresent(userId ->
-                        members.save(new TeamMemberEntity(id, userId)));
+                        members.save(new TeamMemberEntity(id, userId, TeamMemberEntity.Origin.SCIM)));
             }
         }
 
@@ -228,14 +233,14 @@ public class ScimGroupsController {
             for (JsonNode item : value) {
                 if (item.has("value")) {
                     resolveUserId(item.get("value").asText()).ifPresent(userId ->
-                            members.save(new TeamMemberEntity(teamId, userId)));
+                            members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
         } else if (value.isObject() && value.has("members") && value.get("members").isArray()) {
             for (JsonNode item : value.get("members")) {
                 if (item.has("value")) {
                     resolveUserId(item.get("value").asText()).ifPresent(userId ->
-                            members.save(new TeamMemberEntity(teamId, userId)));
+                            members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
         }

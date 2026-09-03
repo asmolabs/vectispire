@@ -14,6 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Turning an identity the provider vouched for into an account Vectispire already knows.
@@ -86,7 +89,25 @@ public class ExternalIdentityService {
     }
 
     /**
-     * Synchronizes user's team memberships based on group claims from the identity provider.
+     * Aligne les équipes d'un compte sur ce que l'annuaire vient de dire.
+     *
+     * <p><b>Une réconciliation, et plus un ajout.</b> Cette méthode n'ajoutait que : retirer
+     * quelqu'un d'un groupe dans l'annuaire ne lui retirait ni l'équipe ni la visibilité qui va
+     * avec. C'est l'inverse de ce que déléguer veut dire — on délègue précisément pour qu'un départ
+     * de groupe révoque un accès — et cela rendait la promesse « l'annuaire fait autorité »
+     * intenable.
+     *
+     * <p><b>Elle ne touche que ses propres lignes.</b> Réconcilier tout aurait remplacé ce défaut
+     * par un pire : chaque connexion effacerait les équipes qu'un administrateur a attribuées à la
+     * main, en silence. L'origine portée par l'appartenance décide qui peut la retirer ; ce qui
+     * vient de SCIM ou d'une décision humaine reste où il est.
+     *
+     * <p><b>Une revendication vide n'est pas une révocation.</b> Un fournisseur mal configuré, un
+     * mapper oublié, un jeton sans la revendication : l'absence de groupes se lit comme une panne
+     * de configuration et non comme « cette personne n'est plus dans aucune équipe ». Retirer tout
+     * sur cette base couperait l'accès de tout le monde au premier mapper mal réglé — l'appelant
+     * ne nous appelle d'ailleurs que si la revendication est présente et non vide, et cette garde
+     * est répétée ici parce qu'elle protège d'une révocation de masse.
      */
     @Transactional
     public void syncGroups(UserEntity user, List<String> groupNames) {
@@ -97,16 +118,32 @@ public class ExternalIdentityService {
         Teams teamsRepo = teams.get();
         TeamMembers membersRepo = teamMembers.get();
 
+        // Les équipes que la revendication nomme et qui existent ici. Un groupe sans équipe
+        // correspondante n'est pas une erreur : l'annuaire d'une organisation est plus large que
+        // ce que cet outil suit.
+        Set<Long> claimed = new LinkedHashSet<>();
         for (String groupName : groupNames) {
             if (groupName == null || groupName.isBlank()) continue;
-            String cleanName = groupName.trim();
-            Optional<TeamEntity> team = teamsRepo.findByNameIgnoreCase(cleanName);
-            if (team.isPresent()) {
-                TeamMemberEntity.Id id = new TeamMemberEntity.Id(team.get().getId(), user.getId());
-                if (!membersRepo.existsById(id)) {
-                    membersRepo.save(new TeamMemberEntity(team.get().getId(), user.getId()));
-                    log.info("OIDC sync: user '{}' assigned to team '{}'", user.getUsername(), team.get().getName());
-                }
+            teamsRepo.findByNameIgnoreCase(groupName.trim())
+                    .ifPresent(team -> claimed.add(team.getId()));
+        }
+
+        List<TeamMemberEntity> held = membersRepo.findByUserId(user.getId());
+        Set<Long> alreadyIn = held.stream().map(m -> m.getId().teamId()).collect(Collectors.toSet());
+
+        for (Long teamId : claimed) {
+            if (!alreadyIn.contains(teamId)) {
+                membersRepo.save(new TeamMemberEntity(teamId, user.getId(), TeamMemberEntity.Origin.OIDC));
+                log.info("OIDC sync: user '{}' joined team {}", user.getUsername(), teamId);
+            }
+        }
+
+        for (TeamMemberEntity membership : held) {
+            if (TeamMemberEntity.Origin.OIDC.equals(membership.getOrigin())
+                    && !claimed.contains(membership.getId().teamId())) {
+                membersRepo.delete(membership);
+                log.info("OIDC sync: user '{}' left team {} — no longer in the claim",
+                        user.getUsername(), membership.getId().teamId());
             }
         }
     }
