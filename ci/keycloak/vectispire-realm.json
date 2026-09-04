@@ -1,0 +1,56 @@
+{
+  "realm": "vectispire",
+  "enabled": true,
+  "displayName": "Vectispire",
+  "sslRequired": "none",
+  "loginTheme": "keycloak",
+  "groups": [
+    { "name": "AppSec" }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Vectispire",
+      "lastName": "Administrator",
+      "email": "admin@vectispire.invalid",
+      "credentials": [
+        { "type": "password", "value": "change-me-evaluation-only", "temporary": false }
+      ],
+      "groups": ["/AppSec"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "vectispire",
+      "name": "Vectispire",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "evaluation-only-not-a-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3180/login/oauth2/code/oidc",
+        "http://localhost:4280/login/oauth2/code/oidc"
+      ],
+      "webOrigins": ["http://localhost:3180", "http://localhost:4280"],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    }
+  ]
+}

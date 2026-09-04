@@ -48,3 +48,6 @@ vectispire-angular/.playwright/
 /.venv/
 # La build locale du site de documentation (mkdocs build / mkdocs serve).
 /site/
+
+# Le fichier de connexion déléguée porte un secret client : il reste local.
+.env.oidc

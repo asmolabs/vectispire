@@ -46,6 +46,15 @@ services:
     container_name: vectispire-control-plane
     ports:
       - "${VECTISPIRE_PORT:-3180}:3180"
+    # **Les variables OIDC arrivent par un fichier, jamais par une valeur vide.**
+    # `@ConditionalOnProperty("vectispire.oidc.issuer")` s'active dès que la propriété *existe* —
+    # une chaîne vide comprise — et la découverte échouerait alors sur un issuer vide, au
+    # démarrage, sur une installation qui n'a jamais demandé de SSO. Un `env_file` optionnel n'a
+    # pas ce défaut : absent, aucune variable n'est posée et la fonctionnalité reste absente
+    # plutôt que présente et refusant. Copiez `.env.oidc.example` pour l'activer.
+    env_file:
+      - path: .env.oidc
+        required: false
     environment:
       VECTISPIRE_DB_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE:-vectispire}
       VECTISPIRE_DB_USER: ${MYSQL_USER:-vectispire}
@@ -100,6 +109,38 @@ services:
       - vectispire-net
 
   # --- Optional: Remote Agent (for isolated container worker nodes) --------------------------
+  # **Keycloak, en profil et pour l'évaluation.** `docker compose --profile sso up`.
+  #
+  # Il n'est pas dans la composition par défaut, et ce n'est pas de la timidité : embarquer un
+  # fournisseur d'identité, c'est en hériter les montées de version et les CVE. Ce que ce service
+  # livre est un exemple qui marche — un realm avec le client déjà réglé et le mapper de groupes
+  # correctement configuré, ce qui est précisément ce que l'on rate en le faisant à la main. Un
+  # déploiement réel pointe `VECTISPIRE_OIDC_ISSUER` vers le Keycloak de l'organisation.
+  #
+  # `start-dev` le dit lui-même au démarrage : stockage en mémoire, pas de HTTPS, pas pour la
+  # production. Le secret client et le mot de passe du realm sont dans
+  # `ci/keycloak/vectispire-realm.json`, en clair et nommés pour ce qu'ils sont — **l'import de
+  # realm ne substitue pas `${env.…}`**, vérifié : le marqueur ressort littéral. Un realm de
+  # production porte donc ses propres secrets, posés autrement.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: vectispire-keycloak
+    profiles:
+      - sso
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Pas `:?` — Compose interpole tout le fichier même pour un profil inactif, comme le dit
+      # déjà le service `agent` plus bas.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./ci/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8081}:8080"
+    restart: unless-stopped
+    networks:
+      - vectispire-net
+
   agent:
     build:
       context: .

@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.PathSensitivity
 plugins {
     id("vectispire.java-conventions")
     alias(libs.plugins.springBoot)
@@ -204,6 +205,21 @@ engines.forEach { engine ->
         reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$engine")
         reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$engine")
     }
+}
+
+/**
+ * Le realm livré est une entrée du test qui le garde.
+ *
+ * **Sans cette déclaration, Gradle a caché un succès périmé.** `ShippedRealmTest` lit
+ * `ci/keycloak/vectispire-realm.json`, un fichier hors du module : la tâche de test le croyait
+ * inchangé, se déclarait à jour et rejouait un ancien résultat. Vérifié en cassant le realm —
+ * le cas passait au vert, et n'échouait qu'avec `--rerun-tasks`. Un test qui peut silencieusement
+ * ne pas tourner est pire qu'une absence de test : il rapporte vert sans avoir rien contrôlé.
+ */
+tasks.named<Test>("test") {
+    inputs.file(rootProject.file("../ci/keycloak/vectispire-realm.json"))
+        .withPropertyName("shippedKeycloakRealm")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.register("integrationTestAll") {
