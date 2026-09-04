@@ -595,6 +595,7 @@
   },
   "remediation": {
     "affected_targets": "Cibles concernées",
+    "ceiling_reached": "Cinquante lignes affichées : au-delà, ce n'est plus un ordre de travail.",
     "closed_by_plan": "constats fermés par ce plan",
     "closes": "ferme",
     "critical": "critiques",
@@ -607,9 +608,12 @@
     "open_findings": "constats ouverts",
     "person_days": "jours-personne estimés",
     "plan_total": "Total du plan :",
+    "scope": "Portée",
+    "show_more": "Voir la suite",
     "subtitle": "Ce qu'il faut faire, dans l'ordre : une action par ligne, classée par ce qu'elle ferme sur ce qu'elle coûte.",
     "targets": "cibles",
-    "title": "Plan de remédiation"
+    "title": "Plan de remédiation",
+    "whole_estate": "Tout le parc"
   },
   "repositories": {
     "title": "Dépôts Git",

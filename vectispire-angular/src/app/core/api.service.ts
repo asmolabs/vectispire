@@ -767,10 +767,18 @@ export class ApiService {
         return this.http.get<SecurityDebtReport>('/api/v1/remediation/debt', { params });
     }
 
-    getHighImpactFixes(repoId?: number, containerId?: number): Observable<HighImpactFix[]> {
+    /**
+     * L'ordre de travail classé par levier.
+     *
+     * <p>`limit` est facultatif : sans lui le serveur en rend dix, ce qui est la bonne réponse à
+     * « par quoi je commence ». L'écran le passe quand quelqu'un demande la suite, et le serveur
+     * ramène la valeur dans ses bornes plutôt que de refuser.
+     */
+    getHighImpactFixes(repoId?: number, containerId?: number, limit?: number): Observable<HighImpactFix[]> {
         let params = new HttpParams();
         if (repoId) params = params.set('repoId', repoId);
         if (containerId) params = params.set('containerId', containerId);
+        if (limit) params = params.set('limit', limit);
         return this.http.get<HighImpactFix[]>('/api/v1/remediation/high-impact-fixes', { params });
     }
 

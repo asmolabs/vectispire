@@ -2,6 +2,21 @@
     <div class="font-semibold text-xl mb-1">{{ 'remediation.title' | translate }}</div>
     <p class="text-muted-color mb-4">{{ 'remediation.subtitle' | translate }}</p>
 
+    <!--
+        **Une seule liste pour les dépôts et les images.** La question posée est « de quoi
+        suis-je responsable lundi », et elle ne se pose pas différemment selon la nature de la
+        cible. Le parc entier reste le choix par défaut, parce que c'est la question la plus
+        souvent posée à cet écran.
+    -->
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+        <label for="scope" class="font-medium">{{ 'remediation.scope' | translate }}</label>
+        <p-select inputId="scope" [options]="targets()" optionLabel="label" optionValue="value"
+                  [(ngModel)]="scope" (ngModelChange)="changeScope()"
+                  [showClear]="true" [filter]="true"
+                  [placeholder]="'remediation.whole_estate' | translate"
+                  styleClass="w-full sm:w-80" />
+    </div>
+
     @if (error()) {
         <p-message severity="error" [closable]="false" styleClass="w-full mb-4">{{ error() }}</p-message>
     }
@@ -122,8 +137,23 @@
             }
         </div>
 
-        <div class="mt-4 text-sm text-muted-color">
-            {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{ hoursOfTheList() }} h
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm text-muted-color">
+                {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{ hoursOfTheList() }} h
+            </div>
+
+            <!--
+                **Par paliers, et non par pages.** Personne ne veut la page 4 d'un plan de
+                remédiation ; on veut savoir ce qui vient après les dix premières lignes. Le
+                bouton disparaît au plafond plutôt que de rester grisé sans dire pourquoi.
+            -->
+            @if (mayHaveMore()) {
+                <p-button [outlined]="true" size="small" icon="pi pi-plus"
+                          [label]="'remediation.show_more' | translate"
+                          [loading]="loading()" (onClick)="showMore()" />
+            } @else if (fixes().length >= CEILING) {
+                <span class="text-sm text-muted-color">{{ 'remediation.ceiling_reached' | translate }}</span>
+            }
         </div>
     }
 </div>

@@ -595,6 +595,7 @@
   },
   "remediation": {
     "affected_targets": "Affected targets",
+    "ceiling_reached": "Fifty rows shown — beyond that it stops being a work order.",
     "closed_by_plan": "findings closed by this plan",
     "closes": "closes",
     "critical": "critical",
@@ -607,9 +608,12 @@
     "open_findings": "open findings",
     "person_days": "estimated person-days",
     "plan_total": "Plan total:",
+    "scope": "Scope",
+    "show_more": "Show more",
     "subtitle": "What to do, in order: one action per row, ranked by what it closes over what it costs.",
     "targets": "targets",
-    "title": "Remediation plan"
+    "title": "Remediation plan",
+    "whole_estate": "Whole estate"
   },
   "repositories": {
     "title": "Git Repositories",

@@ -77,7 +77,7 @@ control changed.
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection against Software Flaws & Secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Audit Log Implementation | `AUDIT_AND_LOGGING` |
 | **EU CRA** | `CRA-ART11-NOTIF` | 24h CSIRT / ENISA Notification for Actively Exploited Flaws (KEV/EPSS) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM Delivery (CycloneDX 1.6 with embedded VEX) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM Delivery (CycloneDX 1.5 with embedded VEX) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-LIFECYCLE` | Component Security Support & End-of-Life Tracking (EOL) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-VULN` | Continuous Vulnerability Remediation & Security Updates | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Preventing Unauthorized Changes & Malicious Code | `SECURE_CODING` |
@@ -228,9 +228,9 @@ exists not to produce.
 ## 6. VEX Interoperability (OpenVEX, OASIS CSAF 2.0 & CycloneDX VEX)
 
 Vectispire supports the full trio of international VEX standards:
-- **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier **OpenVEX**, **CSAF 2.0**, and **CycloneDX 1.5/1.6 VEX** statements, cascading automated triage for unaffected components with full audit provenance.
+- **Upstream VEX Ingestion (`POST /api/v1/vex/ingest`)**: Automatically ingests upstream supplier **OpenVEX**, **CSAF 2.0**, and **CycloneDX VEX** statements (the declared spec version is not inspected, so 1.5 and 1.6 documents are both accepted), cascading automated triage for unaffected components with full audit provenance.
 - **OASIS CSAF 2.0 Export (`/api/v1/csaf/...`)**: Generates automated machine-readable security advisories for release scans and aggregate fleet inventory.
-- **CycloneDX 1.5/1.6 BOM-Linked VEX Export (`/api/v1/cyclonedx/...`)**: Generates industry-standard CycloneDX SBOMs enriched with component-level VEX analysis and justification.
+- **CycloneDX 1.5 BOM-Linked VEX Export (`/api/v1/cyclonedx/...`)**: Generates industry-standard CycloneDX SBOMs enriched with component-level VEX analysis and justification.
 
 ---
 

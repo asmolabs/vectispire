@@ -6,7 +6,9 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '@/app/core/api.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
-import type { HighImpactFix, SecurityDebtReport } from '@/app/core/api.models';
+import { SelectModule } from '@openng/optimus-ui/select';
+import { FormsModule } from '@angular/forms';
+import type { HighImpactFix, MonitoredContainer, MonitoredRepository, SecurityDebtReport } from '@/app/core/api.models';
 
 /**
  * Ce qu'il faut faire, dans l'ordre — et non ce qui ne va pas.
@@ -30,7 +32,7 @@ import type { HighImpactFix, SecurityDebtReport } from '@/app/core/api.models';
 @Component({
     selector: 'app-remediation',
     standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, MessageModule, TagModule, TranslatePipe],
+    imports: [CommonModule, RouterLink, FormsModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
     templateUrl: './remediation.html'
 })
 export class Remediation {
@@ -41,6 +43,31 @@ export class Remediation {
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
     readonly expanded = signal<string | null>(null);
+
+    /**
+     * La cible sur laquelle porte le plan, ou tout le parc.
+     *
+     * <p>Une seule liste déroulante pour les dépôts et les images : la question est « de quoi
+     * suis-je responsable lundi », et elle ne se pose pas différemment selon qu'on livre un dépôt
+     * ou une image. La valeur porte son genre pour que l'appel sache quel paramètre poser.
+     */
+    readonly targets = signal<{ label: string; value: string }[]>([]);
+    scope = '';
+
+    /**
+     * Combien de lignes sont demandées.
+     *
+     * <p><b>Dix par défaut, et non « tout ».</b> Un ordre de travail court est ce qui fait
+     * commencer ; c'est aussi pour cela que ceci grandit par paliers au lieu d'offrir une
+     * pagination — personne ne veut la page 4 d'un plan de remédiation, on veut savoir ce qui
+     * vient après les dix premières.
+     */
+    readonly wanted = signal(10);
+    readonly CEILING = 50;
+
+    /** Vrai tant que le serveur en a rendu autant qu'on en demandait : il y a peut-être la suite. */
+    readonly mayHaveMore = computed(() =>
+        this.wanted() < this.CEILING && this.fixes().length >= this.wanted());
 
     /**
      * Ce que les lignes affichées ferment, additionné.
@@ -55,7 +82,42 @@ export class Remediation {
         Math.round(this.fixes().reduce((sum, fix) => sum + fix.estimatedHours, 0) * 10) / 10);
 
     constructor() {
-        this.api.getHighImpactFixes().subscribe({
+        this.load();
+
+        // Les cibles sont chargées à part : ne pas pouvoir les lister n'empêche pas de lire le
+        // plan du parc entier, qui est ce que la page montre par défaut.
+        this.api.repositories().subscribe({
+            next: (repositories: MonitoredRepository[]) => this.addTargets(
+                repositories.map((repository) => ({
+                    label: repository.name ?? repository.url,
+                    value: `repo:${repository.id}`
+                }))),
+            error: () => {}
+        });
+        this.api.containers().subscribe({
+            next: (containers: MonitoredContainer[]) => this.addTargets(
+                containers.map((container) => ({
+                    label: `${container.imageName}:${container.tag}`,
+                    value: `container:${container.id}`
+                }))),
+            error: () => {}
+        });
+    }
+
+    private addTargets(more: { label: string; value: string }[]): void {
+        this.targets.update((current) => [...current, ...more]);
+    }
+
+    /** Recharge le plan pour la portée et la taille demandées. */
+    load(): void {
+        this.loading.set(true);
+        this.error.set(null);
+
+        const [kind, id] = this.scope ? this.scope.split(':') : [null, null];
+        const repoId = kind === 'repo' ? Number(id) : undefined;
+        const containerId = kind === 'container' ? Number(id) : undefined;
+
+        this.api.getHighImpactFixes(repoId, containerId, this.wanted()).subscribe({
             next: (fixes) => { this.fixes.set(fixes); this.loading.set(false); },
             error: () => {
                 this.error.set('Le plan de remédiation n\'a pas pu être calculé.');
@@ -65,7 +127,20 @@ export class Remediation {
 
         // Séparément : une dette indisponible ne doit pas effacer un ordre de travail qui, lui,
         // est arrivé. C'est le contexte de la page, pas son sujet.
-        this.api.getSecurityDebt().subscribe({ next: (debt) => this.debt.set(debt), error: () => {} });
+        this.api.getSecurityDebt(repoId, containerId)
+            .subscribe({ next: (debt) => this.debt.set(debt), error: () => {} });
+    }
+
+    /** Change de cible : la taille demandée repart à dix, le plan n'étant plus le même. */
+    changeScope(): void {
+        this.wanted.set(10);
+        this.expanded.set(null);
+        this.load();
+    }
+
+    showMore(): void {
+        this.wanted.update((current) => Math.min(current * 2 + 5, this.CEILING));
+        this.load();
     }
 
     toggle(fix: HighImpactFix): void {

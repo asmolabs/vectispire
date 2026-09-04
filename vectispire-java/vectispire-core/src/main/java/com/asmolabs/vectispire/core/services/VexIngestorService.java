@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Ingests upstream vendor VEX documents (OpenVEX, OASIS CSAF 2.0, and CycloneDX 1.5/1.6 VEX)
+ * Ingests upstream vendor VEX documents (OpenVEX, OASIS CSAF 2.0, and CycloneDX VEX)
  * and cascades automated suppressions across matching codebase issues.
  */
 @Service

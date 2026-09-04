@@ -240,6 +240,26 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("la borne demandée est respectée, et ramenée dans ses limites quand elle est absurde")
+    void theWantedCountIsBounded() {
+        // **« Et après ces dix-là ? »** L'ordre de travail par défaut est court parce que c'est
+        // sa raison d'être, mais le refuser d'élargir revient à faire refaire le classement à la
+        // main sur un parc réel.
+        assertThat(debt.highImpactFixes(null, null, 1, Visibility.everything())).hasSize(1);
+
+        // Une valeur absurde est corrigée et non refusée : un plan n'est pas un endroit où
+        // répondre 400. Le plancher comme le plafond — la fixture n'a que deux paquets, donc
+        // demander cinq cents en rend deux, et non une erreur.
+        assertThat(debt.highImpactFixes(null, null, 0, Visibility.everything())).hasSize(1);
+        assertThat(debt.highImpactFixes(null, null, 500, Visibility.everything())).hasSize(2);
+
+        // Et le rapport de dette garde ses dix, quoi qu'on demande ailleurs : c'est un extrait
+        // sur un tableau de bord, pas un ordre de travail.
+        assertThat(debt.calculateDebt(null, null, Visibility.everything()).topHighImpactFixes())
+                .hasSize(2);
+    }
+
+    @Test
     @DisplayName("asking for one repository narrows both halves")
     void oneTarget() {
         SecurityDebtReport report = debt.calculateDebt(beta, null, Visibility.everything());

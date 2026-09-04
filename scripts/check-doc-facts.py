@@ -134,11 +134,41 @@ def compliance_counts() -> dict[str, int]:
 # The claims. Each is a pattern that means "this document is stating a count for X".
 # --------------------------------------------------------------------------------------
 
+def cyclonedx_minor() -> int:
+    """Le rang mineur de la version CycloneDX que le code émet réellement.
+
+    La constante est la seule source : `CycloneDxDocument.SPEC_VERSION`. La documentation
+    annonçait « CycloneDX 1.6 avec VEX intégré » dans le tableau du CRA et « export
+    CycloneDX 1.5/1.6 » deux sections plus bas, au-dessus d'un générateur dont la constante vaut
+    1.5 — et dont le javadoc disait lui aussi 1.5/1.6. Trois affirmations, une seule vérité.
+    """
+    source = read(ROOT / "vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire"
+                         "/common/domain/cyclonedx/CycloneDxDocument.java")
+    match = re.search(r'SPEC_VERSION\s*=\s*"1\.(\d+)"', source)
+    if not match:
+        raise SystemExit("CycloneDxDocument.SPEC_VERSION est introuvable : la règle ne vérifie plus rien.")
+    return int(match.group(1))
+
+
 def claims() -> list[tuple[str, int, re.Pattern[str]]]:
     """(label, the true count, a pattern whose group 1 is the count a document asserts)."""
     MAX = len(migration_vendors())
     counts = compliance_counts()
     return [
+        # **La version d'un format est une affirmation comme une autre, et elle n'enfle que dans
+        # un sens.** Personne n'annonce une version plus vieille que celle qu'il émet ; le défaut
+        # est toujours de promettre la plus récente. Le plafond est donc le rang mineur de la
+        # constante, et « 1.5/1.6 » échoue par son second terme — ce qui est voulu : un lecteur
+        # qui monte un pipeline sur la promesse d'un 1.6 découvre l'écart à l'intégration.
+        #
+        # L'ingestion, elle, ne lit pas la version déclarée et accepte les deux ; c'est ce que la
+        # documentation doit dire, plutôt que de laisser croire à un analyseur qui la contrôle.
+        #
+        # Le préfixe optionnel fait porter la vérification sur le terme le plus haut d'une plage :
+        # « CycloneDX 1.5/1.6 » est une promesse de 1.6, et un motif qui s'arrête au premier
+        # nombre l'aurait déclarée conforme — la forme exacte dans laquelle l'écart se cachait.
+        ("CycloneDX minor version (at most)", cyclonedx_minor(), re.compile(
+            r"CycloneDX[\s\u00a0]+(?:\d+\.\d+\s*/\s*)?1\.(\d+)", re.I)),
         # **Engines are checked as a ceiling, not an equality, and that is a deliberate
         # retreat.** The obvious rule — "any number next to `engines` must equal 2" — produced
         # seventeen false positives on its first run: `un moteur` is a French article, and

@@ -81,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 565;
+const EXPECTED_KEYS = 569;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(

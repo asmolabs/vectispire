@@ -91,6 +91,18 @@ public class SecurityDebtService {
     /** The list is a work order, and nobody works a hundred items at once. */
     private static final int MOST_LEVERAGE = 10;
 
+    /**
+     * Le plafond de « et après ces dix-là ? ».
+     *
+     * <p><b>Une borne, et non l'absence de borne.</b> Dix lignes répondent à « par quoi je
+     * commence » et c'est la bonne réponse par défaut ; sur un parc réel quelqu'un veut voir la
+     * suite, et lui refuser revient à lui faire refaire le classement à la main. Mais rendre la
+     * limite libre rendrait le coût de cette lecture dépendant de ce qu'un appelant demande —
+     * chaque ligne supplémentaire coûte une lecture de détail — et un ordre de travail de cinq
+     * cents lignes n'est plus un ordre de travail.
+     */
+    private static final int MOST_LEVERAGE_EVER = 50;
+
     private final Issues issues;
     private final GitRepositories repositories;
     private final Containers containers;
@@ -129,7 +141,7 @@ public class SecurityDebtService {
                 round(tallies.iacHours),
                 round(tallies.licenseHours),
                 round(tallies.eolHours),
-                rank(filter));
+                rank(filter, MOST_LEVERAGE));
     }
 
     /**
@@ -140,7 +152,18 @@ public class SecurityDebtService {
      */
     @Transactional(readOnly = true)
     public List<HighImpactFix> highImpactFixes(Long repoId, Long containerId, Visibility allowed) {
-        return rank(openIssuesOf(repoId, containerId, allowed));
+        return highImpactFixes(repoId, containerId, MOST_LEVERAGE, allowed);
+    }
+
+    /**
+     * @param wanted combien de lignes l'appelant veut voir, ramené dans
+     *     {@code [1, MOST_LEVERAGE_EVER]} — une valeur absurde est corrigée plutôt que refusée,
+     *     parce qu'un ordre de travail n'est pas un endroit où renvoyer un 400
+     */
+    public List<HighImpactFix> highImpactFixes(
+            Long repoId, Long containerId, int wanted, Visibility allowed) {
+        int bounded = Math.clamp(wanted, 1, MOST_LEVERAGE_EVER);
+        return rank(openIssuesOf(repoId, containerId, allowed), bounded);
     }
 
     private static Specification<IssueEntity> openIssuesOf(Long repoId, Long containerId, Visibility allowed) {
@@ -204,7 +227,7 @@ public class SecurityDebtService {
      * is ranked on aggregate rows, and the identifiers and target names — the only part whose
      * size follows the backlog — are fetched for the survivors alone.
      */
-    private List<HighImpactFix> rank(Specification<IssueEntity> filter) {
+    private List<HighImpactFix> rank(Specification<IssueEntity> filter, int wanted) {
         List<IssueAggregates.PackageWeight> weights = issues.weighPackages(filter).stream()
                 // A package whose findings are all unnamed still has one unnamed CVE, so this
                 // only drops rows a filter already emptied.
@@ -213,7 +236,7 @@ public class SecurityDebtService {
                         // Ties broken by name so two runs on the same data agree; the map this
                         // replaced had no order at all.
                         .thenComparing(IssueAggregates.PackageWeight::packageName))
-                .limit(MOST_LEVERAGE)
+                .limit(wanted)
                 .toList();
 
         if (weights.isEmpty()) {

@@ -48,5 +48,16 @@ findings list — and the repositories and images it touches. The counters at th
 give the plan its scale: how many findings are open in total, how many are critical, the estimated
 effort for the whole estate, and how much of it the ten rows below close.
 
+## Scope and depth
+
+The scope selector narrows the plan to one repository or one image — the same question, asked of
+one target instead of the estate. Changing it starts the list over at ten rows: the plan is a
+different plan, and carrying the previous depth across would suggest a continuity that is not
+there.
+
+Ten rows is the default because a short work order is what makes a team start. **Show more** grows
+the list in steps rather than paging it, because nobody wants page 4 of a remediation plan — they
+want to know what comes after the first ten. It stops at fifty, where a work order stops being one.
+
 Everything here honours the same visibility rules as the rest of the product: an account sees the
 plan for the targets it is allowed to see, and no others.

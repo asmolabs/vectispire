@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -159,27 +160,33 @@ public class SbomDiffService {
                 cveDeltas));
     }
 
+    /**
+     * Les deux derniers scans d'une cible, comparés.
+     *
+     * <p><b>Deux identifiants demandés, et non tout l'historique trié en mémoire.</b> Ceci lisait
+     * {@code scans.findAll()} puis filtrait, triait et gardait deux lignes : chaque ligne de scan
+     * du déploiement chargée — charge SBOM comprise, des mégaoctets pièce — pour n'en garder que
+     * deux identifiants. Le coût suivait l'historique du parc entier alors que la question ne
+     * porte que sur une cible.
+     *
+     * <p>Un seul scan donne une comparaison de ce scan avec lui-même : c'est délibéré, et cela
+     * répond « rien n'a changé » plutôt que « aucune donnée », qui se lit comme une panne.
+     */
     @Transactional(readOnly = true)
     public Optional<SbomDiffReport> diffLatest(Long repoId, Long containerId) {
-        List<ScanEntity> targetScans = scans.findAll().stream()
-                .filter(s -> {
-                    if (repoId != null && repoId.equals(s.getRepoId())) return true;
-                    if (containerId != null && containerId.equals(s.getContainerId())) return true;
-                    return false;
-                })
-                .sorted(Comparator.comparing(ScanEntity::getId).reversed())
-                .limit(2)
-                .toList();
+        List<Long> recent = repoId != null
+                ? scans.findRecentIdsByRepoId(repoId, Limit.of(2))
+                : containerId != null
+                        ? scans.findRecentIdsByContainerId(containerId, Limit.of(2))
+                        : List.of();
 
-        if (targetScans.size() >= 2) {
-            ScanEntity latest = targetScans.get(0);
-            ScanEntity previous = targetScans.get(1);
-            return diff(previous.getId(), latest.getId());
-        } else if (targetScans.size() == 1) {
-            ScanEntity single = targetScans.get(0);
-            return diff(single.getId(), single.getId());
+        if (recent.size() >= 2) {
+            // Du plus récent au plus ancien : le premier est l'état d'arrivée.
+            return diff(recent.get(1), recent.get(0));
         }
-
+        if (recent.size() == 1) {
+            return diff(recent.get(0), recent.get(0));
+        }
         return Optional.empty();
     }
 

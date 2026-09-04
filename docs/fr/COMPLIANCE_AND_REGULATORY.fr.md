@@ -71,7 +71,7 @@ sequenceDiagram
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection contre les failles logicielles & secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Mise en œuvre des journaux d'audit | `AUDIT_AND_LOGGING` |
 | **EU CRA** | `CRA-ART11-NOTIF` | Notification ENISA / CSIRT sous 24h des failles exploitées (KEV/EPSS) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Fourniture obligatoire d'un SBOM machine-readable (CycloneDX 1.6 avec VEX intégré) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-SBOM` | Fourniture obligatoire d'un SBOM machine-readable (CycloneDX 1.5 avec VEX intégré) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-LIFECYCLE` | Traçabilité du support de sécurité et dates d'obsolescence (EOL) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-VULN` | Remédiation continue et gestion des correctifs de sécurité | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Prévention des modifications non autorisées & Code malveillant | `SECURE_CODING` |
@@ -226,7 +226,7 @@ document existe pour ne pas produire.
 Vectispire supporte le triptyque complet des formats VEX mondiaux :
 
 ### 1. Ingestion Multi-Formats Amont (*Upstream Suppression Cascade*)
-Vectispire permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX 1.5/1.6 VEX** :
+Vectispire permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX VEX** (la version déclarée n'est pas inspectée : les documents 1.5 et 1.6 sont acceptés l'un comme l'autre) :
 - **Endpoint API** : `POST /api/v1/vex/ingest` (détection automatique du format JSON).
 - **Interface Web** : Bouton `Importer VEX` sur `/compliance`.
 - **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non exécutable ou mitigation en ligne), Vectispire classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
@@ -235,7 +235,7 @@ Vectispire permet d'ingérer automatiquement les avis VEX officiels publiés par
 - `GET /api/v1/csaf/scans/{scanId}/csaf.json` : Avis CSAF par scan de release.
 - `GET /api/v1/csaf/aggregate.json` : Avis CSAF agrégé de l'ensemble du parc applicatif.
 
-### 3. Export CycloneDX 1.5/1.6 BOM-Linked VEX
+### 3. Export CycloneDX 1.5 BOM-Linked VEX
 - `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json` : SBOM de la cible avec analyse VEX par composant.
 - `GET /api/v1/cyclonedx/aggregate.json` : Inventaire agrégé du parc avec statut de justification VEX intégré.
 

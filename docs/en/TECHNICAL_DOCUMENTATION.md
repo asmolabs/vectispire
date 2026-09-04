@@ -460,7 +460,9 @@ Two rules the harness enforces on itself:
   screen says so rather than recommending an upgrade that does not exist. This field previously
   carried the literal string `latest-patch` for every package.
 - **REST Endpoints**:
-  - `GET /api/v1/remediation/high-impact-fixes`: the ranked work order, visibility-scoped.
+  - `GET /api/v1/remediation/high-impact-fixes?repoId=&containerId=&limit=`: the ranked work
+    order, visibility-scoped. `limit` defaults to 10 and is clamped to [1, 50] rather than
+    refused — a work order is not a place to answer 400.
   - `GET /api/v1/remediation/debt`: the totals that give the plan its scale.
 - **Screen**: `/remediation`, open to any signed-in account. Each row expands to the CVEs it
   closes — each linking into the filtered findings list — and the targets it touches.

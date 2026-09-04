@@ -60,13 +60,26 @@ describe('le plan de remédiation', () => {
         fixture.detectChanges();
     });
 
+    /** Le plan, la dette et les deux listes de cibles — dans l'ordre où la page les demande. */
+    function answer(fixes: HighImpactFix[], debt: Record<string, unknown> = { totalOpenIssues: 9 }): void {
+        plan().flush(fixes);
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt);
+        for (const request of http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers'))) {
+            request.flush([]);
+        }
+        fixture.detectChanges();
+    }
+
+    /** La requête de plan, quels que soient les paramètres qu'elle porte. */
+    function plan() {
+        return http.expectOne((request) => request.url.includes('/remediation/high-impact-fixes'));
+    }
+
     it("garde l'ordre du serveur, qui est le classement par levier", () => {
-        http.expectOne('/api/v1/remediation/high-impact-fixes').flush([
+        answer([
             fix({ packageName: 'log4j-core', leverageScore: 10.4 }),
             fix({ packageName: 'openssl', leverageScore: 3.2 })
-        ]);
-        http.expectOne('/api/v1/remediation/debt').flush({ totalOpenIssues: 9, criticalIssues: 2 });
-        fixture.detectChanges();
+        ], { totalOpenIssues: 9, criticalIssues: 2 });
 
         // **L'ordre est l'information.** Une page qui range par levier puis réordonne par nom,
         // ou qu'un `track` ferait glisser, transforme un ordre de travail en liste.
@@ -80,10 +93,7 @@ describe('le plan de remédiation', () => {
         // **Le défaut que ceci ferme, un cran plus loin.** Le serveur renvoyait la chaîne
         // « latest-patch » pour tout le monde, et le tableau de bord l'affichait derrière une
         // flèche. Maintenant qu'il peut ne rien renvoyer, l'écran doit dire quoi.
-        http.expectOne('/api/v1/remediation/high-impact-fixes')
-            .flush([fix({ recommendedVersion: null as unknown as string })]);
-        http.expectOne('/api/v1/remediation/debt').flush({ totalOpenIssues: 1 });
-        fixture.detectChanges();
+        answer([fix({ recommendedVersion: null as unknown as string })], { totalOpenIssues: 1 });
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Aucune version corrigée publiée');
@@ -91,18 +101,58 @@ describe('le plan de remédiation', () => {
     });
 
     it('survit à une dette indisponible, parce que le plan est le sujet', () => {
-        http.expectOne('/api/v1/remediation/high-impact-fixes').flush([fix({})]);
-        http.expectOne('/api/v1/remediation/debt').error(new ProgressEvent('failed'));
+        plan().flush([fix({})]);
+        http.expectOne((request) => request.url.includes('/remediation/debt'))
+            .error(new ProgressEvent('failed'));
+        for (const request of http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers'))) {
+            request.flush([]);
+        }
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain('log4j-core');
         expect(fixture.componentInstance.error()).toBeNull();
     });
 
-    it('distingue « rien à faire » de « rien de calculable »', () => {
-        http.expectOne('/api/v1/remediation/high-impact-fixes').flush([]);
-        http.expectOne('/api/v1/remediation/debt').flush({ totalOpenIssues: 4 });
+    it('demande la suite par paliers, sans dépasser le plafond', () => {
+        answer(Array.from({ length: 10 }, (_, index) => fix({ packageName: `pkg-${index}` })));
+
+        // Dix rendus sur dix demandés : il y a peut-être une suite, donc le bouton est là.
+        expect(fixture.componentInstance.mayHaveMore()).toBe(true);
+        fixture.componentInstance.showMore();
         fixture.detectChanges();
+
+        // **Le palier est passé au serveur**, sans quoi le bouton rechargerait les mêmes dix
+        // lignes et l'écran donnerait l'impression d'être bloqué.
+        const second = plan();
+        expect(second.request.params.get('limit')).toBe('25');
+        second.flush(Array.from({ length: 25 }, (_, index) => fix({ packageName: `pkg-${index}` })));
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 9 });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.wanted()).toBe(25);
+    });
+
+    it('recharge sur la cible choisie, et repart au premier palier', () => {
+        answer([fix({})]);
+        fixture.componentInstance.wanted.set(25);
+
+        fixture.componentInstance.scope = 'repo:7';
+        fixture.componentInstance.changeScope();
+
+        // La portée est passée au serveur, et la taille repart à dix : le plan n'est plus le
+        // même, et garder le palier précédent ferait croire à une continuité qui n'existe pas.
+        const scoped = plan();
+        expect(scoped.request.params.get('repoId')).toBe('7');
+        expect(scoped.request.params.get('limit')).toBe('10');
+        scoped.flush([]);
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 0 });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.wanted()).toBe(10);
+    });
+
+    it('distingue « rien à faire » de « rien de calculable »', () => {
+        answer([], { totalOpenIssues: 4 });
 
         // Quatre constats ouverts et aucune ligne de plan : le message doit expliquer que le
         // plan ne classe que ce qu'une montée de version ferme, sans quoi l'écran a l'air cassé.

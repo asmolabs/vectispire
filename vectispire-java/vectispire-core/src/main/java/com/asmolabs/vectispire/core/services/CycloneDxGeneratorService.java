@@ -22,7 +22,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 /**
- * Generates CycloneDX 1.5/1.6 Software Bill of Materials (SBOM) with BOM-linked
+ * Generates CycloneDX 1.5 Software Bill of Materials (SBOM) with BOM-linked
  * Vulnerability Exploitability eXchange (VEX) analysis statements.
  */
 @Service

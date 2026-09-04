@@ -49,5 +49,16 @@ liste filtrée — ainsi que les dépôts et les images concernés. Les compteur
 donnent son échelle au plan : combien de constats sont ouverts en tout, combien sont critiques,
 l'effort estimé sur l'ensemble du parc, et la part que ferment les dix lignes en dessous.
 
+## Portée et profondeur
+
+Le sélecteur de portée restreint le plan à un dépôt ou à une image — la même question, posée d'une
+cible plutôt que du parc. En changer relance la liste à dix lignes : le plan n'est plus le même, et
+conserver la profondeur précédente laisserait croire à une continuité qui n'existe pas.
+
+Dix lignes par défaut, parce qu'un ordre de travail court est ce qui fait démarrer une équipe.
+**Voir la suite** allonge la liste par paliers plutôt que de la paginer : personne ne veut la page 4
+d'un plan de remédiation, on veut savoir ce qui vient après les dix premières. Cela s'arrête à
+cinquante, là où un ordre de travail cesse d'en être un.
+
 Tout ici respecte les mêmes règles de visibilité que le reste du produit : un compte voit le plan
 des cibles qu'il a le droit de voir, et d'aucune autre.

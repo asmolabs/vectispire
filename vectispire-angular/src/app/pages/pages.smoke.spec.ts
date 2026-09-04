@@ -2,23 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Routes } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Agents } from './agents/agents';
-import { ApiKeys } from './api-keys/api-keys';
-import { AuditLog } from './audit-log/audit-log';
-import { Containers } from './containers/containers';
-import { Dashboard } from './dashboard/dashboard';
-import { Quality } from './quality/quality';
-import { Repositories } from './repositories/repositories';
-import { RuleSets } from './rule-sets/rule-sets';
+import { appRoutes } from '@/app.routes';
 import { ScanDetailPage } from './scans/scan-detail';
-import { Security } from './security/security';
-import { SshKeys } from './ssh-keys/ssh-keys';
-import { Teams } from './teams/teams';
-import { Users } from './users/users';
-import { AttackSurface } from './attack-surface/attack-surface';
 
 /**
  * Every screen mounts, renders, and survives an empty server.
@@ -109,28 +97,119 @@ describe('every screen', () => {
             };
         }
         if (url.includes('/audit-log/operation-types')) return [];
+
+        // **Quatre formes que ce fichier ne connaissait pas**, parce qu'il ne montait pas les
+        // écrans qui les demandent. Elles sont arrivées avec la dérivation depuis les routes :
+        // aucune n'est un défaut d'écran — le serveur envoie toujours ces cartes, jamais nulles —
+        // mais un gabarit qui lit `sommaire.repartition['X']` sur le tableau vide que ce
+        // fabricant rendait par défaut lève avant d'afficher quoi que ce soit.
+        if (url.endsWith('/epss/priorities')) {
+            return {
+                totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0,
+                reachableEpssCount: 0, averageFleetEpss: 0, topPriorities: [],
+                breakdownByTier: {}
+            };
+        }
+        if (url.endsWith('/gate/policies')) {
+            const builtIn = {
+                kind: 'built_in', target_id: null, target_name: null, version: 0,
+                fail_on_severity: null, fail_on_kev: false, fixable_only: false,
+                include_triaged: false, include_ai_review: false, note: null,
+                created_by: null, created_at: null
+            };
+            return { policies: [], built_in: builtIn };
+        }
+        if (url.endsWith('/compliance/summary')) {
+            return {
+                evaluations: [],
+                mttr: { mttrBySeverityDays: {}, overallMttrDays: null, resolvedCount: 0 },
+                overdueCount: 0, dueSoonCount: 0,
+                totalMonitoredTargets: 0, passingGateTargets: 0, targets: []
+            };
+        }
+        if (url.endsWith('/licenses/summary')) {
+            return { totalDependencies: 0, uniqueLicenses: 0, nonCompliantCount: 0, breakdownByRisk: {} };
+        }
+        if (url.endsWith('/licenses/policy')) {
+            return { disallowedCategories: [], explicitlyAllowedLicenses: [], explicitlyDisallowedLicenses: [] };
+        }
+        if (url.endsWith('/licenses/matrix')) return { entries: [] };
+        if (url.endsWith('/remediation/debt')) {
+            return {
+                totalOpenIssues: 0, criticalIssues: 0, highIssues: 0, mediumIssues: 0, lowIssues: 0,
+                totalEstimatedHours: 0, totalEstimatedPersonDays: 0, vulnerabilitiesDebtHours: 0,
+                secretsDebtHours: 0, sastDebtHours: 0, iacDebtHours: 0, licenseDebtHours: 0,
+                eolDebtHours: 0, topHighImpactFixes: []
+            };
+        }
+
         // Everything else in this application is a collection.
         return [];
     }
 
-    const SCREENS: [string, Type<unknown>][] = [
-        ['Dashboard', Dashboard],
-        ['Repositories', Repositories],
-        ['Containers', Containers],
-        ['Security', Security],
-        ['Quality', Quality],
-        ['Agents', Agents],
-        ['API keys', ApiKeys],
-        ['SSH keys', SshKeys],
-        ['Users', Users],
-        ['Teams', Teams],
-        ['Audit log', AuditLog],
-        ['Semgrep rules', RuleSets],
-        ['Attack surface', AttackSurface]
-    ];
+    /**
+     * Les écrans montés à part, avec la raison — et la raison est vérifiée.
+     *
+     * <p>Chacun a besoin de plus qu'un `createComponent` : une entrée de route obligatoire, ou
+     * une réponse serveur d'une forme que ce fichier ne sait pas fabriquer à vide. Les exempter
+     * est légitime ; les exempter en silence ne l'est pas, et c'est ce que faisait la liste
+     * écrite à la main — elle ne disait pas ce qu'elle omettait.
+     */
+    const MOUNTED_APART: Record<string, string> = {
+        'scans/:id': "prend son identifiant de la route : une entrée obligatoire non posée lève NG0950 avant le gabarit",
+        'login': "hors du layout, et son propre fichier de spec l'éprouve",
+        'change-password': "hors du layout, éprouvé par la suite navigateur",
+        'error': "une page statique sans appel serveur",
+        'issues/:id': "prend son identifiant de la route, comme le détail de scan"
+    };
 
-    it.each(SCREENS)('%s renders against an empty server', (_name, component) => {
-        const fixture = TestBed.createComponent(component);
+    /**
+     * Tous les écrans que la table des routes déclare, et non ceux dont quelqu'un s'est souvenu.
+     *
+     * <p><b>Ce fichier s'appelle « every screen » et en montait dix-sept sur trente et un.</b>
+     * `blast-radius`, `epss`, `notifications`, `forbidden` et `notfound` n'étaient montés par
+     * aucun test, nulle part — dont l'explorateur de rayon d'impact, l'écran le plus lourd du
+     * produit. Une liste recopiée à la main couvre ce dont on s'est souvenu le jour où on l'a
+     * écrite ; c'est un garde-fou qui a l'air d'en être un, exactement ce que
+     * `ReadCostSweepTest` dit de la table des routes un étage plus bas.
+     *
+     * <p>Un écran ajouté demain est donc monté demain, sans que personne y pense — et un écran
+     * qu'on veut exempter doit être nommé dans `MOUNTED_APART`, avec sa raison.
+     */
+    function routedScreens(): { path: string; load: () => Promise<Type<unknown>> }[] {
+        const found: { path: string; load: () => Promise<Type<unknown>> }[] = [];
+        const walk = (routes: Routes, prefix: string) => {
+            for (const route of routes) {
+                const path = [prefix, route.path].filter((part) => part).join('/');
+                if (route.loadComponent) {
+                    found.push({ path, load: route.loadComponent as () => Promise<Type<unknown>> });
+                }
+                if (route.children) {
+                    walk(route.children, path);
+                }
+            }
+        };
+        walk(appRoutes, '');
+        return found;
+    }
+
+    const ALL = routedScreens();
+    const SCREENS: [string, () => Promise<Type<unknown>>][] = ALL
+        .filter((screen) => !(screen.path in MOUNTED_APART))
+        .map((screen) => [screen.path, screen.load]);
+
+    it('exempte des écrans qui existent, et seulement ceux-là', () => {
+        // Une exemption périmée est pire qu'aucune : elle nomme un écran disparu et laisse croire
+        // que le reste est couvert. Celle-ci tombe le jour où le chemin change.
+        const routed = new Set(ALL.map((screen) => screen.path));
+        for (const path of Object.keys(MOUNTED_APART)) {
+            expect(routed.has(path), `${path} n'est plus une route : l'exemption est périmée`).toBe(true);
+        }
+        expect(SCREENS.length).toBeGreaterThan(20);
+    });
+
+    it.each(SCREENS)('%s renders against an empty server', async (_path, load) => {
+        const fixture = TestBed.createComponent(await load());
         fixture.detectChanges();
 
         // Whatever the screen asked for, answered empty. A screen that throws on no data is a

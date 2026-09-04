@@ -45,8 +45,12 @@ public class SecurityDebtController {
     public List<HighImpactFix> highImpactFixes(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(value = "repoId", required = false) Long repoId,
-            @RequestParam(value = "containerId", required = false) Long containerId) {
+            @RequestParam(value = "containerId", required = false) Long containerId,
+            // Dix par défaut, parce qu'un ordre de travail court est le sujet ; le service ramène
+            // toute valeur dans ses bornes plutôt que de refuser, un plan n'étant pas un endroit
+            // où répondre 400.
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
-        return securityDebtService.highImpactFixes(repoId, containerId, allowed);
+        return securityDebtService.highImpactFixes(repoId, containerId, limit, allowed);
     }
 }

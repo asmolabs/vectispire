@@ -467,7 +467,9 @@ Deux règles que le harnais s'impose à lui-même :
   n'annonce de correctif, et l'écran le dit au lieu de conseiller une mise à jour inexistante. Ce
   champ portait auparavant la chaîne littérale `latest-patch` pour tous les paquets.
 - **Points d'entrée REST** :
-  - `GET /api/v1/remediation/high-impact-fixes` : l'ordre de travail classé, cadré par la visibilité.
+  - `GET /api/v1/remediation/high-impact-fixes?repoId=&containerId=&limit=` : l'ordre de travail
+    classé, cadré par la visibilité. `limit` vaut 10 par défaut et est ramené dans [1, 50]
+    plutôt que refusé — un plan n'est pas un endroit où répondre 400.
   - `GET /api/v1/remediation/debt` : les totaux qui donnent son échelle au plan.
 - **Écran** : `/remediation`, ouvert à tout compte connecté. Chaque ligne se déplie sur les CVE
   qu'elle ferme — chacun renvoyant vers la liste filtrée — et sur les cibles concernées.
