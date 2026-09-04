@@ -186,6 +186,12 @@ public class AuthService {
             return Optional.empty();
         }
 
+        // Cadencé : voir `Sessions.shouldRecordActivity`. Écrire ici à chaque requête faisait de
+        // toute page à plusieurs appels une bagarre entre ses propres requêtes pour une ligne.
+        if (!Sessions.shouldRecordActivity(session.getLastSeenAt(), now, policy)) {
+            return Optional.of(session);
+        }
+
         session.setLastSeenAt(now);
         return Optional.of(sessions.save(session));
     }

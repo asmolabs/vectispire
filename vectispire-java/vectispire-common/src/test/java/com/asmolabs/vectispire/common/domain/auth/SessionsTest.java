@@ -96,4 +96,34 @@ class SessionsTest {
     void refusesNull() {
         assertThat(Sessions.bearerToken(null)).isEmpty();
     }
+
+    @Test
+    @DisplayName("activity is written down at a grain, and never late enough to keep a dead session alive")
+    void activityIsRecordedAtAGrain() {
+        Sessions.Policy policy = Sessions.Policy.DEFAULT;   // inactivité : soixante minutes
+        Instant seen = Instant.parse("2026-09-04T10:00:00Z");
+
+        // L'économie : la deuxième requête d'un même écran ne réécrit pas la ligne que la
+        // première vient d'écrire. C'est tout l'objet du cadencement — trois appels parallèles se
+        // disputaient une ligne, et sur le moteur en fichier unique ils se bloquaient.
+        assertThat(Sessions.shouldRecordActivity(seen, seen.plusMillis(40), policy)).isFalse();
+        assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(59), policy)).isFalse();
+        assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(60), policy)).isTrue();
+
+        // **Et la garantie que l'économie ne coûte rien.** Ce qui est sauté est une écriture, pas
+        // une fermeture : une session dont l'activité n'a pas été notée paraît plus vieille
+        // qu'elle n'est, donc elle expire éventuellement tôt et jamais tard. Le cas qui compte est
+        // celui-ci — au bord de la fenêtre, l'activité est toujours notée, et un utilisateur
+        // présent n'est donc jamais déconnecté parce qu'on a cessé de l'écouter.
+        Instant edge = seen.plus(policy.idleLifetime()).minusSeconds(1);
+        assertThat(Sessions.shouldRecordActivity(seen, edge, policy)).isTrue();
+        assertThat(Sessions.isActive(seen, seen, edge, policy)).isTrue();
+
+        // Une fenêtre très courte ne se cadence pas plus fin qu'une seconde : le grain vaudrait
+        // zéro, et `!now.isBefore(lastSeenAt)` serait vrai en permanence — le cadencement
+        // disparaîtrait sans que rien ne le dise.
+        Sessions.Policy strict = new Sessions.Policy(Duration.ofHours(1), Duration.ofSeconds(30));
+        assertThat(Sessions.shouldRecordActivity(seen, seen.plusMillis(500), strict)).isFalse();
+        assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(1), strict)).isTrue();
+    }
 }

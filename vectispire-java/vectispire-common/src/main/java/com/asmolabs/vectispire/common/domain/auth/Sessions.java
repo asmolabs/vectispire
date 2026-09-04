@@ -117,6 +117,33 @@ public final class Sessions {
     }
 
     /**
+     * Whether this request is worth writing down, given that the window it feeds is an hour wide.
+     *
+     * <p><b>Une écriture par requête authentifiée, sur une seule ligne.</b> C'est ce que coûtait
+     * la précision à la milliseconde d'une fenêtre d'inactivité de soixante minutes : un écran qui
+     * lance trois appels en parallèle envoyait trois transactions concurrentes sur la même ligne,
+     * et sur le déploiement en fichier unique elles se bloquaient l'une l'autre — une session de
+     * suite navigateur a produit un millier de {@code SQLITE_BUSY}, chacun ressorti en {@code 500}
+     * devant l'utilisateur. Sur MySQL et PostgreSQL cela ne casse pas, mais reste une écriture
+     * par lecture.
+     *
+     * <p><b>Le grain est un soixantième de la fenêtre</b>, soit une minute par défaut. Ce qui se
+     * perd est l'exactitude de l'instant de dernière activité, à ce grain près ; ce qui ne se perd
+     * pas est la fermeture des sessions inactives, parce que l'erreur va dans le sens sûr : une
+     * activité non écrite fait paraître la session plus vieille qu'elle n'est, donc elle expire
+     * éventuellement un peu tôt et jamais un peu tard.
+     */
+    public static boolean shouldRecordActivity(Instant lastSeenAt, Instant now, Policy policy) {
+        Duration grain = policy.idleLifetime().dividedBy(60);
+        if (grain.compareTo(Duration.ofSeconds(1)) < 0) {
+            // Une fenêtre très courte est un choix délibéré — un test, ou une politique stricte —
+            // et cadencer plus fin qu'une seconde ne ferait plus d'économie que de dégâts.
+            grain = Duration.ofSeconds(1);
+        }
+        return !now.isBefore(lastSeenAt.plus(grain));
+    }
+
+    /**
      * Extracts the token from an {@code Authorization} header.
      *
      * <p>Empty for anything that is not exactly {@code Bearer <token>}. Telling "absent",
