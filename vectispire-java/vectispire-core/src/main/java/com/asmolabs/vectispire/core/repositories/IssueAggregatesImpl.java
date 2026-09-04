@@ -95,7 +95,8 @@ public class IssueAggregatesImpl implements IssueAggregates {
                         issue.get("packageName"),
                         identifier(builder, issue),
                         issue.get("repoId"),
-                        issue.get("containerId")))
+                        issue.get("containerId"),
+                        issue.get("fixVersions")))
                 .distinct(true);
         restrict(query, filter, issue, builder,
                 vulnerabilityWithAPackage(builder, issue),
@@ -103,7 +104,7 @@ public class IssueAggregatesImpl implements IssueAggregates {
 
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new PackageDetail(
-                        (String) row[0], (String) row[1], (Long) row[2], (Long) row[3]))
+                        (String) row[0], (String) row[1], (Long) row[2], (Long) row[3], (String) row[4]))
                 .toList();
     }
 

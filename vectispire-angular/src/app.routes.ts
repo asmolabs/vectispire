@@ -51,6 +51,7 @@ export const appRoutes: Routes = [
             { path: 'attack-surface', loadComponent: () => import('./app/pages/attack-surface/attack-surface').then((m) => m.AttackSurface) },
             { path: 'attack-paths', loadComponent: () => import('./app/pages/attack-paths/attack-paths').then((m) => m.AttackPaths) },
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) },
+            { path: 'remediation', loadComponent: () => import('./app/pages/remediation/remediation').then((m) => m.Remediation) },
             { path: 'attestation', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/attestation/attestation').then((m) => m.Attestation) },
             { path: 'forbidden', loadComponent: () => import('./app/pages/forbidden/forbidden').then((m) => m.Forbidden) }
         ]

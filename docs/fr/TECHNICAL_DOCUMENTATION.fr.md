@@ -450,7 +450,29 @@ Deux règles que le harnais s'impose à lui-même :
   - `GET /api/v1/blast-radius/explore?q={package|CVE}` : graphe complet nœuds/arêtes des dépendances et ventilation des cibles impactées.
   - `GET /api/v1/blast-radius/top-impact?limit=10` : paquets au plus fort rayon d'impact dans l'entreprise.
 
-## 9. Centre de notifications multi-canaux & outbox transactionnelle
+## 9. Plan de remédiation
+
+- **Ce à quoi il répond.** La liste des constats dit ce qui ne va pas ; le plan de remédiation dit
+  ce qu'on en fait. Une ligne est une action — une montée de version — et non une vulnérabilité :
+  quatorze constats de la même bibliothèque sur six dépôts ne sont pas quatorze décisions, et une
+  équipe qui n'a que la liste des constats trie du bruit au lieu de réduire du risque.
+- **Classement (`SecurityDebtService.rank`)** : levier = (CVE distincts x 2 + critiques x 3 +
+  élevés x 1,5) / effort, l'effort valant 1 h plus 0,1 h par CVE distinct. Les égalités se
+  départagent par le nom du paquet, pour que deux exécutions sur les mêmes données s'accordent. Dix
+  lignes au plus, et le parc est classé sur des lignes agrégées — les identifiants et les noms de
+  cibles ne sont lus que pour les survivants.
+- **Version conseillée.** Prise dans les `fix_versions` que les scanners remontent sur chaque
+  constat, et comparée par `Versions` plutôt que comme du texte : « 2.9.0 » passe après « 2.17.1 »
+  dans un tri de chaînes, et la conseiller laisserait la faille ouverte. Nulle quand aucun constat
+  n'annonce de correctif, et l'écran le dit au lieu de conseiller une mise à jour inexistante. Ce
+  champ portait auparavant la chaîne littérale `latest-patch` pour tous les paquets.
+- **Points d'entrée REST** :
+  - `GET /api/v1/remediation/high-impact-fixes` : l'ordre de travail classé, cadré par la visibilité.
+  - `GET /api/v1/remediation/debt` : les totaux qui donnent son échelle au plan.
+- **Écran** : `/remediation`, ouvert à tout compte connecté. Chaque ligne se déplie sur les CVE
+  qu'elle ferme — chacun renvoyant vers la liste filtrée — et sur les cibles concernées.
+
+## 10. Centre de notifications multi-canaux & outbox transactionnelle
 
 - **Canaux de notification pris en charge** :
   - **Slack** (`SlackNotificationChannel`, `SlackBlockKit`) : cartes Block Kit interactives avec en-tête, ventilation des constats et liens profonds directs.
@@ -464,7 +486,7 @@ Deux règles que le harnais s'impose à lui-même :
   - `GET /api/v1/notifications/channels` : vue d'ensemble des canaux configurés et des événements souscrits.
   - `POST /api/v1/notifications/test/{channelType}` : test de remise simulée immédiate avec résultats de diagnostic.
 
-## 10. Conseiller IA local d'explication des vulnérabilités et de triage
+## 11. Conseiller IA local d'explication des vulnérabilités et de triage
 
 - **Moteur d'explication et de remédiation (`AiReviewService`, `AiAdvisorController`)** :
   - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, un verdict d'exposition par atteignabilité statique, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX.
@@ -474,7 +496,7 @@ Deux règles que le harnais s'impose à lui-même :
   - `POST /api/v1/ai-advisor/explain/issue/{issueId}` : explication contextuelle et déclaration VEX pour une anomalie persistée.
   - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : explication à la volée pour tout identifiant CVE, avec métadonnées de paquet facultatives.
 
-## 11. Risque juridique des licences open source & matrice de copyleft
+## 12. Risque juridique des licences open source & matrice de copyleft
 
 - **Matrice de compatibilité croisée et de contamination virale (`LicenseConflictMatrix`, `LicenseGovernanceService`)** :
   - Identifie les risques de copyleft viral (GPL-3.0, AGPL-3.0) qui imposent juridiquement de divulguer du code source propriétaire lors de la distribution.
@@ -484,7 +506,7 @@ Deux règles que le harnais s'impose à lui-même :
   - `GET /api/v1/licenses/conflicts?proprietary=true` : liste détaillée des incompatibilités juridiques détectées et justifications de risque.
   - `GET /api/v1/licenses/matrix` : règles de référence officielles de compatibilité croisée des licences.
 
-## 12. Tendances de posture de sécurité & analyse MTTR multi-échelons
+## 13. Tendances de posture de sécurité & analyse MTTR multi-échelons
 
 - **Moteur d'analyse de posture (`PostureTrendAnalytics`, `DashboardController`)** :
   - Calcul en Java pur, par jour calendaire, du délai moyen de remédiation (MTTR) ventilé par échelon de sévérité (Critical, High, Medium, Low).
@@ -493,7 +515,7 @@ Deux règles que le harnais s'impose à lui-même :
 - **Endpoints REST** :
   - `GET /api/v1/dashboard/posture-analytics?days=30` : MTTR agrégé par sévérité, taux de résolution nette, séries temporelles quotidiennes et classements de maturité des cibles.
 
-## 13. Découverte de la surface d'attaque & inventaire des API exposées
+## 14. Découverte de la surface d'attaque & inventaire des API exposées
 
 - **Moteur d'extraction statique d'API et de routes (`ApiDiscoveryScanner`, `ApiInventoryService`)** :
   - Analyse statique sans AST, par expressions régulières, découvrant les endpoints HTTP sur Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`) et Go Gin (`r.GET`, `group.POST`).
@@ -510,7 +532,7 @@ Deux règles que le harnais s'impose à lui-même :
   - `DELETE /api/v1/repositories/{id}/apis` : purge des endpoints et contrats d'un dépôt précis.
   - `GET /api/v1/repositories/{id}/apis/export/openapi` : export de la spécification OpenAPI 3.0.3 synthétisée pour un dépôt.
 
-## 14. Documentation OpenAPI 3.0 & référence REST
+## 15. Documentation OpenAPI 3.0 & référence REST
 
 - **Documentation de référence statique** :
   - [`docs/fr/api/rest_api_reference.md`](api/rest_api_reference.md) : référence bilingue complète de tous les endpoints REST, en-têtes, corps de requête, réponses et exemples `curl`.

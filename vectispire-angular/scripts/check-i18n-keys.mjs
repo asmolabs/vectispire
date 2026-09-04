@@ -51,11 +51,23 @@ const walk = (dir) =>
 const bundle = (lang) =>
     new Set(flatten(JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'))));
 
+// **Les deux écritures, parce qu'une seule était vue.** Ce script ne reconnaissait que
+// `t('clé')`. Or un gabarit Angular traduit au pipe — `{{ 'clé' | translate }}`, la forme
+// recommandée et la plus employée ici — n'en contient aucun : une page entière écrite ainsi
+// n'était ni comptée ni vérifiée, et une clé mal orthographiée y serait passée sans un mot,
+// rendue telle quelle à l'écran. Le fichier `.html` était pourtant bien lu, ce qui donnait
+// l'apparence d'une couverture.
+const CALL = /\bt\(\s*['"]([a-z0-9_.]+)['"]/g;
+const PIPE = /['"]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"]\s*\|\s*translate\b/g;
+
 const referenced = new Set();
 for (const file of walk(join(root, 'src/app'))) {
     if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts')) continue;
-    for (const [, key] of readFileSync(file, 'utf8').matchAll(/\bt\(\s*['"]([a-z0-9_.]+)['"]/g)) {
-        referenced.add(key);
+    const source = readFileSync(file, 'utf8');
+    for (const pattern of [CALL, PIPE]) {
+        for (const [, key] of source.matchAll(pattern)) {
+            referenced.add(key);
+        }
     }
 }
 
@@ -69,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 135;
+const EXPECTED_KEYS = 565;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(

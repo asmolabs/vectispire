@@ -118,6 +118,7 @@ plugins:
             Container images: Images de conteneur
             Scans: Scans
             Issues and triage: Constats et triage
+            Remediation plan: Plan de remédiation
             Code quality: Qualité du code
             Inventory and licenses: Inventaire et licences
             Risk analysis: Analyse de risque
@@ -183,6 +184,7 @@ nav:
       - Container images: guide/containers.md
       - Scans: guide/scans.md
       - Issues and triage: guide/issues.md
+      - Remediation plan: guide/remediation.md
       - Code quality: guide/quality.md
       - Inventory and licenses: guide/inventory-and-licenses.md
       - Risk analysis: guide/risk-analysis.md

@@ -67,9 +67,11 @@ export function seedOneIssue(): void {
         db.prepare(
             `insert into t_issue (repo_id, fingerprint, type, identifier, package_name,
                                   package_version, severity, cvss_score, state,
-                                  first_seen_at, last_seen_at, description)
+                                  first_seen_at, last_seen_at, description, fix_versions)
+             -- Les versions correctrices sont dans le désordre, et « 2.9.0 » passe après
+             -- « 2.17.1 » dans un tri de chaînes : c'est ce que le plan doit ne pas conseiller.
              values (?, ?, 'vulnerability', 'CVE-2021-44228', 'log4j-core',
-                     '2.14.1', 'critical', 10.0, 'open', ?, ?, ?)`
+                     '2.14.1', 'critical', 10.0, 'open', ?, ?, ?, '2.9.0, 2.17.1, 2.12.4')`
         ).run(repo.id, 'seed-fingerprint-0000', now, now,
               "Constat d'amorçage : la liste doit contenir une ligne pour que l'absence de bouton veuille dire quelque chose.");
     });

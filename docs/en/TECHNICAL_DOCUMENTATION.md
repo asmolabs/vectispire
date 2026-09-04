@@ -444,7 +444,28 @@ Two rules the harness enforces on itself:
   - `GET /api/v1/blast-radius/explore?q={package|CVE}`: Full node/edge dependency graph and impacted target breakdown.
   - `GET /api/v1/blast-radius/top-impact?limit=10`: Top highest blast radius packages across the enterprise.
 
-## 9. Multi-Channel Notification Hub & Transactional Outbox
+## 9. Remediation Plan
+
+- **What it answers.** The findings list says what is wrong; the remediation plan says what to do
+  about it. One row is one action — an upgrade — not one vulnerability: fourteen findings of the
+  same library across six repositories are one decision, and a team that only has the findings
+  list triages noise instead of removing risk.
+- **Ranking (`SecurityDebtService.rank`)**: leverage = (distinct CVEs x 2 + critical x 3 + high x
+  1.5) / effort, effort being 1h plus 0.1h per distinct CVE. Ties break on package name so two
+  runs over the same data agree. Ten rows at most, and the estate is ranked on aggregate rows —
+  the identifiers and target names are read for the survivors alone.
+- **Recommended version.** Taken from the `fix_versions` the scanners report on each finding, and
+  compared with `Versions` rather than as text: `2.9.0` sorts after `2.17.1` lexicographically, and
+  recommending it would leave the vulnerability open. Null when no finding announces a fix, and the
+  screen says so rather than recommending an upgrade that does not exist. This field previously
+  carried the literal string `latest-patch` for every package.
+- **REST Endpoints**:
+  - `GET /api/v1/remediation/high-impact-fixes`: the ranked work order, visibility-scoped.
+  - `GET /api/v1/remediation/debt`: the totals that give the plan its scale.
+- **Screen**: `/remediation`, open to any signed-in account. Each row expands to the CVEs it
+  closes — each linking into the filtered findings list — and the targets it touches.
+
+## 10. Multi-Channel Notification Hub & Transactional Outbox
 
 - **Supported Notification Channels**:
   - **Slack** (`SlackNotificationChannel`, `SlackBlockKit`): Interactive Block Kit cards with header, findings breakdown, and direct deep links.
@@ -458,7 +479,7 @@ Two rules the harness enforces on itself:
   - `GET /api/v1/notifications/channels`: Overview of configured channels and subscribed events.
   - `POST /api/v1/notifications/test/{channelType}`: Immediate simulated delivery test with diagnostic results.
 
-## 10. Local AI Vulnerability & Triage Explainer Advisor
+## 11. Local AI Vulnerability & Triage Explainer Advisor
 
 - **Explainer & Remediation Engine (`AiReviewService`, `AiAdvisorController`)**:
   - Generates contextual vulnerability explanations, exploit mechanics analysis, static reachability exposure verdict, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements.
@@ -468,7 +489,7 @@ Two rules the harness enforces on itself:
   - `POST /api/v1/ai-advisor/explain/issue/{issueId}`: Contextual explanation and VEX statement for a persisted issue.
   - `POST /api/v1/ai-advisor/explain/cve/{cveId}`: On-the-fly explanation for any CVE identifier with optional package metadata.
 
-## 11. Open Source License Legal Risk & Copyleft Matrix
+## 12. Open Source License Legal Risk & Copyleft Matrix
 
 - **Cross-Compatibility & Viral Contamination Matrix (`LicenseConflictMatrix`, `LicenseGovernanceService`)**:
   - Identifies viral copyleft risks (GPL-3.0, AGPL-3.0) that legally mandate disclosing proprietary source code upon distribution.
@@ -478,7 +499,7 @@ Two rules the harness enforces on itself:
   - `GET /api/v1/licenses/conflicts?proprietary=true`: Detailed list of detected legal incompatibilities and risk justifications.
   - `GET /api/v1/licenses/matrix`: Official cross-license compatibility reference rules.
 
-## 12. Security Posture Trends & Multi-Echelon MTTR Analytics
+## 13. Security Posture Trends & Multi-Echelon MTTR Analytics
 
 - **Posture Analytics Engine (`PostureTrendAnalytics`, `DashboardController`)**:
   - Pure Java calendar-day calculation of Mean Time to Remediate (MTTR) broken down by severity echelon (Critical, High, Medium, Low).
@@ -487,7 +508,7 @@ Two rules the harness enforces on itself:
 - **REST Endpoints**:
   - `GET /api/v1/dashboard/posture-analytics?days=30`: Aggregated MTTR by severity, net burndown rate, daily time series, and target maturity rankings.
 
-## 13. Attack Surface Discovery & Exposed API Inventory
+## 14. Attack Surface Discovery & Exposed API Inventory
 
 - **Static API & Route Extraction Engine (`ApiDiscoveryScanner`, `ApiInventoryService`)**:
   - AST-free, regex-based static analysis discovering HTTP endpoints across Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`), and Go Gin (`r.GET`, `group.POST`).
@@ -504,7 +525,7 @@ Two rules the harness enforces on itself:
   - `DELETE /api/v1/repositories/{id}/apis`: Purges endpoints and contracts for a specific repository.
   - `GET /api/v1/repositories/{id}/apis/export/openapi`: Synthesized OpenAPI 3.0.3 specification export for a repository.
 
-## 14. OpenAPI 3.0 Documentation & REST Reference
+## 15. OpenAPI 3.0 Documentation & REST Reference
 
 - **Static Reference Documentation**:
   - [`docs/en/api/rest_api_reference.md`](api/rest_api_reference.md): Complete bilingual reference of all REST endpoints, headers, request bodies, responses, and `curl` examples.

@@ -40,8 +40,16 @@ public interface IssueAggregates {
     record PackageWeight(
             String packageName, String version, long distinctIdentifiers, long criticalCount, long highCount) {}
 
-    /** One {@code (package, CVE, target)} row, read only for the packages that made the cut. */
-    record PackageDetail(String packageName, String identifier, Long repoId, Long containerId) {}
+    /**
+     * One {@code (package, CVE, target)} row, read only for the packages that made the cut.
+     *
+     * @param fixVersions les versions qui corrigent ce constat, telles que le scanner les a
+     *     remontées — une énumération séparée par des virgules, souvent vide. C'est la seule
+     *     source de la version à conseiller : elle est ramenée ici, avec les lignes déjà lues
+     *     pour les paquets retenus, plutôt que par une requête de plus.
+     */
+    record PackageDetail(
+            String packageName, String identifier, Long repoId, Long containerId, String fixVersions) {}
 
     List<SeverityTypeCount> countGroupedBySeverityAndType(Specification<IssueEntity> filter);
 

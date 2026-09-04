@@ -1,0 +1,129 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'remediation.title' | translate }}</div>
+    <p class="text-muted-color mb-4">{{ 'remediation.subtitle' | translate }}</p>
+
+    @if (error()) {
+        <p-message severity="error" [closable]="false" styleClass="w-full mb-4">{{ error() }}</p-message>
+    }
+
+    <!--
+        **L'échelle avant la liste.** Un ordre de travail sans total se lit comme une liste
+        infinie ; savoir ce que ferment ses premières lignes est ce qui fait commencer.
+    -->
+    @if (debt(); as d) {
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div>
+                <div class="text-2xl font-semibold">{{ d.totalOpenIssues }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.open_findings' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold text-red-500">{{ d.criticalIssues }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.critical' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold">{{ d.totalEstimatedPersonDays }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.person_days' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-semibold">{{ closedByTheList() }}</div>
+                <div class="text-sm text-muted-color">{{ 'remediation.closed_by_plan' | translate }}</div>
+            </div>
+        </div>
+    }
+
+    @if (loading()) {
+        <div class="text-muted-color">{{ 'common.loading' | translate }}</div>
+    } @else if (fixes().length === 0) {
+        <!--
+            **Un vide qui dit lequel.** « Rien à faire » et « rien de calculable » se ressemblent
+            à l'écran et ne veulent pas dire la même chose : le plan ne classe que des constats
+            portant un nom de paquet, parce qu'eux seuls se ferment par une montée de version.
+        -->
+        <p-message severity="success" [closable]="false" styleClass="w-full">
+            <div class="flex flex-col gap-1">
+                <span class="font-semibold">{{ 'remediation.empty_title' | translate }}</span>
+                <span class="text-sm">{{ 'remediation.empty_help' | translate }}</span>
+            </div>
+        </p-message>
+    } @else {
+        <div class="flex flex-col gap-3">
+            @for (fix of fixes(); track fix.packageName; let index = $index) {
+                <div class="border border-surface rounded-lg p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-muted-color tabular-nums">{{ index + 1 }}.</span>
+                                <span class="font-semibold break-all">{{ fix.packageName }}</span>
+                                <p-tag [severity]="severityOf(fix)"
+                                       [value]="fix.criticalCveCount + ' ' + ('severities.critical' | translate)" />
+                            </div>
+
+                            <!--
+                                **L'action, écrite comme une action.** Le champ portait la chaîne
+                                « latest-patch » : ni une version, ni un aveu d'ignorance. Quand
+                                aucun constat n'annonce de correctif, la page le dit au lieu de
+                                conseiller une mise à jour qui n'existe pas.
+                            -->
+                            <div class="mt-1 text-sm">
+                                @if (fix.recommendedVersion) {
+                                    <span class="font-mono">{{ fix.currentVersion }}</span>
+                                    <i class="pi pi-arrow-right text-xs mx-2"></i>
+                                    <span class="font-mono font-semibold">{{ fix.recommendedVersion }}</span>
+                                } @else {
+                                    <span class="text-muted-color">
+                                        <i class="pi pi-exclamation-triangle text-xs mr-1"></i>
+                                        {{ 'remediation.no_fixed_version' | translate }}
+                                    </span>
+                                }
+                            </div>
+
+                            <div class="mt-2 text-sm text-muted-color">
+                                {{ 'remediation.closes' | translate }} {{ fix.cveCountResolved }} ·
+                                {{ fix.affectedTargetNames.length }} {{ 'remediation.targets' | translate }} ·
+                                ~{{ fix.estimatedHours }} h
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="text-right">
+                                <div class="text-lg font-semibold tabular-nums">{{ fix.leverageScore }}</div>
+                                <div class="text-xs text-muted-color">{{ 'remediation.leverage' | translate }}</div>
+                            </div>
+                            <p-button [text]="true" size="small"
+                                      [icon]="isExpanded(fix) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                                      [label]="'remediation.details' | translate"
+                                      (onClick)="toggle(fix)" />
+                        </div>
+                    </div>
+
+                    @if (isExpanded(fix)) {
+                        <div class="mt-4 pt-4 border-t border-surface grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <div class="font-medium mb-2 text-sm">{{ 'remediation.cves' | translate }}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    @for (cve of fix.affectedCves; track cve) {
+                                        <!-- Vers la liste filtrée : la page dit quoi faire, l'autre dit sur quoi. -->
+                                        <a class="text-primary text-sm font-mono"
+                                           [routerLink]="['/issues']" [queryParams]="{ search: cve }">{{ cve }}</a>
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-medium mb-2 text-sm">{{ 'remediation.affected_targets' | translate }}</div>
+                                <div class="flex flex-wrap gap-1 text-sm">
+                                    @for (target of fix.affectedTargetNames; track target) {
+                                        <span class="px-2 py-0.5 rounded bg-surface-100 dark:bg-surface-800">{{ target }}</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="mt-4 text-sm text-muted-color">
+            {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{ hoursOfTheList() }} h
+        </div>
+    }
+</div>

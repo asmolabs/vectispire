@@ -86,8 +86,11 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
 
         // One package across two repositories, so the CVE set has to deduplicate an identifier
         // seen twice while the target list keeps both names.
-        vulnerability(alpha, null, "fp-a1", "CVE-2023-0001", Severity.CRITICAL, "spring-core", "5.3.0");
-        vulnerability(alpha, null, "fp-a2", "CVE-2023-0002", Severity.HIGH, "spring-core", "5.3.0");
+        // Les versions correctrices sont posées dans le désordre, et l'une d'elles — 5.3.9 —
+        // passe après 5.3.21 dans un tri de chaînes. C'est le piège que `Versions` existe pour
+        // éviter : conseiller 5.3.9 laisserait ouvertes les failles corrigées après.
+        vulnerability(alpha, null, "fp-a1", "CVE-2023-0001", Severity.CRITICAL, "spring-core", "5.3.0", "5.3.9");
+        vulnerability(alpha, null, "fp-a2", "CVE-2023-0002", Severity.HIGH, "spring-core", "5.3.0", "5.3.21, 5.2.22");
         vulnerability(alpha, null, "fp-a3", "CVE-2023-0003", Severity.MEDIUM, "spring-core", "5.3.0");
         vulnerability(beta, null, "fp-b1", "CVE-2023-0001", Severity.CRITICAL, "spring-core", "5.3.0");
 
@@ -205,7 +208,9 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         HighImpactFix spring = fixes.get(0);
         assertThat(spring.packageName()).isEqualTo("spring-core");
         assertThat(spring.currentVersion()).isEqualTo("5.3.0");
-        assertThat(spring.recommendedVersion()).isEqualTo("latest-patch");
+        assertThat(spring.recommendedVersion())
+                .as("la plus haute des versions correctrices annoncées, et non la dernière lue")
+                .isEqualTo("5.3.21");
         assertThat(spring.cveCountResolved())
                 .as("four issues, three distinct identifiers: the same CVE on two repositories is one fix")
                 .isEqualTo(3);
@@ -219,6 +224,10 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
 
         HighImpactFix openssl = fixes.get(1);
         assertThat(openssl.packageName()).isEqualTo("openssl");
+        assertThat(openssl.recommendedVersion())
+                .as("aucun constat n'annonce de correctif : l'absence de réponse en est une, et "
+                        + "elle ne doit pas se dire comme « passez à celle-ci »")
+                .isNull();
         assertThat(openssl.estimatedHours()).isEqualTo(1.1);
         assertThat(openssl.leverageScore()).isEqualTo(3.2);
         assertThat(openssl.affectedTargetNames())
@@ -380,11 +389,19 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     private void vulnerability(
             Long repoId, Long containerId, String fingerprint, String identifier,
             Severity severity, String packageName, String packageVersion) {
+        vulnerability(repoId, containerId, fingerprint, identifier, severity,
+                packageName, packageVersion, null);
+    }
+
+    private void vulnerability(
+            Long repoId, Long containerId, String fingerprint, String identifier,
+            Severity severity, String packageName, String packageVersion, String fixVersions) {
 
         IssueEntity entity = build(repoId, containerId, fingerprint, identifier,
                 FindingType.VULNERABILITY, severity, IssueState.OPEN);
         entity.setPackageName(packageName);
         entity.setPackageVersion(packageVersion);
+        entity.setFixVersions(fixVersions);
         issues.save(entity);
     }
 

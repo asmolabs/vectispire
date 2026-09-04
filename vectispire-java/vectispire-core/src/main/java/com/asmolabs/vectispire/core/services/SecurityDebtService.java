@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.dependencies.Versions;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
@@ -227,7 +228,17 @@ public class SecurityDebtService {
             fixes.add(new HighImpactFix(
                     weight.packageName(),
                     weight.version() != null ? weight.version() : "various",
-                    "latest-patch",
+
+                    // **La version qui corrige, ou rien.** Ce champ portait la chaîne
+                    // « latest-patch », affichée telle quelle derrière une flèche sur le tableau
+                    // de bord : ni une version, ni un aveu d'ignorance. La réponse est dans les
+                    // constats — chacun porte les versions qui le corrigent — et il suffisait de
+                    // prendre la plus haute, ce qu'un tri de chaînes fait à l'envers.
+                    //
+                    // Nulle quand aucun constat n'annonce de correctif : « aucune version
+                    // corrigée publiée » est une réponse, et l'écran la dit autrement que
+                    // « passez à celle-ci ».
+                    Versions.highest(detail.fixVersions()).orElse(null),
                     weight.distinctIdentifiers(),
                     weight.criticalCount(),
                     weight.highCount(),
@@ -268,6 +279,7 @@ public class SecurityDebtService {
         for (IssueAggregates.PackageDetail row : rows) {
             Detail detail = details.computeIfAbsent(row.packageName(), name -> Detail.empty());
             detail.cves().add(row.identifier());
+            detail.fixVersions().addAll(Versions.split(row.fixVersions()));
             if (row.repoId() != null && repoNames.containsKey(row.repoId())) {
                 detail.targetNames().add(repoNames.get(row.repoId()));
             } else if (row.containerId() != null && containerNames.containsKey(row.containerId())) {
@@ -294,9 +306,9 @@ public class SecurityDebtService {
     }
 
     /** Insertion-ordered, so a report built twice from one database reads the same twice. */
-    private record Detail(Set<String> cves, Set<String> targetNames) {
+    private record Detail(Set<String> cves, Set<String> targetNames, Set<String> fixVersions) {
         static Detail empty() {
-            return new Detail(new LinkedHashSet<>(), new LinkedHashSet<>());
+            return new Detail(new LinkedHashSet<>(), new LinkedHashSet<>(), new LinkedHashSet<>());
         }
     }
 

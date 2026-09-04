@@ -135,7 +135,8 @@ const LINKS: Record<string, string> = {
     '/licenses': 'Open Source Licenses',
     '/settings': 'Settings',
     '/audit-log': 'Audit log',
-    '/attestation': 'Attestation'
+    '/attestation': 'Attestation',
+    '/remediation': 'Remediation'
 };
 
 /** Le mot de passe des comptes de rôle, et celui vers lequel le premier usage le fait tourner. */

@@ -107,6 +107,24 @@ test.describe('ce que les rôles voient', () => {
         await expect(page).toHaveURL(/\/issues/);
     });
 
+    test("le plan de remédiation nomme une action, et non un constat", async ({ page }) => {
+        // **Le calcul existait, l'écran n'existait pas.** `/api/v1/remediation/high-impact-fixes`
+        // classait les mises à jour par levier et `getHighImpactFixes` attendait dans le service
+        // front sans qu'aucun composant ne l'appelle. Ce cas est le premier à traverser la chaîne
+        // entière, du constat en base jusqu'à la phrase que quelqu'un lira lundi matin.
+        await signInAs(page, 'CISO');
+        await goTo(page, '/remediation');
+
+        // Le constat d'amorçage est un log4j-core 2.14.1 corrigé en 2.17.1 : la page doit nommer
+        // le paquet **et** la version d'arrivée. Nommer le paquet seul serait la liste des
+        // vulnérabilités avec un autre titre.
+        await expect(page.getByText('log4j-core').first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('2.17.1').first()).toBeVisible();
+
+        // Et jamais le texte de remplacement que le serveur renvoyait pour tout le monde.
+        await expect(page.getByText('latest-patch')).toHaveCount(0);
+    });
+
     test("le compte d'amorçage gouverne et n'agit pas", async ({ page }) => {
         // La décision du 2 septembre, vue de l'écran : SUPERUSER peut lever la règle de la double
         // validation, donc il ne peut pas agir sous elle. Sans cette séparation, éteindre le
