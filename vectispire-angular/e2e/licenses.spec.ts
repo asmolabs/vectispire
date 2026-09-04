@@ -1,3 +1,4 @@
+import { resetLoginThrottle } from './support/fixture';
 import { test, expect } from '@playwright/test';
 import { goTo, signIn } from './support/session';
 
@@ -19,6 +20,10 @@ import { goTo, signIn } from './support/session';
  * depended on what a scan happened to find would make a wrong total look like a data problem.
  */
 test.describe('Licence dashboard figures', () => {
+
+    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
+    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    test.beforeEach(() => resetLoginThrottle());
 
     test.beforeEach(async ({ page }) => {
         await page.route('**/api/v1/licenses/summary*', (route) =>

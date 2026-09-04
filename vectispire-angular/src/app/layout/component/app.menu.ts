@@ -68,7 +68,15 @@ export class AppMenu {
                 label: this.i18n.t('menu.operations'),
                 items: [
                     { label: this.i18n.t('menu.notifications'), icon: 'pi pi-fw pi-bell', routerLink: ['/notifications'] },
-                    { label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }
+
+                    // **Réservé, comme la route et comme le serveur.** Une clé de déploiement est
+                    // administrative : `/ssh-keys` porte `requires('administrator')` et le
+                    // contrôleur `@RequiresAdministrator`. Le menu, lui, la proposait à tout le
+                    // monde — c'était le seul endroit de la barre latérale à offrir un lien qui
+                    // mène à un refus, et donc la seule façon d'atteindre `/forbidden` en cliquant.
+                    ...(this.session.isAdmin()
+                        ? [{ label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
+                        : [])
                 ]
             }
         ];

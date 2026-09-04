@@ -101,7 +101,16 @@ public class SettingsController {
             String help,
             @JsonProperty("default") String defaultValue,
             String value,
-            boolean configured) {}
+            boolean configured,
+
+            // **Vrai quand ce réglage décide d'une règle et non d'un paramètre**, et que seul le
+            // gouverneur de la plateforme peut l'écrire.
+            //
+            // Porté par la réponse, et non recopié dans l'écran : la règle est un ensemble de
+            // sections, ici ; la recopier côté front en aurait fait une deuxième source, comparée
+            // à la première seulement par la surprise d'un 403. L'écran affiche ces réglages à qui
+            // peut les lire et n'en propose la modification qu'à qui peut la faire.
+            @JsonProperty("governor_only") boolean governorOnly) {}
 
     public record Catalog(List<SettingView> settings) {}
 
@@ -146,7 +155,8 @@ public class SettingsController {
                     setting.isEncrypted() || (setting.isSecret() && !isAdmin)
                             ? null
                             : stored.getOrDefault(setting.key(), setting.defaultValue()),
-                    stored.containsKey(setting.key())));
+                    stored.containsKey(setting.key()),
+                    GOVERNANCE_SECTIONS.contains(setting.section())));
         }
         return new Catalog(views);
     }

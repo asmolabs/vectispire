@@ -62,6 +62,28 @@ export class Issues {
     readonly canTriage = this.session.canCauseEffects;
     readonly canApprove = this.session.canApproveTriage;
 
+    /**
+     * Le libellé du triage, qui dit ce que le clic va faire.
+     *
+     * <p><b>Trois exemplaires en dur, en français, dans une application bilingue.</b> Ce libellé
+     * est né avec la séparation entre gouverner et agir, après la passe qui avait sorti les
+     * quatre-vingt-sept libellés en dur : il est arrivé trop tard pour elle et personne ne l'a
+     * rattrapé. Un lecteur anglophone lisait « Envoyer pour approbation » au milieu d'un écran
+     * traduit.
+     *
+     * <p>Il est ici et non recopié parce que la distinction qu'il porte — ma décision clôt, ou
+     * elle part en file — doit se lire pareil sur les trois boutons qui la proposent.
+     *
+     * <p>Le nom porte « action » parce que {@code triageLabel(status)} existait déjà et nomme
+     * autre chose : l'état d'un constat, pas ce qu'un clic ferait. Les deux ont d'abord porté le
+     * même nom, le module a cessé de compiler, et le serveur de développement a continué de
+     * servir le paquet précédent — trois exécutions de la suite ont donc jugé du code d'avant.
+     */
+    readonly triageActionLabel = computed(() => {
+        this.i18n.translations();
+        return this.i18n.t(this.canApprove() ? 'issues.triage_action' : 'issues.triage_request');
+    });
+
     readonly limit = 50;
     readonly issues = signal<Issue[]>([]);
     readonly total = signal(0);

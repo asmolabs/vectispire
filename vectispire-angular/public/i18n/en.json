@@ -196,52 +196,53 @@
     "delete_confirm": "Are you sure you want to remove this container image?"
   },
   "issues": {
-    "title": "Vulnerability Issues",
-    "subtitle": "Continuous backlog triage, reachability analysis and remediation tracking.",
-    "filter_state": "State",
-    "filter_severity": "Severity",
-    "filter_type": "Finding Type",
-    "filter_reachability": "Reachability",
-    "filter_kev": "CISA KEV",
-    "rule_id": "Rule ID",
-    "file_path": "File Path",
-    "line": "Line",
-    "first_seen": "First Seen",
-    "last_seen": "Last Seen",
-    "sla_status": "SLA Status",
-    "triage_btn": "Triage Finding",
     "action_accept": "Accept Risk",
     "action_false_positive": "False Positive",
-    "action_resolve": "Mark Resolved",
     "action_reopen": "Reopen Issue",
-    "triage_dialog_title": "Triage Vulnerability Issue",
-    "triage_reason": "Justification Rationale",
-    "triage_expires": "Review Expiry (Days)",
-    "no_issues": "No issues match the selected criteria.",
+    "action_resolve": "Mark Resolved",
     "back_to_issues": "← Issues",
-    "what_it_is": "What it is",
-    "component": "Component",
-    "location": "Location",
-    "dependency": "Dependency",
-    "cvss": "CVSS",
-    "epss": "EPSS",
     "cisa_kev_badge": "Actively exploited (CISA KEV)",
+    "component": "Component",
+    "cvss": "CVSS",
     "declared_direct": "declared by this project",
-    "transitive_dep": "pulled in by something else",
+    "dependency": "Dependency",
+    "epss": "EPSS",
+    "file_path": "File Path",
+    "filter_kev": "CISA KEV",
+    "filter_reachability": "Reachability",
+    "filter_severity": "Severity",
+    "filter_state": "State",
+    "filter_type": "Finding Type",
+    "first_seen": "First Seen",
     "fix_none_published": "none published",
-    "times_seen": "times",
-    "time_seen_single": "time",
-    "vex": {
-      "component_not_present": "Component not present",
-      "vulnerable_code_not_present": "Vulnerable code not present",
-      "vulnerable_code_not_in_execute_path": "Vulnerable code not in the execute path",
-      "vulnerable_code_cannot_be_controlled_by_adversary": "Not controllable by an adversary",
-      "inline_mitigations_already_exist": "Inline mitigations already exist"
-    },
+    "last_seen": "Last Seen",
+    "line": "Line",
+    "location": "Location",
+    "no_issues": "No issues match the selected criteria.",
+    "rule_id": "Rule ID",
+    "sla_status": "SLA Status",
     "states": {
       "open": "Open",
       "resolved": "Resolved",
       "all": "All"
+    },
+    "subtitle": "Continuous backlog triage, reachability analysis and remediation tracking.",
+    "time_seen_single": "time",
+    "times_seen": "times",
+    "title": "Vulnerability Issues",
+    "transitive_dep": "pulled in by something else",
+    "triage_action": "Triage",
+    "triage_btn": "Triage Finding",
+    "triage_dialog_title": "Triage Vulnerability Issue",
+    "triage_expires": "Review Expiry (Days)",
+    "triage_reason": "Justification Rationale",
+    "triage_request": "Send for approval",
+    "triage_status": {
+      "under_review": "Under review",
+      "pending_approval": "Pending approval",
+      "affected": "Affected",
+      "not_affected": "Not affected",
+      "fixed": "Fixed"
     },
     "types": {
       "vulnerability": "Vulnerability",
@@ -252,13 +253,14 @@
       "sast": "Vulnerable code",
       "quality": "Code quality"
     },
-    "triage_status": {
-      "under_review": "Under review",
-      "pending_approval": "Pending approval",
-      "affected": "Affected",
-      "not_affected": "Not affected",
-      "fixed": "Fixed"
-    }
+    "vex": {
+      "component_not_present": "Component not present",
+      "vulnerable_code_not_present": "Vulnerable code not present",
+      "vulnerable_code_not_in_execute_path": "Vulnerable code not in the execute path",
+      "vulnerable_code_cannot_be_controlled_by_adversary": "Not controllable by an adversary",
+      "inline_mitigations_already_exist": "Inline mitigations already exist"
+    },
+    "what_it_is": "What it is"
   },
   "compliance": {
     "title": "Regulatory Compliance & Security Posture",
@@ -415,7 +417,8 @@
       "scanners": "Scanners & Engines",
       "ai": "AI",
       "integrations": "Integrations & SIEM",
-      "threat_intel": "Threat Intelligence"
+      "threat_intel": "Threat Intelligence",
+      "governance": "Governance"
     },
     "sections": {
       "remediation_slas": "Remediation SLAs",
@@ -454,7 +457,8 @@
     "sync_now_btn": "Synchronize Threat Intel Feed Now",
     "loading": "Loading…",
     "ai_provider_ollama": "Ollama — a model on a host you run",
-    "ai_provider_openai": "OpenAI-compatible API"
+    "ai_provider_openai": "OpenAI-compatible API",
+    "governor_only": "Only a super-administrator may change this rule."
   },
   "ssh_keys": {
     "title": "SSH keys",

@@ -122,20 +122,20 @@
                                              and a server-side stamp; every other boolean is saved
                                              as typed. -->
                                         @if (setting.key === 'ai_review_allow_remote_url') {
-                                            <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                            <p-toggleswitch [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
                                                             (ngModelChange)="setAllowRemote($event)" />
                                         } @else {
-                                            <p-toggleswitch [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
+                                            <p-toggleswitch [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [ngModel]="values()[setting.key] === 'true'"
                                                             (ngModelChange)="set(setting.key, $event ? 'true' : 'false')" />
                                         }
                                     }
                                     @case ('integer') {
-                                        <p-inputnumber [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
+                                        <p-inputnumber [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [min]="0" [ngModel]="asNumber(values()[setting.key])"
                                                        (ngModelChange)="set(setting.key, numberToText($event))"
                                                        styleClass="w-32" inputStyleClass="w-full" />
                                     }
                                     @case ('severity') {
-                                        <p-select [inputId]="setting.key" [options]="severities()" optionLabel="label" optionValue="value"
+                                        <p-select [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [options]="severities()" optionLabel="label" optionValue="value"
                                                   [ngModel]="values()[setting.key]" (ngModelChange)="set(setting.key, $event)"
                                                   [fluid]="true" styleClass="w-full sm:w-48" />
                                     }
@@ -144,13 +144,13 @@
                                              it accepts differ in whether the code leaves the estate,
                                              and a typo reads as "ollama" by design. -->
                                         @if (setting.key === 'ai_review_provider') {
-                                            <p-select [inputId]="setting.key" [options]="aiProviders()"
+                                            <p-select [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [options]="aiProviders()"
                                                       optionLabel="label" optionValue="value"
                                                       [ngModel]="values()[setting.key]"
                                                       (ngModelChange)="set(setting.key, $event)"
                                                       [fluid]="true" styleClass="w-full sm:w-96" />
                                         } @else {
-                                            <input pInputText [id]="setting.key" class="w-full sm:w-96 max-w-full"
+                                            <input pInputText [disabled]="isReadOnlyHere(setting)" [id]="setting.key" class="w-full sm:w-96 max-w-full"
                                                    [ngModel]="values()[setting.key]"
                                                    (ngModelChange)="set(setting.key, $event)" />
                                         }
@@ -158,6 +158,14 @@
                                 }
                             </div>
                         </div>
+
+                        @if (isReadOnlyHere(setting)) {
+                            <!-- **Grisé avec sa raison.** Un contrôle inerte et muet se lit comme
+                                 une panne de l'écran ; c'est une règle, et le refus est délibéré. -->
+                            <small class="text-muted-color flex items-center gap-1">
+                                <i class="pi pi-lock text-xs"></i>{{ 'settings.governor_only' | translate }}
+                            </small>
+                        }
 
                         <small class="text-muted-color max-w-3xl">{{ getSettingHelp(setting) }}</small>
 

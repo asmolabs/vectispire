@@ -89,8 +89,15 @@ jobs:
       VECTISPIRE_EMBEDDED_WORKER: 'false'
       # **Thirteen browser sign-ins inside a minute is a burst by the only definition the server
       # has**, and every test in a run comes from one address. Raised here, on a runner destroyed
-      # at the end of the job; the shipped default of ten is untouched, and the per-account
-      # throttle is unaffected by this setting.
+      # at the end of the job; the shipped default of ten is untouched.
+      #
+      # **Ce que cette variable ne relève pas.** Elle atteint le seau par adresse de
+      # `LoginRateLimitFilter`, et rien d'autre. `LoginThrottle` compte séparément, par compte —
+      # cinq échecs sur quinze minutes glissantes — et ces seuils sont des constantes de
+      # compilation qu'aucun réglage n'atteint. C'est ce second compteur qui faisait échouer des
+      # cas sans rapport avec celui qui l'avait dépensé, puisque le refus tombe sur le suivant :
+      # les suites le remettent donc à zéro elles-mêmes avant chaque cas, et les helpers de
+      # connexion retiennent le mot de passe accepté au lieu de les essayer tous.
       VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

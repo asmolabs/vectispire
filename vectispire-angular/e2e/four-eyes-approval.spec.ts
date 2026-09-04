@@ -1,5 +1,6 @@
+import { resetLoginThrottle } from './support/fixture';
 import { test, expect, type Page } from '@playwright/test';
-import { goTo, signIn } from './support/session';
+import { goTo, signInAs, TRIAGE_BUTTON, TRIAGE_SAVE } from './support/session';
 
 /**
  * The four-eyes workflow, seen from the screen an operator uses.
@@ -19,6 +20,10 @@ import { goTo, signIn } from './support/session';
  * the sign-in screen — where, before the session helper existed, they were in fact looking.
  */
 test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
+
+    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
+    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    test.beforeEach(() => resetLoginThrottle());
 
     const OPEN_ISSUE = issue({ triageStatus: 'under_review', triageJustification: null });
     const PENDING_ISSUE = issue({
@@ -83,18 +88,21 @@ test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
     }
 
     test.beforeEach(async ({ page }) => {
-        await signIn(page);
+        // **Un CISO, et non le compte d'amorçage.** Celui-ci est SUPERUSER, qui gouverne la
+        // plateforme sans y agir : il ne trie pas. La suite signait avec le seul compte qui n'en
+        // a pas le droit, et ne s'en apercevait pas parce qu'elle simule l'API de triage.
+        await signInAs(page, 'CISO');
     });
 
     test('an exemption cannot be saved without the justification the VEX standard requires', async ({ page }) => {
         await stubBacklog(page, OPEN_ISSUE);
         await goTo(page, '/issues');
 
-        await page.getByRole('button', { name: 'Triage' }).first().click();
+        await page.getByRole('button', { name: TRIAGE_BUTTON }).first().click();
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
 
-        const save = dialog.getByRole('button', { name: /save|enregistrer/i });
+        const save = dialog.getByRole('button', { name: TRIAGE_SAVE });
         // `under_review` needs nothing, so the button starts usable — the point is what happens
         // when the decision becomes one that has to be justified.
         await expect(save).toBeEnabled();
@@ -123,7 +131,7 @@ test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
         });
 
         await goTo(page, '/issues');
-        await page.getByRole('button', { name: 'Triage' }).first().click();
+        await page.getByRole('button', { name: TRIAGE_BUTTON }).first().click();
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
 
@@ -132,7 +140,7 @@ test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
         await dialog.locator('p-select').nth(1).click();
         await choose(page, 'Vulnerable code not in the execute path');
 
-        await dialog.getByRole('button', { name: /save|enregistrer/i }).click();
+        await dialog.getByRole('button', { name: TRIAGE_SAVE }).click();
 
         await expect.poll(() => submitted, { timeout: 15000 }).not.toBeNull();
         expect(submitted).toMatchObject({

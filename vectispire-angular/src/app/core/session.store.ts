@@ -11,14 +11,27 @@ export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CI
  * `isSecurityLead` would show an auditor an empty menu and a route that answers 200.
  */
 export const GOVERNANCE_READER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'AUDITOR'];
-export const TRIAGE_APPROVER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION'];
+/**
+ * Les rôles dont une décision de triage **clôt** au lieu de partir en file d'approbation.
+ *
+ * <p><b>`SUPERUSER` n'y est pas, et c'est la décision du 2 septembre.</b> Ce compte est le seul
+ * à pouvoir lever la règle de la double validation ; s'il pouvait aussi trancher sous elle, il
+ * suffirait de l'éteindre, de régler seul et de la rallumer. La séparation ne tient que si le
+ * rôle qui gouverne la règle ne peut pas agir sous elle.
+ */
+export const TRIAGE_APPROVER_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION'];
 /**
  * The roles that may **do** something — record a triage decision, open a ticket, run a review.
  *
  * Mirrors `@RequiresWriteAccount`. Deliberately wide: triaging is ordinary work, so an ordinary
  * user belongs here. Only `AUDITOR`, whose whole purpose is to look, sits outside.
  */
-export const EFFECT_CAUSING_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER'];
+/**
+ * Le rôle qui gouverne la plateforme — celui qui peut lever une règle, et qui pour cette raison
+ * ne peut pas agir sous elle. Voir [[TRIAGE_APPROVER_ROLES]].
+ */
+export const PLATFORM_GOVERNOR_ROLES: readonly string[] = ['SUPERUSER'];
+export const EFFECT_CAUSING_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER'];
 import { AuthenticatedUser } from './api.models';
 
 /**
@@ -59,8 +72,19 @@ export class SessionStore {
      * separate and why a screen needs both to say the right thing.
      */
     readonly canApproveTriage = computed(() => TRIAGE_APPROVER_ROLES.includes(this.role()));
-    /** They may act at all. False for an auditor, and for nobody else. */
+    /**
+     * Ils peuvent agir, tout court.
+     *
+     * <p><b>Faux pour deux rôles, et l'un des deux manquait.</b> L'auditeur, qui vient constater,
+     * et le compte d'amorçage, qui gouverne la plateforme sans y agir — {@code Role.SUPERUSER}
+     * porte {@code canCauseEffects = false} côté serveur depuis la séparation entre gouverner et
+     * agir. L'écran, lui, l'a laissé dans l'ensemble : le compte d'amorçage voyait donc le bouton
+     * de triage, ouvrait la boîte, et récoltait un 403 à l'enregistrement — l'écran cassé que
+     * tout ce travail sur les rôles existait pour supprimer.
+     */
     readonly canCauseEffects = computed(() => EFFECT_CAUSING_ROLES.includes(this.role()));
+    /** Ils peuvent changer une règle de la plateforme, et non seulement un réglage. */
+    readonly governsPlatform = computed(() => PLATFORM_GOVERNOR_ROLES.includes(this.role()));
     readonly isCiso = computed(() => this.role() === 'CISO');
     /** The account must change its password before reaching anything else. */
     readonly mustChangePassword = computed(() => this.user()?.mustChangePassword ?? false);

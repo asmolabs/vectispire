@@ -220,6 +220,12 @@ tasks.named<Test>("test") {
     inputs.file(rootProject.file("../ci/keycloak/vectispire-realm.json"))
         .withPropertyName("shippedKeycloakRealm")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // Même raison, même piège : `RoleSetsMatchTheEnumTest` lit le magasin de session du front,
+    // hors du module. Sans la déclaration, changer ce fichier laisse la tâche « à jour ».
+    inputs.file(rootProject.file("../vectispire-angular/src/app/core/session.store.ts"))
+        .withPropertyName("frontendSessionStore")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.register("integrationTestAll") {

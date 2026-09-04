@@ -68,7 +68,7 @@
     -->
     @if (selected().length > 0 && canTriage()) {
         <div class="flex items-center gap-3 mb-3">
-            <p-button [label]="(canApprove() ? 'Trier' : 'Envoyer pour approbation') + ' (' + selected().length + ')'"
+            <p-button [label]="triageActionLabel() + ' (' + selected().length + ')'"
                       size="small" (onClick)="openBulkTriage()" />
             <span class="text-muted-color text-sm">
                 @if (canApprove()) {
@@ -186,7 +186,17 @@
                 <td class="text-right">
                     <div class="flex items-center justify-end gap-1">
                         <p-button icon="pi pi-sparkles" size="small" [text]="true" severity="help" [title]="'Explication & Remédiation IA'" (onClick)="openAiAdvisor(issue)" />
-                        <p-button label="Triage" size="small" [text]="true" (onClick)="openTriage(issue)" />
+                        <!--
+                            **Gardé comme le bouton groupé, et il ne l'était pas.** Le contrôle par
+                            ligne avait été oublié quand le triage est devenu conscient du rôle :
+                            un auditeur le voyait, ouvrait la boîte, la remplissait, et récoltait
+                            un 403 à l'enregistrement — précisément l'écran cassé que les gardes de
+                            route venaient de supprimer ailleurs.
+                        -->
+                        @if (canTriage()) {
+                            <p-button [label]="triageActionLabel()"
+                                      size="small" [text]="true" (onClick)="openTriage(issue)" />
+                        }
                     </div>
                 </td>
             </tr>
@@ -238,7 +248,8 @@
 
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="triageOpen = false" />
-        <p-button [label]="'common.save' | translate" [disabled]="!canSubmitTriage()" (onClick)="submitTriage()" />
+        <p-button [label]="canApprove() ? ('common.save' | translate) : triageActionLabel()"
+                  [disabled]="!canSubmitTriage() || !canTriage()" (onClick)="submitTriage()" />
     </ng-template>
 </p-dialog>
 

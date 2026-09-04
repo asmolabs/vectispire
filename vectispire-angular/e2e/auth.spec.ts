@@ -1,7 +1,12 @@
+import { resetLoginThrottle } from './support/fixture';
 import { test, expect } from '@playwright/test';
 import { signIn } from './support/session';
 
 test.describe('Authentication & Anti-Brute-Force E2E', () => {
+
+    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
+    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    test.beforeEach(() => resetLoginThrottle());
 
     test('valid credentials get you into the application', async ({ page }) => {
         // **Through the shared helper, not a hard-coded password.** The bootstrap account is
@@ -107,7 +112,12 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
                 failOnStatusCode: false
             });
 
-            expect(response.status(), 'a guess must never be accepted').toBe(401);
+            // **Refusé, et non refusé d'une seule façon.** Le cas exigeait 401 sur les six
+            // essais ; le sixième reçoit 429, parce que `LoginThrottle` coupe à cinq échecs par
+            // fenêtre. Un 429 n'est pas un défaut ici — c'est l'autre moitié du contrôle qui
+            // répond, et exiger 401 rendait le cas rouge précisément quand la protection
+            // marchait. Ce qui doit rester vrai est qu'aucune supposition n'est jamais acceptée.
+            expect([401, 429], 'a guess must never be accepted').toContain(response.status());
         }
     });
 

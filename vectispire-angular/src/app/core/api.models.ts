@@ -767,6 +767,14 @@ export interface SettingDefinition {
     value: string;
     /** Has it been set, or is this only the default? The two are not said the same way. */
     configured: boolean;
+    /**
+     * Ce réglage décide d'une règle, et seul le gouverneur de la plateforme peut l'écrire.
+     *
+     * <p>Le serveur le dit, l'écran ne le devine pas : la règle est un ensemble de sections côté
+     * serveur, et la recopier ici en ferait une seconde source qu'on ne comparerait à la première
+     * qu'au moment d'un 403.
+     */
+    governor_only: boolean;
 }
 
 /** A stored Semgrep rule set, as the listing returns it — without its files. */

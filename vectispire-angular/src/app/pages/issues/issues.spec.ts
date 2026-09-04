@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 
@@ -281,6 +282,14 @@ describe('triaging a selection', () => {
         const session = TestBed.inject(SessionStore);
         const as = (role: string) =>
             session.user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
+
+        // **Un dictionnaire de test, parce que le libellé passe maintenant par l'i18n.** Il
+        // était écrit en dur, en français, dans une application bilingue — trois fois. Ce que ce
+        // cas éprouve reste le même : que la promesse du bouton change avec le rôle. Que la
+        // traduction existe pour de vrai est le travail de `check-i18n-keys.mjs`.
+        TestBed.inject(I18nService).translations.set({
+            issues: { triage_action: 'Trier', triage_request: 'Envoyer pour approbation' }
+        });
 
         as('CISO');
         expect(fixture.nativeElement.textContent).not.toContain('(2)');

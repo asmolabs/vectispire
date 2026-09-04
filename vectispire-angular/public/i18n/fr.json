@@ -196,52 +196,53 @@
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer cette image conteneur ?"
   },
   "issues": {
-    "title": "Vulnérabilités",
-    "subtitle": "Arbitrage continu du backlog, analyse d'atteignabilité et suivi de remédiation.",
-    "filter_state": "État",
-    "filter_severity": "Gravité",
-    "filter_type": "Type de constat",
-    "filter_reachability": "Atteignabilité",
-    "filter_kev": "CISA KEV",
-    "rule_id": "Identifiant de règle",
-    "file_path": "Chemin du fichier",
-    "line": "Ligne",
-    "first_seen": "Première détection",
-    "last_seen": "Dernière détection",
-    "sla_status": "Statut SLA",
-    "triage_btn": "Arbitrer le constat",
     "action_accept": "Accepter le risque",
     "action_false_positive": "Faux positif",
-    "action_resolve": "Marquer comme résolu",
     "action_reopen": "Rouvrir la faille",
-    "triage_dialog_title": "Arbitrage de la vulnérabilité",
-    "triage_reason": "Justification de la décision",
-    "triage_expires": "Échéance de réévaluation (jours)",
-    "no_issues": "Aucune vulnérabilité ne correspond aux critères sélectionnés.",
+    "action_resolve": "Marquer comme résolu",
     "back_to_issues": "← Vulnérabilités",
-    "what_it_is": "Description du constat",
-    "component": "Composant",
-    "location": "Emplacement",
-    "dependency": "Dépendance",
-    "cvss": "Score CVSS",
-    "epss": "Score EPSS",
     "cisa_kev_badge": "Exploité activement (CISA KEV)",
+    "component": "Composant",
+    "cvss": "Score CVSS",
     "declared_direct": "déclaré par ce projet (direct)",
-    "transitive_dep": "importé par une autre dépendance (transitif)",
+    "dependency": "Dépendance",
+    "epss": "Score EPSS",
+    "file_path": "Chemin du fichier",
+    "filter_kev": "CISA KEV",
+    "filter_reachability": "Atteignabilité",
+    "filter_severity": "Gravité",
+    "filter_state": "État",
+    "filter_type": "Type de constat",
+    "first_seen": "Première détection",
     "fix_none_published": "aucun correctif publié",
-    "times_seen": "fois",
-    "time_seen_single": "fois",
-    "vex": {
-      "component_not_present": "Composant absent",
-      "vulnerable_code_not_present": "Code vulnérable absent",
-      "vulnerable_code_not_in_execute_path": "Code vulnérable hors du chemin d'exécution",
-      "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
-      "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
-    },
+    "last_seen": "Dernière détection",
+    "line": "Ligne",
+    "location": "Emplacement",
+    "no_issues": "Aucune vulnérabilité ne correspond aux critères sélectionnés.",
+    "rule_id": "Identifiant de règle",
+    "sla_status": "Statut SLA",
     "states": {
       "open": "Ouvert",
       "resolved": "Résolu",
       "all": "Tous"
+    },
+    "subtitle": "Arbitrage continu du backlog, analyse d'atteignabilité et suivi de remédiation.",
+    "time_seen_single": "fois",
+    "times_seen": "fois",
+    "title": "Vulnérabilités",
+    "transitive_dep": "importé par une autre dépendance (transitif)",
+    "triage_action": "Trier",
+    "triage_btn": "Arbitrer le constat",
+    "triage_dialog_title": "Arbitrage de la vulnérabilité",
+    "triage_expires": "Échéance de réévaluation (jours)",
+    "triage_reason": "Justification de la décision",
+    "triage_request": "Envoyer pour approbation",
+    "triage_status": {
+      "under_review": "En cours d'examen",
+      "pending_approval": "En attente d'approbation",
+      "affected": "Affecté",
+      "not_affected": "Non affecté",
+      "fixed": "Corrigé"
     },
     "types": {
       "vulnerability": "Vulnérabilité",
@@ -252,13 +253,14 @@
       "sast": "Code vulnérable",
       "quality": "Qualité du code"
     },
-    "triage_status": {
-      "under_review": "En cours d'examen",
-      "pending_approval": "En attente d'approbation",
-      "affected": "Affecté",
-      "not_affected": "Non affecté",
-      "fixed": "Corrigé"
-    }
+    "vex": {
+      "component_not_present": "Composant absent",
+      "vulnerable_code_not_present": "Code vulnérable absent",
+      "vulnerable_code_not_in_execute_path": "Code vulnérable hors du chemin d'exécution",
+      "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
+      "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
+    },
+    "what_it_is": "Description du constat"
   },
   "compliance": {
     "title": "Conformité réglementaire & Posture de sécurité",
@@ -415,7 +417,8 @@
       "scanners": "Moteurs & Scanners",
       "ai": "IA",
       "integrations": "Intégrations & SIEM",
-      "threat_intel": "Threat Intelligence"
+      "threat_intel": "Threat Intelligence",
+      "governance": "Gouvernance"
     },
     "sections": {
       "remediation_slas": "Délais de remédiation SLA",
@@ -560,7 +563,8 @@
     "sync_now_btn": "Synchroniser le flux Threat Intel maintenant",
     "loading": "Chargement…",
     "ai_provider_ollama": "Ollama — un modèle sur une machine que vous exploitez",
-    "ai_provider_openai": "API compatible OpenAI"
+    "ai_provider_openai": "API compatible OpenAI",
+    "governor_only": "Cette règle ne peut être changée que par un super-administrateur."
   },
   "ssh_keys": {
     "title": "Clés SSH",

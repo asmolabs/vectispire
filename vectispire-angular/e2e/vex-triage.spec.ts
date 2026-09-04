@@ -1,5 +1,6 @@
+import { resetLoginThrottle } from './support/fixture';
 import { test, expect } from '@playwright/test';
-import { goTo, signIn } from './support/session';
+import { goTo, signInAs, TRIAGE_BUTTON, TRIAGE_SAVE } from './support/session';
 
 /**
  * The vulnerability backlog and the VEX statement a triage decision produces.
@@ -13,6 +14,10 @@ import { goTo, signIn } from './support/session';
  * Authentication is *not* stubbed — signing in for real is half of what a browser case is for.
  */
 test.describe('VEX Triage & Backlog Management E2E', () => {
+
+    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
+    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    test.beforeEach(() => resetLoginThrottle());
 
     const ISSUE = {
         id: 4242,
@@ -62,7 +67,10 @@ test.describe('VEX Triage & Backlog Management E2E', () => {
     }
 
     test.beforeEach(async ({ page }) => {
-        await signIn(page);
+        // **Un CISO, et non le compte d'amorçage.** Celui-ci est SUPERUSER, qui gouverne la
+        // plateforme sans y agir : il ne trie pas. La suite signait avec le seul compte qui n'en
+        // a pas le droit, et ne s'en apercevait pas parce qu'elle simule l'API de triage.
+        await signInAs(page, 'CISO');
     });
 
     test('the backlog renders the finding the server returned', async ({ page }) => {
@@ -73,7 +81,7 @@ test.describe('VEX Triage & Backlog Management E2E', () => {
         // which is precisely what the assertion this replaced could not tell apart.
         await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15000 });
         await expect(page.getByText('log4j-core').first()).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Triage' }).first()).toBeVisible();
+        await expect(page.getByRole('button', { name: TRIAGE_BUTTON }).first()).toBeVisible();
     });
 
     test('a triage decision is sent as a VEX statement carrying its status', async ({ page }) => {
@@ -90,11 +98,11 @@ test.describe('VEX Triage & Backlog Management E2E', () => {
         });
 
         await goTo(page, '/issues');
-        await page.getByRole('button', { name: 'Triage' }).first().click();
+        await page.getByRole('button', { name: TRIAGE_BUTTON }).first().click();
 
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
-        await dialog.getByRole('button', { name: /save|enregistrer/i }).click();
+        await dialog.getByRole('button', { name: TRIAGE_SAVE }).click();
 
         // The point of the case: a decision leaves as a statement, addressed to this issue and
         // carrying the status the dialog held. A page that posted an empty body, or posted to the

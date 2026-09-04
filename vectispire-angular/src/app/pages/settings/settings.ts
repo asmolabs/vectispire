@@ -70,8 +70,9 @@ function isLocalEndpoint(url: string): boolean {
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { SessionStore } from '../../core/session.store';
 
-export type SettingsTab = 'general' | 'scanners' | 'ai' | 'integrations' | 'threat-intel';
+export type SettingsTab = 'general' | 'scanners' | 'ai' | 'integrations' | 'threat-intel' | 'governance';
 
 @Component({
     selector: 'app-settings',
@@ -84,6 +85,7 @@ export class Settings {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly i18n = inject(I18nService);
+    readonly session = inject(SessionStore);
 
     readonly activeTab = signal<SettingsTab>('general');
 
@@ -94,7 +96,8 @@ export class Settings {
             { id: 'scanners' as const, label: this.i18n.t('settings.tabs.scanners'), icon: 'pi pi-sliders-h' },
             { id: 'ai' as const, label: this.i18n.t('settings.tabs.ai'), icon: 'pi pi-sparkles' },
             { id: 'integrations' as const, label: this.i18n.t('settings.tabs.integrations'), icon: 'pi pi-link' },
-            { id: 'threat-intel' as const, label: this.i18n.t('settings.tabs.threat_intel'), icon: 'pi pi-globe' }
+            { id: 'threat-intel' as const, label: this.i18n.t('settings.tabs.threat_intel'), icon: 'pi pi-globe' },
+            { id: 'governance' as const, label: this.i18n.t('settings.tabs.governance'), icon: 'pi pi-balance-scale' }
         ];
     });
 
@@ -295,7 +298,8 @@ export class Settings {
     constructor() {
         this.route.queryParamMap.subscribe((params) => {
             const tab = params.get('tab') as SettingsTab | null;
-            if (tab === 'scanners' || tab === 'ai' || tab === 'integrations' || tab === 'threat-intel') {
+            if (tab === 'scanners' || tab === 'ai' || tab === 'integrations'
+                    || tab === 'threat-intel' || tab === 'governance') {
                 this.activeTab.set(tab);
             } else {
                 this.activeTab.set('general');
@@ -346,31 +350,57 @@ export class Settings {
 
     readonly riskConfirmVisible = signal(false);
 
-    isSectionVisible(section: { name: string; settings: SettingDefinition[] }): boolean {
-        const tab = this.activeTab();
+    /**
+     * L'onglet où une section s'affiche — et il y en a toujours un.
+     *
+     * <p><b>Trois sections ne s'affichaient nulle part.</b> Cette méthode était une liste blanche
+     * par onglet, terminée par un {@code return false} : une section qu'aucune règle ne réclamait
+     * disparaissait de l'écran sans erreur, sans onglet vide, sans rien. `Access`,
+     * `VEX Triage & Approval` et `Licenses` étaient dans ce cas — dont la double validation, qui
+     * décide si une décision de triage clôt ou part en approbation, et la visibilité des cibles.
+     * Deux règles de gouvernance auditées, réglables uniquement par appel d'API.
+     *
+     * <p><b>Le dernier onglet rattrape au lieu de réclamer</b>, et c'est le correctif réel : le
+     * défaut n'était pas que ces trois sections manquent à une liste, c'est qu'une liste puisse en
+     * perdre. Une section ajoutée demain apparaîtra sous « Gouvernance » — à la mauvaise place
+     * peut-être, jamais nulle part.
+     */
+    private tabOf(section: { name: string; settings: SettingDefinition[] }): SettingsTab {
         const firstKey = section.settings[0]?.key ?? '';
         const lowerName = section.name.toLowerCase();
 
-        if (tab === 'general') {
-            return firstKey.startsWith('sla_') || firstKey.startsWith('retention_') || firstKey.startsWith('eol_')
-                || lowerName.includes('sla') || lowerName.includes('remediation') || lowerName.includes('retention') || lowerName.includes('end of life');
+        if (firstKey.startsWith('sla_') || firstKey.startsWith('retention_') || firstKey.startsWith('eol_')
+            || lowerName.includes('sla') || lowerName.includes('remediation') || lowerName.includes('retention')
+            || lowerName.includes('end of life')) {
+            return 'general';
         }
-        if (tab === 'scanners') {
-            return firstKey.startsWith('scanner_') || firstKey.startsWith('sast_') || firstKey.startsWith('source_code')
-                || lowerName.includes('scanner') || lowerName.includes('source code');
+        if (firstKey.startsWith('scanner_') || firstKey.startsWith('sast_') || firstKey.startsWith('source_code')
+            || lowerName.includes('scanner') || lowerName.includes('source code')) {
+            return 'scanners';
         }
-        if (tab === 'ai') {
-            return firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai') || lowerName.includes('ollama') || lowerName.includes('owasp');
+        if (firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai')
+            || lowerName.includes('ollama') || lowerName.includes('owasp')) {
+            return 'ai';
         }
-        if (tab === 'integrations') {
-            return firstKey.startsWith('ticket_') || firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')
-                || lowerName.includes('ticket') || lowerName.includes('notification');
+        if (firstKey.startsWith('ticket_') || firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')
+            || lowerName.includes('ticket') || lowerName.includes('notification')) {
+            return 'integrations';
         }
-        if (tab === 'threat-intel') {
-            return firstKey.startsWith('enrichment_') || lowerName.includes('enrichment') || lowerName.includes('threat');
+        if (firstKey.startsWith('enrichment_') || lowerName.includes('enrichment') || lowerName.includes('threat')) {
+            return 'threat-intel';
         }
-        return false;
+        return 'governance';
     }
+
+    isSectionVisible(section: { name: string; settings: SettingDefinition[] }): boolean {
+        return this.tabOf(section) === this.activeTab();
+    }
+
+    /** Ce réglage décide d'une règle, et ce compte ne gouverne pas la plateforme. */
+    isReadOnlyHere(setting: SettingDefinition): boolean {
+        return setting.governor_only && !this.session.governsPlatform();
+    }
+
 
     getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {
         this.i18n.translations();
