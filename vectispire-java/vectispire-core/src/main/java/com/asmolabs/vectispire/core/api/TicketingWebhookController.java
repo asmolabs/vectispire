@@ -94,11 +94,16 @@ public class TicketingWebhookController {
 
         TicketProvider provider = providerOpt.get();
 
-        // **The only anonymous mutating door in the system.** It cannot require a session — the
-        // caller is the tracker — and what it does on arrival is move a triage decision. The
-        // secret is what separates the tracker from anybody who guessed a ticket reference; when
-        // none is configured the route stays open, as it has been for every deployment so far,
-        // and the setting says so.
+        // **La seule porte anonyme du système, et elle ne clôt plus rien.** Elle ne peut pas
+        // exiger de session — l'appelant est le tracker — et sans secret configuré elle reste
+        // ouverte, parce que la fermer d'un coup arrêterait la synchronisation de tous les
+        // déploiements existants sans que personne ne s'en aperçoive.
+        //
+        // Ce qui a changé est ce qu'elle peut faire une fois entrée. Elle proposait un triage qui
+        // se réglait sur-le-champ ; elle en propose un qui part en approbation. Le secret reste
+        // ce qui sépare le tracker de quiconque a deviné une référence de ticket, et il reste
+        // vivement recommandé — mais il n'est plus la seule chose entre un inconnu et un
+        // « non affecté » dans un document signé.
         WebhookAuthenticity.Verdict verdict = WebhookAuthenticity.verify(
                 provider,
                 // Decrypted, not read raw: the row now holds a ciphertext. Comparing the presented
@@ -149,10 +154,40 @@ public class TicketingWebhookController {
                     ? VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH
                     : VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
 
-            String author = event.author() != null && !event.author().isBlank() ? event.author() : provider.name() + "_webhook";
-            String comment = (event.comment() != null && !event.comment().isBlank() ? event.comment() : "Status updated from " + provider.name() + " ticket " + event.ticketRef());
+            // **L'auteur est l'intégration, et le nom revendiqué descend dans le commentaire.**
+            // Il venait de la charge utile : sur une route anonyme, cela laissait l'appelant
+            // choisir le nom que le journal d'audit — inviolable, jamais purgé — allait sceller
+            // à côté de sa décision. La chaîne de hachage protège l'entrée d'une modification
+            // ultérieure ; elle ne protège pas d'un mensonge qu'on lui a dicté. Le nom reste
+            // utile et reste écrit, mais comme une donnée rapportée et non comme une identité.
+            String author = provider.name() + "_webhook";
+            String claimed = event.author() != null && !event.author().isBlank()
+                    ? " (annoncé par le tracker comme : " + event.author() + ")"
+                    : "";
+            String comment = (event.comment() != null && !event.comment().isBlank()
+                    ? event.comment()
+                    : "Status updated from " + provider.name() + " ticket " + event.ticketRef())
+                    + claimed;
 
-            triageService.triage(
+            // **`false`, et c'est tout le correctif.** Ce booléen valait `true` : la décision d'un
+            // tracker clôturait sur-le-champ, contournant la double validation. Sur une route qui
+            // n'exige aucune authentification tant qu'aucun secret n'est configuré — le défaut —
+            // cela signifiait qu'un POST anonyme pouvait poser `not_affected` avec la
+            // justification `vulnerable_code_not_in_execute_path`, laquelle part telle quelle dans
+            // les documents CycloneDX, OpenVEX et CSAF signés remis aux clients.
+            //
+            // C'est l'affirmation que ce dépôt a déjà retirée une fois : l'analyseur
+            // d'atteignabilité a été rendu unidirectionnel pour qu'aucune machine ne vide un
+            // composant sans humain, et `CycloneDxGeneratorService.mapAnalysis` réécrit
+            // l'invariant en toutes lettres — « le triage vide un composant ; l'atteignabilité,
+            // non ». Cette porte était le trou dedans : ni un humain, ni authentifiée.
+            //
+            // **Rien ne casse.** `queueIfNotApprover` convertit la décision en
+            // `PENDING_APPROVAL` sans consulter le réglage de double validation, et
+            // `pending_approval` se rend « en cours d'examen » dans les documents, jamais
+            // « non affecté ». La synchronisation continue donc d'enregistrer ce que le tracker
+            // dit ; elle cesse seulement de le publier à la place d'un humain.
+            IssueEntity triaged = triageService.triage(
                     issue.getId(),
                     new Triage.Request(
                             status,
@@ -160,9 +195,10 @@ public class TicketingWebhookController {
                             justification,
                             comment,
                             null),
-                    true);
+                    false);
 
-            actionTaken = "Triaged as " + status.wireName() + " (" + justification.wireName() + ") by " + author;
+            actionTaken = "Queued as " + triaged.getTriageStatus() + " (" + justification.wireName()
+                    + ") from " + author;
 
             audit.record(new AuditLogService.Record(
                     AuditOperation.TICKET_SYNCED,

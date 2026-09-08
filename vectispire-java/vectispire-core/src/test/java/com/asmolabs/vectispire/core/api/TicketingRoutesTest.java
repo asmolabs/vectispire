@@ -55,7 +55,7 @@ class TicketingRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("processes Jira webhook for False Positive and auto-triages issue")
+    @DisplayName("processes Jira webhook for False Positive and queues the decision for approval")
     void processesJiraWebhook() throws Exception {
         IssueEntity issue = new IssueEntity();
         issue.setFingerprint("fp-jira-webhook-test");
@@ -97,8 +97,13 @@ class TicketingRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.matched").value(true))
                 .andExpect(jsonPath("$.ticketRef").value("SEC-99"));
 
+        // **Ces deux cas affirmaient `not_affected`, et c'était le défaut qu'ils décrivaient.**
+        // Le webhook est anonyme tant qu'aucun secret n'est configuré ; « le tracker a dit faux
+        // positif » ne pouvait donc pas rester une conclusion. La justification, elle, est bien
+        // enregistrée : ce qui change n'est pas ce que le tracker raconte mais qui le publie.
+        // Voir `TicketWebhookCannotSettleTest` pour la propriété elle-même.
         IssueEntity updated = issues.findByTicketRefOrIid("SEC-99").orElseThrow();
-        org.junit.jupiter.api.Assertions.assertEquals("not_affected", updated.getTriageStatus());
+        org.junit.jupiter.api.Assertions.assertEquals("pending_approval", updated.getTriageStatus());
         org.junit.jupiter.api.Assertions.assertEquals("vulnerable_code_not_in_execute_path", updated.getTriageJustification());
     }
 
@@ -142,6 +147,6 @@ class TicketingRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.ticketRef").value("105"));
 
         IssueEntity updated = issues.findByTicketRefOrIid("105").orElseThrow();
-        org.junit.jupiter.api.Assertions.assertEquals("not_affected", updated.getTriageStatus());
+        org.junit.jupiter.api.Assertions.assertEquals("pending_approval", updated.getTriageStatus());
     }
 }

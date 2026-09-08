@@ -28,12 +28,18 @@ class TicketWebhookAuthRoutesTest extends ApiTestBase {
     private SettingsService settings;
 
     @Test
-    @DisplayName("with no secret configured the route stays open, as every deployment has it today")
+    @DisplayName("with no secret configured the route stays open — and that is now safe to say")
     void openWhenUnset() throws Exception {
         settings.set(Setting.TICKET_WEBHOOK_SECRET, "");
 
         // 200 rather than 401: this is the behaviour every existing deployment relies on, and
         // changing it on upgrade would stop their triage synchronising without anybody noticing.
+        //
+        // **Ce cas épinglait une porte ouverte sans dire sur quoi elle donnait.** Il était juste
+        // sur ce qu'il affirmait et muet sur ce qui comptait : derrière ce 200, un appel anonyme
+        // réglait un `not_affected` qui partait dans les documents signés. Ce qui rend le 200
+        // acceptable n'est pas écrit ici mais dans `TicketWebhookCannotSettleTest`, et les deux
+        // se lisent ensemble.
         mvc.perform(post("/api/v1/tickets/webhook/gitlab")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))
