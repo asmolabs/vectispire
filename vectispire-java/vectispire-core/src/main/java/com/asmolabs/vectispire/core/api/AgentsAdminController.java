@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
@@ -37,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -99,6 +101,10 @@ public class AgentsAdminController {
      *     one more opaque value on a screen helps nobody. This boolean does — an operator who
      *     believes they are sealing while their agent is an older version would have no other
      *     way to notice, and the deployment key would cross their proxy in the clear
+     * @param signsResults whether a result-signing key is pinned for this agent — that is,
+     *     whether a stolen API key would be enough to declare this agent's targets clean. The
+     *     public key is not exposed for the same reason the sealing one is not: the operator needs
+     *     the answer, not the value
      * @param online seen recently, not "enabled". An enabled agent that has been silent for an
      *     hour is the case that matters: the queue fills, nobody drains it, and nothing else on
      *     the screen would say so
@@ -112,6 +118,7 @@ public class AgentsAdminController {
             String credentialsMode,
             String labels,
             boolean sealsCredentials,
+            boolean signsResults,
             Integer maxConcurrent,
             String hostname,
             String platform,
@@ -309,6 +316,7 @@ public class AgentsAdminController {
                         agent.getCredentialsMode(),
                         agent.getLabels(),
                         agent.getSealingPublicKey() != null,
+                        agent.getSigningPublicKey() != null,
                         agent.getMaxConcurrent(),
                         agent.getHostname(),
                         agent.getPlatform(),
@@ -418,6 +426,89 @@ public class AgentsAdminController {
         answer.put("enabled", enabled);
         answer.put("labels", labels);
         return answer;
+    }
+
+    /** @param publicKey base64 Ed25519, or null/blank to stop requiring signed results */
+    public record SigningKeyRequest(@JsonProperty("public_key") String publicKey) {}
+
+    /**
+     * @param privateKey the half to put in the agent's configuration, shown once. Null when the
+     *     operator supplied their own public key, because then the control plane never held it
+     */
+    public record PinnedSigningKey(UUID id, boolean signsResults, String privateKey) {}
+
+    /**
+     * Pins the key an agent's results must be signed with — or removes it.
+     *
+     * <p><b>This route is the reason the attestation is worth checking.</b> The signing key
+     * arrives here, over an administrator's session, and never over the agent protocol: a key the
+     * agent announced would prove nothing its API key had not already proved. See
+     * {@link ResultAttestation}.
+     *
+     * <p><b>The pair may be generated here, and that is a deliberate convenience with a cost.</b>
+     * Sending no {@code public_key} makes the control plane generate a pair, keep the public half
+     * and return the private one once — which means the private half existed here for the length
+     * of one response. An operator who would rather it never did generates the pair themselves
+     * and sends only the public half; both paths are supported and the answer says which one ran.
+     *
+     * <p>Removing a pinned key takes the agent back to being trusted on its bearer token alone.
+     * Audited as loudly as pinning one, because it is the half somebody would do quietly.
+     */
+    @PutMapping("/{id}/signing-key")
+    public PinnedSigningKey pinSigningKey(
+            @PathVariable UUID id,
+            @RequestBody SigningKeyRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        String supplied = body == null || body.publicKey() == null ? "" : body.publicKey().trim();
+
+        if (supplied.isEmpty()) {
+            agent.setSigningPublicKey(null);
+            agents.save(agent);
+            recordSigningKey(principal, request, id,
+                    "Result-signing key removed for agent " + agent.getName()
+                            + ": its results are accepted on its API key alone.");
+            return new PinnedSigningKey(id, false, null);
+        }
+
+        // **Generated only when asked for by name.** A malformed key would otherwise be silently
+        // replaced by a working one nobody's agent holds, and every result would be refused with
+        // a message pointing at the agent.
+        if ("generate".equals(supplied)) {
+            ResultAttestation.KeyPair pair = ResultAttestation.generate();
+            agent.setSigningPublicKey(pair.publicKey());
+            agents.save(agent);
+            recordSigningKey(principal, request, id,
+                    "Result-signing key generated and pinned for agent " + agent.getName() + ".");
+            return new PinnedSigningKey(id, true, pair.privateKey());
+        }
+
+        if (!ResultAttestation.isUsablePublicKey(supplied)) {
+            // Refused on the way in rather than at the first result: the failure would otherwise
+            // surface on the agent, hours later, as a scan that cannot be handed back.
+            throw new IllegalArgumentException(
+                    "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" "
+                            + "to have one made here instead.");
+        }
+
+        agent.setSigningPublicKey(supplied);
+        agents.save(agent);
+        recordSigningKey(principal, request, id,
+                "Result-signing key pinned for agent " + agent.getName() + ".");
+        return new PinnedSigningKey(id, true, null);
+    }
+
+    private void recordSigningKey(
+            VectispirePrincipal principal, HttpServletRequest request, UUID id, String description) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_SIGNING_KEY_PINNED,
+                id.toString(),
+                description,
+                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
     }
 
     @DeleteMapping("/{id}")

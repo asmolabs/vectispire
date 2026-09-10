@@ -47,6 +47,15 @@ export class Agents implements OnInit {
     readonly formVisible = signal(false);
     readonly secretVisible = signal(false);
     readonly issuedSecret = signal<string | null>(null);
+
+    /**
+     * The private half of a freshly pinned signing key, shown once.
+     *
+     * Same dialog shape as the API key for the same reason: the control plane does not keep it,
+     * so this is the operator's only chance to put it in the agent's configuration.
+     */
+    readonly signingKeyVisible = signal(false);
+    readonly issuedSigningKey = signal<string | null>(null);
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<AgentSummary | null>(null);
 
@@ -178,6 +187,35 @@ export class Agents implements OnInit {
     dismissSecret(): void {
         this.issuedSecret.set(null);
         this.secretVisible.set(false);
+    }
+
+    /**
+     * Pins a generated key, or removes the one that is there.
+     *
+     * Removing is a confirmation-free single click on purpose here — it is audited, and the row
+     * immediately says the agent is no longer attested, which is the feedback that matters.
+     */
+    toggleSigning(agent: AgentSummary): void {
+        this.busy.set(agent.id);
+        this.api.pinAgentSigningKey(agent.id, agent.signsResults ? '' : 'generate').subscribe({
+            next: (pinned) => {
+                this.busy.set(null);
+                if (pinned.privateKey) {
+                    this.issuedSigningKey.set(pinned.privateKey);
+                    this.signingKeyVisible.set(true);
+                }
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                this.error.set(messageOf(response, 'Could not change the result-signing key.'));
+            }
+        });
+    }
+
+    dismissSigningKey(): void {
+        this.issuedSigningKey.set(null);
+        this.signingKeyVisible.set(false);
     }
 
     askDelete(agent: AgentSummary): void {

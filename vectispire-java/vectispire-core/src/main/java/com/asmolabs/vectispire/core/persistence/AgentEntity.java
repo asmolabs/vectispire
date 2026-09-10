@@ -17,6 +17,12 @@ import org.hibernate.type.SqlTypes;
  * <p>{@code sealingPublicKey} is what lets a deployment key travel to it end to end: the
  * control plane seals the key for this agent alone, so an agent that claims a scan it is not
  * entitled to cannot open it.
+ *
+ * <p><b>Two public keys, and they are not interchangeable.</b> {@code sealingPublicKey} is
+ * announced by the agent at every {@code hello} — it is ephemeral, and refreshing it is the point.
+ * {@code signingPublicKey} is written by an administrator and by nothing else: a signature
+ * verified against a key the signer announced proves only what the API key already proved. See
+ * {@code ResultAttestation}.
  */
 @Entity
 @Table(name = "t_agent")
@@ -74,6 +80,10 @@ public class AgentEntity {
 
     @Column(name = "sealing_public_key", length = 255)
     private String sealingPublicKey;
+
+    /** Base64 Ed25519, pinned by an operator. Null means this agent's results are not attested. */
+    @Column(name = "signing_public_key", length = 255)
+    private String signingPublicKey;
 
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
@@ -207,6 +217,14 @@ public class AgentEntity {
 
     public void setSealingPublicKey(String sealingPublicKey) {
         this.sealingPublicKey = sealingPublicKey;
+    }
+
+    public String getSigningPublicKey() {
+        return signingPublicKey;
+    }
+
+    public void setSigningPublicKey(String signingPublicKey) {
+        this.signingPublicKey = signingPublicKey;
     }
 
     public Instant getLastSeenAt() {

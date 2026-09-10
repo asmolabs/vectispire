@@ -294,9 +294,17 @@
                             {{ agent.sealsCredentials ? 'Sealed end to end' : 'In clear under TLS' }}
                         </div>
                     }
+                    <!-- Said on the row and not behind a dialog: an operator who believes their
+                         results are attested has no other way to find out they are not. -->
+                    <div class="text-xs" [class.text-muted-color]="agent.signsResults">
+                        {{ agent.signsResults ? 'Results attested' : 'Results unsigned' }}
+                    </div>
                 </td>
                 <td class="text-right font-medium">{{ agent.runningScans }}</td>
                 <td class="text-right whitespace-nowrap">
+                    <p-button [icon]="agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'" [text]="true" [rounded]="true"
+                              [ariaLabel]="(agent.signsResults ? 'Stop requiring signed results from ' : 'Require signed results from ') + agent.name"
+                              [disabled]="busy() === agent.id" (onClick)="toggleSigning(agent)" />
                     <p-button [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
                               [ariaLabel]="(agent.enabled ? 'Disable ' : 'Re-enable ') + agent.name"
                               [disabled]="busy() === agent.id" (onClick)="toggle(agent)" />
@@ -354,6 +362,18 @@
     <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSecret() }}</div>
     <ng-template #footer>
         <p-button [label]="'common.confirm' | translate" (onClick)="dismissSecret()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog header="Result-signing key" [(visible)]="signingKeyVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+        Put this in the agent's configuration as <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span>,
+        then restart it. It is shown once and is not stored here. Until the agent has it, its
+        results are refused.
+    </p-message>
+    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSigningKey() }}</div>
+    <ng-template #footer>
+        <p-button [label]="'common.confirm' | translate" (onClick)="dismissSigningKey()" />
     </ng-template>
 </p-dialog>
 

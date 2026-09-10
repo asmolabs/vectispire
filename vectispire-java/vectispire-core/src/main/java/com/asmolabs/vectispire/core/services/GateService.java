@@ -23,6 +23,8 @@ import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.repositories.LatestScanRow;
+import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -267,11 +269,11 @@ public class GateService {
     private Map<ScanTarget, SecurityOverview.LatestScan> latestScans() {
         Map<ScanTarget, SecurityOverview.LatestScan> latest = new HashMap<>();
         scans.findLatestPerRepository()
-                .forEach(row -> latestScan(row).ifPresent(scan ->
-                        latest.put(new ScanTarget.Repository(((Number) row[0]).longValue()), scan)));
+                .forEach(row -> latestScan(row)
+                        .ifPresent(scan -> latest.put(new ScanTarget.Repository(row.targetId()), scan)));
         scans.findLatestPerContainer()
-                .forEach(row -> latestScan(row).ifPresent(scan ->
-                        latest.put(new ScanTarget.Container(((Number) row[0]).longValue()), scan)));
+                .forEach(row -> latestScan(row)
+                        .ifPresent(scan -> latest.put(new ScanTarget.Container(row.targetId()), scan)));
         return latest;
     }
 
@@ -282,10 +284,9 @@ public class GateService {
      * scanned", "last scan failed" or "green", and an unreadable value mapped to any of the
      * three would be a confident wrong answer on a security screen.
      */
-    private static Optional<SecurityOverview.LatestScan> latestScan(Object[] row) {
-        return ScanStatus.fromWireName((String) row[2])
-                .map(status -> new SecurityOverview.LatestScan(
-                        ((Number) row[1]).longValue(), status, (Instant) row[3]));
+    private static Optional<SecurityOverview.LatestScan> latestScan(LatestScanRow row) {
+        return ScanStatus.fromWireName(row.status())
+                .map(status -> new SecurityOverview.LatestScan(row.scanId(), status, row.createdAt()));
     }
 
     private Map<String, StoredPolicy> activePolicies() {

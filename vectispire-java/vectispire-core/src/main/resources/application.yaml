@@ -27,7 +27,37 @@ spring:
 server:
   # The API and the agent protocol share it. Long polling holds a request open, which is why
   # the read timeout below is generous and the connection count is not.
-  port: ${VECTISPIRE_PORT:${VECTISPIRE_PORT:${VECTISPIRE_PORT:3180}}}
+  port: ${VECTISPIRE_PORT:3180}
+
+# **What an operator can see while this runs.**
+#
+# Only `health` was exposed, which answers "is it up" and nothing else. The questions an incident
+# raises — is the queue draining, are the agents being served, is the outbox behind, how long does
+# a scan take now — had no instrument at all, and the audit log is the wrong one: it records what
+# people did, not how the system is behaving.
+#
+# `health` stays anonymous because a container probe has no session; everything else here needs
+# one. A metrics endpoint names internal structure and volumes, which is not something to publish
+# to whoever can reach the port.
+#
+# Shipping these somewhere is one dependency away — add `io.micrometer:micrometer-registry-prometheus`
+# and refresh the lockfile, and `prometheus` joins the list below. Without it the meters still
+# exist and `/actuator/metrics` serves them.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      # Every series says which instance produced it. Without this a fleet's numbers are summed
+      # into one line, and "the queue is draining" can be true of the fleet while one instance
+      # has stopped claiming anything at all.
+      application: ${spring.application.name}
 
 vectispire:
   scanning:
@@ -36,7 +66,7 @@ vectispire:
     image-platform: ${VECTISPIRE_IMAGE_SCAN_PLATFORM:}
 
     # A repository with no deployment key attached falls back to this machine's own ~/.ssh.
-    host-ssh: ${VECTISPIRE_HOST_SSH:${VECTISPIRE_HOST_SSH:${VECTISPIRE_HOST_SSH:true}}}
+    host-ssh: ${VECTISPIRE_HOST_SSH:true}
 
     # **The scanner images, overridable one by one.** Blank keeps the digest Vectispire ships
     # with — the pinned, reviewed one. Set these to run from an internal registry (an air-gapped
@@ -52,6 +82,12 @@ vectispire:
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
 
   branding:
+    # **The two nested chains in this file are the only real ones, and they are here on purpose.**
+    # Each name is an earlier spelling kept working for deployments that already set it, tried in
+    # order, newest first. Eight other settings carried the same shape by accident — the same
+    # variable written three times, which is exactly `${X:default}` — and reading them made these
+    # two impossible to recognise as deliberate. Do not add a level unless it names a *different*
+    # variable.
     name: ${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:${VECTISPIRE_INSTANCE_NAME:Vectispire}}}
     gitlab-url: ${VECTISPIRE_GITLAB_URL:https://github.com/asmolabs/vectispire}
 
@@ -63,8 +99,8 @@ vectispire:
     tool-version: ${VECTISPIRE_VERSION:1.0.0}
 
   bootstrap:
-    username: ${VECTISPIRE_BOOTSTRAP_USERNAME:${VECTISPIRE_BOOTSTRAP_USERNAME:${VECTISPIRE_BOOTSTRAP_USERNAME:}}}
-    password: ${VECTISPIRE_BOOTSTRAP_PASSWORD:${VECTISPIRE_BOOTSTRAP_PASSWORD:${VECTISPIRE_BOOTSTRAP_PASSWORD:}}}
+    username: ${VECTISPIRE_BOOTSTRAP_USERNAME:}
+    password: ${VECTISPIRE_BOOTSTRAP_PASSWORD:}
 
   security:
     # **Whose word to take for the client's address.** Empty means "nothing in front of us", so
@@ -80,12 +116,24 @@ vectispire:
     # public demo, or a deployment behind a gateway that already authenticates.
     anonymous-api-docs: ${VECTISPIRE_ANONYMOUS_API_DOCS:false}
 
+    # **Un plafond sur les jetons porteurs refusés**, que le mot de passe avait et que les clés
+    # n'avaient pas. Sessions, clés API d'agent et jeton SCIM comptent ensemble, par adresse, et
+    # seuls les échecs comptent : un agent qui long-poll avec une clé valide n'entame rien.
+    #
+    # Volontairement généreux. Ces jetons sont longs et aléatoires, donc la menace n'est pas le
+    # devinement mais le silence : un balayage ne laissait aucune trace distincte d'un agent mal
+    # configuré qui réessaie. L'essentiel de la valeur du contrôle est l'entrée d'audit écrite
+    # quand le plafond est atteint, pas le refus lui-même — d'où un seuil qui ne verrouille pas un
+    # opérateur hors de son propre plan de contrôle.
+    bearer-failures-per-window: ${VECTISPIRE_BEARER_FAILURES_PER_WINDOW:60}
+    bearer-failure-window: ${VECTISPIRE_BEARER_FAILURE_WINDOW:PT5M}
+
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}
     idle-lifetime: ${VECTISPIRE_SESSION_IDLE:60m}
 
   oidc:
-    password-login: ${VECTISPIRE_PASSWORD_LOGIN:${VECTISPIRE_PASSWORD_LOGIN:${VECTISPIRE_PASSWORD_LOGIN:true}}}
+    password-login: ${VECTISPIRE_PASSWORD_LOGIN:true}
 
   audit:
     mirror-path: ${VECTISPIRE_AUDIT_MIRROR:}
@@ -93,11 +141,11 @@ vectispire:
   encryption:
     key: ${ENCRYPTION_KEY:}
     key-file: ${ENCRYPTION_KEY_FILE:}
-    previous-keys: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:}}}
-    previous-keys-file: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:}}}
+    previous-keys: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:}
+    previous-keys-file: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:}
 
   worker:
-    enabled: ${VECTISPIRE_EMBEDDED_WORKER:${VECTISPIRE_EMBEDDED_WORKER:${VECTISPIRE_EMBEDDED_WORKER:true}}}
+    enabled: ${VECTISPIRE_EMBEDDED_WORKER:true}
     max-concurrent: ${VECTISPIRE_SCAN_MAX_CONCURRENT:2}
     labels: ${VECTISPIRE_WORKER_LABELS:}
     interval: ${VECTISPIRE_WORKER_INTERVAL:15s}

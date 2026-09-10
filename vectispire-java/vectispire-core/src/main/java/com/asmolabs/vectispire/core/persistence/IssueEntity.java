@@ -106,6 +106,24 @@ public class IssueEntity {
     @Column(name = "resolved_at")
     private Instant resolvedAt;
 
+    /**
+     * How long this issue lived, in seconds, written when it is resolved.
+     *
+     * <p><b>Stored rather than derived, so the average can be a query.</b> Mean time to
+     * resolution is the difference between two instants, and MySQL, PostgreSQL and SQLite each
+     * spell that differently — so the dashboard used to compute it in Java over every closed
+     * issue in the estate. A column of seconds turns it into {@code avg} of a number, which is
+     * the same statement on all three. The dialects are named once, in {@code V24}, where a
+     * migration is written per dialect anyway.
+     *
+     * <p><b>Null is not zero.</b> It stays null while the issue is open, when there is no first
+     * sighting to measure from, and when the resolution does not follow the discovery — the
+     * three cases the in-memory average already skipped. Treating them as instant resolutions
+     * would pull every average down, which is the direction that flatters.
+     */
+    @Column(name = "resolution_seconds")
+    private Long resolutionSeconds;
+
     @Column(name = "first_seen_scan_id")
     private Long firstSeenScanId;
 
@@ -344,6 +362,37 @@ public class IssueEntity {
 
     public void setResolvedAt(Instant resolvedAt) {
         this.resolvedAt = resolvedAt;
+    }
+
+    public Long getResolutionSeconds() {
+        return resolutionSeconds;
+    }
+
+    public void setResolutionSeconds(Long resolutionSeconds) {
+        this.resolutionSeconds = resolutionSeconds;
+    }
+
+    /**
+     * Closes this issue, and records how long it took — the two together, always.
+     *
+     * <p><b>Why this exists rather than two setters at each call site.</b> The stored duration is
+     * only trustworthy if it cannot fall out of step with {@code resolvedAt}, and the way it
+     * falls out of step is somebody adding a third place that resolves an issue and setting one
+     * field. There is no honest way to spot that in review: the code reads correctly, the issue
+     * closes correctly, and the only symptom is an average that drifts a little further from the
+     * truth with every scan.
+     */
+    public void resolveAt(Instant moment) {
+        this.resolvedAt = moment;
+        this.resolutionSeconds = moment != null && firstSeenAt != null && moment.isAfter(firstSeenAt)
+                ? java.time.Duration.between(firstSeenAt, moment).toSeconds()
+                : null;
+    }
+
+    /** Reopens it: no resolution instant, and therefore no duration either. */
+    public void reopen() {
+        this.resolvedAt = null;
+        this.resolutionSeconds = null;
     }
 
     public Long getFirstSeenScanId() {

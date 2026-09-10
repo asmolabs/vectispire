@@ -14,6 +14,8 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.repositories.LatestScanRow;
+import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
@@ -314,19 +316,16 @@ public class RepositoriesController {
 
     private Map<Long, LastScan> latestScans() {
         Map<Long, LastScan> latest = new HashMap<>();
-        for (Object[] row : scans.findLatestPerRepository()) {
-            latest.put(
-                    ((Number) row[0]).longValue(),
-                    new LastScan(
-                            ((Number) row[1]).longValue(), (String) row[2], (Instant) row[3], (String) row[4]));
+        for (LatestScanRow row : scans.findLatestPerRepository()) {
+            latest.put(row.targetId(), new LastScan(row.scanId(), row.status(), row.createdAt(), row.error()));
         }
         return latest;
     }
 
     private Map<Long, Long> openIssueCounts() {
         Map<Long, Long> counts = new HashMap<>();
-        for (Object[] row : issues.countOpenByRepository(IssueState.OPEN.wireName())) {
-            counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+        for (OpenIssueCount row : issues.countOpenByRepository(IssueState.OPEN.wireName())) {
+            counts.put(row.targetId(), row.count());
         }
         return counts;
     }

@@ -51,7 +51,39 @@ public interface IssueAggregates {
     record PackageDetail(
             String packageName, String identifier, Long repoId, Long containerId, String fixVersions) {}
 
+    /**
+     * Open issues of one target at one severity. {@code repoId} and {@code containerId} are
+     * mutually exclusive, exactly as on the row.
+     */
+    record TargetSeverityCount(Long repoId, Long containerId, String severity, long count) {}
+
+    /**
+     * What one target has closed, and how long those took on average.
+     *
+     * <p><b>An aggregate, since {@code V24}.</b> This was a row per closed issue, because the
+     * average needed the difference between two timestamps and the three engines spell that
+     * three ways. {@code t_issue.resolution_seconds} is written when the issue is resolved, so
+     * the average is now {@code avg} of a number — the same statement everywhere, computed where
+     * the rows are.
+     *
+     * @param averageSeconds null when the target has closed nothing that lived measurably. Not
+     *     zero: {@code avg} skips nulls, and so must whoever reads this
+     */
+    record TargetResolutions(Long repoId, Long containerId, long resolved, Double averageSeconds) {}
+
     List<SeverityTypeCount> countGroupedBySeverityAndType(Specification<IssueEntity> filter);
+
+    /**
+     * The open half of the scoreboard, as a {@code group by} rather than as rows.
+     *
+     * <p>This is what the posture dashboard used to get by loading every open issue in the
+     * estate and counting them in a loop. The backlog is the larger half of an issue table, and
+     * counting is what a database is for.
+     */
+    List<TargetSeverityCount> countOpenByTargetAndSeverity(Specification<IssueEntity> filter);
+
+    /** The closed half of the scoreboard, counted and averaged by the database. */
+    List<TargetResolutions> countResolvedByTarget(Specification<IssueEntity> filter);
 
     /**
      * The vulnerable packages, weighted.

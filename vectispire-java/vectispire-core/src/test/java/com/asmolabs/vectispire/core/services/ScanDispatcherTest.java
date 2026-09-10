@@ -93,6 +93,8 @@ class ScanDispatcherTest {
                 envelopes,
                 new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(),
+                mock(AuditLogService.class),
+                mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions));
     }
 
@@ -267,6 +269,8 @@ class ScanDispatcherTest {
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
+                        mock(AuditLogService.class),
+                        mock(PlatformMetrics.class),
                         new TransactionTemplate(manager))
                 .dispatch("worker-1", 2, List.of());
 

@@ -2,9 +2,15 @@
 
 ## Installation
 
-**Permission denied on the Docker socket.** The user running Vectispire needs access to
-`/var/run/docker.sock`. On Linux, add it to the `docker` group. Every scan fails at the
-first container without it.
+**Permission denied on the Docker socket.** With the shipped composition this should not
+happen: no Vectispire container mounts the socket, a `docker-socket-proxy` does, and the
+control plane reaches it through `DOCKER_HOST`. If you run Vectispire outside compose,
+straight against a daemon, the user needs access to `/var/run/docker.sock` — on Linux, the
+`docker` group. Every scan fails at the first container without it.
+
+**Should the control plane run scans at all?** On one host with one team, yes — that is what
+the default is for. Beyond that, no: daemon access is root on the host, and that host holds
+`ENCRYPTION_KEY`. Run a remote agent and set `VECTISPIRE_EMBEDDED_WORKER=false`.
 
 **The first scan is very slow.** Expected. The images — `anchore/syft`, `anchore/grype`,
 `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` — are pulled on demand the

@@ -69,7 +69,7 @@ class MigrationsTest {
                         "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set",
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
-                        "t_api_endpoint", "t_api_contract");
+                        "t_api_endpoint", "t_api_contract", "t_mfa_challenge");
     }
 
     @Test
@@ -89,7 +89,8 @@ class MigrationsTest {
             for (String table : List.of(
                     "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
                     "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
-                    "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket")) {
+                    "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket",
+                    "t_mfa_challenge")) {
                 try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
                     while (rows.next()) {
                         references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -117,8 +118,9 @@ class MigrationsTest {
                         "t_team_member.user_id -> t_user",
                         "t_team_target.team_id -> t_team",
                         "t_team_webhook.team_id -> t_team",
-                        "t_issue_ticket.issue_id -> t_issue")
-                .hasSize(21);
+                        "t_issue_ticket.issue_id -> t_issue",
+                        "t_mfa_challenge.user_id -> t_user")
+                .hasSize(22);
     }
 
     @Test

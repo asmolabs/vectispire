@@ -84,10 +84,23 @@ abstract class ApiTestBase extends VectispireContextTest {
     @Autowired
     private com.asmolabs.vectispire.core.api.security.LoginRateLimitFilter rateLimit;
 
+    /**
+     * The same reasoning, for the ceiling on refused bearer tokens.
+     *
+     * <p>This suite refuses credentials on purpose, dozens of times — that is what an
+     * authorization suite <em>is</em> — and every one of those counts against the address
+     * MockMvc gives them all. Without this reset the suite would poison itself somewhere past
+     * the sixtieth refusal, and the test that failed would be whichever one happened to run
+     * then.
+     */
+    @Autowired
+    private com.asmolabs.vectispire.core.api.security.BearerRateLimitFilter bearerRateLimit;
+
     @BeforeEach
     void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
         rateLimit.reset();
+        bearerRateLimit.reset();
         adminToken = null;
         readerToken = null;
     }

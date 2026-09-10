@@ -13,10 +13,23 @@ install needs neither the agent nor any agent configuration.
 | **Git** | Vectispire clones what it scans. |
 | **Node ≥ 24**, **JDK 25** | Only if you build from source rather than running the published images. |
 
-!!! warning "Docker socket access"
-    The user running Vectispire needs access to `/var/run/docker.sock`. On Linux that
-    usually means adding it to the `docker` group. Without it every scan fails at the
-    first container.
+!!! warning "Access to a Docker daemon"
+    Vectispire runs its scanners as containers, so it needs to reach a daemon — but **it does
+    not mount the socket**. The composition puts a `docker-socket-proxy` in front, on an
+    internal network, and points the control plane at it through `DOCKER_HOST`. Nothing on
+    your side to configure, and no `docker` group to join.
+
+    Running outside compose, straight against a daemon? Then the user does need access to
+    `/var/run/docker.sock`, and on Linux that usually means the `docker` group. Without it
+    every scan fails at the first container.
+
+!!! danger "One host means one blast radius"
+    With the built-in worker on — the default — the process that can create containers is the
+    process that holds `ENCRYPTION_KEY`, and daemon access is root on that host. The proxy
+    narrows what can be asked of the daemon; it does not separate the two. For anything beyond
+    a single-team installation, run a **remote agent** and set
+    `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane. See
+    [decision 0018](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0018-the-docker-socket-is-never-mounted.md).
 
 ## The quickest route: Docker Compose
 

@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.AccountAdminService;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
@@ -45,14 +46,21 @@ public class UsersController {
     private final Users users;
     private final UserSessions sessions;
     private final UserTargets assignments;
+    private final AccountAdminService accounts;
     private final AuditLogService audit;
     private final Clock clock;
 
     public UsersController(
-            Users users, UserSessions sessions, UserTargets assignments, AuditLogService audit, Clock clock) {
+            Users users,
+            UserSessions sessions,
+            UserTargets assignments,
+            AccountAdminService accounts,
+            AuditLogService audit,
+            Clock clock) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;
+        this.accounts = accounts;
         this.audit = audit;
         this.clock = clock;
     }
@@ -193,8 +201,6 @@ public class UsersController {
             user.setPassword(PasswordHasher.hash(password));
             user.setMustChangePassword(true);
         }
-        users.save(user);
-
         // **Three gestures close the sessions, not one.**
         //
         // Deactivating, obviously: otherwise the account stays inside until its session expires
@@ -209,10 +215,12 @@ public class UsersController {
         // And changing a role: an open session carries the role re-read on every request, so a
         // demotion does take effect — but closing the session makes that explicit rather than
         // dependent on that detail.
+        // The save and the revocation share a transaction, in `AccountAdminService`. They used
+        // to be two, which meant a failure between them left the password changed and the
+        // session that the change was meant to close still open — the very outcome the
+        // paragraph above describes as the defect being fixed.
         boolean revoke = !isActive || password != null || !role.equals(previousRole);
-        if (revoke) {
-            sessions.deleteByUserId(id);
-        }
+        accounts.save(user, revoke);
 
         if (!changes.isEmpty()) {
             record(principal, request, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
@@ -246,9 +254,9 @@ public class UsersController {
         UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
         List<TargetAssignment> wanted = body == null ? List.of() : body;
 
-        assignments.deleteByUserId(id);
-        wanted.forEach(assignment -> assignments.save(
-                new UserTargetEntity(id, assignment.kind(), assignment.id())));
+        accounts.replaceTargets(id, wanted.stream()
+                .map(assignment -> new UserTargetEntity(id, assignment.kind(), assignment.id()))
+                .toList());
 
         // Audited like a role change, because it is the same kind of decision: it changes what
         // somebody can read, by a gesture just as quiet.
@@ -271,8 +279,7 @@ public class UsersController {
         refuseIfInvalid(AccountRules.refuseDeletion(
                 isSelf, isAdministrative(user.getRole()) && user.getIsActive(), (int) countOtherActiveAdmins(id)));
 
-        sessions.deleteByUserId(id);
-        users.deleteById(id);
+        accounts.delete(id);
         record(principal, request, id, "Account deleted: " + user.getUsername());
     }
 

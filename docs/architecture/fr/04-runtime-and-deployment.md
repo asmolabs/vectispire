@@ -61,6 +61,32 @@ qu'une analyse nocturne est due la mettraient deux fois en file. Les autres réc
 déjà ou répètent une opération dont la seconde exécution ne coûte rien — et une élection n'y
 apporterait rien tout en ajoutant un bail qui peut expirer en cours de passe.
 
+**La coordination n'est pas la seule chose qu'elles auraient pu partager.** Ces quatre tâches
+tournent sur un ordonnanceur de quatre threads, déclaré dans `CoreConfiguration` plutôt que laissé
+au défaut de Spring Boot — qui est un pool d'**un seul**. Sur un thread unique, le tableau ci-dessus
+ne dit rien d'utile : une tâche lente ne retarde pas les autres, elle les arrête, et la tâche lente
+est toujours la même, puisque le tick du worker exécute les analyses qu'il réclame. Le tick confie
+désormais sa ronde à un thread que `ScanWorker` possède : la durée d'une analyse n'est plus la
+période de personne d'autre.
+
+**Les long polls des agents ont leur propre ordonnanceur**, `agentPollScheduler`. `AgentJobPoller`
+revérifie la file par une tâche programmée, et cette tâche se trouvait dans le même pool à un thread
+que les tâches de fond : une analyse locale dans ce processus signifiait qu'aucun agent *distant* ne
+recevait de travail pendant toute sa durée. Un plan de contrôle exécutant son propre worker cessait
+de servir sa flotte, ce qui est l'inverse de ce pour quoi la
+[décision 0003](decisions/0003-long-polling-for-agents.md) les sépare. `SchedulerSeparationTest`
+maintient les deux pools distincts, car rien d'autre ne remarquerait qu'ils redeviennent un seul.
+
+**Ce que chaque instance garde encore pour elle : les seaux de limitation de débit.**
+`LoginRateLimitFilter` et `BearerRateLimitFilter` comptent en mémoire, donc *n* instances laissent
+passer environ *n* fois le plafond configuré. C'est délibéré, et ce n'est pas ce qui protège les
+mots de passe — `t_login_attempt` s'en charge, en base, par compte et par client. Ces deux
+filtres-là sont un tamis grossier par adresse, dont la valeur annoncée est l'entrée d'audit écrite
+quand le plafond est atteint : l'approximer sur une flotte coûte de la précision, pas un contrôle.
+Dimensionnez-les par instance, pas par déploiement. **La MFA figurait sur cette liste et n'y est
+plus** : le défi vit dans `t_mfa_challenge` depuis `V23`, donc aucune affinité de session n'est
+requise sur `/api/v1/auth/**`.
+
 **Chaque tâche attend avant sa première exécution.** `fixedDelay` espace les exécutions suivantes
 et ne fait rien pour la première, qui partirait sinon alors que Flyway vient de terminer et que le
 pool se remplit encore.

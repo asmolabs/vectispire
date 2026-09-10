@@ -13,7 +13,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
+import type { BadgeState, MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
@@ -43,6 +43,17 @@ export class Repositories {
     readonly scorecardVisible = signal(false);
     readonly selectedScorecard = signal<SecurityScorecard | null>(null);
     readonly copied = signal(false);
+
+    /**
+     * The badge state of the repository whose scorecard is open, or null while it loads.
+     *
+     * **Loaded per repository rather than derived from its id.** The screen used to build the
+     * badge URL out of the id and show it unconditionally, which is also how anybody could read
+     * any repository's grade by counting from one. A badge now exists only if somebody published
+     * it, so this screen has to ask.
+     */
+    readonly badge = signal<BadgeState | null>(null);
+    readonly badgeBusy = signal(false);
     readonly cicdVisible = signal(false);
     readonly selectedCicdRepo = signal<MonitoredRepository | null>(null);
     readonly cicdActiveTab = signal<'gitlab' | 'github' | 'bitbucket' | 'jenkins' | 'cli'>('gitlab');
@@ -263,9 +274,45 @@ export class Repositories {
             next: (card) => {
                 this.selectedScorecard.set(card);
                 this.copied.set(false);
+                this.badge.set(null);
                 this.scorecardVisible.set(true);
+                // Separate call, and it may legitimately fail for a reader without write access;
+                // a badge panel that cannot load must not take the scorecard down with it.
+                this.api.getRepositoryBadge(repository.id).subscribe({
+                    next: (state) => this.badge.set(state),
+                    error: () => this.badge.set({ published: false, token: null, url: null })
+                });
             },
             error: () => this.error.set('Failed to load scorecard for this repository.')
+        });
+    }
+
+    publishBadge(repoId: number): void {
+        this.badgeBusy.set(true);
+        this.api.publishRepositoryBadge(repoId).subscribe({
+            next: (state) => {
+                this.badge.set(state);
+                this.badgeBusy.set(false);
+            },
+            error: () => {
+                this.badgeBusy.set(false);
+                this.error.set(this.i18n.t('repositories.badge_publish_failed'));
+            }
+        });
+    }
+
+    revokeBadge(repoId: number): void {
+        this.badgeBusy.set(true);
+        this.api.revokeRepositoryBadge(repoId).subscribe({
+            next: (state) => {
+                this.badge.set(state);
+                this.copied.set(false);
+                this.badgeBusy.set(false);
+            },
+            error: () => {
+                this.badgeBusy.set(false);
+                this.error.set(this.i18n.t('repositories.badge_revoke_failed'));
+            }
         });
     }
 
@@ -389,8 +436,12 @@ export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
         }
     }
 
-    copyBadgeMarkdown(repoId: number): void {
-        const markdown = `[![Vectispire Security](${window.location.origin}/api/v1/scorecards/repositories/${repoId}/badge.svg)](${window.location.origin}/repositories)`;
+    copyBadgeMarkdown(): void {
+        const url = this.badge()?.url;
+        if (!url) {
+            return;
+        }
+        const markdown = `[![Vectispire Security](${window.location.origin}${url})](${window.location.origin}/repositories)`;
         navigator.clipboard.writeText(markdown).then(() => {
             this.copied.set(true);
             setTimeout(() => this.copied.set(false), 3000);

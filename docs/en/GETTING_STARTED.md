@@ -257,7 +257,7 @@ rewrite before you read it.
 
 ## 9. Troubleshooting
 
-- **`docker.errors.DockerException` / permission denied on the Docker socket**: the user running Vectispire needs access to the Docker socket (`/var/run/docker.sock` on Linux/macOS with Docker Desktop). On Linux, add the user to the `docker` group or run with sufficient privileges.
+- **`docker.errors.DockerException` / permission denied on the Docker socket**: with the shipped composition this should not happen — no Vectispire container mounts the socket, a `docker-socket-proxy` does, and `DOCKER_HOST` points at it. Running outside compose, straight against a daemon, the user does need access to `/var/run/docker.sock` (Linux/macOS with Docker Desktop); on Linux, add it to the `docker` group.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.
 - **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
 - **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.

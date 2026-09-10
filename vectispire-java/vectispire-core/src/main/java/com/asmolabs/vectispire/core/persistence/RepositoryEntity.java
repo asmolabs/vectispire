@@ -55,6 +55,17 @@ public class RepositoryEntity {
     @Column(name = "ssh_key_id")
     private UUID sshKeyId;
 
+    /**
+     * The opaque name a published badge is served under, or null when none is published.
+     *
+     * <p><b>Not the id, and that is the point.</b> The badge route is anonymous by necessity — a
+     * README is read by a browser with no session — so whatever names the repository in that URL
+     * is readable by everyone. A sequential id turns that into an enumeration of the whole
+     * estate's posture; a random token names one repository somebody chose to publish.
+     */
+    @Column(name = "badge_token", length = 64)
+    private String badgeToken;
+
     @Column(name = "tier", length = 32, nullable = false)
     private String tier = "TIER_2_BUSINESS_OPERATIONAL";
 
@@ -144,5 +155,13 @@ public class RepositoryEntity {
 
     public void setTier(String tier) {
         this.tier = tier != null ? tier : "TIER_2_BUSINESS_OPERATIONAL";
+    }
+
+    public String getBadgeToken() {
+        return badgeToken;
+    }
+
+    public void setBadgeToken(String badgeToken) {
+        this.badgeToken = badgeToken;
     }
 }

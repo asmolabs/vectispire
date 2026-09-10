@@ -122,8 +122,15 @@ Or as a container, which is how it is meant to be deployed:
 ```bash
 docker build -f Dockerfile.agent -t vectispire-agent .
 docker run --rm -e VECTISPIRE_URL=... -e VECTISPIRE_AGENT_TOKEN=zsk_... \
-  -v /var/run/docker.sock:/var/run/docker.sock vectispire-agent
+  -e DOCKER_HOST=tcp://docker-proxy:2375 vectispire-agent
 ```
+
+**The socket is not mounted, here or anywhere.** `docker-compose.yml` puts a
+`docker-socket-proxy` on an internal network and both the control plane and the agent reach the
+daemon through `DOCKER_HOST` — reaching a daemon is root on the host that runs it, and the shipped
+composition used to hand that to the process holding `ENCRYPTION_KEY`. What the proxy buys and what
+it does not is written out in
+[decision 0018](docs/architecture/en/decisions/0018-the-docker-socket-is-never-mounted.md).
 
 The agent runs **the same `ScanRunner`** as the built-in worker, which is what makes a
 result produced elsewhere indistinguishable from a local one. A layering test enforces

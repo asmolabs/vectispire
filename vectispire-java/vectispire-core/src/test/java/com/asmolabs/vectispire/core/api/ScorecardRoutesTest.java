@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,8 +73,18 @@ class ScorecardRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.openKevCount").value(1))
                 .andExpect(jsonPath("$.openCriticalCount").value(1));
 
-        // 3. Test public SVG badge endpoint (no token required)
-        mvc.perform(get("/api/v1/scorecards/repositories/" + repo.getId() + "/badge.svg"))
+        // 3. The badge, once published — and only once published. It used to be served under the
+        //    repository's id to anyone at all, which is how a caller with no account could read
+        //    the grade of every repository here. `BadgeRoutesTest` owns that regression; this
+        //    keeps the rendering itself covered from the screen that produces it.
+        String published = mvc.perform(
+                        authenticated(post("/api/v1/scorecards/repositories/" + repo.getId() + "/badge"), adminToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        mvc.perform(get(json.readTree(published).path("url").asText()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("image/svg+xml"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("<svg")))

@@ -57,7 +57,10 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Account | Repository security posture scorecard and letter grade. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Account | Container image security scorecard and grade. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/global` | Account | Organization-wide aggregate posture scorecard. |
-| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge.svg` | Public | Dynamic SVG vector badge for embedding into Git README files. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge` | Account | Whether a public badge is published for this repository, and its URL. |
+| **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Publish the badge. Its grade then becomes readable by anyone holding the URL. |
+| **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Revoke it. Every README carrying the old URL starts answering 404. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/badges/{token}.svg` | Public | Dynamic SVG vector badge for embedding into Git README files. |
 | **Crypto** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Instance ECDSA public key for Sigstore / Cosign signature verification. |
 
 ---

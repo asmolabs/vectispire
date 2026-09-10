@@ -74,7 +74,17 @@ public class AgentRunner implements ApplicationRunner {
         SealedEnvelope.KeyPair keyPair = new SealedEnvelope().generateKeyPair();
 
         AgentProtocol protocol = new AgentProtocol(
-                new AgentHttp(json, properties.url(), properties.token()), json, keyPair);
+                new AgentHttp(json, properties.url(), properties.token()),
+                json,
+                keyPair,
+                properties.signingKey());
+        if (properties.signingKey().isEmpty()) {
+            // Said once, at start, because the alternative is an operator who believes their
+            // results are attested. The control plane cannot say it for them: an agent with no
+            // pinned key is indistinguishable from one that simply has not been configured yet.
+            log.info("No result-signing key configured — results are accepted on this agent's API key alone. "
+                    + "Pin one from the agents administration screen to change that.");
+        }
 
         AgentProtocol.Identity identity = protocol.hello(new AgentProtocol.Description(
                 hostName(),

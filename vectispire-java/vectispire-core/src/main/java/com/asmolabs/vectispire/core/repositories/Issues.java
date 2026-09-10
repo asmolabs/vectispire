@@ -162,16 +162,18 @@ public interface Issues
 
     /** Open issues per repository, for the target list's badge. */
     @Query("""
-            select i.repoId, count(i.id) from IssueEntity i
+            select new com.asmolabs.vectispire.core.repositories.OpenIssueCount(i.repoId, count(i.id))
+              from IssueEntity i
              where i.state = :state and i.repoId is not null
              group by i.repoId""")
-    List<Object[]> countOpenByRepository(@Param("state") String state);
+    List<OpenIssueCount> countOpenByRepository(@Param("state") String state);
 
     @Query("""
-            select i.containerId, count(i.id) from IssueEntity i
+            select new com.asmolabs.vectispire.core.repositories.OpenIssueCount(i.containerId, count(i.id))
+              from IssueEntity i
              where i.state = :state and i.containerId is not null
              group by i.containerId""")
-    List<Object[]> countOpenByContainer(@Param("state") String state);
+    List<OpenIssueCount> countOpenByContainer(@Param("state") String state);
 
     /**
      * Every issue whose state is none of {@code states}.

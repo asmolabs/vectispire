@@ -71,5 +71,6 @@ Then `http://localhost:3180/swagger-ui.html`.
 |---|---|
 | `VECTISPIRE_URL` | The control plane the agent polls. |
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
+| `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 
 See [Agents](../administration/agents.md).

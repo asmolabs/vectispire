@@ -240,17 +240,42 @@
             <!-- Dynamic Badge Preview & Copy Snippet -->
             @if (card.targetId) {
                 <div class="p-4 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-3">
-                    <div class="text-sm font-semibold">README.md Dynamic Badge</div>
-                    <div class="flex items-center justify-between gap-4">
-                        <img [src]="'/api/v1/scorecards/repositories/' + card.targetId + '/badge.svg'" alt="Vectispire Security Badge" class="h-6" />
-                        <p-button
-                            [label]="copied() ? 'Copied to Clipboard!' : 'Copy Markdown Snippet'"
-                            [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
-                            [severity]="copied() ? 'success' : 'primary'"
-                            size="small"
-                            (onClick)="copyBadgeMarkdown(card.targetId!)"
-                        />
-                    </div>
+                    <div class="text-sm font-semibold">{{ 'repositories.badge_title' | translate }}</div>
+                    @if (badge(); as state) {
+                        @if (state.published && state.url) {
+                            <div class="flex items-center justify-between gap-4">
+                                <img [src]="state.url" alt="Vectispire Security Badge" class="h-6" />
+                                <div class="flex items-center gap-2">
+                                    <p-button
+                                        [label]="copied() ? ('repositories.badge_copied' | translate) : ('repositories.badge_copy' | translate)"
+                                        [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
+                                        [severity]="copied() ? 'success' : 'primary'"
+                                        size="small"
+                                        (onClick)="copyBadgeMarkdown()"
+                                    />
+                                    <p-button
+                                        [label]="'repositories.badge_revoke' | translate"
+                                        icon="pi pi-eye-slash"
+                                        severity="secondary"
+                                        size="small"
+                                        [disabled]="badgeBusy()"
+                                        (onClick)="revokeBadge(card.targetId!)"
+                                    />
+                                </div>
+                            </div>
+                        } @else {
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="text-sm text-surface-500">{{ 'repositories.badge_not_published' | translate }}</div>
+                                <p-button
+                                    [label]="'repositories.badge_publish' | translate"
+                                    icon="pi pi-share-alt"
+                                    size="small"
+                                    [disabled]="badgeBusy()"
+                                    (onClick)="publishBadge(card.targetId!)"
+                                />
+                            </div>
+                        }
+                    }
                 </div>
             }
 

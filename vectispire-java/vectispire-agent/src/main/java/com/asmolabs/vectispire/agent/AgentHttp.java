@@ -36,6 +36,15 @@ public class AgentHttp {
     }
 
     /**
+     * A body the caller has already serialized.
+     *
+     * <p><b>It exists so that a signature can cover the exact bytes that travel.</b> Letting this
+     * class serialize and the caller sign its own second serialization would sign a document the
+     * server never sees: the two agree today and diverge the first time a mapper setting changes.
+     */
+    public record RawJson(String text) {}
+
+    /**
      * @param body the parsed answer, or a null node. A 204 has none, and parsing it would raise
      *     where there is nothing to read
      */
@@ -53,10 +62,19 @@ public class AgentHttp {
     }
 
     public Response call(String path, String method, Object body, Duration timeout) {
+        return call(path, method, body, timeout, java.util.Map.of());
+    }
+
+    public Response call(
+            String path, String method, Object body, Duration timeout, java.util.Map<String, String> headers) {
+
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(timeout)
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json");
+        for (var header : headers.entrySet()) {
+            builder = builder.header(header.getKey(), header.getValue());
+        }
 
         HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.noBody();
         if (body != null) {
@@ -91,6 +109,9 @@ public class AgentHttp {
     }
 
     private String write(Object body) {
+        if (body instanceof RawJson raw) {
+            return raw.text();
+        }
         try {
             return json.writeValueAsString(body);
         } catch (com.fasterxml.jackson.core.JsonProcessingException impossible) {

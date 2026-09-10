@@ -100,8 +100,12 @@ class RouteAuthorizationTest extends ApiTestBase {
         //   mfa/verify       — the second half of that same exchange. It is called with the
         //                      `mfa_token` step 1 returned and no bearer, because the bearer is
         //                      what it is on the way to issuing.
-        //   badge.svg        — a shield rendered into READMEs and pull requests, which are read
-        //                      by people who have no account here.
+        //   badges/{token}   — a shield rendered into READMEs and pull requests, which are read
+        //                      by people who have no account here. **Named by a token and not by
+        //                      the repository's id**: the id-addressed version of this route was
+        //                      an anonymous walk through every repository's security grade, and
+        //                      an existence oracle on top of it. A token names one repository
+        //                      somebody deliberately published — see `BadgeRoutesTest`.
         //   public-key.pub   — a public key. Publishing it is the point.
         //   tickets/webhook  — called by Jira, GitLab and ServiceNow, which hold a shared
         //                      secret rather than a session; the handler verifies it.
@@ -116,7 +120,7 @@ class RouteAuthorizationTest extends ApiTestBase {
                 "[/api/v1/auth/methods]",
                 "[/api/v1/auth/session/exchange]",
                 "[/api/v1/auth/mfa/verify]",
-                "[/api/v1/scorecards/repositories/{repoId}/badge.svg]",
+                "[/api/v1/scorecards/badges/{token}.svg]",
                 "[/api/v1/crypto/public-key.pub]",
                 "[/api/v1/tickets/webhook/{provider}]");
     }

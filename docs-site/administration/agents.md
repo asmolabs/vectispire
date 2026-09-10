@@ -52,6 +52,39 @@ beyond a `0600` temporary file, and every delivery is audited.
 Prefer `local`. It bounds the damage a compromised agent can do to that machine's own
 access, which is the entire reason for running scans on a separate host in the first place.
 
+## Attesting an agent's results
+
+**This is the one control worth turning on before the others.** Handing back a scan result is the
+heaviest operation in the product: artifacts that are present and empty mean "analysed, found
+nothing", which resolves the target's whole backlog of that type — silently, and correctly. So
+whoever can post a result can make a target's vulnerabilities disappear from every screen, every
+export and every gate verdict, leaving a scan that looks like it ran.
+
+Until a key is pinned, the only thing standing between that and a stolen `VECTISPIRE_AGENT_TOKEN`
+is the token itself — and a token lives in a compose file, an environment variable and a CI secret
+store, and travels on every poll.
+
+On `/agents`, the lock icon on an agent's row pins a key. The control plane generates an Ed25519
+pair, keeps the public half on the agent's row and shows you the private half **once**:
+
+```bash
+VECTISPIRE_AGENT_SIGNING_KEY=<the value shown once>
+```
+
+Put it in the agent's configuration and restart it. Until it has the key, its results are refused
+with 403 and the refusal is written to the audit log as `AGENT_RESULT_REFUSED`.
+
+Prefer generating the pair yourself if you would rather the private half never existed here at all:
+`PUT /api/v1/admin/agents/{id}/signing-key` accepts a base64 public key instead of the word
+`generate`.
+
+**The key is never one the agent announces**, and that asymmetry with the sealing key is the whole
+point. A signature verified against a key its signer published on the same channel proves only what
+the bearer token already proved. This one has to arrive from somebody who is not the agent.
+
+The row says which state each agent is in — *Results attested* or *Results unsigned* — because an
+operator who believes their fleet is attested has no other way to find out it is not.
+
 ## Disabling the built-in agent
 
 That is how you say "run nothing here". Queued scans then wait for a remote agent instead

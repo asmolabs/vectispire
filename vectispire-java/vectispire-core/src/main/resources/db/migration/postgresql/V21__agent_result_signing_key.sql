@@ -1,0 +1,22 @@
+-- La clé publique avec laquelle un agent signe ses résultats.
+--
+-- **Rendre un résultat est l'opération la plus lourde du produit, et rien ne la couvrait.** Des
+-- artefacts présents et vides signifient « analysé, rien trouvé » — c'est le contrat de la
+-- décision 0007 — et cela résout tout le backlog de la cible du type concerné. Qui peut poster
+-- un résultat peut donc faire disparaître les vulnérabilités d'une cible de tous les écrans, de
+-- tous les exports et de tous les verdicts de gate, sans autre trace qu'un scan qui a l'air
+-- d'avoir tourné. Le seul contrôle était la clé API de l'agent, c'est-à-dire un jeton porteur qui
+-- vit dans un fichier compose et voyage à chaque poll.
+--
+-- **La colonne est écrite par un administrateur, jamais par le protocole agent**, et c'est toute
+-- la différence avec `sealing_public_key` juste au-dessus. Celle-là est annoncée par l'agent à
+-- chaque `hello`, ce qui est correct pour du chiffrement — le destinataire est qui tourne. Une
+-- signature vérifiée contre une clé que le signataire a lui-même annoncée sur le même canal ne
+-- prouverait rien de plus que le jeton porteur : qui vole la clé API annonce la sienne et signe
+-- avec.
+--
+-- `null` conserve exactement le comportement précédent — l'agent est cru sur sa clé API. Épingler
+-- une clé est donc opt-in par agent, et c'est l'épinglage lui-même qui fait basculer cet agent en
+-- « signature exigée » : il n'y a pas de second réglage à ne pas oublier.
+
+alter table t_agent add column signing_public_key varchar(255);

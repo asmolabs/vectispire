@@ -53,6 +53,42 @@ au-delà d'un fichier temporaire en `0600`, et chaque remise est auditée.
 Préférez `local`. Cela borne les dégâts qu'un agent compromis peut faire à l'accès propre de
 cette machine, ce qui est toute la raison d'exécuter des scans sur un hôte séparé.
 
+## Attester les résultats d'un agent
+
+**C'est le contrôle qui mérite d'être activé avant les autres.** Rendre le résultat d'un scan est
+l'opération la plus lourde du produit : des artefacts présents et vides signifient « analysé, rien
+trouvé », ce qui résout tout le backlog de la cible pour ce type — en silence, et correctement. Qui
+peut poster un résultat peut donc faire disparaître les vulnérabilités d'une cible de tous les
+écrans, de tous les exports et de tous les verdicts de gate, en ne laissant qu'un scan qui a l'air
+d'avoir tourné.
+
+Tant qu'aucune clé n'est épinglée, la seule chose entre cela et un `VECTISPIRE_AGENT_TOKEN` volé
+est le jeton lui-même — et un jeton vit dans un fichier compose, une variable d'environnement et un
+coffre de secrets de CI, et voyage à chaque poll.
+
+Sur `/agents`, l'icône de cadenas d'une ligne épingle une clé. Le plan de contrôle génère une paire
+Ed25519, garde la moitié publique sur la ligne de l'agent et vous montre la moitié privée **une
+fois** :
+
+```bash
+VECTISPIRE_AGENT_SIGNING_KEY=<la valeur affichée une seule fois>
+```
+
+Posez-la dans la configuration de l'agent et redémarrez-le. Tant qu'il ne l'a pas, ses résultats
+sont refusés en 403 et le refus est écrit au journal d'audit sous `AGENT_RESULT_REFUSED`.
+
+Préférez générer la paire vous-même si vous tenez à ce que la moitié privée n'ait jamais existé
+ici : `PUT /api/v1/admin/agents/{id}/signing-key` accepte une clé publique en base64 à la place du
+mot `generate`.
+
+**La clé n'est jamais annoncée par l'agent**, et cette asymétrie avec la clé de scellement est tout
+l'intérêt. Une signature vérifiée contre une clé que son signataire a publiée sur le même canal ne
+prouve que ce que le jeton porteur prouvait déjà. Celle-ci doit venir de quelqu'un qui n'est pas
+l'agent.
+
+La ligne dit dans quel état est chaque agent — *Results attested* ou *Results unsigned* — parce
+qu'un opérateur qui croit son parc attesté n'a aucun autre moyen d'apprendre qu'il ne l'est pas.
+
 ## Désactiver l'agent intégré
 
 C'est ainsi qu'on dit « n'exécute rien ici ». Les scans en file attendent alors un agent

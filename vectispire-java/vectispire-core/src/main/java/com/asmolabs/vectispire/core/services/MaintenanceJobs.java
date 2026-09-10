@@ -150,11 +150,13 @@ public class MaintenanceJobs {
             digest.runOnce();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
-            if (cleaned.sessions() > 0 || cleaned.attempts() > 0) {
+            if (cleaned.sessions() > 0 || cleaned.attempts() > 0 || cleaned.challenges() > 0) {
                 log.info(
-                        "Maintenance: {} expired session(s) and {} old login attempt(s) removed.",
+                        "Maintenance: {} expired session(s), {} old login attempt(s) and {} abandoned "
+                                + "MFA challenge(s) removed.",
                         cleaned.sessions(),
-                        cleaned.attempts());
+                        cleaned.attempts(),
+                        cleaned.challenges());
             }
 
             targetDeletion.purgeOrphanedTargetData();

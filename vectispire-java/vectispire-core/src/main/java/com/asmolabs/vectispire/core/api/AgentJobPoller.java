@@ -1,12 +1,14 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.async.DeferredResult;
@@ -37,10 +39,21 @@ public class AgentJobPoller {
     static final Duration MAX_WAIT = Duration.ofSeconds(30);
 
     private final ScanDispatcher dispatcher;
+    private final PlatformMetrics metrics;
+
+    /**
+     * <b>The agents' scheduler, not the jobs' one.</b> These two used to be the same bean, which
+     * meant a long poll's re-check was queued behind whatever background job held the single
+     * default thread — including a local scan, which is minutes. See {@code CoreConfiguration}.
+     */
     private final TaskScheduler scheduler;
 
-    public AgentJobPoller(ScanDispatcher dispatcher, TaskScheduler scheduler) {
+    public AgentJobPoller(
+            ScanDispatcher dispatcher,
+            PlatformMetrics metrics,
+            @Qualifier("agentPollScheduler") TaskScheduler scheduler) {
         this.dispatcher = dispatcher;
+        this.metrics = metrics;
         this.scheduler = scheduler;
     }
 
@@ -60,6 +73,7 @@ public class AgentJobPoller {
 
         Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent, secureTransport);
         if (immediate.isPresent() || bounded.isZero()) {
+            metrics.agentPolled(immediate.isPresent());
             result.setResult(immediate.<ResponseEntity<Object>>map(ResponseEntity::ok).orElseGet(AgentJobPoller::noJob));
             return result;
         }
@@ -82,8 +96,10 @@ public class AgentJobPoller {
                     try {
                         Optional<ScanDispatcher.AgentTask> task = dispatcher.claimForAgent(agent, secureTransport);
                         if (task.isPresent()) {
+                            metrics.agentPolled(true);
                             result.setResult(ResponseEntity.ok(task.get()));
                         } else if (Instant.now().isAfter(deadline)) {
+                            metrics.agentPolled(false);
                             result.setResult(noJob());
                         } else {
                             schedule(result, agent, secureTransport, deadline);

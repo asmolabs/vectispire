@@ -56,9 +56,17 @@ DDL migrations to prevent schema drift or silent data loss.
 
 ## 3. Host Docker Daemon Interaction & Confinement
 
-1. **Docker Socket Mounting (`/var/run/docker.sock`)**: Only the control plane (or agent process)
-   interacts with the Docker daemon via the host socket.
-2. **Ephemeral Analyzer Containers**: `ContainerRunner` instantiates isolated containers that
+1. **The socket is mounted into no Vectispire container** ([ADR
+   0018](../../en/decisions/0018-the-docker-socket-is-never-mounted.md)). A `docker-socket-proxy`
+   holds it read-only on an `internal` network, and the control plane and the agent reach the
+   daemon through it over `DOCKER_HOST`. The proxy allows `PING`, `VERSION`, `INFO`, `CONTAINERS`,
+   `IMAGES` and `POST`, and refuses everything else — `EXEC` first among them.
+2. **That narrows the surface; it does not draw a boundary.** `POST /containers/create` accepts
+   `Binds`, and it is the call Vectispire exists to make. Code execution inside the control plane
+   can still ask for a container that mounts the host. The boundary is a second machine: a remote
+   agent, with `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane, so that the host which can
+   be made to run containers is not the host holding `ENCRYPTION_KEY`.
+3. **Ephemeral Analyzer Containers**: `ContainerRunner` instantiates isolated containers that
    terminate and self-destruct immediately after execution.
 
 ---

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.agent;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
@@ -70,13 +71,35 @@ public class AgentProtocol {
 
     private final SealedEnvelope envelopes = new SealedEnvelope();
 
+    /**
+     * The Ed25519 seed whose public half an administrator pinned, or blank.
+     *
+     * <p>Unlike {@link #keyPair} this one is <b>configuration</b>, not an announcement, and the
+     * asymmetry is the whole point: the control plane must have learned this key from somebody
+     * who is not this process. See {@code ResultAttestation}.
+     */
+    private final String signingKey;
+
     /** Keyed by hash, therefore never to invalidate — see {@link #ruleSet}. */
     private final Map<String, List<StoredFile>> ruleSetCache = new ConcurrentHashMap<>();
 
     public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair) {
+        this(http, json, keyPair, "");
+    }
+
+    public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey) {
         this.http = http;
         this.json = json;
         this.keyPair = Optional.ofNullable(keyPair);
+        this.signingKey = signingKey == null ? "" : signingKey.trim();
+        if (!this.signingKey.isEmpty() && !ResultAttestation.isUsablePrivateKey(this.signingKey)) {
+            // At construction and not at the first result: a key that is one character short would
+            // otherwise be discovered after the first scan, by a 403 whose text points at the
+            // control plane.
+            throw new IllegalStateException(
+                    "vectispire.agent.signing-key is not 32 bytes of base64. Leave it blank for an agent whose "
+                            + "results are not attested.");
+        }
     }
 
     /**
@@ -218,15 +241,40 @@ public class AgentProtocol {
         return true;
     }
 
-    /** Hands back the result. False when the lease was taken over in the meantime. */
+    /**
+     * Hands back the result. False when the lease was taken over in the meantime.
+     *
+     * <p><b>Serialized here so that the signature covers what is sent.</b> The body is written
+     * once, signed, and handed to the transport as bytes; letting the transport serialize a second
+     * time would sign a document the control plane never receives.
+     *
+     * <p>An agent with no configured signing key sends no header, and a control plane with no
+     * pinned key for it accepts that — which is the upgrade path in both directions.
+     */
     public boolean submit(long scanId, ScanArtifacts artifacts) {
+        String body = write(artifacts);
+        Map<String, String> headers = signingKey.isEmpty()
+                ? Map.of()
+                : Map.of(
+                        ResultAttestation.HEADER,
+                        ResultAttestation.sign(signingKey, scanId, body.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
         AgentHttp.Response response = http.call(
                 "/api/v1/agent/jobs/" + scanId + "/result",
                 "POST",
-                artifacts,
+                new AgentHttp.RawJson(body),
                 // A SBOM weighs several megabytes: the timeout has to cover the upload, not only
                 // the answer.
-                Duration.ofMinutes(2));
+                Duration.ofMinutes(2),
+                headers);
+
+        if (response.status() == 403) {
+            // Distinct from a generic failure because the fix is distinct, and neither retrying
+            // nor rescanning is it: the key this agent signs with is not the key pinned for it.
+            throw new UnauthorizedException(response.messageOr(
+                    "The control plane refused this result's attestation. The key in "
+                            + "vectispire.agent.signing-key does not match the one pinned for this agent."));
+        }
 
         if (response.status() == 409) {
             return false;
@@ -237,6 +285,14 @@ public class AgentProtocol {
 
     private <T> T read(JsonNode body, Class<T> type) {
         return json.convertValue(body, type);
+    }
+
+    private String write(Object body) {
+        try {
+            return json.writeValueAsString(body);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException impossible) {
+            throw new IllegalStateException("The result could not be serialized", impossible);
+        }
     }
 
     private static void refuseIfUnauthorized(AgentHttp.Response response) {

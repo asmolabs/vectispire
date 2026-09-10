@@ -13,10 +13,23 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
 | **Git** | Vectispire clone ce qu'il analyse. |
 | **Node ≥ 24**, **JDK 25** | Uniquement si vous construisez depuis les sources plutôt que d'exécuter les images publiées. |
 
-!!! warning "Accès au socket Docker"
-    L'utilisateur qui exécute Vectispire doit avoir accès à `/var/run/docker.sock`. Sous
-    Linux, cela signifie généralement l'ajouter au groupe `docker`. Sans cela, chaque scan
-    échoue au premier conteneur.
+!!! warning "Accès à un démon Docker"
+    Vectispire exécute ses scanners en conteneurs, il lui faut donc joindre un démon — mais
+    **il ne monte pas le socket**. La composition place un `docker-socket-proxy` devant, sur un
+    réseau interne, et pointe le plan de contrôle dessus via `DOCKER_HOST`. Rien à configurer
+    de votre côté, aucun groupe `docker` à rejoindre.
+
+    Hors compose, directement contre un démon ? Là, l'utilisateur doit bien avoir accès à
+    `/var/run/docker.sock`, et sous Linux cela signifie généralement le groupe `docker`. Sans
+    cela, chaque scan échoue au premier conteneur.
+
+!!! danger "Un seul hôte, un seul rayon d'impact"
+    Avec le worker intégré actif — le défaut — le processus qui peut créer des conteneurs est
+    celui qui détient `ENCRYPTION_KEY`, et l'accès au démon vaut root sur cet hôte. Le proxy
+    réduit ce que l'on peut demander au démon ; il ne sépare pas les deux. Au-delà d'une
+    installation mono-équipe, faites tourner un **agent distant** et posez
+    `VECTISPIRE_EMBEDDED_WORKER=false` sur le plan de contrôle. Voir la
+    [décision 0018](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0018-the-docker-socket-is-never-mounted.md).
 
 ## Le chemin le plus court : Docker Compose
 

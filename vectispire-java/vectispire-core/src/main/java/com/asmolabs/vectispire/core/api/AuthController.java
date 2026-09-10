@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
@@ -9,8 +10,10 @@ import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.MfaChallengeEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.AuditLogService;
@@ -65,7 +68,7 @@ public class AuthController {
 
     private final TotpService totp;
     private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
-    private final Map<String, MfaChallenge> mfaChallenges = new java.util.concurrent.ConcurrentHashMap<>();
+    private final MfaChallenges mfaChallenges;
 
     /**
      * **A TOTP code is six digits, so the number of tries is the whole security of the second
@@ -85,23 +88,6 @@ public class AuthController {
      */
     private static final int MAX_MFA_CHALLENGES = 10_000;
 
-    /**
-     * @param attempts counted on the challenge rather than on the account: the challenge is what
-     *     the attacker holds, and it is what gets destroyed. Mutable inside an otherwise
-     *     immutable record so a failure need not race a {@code put} against a concurrent one.
-     */
-    public record MfaChallenge(
-            Long userId,
-            Instant expiresAt,
-            String userAgent,
-            String ipAddress,
-            java.util.concurrent.atomic.AtomicInteger attempts) {
-
-        public MfaChallenge(Long userId, Instant expiresAt, String userAgent, String ipAddress) {
-            this(userId, expiresAt, userAgent, ipAddress, new java.util.concurrent.atomic.AtomicInteger());
-        }
-    }
-
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
     public record MfaEnableRequest(String secret, String code) {}
     public record MfaDisableRequest(String code) {}
@@ -115,6 +101,7 @@ public class AuthController {
             SignInMethodPolicy methods,
             TotpService totp,
             com.asmolabs.vectispire.core.services.BrandingProperties branding,
+            MfaChallenges mfaChallenges,
             Clock clock) {
         this.providers = providers;
         this.methods = methods;
@@ -124,6 +111,7 @@ public class AuthController {
         this.sessions = sessions;
         this.totp = totp;
         this.branding = branding;
+        this.mfaChallenges = mfaChallenges;
         this.clock = clock;
     }
 
@@ -182,11 +170,10 @@ public class AuthController {
                     String mfaToken = java.util.UUID.randomUUID().toString();
                     rememberChallenge(
                             mfaToken,
-                            new MfaChallenge(
-                                    success.user().getId(),
-                                    clock.instant().plusSeconds(300),
-                                    request.getHeader("User-Agent"),
-                                    request.getRemoteAddr()));
+                            success.user().getId(),
+                            clock.instant().plusSeconds(300),
+                            request.getHeader("User-Agent"),
+                            request.getRemoteAddr());
                     yield new LoginResponse(null, null, null, true, mfaToken);
                 }
                 yield new LoginResponse(
@@ -208,13 +195,16 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MFA token and verification code are required.");
         }
 
-        MfaChallenge challenge = mfaChallenges.get(body.mfaToken());
-        if (challenge == null || clock.instant().isAfter(challenge.expiresAt())) {
-            mfaChallenges.remove(body.mfaToken());
+        // Hashed before it touches the store, like a session token: what is indexed is not a
+        // credential, so a reader of the table holds nothing they can present.
+        String challengeKey = Sessions.hashOf(body.mfaToken());
+        MfaChallengeEntity challenge = mfaChallenges.findById(challengeKey).orElse(null);
+        if (challenge == null || clock.instant().isAfter(challenge.getExpiresAt())) {
+            mfaChallenges.deleteById(challengeKey);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "MFA challenge has expired or is invalid. Please sign in again.");
         }
 
-        UserEntity user = users.findById(challenge.userId())
+        UserEntity user = users.findById(challenge.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
 
         if (!totp.verify(user, body.code())) {
@@ -223,9 +213,17 @@ public class AuthController {
             // search: the attacker keeps the same token and keeps going. Counting on the
             // challenge rather than the account also means a wrong guess cannot be used to lock
             // a legitimate user out — the worst it costs them is re-entering their password.
-            boolean exhausted = challenge.attempts().incrementAndGet() >= MAX_MFA_ATTEMPTS;
+            // Incremented by the database, not read-then-written here: two wrong codes racing
+            // would otherwise each read the same count and the challenge would absorb one guess
+            // more than it is allowed.
+            mfaChallenges.countAttempt(challengeKey);
+            boolean exhausted = mfaChallenges
+                            .findById(challengeKey)
+                            .map(MfaChallengeEntity::getAttempts)
+                            .orElse(MAX_MFA_ATTEMPTS)
+                    >= MAX_MFA_ATTEMPTS;
             if (exhausted) {
-                mfaChallenges.remove(body.mfaToken());
+                mfaChallenges.deleteById(challengeKey);
             }
 
             audit.record(new AuditLogService.Record(
@@ -244,8 +242,9 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
         }
 
-        mfaChallenges.remove(body.mfaToken());
-        AuthService.IssuedSession session = auth.openSessionForUser(user, challenge.userAgent(), challenge.ipAddress());
+        mfaChallenges.deleteById(challengeKey);
+        AuthService.IssuedSession session =
+                auth.openSessionForUser(user, challenge.getUserAgent(), challenge.getIpAddress());
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.LOGIN_SUCCESS,
@@ -276,22 +275,31 @@ public class AuthController {
      * expire, and refusing is better than growing. It answers 503 rather than 500 because the
      * condition is transient by construction — five minutes clears it.
      *
-     * <p><b>In memory, hence per-instance.</b> Two control planes behind a load balancer do not
-     * share this map: the code has to come back to the instance that issued the token, so a
-     * multi-instance deployment needs session affinity on {@code /api/v1/auth/**} until this
-     * moves to the database. Written down here because nothing else says it.
+     * <p><b>In the database, so any instance can answer.</b> This used to be a map on this
+     * controller, which made multi-factor sign-in the one feature a documented multi-instance
+     * deployment broke: the password is exchanged on one instance and the code arrives on
+     * another, which has never heard of the token. The user was told the challenge had expired,
+     * a second after it was created, and nothing in the logs distinguished that from a real
+     * timeout. Session affinity on {@code /api/v1/auth/**} is no longer required.
      */
-    private void rememberChallenge(String token, MfaChallenge challenge) {
+    private void rememberChallenge(String token, Long userId, Instant expiresAt, String userAgent, String ip) {
         Instant now = clock.instant();
-        mfaChallenges.values().removeIf(held -> now.isAfter(held.expiresAt()));
+        mfaChallenges.deleteExpired(now);
 
-        if (mfaChallenges.size() >= MAX_MFA_CHALLENGES) {
+        if (mfaChallenges.countByExpiresAtAfter(now) >= MAX_MFA_CHALLENGES) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Too many sign-ins are awaiting verification. Try again in a few minutes.");
         }
 
-        mfaChallenges.put(token, challenge);
+        MfaChallengeEntity challenge = new MfaChallengeEntity();
+        challenge.setTokenHash(Sessions.hashOf(token));
+        challenge.setUserId(userId);
+        challenge.setExpiresAt(expiresAt);
+        challenge.setAttempts(0);
+        challenge.setUserAgent(userAgent);
+        challenge.setIpAddress(ip);
+        mfaChallenges.save(challenge);
     }
 
     @Operation(summary = "Setup MFA / TOTP", description = "Generates a new TOTP secret and QR code URI for 2FA setup.")

@@ -21,6 +21,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0015](0015-one-secrets-engine.md) | One secrets engine |
 | [0016](0016-no-spdx-document.md) | CycloneDX is the generated SBOM; SPDX is not produced |
 | [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images, not uploaded JARs |
+| [0018](0018-the-docker-socket-is-never-mounted.md) | The Docker socket is never mounted into the control plane |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

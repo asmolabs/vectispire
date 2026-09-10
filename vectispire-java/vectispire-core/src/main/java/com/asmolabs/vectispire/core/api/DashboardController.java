@@ -34,6 +34,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueAggregates;
+import com.asmolabs.vectispire.core.services.PostureScoreboards;
+import java.util.Objects;
+import java.util.stream.Stream;
+import org.springframework.data.jpa.domain.Specification;
 
 /**
  * The dashboard.
@@ -238,21 +244,38 @@ public class DashboardController {
         int window = Math.clamp(days, 7, MAX_TREND_DAYS);
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
 
-        // Five columns per issue, not the row: this plots a point per issue and reads nothing
-        // else off it. Materialising the entities made the page cost one managed object per issue
-        // in the estate — the same shape as the backlog curve above, and measured the same way.
-        List<IssueRows.Observation> allIssues = issues
-                .findBy(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification(),
-                        query -> query.as(IssueRows.Observation.class).all());
+        // **Two reads with different shapes, because the page asks two different questions.**
+        //
+        // The curve is about a window: `touchesWindow` proves that an issue resolved before the
+        // window opened cannot move any point on it, so the series is drawn from the issues that
+        // touch the window rather than from the estate. The old read took every issue ever
+        // recorded and then walked that whole list again *for each day* of the window — a
+        // hundred thousand issues over ninety days is nine million passes for one page.
+        //
+        // The scoreboard is about all time and cannot be windowed at all: it reports what a
+        // target has resolved since it was added. That half is counted by the database instead
+        // — `group by` for the open backlog, and the closed issues narrowed to the two instants
+        // an average needs.
+        Specification<IssueEntity> visible =
+                new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        .toSpecification();
 
-        List<Long> repoIds = allIssues.stream().map(IssueRows.Observation::repoId)
-                .filter(java.util.Objects::nonNull).distinct().toList();
-        List<Long> containerIds = allIssues.stream().map(IssueRows.Observation::containerId)
-                .filter(java.util.Objects::nonNull).distinct().toList();
-        TargetNaming.Names names = naming.forIds(repoIds, containerIds);
+        Instant now = clock.instant();
+        Instant windowStart = PostureTrendAnalytics.windowStart(window, now);
 
-        List<PostureTrendAnalytics.IssueObservation> observations = allIssues.stream()
+        List<IssueRows.Observation> touching = issues.findBy(
+                visible.and(IssueFilters.touchingWindow(windowStart)),
+                query -> query.as(IssueRows.Observation.class).all());
+
+        List<IssueAggregates.TargetSeverityCount> openCounts = issues.countOpenByTargetAndSeverity(visible);
+        List<IssueAggregates.TargetResolutions> resolved = issues.countResolvedByTarget(visible);
+
+        // Named once for both halves: the curve needs no names at all, but the scoreboard does,
+        // and resolving them twice would be two queries for one answer.
+        TargetNaming.Names names = naming.forIds(
+                repositoryIds(touching, openCounts, resolved), containerIds(touching, openCounts, resolved));
+
+        List<PostureTrendAnalytics.IssueObservation> observations = touching.stream()
                 .map(i -> new PostureTrendAnalytics.IssueObservation(
                         i.repoId() != null ? i.repoId() : i.containerId(),
                         i.repoId() != null ? "REPOSITORY" : "CONTAINER",
@@ -262,7 +285,8 @@ public class DashboardController {
                         i.resolvedAt()))
                 .toList();
 
-        return PostureTrendAnalytics.calculate(window, clock.instant(), observations);
+        return PostureTrendAnalytics.calculate(
+                window, now, observations, PostureScoreboards.from(openCounts, resolved, names));
     }
 
     /**
@@ -349,4 +373,35 @@ public class DashboardController {
                 scan.getError(),
                 scan.getCreatedAt());
     }
+
+    private static List<Long> repositoryIds(
+            List<IssueRows.Observation> touching,
+            List<IssueAggregates.TargetSeverityCount> openCounts,
+            List<IssueAggregates.TargetResolutions> resolved) {
+
+        return Stream.of(
+                        touching.stream().map(IssueRows.Observation::repoId),
+                        openCounts.stream().map(IssueAggregates.TargetSeverityCount::repoId),
+                        resolved.stream().map(IssueAggregates.TargetResolutions::repoId))
+                .flatMap(ids -> ids)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private static List<Long> containerIds(
+            List<IssueRows.Observation> touching,
+            List<IssueAggregates.TargetSeverityCount> openCounts,
+            List<IssueAggregates.TargetResolutions> resolved) {
+
+        return Stream.of(
+                        touching.stream().map(IssueRows.Observation::containerId),
+                        openCounts.stream().map(IssueAggregates.TargetSeverityCount::containerId),
+                        resolved.stream().map(IssueAggregates.TargetResolutions::containerId))
+                .flatMap(ids -> ids)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
 }

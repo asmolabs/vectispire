@@ -71,6 +71,34 @@ public enum AuditOperation {
     AGENT_CREDENTIAL_SENT,
 
     AGENT_RESULT_SUBMITTED,
+
+    /**
+     * A result was refused because its attestation did not verify.
+     *
+     * <p><b>The one entry nobody may miss.</b> An agent whose signing key is pinned and whose
+     * result does not verify is either misconfigured or is not the agent — and the second reading
+     * is an attempt to declare a target clean with a stolen API key. It is recorded even though
+     * the request is refused, because a refusal that leaves no trace is how a probe goes
+     * unnoticed.
+     */
+    AGENT_RESULT_REFUSED,
+
+    /**
+     * An operator pinned, replaced or removed an agent's result-signing key.
+     *
+     * <p>Removing one is the entry that matters: it takes the agent back to being trusted on its
+     * bearer token alone, and that has to be a visible act rather than a quiet one.
+     */
+    AGENT_SIGNING_KEY_PINNED,
+
+    /**
+     * A repository's security grade was published as a public badge, or that publication revoked.
+     *
+     * <p>Its own operation rather than a setting change, because it is the one gesture in the
+     * product that moves a fact from behind the visibility model to in front of it: whoever holds
+     * the badge URL reads that grade with no account at all.
+     */
+    BADGE_PUBLISHED,
     RULE_SET_UPLOADED,
 
     /**

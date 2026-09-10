@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -66,9 +67,30 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
     private final OutboundJson outbound;
     private final Clock clock;
 
-    private Map<String, String> purlIndex;
-    private Instant purlIndexFetchedAt = Instant.EPOCH;
-    private final Map<String, Cached<Product>> products = new HashMap<>();
+    /**
+     * <b>Both caches are reached from more than one thread, so both are published safely.</b>
+     *
+     * <p>This is a singleton, and it is called from {@code ScanIngestor} — which runs on the
+     * scan worker's threads and on the request thread that accepts a remote agent's results.
+     * Two scans finishing at once is the ordinary case, not the exotic one.
+     *
+     * <p>The index was two plain fields, read as a pair and written as a pair. Even made
+     * {@code volatile} they could be read torn — a fresh map beside a stale timestamp, or the
+     * reverse — so they are one immutable {@link Cached} in one {@code volatile} field instead:
+     * a reader sees both halves of a refresh or neither.
+     *
+     * <p>The product cache was a plain {@link HashMap} mutated by those same threads. That does
+     * not cost a stale read, which would be harmless here; it corrupts the table, and a
+     * concurrent resize is the classic way to spin a worker thread at 100% forever.
+     *
+     * <p><b>No lock around the fetch, deliberately.</b> Two threads may look the same product up
+     * at once and both call out for it. That costs one redundant HTTP call and stores the same
+     * answer twice; serialising every lookup would put a network round trip on the critical
+     * path of every other scan being ingested.
+     */
+    private volatile Cached<Map<String, String>> purlIndex = new Cached<>(null, Instant.EPOCH);
+
+    private final Map<String, Cached<Product>> products = new ConcurrentHashMap<>();
 
     public EndOfLifeService(SettingsService settings, OutboundJson outbound, Clock clock) {
         this.settings = settings;
@@ -192,8 +214,12 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
     }
 
     private Map<String, String> identifierIndex() {
-        if (purlIndex != null && Duration.between(purlIndexFetchedAt, clock.instant()).compareTo(CACHE_TTL) < 0) {
-            return purlIndex;
+        // Read once into a local: re-reading the field would be re-reading a value another
+        // thread may have replaced between the check and the return.
+        Cached<Map<String, String>> cached = purlIndex;
+        if (cached.value() != null
+                && Duration.between(cached.fetchedAt(), clock.instant()).compareTo(CACHE_TTL) < 0) {
+            return cached.value();
         }
 
         Map<String, String> index = safeFetch(PURL_IDENTIFIERS_URL, "end-of-life index")
@@ -201,8 +227,7 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
                 .orElseGet(Map::of);
         // Cached **even when empty**, so a catalog outage is retried on the next cache cycle
         // rather than on every scan.
-        purlIndex = index;
-        purlIndexFetchedAt = clock.instant();
+        purlIndex = new Cached<>(index, clock.instant());
         log.info("End-of-life index: {} purl match(es).", index.size());
         return index;
     }

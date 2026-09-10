@@ -16,6 +16,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 /**
  * The beans the domain's pure rules need in order to be applied.
@@ -127,4 +128,54 @@ public class CoreConfiguration {
             @DefaultValue("20m") Duration lease,
             @DefaultValue("3") int maxAttempts,
             @DefaultValue("12") int claimAttempts) {}
+
+    /**
+     * The periodic jobs' threads.
+     *
+     * <p><b>Declared rather than left to the default, because the default is one thread.</b>
+     * Spring Boot's auto-configured scheduler has a pool size of 1, and four {@code @Scheduled}
+     * jobs sat on it: the worker tick, the outbox relay, the scan scheduler and the hourly
+     * maintenance. One slow job did not delay the others, it stopped them — a notification
+     * waited on a purge, and the purge waited on whatever ran before it.
+     *
+     * <p>One thread per job, so a job's period means what it says whatever the others are doing.
+     * A fifth job would still be safe: these are periodic and short, and they queue rather than
+     * overlap.
+     */
+    @Bean
+    ThreadPoolTaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(4);
+        scheduler.setThreadNamePrefix("vectispire-jobs-");
+        // Named on purpose: `@Scheduled` resolves a bean called `taskScheduler` when more than
+        // one TaskScheduler exists, and the one below is the other one. Renaming this bean
+        // silently moves every periodic job onto the agents' scheduler.
+        scheduler.setAwaitTerminationSeconds(10);
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        return scheduler;
+    }
+
+    /**
+     * The agents' long polls, on threads of their own.
+     *
+     * <p><b>This separation is the point, not the pool size.</b> {@code AgentJobPoller} parks a
+     * {@code DeferredResult} and re-checks the queue on a scheduled task; it used to schedule
+     * that on the same single thread as the jobs above. So a local scan running in the worker
+     * tick — minutes, since a scan clones a repository and runs four containers — held the
+     * thread that hands work to <em>remote</em> agents. The built-in worker did not slow the
+     * fleet down, it stopped it, which is the opposite of what decision 0003 separates them for.
+     *
+     * <p>These tasks are short: look at the queue, complete the result or reschedule. Two
+     * threads carry a fleet, and the waiting itself costs none — that is what the
+     * {@code DeferredResult} is for.
+     */
+    @Bean
+    ThreadPoolTaskScheduler agentPollScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(2);
+        scheduler.setThreadNamePrefix("vectispire-agentpoll-");
+        scheduler.setAwaitTerminationSeconds(10);
+        scheduler.setWaitForTasksToCompleteOnShutdown(false);
+        return scheduler;
+    }
 }

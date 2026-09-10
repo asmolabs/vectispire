@@ -71,6 +71,25 @@ public record IssueFilters(
                 false, Map.of(), visibility);
     }
 
+    /**
+     * The issues that can affect a trend window, and no others.
+     *
+     * <p>This is {@code PostureTrendAnalytics.touchesWindow} written as a query, and the two have
+     * to say the same thing: an issue resolved before the window opened cannot appear in any of
+     * its days' backlogs, cannot be newly discovered in it and cannot be newly resolved in it.
+     * The last clause covers a row whose resolution precedes its first sighting — nonsense that
+     * exists in real data, and which the unfiltered engine still counts as opened in the window.
+     *
+     * <p>It deliberately says nothing about visibility: compose it with the caller's filter, so
+     * a narrowing predicate can never be mistaken for an authorising one.
+     */
+    public static Specification<IssueEntity> touchingWindow(Instant windowStart) {
+        return (root, query, builder) -> builder.or(
+                builder.isNull(root.get("resolvedAt")),
+                builder.greaterThanOrEqualTo(root.get("resolvedAt"), windowStart),
+                builder.greaterThanOrEqualTo(root.get("firstSeenAt"), windowStart));
+    }
+
     public Specification<IssueEntity> toSpecification() {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();

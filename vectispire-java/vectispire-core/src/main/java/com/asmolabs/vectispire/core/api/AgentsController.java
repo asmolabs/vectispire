@@ -1,16 +1,21 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
+import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
 import com.asmolabs.vectispire.core.services.RuleSetService;
+import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Duration;
@@ -54,6 +59,9 @@ public class AgentsController {
     private final AgentJobPoller poller;
     private final RuleSetService ruleSets;
     private final Agents agents;
+    private final TrustedProxies proxies;
+    private final AuditLogService audit;
+    private final ObjectMapper json;
     private final Clock clock;
 
     public AgentsController(
@@ -61,11 +69,17 @@ public class AgentsController {
             AgentJobPoller poller,
             RuleSetService ruleSets,
             Agents agents,
+            TrustedProxies proxies,
+            AuditLogService audit,
+            ObjectMapper json,
             Clock clock) {
         this.dispatcher = dispatcher;
         this.poller = poller;
         this.ruleSets = ruleSets;
         this.agents = agents;
+        this.proxies = proxies;
+        this.audit = audit;
+        this.json = json;
         this.clock = clock;
     }
 
@@ -157,11 +171,18 @@ public class AgentsController {
                 .orElseThrow(() -> new NoSuchElementException("No rule set with hash " + hash + "."));
     }
 
-    /** Claims a task, or answers 204 when the wait runs out. */
+    /**
+     * Claims a task, or answers 204 when the wait runs out.
+     *
+     * <p><b>Whether the link counts as encrypted is not this route's to decide.</b> It used to
+     * read {@code X-Forwarded-Proto} from any peer, which meant an attacker holding an agent key
+     * could ask for the deployment key in the clear by sending one header. {@link TrustedProxies}
+     * now answers that question, and it answers {@code false} unless the connection really is
+     * encrypted or the peer is a proxy the operator declared.
+     */
     @GetMapping("/jobs")
     public DeferredResult<ResponseEntity<Object>> claimJob(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @RequestHeader(name = "X-Forwarded-Proto", required = false) String forwardedProto,
             @RequestParam(required = false, defaultValue = "0") int wait,
             HttpServletRequest request) {
 
@@ -169,7 +190,7 @@ public class AgentsController {
         // **The refusal is not decided here.** It used to be, duplicating the same rule in the
         // dispatcher — and the two copies had already diverged. Only the dispatcher knows what
         // the task actually contains; it raises, and the handler turns that into a 412.
-        return poller.claim(agent, isSecureTransport(request, forwardedProto), Duration.ofSeconds(wait));
+        return poller.claim(agent, proxies.isSecureTransport(request), Duration.ofSeconds(wait));
     }
 
     /**
@@ -191,20 +212,102 @@ public class AgentsController {
         }
     }
 
-    /** The result of a scan executed elsewhere, with optional cryptographic attestation signature. */
+    /**
+     * The result of a scan executed elsewhere.
+     *
+     * <p><b>The attestation is checked here, and it used to be checked nowhere.</b> This method
+     * has always taken an {@code X-Vectispire-Agent-Signature} header, documented it as a
+     * cryptographic attestation, and published it in the OpenAPI document — while never reading
+     * the parameter, and while no agent ever produced one. An announced guarantee that does not
+     * run is worse than an absent one: it is the reason nobody looked.
+     *
+     * <p>What it guards is the operation described in {@link ResultAttestation}: artifacts that
+     * are present and empty resolve a target's whole backlog of that type. An agent with a pinned
+     * signing key must now prove it is that agent; an agent without one behaves exactly as before.
+     *
+     * <p><b>The body arrives as bytes, and that is what the signature covers.</b> Parsing first
+     * and signing the re-serialization would sign what the server chose to write. The Swagger
+     * annotation restores the schema the raw type erases, so the published contract still says
+     * {@link ScanArtifacts}.
+     */
     @PostMapping("/jobs/{scanId}/result")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ScanArtifacts.class)))
     public Map<String, Boolean> submitResult(
             @PathVariable long scanId,
-            @RequestBody ScanArtifacts artifacts,
-            @RequestHeader(name = "X-Vectispire-Agent-Signature", required = false) String signature,
-            @AuthenticationPrincipal VectispirePrincipal principal) {
+            @RequestBody byte[] body,
+            @RequestHeader(name = ResultAttestation.HEADER, required = false) String signature,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
 
         AgentEntity agent = authenticate(principal);
+        requireAttestation(agent, scanId, body, signature, request);
+
+        ScanArtifacts artifacts;
+        try {
+            artifacts = json.readValue(body, ScanArtifacts.class);
+        } catch (java.io.IOException unreadable) {
+            // 400 and not 500: the agent sent something, and what it sent is the problem.
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "The result body is not a readable ScanArtifacts document.");
+        }
+
         if (!dispatcher.acceptAgentResult(scanId, agent, artifacts)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "This scan is no longer yours: its results were discarded.");
         }
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_RESULT_SUBMITTED,
+                String.valueOf(scanId),
+                "Result accepted from agent \"" + agent.getName() + "\""
+                        + (agent.getSigningPublicKey() == null ? " (not attested)." : ", attestation verified."),
+                agent.getName(),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
         return Map.of("accepted", true);
+    }
+
+    /**
+     * Refuses a result that a pinned key does not vouch for.
+     *
+     * <p><b>Pinning the key is the switch.</b> There is no second setting saying "and now enforce
+     * it" — an operator who writes the key has said what they mean, and a control with an
+     * enforcement flag of its own is a control somebody leaves in audit mode for a year.
+     *
+     * <p>403 rather than 401: the API key was accepted, so re-authenticating changes nothing. The
+     * refusal is audited before it is thrown, because a probe that leaves no trace is the one
+     * nobody investigates.
+     */
+    private void requireAttestation(
+            AgentEntity agent, long scanId, byte[] body, String signature, HttpServletRequest request) {
+
+        String pinned = agent.getSigningPublicKey();
+        if (pinned == null || pinned.isBlank()) {
+            return;
+        }
+        if (ResultAttestation.verify(pinned, scanId, body, signature)) {
+            return;
+        }
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_RESULT_REFUSED,
+                String.valueOf(scanId),
+                (signature == null || signature.isBlank()
+                                ? "Result submitted with no attestation"
+                                : "Result submitted with an attestation that does not verify")
+                        + " by agent \"" + agent.getName() + "\", whose signing key is pinned.",
+                agent.getName(),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "This agent's results must be signed: the " + ResultAttestation.HEADER
+                        + " header is absent or does not verify against the key pinned for \""
+                        + agent.getName() + "\".");
     }
 
     private static AgentEntity authenticate(VectispirePrincipal principal) {
@@ -219,22 +322,6 @@ public class AgentsController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Agent \"" + agent.getName() + "\" is disabled.");
         }
         return agent;
-    }
-
-    /**
-     * Did this request arrive over an encrypted link?
-     *
-     * <p>{@code X-Forwarded-Proto} is honoured because the intended deployment puts a reverse
-     * proxy in front, where the application only ever sees HTTP. <b>That header is trivially
-     * forged</b> by anybody who can reach this port directly — which is why it decides exactly
-     * one thing: whether a deployment key may travel. A decision the operator has already had to
-     * make agent by agent.
-     */
-    private static boolean isSecureTransport(HttpServletRequest request, String forwardedProto) {
-        if (forwardedProto != null && "https".equalsIgnoreCase(forwardedProto.split(",")[0].trim())) {
-            return true;
-        }
-        return request.isSecure();
     }
 
     private static String text(String value) {

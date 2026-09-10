@@ -51,6 +51,57 @@ public class IssueAggregatesImpl implements IssueAggregates {
     }
 
     @Override
+    public List<TargetSeverityCount> countOpenByTargetAndSeverity(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.array(
+                        issue.get("repoId"),
+                        issue.get("containerId"),
+                        issue.get("severity"),
+                        builder.count(issue.get("id"))))
+                .groupBy(issue.get("repoId"), issue.get("containerId"), issue.get("severity"));
+        // **Open means unresolved, not `state = OPEN`.** The scoreboard has always counted rows
+        // with no resolution instant, and the two are not the same set — a dismissed issue is
+        // not in the OPEN state and is still unresolved. Using the state here would change
+        // published grades while claiming to be a refactoring.
+        restrict(query, filter, issue, builder, builder.isNull(issue.get("resolvedAt")));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new TargetSeverityCount(
+                        (Long) row[0], (Long) row[1], (String) row[2], count(row[3])))
+                .toList();
+    }
+
+    @Override
+    public List<TargetResolutions> countResolvedByTarget(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        // **Two aggregates over different subsets in one pass.** The count is every closed
+        // issue; the average is over `resolution_seconds`, which is null for the ones that
+        // closed in the instant they were seen or were never seen at all. `avg` skips those, so
+        // one query answers both without the counts contaminating the mean.
+        query.select(builder.array(
+                        issue.get("repoId"),
+                        issue.get("containerId"),
+                        builder.count(issue.get("id")),
+                        builder.avg(issue.get("resolutionSeconds"))))
+                .groupBy(issue.get("repoId"), issue.get("containerId"));
+        restrict(query, filter, issue, builder, builder.isNotNull(issue.get("resolvedAt")));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new TargetResolutions(
+                        (Long) row[0],
+                        (Long) row[1],
+                        count(row[2]),
+                        row[3] == null ? null : ((Number) row[3]).doubleValue()))
+                .toList();
+    }
+
+    @Override
     public List<PackageWeight> weighPackages(Specification<IssueEntity> filter) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);

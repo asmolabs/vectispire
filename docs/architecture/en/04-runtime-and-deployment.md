@@ -59,6 +59,29 @@ nightly scan is due would queue it twice. The others either claim what already e
 operation whose second run costs nothing — and an election there would buy nothing while adding a
 lease that can expire mid-pass.
 
+**Coordination is not the only thing they could have shared.** These four run on a scheduler of
+four threads, declared in `CoreConfiguration` rather than left to Spring Boot's default — which is
+a pool of **one**. On one thread the table above says nothing useful: a slow job does not delay the
+others, it stops them, and the slow job is always the same one, because the worker tick executes
+the scans it claims. The tick now hands its round to a thread `ScanWorker` owns, so the length of
+a scan is nobody else's period.
+
+**The agents' long polls have a scheduler of their own**, `agentPollScheduler`. `AgentJobPoller`
+re-checks the queue on a scheduled task, and that task used to sit in the same single-threaded pool
+as the jobs: a local scan running in this process meant no *remote* agent was handed work for its
+duration. A control plane running its own worker stopped serving its fleet, which is the opposite
+of what [0003](decisions/0003-long-polling-for-agents.md) separates them for. `SchedulerSeparationTest`
+is what keeps the two pools apart, because nothing else would notice them becoming one again.
+
+**What each instance still keeps to itself: the rate-limiting buckets.** `LoginRateLimitFilter`
+and `BearerRateLimitFilter` count in memory, so *n* instances allow roughly *n* times the
+configured ceiling. That is deliberate and it is not the throttle that protects the passwords —
+`t_login_attempt` is, in the database, per account and per client. These two are a coarse
+per-address filter whose stated value is the audit entry written when the ceiling is reached, so
+approximating it across a fleet costs precision and not a control. Size them per instance, not per
+deployment. **Multi-factor sign-in used to be on this list and no longer is**: the challenge lives
+in `t_mfa_challenge` since `V23`, so no session affinity is required on `/api/v1/auth/**`.
+
 **Every job waits before its first run.** `fixedDelay` spaces out the runs that follow and does
 nothing about the first, which would otherwise fire while Flyway has just finished and the pool is
 still filling.

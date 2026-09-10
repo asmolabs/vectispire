@@ -56,9 +56,18 @@ l'autorité sur le schéma DDL pour prévenir toute divergence ou perte silencie
 
 ## 3. Interaction avec le Démon Docker & Confinement
 
-1. **Montage du Socket Docker (`/var/run/docker.sock`)** : Seul le plan de contrôle (ou le processus
-   agent) communique avec le démon Docker via le socket hôte.
-2. **Conteneurs d'Analyse Éphémères** : `ContainerRunner` instancie des conteneurs isolés qui
+1. **Le socket n'est monté dans aucun conteneur Vectispire** ([ADR
+   0018](../../fr/decisions/0018-the-docker-socket-is-never-mounted.md)). Un `docker-socket-proxy`
+   le détient en lecture seule sur un réseau `internal`, et le plan de contrôle comme l'agent
+   atteignent le démon à travers lui via `DOCKER_HOST`. Le proxy autorise `PING`, `VERSION`,
+   `INFO`, `CONTAINERS`, `IMAGES` et `POST`, et refuse tout le reste — `EXEC` en premier.
+2. **Cela réduit la surface, cela ne pose pas de frontière.** `POST /containers/create` accepte des
+   `Binds`, et c'est l'appel dont Vectispire vit. Une exécution de code dans le plan de contrôle
+   peut encore demander un conteneur qui monte l'hôte. La frontière, c'est une deuxième machine :
+   un agent distant, avec `VECTISPIRE_EMBEDDED_WORKER=false` sur le plan de contrôle, pour que
+   l'hôte que l'on peut faire exécuter des conteneurs ne soit pas celui qui détient
+   `ENCRYPTION_KEY`.
+3. **Conteneurs d'Analyse Éphémères** : `ContainerRunner` instancie des conteneurs isolés qui
    s'arrêtent et se détruisent immédiatement après le traitement.
 
 ---

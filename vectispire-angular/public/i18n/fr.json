@@ -616,6 +616,14 @@
     "whole_estate": "Tout le parc"
   },
   "repositories": {
+    "badge_title": "Badge de sécurité pour le README.md",
+    "badge_not_published": "Non publié. Publier rend la note de ce dépôt lisible par quiconque détient l'URL du badge.",
+    "badge_publish": "Publier le badge",
+    "badge_revoke": "Révoquer",
+    "badge_copy": "Copier l'extrait Markdown",
+    "badge_copied": "Copié dans le presse-papiers !",
+    "badge_publish_failed": "Le badge n'a pas pu être publié.",
+    "badge_revoke_failed": "Le badge n'a pas pu être révoqué.",
     "title": "Dépôts Git",
     "subtitle": "Dépôts de code source surveillés contre les failles, dépendances et défauts logiciels.",
     "add_btn": "Ajouter un dépôt",

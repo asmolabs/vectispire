@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -20,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -35,13 +33,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>This filter used to read the first element of {@code X-Forwarded-For} whenever the header
  * was present. Anyone could therefore send a different value on every request and receive a
  * fresh bucket each time — the limit was a formality against an attacker who had read the
- * source, which for an Apache-2.0 project is every attacker. The header is now honoured only
- * when the <em>immediate</em> peer is a proxy named in {@code vectispire.security.trusted-proxies};
- * otherwise the peer's own address is the key, and a spoofed header changes nothing.
+ * source, which for an Apache-2.0 project is every attacker.
  *
- * <p>Empty configuration means "no proxy in front", which is the safe reading: a deployment
- * behind a load balancer that forgets to configure it rate-limits the balancer as one client —
- * visible immediately — rather than silently limiting nobody at all.
+ * <p>That rule now lives in {@link TrustedProxies}, because it is the same question
+ * {@code X-Forwarded-Proto} asks on the agent protocol and the two answers had drifted apart.
+ * See that class for what an empty configuration means.
  *
  * <h2>Bounded, and pruned where it fills</h2>
  *
@@ -109,18 +105,18 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
                 }
             });
 
-    private final List<IpAddressMatcher> trustedProxies;
+    private final TrustedProxies proxies;
     private final int capacity;
     private final Duration refillPeriod;
 
-    public LoginRateLimitFilter(
-            @Value("${vectispire.security.trusted-proxies:}") String configuredProxies) {
-        this(configuredProxies, DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
+    /** The shipped ceiling, for a caller with no opinion — the tests, and nothing else. */
+    public LoginRateLimitFilter(String configuredProxies) {
+        this(new TrustedProxies(configuredProxies), DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
     }
 
     @Autowired
     public LoginRateLimitFilter(
-            @Value("${vectispire.security.trusted-proxies:}") String configuredProxies,
+            TrustedProxies proxies,
             @Value("${vectispire.security.login-attempts-per-window:10}") int capacity,
             @Value("${vectispire.security.login-attempt-window:PT1M}") Duration refillPeriod) {
 
@@ -135,12 +131,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             log.info("Sign-in rate limit set to {} attempts per {} per address (default is {} per {}).",
                     this.capacity, this.refillPeriod, DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
         }
-        this.trustedProxies = parseProxies(configuredProxies);
-        if (this.trustedProxies.isEmpty()) {
-            log.info("No trusted proxies configured — X-Forwarded-For is ignored and the peer "
-                    + "address is the rate-limit key. Set vectispire.security.trusted-proxies "
-                    + "when running behind a load balancer.");
-        }
+        this.proxies = proxies;
     }
 
     @Override
@@ -149,7 +140,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         if (isLimited(request)) {
-            String clientIp = resolveClientIp(request);
+            String clientIp = proxies.clientAddress(request);
             Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
 
             ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
@@ -173,64 +164,6 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     private boolean isLimited(HttpServletRequest request) {
         return "POST".equalsIgnoreCase(request.getMethod())
                 && LIMITED_PATHS.contains(request.getRequestURI());
-    }
-
-    /**
-     * The peer's address, or what a proxy we trust says is behind it.
-     *
-     * <p>The rightmost entry a client cannot control is the correct one to take, and with a
-     * single trusted hop that is the first: everything to its left was written by whoever called
-     * the proxy. With several hops the leftmost untrusted entry is the honest answer, which is
-     * what the walk below finds.
-     */
-    private String resolveClientIp(HttpServletRequest request) {
-        String peer = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
-
-        if (!isTrustedProxy(peer)) {
-            return peer;
-        }
-
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded == null || forwarded.isBlank()) {
-            return peer;
-        }
-
-        String[] hops = forwarded.split(",");
-        for (int i = hops.length - 1; i >= 0; i--) {
-            String hop = hops[i].trim();
-            if (!hop.isEmpty() && !isTrustedProxy(hop)) {
-                return hop;
-            }
-        }
-
-        // Every hop claims to be a trusted proxy. Nothing here identifies a client, so the peer
-        // is what is left — and it is a real address rather than a claimed one.
-        return peer;
-    }
-
-    private boolean isTrustedProxy(String address) {
-        for (IpAddressMatcher matcher : trustedProxies) {
-            try {
-                if (matcher.matches(address)) {
-                    return true;
-                }
-            } catch (IllegalArgumentException malformed) {
-                // A header value that is not an address matches nothing, which is the answer.
-                return false;
-            }
-        }
-        return false;
-    }
-
-    private static List<IpAddressMatcher> parseProxies(String configured) {
-        if (configured == null || configured.isBlank()) {
-            return List.of();
-        }
-        return java.util.Arrays.stream(configured.split(","))
-                .map(String::trim)
-                .filter(entry -> !entry.isEmpty())
-                .map(IpAddressMatcher::new)
-                .toList();
     }
 
     private Bucket createNewBucket() {

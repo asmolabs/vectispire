@@ -39,6 +39,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
 
     private final BearerAuthenticationFilter bearer;
     private final LoginRateLimitFilter rateLimit;
+    private final BearerRateLimitFilter bearerRateLimit;
     private final PasswordChangeInterceptor passwordChange;
     private final AuditLogService audit;
 
@@ -48,12 +49,14 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     public SecurityConfiguration(
             BearerAuthenticationFilter bearer,
             LoginRateLimitFilter rateLimit,
+            BearerRateLimitFilter bearerRateLimit,
             PasswordChangeInterceptor passwordChange,
             AuditLogService audit,
             @org.springframework.beans.factory.annotation.Value(
                     "${vectispire.security.anonymous-api-docs:false}") boolean anonymousApiDocs) {
         this.bearer = bearer;
         this.rateLimit = rateLimit;
+        this.bearerRateLimit = bearerRateLimit;
         this.passwordChange = passwordChange;
         this.audit = audit;
         this.anonymousApiDocs = anonymousApiDocs;
@@ -157,6 +160,12 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(rateLimit, UsernamePasswordAuthenticationFilter.class)
+                // **Before the resolution it is counting, and that is why it is a separate
+                // filter.** It has to see the request on the way in, to refuse an address that
+                // has already spent its allowance, and on the way out, to know whether the token
+                // resolved into anything. Merging it into the resolver would put the ceiling
+                // inside the thing being measured.
+                .addFilterBefore(bearerRateLimit, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(handling -> handling
                         // 401 with no body and no `WWW-Authenticate` challenge: a browser
@@ -226,7 +235,12 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .requestMatchers(request -> !anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/repositories/*/badge.svg").permitAll()
+                        // **A badge somebody published, named by a token and not by an id.** The
+                        // route this replaces took the repository's sequential id, so walking
+                        // 1..N returned every repository's security grade to an anonymous caller
+                        // — the one route in the product that served business data outside the
+                        // visibility model. A token names what an operator chose to publish.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/badges/*.svg").permitAll()
                         // **The interface itself is not behind the token.** When the jar
                         // bundles the Angular build, these are the files that *ask* for a
                         // token; requiring one to fetch them means the sign-in screen answers

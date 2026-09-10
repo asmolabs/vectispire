@@ -55,6 +55,8 @@ import {
     LicenseSummary,
     OpenVexDocument,
     SecurityGrade,
+    BadgeState,
+    PinnedSigningKey,
     SecurityScorecard,
     SiemConfig,
     SiemTestResult,
@@ -316,6 +318,17 @@ export class ApiService {
 
     createAgent(agent: NewAgent): Observable<{ id: string; name: string; secret: string }> {
         return this.http.post<{ id: string; name: string; secret: string }>('/api/v1/admin/agents', agent);
+    }
+
+    /**
+     * Pins the key this agent's results must be signed with, or removes it.
+     *
+     * `'generate'` has the control plane make the pair and return the private half once; a
+     * base64 public key pins one the operator generated themselves, which is the path where the
+     * private half never existed here at all. An empty string removes the pin.
+     */
+    pinAgentSigningKey(id: string, publicKey: string): Observable<PinnedSigningKey> {
+        return this.http.put<PinnedSigningKey>(`/api/v1/admin/agents/${id}/signing-key`, { public_key: publicKey });
     }
 
     setAgentEnabled(id: string, enabled: boolean): Observable<{ id: string; enabled: boolean }> {
@@ -641,6 +654,25 @@ export class ApiService {
 
     getRepositoryScorecard(repoId: number): Observable<SecurityScorecard> {
         return this.http.get<SecurityScorecard>(`/api/v1/scorecards/repositories/${repoId}`);
+    }
+
+    /**
+     * Is this repository's grade published as a public badge, and under which URL?
+     *
+     * **Asked rather than assumed**, because a badge is now something somebody turns on. The old
+     * screen built the badge URL from the repository's id and showed it unconditionally — which
+     * was also how anybody could read any repository's grade by counting.
+     */
+    getRepositoryBadge(repoId: number): Observable<BadgeState> {
+        return this.http.get<BadgeState>(`/api/v1/scorecards/repositories/${repoId}/badge`);
+    }
+
+    publishRepositoryBadge(repoId: number): Observable<BadgeState> {
+        return this.http.post<BadgeState>(`/api/v1/scorecards/repositories/${repoId}/badge`, {});
+    }
+
+    revokeRepositoryBadge(repoId: number): Observable<BadgeState> {
+        return this.http.delete<BadgeState>(`/api/v1/scorecards/repositories/${repoId}/badge`);
     }
 
     getGlobalScorecard(): Observable<SecurityScorecard> {

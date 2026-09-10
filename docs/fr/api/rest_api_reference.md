@@ -57,7 +57,10 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Compte | Scorecard et note de posture de sécurité d'un dépôt. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Compte | Scorecard et note de sécurité d'une image conteneur. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/global` | Compte | Scorecard global consolidé pour l'ensemble de l'organisation. |
-| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge.svg` | Public | Badge SVG dynamique pour affichage dans les fichiers README Git. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge` | Compte | Un badge public est-il publié pour ce dépôt, et à quelle URL. |
+| **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Publie le badge. Sa note devient alors lisible par quiconque détient l'URL. |
+| **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Le révoque. Tout README portant l'ancienne URL répond désormais 404. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/badges/{token}.svg` | Public | Badge SVG dynamique pour affichage dans les fichiers README Git. |
 | **Cryptographie** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Clé publique ECDSA pour vérification des signatures Cosign / Sigstore. |
 
 ---

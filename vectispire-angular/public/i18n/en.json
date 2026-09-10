@@ -616,6 +616,14 @@
     "whole_estate": "Whole estate"
   },
   "repositories": {
+    "badge_title": "README.md security badge",
+    "badge_not_published": "Not published. Publishing makes this repository's grade readable by anyone holding the badge URL.",
+    "badge_publish": "Publish badge",
+    "badge_revoke": "Revoke",
+    "badge_copy": "Copy Markdown snippet",
+    "badge_copied": "Copied to clipboard!",
+    "badge_publish_failed": "The badge could not be published.",
+    "badge_revoke_failed": "The badge could not be revoked.",
     "title": "Git Repositories",
     "subtitle": "Source code repositories watched for security issues, dependencies, and code flaws.",
     "add_btn": "Add Repository",

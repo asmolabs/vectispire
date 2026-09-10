@@ -139,6 +139,26 @@ export interface SecurityScorecard {
     recommendations: string[];
 }
 
+/**
+ * Whether a repository's grade is published, and where.
+ *
+ * `published` false means the badge route answers 404 for this repository — which is the state
+ * every repository starts in, and the state that keeps a posture grade inside the visibility
+ * model the rest of the product obeys.
+ */
+export interface BadgeState {
+    published: boolean;
+    token: string | null;
+    url: string | null;
+}
+
+/** @param privateKey shown once, and only when the control plane generated the pair. */
+export interface PinnedSigningKey {
+    id: string;
+    signsResults: boolean;
+    privateKey: string | null;
+}
+
 export interface InTotoAttestation {
     _type: string;
     subject: { name: string; digest: Record<string, string> }[];
@@ -624,6 +644,14 @@ export interface AgentSummary {
     labels: string | null;
     /** Did it announce an ephemeral public key? If not, its secrets travel in clear. */
     sealsCredentials: boolean;
+    /**
+     * Is a result-signing key pinned for this agent?
+     *
+     * False means its results are accepted on its API key alone — so whoever holds that key can
+     * hand back an empty result and resolve the target's whole backlog. The screen says so,
+     * because nothing else would.
+     */
+    signsResults: boolean;
     maxConcurrent: number | null;
     hostname: string | null;
     platform: string | null;

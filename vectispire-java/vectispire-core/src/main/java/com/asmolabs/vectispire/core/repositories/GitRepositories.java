@@ -25,6 +25,15 @@ public interface GitRepositories extends JpaRepository<RepositoryEntity, Long> {
     @Query("update RepositoryEntity r set r.lastScheduledScanAt = :at where r.id = :id")
     int stampScheduled(@Param("id") Long id, @Param("at") Instant at);
 
+    /**
+     * The repository a published badge names.
+     *
+     * <p>Empty for a token nobody issued or one that was revoked, and the route answers 404 to
+     * both — a revoked badge and an imaginary one must look alike, or the difference says a
+     * repository exists.
+     */
+    java.util.Optional<RepositoryEntity> findByBadgeToken(String badgeToken);
+
     long countBySshKeyId(UUID sshKeyId);
 
     /** How many repositories use each key, so the list can refuse a deletion that would break one. */

@@ -2,9 +2,16 @@
 
 ## Installation
 
-**Permission refusée sur le socket Docker.** L'utilisateur qui exécute Vectispire doit avoir
-accès à `/var/run/docker.sock`. Sous Linux, ajoutez-le au groupe `docker`. Sans cela, chaque
-scan échoue au premier conteneur.
+**Permission refusée sur le socket Docker.** Avec la composition livrée, cela ne devrait pas
+arriver : aucun conteneur Vectispire ne monte le socket, un `docker-socket-proxy` s'en charge,
+et le plan de contrôle le joint via `DOCKER_HOST`. Si vous exécutez Vectispire hors compose,
+directement contre un démon, l'utilisateur doit avoir accès à `/var/run/docker.sock` — sous
+Linux, le groupe `docker`. Sans cela, chaque scan échoue au premier conteneur.
+
+**Le plan de contrôle doit-il exécuter les scans ?** Sur un hôte et pour une équipe, oui : c'est
+à cela que sert le défaut. Au-delà, non : l'accès au démon vaut root sur l'hôte, et cet hôte
+détient `ENCRYPTION_KEY`. Faites tourner un agent distant et posez
+`VECTISPIRE_EMBEDDED_WORKER=false`.
 
 **Le premier scan est très lent.** C'est attendu. Les images — `anchore/syft`,
 `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` — sont

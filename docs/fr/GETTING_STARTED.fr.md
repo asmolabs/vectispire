@@ -286,7 +286,7 @@ dépendances que n'importe qui peut réécrire avant que vous ne la lisiez.
 
 ## 10. Dépannage
 
-- **`docker.errors.DockerException` / permission refusée sur la socket Docker** : l'utilisateur qui exécute Vectispire a besoin d'un accès à la socket Docker (`/var/run/docker.sock` sous Linux/macOS avec Docker Desktop). Sous Linux, ajoutez l'utilisateur au groupe `docker` ou exécutez avec des privilèges suffisants.
+- **`docker.errors.DockerException` / permission refusée sur la socket Docker** : avec la composition livrée, cela ne devrait pas arriver — aucun conteneur Vectispire ne monte le socket, un `docker-socket-proxy` s'en charge, et `DOCKER_HOST` pointe dessus. Hors compose, directement contre un démon, l'utilisateur a bien besoin d'un accès à `/var/run/docker.sock` (sous Linux/macOS avec Docker Desktop) ; sous Linux, ajoutez-le au groupe `docker`.
 - **La première analyse est lente** : le backend `docker` tire les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` et `semgrep/semgrep` à la demande la première fois que chacune sert — les analyses suivantes réutilisent les images en cache.
 - **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont faux, soit le drapeau `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un administrateur existant) ou interrogez directement la table `user`.
 - **`ENCRYPTION_KEY` a changé et le déchiffrement des clés SSH échoue** : listez l'ancienne clé dans `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (séparées par des virgules). Les valeurs existantes se déchiffrent alors de nouveau, et passent à la nouvelle clé à mesure qu'elles sont ré-enregistrées — la page **Clés SSH** marque les lignes qui dépendent encore de l'ancienne.

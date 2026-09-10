@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -18,6 +19,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -76,7 +78,18 @@ public class ScanDispatcher {
      * The two boundaries here — one per scan's result — are called from inside this class, so
      * they are opened where they are meant, in code that cannot silently stop working.
      */
+    private final PlatformMetrics metrics;
     private final TransactionTemplate transactions;
+
+    /**
+     * The ledger for the one thing here that leaves the trust boundary.
+     *
+     * <p>{@code AGENT_CREDENTIAL_SENT} has existed in {@link AuditOperation} since the agent
+     * protocol was written, with a javadoc describing exactly this moment — and nothing recorded
+     * it. A deployment key left for another machine and the audit log said a scan had been
+     * claimed.
+     */
+    private final AuditLogService audit;
 
     public ScanDispatcher(
             ScanQueue queue,
@@ -90,6 +103,8 @@ public class ScanDispatcher {
             SealedEnvelope envelopes,
             ScanningProperties properties,
             Optional<ScanRunner> runner,
+            AuditLogService audit,
+            PlatformMetrics metrics,
             TransactionTemplate transactions) {
         this.queue = queue;
         this.repositories = repositories;
@@ -102,6 +117,8 @@ public class ScanDispatcher {
         this.envelopes = envelopes;
         this.properties = properties;
         this.runner = runner;
+        this.audit = audit;
+        this.metrics = metrics;
         this.transactions = transactions;
     }
 
@@ -182,6 +199,7 @@ public class ScanDispatcher {
                 boolean sealed = SealedEnvelope.isUsablePublicKey(agent.getSealingPublicKey());
                 if (sealed) {
                     task = withPrivateKey(task, envelopes.seal(agent.getSealingPublicKey(), privateKey));
+                    recordCredentialSent(agent, scan, "sealed for the agent's announced key");
                 } else if (!secureTransport) {
                     // Put back in the queue *before* refusing: otherwise the scan stays claimed by
                     // an agent that received nothing, until the lease lapses.
@@ -190,6 +208,9 @@ public class ScanDispatcher {
                 }
                 // An older agent announces no sealing key and therefore falls back on the
                 // encrypted-transport requirement, unchanged.
+                if (!sealed) {
+                    recordCredentialSent(agent, scan, "in the clear over an encrypted link");
+                }
             }
 
             return Optional.of(new AgentTask(scan.getId(), task));
@@ -199,6 +220,23 @@ public class ScanDispatcher {
             queue.fail(scan.getId(), String.valueOf(error.getMessage()));
             return Optional.empty();
         }
+    }
+
+    /**
+     * Records that a deployment key left the control plane.
+     *
+     * <p><b>Written whichever way it left</b>, sealed or in the clear, because the interesting
+     * question afterwards is "which machines have held this repository's key", and a log that
+     * only names the risky path cannot answer it. How it travelled is in the description, which is
+     * where an auditor reading a specific entry looks.
+     */
+    private void recordCredentialSent(AgentEntity agent, ScanEntity scan, String how) {
+        audit.record(AuditLogService.Record.of(
+                AuditOperation.AGENT_CREDENTIAL_SENT,
+                String.valueOf(scan.getId()),
+                "Deployment key delegated to agent \"" + agent.getName() + "\" for scan " + scan.getId()
+                        + ", " + how + ".",
+                agent.getName()));
     }
 
     /** Extends the lease of a scan entrusted to this agent. */
@@ -213,7 +251,13 @@ public class ScanDispatcher {
      * than written, so the successor's work is not overwritten.
      */
     public boolean acceptAgentResult(long scanId, AgentEntity agent, ScanArtifacts artifacts) {
-        return record(scanId, agent.getId().toString(), artifacts);
+        // Read before the write, because recording the result clears the claim. Timed from the
+        // claim rather than from the submission: what an operator wants to know is how long the
+        // agent held the work, which is the number that grows when an agent is struggling.
+        Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
+        boolean accepted = record(scanId, agent.getId().toString(), artifacts);
+        metrics.scanFinishedSince(claimedAt, accepted, true);
+        return accepted;
     }
 
     private void reclaimLostLeases() {
@@ -237,6 +281,7 @@ public class ScanDispatcher {
             artifacts = runner.orElseThrow().run(task);
         } catch (RuntimeException error) {
             queue.fail(scan.getId(), String.valueOf(error.getMessage()));
+            metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
         }
 
@@ -244,9 +289,11 @@ public class ScanDispatcher {
             if (!record(scan.getId(), worker, artifacts)) {
                 log.warn("Scan {} was taken over by another worker while it ran — results discarded.", scan.getId());
             }
+            metrics.scanFinishedSince(scan.getClaimedAt(), true, false);
             return true;
         } catch (RuntimeException error) {
             queue.fail(scan.getId(), String.valueOf(error.getMessage()));
+            metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
         }
     }

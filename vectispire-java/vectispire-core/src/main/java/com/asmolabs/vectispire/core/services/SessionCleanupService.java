@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
+import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,15 +36,23 @@ public class SessionCleanupService {
 
     private final UserSessions sessions;
     private final LoginAttempts attempts;
+    private final MfaChallenges challenges;
     private final Clock clock;
 
-    public SessionCleanupService(UserSessions sessions, LoginAttempts attempts, Clock clock) {
+    public SessionCleanupService(
+            UserSessions sessions, LoginAttempts attempts, MfaChallenges challenges, Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
+        this.challenges = challenges;
         this.clock = clock;
     }
 
-    public record CleanupResult(int sessions, int attempts) {}
+    /**
+     * @param challenges sign-ins abandoned between the password and the code. {@code AuthController}
+     *     sweeps on write, which only clears what a <em>new</em> sign-in pays for; on an instance
+     *     nobody signs into, the rows would sit until one did
+     */
+    public record CleanupResult(int sessions, int attempts, int challenges) {}
 
     /**
      * Never throws: see the class note.
@@ -54,7 +63,7 @@ public class SessionCleanupService {
      * bypassed and the annotation would mean nothing.
      */
     public CleanupResult prune() {
-        return new CleanupResult(pruneSessions(), pruneAttempts());
+        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges());
     }
 
     private int pruneSessions() {
@@ -62,6 +71,15 @@ public class SessionCleanupService {
             return sessions.deleteExpired(clock.instant());
         } catch (RuntimeException failed) {
             log.warn("Session purge skipped: {}", failed.getMessage());
+            return 0;
+        }
+    }
+
+    private int pruneChallenges() {
+        try {
+            return challenges.deleteExpired(clock.instant());
+        } catch (RuntimeException failed) {
+            log.warn("MFA challenge purge skipped: {}", failed.getMessage());
             return 0;
         }
     }

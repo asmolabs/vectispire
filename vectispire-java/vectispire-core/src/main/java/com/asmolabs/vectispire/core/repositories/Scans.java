@@ -218,16 +218,20 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
      * a target twice with no explanation.
      */
     @Query("""
-            select s.repoId, s.id, s.status, s.createdAt, s.error from ScanEntity s
+            select new com.asmolabs.vectispire.core.repositories.LatestScanRow(
+                       s.repoId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
              where s.repoId is not null
                and s.id = (select max(l.id) from ScanEntity l where l.repoId = s.repoId)""")
-    List<Object[]> findLatestPerRepository();
+    List<LatestScanRow> findLatestPerRepository();
 
     @Query("""
-            select s.containerId, s.id, s.status, s.createdAt, s.error from ScanEntity s
+            select new com.asmolabs.vectispire.core.repositories.LatestScanRow(
+                       s.containerId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
              where s.containerId is not null
                and s.id = (select max(l.id) from ScanEntity l where l.containerId = s.containerId)""")
-    List<Object[]> findLatestPerContainer();
+    List<LatestScanRow> findLatestPerContainer();
 
     /**
      * The history, newest first, optionally narrowed to one target.

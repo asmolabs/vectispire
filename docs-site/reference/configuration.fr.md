@@ -71,5 +71,6 @@ Puis `http://localhost:3180/swagger-ui.html`.
 |---|---|
 | `VECTISPIRE_URL` | Le plan de contrôle que l'agent interroge. |
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
+| `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 
 Voir [Agents](../administration/agents.md).

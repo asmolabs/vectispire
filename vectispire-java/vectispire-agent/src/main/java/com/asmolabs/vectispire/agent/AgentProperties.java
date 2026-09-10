@@ -16,6 +16,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param heartbeat the interval between two signs of life during a scan. <b>Periodic, not tied
  *     to the scanner's steps</b>: a beat sent per step would go silent for the fifteen minutes
  *     Semgrep can take on a large repository, and the lease would lapse while it progresses
+ * @param signingKey the base64 Ed25519 seed whose public half an administrator pinned on this
+ *     agent's row, or blank for an agent whose results are not attested. <b>Configuration and not
+ *     an announcement</b>: a key this agent could publish over the protocol would prove nothing
+ *     its API key does not already prove — see {@code ResultAttestation}. Provide it the way the
+ *     API key is provided, as a secret of this process
  * @param images the scanner images, blank meaning "the pinned digest". <b>The agent needs these
  *     more than the control plane does</b>: it is the component deployed on somebody else's
  *     network, which is exactly where pulls go through an internal registry rather than to Docker
@@ -30,6 +35,7 @@ public record AgentProperties(
         @DefaultValue("60s") Duration heartbeat,
         @DefaultValue("docker") String scannerEngine,
         @DefaultValue("1") String version,
+        @DefaultValue("") String signingKey,
         @DefaultValue Images images) {
 
     /** Blank keeps the digest the agent ships with — see {@code ScannerImages.withOverrides}. */
@@ -49,13 +55,14 @@ public record AgentProperties(
             Duration heartbeat,
             String scannerEngine,
             String version) {
-        this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, version,
+        this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, version, "",
                 new Images("", "", "", "", ""));
     }
 
     public AgentProperties {
         url = url == null ? "" : url.trim().replaceAll("/+$", "");
         token = token == null ? "" : token.trim();
+        signingKey = signingKey == null ? "" : signingKey.trim();
         claimWait = clamp(claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
         retryDelay = clamp(retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
         heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
