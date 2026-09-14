@@ -136,7 +136,21 @@ const LINKS: Record<string, string> = {
     '/settings': 'Settings',
     '/audit-log': 'Audit log',
     '/attestation': 'Attestation',
-    '/remediation': 'Remediation'
+    '/remediation': 'Remediation',
+
+    // **Les six écrans de preuve, atteints par la barre latérale comme les autres.** C'est
+    // délibérément le chemin d'un lecteur : une page dont la route répond mais dont aucune entrée
+    // de menu ne parle est une page que personne n'ouvrira, et un `page.goto` direct ne peut pas
+    // voir la différence.
+    '/exceptions': 'Exceptions register',
+    '/gate-verdicts': 'Verdict register',
+    '/remediation-delays': 'Time to fix',
+    '/soa': 'Statement of applicability',
+    '/certified-scope': 'Certified scope',
+
+    // Le bandeau de couverture n'a pas d'écran à lui : il se pose sur ceux où son absence produit
+    // une conclusion fausse. Celui-ci est le seul des deux qui ait une entrée de menu.
+    '/rule-sets': 'Semgrep rules'
 };
 
 /** Le mot de passe des comptes de rôle, et celui vers lequel le premier usage le fait tourner. */
