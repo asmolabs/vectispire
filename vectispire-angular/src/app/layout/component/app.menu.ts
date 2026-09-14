@@ -42,6 +42,10 @@ export class AppMenu {
             // l'autre ce qu'on en fait ; les séparer dans le menu séparait la question de sa
             // réponse. Le calcul existait depuis longtemps et n'avait pas d'écran.
             { label: this.i18n.t('menu.remediation'), icon: 'pi pi-fw pi-wrench', routerLink: ['/remediation'] },
+
+            // **Juste après l'ordre de travail, parce que c'est sa mesure.** L'un dit par quoi
+            // commencer, l'autre si on a tenu les délais qu'on s'est donnés.
+            { label: this.i18n.t('menu.delays'), icon: 'pi pi-fw pi-clock', routerLink: ['/remediation-delays'] },
             { label: this.i18n.t('menu.history'), icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
             { label: this.i18n.t('menu.inventory'), icon: 'pi pi-fw pi-box', routerLink: ['/inventory'] },
             { label: this.i18n.t('menu.epss'), icon: 'pi pi-fw pi-bolt', routerLink: ['/epss'] },

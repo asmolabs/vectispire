@@ -544,7 +544,8 @@
     "teams": "Équipes",
     "users": "Utilisateurs",
     "exceptions": "Registre des exceptions",
-    "gate_verdicts": "Registre des verdicts"
+    "gate_verdicts": "Registre des verdicts",
+    "delays": "Délais de correction"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1051,5 +1052,30 @@
     "empty_refusals": "La barrière n'a rien refusé sur cette fenêtre.",
     "footnote": "Les verdicts sont conservés selon la fenêtre de rétention des preuves. Un verdict « passé » sur zéro issue examinée est affiché comme tel : il ne prouve rien d'autre que l'absence de matière.",
     "load_failed": "Le registre des verdicts n'a pas pu être chargé."
+  },
+  "delays": {
+    "title": "Délais de correction",
+    "subtitle": "Une moyenne est tirée par le volume des correctifs faciles. Ce qui décrit un processus, c'est la part qui a tenu son délai, la queue de distribution, et l'âge du plus ancien élément encore ouvert.",
+    "days": "jours",
+    "days_short": "j",
+    "window": "Résolutions comptées sur les",
+    "oldest_open": "Le plus ancien élément ouvert",
+    "oldest_open_help": "Aucune moyenne ne peut montrer cette ligne.",
+    "column": {
+      "severity": "Gravité",
+      "deadline": "Délai",
+      "within": "Dans le délai",
+      "median": "Médiane",
+      "ninetieth": "90e centile",
+      "open_overdue": "Ouvertes en retard",
+      "oldest": "Plus ancienne ouverte"
+    },
+    "on_time": "dans le délai",
+    "late": "en retard",
+    "no_deadline": "aucun",
+    "no_deadline_help": "Aucun délai fixé — un pourcentage contre une règle absente n'en serait pas un.",
+    "empty": "Rien n'a été résolu sur cette fenêtre.",
+    "footnote": "Le 90e centile est au rang le plus proche : c'est une durée qu'une issue a réellement eue, pas un point interpolé entre deux. Les issues fermées dans l'instant où elles ont été vues sont absentes de la distribution plutôt qu'à son plancher.",
+    "load_failed": "La distribution des délais n'a pas pu être chargée."
   }
 }

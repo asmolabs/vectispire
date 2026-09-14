@@ -69,6 +69,9 @@ describe('every screen', () => {
         if (url.endsWith('/rule-sets')) return { ruleSets: [] };
         // Le registre porte ses compteurs à côté de ses lignes : rendu à vide, c'est un objet
         // dont `entries` est une liste, jamais une liste nue.
+        if (url.includes('/remediation/distribution')) {
+            return { windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null };
+        }
         if (url.includes('/gate/verdicts')) return { verdicts: [], passed: 0, refused: 0 };
         if (url.includes('/exceptions')) {
             return { entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0 };

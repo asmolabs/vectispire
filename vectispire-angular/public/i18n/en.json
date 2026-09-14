@@ -544,7 +544,8 @@
     "teams": "Teams",
     "users": "Users",
     "exceptions": "Exceptions register",
-    "gate_verdicts": "Verdict register"
+    "gate_verdicts": "Verdict register",
+    "delays": "Time to fix"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -945,5 +946,30 @@
     "empty_refusals": "The gate has refused nothing in this window.",
     "footnote": "Verdicts are kept for the evidence retention window. A “passed” verdict over zero examined issues is shown as such: it proves nothing but the absence of anything to judge.",
     "load_failed": "Could not load the verdict register."
+  },
+  "delays": {
+    "title": "Time to fix",
+    "subtitle": "An average is dragged down by the volume of easy fixes. What describes a process is the share that met its deadline, the tail of the distribution, and the age of the oldest item still open.",
+    "days": "days",
+    "days_short": "d",
+    "window": "Resolutions counted over the last",
+    "oldest_open": "The oldest item still open",
+    "oldest_open_help": "No average can show this line.",
+    "column": {
+      "severity": "Severity",
+      "deadline": "Deadline",
+      "within": "Within the deadline",
+      "median": "Median",
+      "ninetieth": "90th percentile",
+      "open_overdue": "Open and overdue",
+      "oldest": "Oldest open"
+    },
+    "on_time": "on time",
+    "late": "late",
+    "no_deadline": "none",
+    "no_deadline_help": "No deadline set — a percentage against an absent rule would not be one.",
+    "empty": "Nothing has been resolved in this window.",
+    "footnote": "The 90th percentile is at nearest rank: it is a duration an issue really had, not a point interpolated between two. Issues closed in the instant they were seen are absent from the distribution rather than sitting at its floor.",
+    "load_failed": "Could not load the remediation distribution."
   }
 }
