@@ -68,7 +68,7 @@ public class GatePoliciesController {
      *     so a policy left behind by a deleted target is visible as such rather than as a bare
      *     number
      */
-    public record PolicyView(
+    public record GatePolicyView(
             String kind,
             @JsonProperty("target_id") Long targetId,
             @JsonProperty("target_name") String targetName,
@@ -89,7 +89,7 @@ public class GatePoliciesController {
      *     between "not set" and "set to the same thing" is visible
      */
     public record PoliciesResponse(
-            List<PolicyView> policies, @JsonProperty("built_in") PolicyView builtIn) {}
+            List<GatePolicyView> policies, @JsonProperty("built_in") GatePolicyView builtIn) {}
 
     /**
      * @param failOnSeverity a severity, or {@code "none"} to switch the rule off. Absent is
@@ -109,9 +109,9 @@ public class GatePoliciesController {
     public PoliciesResponse list() {
         TargetNaming.Names all = names.all();
 
-        List<PolicyView> stored = new ArrayList<>(gate.storedPolicies().stream()
+        List<GatePolicyView> stored = new ArrayList<>(gate.storedPolicies().stream()
                 .map(policy -> view(policy, all))
-                .sorted(Comparator.comparing(PolicyView::kind).thenComparing(
+                .sorted(Comparator.comparing(GatePolicyView::kind).thenComparing(
                         view -> view.targetName() == null ? "" : view.targetName()))
                 .toList());
 
@@ -121,7 +121,7 @@ public class GatePoliciesController {
     /** The global policy: what every target inherits unless it has one of its own. */
     @RequiresSecurityLead
     @PutMapping("/global")
-    public PolicyView storeGlobal(
+    public GatePolicyView storeGlobal(
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request,
             @RequestBody PolicyRequest body) {
@@ -131,7 +131,7 @@ public class GatePoliciesController {
 
     @RequiresSecurityLead
     @PutMapping("/{kind}/{id}")
-    public PolicyView storeForTarget(
+    public GatePolicyView storeForTarget(
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request,
             @PathVariable String kind,
@@ -165,7 +165,7 @@ public class GatePoliciesController {
         record(principal, request, scope, "Gate policy removed; the target inherits again.");
     }
 
-    private PolicyView store(
+    private GatePolicyView store(
             PolicyScope scope,
             String what,
             VectispirePrincipal principal,
@@ -238,11 +238,11 @@ public class GatePoliciesController {
         };
     }
 
-    private static PolicyView view(GatePolicyEntity policy, TargetNaming.Names names) {
+    private static GatePolicyView view(GatePolicyEntity policy, TargetNaming.Names names) {
         boolean global = "global".equals(policy.getTargetKind());
         GatePolicy resolved = IssueViews.storedPolicy(policy).policy();
 
-        return new PolicyView(
+        return new GatePolicyView(
                 policy.getTargetKind(),
                 global ? null : policy.getTargetId(),
                 global ? null : nameOf(policy, names),
@@ -264,9 +264,9 @@ public class GatePoliciesController {
     }
 
     /** The code's own defaults, shown as a policy so the screen can compare like with like. */
-    private static PolicyView builtInView() {
+    private static GatePolicyView builtInView() {
         GatePolicy policy = GatePolicy.BUILT_IN;
-        return new PolicyView(
+        return new GatePolicyView(
                 "built_in",
                 null,
                 null,

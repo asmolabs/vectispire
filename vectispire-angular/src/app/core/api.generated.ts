@@ -668,6 +668,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compliance/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The certified scope and its coverage
+         * @description What the scope covers, how many assets it declares, and how many carry current evidence.
+         */
+        get: operations["scope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/scope/containers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set an image's scope membership
+         * @description Marks one container image as inside or outside the certified scope.
+         */
+        put: operations["setContainer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/scope/repositories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a repository's scope membership
+         * @description Marks one repository as inside or outside the certified scope.
+         */
+        put: operations["setRepository"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/soa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every framework's declaration
+         * @description The declaration of each framework, reconciled against the caller's view of the estate.
+         */
+        get: operations["all"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/soa/reviews/overdue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Declarations due for review
+         * @description Lines whose review date has passed, oldest first, across every framework.
+         */
+        get: operations["reviewOverdue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/soa/{framework}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One framework's declaration
+         * @description Declared and measured, line by line, with the divergence between them.
+         */
+        get: operations["one"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/soa/{framework}/{controlId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Declare a control
+         * @description Writes or revises one line. An exclusion needs a justification; evidence held elsewhere must say where.
+         */
+        put: operations["declare"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compliance/summary": {
         parameters: {
             query?: never;
@@ -958,6 +1098,26 @@ export interface paths {
         get: operations["register_1"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exceptions/{issueId}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review an exception
+         * @description Confirm, extend or revoke one exception, and record that it was looked at.
+         */
+        post: operations["review"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2407,6 +2567,43 @@ export interface components {
             runningScans?: components["schemas"]["RunningScanItem"][];
             stats?: components["schemas"]["QueueStats"];
         };
+        AgentCreateRequest: {
+            credentials_mode?: string;
+            description?: string;
+            labels?: string;
+            /** Format: int32 */
+            max_concurrent?: number;
+            name?: string;
+        };
+        AgentSummary: {
+            contractVersion?: string;
+            credentialsMode?: string;
+            description?: string;
+            enabled?: boolean;
+            hostname?: string;
+            /** Format: uuid */
+            id?: string;
+            kind?: string;
+            labels?: string;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: int32 */
+            maxConcurrent?: number;
+            name?: string;
+            online?: boolean;
+            platform?: string;
+            /** Format: int64 */
+            runningScans?: number;
+            sealsCredentials?: boolean;
+            signsResults?: boolean;
+            version?: string;
+        };
+        AgentUpdateRequest: {
+            enabled?: boolean;
+            labels?: string;
+            /** Format: int32 */
+            max_concurrent?: number;
+        };
         AiVulnerabilityAdvice: {
             exploitMechanics?: string;
             exposureAssessment?: string;
@@ -2457,6 +2654,33 @@ export interface components {
             tags?: string;
             /** @enum {string} */
             visibility?: "PUBLIC" | "INTERNAL" | "UNKNOWN";
+        };
+        ApiKeyCreateRequest: {
+            /** Format: int32 */
+            expires_in_days?: number;
+            name?: string;
+            scopes?: string[];
+            /** Format: int64 */
+            target_id?: number;
+            target_kind?: string;
+        };
+        ApiKeySummary: {
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: uuid */
+            id?: string;
+            isExpired?: boolean;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            name?: string;
+            prefix?: string;
+            scopes?: string[];
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetLabel?: string;
         };
         AppliedPolicy: {
             description?: string;
@@ -2536,6 +2760,29 @@ export interface components {
             totalEndpoints?: number;
             /** Format: int32 */
             unauthenticatedEndpoints?: number;
+        };
+        AuditLogEntity: {
+            description?: string;
+            entryHash?: string;
+            /** Format: uuid */
+            id?: string;
+            ipAddress?: string;
+            operationType?: string;
+            previousHash?: string;
+            resourceId?: string;
+            /** Format: date-time */
+            timestamp?: string;
+            userAgent?: string;
+            userId?: string;
+        };
+        AuditLogPage: {
+            items?: components["schemas"]["AuditLogEntity"][];
+            /** Format: int32 */
+            limit?: number;
+            /** Format: int32 */
+            offset?: number;
+            /** Format: int64 */
+            total?: number;
         };
         BacklogEntry: {
             /** Format: int64 */
@@ -2749,6 +2996,35 @@ export interface components {
             purl?: string;
             type?: string;
         };
+        ContainerCreateRequest: {
+            image_name?: string;
+            registry?: string;
+            required_agent_label?: string;
+            scanCron?: string;
+            /** Format: int32 */
+            scanIntervalMinutes?: number;
+            tag?: string;
+            tier?: string;
+        };
+        ContainerSummary: {
+            displayName?: string;
+            /** Format: int64 */
+            id?: number;
+            imageName?: string;
+            lastScan?: components["schemas"]["LastScan"];
+            /** Format: date-time */
+            lastScheduledScanAt?: string;
+            /** Format: int64 */
+            openIssues?: number;
+            reference?: string;
+            registry?: string;
+            requiredAgentLabel?: string;
+            scanCron?: string;
+            /** Format: int32 */
+            scanIntervalMinutes?: number;
+            tag?: string;
+            tier?: string;
+        };
         ControlAssessment: {
             control?: components["schemas"]["ComplianceControl"];
             details?: string;
@@ -2757,13 +3033,6 @@ export interface components {
             scorePercentage?: number;
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
-        };
-        CreateRequest: {
-            display_name?: string;
-            email?: string;
-            password?: string;
-            role?: string;
-            username?: string;
         };
         CreateTicketRequest: {
             provider?: string;
@@ -2805,6 +3074,16 @@ export interface components {
             /** Format: double */
             rollingMttrDays?: number;
         };
+        DashboardOverview: {
+            backlogBySeverity?: {
+                [key: string]: number;
+            };
+            failing?: components["schemas"]["FailingTarget"][];
+            posture?: components["schemas"]["Posture"];
+            /** Format: int64 */
+            qualityTotal?: number;
+            recentScans?: components["schemas"]["RecentScan"][];
+        };
         Decision: {
             actor?: string;
             comment?: string;
@@ -2819,6 +3098,40 @@ export interface components {
             scanId?: number;
             toStatus?: string;
             version?: string;
+        };
+        Declaration: {
+            /** @enum {string} */
+            applicability?: "APPLICABLE" | "EXCLUDED";
+            controlId?: string;
+            /** Format: date-time */
+            decidedAt?: string;
+            decidedBy?: string;
+            /** @enum {string} */
+            evidenceSource?: "VECTISPIRE" | "EXTERNAL" | "BOTH";
+            externalEvidence?: string;
+            /** @enum {string} */
+            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            /** @enum {string} */
+            implementation?: "IMPLEMENTED" | "PARTIALLY_IMPLEMENTED" | "PLANNED" | "NOT_IMPLEMENTED";
+            justification?: string;
+            owner?: string;
+            /** Format: date-time */
+            reviewDueAt?: string;
+            /** Format: date-time */
+            reviewedAt?: string;
+        };
+        DeclarationRequest: {
+            /** @enum {string} */
+            applicability?: "APPLICABLE" | "EXCLUDED";
+            /** @enum {string} */
+            evidence_source?: "VECTISPIRE" | "EXTERNAL" | "BOTH";
+            external_evidence?: string;
+            /** @enum {string} */
+            implementation?: "IMPLEMENTED" | "PARTIALLY_IMPLEMENTED" | "PLANNED" | "NOT_IMPLEMENTED";
+            justification?: string;
+            owner?: string;
+            /** Format: date-time */
+            review_due_at?: string;
         };
         DeclaredAgent: {
             /** Format: uuid */
@@ -2840,17 +3153,6 @@ export interface components {
         DependencyGraph: {
             edges?: components["schemas"]["GraphEdge"][];
             nodes?: components["schemas"]["GraphNode"][];
-        };
-        Detail: {
-            findings?: components["schemas"]["FindingView"][];
-            /** Format: int64 */
-            findingsTotal?: number;
-            findingsTruncated?: boolean;
-            hasSbom?: boolean;
-            projectType?: string;
-            projectVersion?: string;
-            scan?: components["schemas"]["Summary"];
-            subPath?: string;
         };
         Document: {
             category?: string;
@@ -2958,12 +3260,23 @@ export interface components {
             issue_id?: number;
             justification?: string;
             lapsed?: boolean;
+            /** Format: date-time */
+            last_reviewed_at?: string;
+            last_reviewed_by?: string;
             origin?: string;
             severity?: string;
             /** Format: int64 */
             target_id?: number;
             target_kind?: string;
             target_name?: string;
+        };
+        FailingTarget: {
+            kind?: string;
+            name?: string;
+            observed?: boolean;
+            /** Format: int64 */
+            targetId?: number;
+            violations?: components["schemas"]["Violation"][];
         };
         Failure: {
             reason?: string;
@@ -3004,6 +3317,22 @@ export interface components {
             name?: string;
             product_id?: string;
             product_identification_helper?: components["schemas"]["ProductIdentificationHelper"];
+        };
+        GatePolicyView: {
+            created_at?: string;
+            created_by?: string;
+            fail_on_kev?: boolean;
+            fail_on_severity?: string;
+            fixable_only?: boolean;
+            include_ai_review?: boolean;
+            include_triaged?: boolean;
+            kind?: string;
+            note?: string;
+            /** Format: int64 */
+            target_id?: number;
+            target_name?: string;
+            /** Format: int32 */
+            version?: number;
         };
         GateRequest: {
             /** Format: int64 */
@@ -3133,6 +3462,68 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        IssueDetail: {
+            /** Format: int64 */
+            containerId?: number;
+            /** Format: double */
+            cvssScore?: number;
+            cvssVector?: string;
+            decisions?: components["schemas"]["Decision"][];
+            description?: string;
+            /** Format: double */
+            epssScore?: number;
+            filePath?: string;
+            fingerprint?: string;
+            /** Format: date-time */
+            firstSeenAt?: string;
+            /** Format: int64 */
+            firstSeenScanId?: number;
+            fixState?: string;
+            fixVersions?: string;
+            /** Format: int64 */
+            id?: number;
+            identifier?: string;
+            isDirectDependency?: boolean;
+            isKev?: boolean;
+            kev?: boolean;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: int64 */
+            lastSeenScanId?: number;
+            /** Format: int32 */
+            line?: number;
+            link?: string;
+            packageName?: string;
+            packageVersion?: string;
+            purl?: string;
+            reachability?: string;
+            reachableSymbols?: string;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int64 */
+            resolutionSeconds?: number;
+            /** Format: date-time */
+            resolvedAt?: string;
+            severity?: string;
+            sightings?: components["schemas"]["Sighting"][];
+            source?: string;
+            state?: string;
+            targetKind?: string;
+            targetName?: string;
+            ticketRef?: string;
+            ticketUrl?: string;
+            /** Format: int32 */
+            timesSeen?: number;
+            triageComment?: string;
+            /** Format: date-time */
+            triageExpiresAt?: string;
+            triageJustification?: string;
+            triageStatus?: string;
+            /** Format: date-time */
+            triagedAt?: string;
+            triagedBy?: string;
+            type?: string;
+        };
         IssueEntity: {
             /** Format: int64 */
             containerId?: number;
@@ -3191,6 +3582,15 @@ export interface components {
             triagedBy?: string;
             type?: string;
         };
+        IssuePage: {
+            items?: components["schemas"]["BacklogEntry"][];
+            /** Format: int32 */
+            limit?: number;
+            /** Format: int32 */
+            offset?: number;
+            /** Format: int64 */
+            total?: number;
+        };
         IssueTicketEntity: {
             /** Format: date-time */
             createdAt?: string;
@@ -3206,10 +3606,18 @@ export interface components {
             updatedAt?: string;
         };
         IssuedKey: {
-            key?: components["schemas"]["Summary"];
+            key?: components["schemas"]["ApiKeySummary"];
             secret?: string;
         };
         JsonNode: Record<string, never>;
+        LastScan: {
+            /** Format: date-time */
+            createdAt?: string;
+            error?: string;
+            /** Format: int64 */
+            id?: number;
+            status?: string;
+        };
         LicenseConflict: {
             /** @enum {string} */
             compatibility?: "COMPATIBLE" | "CONDITIONAL" | "INCOMPATIBLE_BLOCKING";
@@ -3253,10 +3661,14 @@ export interface components {
             /** Format: int64 */
             uniqueLicenses?: number;
         };
-        Listing: {
-            /** Format: int64 */
-            currentUserId?: number;
-            users?: components["schemas"]["Summary"][];
+        Line: {
+            control?: components["schemas"]["ComplianceControl"];
+            declaration?: components["schemas"]["Declaration"];
+            /** @enum {string} */
+            divergence?: "CONTRADICTED" | "EXCLUDED_WITHOUT_JUSTIFICATION" | "UNDECLARED" | "OVERSTATED" | "UNDERSTATED" | "NOT_MEASURED_HERE" | "NOT_APPLICABLE" | "CONSISTENT";
+            /** @enum {string} */
+            measured?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            reviewOverdue?: boolean;
         };
         Location: {
             logicalLocations?: components["schemas"]["LogicalLocation"][];
@@ -3409,25 +3821,10 @@ export interface components {
                 [key: string]: string;
             };
         };
-        Overview: {
-            /** Format: int64 */
-            fileCount?: number;
-            /** Format: int64 */
-            openCount?: number;
-            /** Format: int64 */
-            ruleCount?: number;
-            topFiles?: components["schemas"]["Bucket"][];
-            topRules?: components["schemas"]["Bucket"][];
-            topTargets?: components["schemas"]["Bucket"][];
-        };
-        Page: {
-            items?: components["schemas"]["BacklogEntry"][];
+        OverviewPolicyView: {
+            source?: string;
             /** Format: int32 */
-            limit?: number;
-            /** Format: int32 */
-            offset?: number;
-            /** Format: int64 */
-            total?: number;
+            version?: number;
         };
         PatchOperation: {
             op?: string;
@@ -3462,8 +3859,8 @@ export interface components {
             signsResults?: boolean;
         };
         PoliciesResponse: {
-            built_in?: components["schemas"]["PolicyView"];
-            policies?: components["schemas"]["PolicyView"][];
+            built_in?: components["schemas"]["GatePolicyView"];
+            policies?: components["schemas"]["GatePolicyView"][];
         };
         PolicyAssessment: {
             enforcedPolicy?: string;
@@ -3478,21 +3875,19 @@ export interface components {
             include_triaged?: boolean;
             note?: string;
         };
-        PolicyView: {
-            created_at?: string;
-            created_by?: string;
-            fail_on_kev?: boolean;
-            fail_on_severity?: string;
-            fixable_only?: boolean;
-            include_ai_review?: boolean;
-            include_triaged?: boolean;
-            kind?: string;
-            note?: string;
-            /** Format: int64 */
-            target_id?: number;
-            target_name?: string;
+        Posture: {
             /** Format: int32 */
-            version?: number;
+            failingCount?: number;
+            /** Format: int64 */
+            kevCount?: number;
+            /** Format: int64 */
+            lastScanFailedCount?: number;
+            /** Format: int64 */
+            neverScannedCount?: number;
+            /** Format: int64 */
+            overdueCount?: number;
+            /** Format: int32 */
+            totalCount?: number;
         };
         PostureTrendAnalytics: {
             dailySeries?: components["schemas"]["DailyPosturePoint"][];
@@ -3534,6 +3929,17 @@ export interface components {
             name?: string;
             namespace?: string;
         };
+        QualityOverview: {
+            /** Format: int64 */
+            fileCount?: number;
+            /** Format: int64 */
+            openCount?: number;
+            /** Format: int64 */
+            ruleCount?: number;
+            topFiles?: components["schemas"]["Bucket"][];
+            topRules?: components["schemas"]["Bucket"][];
+            topTargets?: components["schemas"]["Bucket"][];
+        };
         QueueStats: {
             /** Format: int64 */
             avgScanDurationSeconds?: number;
@@ -3557,6 +3963,22 @@ export interface components {
             id?: number;
             status?: string;
         };
+        RecentScan: {
+            /** Format: int64 */
+            containerId?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            error?: string;
+            /** Format: int32 */
+            findingsCount?: number;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            repoId?: number;
+            status?: string;
+            targetKind?: string;
+            targetName?: string;
+        };
         Region: {
             /** Format: int32 */
             startLine?: number;
@@ -3569,6 +3991,30 @@ export interface components {
             granted?: number;
             /** Format: int64 */
             lapsed?: number;
+            /** Format: int64 */
+            never_reviewed?: number;
+        };
+        RegisteredVerdict: {
+            counts_by_severity?: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            decided_at?: string;
+            decided_by?: string;
+            /** Format: int32 */
+            evaluated?: number;
+            fail_on_severity?: string;
+            id?: string;
+            passed?: boolean;
+            policy_source?: string;
+            /** Format: int64 */
+            policy_version?: number;
+            relaxations_ignored?: boolean;
+            /** Format: int64 */
+            target_id?: number;
+            target_kind?: string;
+            /** Format: int32 */
+            violations?: number;
         };
         RemediationAdvice: {
             cliCommand?: string;
@@ -3622,6 +4068,39 @@ export interface components {
             repositoryId?: number;
             summary?: components["schemas"]["AttackSurfaceSummary"];
         };
+        RepositoryCreateRequest: {
+            branch?: string;
+            name?: string;
+            required_agent_label?: string;
+            scanCron?: string;
+            /** Format: int32 */
+            scanIntervalMinutes?: number;
+            sshKeyId?: string;
+            subPath?: string;
+            tier?: string;
+            url?: string;
+        };
+        RepositorySummary: {
+            branch?: string;
+            displayName?: string;
+            /** Format: int64 */
+            id?: number;
+            lastScan?: components["schemas"]["LastScan"];
+            /** Format: date-time */
+            lastScheduledScanAt?: string;
+            name?: string;
+            /** Format: int64 */
+            openIssues?: number;
+            requiredAgentLabel?: string;
+            scanCron?: string;
+            /** Format: int32 */
+            scanIntervalMinutes?: number;
+            /** Format: uuid */
+            sshKeyId?: string;
+            subPath?: string;
+            tier?: string;
+            url?: string;
+        };
         Result: {
             level?: string;
             locations?: components["schemas"]["Location"][];
@@ -3643,6 +4122,13 @@ export interface components {
             total?: number;
             truncated?: boolean;
         };
+        ReviewRequest: {
+            comment?: string;
+            /** Format: date-time */
+            new_expiry?: string;
+            /** @enum {string} */
+            outcome?: "CONFIRMED" | "EXTENDED" | "REVOKED";
+        };
         RoleEntry: {
             primary?: boolean;
             value?: string;
@@ -3657,9 +4143,28 @@ export interface components {
             };
             shortDescription?: components["schemas"]["Text"];
         };
+        RuleSetListing: {
+            ruleSets?: components["schemas"]["RuleSetSummary"][];
+        };
         RuleSetResponse: {
             contentHash?: string;
             files?: components["schemas"]["StoredFile"][];
+        };
+        RuleSetSummary: {
+            activationNote?: string;
+            contentHash?: string;
+            /** Format: int32 */
+            fileCount?: number;
+            /** Format: int64 */
+            id?: number;
+            isActive?: boolean;
+            name?: string;
+            /** Format: int32 */
+            ruleCount?: number;
+            sizeBytes?: string;
+            /** Format: date-time */
+            uploadedAt?: string;
+            uploadedBy?: string;
         };
         Run: {
             properties?: {
@@ -3767,6 +4272,41 @@ export interface components {
             sbom?: components["schemas"]["JsonNode"];
             secrets?: components["schemas"]["SecretFinding"][];
         };
+        ScanDetail: {
+            findings?: components["schemas"]["FindingView"][];
+            /** Format: int64 */
+            findingsTotal?: number;
+            findingsTruncated?: boolean;
+            hasSbom?: boolean;
+            projectType?: string;
+            projectVersion?: string;
+            scan?: components["schemas"]["ScanSummary"];
+            subPath?: string;
+        };
+        ScanSummary: {
+            /** Format: int32 */
+            attempts?: number;
+            branch?: string;
+            claimedBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            durationMs?: number;
+            error?: string;
+            /** Format: int32 */
+            findingsCount?: number;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int32 */
+            newIssuesCount?: number;
+            /** Format: int32 */
+            resolvedIssuesCount?: number;
+            status?: string;
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetName?: string;
+        };
         ScimGroupDto: {
             displayName?: string;
             externalId?: string;
@@ -3810,6 +4350,23 @@ export interface components {
             roles?: components["schemas"]["RoleEntry"][];
             schemas?: string[];
             userName?: string;
+        };
+        ScopeCoverage: {
+            /** Format: int32 */
+            declaredAssets?: number;
+            /** Format: int32 */
+            inScope?: number;
+            /** Format: int32 */
+            neverScanned?: number;
+            /** Format: int32 */
+            scannedRecently?: number;
+            /** Format: int32 */
+            stale?: number;
+        };
+        ScopeView: {
+            coverage?: components["schemas"]["ScopeCoverage"];
+            statement?: string;
+            targets?: components["schemas"]["TargetRef"][];
         };
         SecretFinding: {
             description?: string;
@@ -3921,6 +4478,16 @@ export interface components {
             authHeader?: string;
             endpoint?: string;
         };
+        Sighting: {
+            branch?: string;
+            /** Format: int64 */
+            scanId?: number;
+            /** Format: date-time */
+            scannedAt?: string;
+            severity?: string;
+            status?: string;
+            version?: string;
+        };
         SignInMethods: {
             brandName?: string;
             configured?: boolean;
@@ -3930,6 +4497,36 @@ export interface components {
         };
         SigningKeyRequest: {
             public_key?: string;
+        };
+        SoaStatement: {
+            complete?: boolean;
+            /** Format: int32 */
+            declared?: number;
+            /** Format: int32 */
+            findings?: number;
+            /** @enum {string} */
+            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            lines?: components["schemas"]["Line"][];
+            /** Format: int32 */
+            reviewsOverdue?: number;
+            /** Format: int32 */
+            total?: number;
+        };
+        SshKeyCreateRequest: {
+            name?: string;
+            private_key?: string;
+            public_key?: string;
+        };
+        SshKeySummary: {
+            /** Format: date-time */
+            createdAt?: string;
+            encryptionState?: string;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            publicKey?: string;
+            /** Format: int64 */
+            usedByRepositories?: number;
         };
         StoredFile: {
             content?: string;
@@ -3942,27 +4539,8 @@ export interface components {
             };
             name?: string;
         };
-        Summary: {
-            /** Format: int64 */
-            activeSessions?: number;
-            /** Format: date-time */
-            createdAt?: string;
-            displayName?: string;
-            email?: string;
-            /** Format: int64 */
-            id?: number;
-            isActive?: boolean;
-            mustChangePassword?: boolean;
-            role?: string;
-            username?: string;
-        };
         Suppression: {
             justification?: string;
-            kind?: string;
-        };
-        TargetAssignment: {
-            /** Format: int64 */
-            id?: number;
             kind?: string;
         };
         TargetCompliance: {
@@ -4023,6 +4601,11 @@ export interface components {
             id?: number;
             label?: string;
         };
+        TargetRef: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+        };
         TargetView: {
             kind?: string;
             /** Format: date-time */
@@ -4033,7 +4616,7 @@ export interface components {
             observation?: string;
             observed?: boolean;
             passed?: boolean;
-            policy?: components["schemas"]["PolicyView"];
+            policy?: components["schemas"]["OverviewPolicyView"];
             /** Format: int64 */
             targetId?: number;
             verdict?: components["schemas"]["VerdictView"];
@@ -4056,6 +4639,11 @@ export interface components {
             notified?: boolean;
             /** Format: int32 */
             targetCount?: number;
+        };
+        TeamTargetAssignment: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
         };
         TestResult: {
             message?: string;
@@ -4155,11 +4743,6 @@ export interface components {
             /** Format: int64 */
             queued?: number;
         };
-        UpdateRequest: {
-            is_active?: boolean;
-            password?: string;
-            role?: string;
-        };
         UploadRequest: {
             files?: components["schemas"]["UploadedFile"][];
             name?: string;
@@ -4177,6 +4760,32 @@ export interface components {
             content?: string;
             name?: string;
         };
+        UserAdminSummary: {
+            /** Format: int64 */
+            activeSessions?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            displayName?: string;
+            email?: string;
+            /** Format: int64 */
+            id?: number;
+            isActive?: boolean;
+            mustChangePassword?: boolean;
+            role?: string;
+            username?: string;
+        };
+        UserCreateRequest: {
+            display_name?: string;
+            email?: string;
+            password?: string;
+            role?: string;
+            username?: string;
+        };
+        UserListing: {
+            /** Format: int64 */
+            currentUserId?: number;
+            users?: components["schemas"]["UserAdminSummary"][];
+        };
         UserSummary: {
             displayName?: string;
             mfaEnabled?: boolean;
@@ -4184,12 +4793,22 @@ export interface components {
             role?: string;
             username?: string;
         };
+        UserTargetAssignment: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+        };
+        UserUpdateRequest: {
+            is_active?: boolean;
+            password?: string;
+            role?: string;
+        };
         VerdictRegister: {
             /** Format: int64 */
             passed?: number;
             /** Format: int64 */
             refused?: number;
-            verdicts?: components["schemas"]["VerdictView"][];
+            verdicts?: components["schemas"]["RegisteredVerdict"][];
         };
         VerdictView: {
             countsBySeverity?: {
@@ -4231,6 +4850,18 @@ export interface components {
             impactStatement?: string;
             justification?: string;
             status?: string;
+        };
+        Violation: {
+            fixVersions?: string;
+            identifier?: string;
+            /** Format: int64 */
+            issueId?: number;
+            packageName?: string;
+            reason?: string;
+            /** @enum {string} */
+            rule?: "KEV" | "SEVERITY";
+            /** @enum {string} */
+            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
         };
         ViolationView: {
             fixVersions?: string;
@@ -4279,7 +4910,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["AgentSummary"][];
                 };
             };
         };
@@ -4293,7 +4924,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["AgentCreateRequest"];
             };
         };
         responses: {
@@ -4379,7 +5010,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRequest"];
+                "application/json": components["schemas"]["AgentUpdateRequest"];
             };
         };
         responses: {
@@ -4626,7 +5257,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["ApiKeySummary"][];
                 };
             };
         };
@@ -4640,7 +5271,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["ApiKeyCreateRequest"];
             };
         };
         responses: {
@@ -4828,7 +5459,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Page"];
+                    "*/*": components["schemas"]["AuditLogPage"];
                 };
             };
         };
@@ -5205,6 +5836,172 @@ export interface operations {
             };
         };
     };
+    scope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scope returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScopeView"];
+                };
+            };
+        };
+    };
+    setContainer: {
+        parameters: {
+            query: {
+                in_scope: boolean;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScopeView"];
+                };
+            };
+        };
+    };
+    setRepository: {
+        parameters: {
+            query: {
+                in_scope: boolean;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScopeView"];
+                };
+            };
+        };
+    };
+    all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statements returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SoaStatement"][];
+                };
+            };
+        };
+    };
+    reviewOverdue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declarations returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Declaration"][];
+                };
+            };
+        };
+    };
+    one: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                framework: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statement returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SoaStatement"];
+                };
+            };
+        };
+    };
+    declare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                framework: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclarationRequest"];
+            };
+        };
+        responses: {
+            /** @description Declaration recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Declaration"];
+                };
+            };
+            /** @description The line is not a declaration: an unjustified exclusion, or external evidence naming nothing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Declaration"];
+                };
+            };
+        };
+    };
     summary: {
         parameters: {
             query?: {
@@ -5243,7 +6040,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["ContainerSummary"][];
                 };
             };
         };
@@ -5257,7 +6054,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["ContainerCreateRequest"];
             };
         };
         responses: {
@@ -5267,7 +6064,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["ContainerSummary"];
                 };
             };
         };
@@ -5303,7 +6100,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["ContainerCreateRequest"];
             };
         };
         responses: {
@@ -5313,7 +6110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["ContainerSummary"];
                 };
             };
         };
@@ -5505,7 +6302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Overview"];
+                    "*/*": components["schemas"]["DashboardOverview"];
                 };
             };
         };
@@ -5638,6 +6435,41 @@ export interface operations {
             };
         };
     };
+    review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Review recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Register"];
+                };
+            };
+            /** @description The issue carries no exception, or an extension names no date */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Register"];
+                };
+            };
+        };
+    };
     evaluate: {
         parameters: {
             query?: never;
@@ -5701,7 +6533,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PolicyView"];
+                    "*/*": components["schemas"]["GatePolicyView"];
                 };
             };
         };
@@ -5728,7 +6560,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PolicyView"];
+                    "*/*": components["schemas"]["GatePolicyView"];
                 };
             };
         };
@@ -5937,7 +6769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Page"];
+                    "*/*": components["schemas"]["IssuePage"];
                 };
             };
         };
@@ -5983,7 +6815,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Detail"];
+                    "*/*": components["schemas"]["IssueDetail"];
                 };
             };
         };
@@ -6253,7 +7085,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Overview"];
+                    "*/*": components["schemas"]["QualityOverview"];
                 };
             };
         };
@@ -6342,7 +7174,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["RepositorySummary"][];
                 };
             };
         };
@@ -6356,7 +7188,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["RepositoryCreateRequest"];
             };
         };
         responses: {
@@ -6366,7 +7198,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["RepositorySummary"];
                 };
             };
         };
@@ -6404,7 +7236,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["RepositoryCreateRequest"];
             };
         };
         responses: {
@@ -6414,7 +7246,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["RepositorySummary"];
                 };
             };
         };
@@ -6590,7 +7422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Listing"];
+                    "*/*": components["schemas"]["RuleSetListing"];
                 };
             };
         };
@@ -6823,7 +7655,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["ScanSummary"][];
                 };
             };
         };
@@ -6846,7 +7678,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Detail"];
+                    "*/*": components["schemas"]["ScanDetail"];
                 };
             };
         };
@@ -7404,7 +8236,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"][];
+                    "*/*": components["schemas"]["SshKeySummary"][];
                 };
             };
         };
@@ -7418,7 +8250,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["SshKeyCreateRequest"];
             };
         };
         responses: {
@@ -7428,7 +8260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["SshKeySummary"];
                 };
             };
         };
@@ -7731,7 +8563,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TargetAssignment"][];
+                    "*/*": components["schemas"]["TeamTargetAssignment"][];
                 };
             };
         };
@@ -7747,7 +8579,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TargetAssignment"][];
+                "application/json": components["schemas"]["TeamTargetAssignment"][];
             };
         };
         responses: {
@@ -7757,7 +8589,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TargetAssignment"][];
+                    "*/*": components["schemas"]["TeamTargetAssignment"][];
                 };
             };
         };
@@ -7876,7 +8708,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Listing"];
+                    "*/*": components["schemas"]["UserListing"];
                 };
             };
         };
@@ -7890,7 +8722,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRequest"];
+                "application/json": components["schemas"]["UserCreateRequest"];
             };
         };
         responses: {
@@ -7900,7 +8732,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["UserAdminSummary"];
                 };
             };
         };
@@ -7936,7 +8768,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRequest"];
+                "application/json": components["schemas"]["UserUpdateRequest"];
             };
         };
         responses: {
@@ -7946,7 +8778,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Summary"];
+                    "*/*": components["schemas"]["UserAdminSummary"];
                 };
             };
         };
@@ -7968,7 +8800,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TargetAssignment"][];
+                    "*/*": components["schemas"]["UserTargetAssignment"][];
                 };
             };
         };
@@ -7984,7 +8816,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TargetAssignment"][];
+                "application/json": components["schemas"]["UserTargetAssignment"][];
             };
         };
         responses: {
@@ -7994,7 +8826,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TargetAssignment"][];
+                    "*/*": components["schemas"]["UserTargetAssignment"][];
                 };
             };
         };

@@ -62,7 +62,7 @@ public class RuleSetsController {
         this.coverageService = coverageService;
     }
 
-    public record Listing(List<RuleSetSummary> ruleSets) {}
+    public record RuleSetListing(List<RuleSetSummary> ruleSets) {}
 
     public record UploadRequest(String name, List<UploadedFile> files) {}
 
@@ -89,8 +89,8 @@ public class RuleSetsController {
             String commit, List<String> languages, @JsonProperty("licence_sha256") String licenceSha256) {}
 
     @GetMapping
-    public Listing list() {
-        return new Listing(ruleSets.list());
+    public RuleSetListing list() {
+        return new RuleSetListing(ruleSets.list());
     }
 
     /**

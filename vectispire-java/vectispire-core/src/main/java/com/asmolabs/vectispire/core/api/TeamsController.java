@@ -110,7 +110,7 @@ public class TeamsController {
      */
     public record WebhookRequest(String url) {}
 
-    public record TargetAssignment(String kind, Long id) {}
+    public record TeamTargetAssignment(String kind, Long id) {}
 
     @GetMapping
     public List<TeamSummary> list() {
@@ -269,30 +269,30 @@ public class TeamsController {
     }
 
     @GetMapping("/{id}/targets")
-    public List<TargetAssignment> targets(@PathVariable long id) {
+    public List<TeamTargetAssignment> targets(@PathVariable long id) {
         requireTeam(id);
         return targets.findByTeamId(id).stream()
-                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .map(row -> new TeamTargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .toList();
     }
 
     @PutMapping("/{id}/targets")
-    public List<TargetAssignment> setTargets(
+    public List<TeamTargetAssignment> setTargets(
             @PathVariable long id,
-            @RequestBody List<TargetAssignment> body,
+            @RequestBody List<TeamTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         TeamEntity team = requireTeam(id);
-        List<TargetAssignment> wanted = new ArrayList<>();
-        for (TargetAssignment assignment : body == null ? List.<TargetAssignment>of() : body) {
+        List<TeamTargetAssignment> wanted = new ArrayList<>();
+        for (TeamTargetAssignment assignment : body == null ? List.<TeamTargetAssignment>of() : body) {
             if (assignment == null || assignment.id() == null) {
                 continue;
             }
             // The kind is validated against the two that exist. An unrecognised kind stored here
             // would resolve to nothing forever — an assignment the screen shows and that grants
             // nothing, which is the most confusing possible outcome.
-            wanted.add(new TargetAssignment(TeamRules.validateTargetKind(assignment.kind()), assignment.id()));
+            wanted.add(new TeamTargetAssignment(TeamRules.validateTargetKind(assignment.kind()), assignment.id()));
         }
 
         targets.deleteByTeamId(id);

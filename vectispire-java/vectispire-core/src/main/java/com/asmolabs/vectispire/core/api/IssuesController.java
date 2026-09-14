@@ -105,7 +105,7 @@ public class IssuesController {
         this.settings = settings;
     }
 
-    public record Page(List<BacklogEntry> items, long total, int limit, int offset) {}
+    public record IssuePage(List<BacklogEntry> items, long total, int limit, int offset) {}
 
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
@@ -131,7 +131,7 @@ public class IssuesController {
     private static final int MAX_BULK_TRIAGE = 500;
 
     @GetMapping
-    public Page list(
+    public IssuePage list(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String severity,
@@ -179,7 +179,7 @@ public class IssuesController {
                 specification,
                 PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
 
-        return new Page(named(page.getContent()), page.getTotalElements(), size, from);
+        return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);
     }
 
     /**
@@ -222,7 +222,7 @@ public class IssuesController {
      *     one issue's slice of it, so the page that asks "why is this dismissed" has the answer
      *     beside the dismissal rather than three screens away
      */
-    public record Detail(
+    public record IssueDetail(
             @JsonUnwrapped IssueEntity issue,
             String targetKind,
             String targetName,
@@ -241,7 +241,7 @@ public class IssuesController {
      * is added here is what needs a query of its own — where it was seen, and what was decided.
      */
     @GetMapping("/{id}")
-    public Detail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
+    public IssueDetail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
         IssueEntity issue = issues.findById(id).orElse(null);
         // 404 rather than 403 when it exists but is not visible — see `Visibilities`.
         Visibilities.requireVisible(
@@ -279,7 +279,7 @@ public class IssuesController {
                         null))
                 .toList();
 
-        return new Detail(
+        return new IssueDetail(
                 issue,
                 issue.getRepoId() != null ? "repository" : "container",
                 names.of(issue.getRepoId(), issue.getContainerId()),

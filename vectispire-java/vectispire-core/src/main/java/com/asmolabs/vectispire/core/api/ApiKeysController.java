@@ -70,7 +70,7 @@ public class ApiKeysController {
      * @param isExpired computed here and not on the screen: an expired key is refused by the
      *     server, and two notions of "expired" would eventually disagree by a timezone
      */
-    public record Summary(
+    public record ApiKeySummary(
             UUID id,
             String name,
             String prefix,
@@ -83,7 +83,7 @@ public class ApiKeysController {
             Instant expiresAt,
             boolean isExpired) {}
 
-    public record CreateRequest(
+    public record ApiKeyCreateRequest(
             String name,
             List<String> scopes,
             @JsonProperty("target_kind") String targetKind,
@@ -91,14 +91,14 @@ public class ApiKeysController {
             @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
     /** @param secret the only occurrence of the plaintext. It will never appear again */
-    public record IssuedKey(Summary key, String secret) {}
+    public record IssuedKey(ApiKeySummary key, String secret) {}
 
     public record TargetOption(Long id, String label) {}
 
     public record Targets(List<TargetOption> repositories, List<TargetOption> containers) {}
 
     @GetMapping
-    public List<Summary> list() {
+    public List<ApiKeySummary> list() {
         Instant asOf = clock.instant();
         TargetNaming.Names names = naming.all();
         return keys.findAllByOrderByCreatedAtDesc().stream()
@@ -115,7 +115,7 @@ public class ApiKeysController {
      */
     @PostMapping
     public IssuedKey create(
-            @RequestBody CreateRequest body,
+            @RequestBody ApiKeyCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -195,7 +195,7 @@ public class ApiKeysController {
     }
 
     /** Empty for an unrestricted key; refused when the kind and the identifier disagree. */
-    private static String normalizeTargetKind(CreateRequest body) {
+    private static String normalizeTargetKind(ApiKeyCreateRequest body) {
         String kind = body.targetKind() == null ? "" : body.targetKind().trim().toLowerCase(java.util.Locale.ROOT);
         if (kind.isEmpty() && body.targetId() == null) {
             return null;
@@ -209,8 +209,8 @@ public class ApiKeysController {
         return kind;
     }
 
-    private Summary summaryOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names) {
-        return new Summary(
+    private ApiKeySummary summaryOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names) {
+        return new ApiKeySummary(
                 key.getId(),
                 key.getName(),
                 key.getPrefix(),

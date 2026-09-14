@@ -31,7 +31,7 @@ public class AuditLogController {
         this.service = service;
     }
 
-    public record Page(List<AuditLogEntity> items, long total, int limit, int offset) {}
+    public record AuditLogPage(List<AuditLogEntity> items, long total, int limit, int offset) {}
 
     /**
      * @param unverifiable entries predating the chaining: neither a proof nor an alarm, a fact
@@ -63,7 +63,7 @@ public class AuditLogController {
      * page type relies on it.
      */
     @GetMapping
-    public Page list(
+    public AuditLogPage list(
             @RequestParam(name = "operation_type", required = false) String operationType,
             @RequestParam(name = "user_id", required = false) String userId,
             @RequestParam(required = false) String search,
@@ -80,7 +80,7 @@ public class AuditLogController {
                 PageRequest.of(from / Math.max(size, 1), size,
                         Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
 
-        return new Page(page.getContent(), page.getTotalElements(), size, from);
+        return new AuditLogPage(page.getContent(), page.getTotalElements(), size, from);
     }
 
     /** The values actually present, so the filter offers nothing empty. */

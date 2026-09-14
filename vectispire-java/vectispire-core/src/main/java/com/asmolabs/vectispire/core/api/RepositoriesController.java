@@ -92,7 +92,7 @@ public class RepositoriesController {
 
     public record LastScan(Long id, String status, Instant createdAt, String error) {}
 
-    public record Summary(
+    public record RepositorySummary(
             Long id,
             String url,
             String branch,
@@ -109,7 +109,7 @@ public class RepositoriesController {
             String tier) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
-    public record CreateRequest(
+    public record RepositoryCreateRequest(
             String url,
             String branch,
             String name,
@@ -131,7 +131,7 @@ public class RepositoriesController {
     @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible to the caller.")
     @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
     @GetMapping
-    public List<Summary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public List<RepositorySummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(
                 principal.user().orElse(null), principal.credentialRestriction());
         Map<Long, LastScan> latest = latestScans();
@@ -139,7 +139,7 @@ public class RepositoriesController {
 
         return repositories.findAll().stream()
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
-                .map(repository -> new Summary(
+                .map(repository -> new RepositorySummary(
                         repository.getId(),
                         repository.getUrl(),
                         repository.getBranch(),
@@ -161,8 +161,8 @@ public class RepositoriesController {
     @ApiResponse(responseCode = "200", description = "Repository registered successfully")
     @RequiresAdministrator
     @PostMapping
-    public Summary create(
-            @RequestBody CreateRequest body,
+    public RepositorySummary create(
+            @RequestBody RepositoryCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -214,9 +214,9 @@ public class RepositoriesController {
     @ApiResponse(responseCode = "200", description = "Repository updated successfully")
     @RequiresAdministrator
     @PatchMapping("/{id}")
-    public Summary update(
+    public RepositorySummary update(
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id,
-            @RequestBody CreateRequest body,
+            @RequestBody RepositoryCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 

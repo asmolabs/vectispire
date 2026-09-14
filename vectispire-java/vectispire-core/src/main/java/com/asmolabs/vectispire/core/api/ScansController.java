@@ -60,7 +60,7 @@ public class ScansController {
         this.visibility = visibility;
     }
 
-    public record Summary(
+    public record ScanSummary(
             Long id,
             String status,
             String branch,
@@ -97,8 +97,8 @@ public class ScansController {
      *     it answers "which build did this" for one scan, and would be a column of blanks in a
      *     history where most rows are container scans
      */
-    public record Detail(
-            Summary scan,
+    public record ScanDetail(
+            ScanSummary scan,
             String subPath,
             String projectType,
             String projectVersion,
@@ -110,7 +110,7 @@ public class ScansController {
     @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
     @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
     @GetMapping
-    public List<Summary> list(
+    public List<ScanSummary> list(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Filter by repository ID") @RequestParam(name = "repo_id", required = false) Long repoId,
             @Parameter(description = "Filter by container ID") @RequestParam(name = "container_id", required = false) Long containerId,
@@ -131,7 +131,7 @@ public class ScansController {
     @Operation(summary = "Get scan detail", description = "Returns full details and raw findings observed during a specific scan.")
     @ApiResponse(responseCode = "200", description = "Scan details retrieved successfully")
     @GetMapping("/{id}")
-    public Detail detail(
+    public ScanDetail detail(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
         ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
@@ -141,7 +141,7 @@ public class ScansController {
         List<FindingEntity> page = findings.findByScanId(id, Limit.of(MAX_FINDINGS));
         long total = findings.countByScanId(id);
 
-        return new Detail(
+        return new ScanDetail(
                 summaryOf(scan, naming.all()),
                 scan.getSubPath(),
                 scan.getProjectType(),
@@ -210,8 +210,8 @@ public class ScansController {
         return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
     }
 
-    private static Summary summaryOf(ScanEntity scan, TargetNaming.Names names) {
-        return new Summary(
+    private static ScanSummary summaryOf(ScanEntity scan, TargetNaming.Names names) {
+        return new ScanSummary(
                 scan.getId(),
                 scan.getStatus(),
                 scan.getBranch(),

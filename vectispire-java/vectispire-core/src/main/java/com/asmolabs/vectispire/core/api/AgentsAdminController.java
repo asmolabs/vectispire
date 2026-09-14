@@ -109,7 +109,7 @@ public class AgentsAdminController {
      *     hour is the case that matters: the queue fills, nobody drains it, and nothing else on
      *     the screen would say so
      */
-    public record Summary(
+    public record AgentSummary(
             UUID id,
             String name,
             String description,
@@ -128,14 +128,14 @@ public class AgentsAdminController {
             boolean online,
             long runningScans) {}
 
-    public record CreateRequest(
+    public record AgentCreateRequest(
             String name,
             String description,
             @JsonProperty("credentials_mode") String credentialsMode,
             String labels,
             @JsonProperty("max_concurrent") Integer maxConcurrent) {}
 
-    public record UpdateRequest(
+    public record AgentUpdateRequest(
             Boolean enabled, String labels, @JsonProperty("max_concurrent") Integer maxConcurrent) {}
 
     /** @param secret the only occurrence of the plaintext key. It will never appear again */
@@ -302,12 +302,12 @@ public class AgentsAdminController {
     }
 
     @GetMapping
-    public List<Summary> list() {
+    public List<AgentSummary> list() {
         Instant asOf = clock.instant();
         Map<String, Long> running = runningByAgent();
 
         return agents.findAllByOrderByNameAsc().stream()
-                .map(agent -> new Summary(
+                .map(agent -> new AgentSummary(
                         agent.getId(),
                         agent.getName(),
                         agent.getDescription(),
@@ -336,7 +336,7 @@ public class AgentsAdminController {
      */
     @PostMapping
     public DeclaredAgent create(
-            @RequestBody CreateRequest body,
+            @RequestBody AgentCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -394,7 +394,7 @@ public class AgentsAdminController {
     @PatchMapping("/{id}")
     public Map<String, Object> update(
             @PathVariable UUID id,
-            @RequestBody UpdateRequest body,
+            @RequestBody AgentUpdateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 

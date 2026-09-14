@@ -71,7 +71,7 @@ public class UsersController {
      * <p>{@code password} is not on it, and never must be: a password hash that leaves the
      * server is a hash to crack offline.
      */
-    public record Summary(
+    public record UserAdminSummary(
             Long id,
             String username,
             String email,
@@ -82,13 +82,13 @@ public class UsersController {
             Instant createdAt,
             long activeSessions) {}
 
-    public record Listing(List<Summary> users, Long currentUserId) {}
+    public record UserListing(List<UserAdminSummary> users, Long currentUserId) {}
 
     /** @param kind {@code repository} or {@code container} */
-    public record TargetAssignment(String kind, Long id) {}
+    public record UserTargetAssignment(String kind, Long id) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
-    public record CreateRequest(
+    public record UserCreateRequest(
             String username,
             String password,
             String role,
@@ -96,23 +96,23 @@ public class UsersController {
             @JsonProperty("display_name") String displayName) {}
 
     /** Every field optional: absent means "leave it as it is", which is what PATCH means. */
-    public record UpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
+    public record UserUpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
 
     @GetMapping
-    public Listing list(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public UserListing list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Map<Long, Long> active = activeSessionsByUser();
-        List<Summary> summaries = new ArrayList<>();
+        List<UserAdminSummary> summaries = new ArrayList<>();
         users.findAllByOrderByUsernameAsc()
                 .forEach(user -> summaries.add(summaryOf(user, active.getOrDefault(user.getId(), 0L))));
 
         // The screen needs to know which account is its own, so it does not offer actions the
         // server will refuse anyway.
-        return new Listing(summaries, principal.user().map(UserEntity::getId).orElse(null));
+        return new UserListing(summaries, principal.user().map(UserEntity::getId).orElse(null));
     }
 
     @PostMapping
-    public Summary create(
-            @RequestBody CreateRequest body,
+    public UserAdminSummary create(
+            @RequestBody UserCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -155,9 +155,9 @@ public class UsersController {
      * keep in step.
      */
     @PatchMapping("/{id}")
-    public Summary update(
+    public UserAdminSummary update(
             @PathVariable long id,
-            @RequestBody UpdateRequest body,
+            @RequestBody UserUpdateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -230,10 +230,10 @@ public class UsersController {
 
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
-    public List<TargetAssignment> targets(@PathVariable long id) {
+    public List<UserTargetAssignment> targets(@PathVariable long id) {
         users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
         return assignments.findByUserId(id).stream()
-                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .map(row -> new UserTargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .toList();
     }
 
@@ -245,14 +245,14 @@ public class UsersController {
      * revocation that silently does nothing.
      */
     @PutMapping("/{id}/targets")
-    public List<TargetAssignment> setTargets(
+    public List<UserTargetAssignment> setTargets(
             @PathVariable long id,
-            @RequestBody List<TargetAssignment> body,
+            @RequestBody List<UserTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         UserEntity user = users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
-        List<TargetAssignment> wanted = body == null ? List.of() : body;
+        List<UserTargetAssignment> wanted = body == null ? List.of() : body;
 
         accounts.replaceTargets(id, wanted.stream()
                 .map(assignment -> new UserTargetEntity(id, assignment.kind(), assignment.id()))
@@ -306,8 +306,8 @@ public class UsersController {
                 request.getHeader("User-Agent")));
     }
 
-    private static Summary summaryOf(UserEntity user, long activeSessions) {
-        return new Summary(
+    private static UserAdminSummary summaryOf(UserEntity user, long activeSessions) {
+        return new UserAdminSummary(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),

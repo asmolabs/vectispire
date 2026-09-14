@@ -29,6 +29,102 @@
         },
         "type" : "object"
       },
+      "AgentCreateRequest" : {
+        "properties" : {
+          "credentials_mode" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "labels" : {
+            "type" : "string"
+          },
+          "max_concurrent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AgentSummary" : {
+        "properties" : {
+          "contractVersion" : {
+            "type" : "string"
+          },
+          "credentialsMode" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "hostname" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "labels" : {
+            "type" : "string"
+          },
+          "lastSeenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "maxConcurrent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "online" : {
+            "type" : "boolean"
+          },
+          "platform" : {
+            "type" : "string"
+          },
+          "runningScans" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sealsCredentials" : {
+            "type" : "boolean"
+          },
+          "signsResults" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AgentUpdateRequest" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "labels" : {
+            "type" : "string"
+          },
+          "max_concurrent" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "AiVulnerabilityAdvice" : {
         "properties" : {
           "exploitMechanics" : {
@@ -163,6 +259,77 @@
           },
           "visibility" : {
             "enum" : [ "PUBLIC", "INTERNAL", "UNKNOWN" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ApiKeyCreateRequest" : {
+        "properties" : {
+          "expires_in_days" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "scopes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "target_id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "target_kind" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ApiKeySummary" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isExpired" : {
+            "type" : "boolean"
+          },
+          "lastUsedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "prefix" : {
+            "type" : "string"
+          },
+          "scopes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetLabel" : {
             "type" : "string"
           }
         },
@@ -385,6 +552,66 @@
           },
           "unauthenticatedEndpoints" : {
             "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AuditLogEntity" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "entryHash" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ipAddress" : {
+            "type" : "string"
+          },
+          "operationType" : {
+            "type" : "string"
+          },
+          "previousHash" : {
+            "type" : "string"
+          },
+          "resourceId" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userAgent" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AuditLogPage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AuditLogEntity"
+            },
+            "type" : "array"
+          },
+          "limit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "offset" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
             "type" : "integer"
           }
         },
@@ -947,6 +1174,81 @@
         },
         "type" : "object"
       },
+      "ContainerCreateRequest" : {
+        "properties" : {
+          "image_name" : {
+            "type" : "string"
+          },
+          "registry" : {
+            "type" : "string"
+          },
+          "required_agent_label" : {
+            "type" : "string"
+          },
+          "scanCron" : {
+            "type" : "string"
+          },
+          "scanIntervalMinutes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tag" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ContainerSummary" : {
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "imageName" : {
+            "type" : "string"
+          },
+          "lastScan" : {
+            "$ref" : "#/components/schemas/LastScan"
+          },
+          "lastScheduledScanAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "openIssues" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reference" : {
+            "type" : "string"
+          },
+          "registry" : {
+            "type" : "string"
+          },
+          "requiredAgentLabel" : {
+            "type" : "string"
+          },
+          "scanCron" : {
+            "type" : "string"
+          },
+          "scanIntervalMinutes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tag" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ControlAssessment" : {
         "properties" : {
           "control" : {
@@ -964,26 +1266,6 @@
           },
           "status" : {
             "enum" : [ "COMPLIANT", "PARTIAL", "NON_COMPLIANT" ],
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "CreateRequest" : {
-        "properties" : {
-          "display_name" : {
-            "type" : "string"
-          },
-          "email" : {
-            "type" : "string"
-          },
-          "password" : {
-            "type" : "string"
-          },
-          "role" : {
-            "type" : "string"
-          },
-          "username" : {
             "type" : "string"
           }
         },
@@ -1095,6 +1377,37 @@
           "rollingMttrDays" : {
             "format" : "double",
             "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "DashboardOverview" : {
+        "properties" : {
+          "backlogBySeverity" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
+          "failing" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FailingTarget"
+            },
+            "type" : "array"
+          },
+          "posture" : {
+            "$ref" : "#/components/schemas/Posture"
+          },
+          "qualityTotal" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "recentScans" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RecentScan"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -1273,39 +1586,6 @@
               "$ref" : "#/components/schemas/GraphNode"
             },
             "type" : "array"
-          }
-        },
-        "type" : "object"
-      },
-      "Detail" : {
-        "properties" : {
-          "findings" : {
-            "items" : {
-              "$ref" : "#/components/schemas/FindingView"
-            },
-            "type" : "array"
-          },
-          "findingsTotal" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "findingsTruncated" : {
-            "type" : "boolean"
-          },
-          "hasSbom" : {
-            "type" : "boolean"
-          },
-          "projectType" : {
-            "type" : "string"
-          },
-          "projectVersion" : {
-            "type" : "string"
-          },
-          "scan" : {
-            "$ref" : "#/components/schemas/Summary"
-          },
-          "subPath" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -1619,6 +1899,30 @@
         },
         "type" : "object"
       },
+      "FailingTarget" : {
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "observed" : {
+            "type" : "boolean"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "violations" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Violation"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "Failure" : {
         "properties" : {
           "reason" : {
@@ -1713,6 +2017,49 @@
           },
           "product_identification_helper" : {
             "$ref" : "#/components/schemas/ProductIdentificationHelper"
+          }
+        },
+        "type" : "object"
+      },
+      "GatePolicyView" : {
+        "properties" : {
+          "created_at" : {
+            "type" : "string"
+          },
+          "created_by" : {
+            "type" : "string"
+          },
+          "fail_on_kev" : {
+            "type" : "boolean"
+          },
+          "fail_on_severity" : {
+            "type" : "string"
+          },
+          "fixable_only" : {
+            "type" : "boolean"
+          },
+          "include_ai_review" : {
+            "type" : "boolean"
+          },
+          "include_triaged" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "target_id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "target_name" : {
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -2070,6 +2417,167 @@
         },
         "type" : "object"
       },
+      "IssueDetail" : {
+        "properties" : {
+          "containerId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "cvssScore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "cvssVector" : {
+            "type" : "string"
+          },
+          "decisions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Decision"
+            },
+            "type" : "array"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "epssScore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "filePath" : {
+            "type" : "string"
+          },
+          "fingerprint" : {
+            "type" : "string"
+          },
+          "firstSeenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "firstSeenScanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "fixState" : {
+            "type" : "string"
+          },
+          "fixVersions" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "identifier" : {
+            "type" : "string"
+          },
+          "isDirectDependency" : {
+            "type" : "boolean"
+          },
+          "isKev" : {
+            "type" : "boolean"
+          },
+          "kev" : {
+            "type" : "boolean"
+          },
+          "lastSeenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastSeenScanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "line" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "link" : {
+            "type" : "string"
+          },
+          "packageName" : {
+            "type" : "string"
+          },
+          "packageVersion" : {
+            "type" : "string"
+          },
+          "purl" : {
+            "type" : "string"
+          },
+          "reachability" : {
+            "type" : "string"
+          },
+          "reachableSymbols" : {
+            "type" : "string"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "resolutionSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "resolvedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "sightings" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Sighting"
+            },
+            "type" : "array"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
+            "type" : "string"
+          },
+          "ticketRef" : {
+            "type" : "string"
+          },
+          "ticketUrl" : {
+            "type" : "string"
+          },
+          "timesSeen" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "triageComment" : {
+            "type" : "string"
+          },
+          "triageExpiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "triageJustification" : {
+            "type" : "string"
+          },
+          "triageStatus" : {
+            "type" : "string"
+          },
+          "triagedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "triagedBy" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "IssueEntity" : {
         "properties" : {
           "containerId" : {
@@ -2213,6 +2721,29 @@
         },
         "type" : "object"
       },
+      "IssuePage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BacklogEntry"
+            },
+            "type" : "array"
+          },
+          "limit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "offset" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "IssueTicketEntity" : {
         "properties" : {
           "createdAt" : {
@@ -2249,7 +2780,7 @@
       "IssuedKey" : {
         "properties" : {
           "key" : {
-            "$ref" : "#/components/schemas/Summary"
+            "$ref" : "#/components/schemas/ApiKeySummary"
           },
           "secret" : {
             "type" : "string"
@@ -2258,6 +2789,25 @@
         "type" : "object"
       },
       "JsonNode" : {
+        "type" : "object"
+      },
+      "LastScan" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "LicenseConflict" : {
@@ -2400,21 +2950,6 @@
           },
           "reviewOverdue" : {
             "type" : "boolean"
-          }
-        },
-        "type" : "object"
-      },
-      "Listing" : {
-        "properties" : {
-          "currentUserId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "users" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Summary"
-            },
-            "type" : "array"
           }
         },
         "type" : "object"
@@ -2838,59 +3373,13 @@
         },
         "type" : "object"
       },
-      "Overview" : {
+      "OverviewPolicyView" : {
         "properties" : {
-          "fileCount" : {
-            "format" : "int64",
-            "type" : "integer"
+          "source" : {
+            "type" : "string"
           },
-          "openCount" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "ruleCount" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "topFiles" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Bucket"
-            },
-            "type" : "array"
-          },
-          "topRules" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Bucket"
-            },
-            "type" : "array"
-          },
-          "topTargets" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Bucket"
-            },
-            "type" : "array"
-          }
-        },
-        "type" : "object"
-      },
-      "Page" : {
-        "properties" : {
-          "items" : {
-            "items" : {
-              "$ref" : "#/components/schemas/BacklogEntry"
-            },
-            "type" : "array"
-          },
-          "limit" : {
+          "version" : {
             "format" : "int32",
-            "type" : "integer"
-          },
-          "offset" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "total" : {
-            "format" : "int64",
             "type" : "integer"
           }
         },
@@ -2979,11 +3468,11 @@
       "PoliciesResponse" : {
         "properties" : {
           "built_in" : {
-            "$ref" : "#/components/schemas/PolicyView"
+            "$ref" : "#/components/schemas/GatePolicyView"
           },
           "policies" : {
             "items" : {
-              "$ref" : "#/components/schemas/PolicyView"
+              "$ref" : "#/components/schemas/GatePolicyView"
             },
             "type" : "array"
           }
@@ -3030,43 +3519,29 @@
         },
         "type" : "object"
       },
-      "PolicyView" : {
+      "Posture" : {
         "properties" : {
-          "created_at" : {
-            "type" : "string"
+          "failingCount" : {
+            "format" : "int32",
+            "type" : "integer"
           },
-          "created_by" : {
-            "type" : "string"
-          },
-          "fail_on_kev" : {
-            "type" : "boolean"
-          },
-          "fail_on_severity" : {
-            "type" : "string"
-          },
-          "fixable_only" : {
-            "type" : "boolean"
-          },
-          "include_ai_review" : {
-            "type" : "boolean"
-          },
-          "include_triaged" : {
-            "type" : "boolean"
-          },
-          "kind" : {
-            "type" : "string"
-          },
-          "note" : {
-            "type" : "string"
-          },
-          "target_id" : {
+          "kevCount" : {
             "format" : "int64",
             "type" : "integer"
           },
-          "target_name" : {
-            "type" : "string"
+          "lastScanFailedCount" : {
+            "format" : "int64",
+            "type" : "integer"
           },
-          "version" : {
+          "neverScannedCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "overdueCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalCount" : {
             "format" : "int32",
             "type" : "integer"
           }
@@ -3184,6 +3659,41 @@
         },
         "type" : "object"
       },
+      "QualityOverview" : {
+        "properties" : {
+          "fileCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "ruleCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "topFiles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Bucket"
+            },
+            "type" : "array"
+          },
+          "topRules" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Bucket"
+            },
+            "type" : "array"
+          },
+          "topTargets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Bucket"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "QueueStats" : {
         "properties" : {
           "avgScanDurationSeconds" : {
@@ -3228,6 +3738,43 @@
             "type" : "integer"
           },
           "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RecentScan" : {
+        "properties" : {
+          "containerId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "findingsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
             "type" : "string"
           }
         },
@@ -3461,6 +4008,91 @@
         },
         "type" : "object"
       },
+      "RepositoryCreateRequest" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "required_agent_label" : {
+            "type" : "string"
+          },
+          "scanCron" : {
+            "type" : "string"
+          },
+          "scanIntervalMinutes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sshKeyId" : {
+            "type" : "string"
+          },
+          "subPath" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RepositorySummary" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "lastScan" : {
+            "$ref" : "#/components/schemas/LastScan"
+          },
+          "lastScheduledScanAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openIssues" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "requiredAgentLabel" : {
+            "type" : "string"
+          },
+          "scanCron" : {
+            "type" : "string"
+          },
+          "scanIntervalMinutes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sshKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "subPath" : {
+            "type" : "string"
+          },
+          "tier" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Result" : {
         "properties" : {
           "level" : {
@@ -3574,6 +4206,17 @@
         },
         "type" : "object"
       },
+      "RuleSetListing" : {
+        "properties" : {
+          "ruleSets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RuleSetSummary"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "RuleSetResponse" : {
         "properties" : {
           "contentHash" : {
@@ -3584,6 +4227,45 @@
               "$ref" : "#/components/schemas/StoredFile"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "RuleSetSummary" : {
+        "properties" : {
+          "activationNote" : {
+            "type" : "string"
+          },
+          "contentHash" : {
+            "type" : "string"
+          },
+          "fileCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "ruleCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sizeBytes" : {
+            "type" : "string"
+          },
+          "uploadedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "uploadedBy" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3885,6 +4567,94 @@
               "$ref" : "#/components/schemas/SecretFinding"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ScanDetail" : {
+        "properties" : {
+          "findings" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FindingView"
+            },
+            "type" : "array"
+          },
+          "findingsTotal" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "findingsTruncated" : {
+            "type" : "boolean"
+          },
+          "hasSbom" : {
+            "type" : "boolean"
+          },
+          "projectType" : {
+            "type" : "string"
+          },
+          "projectVersion" : {
+            "type" : "string"
+          },
+          "scan" : {
+            "$ref" : "#/components/schemas/ScanSummary"
+          },
+          "subPath" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ScanSummary" : {
+        "properties" : {
+          "attempts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "branch" : {
+            "type" : "string"
+          },
+          "claimedBy" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "durationMs" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "findingsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "newIssuesCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "resolvedIssuesCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -4354,6 +5124,31 @@
         },
         "type" : "object"
       },
+      "Sighting" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "scanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "scannedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SignInMethods" : {
         "properties" : {
           "brandName" : {
@@ -4416,6 +5211,46 @@
         },
         "type" : "object"
       },
+      "SshKeyCreateRequest" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "private_key" : {
+            "type" : "string"
+          },
+          "public_key" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SshKeySummary" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "encryptionState" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
+          },
+          "usedByRepositories" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "StoredFile" : {
         "properties" : {
           "content" : {
@@ -4444,57 +5279,10 @@
         },
         "type" : "object"
       },
-      "Summary" : {
-        "properties" : {
-          "activeSessions" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "createdAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "displayName" : {
-            "type" : "string"
-          },
-          "email" : {
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "isActive" : {
-            "type" : "boolean"
-          },
-          "mustChangePassword" : {
-            "type" : "boolean"
-          },
-          "role" : {
-            "type" : "string"
-          },
-          "username" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "Suppression" : {
         "properties" : {
           "justification" : {
             "type" : "string"
-          },
-          "kind" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "TargetAssignment" : {
-        "properties" : {
-          "id" : {
-            "format" : "int64",
-            "type" : "integer"
           },
           "kind" : {
             "type" : "string"
@@ -4683,7 +5471,7 @@
             "type" : "boolean"
           },
           "policy" : {
-            "$ref" : "#/components/schemas/PolicyView"
+            "$ref" : "#/components/schemas/OverviewPolicyView"
           },
           "targetId" : {
             "format" : "int64",
@@ -4745,6 +5533,18 @@
           "targetCount" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamTargetAssignment" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -4988,20 +5788,6 @@
         },
         "type" : "object"
       },
-      "UpdateRequest" : {
-        "properties" : {
-          "is_active" : {
-            "type" : "boolean"
-          },
-          "password" : {
-            "type" : "string"
-          },
-          "role" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "UploadRequest" : {
         "properties" : {
           "files" : {
@@ -5047,6 +5833,76 @@
         },
         "type" : "object"
       },
+      "UserAdminSummary" : {
+        "properties" : {
+          "activeSessions" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserCreateRequest" : {
+        "properties" : {
+          "display_name" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserListing" : {
+        "properties" : {
+          "currentUserId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "users" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UserAdminSummary"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "UserSummary" : {
         "properties" : {
           "displayName" : {
@@ -5062,6 +5918,32 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserTargetAssignment" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserUpdateRequest" : {
+        "properties" : {
+          "is_active" : {
+            "type" : "boolean"
+          },
+          "password" : {
+            "type" : "string"
+          },
+          "role" : {
             "type" : "string"
           }
         },
@@ -5193,6 +6075,35 @@
         },
         "type" : "object"
       },
+      "Violation" : {
+        "properties" : {
+          "fixVersions" : {
+            "type" : "string"
+          },
+          "identifier" : {
+            "type" : "string"
+          },
+          "issueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "packageName" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "rule" : {
+            "enum" : [ "KEV", "SEVERITY" ],
+            "type" : "string"
+          },
+          "severity" : {
+            "enum" : [ "CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ViolationView" : {
         "properties" : {
           "fixVersions" : {
@@ -5301,7 +6212,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/AgentSummary"
                   },
                   "type" : "array"
                 }
@@ -5318,7 +6229,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/AgentCreateRequest"
               }
             }
           },
@@ -5412,7 +6323,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/UpdateRequest"
+                "$ref" : "#/components/schemas/AgentUpdateRequest"
               }
             }
           },
@@ -5733,7 +6644,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/ApiKeySummary"
                   },
                   "type" : "array"
                 }
@@ -5750,7 +6661,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/ApiKeyCreateRequest"
               }
             }
           },
@@ -5978,7 +6889,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Page"
+                  "$ref" : "#/components/schemas/AuditLogPage"
                 }
               }
             },
@@ -6668,7 +7579,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/ContainerSummary"
                   },
                   "type" : "array"
                 }
@@ -6685,7 +7596,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/ContainerCreateRequest"
               }
             }
           },
@@ -6696,7 +7607,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/ContainerSummary"
                 }
               }
             },
@@ -6740,7 +7651,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/ContainerCreateRequest"
               }
             }
           },
@@ -6751,7 +7662,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/ContainerSummary"
                 }
               }
             },
@@ -6953,7 +7864,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Overview"
+                  "$ref" : "#/components/schemas/DashboardOverview"
                 }
               }
             },
@@ -7226,7 +8137,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PolicyView"
+                  "$ref" : "#/components/schemas/GatePolicyView"
                 }
               }
             },
@@ -7295,7 +8206,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PolicyView"
+                  "$ref" : "#/components/schemas/GatePolicyView"
                 }
               }
             },
@@ -7612,7 +8523,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Page"
+                  "$ref" : "#/components/schemas/IssuePage"
                 }
               }
             },
@@ -7670,7 +8581,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Detail"
+                  "$ref" : "#/components/schemas/IssueDetail"
                 }
               }
             },
@@ -8021,7 +8932,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Overview"
+                  "$ref" : "#/components/schemas/QualityOverview"
                 }
               }
             },
@@ -8153,7 +9064,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/RepositorySummary"
                   },
                   "type" : "array"
                 }
@@ -8172,7 +9083,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/RepositoryCreateRequest"
               }
             }
           },
@@ -8183,7 +9094,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/RepositorySummary"
                 }
               }
             },
@@ -8233,7 +9144,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/RepositoryCreateRequest"
               }
             }
           },
@@ -8244,7 +9155,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/RepositorySummary"
                 }
               }
             },
@@ -8454,7 +9365,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Listing"
+                  "$ref" : "#/components/schemas/RuleSetListing"
                 }
               }
             },
@@ -8750,7 +9661,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/ScanSummary"
                   },
                   "type" : "array"
                 }
@@ -8782,7 +9693,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Detail"
+                  "$ref" : "#/components/schemas/ScanDetail"
                 }
               }
             },
@@ -9395,7 +10306,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Summary"
+                    "$ref" : "#/components/schemas/SshKeySummary"
                   },
                   "type" : "array"
                 }
@@ -9412,7 +10323,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/SshKeyCreateRequest"
               }
             }
           },
@@ -9423,7 +10334,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/SshKeySummary"
                 }
               }
             },
@@ -9846,7 +10757,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TargetAssignment"
+                    "$ref" : "#/components/schemas/TeamTargetAssignment"
                   },
                   "type" : "array"
                 }
@@ -9873,7 +10784,7 @@
             "application/json" : {
               "schema" : {
                 "items" : {
-                  "$ref" : "#/components/schemas/TargetAssignment"
+                  "$ref" : "#/components/schemas/TeamTargetAssignment"
                 },
                 "type" : "array"
               }
@@ -9887,7 +10798,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TargetAssignment"
+                    "$ref" : "#/components/schemas/TeamTargetAssignment"
                   },
                   "type" : "array"
                 }
@@ -10050,7 +10961,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Listing"
+                  "$ref" : "#/components/schemas/UserListing"
                 }
               }
             },
@@ -10065,7 +10976,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/CreateRequest"
+                "$ref" : "#/components/schemas/UserCreateRequest"
               }
             }
           },
@@ -10076,7 +10987,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/UserAdminSummary"
                 }
               }
             },
@@ -10120,7 +11031,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/UpdateRequest"
+                "$ref" : "#/components/schemas/UserUpdateRequest"
               }
             }
           },
@@ -10131,7 +11042,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Summary"
+                  "$ref" : "#/components/schemas/UserAdminSummary"
                 }
               }
             },
@@ -10159,7 +11070,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TargetAssignment"
+                    "$ref" : "#/components/schemas/UserTargetAssignment"
                   },
                   "type" : "array"
                 }
@@ -10186,7 +11097,7 @@
             "application/json" : {
               "schema" : {
                 "items" : {
-                  "$ref" : "#/components/schemas/TargetAssignment"
+                  "$ref" : "#/components/schemas/UserTargetAssignment"
                 },
                 "type" : "array"
               }
@@ -10200,7 +11111,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TargetAssignment"
+                    "$ref" : "#/components/schemas/UserTargetAssignment"
                   },
                   "type" : "array"
                 }

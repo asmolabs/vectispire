@@ -69,7 +69,7 @@ public class SshKeysController {
      *     configured key reads will fail the next clone that needs it — at scan time, in a
      *     worker thread, hours later
      */
-    public record Summary(
+    public record SshKeySummary(
             UUID id,
             String name,
             String publicKey,
@@ -78,16 +78,16 @@ public class SshKeysController {
             long usedByRepositories) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
-    public record CreateRequest(
+    public record SshKeyCreateRequest(
             String name,
             @JsonProperty("private_key") String privateKey,
             @JsonProperty("public_key") String publicKey) {}
 
     @GetMapping
-    public List<Summary> list() {
+    public List<SshKeySummary> list() {
         Map<UUID, Long> usage = usageByKey();
         return keys.findAllByOrderByCreatedAtDesc().stream()
-                .map(key -> new Summary(
+                .map(key -> new SshKeySummary(
                         key.getId(),
                         key.getName(),
                         key.getPublicKey(),
@@ -102,8 +102,8 @@ public class SshKeysController {
     }
 
     @PostMapping
-    public Summary create(
-            @RequestBody CreateRequest body,
+    public SshKeySummary create(
+            @RequestBody SshKeyCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -136,7 +136,7 @@ public class SshKeysController {
 
         SshKeyEntity saved = keys.save(key);
         record(principal, request, id.toString(), "SSH key added: " + name);
-        return new Summary(
+        return new SshKeySummary(
                 saved.getId(),
                 saved.getName(),
                 saved.getPublicKey(),

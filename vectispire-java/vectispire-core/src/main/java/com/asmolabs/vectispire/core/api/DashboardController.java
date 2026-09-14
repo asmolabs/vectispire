@@ -134,7 +134,7 @@ public class DashboardController {
      * @param qualityTotal apart, and never mixed into the security backlog: it blocks nothing
      * @param failing the targets in failure, so there is something to act on from here
      */
-    public record Overview(
+    public record DashboardOverview(
             Posture posture,
             Map<String, Long> backlogBySeverity,
             long qualityTotal,
@@ -142,11 +142,11 @@ public class DashboardController {
             List<RecentScan> recentScans) {}
 
     @GetMapping
-    public Overview overview(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public DashboardOverview overview(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         SecurityOverview.Overview posture = gate.overview(allowed);
 
-        return new Overview(
+        return new DashboardOverview(
                 new Posture(
                         posture.failingCount(),
                         posture.totalCount(),

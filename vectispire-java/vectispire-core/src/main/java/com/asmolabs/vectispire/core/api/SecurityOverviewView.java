@@ -41,7 +41,7 @@ record SecurityOverviewView(
             long targetId,
             String name,
             VerdictView verdict,
-            PolicyView policy,
+            OverviewPolicyView policy,
             String observation,
             Instant lastScanAt,
             Long lastScanId,
@@ -51,7 +51,7 @@ record SecurityOverviewView(
     record VerdictView(
             boolean passed, int evaluated, List<ViolationView> violations, Map<String, Long> countsBySeverity) {}
 
-    record PolicyView(String source, Integer version) {}
+    record OverviewPolicyView(String source, Integer version) {}
 
     static SecurityOverviewView of(SecurityOverview.Overview overview) {
         return new SecurityOverviewView(
@@ -79,7 +79,7 @@ record SecurityOverviewView(
                         // are the same severity to a reader and two different keys to a lookup.
                         posture.verdict().countsBySeverity().entrySet().stream()
                                 .collect(Collectors.toMap(entry -> entry.getKey().wireName(), Map.Entry::getValue))),
-                new PolicyView(source(posture.policy().source()), posture.policy().version().orElse(null)),
+                new OverviewPolicyView(source(posture.policy().source()), posture.policy().version().orElse(null)),
                 wire(posture.observation().name()),
                 posture.lastScan().map(SecurityOverview.LatestScan::createdAt).orElse(null),
                 posture.lastScan().map(SecurityOverview.LatestScan::id).orElse(null),

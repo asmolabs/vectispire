@@ -82,7 +82,7 @@ public class ContainersController {
         this.targetDeletion = targetDeletion;
     }
 
-    public record Summary(
+    public record ContainerSummary(
             Long id,
             String registry,
             String imageName,
@@ -98,7 +98,7 @@ public class ContainersController {
             String tier) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
-    public record CreateRequest(
+    public record ContainerCreateRequest(
             String registry,
             @JsonProperty("image_name") String imageName,
             String tag,
@@ -108,7 +108,7 @@ public class ContainersController {
             String tier) {}
 
     @GetMapping
-    public List<Summary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public List<ContainerSummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         Visibility allowed = visibility.of(
                 principal.user().orElse(null), principal.credentialRestriction());
         Map<Long, LastScan> latest = latestScans();
@@ -118,7 +118,7 @@ public class ContainersController {
                 .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
                 .map(container -> {
                     ImageReference reference = referenceOf(container);
-                    return new Summary(
+                    return new ContainerSummary(
                             container.getId(),
                             container.getRegistry(),
                             container.getImageName(),
@@ -138,8 +138,8 @@ public class ContainersController {
 
     @RequiresAdministrator
     @PostMapping
-    public Summary create(
-            @RequestBody CreateRequest body,
+    public ContainerSummary create(
+            @RequestBody ContainerCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
@@ -199,9 +199,9 @@ public class ContainersController {
      */
     @RequiresAdministrator
     @PatchMapping("/{id}")
-    public Summary update(
+    public ContainerSummary update(
             @PathVariable long id,
-            @RequestBody CreateRequest body,
+            @RequestBody ContainerCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 

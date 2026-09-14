@@ -48,7 +48,7 @@ public class QualityController {
      * @param ruleCount how many distinct rules the whole backlog touches, not how many rows the
      *     list below holds — see {@code Issues.countDistinctRules}
      */
-    public record Overview(
+    public record QualityOverview(
             long openCount,
             long ruleCount,
             long fileCount,
@@ -68,7 +68,7 @@ public class QualityController {
      * What it lacked was an allowance.
      */
     @GetMapping("/overview")
-    public Overview overview(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public QualityOverview overview(@AuthenticationPrincipal VectispirePrincipal principal) {
         String state = IssueState.OPEN.wireName();
         String type = FindingType.QUALITY.wireName();
 
@@ -84,12 +84,12 @@ public class QualityController {
         // and the answer is known. Falling back to the unrestricted form here would be the
         // inversion `Visibility` exists to prevent.
         if (repoIds.isPresent() && repoIds.get().isEmpty()) {
-            return new Overview(0, 0, 0, List.of(), List.of(), List.of());
+            return new QualityOverview(0, 0, 0, List.of(), List.of(), List.of());
         }
 
         if (repoIds.isPresent()) {
             List<Long> ids = repoIds.get();
-            return new Overview(
+            return new QualityOverview(
                     issues.countByStateAndTypeWithin(state, type, ids),
                     issues.countDistinctRulesWithin(state, type, ids),
                     issues.countDistinctFilesWithin(state, type, ids),
@@ -103,7 +103,7 @@ public class QualityController {
 
         List<Bucket> byTarget = namedTargets(issues.countOpenByTargetRepository(state, type, Limit.of(TOP)));
 
-        return new Overview(
+        return new QualityOverview(
                 issues.countByStateAndType(state, type),
                 issues.countDistinctRules(state, type),
                 issues.countDistinctFiles(state, type),
