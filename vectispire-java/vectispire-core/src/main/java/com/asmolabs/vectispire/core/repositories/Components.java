@@ -71,4 +71,28 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
      */
     @Query("select distinct c.purl from ComponentEntity c where c.purl is not null")
     List<String> distinctPurls();
+
+    /**
+     * The repositories whose scans produced an inventory, and the images likewise.
+     *
+     * <p><b>Read from the components and not from the {@code sbom} column, and that is the whole
+     * point of the pair.</b> The raw payload is purged on the retention window — ninety days by
+     * default — so counting targets with a non-empty blob would make the supply-chain control
+     * decay over time on an estate where nothing changed. The components are the normalized
+     * projection and are never purged, which is what makes "this target has an inventory" a
+     * durable fact rather than a property of how recently it was scanned.
+     *
+     * <p>Two queries rather than one union: the two id spaces are unrelated, and a union would
+     * have to carry a discriminator column that every engine spells differently.
+     */
+    @Query("""
+            select distinct s.repoId from ComponentEntity c, ScanEntity s
+             where c.scanId = s.id and s.repoId is not null""")
+    List<Long> distinctRepositoriesWithComponents();
+
+    /** @see #distinctRepositoriesWithComponents() */
+    @Query("""
+            select distinct s.containerId from ComponentEntity c, ScanEntity s
+             where c.scanId = s.id and s.containerId is not null""")
+    List<Long> distinctContainersWithComponents();
 }

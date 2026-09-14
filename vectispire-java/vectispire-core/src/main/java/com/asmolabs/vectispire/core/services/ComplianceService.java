@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -19,6 +21,7 @@ import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Duration;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,7 @@ public class ComplianceService {
     private final SettingsService settings;
     /** Lue pour une seule question : par quelle porte entre-t-on, et y en a-t-il deux ? */
     private final SignInMethodPolicy signIn;
+    private final Components components;
     private final Clock clock;
 
     public ComplianceService(
@@ -54,6 +58,7 @@ public class ComplianceService {
             EncryptionService encryption,
             SettingsService settings,
             SignInMethodPolicy signIn,
+            Components components,
             Clock clock) {
         this.gate = gate;
         this.issues = issues;
@@ -65,6 +70,7 @@ public class ComplianceService {
         this.encryption = encryption;
         this.settings = settings;
         this.signIn = signIn;
+        this.components = components;
         this.clock = clock;
     }
 
@@ -241,6 +247,31 @@ public class ComplianceService {
         return target.lastScan().map(scan -> !scan.createdAt().isBefore(cutoff)).orElse(false) ? 1 : 0;
     }
 
+
+    /**
+     * The targets whose scans produced a component inventory.
+     *
+     * <p><b>This exists because the supply-chain control was scored on the wrong measurement.</b>
+     * It was handed {@code observedTargets} — the count of targets that had been scanned at all —
+     * under the parameter name {@code targetsWithSbom}, so the assessment read "31/31 monitored
+     * targets have an active Software Bill of Materials" whenever 31 targets had been scanned,
+     * whether or not any of them produced an inventory. A scan that ran and yielded no components
+     * counted as evidence of one, and the sentence went into the evidence bundle as written.
+     *
+     * <p>No visibility clause: the caller filters this set against its own posture, which is
+     * already narrowed, so an id in here that the caller may not see is an id they never ask
+     * about. Building the allowance into the query would be the second implementation of that
+     * question this codebase refuses to make.
+     */
+    private Set<ScanTarget> targetsWithInventory() {
+        Set<ScanTarget> withInventory = new java.util.HashSet<>();
+        components.distinctRepositoriesWithComponents()
+                .forEach(id -> withInventory.add(new ScanTarget.Repository(id)));
+        components.distinctContainersWithComponents()
+                .forEach(id -> withInventory.add(new ScanTarget.Container(id)));
+        return withInventory;
+    }
+
     private Freshness freshness(SecurityOverview.Overview posture) {
         int windowDays = Math.max(0, settings.asInt(Setting.COMPLIANCE_FRESHNESS_DAYS));
         if (windowDays == 0) {
@@ -286,6 +317,11 @@ public class ComplianceService {
         Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
         Freshness fresh = freshness(posture);
+        Set<ScanTarget> withInventory = targetsWithInventory();
+        int targetsWithSbom = (int) posture.targets().stream()
+                .filter(target -> withInventory.contains(target.target()))
+                .count();
+
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 Math.max(1, totalTargets),
                 observedTargets,
@@ -293,7 +329,7 @@ public class ComplianceService {
                 fresh.windowDays(),
                 passingTargets,
                 critical, high, medium, low, kev, overdue, secrets, sast, iac,
-                observedTargets,
+                targetsWithSbom,
                 auditValid);
 
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
@@ -346,7 +382,7 @@ public class ComplianceService {
                     fresh.windowDays(),
                     isPassed ? 1 : 0,
                     tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
-                    isObserved ? 1 : 0,
+                    withInventory.contains(targetPosture.target()) ? 1 : 0,
                     auditValid);
 
             List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);
@@ -428,6 +464,11 @@ public class ComplianceService {
         Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
         Freshness fresh = freshness(posture);
+        Set<ScanTarget> withInventory = targetsWithInventory();
+        ScanTarget only = repoId != null
+                ? new ScanTarget.Repository(repoId)
+                : new ScanTarget.Container(containerId);
+
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 totalTargets,
                 observed ? 1 : 0,
@@ -435,7 +476,7 @@ public class ComplianceService {
                 fresh.windowDays(),
                 passingTargets,
                 critical, high, medium, low, kev, overdue, secrets, sast, iac,
-                observed ? 1 : 0,
+                withInventory.contains(only) ? 1 : 0,
                 auditValid);
 
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
@@ -482,7 +523,7 @@ public class ComplianceService {
                     fresh.windowDays(),
                     isPass ? 1 : 0,
                     tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
-                    isObs ? 1 : 0,
+                    withInventory.contains(tp.target()) ? 1 : 0,
                     auditValid);
 
             List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);

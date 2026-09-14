@@ -289,6 +289,22 @@ public final class ComplianceEngine {
                 new ComplianceEvaluation.ControlAssessment(control, status, score, details, remGuidance), input);
     }
 
+    /**
+     * How many targets carry a component inventory, over how many exist.
+     *
+     * <p><b>{@code targetsWithSbom} used to be handed the observed-target count.</b> The two
+     * arrive as the same kind of number in the same constructor, so nothing was wrong to look at:
+     * the control simply read "was this scanned" and printed "has a Software Bill of Materials".
+     * A scan that ran and produced no inventory counted as evidence of one, and the sentence below
+     * went into the evidence bundle as written.
+     *
+     * <p><b>It is not wrapped in {@link #withCoverage}, unlike the controls around it, and here
+     * that is right.</b> A target nobody ever scanned has no components, so it already lands in
+     * the denominator and not the numerator — the coverage cap exists for controls scored on the
+     * <em>absence</em> of findings, where never having looked is indistinguishable from having
+     * found nothing. This one is scored on a presence, which is the one shape that reads a
+     * never-scanned target correctly on its own.
+     */
     private static ComplianceEvaluation.ControlAssessment evaluateSupplyChain(ComplianceControl control, PostureInput input) {
         int total = Math.max(1, input.totalTargets());
         int withSbom = input.targetsWithSbom();
@@ -297,7 +313,10 @@ public final class ComplianceEngine {
         int score = ratio;
         ComplianceControl.Status status = statusForScore(score);
         String details = withSbom + "/" + total + " monitored targets have an active Software Bill of Materials (SBOM).";
-        String guidance = ratio < 100 ? "Execute Syft/Grype scans on all remaining targets to generate missing SBOMs." : "SBOM inventory is complete across all targets.";
+        String guidance = ratio < 100
+                ? "Scan the remaining targets: a target with no recorded components has no inventory to exhibit, "
+                        + "whether it was never scanned or its scan produced none."
+                : "SBOM inventory is complete across all targets.";
 
         return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);
     }
