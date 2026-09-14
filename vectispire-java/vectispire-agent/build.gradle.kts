@@ -42,6 +42,49 @@ dependencies {
  * the version belongs in the manifest and in the release artifact's name, which `release.yml`
  * applies itself when it renames the file.
  */
+/**
+ * A floor on the module that runs on machines this deployment does not own.
+ *
+ * **It was the only module without one, which is the wrong way round.** `vectispire-common`
+ * carries two floors and `vectispire-core` one; the agent — which holds a bearer token, reaches a
+ * control plane over the network, and signs the results it hands back — carried none. The repo
+ * argues throughout that a guarantee nothing executes is not a guarantee, and this was the place
+ * the argument was not applied to itself.
+ *
+ * **Set just under where the module stands rather than where it ought to**, for the reason
+ * `vectispire-common` gives about its own: a floor above the current figure fails the next honest
+ * commit and gets raised until nobody reads it. It stops the number going down; raising it is a
+ * separate act, made when the tests that justify it exist.
+ *
+ * **What is still uncovered, named rather than excluded.** `AgentRunner` — the wiring that reads
+ * the configuration and starts the loop — and the Spring Boot entry point. An aggregate absorbs
+ * them while the total holds, and naming them here is more useful than an exclusion that would
+ * make the figure flatter than the module is.
+ */
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.60".toBigDecimal()
+            }
+            limit {
+                // Lower than instruction coverage, and honestly so — same reasoning as the other
+                // two modules: a branch is the half of an `if` nobody wrote a case for.
+                counter = "BRANCH"
+                minimum = "0.45".toBigDecimal()
+            }
+        }
+    }
+}
+
+// Part of `check`, so `./gradlew build` enforces it. A verification task nobody runs is a
+// preference, not a gate.
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
 tasks.named<Jar>("bootJar") {
     archiveFileName = "vectispire-agent.jar"
 }
