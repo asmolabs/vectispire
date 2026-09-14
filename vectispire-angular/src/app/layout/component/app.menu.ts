@@ -64,7 +64,12 @@ export class AppMenu {
             // **Le document ISO 27001, et il ouvre sur ses écarts.** Rangé avec la conformité
             // plutôt qu'avec l'administration : ce qu'on déclare et ce qu'on mesure se lisent
             // ensemble ou pas du tout.
-            { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] }
+            { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
+
+            // **Avant la déclaration dans l'ordre de lecture, après elle dans le menu.** Le
+            // périmètre est ce à quoi les contrôles s'appliquent, mais personne ne vient le
+            // chercher : on y arrive parce qu'un chiffre de la déclaration ne s'explique pas.
+            { label: this.i18n.t('menu.scope'), icon: 'pi pi-fw pi-map', routerLink: ['/certified-scope'] }
         ];
 
         const sections: MenuItem[] = [

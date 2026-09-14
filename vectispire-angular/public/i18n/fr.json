@@ -546,7 +546,8 @@
     "exceptions": "Registre des exceptions",
     "gate_verdicts": "Registre des verdicts",
     "delays": "Délais de correction",
-    "soa": "Déclaration d'applicabilité"
+    "soa": "Déclaration d'applicabilité",
+    "scope": "Périmètre certifié"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1164,5 +1165,27 @@
     },
     "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
     "declare_failed": "La déclaration n'a pas été enregistrée."
+  },
+  "scope": {
+    "title": "Périmètre certifié",
+    "subtitle": "Ce que le périmètre certifié du système de management couvre, et combien de lui porte une preuve courante. Un outil qui mesure sa propre couverture annonce toujours cent pour cent — celui-ci mesure contre le document de périmètre.",
+    "statement": "Déclaration de périmètre",
+    "undeclared_notice": "Personne n'a dit combien d'actifs le périmètre couvre : la couverture est donc mesurée contre ce que cette instance détient. Renseignez « Actifs couverts par le périmètre certifié » dans les réglages pour rendre l'écart visible.",
+    "unaccounted": "actifs revendiqués par le périmètre dont cette instance n'a aucune ligne",
+    "unaccounted_help": "Ils ne peuvent être ni scannés, ni comptés, et aucune requête ici ne peut les voir : ils n'ont pas de ligne d'où manquer.",
+    "declared_assets": "actifs déclarés",
+    "not_declared": "non déclaré",
+    "in_scope": "cibles dans le périmètre",
+    "fresh": "avec preuve courante",
+    "stale": "scannées, pas récemment",
+    "never_scanned": "jamais scannées",
+    "fresh_share": "du périmètre déclaré porte une preuve courante",
+    "repositories": "Dépôts",
+    "containers": "Images",
+    "no_repository": "Aucun dépôt surveillé.",
+    "no_container": "Aucune image surveillée.",
+    "footnote": "Rien n'est dans le périmètre tant que personne ne l'y met : un périmètre que personne n'a tracé est un périmètre non tracé, pas le parc entier. Jamais scannée est compté à part de périmée — une cible scannée il y a un an a produit une preuve une fois, une cible jamais scannée n'en a jamais produit.",
+    "load_failed": "Le périmètre certifié n'a pas pu être chargé.",
+    "update_failed": "Le périmètre n'a pas été modifié."
   }
 }

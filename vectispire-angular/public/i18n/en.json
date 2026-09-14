@@ -546,7 +546,8 @@
     "exceptions": "Exceptions register",
     "gate_verdicts": "Verdict register",
     "delays": "Time to fix",
-    "soa": "Statement of applicability"
+    "soa": "Statement of applicability",
+    "scope": "Certified scope"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -1058,5 +1059,27 @@
     },
     "load_failed": "Could not load the statement of applicability.",
     "declare_failed": "The declaration was not recorded."
+  },
+  "scope": {
+    "title": "Certified scope",
+    "subtitle": "What the management system's certified scope covers, and how much of it carries current evidence. A tool measuring its own coverage always reports full coverage — this one measures against the scope document instead.",
+    "statement": "Scope statement",
+    "undeclared_notice": "Nobody has said how many assets the scope covers, so coverage here is measured against what this instance happens to hold. Set “Assets the certified scope covers” in the settings to make the gap visible.",
+    "unaccounted": "assets the scope claims that this instance holds no row for",
+    "unaccounted_help": "They cannot be scanned, cannot be counted, and no query here can notice them: they have no row to be missing from.",
+    "declared_assets": "assets declared",
+    "not_declared": "undeclared",
+    "in_scope": "targets in scope",
+    "fresh": "with current evidence",
+    "stale": "scanned, not lately",
+    "never_scanned": "never scanned",
+    "fresh_share": "of the declared scope carries current evidence",
+    "repositories": "Repositories",
+    "containers": "Images",
+    "no_repository": "No repository is monitored.",
+    "no_container": "No image is monitored.",
+    "footnote": "Nothing is in scope until somebody puts it there: a scope nobody has drawn is an undrawn scope, not the whole estate. Never scanned is counted apart from stale — a target scanned a year ago produced evidence once, one never scanned never has.",
+    "load_failed": "Could not load the certified scope.",
+    "update_failed": "The scope was not changed."
   }
 }
