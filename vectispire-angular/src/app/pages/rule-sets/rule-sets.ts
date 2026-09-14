@@ -32,11 +32,12 @@ import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core
  * archive to extract server-side and no path traversal to defend against.
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 
 @Component({
     selector: 'app-rule-sets',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule, RuleCoverageBanner, TranslatePipe],
     templateUrl: './rule-sets.html'
 })
 export class RuleSets {

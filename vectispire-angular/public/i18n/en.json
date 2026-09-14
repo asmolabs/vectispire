@@ -971,5 +971,17 @@
     "empty": "Nothing has been resolved in this window.",
     "footnote": "The 90th percentile is at nearest rank: it is a duration an issue really had, not a point interpolated between two. Issues closed in the instant they were seen are absent from the distribution rather than sitting at its floor.",
     "load_failed": "Could not load the remediation distribution."
+  },
+  "rule_coverage": {
+    "unconfigured": {
+      "title": "Code analysis covers one pattern, in Python.",
+      "body": "The repositories in other languages are not analysed — no rule reaches them, so a zero here means nothing was looked for."
+    },
+    "partial": {
+      "title": "No rule covers:",
+      "body": "Injection and SSRF are not measured there — those categories are not green, they are without evidence."
+    },
+    "import": "Import a catalogue",
+    "add": "Add these languages"
   }
 }

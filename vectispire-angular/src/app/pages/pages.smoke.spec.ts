@@ -67,6 +67,11 @@ describe('every screen', () => {
             };
         }
         if (url.endsWith('/rule-sets')) return { ruleSets: [] };
+        // La couverture est un verdict, pas une collection : `COVERED` fait taire le bandeau,
+        // ce qui est l'état d'un serveur vide autant que celui d'un serveur bien réglé.
+        if (url.endsWith('/rule-sets/coverage')) {
+            return { state: 'COVERED', languagesWithRules: [], ecosystemsInEstate: [], uncovered: [], ruleFiles: 0 };
+        }
         // Le registre porte ses compteurs à côté de ses lignes : rendu à vide, c'est un objet
         // dont `entries` est une liste, jamais une liste nue.
         if (url.includes('/remediation/distribution')) {

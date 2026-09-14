@@ -1077,5 +1077,17 @@
     "empty": "Rien n'a été résolu sur cette fenêtre.",
     "footnote": "Le 90e centile est au rang le plus proche : c'est une durée qu'une issue a réellement eue, pas un point interpolé entre deux. Les issues fermées dans l'instant où elles ont été vues sont absentes de la distribution plutôt qu'à son plancher.",
     "load_failed": "La distribution des délais n'a pas pu être chargée."
+  },
+  "rule_coverage": {
+    "unconfigured": {
+      "title": "L'analyse de code ne couvre qu'un motif, en Python.",
+      "body": "Les dépôts dans d'autres langages ne sont pas analysés — aucune règle ne les atteint, donc un zéro ici ne veut rien dire d'autre que « on n'a pas cherché »."
+    },
+    "partial": {
+      "title": "Aucune règle ne couvre :",
+      "body": "L'injection et le SSRF n'y sont pas mesurés — ces catégories ne sont pas vertes, elles sont sans preuve."
+    },
+    "import": "Importer un catalogue",
+    "add": "Ajouter ces langages"
   }
 }
