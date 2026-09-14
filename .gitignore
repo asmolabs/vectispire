@@ -11,7 +11,11 @@ dist/
 .angular/
 coverage/
 *.tsbuildinfo
-vectispire-angular/openapi.json
+
+# `vectispire-angular/openapi.json` was here, as a build artefact of the NestJS era: it was
+# generated locally and nobody kept it. It is now the committed contract of the 163 routes, and
+# `ClientContractSpecTest` fails when the code and the file disagree — ignoring it would mean the
+# test asks for a file the repository refuses to hold, which is a red build on every checkout.
 
 # macOS
 .DS_Store

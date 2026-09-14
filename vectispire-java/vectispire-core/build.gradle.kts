@@ -375,6 +375,23 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  * counted here; folding it in would make this number depend on whether somebody had a Docker
  * daemon, which is the opposite of what a gate should do.
  */
+/**
+ * The one system property a developer passes through to the test JVM.
+ *
+ * `-D` on the command line reaches Gradle's own JVM and stops there; a test asking for it sees
+ * nothing, which reads as "the flag does not work" rather than as "the flag did not arrive".
+ * Forwarded explicitly, and only this one: a blanket copy of every system property would make a
+ * test run depend on whatever the developer's environment happens to carry.
+ *
+ * Used by `ClientContractSpecTest` to rewrite `vectispire-angular/openapi.json` instead of
+ * asserting against it.
+ */
+tasks.named<Test>("test") {
+    systemProperty(
+        "vectispire.openapi.write",
+        providers.systemProperty("vectispire.openapi.write").getOrElse("false"))
+}
+
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     classDirectories.setFrom(
         files(classDirectories.files.map {

@@ -1,14 +1,20 @@
 /**
  * The shapes the API returns.
  *
- * **Hand-written, and not yet replaceable.** `npm run generate:api` does produce
- * `api.generated.ts` from `/api/v1/openapi.json`, but that document today describes only the
- * *paths*: NestJS declares a response schema only where the controller carries the
- * `@ApiResponse`/`@ApiOkResponse` decorators and returns a DTO class. Without them the
- * generator emits operations with empty responses — useful for the URLs, silent on the shapes.
+ * **Hand-written, and now replaceable — which it was not when this note was first written.**
+ * That note described a NestJS control plane, where a response schema existed only where a
+ * controller carried `@ApiResponse` and returned a DTO class; without them the generator emitted
+ * operations with empty responses, useful for the URLs and silent on the shapes. The backend has
+ * been Spring Boot for some time and the document it produces now carries 189 component schemas
+ * across 136 paths, so the obstacle named here is gone.
  *
- * This file will therefore disappear when the controllers have their DTOs, and not before. It
- * holds shapes only, no logic, so that removing it then costs nothing.
+ * What remains is the work: every screen imports the interfaces below, and swapping them for
+ * `components['schemas'][…]` is a change to make deliberately, one area at a time, with the
+ * compiler as the guide. Until then this file holds shapes only and no logic, so that removing
+ * it costs nothing when somebody does it.
+ *
+ * `openapi.json` beside this workspace is regenerated and *verified* by `ClientContractSpecTest`
+ * in the control plane: a route whose shape changes fails that test rather than this screen.
  */
 
 export interface AuthenticatedUser {

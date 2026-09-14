@@ -4,6 +4,406 @@
  */
 
 export interface paths {
+    "/api/v1/admin/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
+        put?: never;
+        post: operations["create_7"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agents/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agents/non-routables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["unroutable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_4"];
+        options?: never;
+        head?: never;
+        patch: operations["update_4"];
+        trace?: never;
+    };
+    "/api/v1/admin/agents/{id}/signing-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["pinSigningKey"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/hello": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["hello"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["claimJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/jobs/{scanId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["heartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/jobs/{scanId}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submitResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/rules/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ruleSet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-advisor/explain/cve/{cveId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["explainCve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-advisor/explain/issue/{issueId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["explainIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai-advisor/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getStatus_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_8"];
+        put?: never;
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api-keys/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["targets_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_6"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attack-paths/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get global attack paths overview
+         * @description Returns multi-target attack path summaries and critical exploit chain counts across all repositories.
+         */
+        get: operations["getOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attack-paths/repositories/{repoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get repository attack path graph
+         * @description Returns the correlated attack path graph (Ingress -> API Endpoint -> Vulnerability -> Secret/DB) for a repository.
+         */
+        get: operations["getRepositoryAttackPath"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attack-surface": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get global attack surface
+         * @description Returns cross-repository aggregated statistics, frameworks detected, and unauthenticated endpoints.
+         */
+        get: operations["globalAttackSurface"];
+        put?: never;
+        post?: never;
+        /**
+         * Purge all attack surface data
+         * @description Atomically deletes all endpoints and contracts across the entire platform.
+         */
+        delete: operations["clearAllAttackSurfaces"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attestations/scans/{scanId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["forScan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_13"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-log/operation-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operationTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-log/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["verify"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -13,7 +413,127 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["AuthController_login"];
+        /**
+         * User login
+         * @description Authenticates user by credentials and issues a JWT session bearer token or an MFA challenge.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get available sign-in methods
+         * @description Discovers whether password login and/or SSO OIDC providers are enabled.
+         */
+        get: operations["methods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable MFA
+         * @description Deactivates 2FA after providing verification code.
+         */
+        post: operations["disableMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable MFA
+         * @description Confirms TOTP setup by verifying the first code.
+         */
+        post: operations["enableMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup MFA / TOTP
+         * @description Generates a new TOTP secret and QR code URI for 2FA setup.
+         */
+        post: operations["setupMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify MFA challenge
+         * @description Verifies TOTP authentication code and completes sign-in.
+         */
+        post: operations["verifyMfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -30,20 +550,596 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["AuthController_logout"];
+        delete: operations["logout"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/me": {
+    "/api/v1/auth/session/exchange": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["AuthController_me"];
+        get?: never;
+        put?: never;
+        /**
+         * Exchange SSO hand-off cookie for session
+         * @description Trades temporary SSO callback cookie for a full JWT session.
+         */
+        post: operations["exchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blast-radius/explore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["explore"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blast-radius/top-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTopImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/evidence-bundle.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export certified audit evidence bundle
+         * @description Generates a cryptographically sealed ZIP bundle containing compliance evidence, SHA-256 integrity proofs, and policy audit logs.
+         */
+        get: operations["exportEvidenceBundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export compliance PDF report
+         * @description Generates an executive PDF compliance audit report.
+         */
+        get: operations["exportPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/frameworks/{framework}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get framework compliance details
+         * @description Returns detailed conformity evaluation for a specific framework (e.g. NIS2, ISO_27001).
+         */
+        get: operations["framework"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compliance/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get compliance summary
+         * @description Returns compliance scores across all regulatory frameworks.
+         */
+        get: operations["summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/containers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_7"];
+        put?: never;
+        post: operations["create_5"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/containers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_3"];
+        options?: never;
+        head?: never;
+        patch: operations["update_3"];
+        trace?: never;
+    };
+    "/api/v1/containers/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["triggerScan_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crypto/cosign-cli-helper": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCosignCliHelper"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crypto/public-key.pub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicKey"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crypto/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifySignature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csaf/aggregate.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAggregateCsaf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/csaf/scans/{scanId}/csaf.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getScanCsaf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cyclonedx/aggregate.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAggregateCycloneDx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getScanCycloneDx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/posture-analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["postureAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["trends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/epss/cve/{cveId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lookupCve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/epss/priorities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPriorities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/epss/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The exceptions register
+         * @description Risk acceptances and dismissals, newest first, narrowed to what the caller may see.
+         */
+        get: operations["register_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate security quality gate
+         * @description Evaluates current target vulnerabilities against active or requested gate policy. Returns exit verdict and violations.
+         */
+        post: operations["evaluate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_12"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/policies/global": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["storeGlobal"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/policies/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["storeForTarget"];
+        post?: never;
+        delete: operations["clear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/verdicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gate verdict register
+         * @description The gate's recent answers, newest first, narrowed to what the caller may see.
+         */
+        get: operations["register"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["repositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/repositories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dossier"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/repositories/{id}/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["csv_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/repositories/{id}/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pdf_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["versions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -59,7 +1155,39 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["IssuesController_list"];
+        get: operations["list_11"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["triageMany"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -77,14 +1205,126 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["IssuesController_triage"];
+        post: operations["triage"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gate": {
+    "/api/v1/issues/{issueId}/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_6"];
+        put?: never;
+        post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/licenses/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/licenses/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getInventory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/licenses/matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCompatibilityMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/licenses/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPolicy"];
+        put: operations["updatePolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/licenses/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/test/{channelType}": {
         parameters: {
             query?: never;
             header?: never;
@@ -93,8 +1333,511 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["GateController_evaluateGate"];
+        post: operations["testChannel"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["overview_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/debt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["debt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Remediation time distribution
+         * @description Share within SLA, median, ninetieth percentile and oldest open item, per severity.
+         */
+        get: operations["distribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/remediation/high-impact-fixes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["highImpactFixes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List repositories
+         * @description Returns all git repositories monitored by Vectispire visible to the caller.
+         */
+        get: operations["list_5"];
+        put?: never;
+        /**
+         * Create repository
+         * @description Registers a new Git repository for automated security scanning.
+         */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete repository
+         * @description Removes repository and cascades deletion of its issues, findings and history.
+         */
+        delete: operations["remove_2"];
+        options?: never;
+        head?: never;
+        /**
+         * Update repository
+         * @description Updates configuration, schedule or credentials of a monitored repository.
+         */
+        patch: operations["update_2"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/apis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get repository APIs overview
+         * @description Returns all discovered endpoints, declared OpenAPI contracts, and shadow API differences for a repository.
+         */
+        get: operations["repositoryApis"];
+        put?: never;
+        post?: never;
+        /**
+         * Purge repository attack surface data
+         * @description Deletes all endpoints and contracts belonging to a specific repository.
+         */
+        delete: operations["clearRepositoryAttackSurface"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/apis/export/openapi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export synthesized OpenAPI specification
+         * @description Synthesizes an OpenAPI 3.0 document from static endpoint discovery.
+         */
+        get: operations["exportOpenApi"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/owasp-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["latest"];
+        put?: never;
+        post: operations["run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/owasp-review/export.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pdf_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger repository scan
+         * @description Enqueues an immediate full security scan (SBOM, CVE, Secrets, SAST, IaC, APIs).
+         */
+        post: operations["triggerScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_4"];
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalogue"];
+        put?: never;
+        post: operations["fetchCatalogue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rule coverage
+         * @description Whether the installed rules reach the ecosystems in the estate.
+         */
+        get: operations["coverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["deactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/{id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["impact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sbom/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["diff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sbom/diff/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["diffLatest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List scan history
+         * @description Returns historical security scans with filtering by repository or container target.
+         */
+        get: operations["list_10"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get scan detail
+         * @description Returns full details and raw findings observed during a specific scan.
+         */
+        get: operations["detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{id}/sbom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download scan SBOM
+         * @description Returns the complete Software Bill of Materials (SBOM) produced during this scan.
+         */
+        get: operations["sbom"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/badges/{token}.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a published SVG security badge
+         * @description Renders the SVG shield of the repository this badge token was issued for.
+         */
+        get: operations["getPublishedBadge"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/containers/{containerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get container scorecard
+         * @description Calculates security grade and risk posture for a container image.
+         */
+        get: operations["getContainerScorecard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/global": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get global scorecard
+         * @description Calculates cross-organizational aggregate security posture grade.
+         */
+        get: operations["getGlobalScorecard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/repositories/{repoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get repository scorecard
+         * @description Calculates security grade (A+ to F), risk posture, and metric breakdown for a repository.
+         */
+        get: operations["getRepositoryScorecard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scorecards/repositories/{repoId}/badge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a repository's badge state */
+        get: operations["badgeState"];
+        put?: never;
+        /** Publish a repository's security badge */
+        post: operations["publishBadge"];
+        /** Revoke a repository's security badge */
+        delete: operations["revokeBadge"];
         options?: never;
         head?: never;
         patch?: never;
@@ -107,7 +1850,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["GateController_overview"];
+        /**
+         * Get global security posture overview
+         * @description Returns aggregate posture and gate statuses for all monitored targets.
+         */
+        get: operations["overview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -116,15 +1863,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/targets/{kind}/{id}/issues.sarif": {
+    "/api/v1/settings": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["ExportsController_sarif"];
-        put?: never;
+        get: operations["list"];
+        put: operations["update"];
         post?: never;
         delete?: never;
         options?: never;
@@ -132,14 +1879,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/targets/{kind}/{id}/vex": {
+    "/api/v1/settings/ai-openai-key": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["ExportsController_vex"];
+        get: operations["openAiKeyState"];
+        put: operations["setOpenAiKey"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/ollama-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["testOllama"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/ticket-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ticketTokenState"];
+        put: operations["setTicketToken"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/ticket-webhook-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ticketWebhookSecretState"];
+        put: operations["setTicketWebhookSecret"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/webhook-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["webhookSigningSecretState"];
+        put: operations["setWebhookSigningSecret"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/siem/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConfig"];
+        put: operations["updateConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/siem/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["testConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ssh-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_3"];
+        put?: never;
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ssh-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_5"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/targets/{kind}/{id}/issues.csaf.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["csaf"];
         put?: never;
         post?: never;
         delete?: never;
@@ -155,7 +2046,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["ExportsController_csv"];
+        get: operations["csv"];
         put?: never;
         post?: never;
         delete?: never;
@@ -164,10 +2055,2207 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/targets/{kind}/{id}/issues.sarif": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sarif"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/targets/{kind}/{id}/posture.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/targets/{kind}/{id}/vex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["vex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_1"];
+        options?: never;
+        head?: never;
+        patch: operations["rename"];
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["members"];
+        put: operations["setMembers"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["targets_1"];
+        put: operations["setTargets_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setWebhook"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threat-intel/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threat-intel/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/webhook/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handle incoming ticketing webhook
+         * @description Receives webhook notifications from external issue trackers (Jira, GitLab, GitHub, ServiceNow) and synchronizes triage status.
+         */
+        post: operations["handleWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove"];
+        options?: never;
+        head?: never;
+        patch: operations["update_1"];
+        trace?: never;
+    };
+    "/api/v1/users/{id}/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["targets"];
+        put: operations["setTargets"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vex/aggregate.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAggregateVex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vex/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ingestVex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vex/scans/{scanId}/openvex.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getScanVex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listGroups"];
+        put?: never;
+        post: operations["createGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getGroup"];
+        put: operations["updateGroup"];
+        post?: never;
+        delete: operations["deleteGroup"];
+        options?: never;
+        head?: never;
+        patch: operations["patchGroup"];
+        trace?: never;
+    };
+    "/scim/v2/Users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listUsers"];
+        put?: never;
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getUser"];
+        put: operations["updateUser"];
+        post?: never;
+        delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch: operations["patchUser"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        ActivateRequest: {
+            note?: string;
+        };
+        AgentActivitySummary: {
+            pendingScans?: components["schemas"]["PendingScanItem"][];
+            runningScans?: components["schemas"]["RunningScanItem"][];
+            stats?: components["schemas"]["QueueStats"];
+        };
+        AiVulnerabilityAdvice: {
+            exploitMechanics?: string;
+            exposureAssessment?: string;
+            identifier?: string;
+            references?: string[];
+            remediation?: components["schemas"]["RemediationAdvice"];
+            summaryExplanation?: string;
+            title?: string;
+            vexSuggestion?: components["schemas"]["VexSuggestion"];
+        };
+        ApiContract: {
+            contractPath?: string;
+            declaredPaths?: string[];
+            /** Format: int32 */
+            endpointsCount?: number;
+            format?: string;
+            title?: string;
+            version?: string;
+        };
+        ApiContractEntity: {
+            contractPath?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int32 */
+            endpointsCount?: number;
+            format?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            repositoryId?: number;
+            /** Format: int64 */
+            scanId?: number;
+            title?: string;
+            version?: string;
+        };
+        ApiEndpoint: {
+            authRequired?: boolean;
+            authType?: string;
+            filePath?: string;
+            framework?: string;
+            /** Format: int32 */
+            lineNumber?: number;
+            method?: string;
+            operationId?: string;
+            path?: string;
+            sensitivePath?: boolean;
+            summary?: string;
+            tags?: string;
+            /** @enum {string} */
+            visibility?: "PUBLIC" | "INTERNAL" | "UNKNOWN";
+        };
+        AppliedPolicy: {
+            description?: string;
+            failOnKev?: boolean;
+            failOnSeverity?: string;
+            fixableOnly?: boolean;
+            includeAiReview?: boolean;
+            includeTriaged?: boolean;
+            source?: string;
+            /** Format: int32 */
+            version?: number;
+        };
+        ArtifactLocation: {
+            uri?: string;
+        };
+        Assessment: {
+            ecosystemsInEstate?: string[];
+            languagesWithRules?: string[];
+            /** Format: int32 */
+            ruleFiles?: number;
+            /** @enum {string} */
+            state?: "UNCONFIGURED" | "PARTIAL" | "COVERED";
+            uncovered?: string[];
+        };
+        AttackPath: {
+            description?: string;
+            id?: string;
+            isDirectlyExploitable?: boolean;
+            nodeIds?: string[];
+            remediationAdvice?: string;
+            riskLevel?: string;
+            title?: string;
+        };
+        AttackPathEdge: {
+            id?: string;
+            isCriticalPath?: boolean;
+            label?: string;
+            source?: string;
+            target?: string;
+        };
+        AttackPathGraph: {
+            attackPaths?: components["schemas"]["AttackPath"][];
+            /** Format: int32 */
+            criticalExploitablePaths?: number;
+            edges?: components["schemas"]["AttackPathEdge"][];
+            nodes?: components["schemas"]["AttackPathNode"][];
+            /** Format: int32 */
+            riskScore?: number;
+            /** Format: int64 */
+            targetId?: number;
+            targetName?: string;
+            /** Format: int32 */
+            totalPaths?: number;
+        };
+        AttackPathNode: {
+            id?: string;
+            isExploitable?: boolean;
+            label?: string;
+            metadata?: {
+                [key: string]: string;
+            };
+            severity?: string;
+            subtitle?: string;
+            /** @enum {string} */
+            type?: "INTERNET_INGRESS" | "API_ENDPOINT" | "VULNERABLE_COMPONENT" | "SECRET" | "DATABASE" | "INFRASTRUCTURE";
+        };
+        AttackSurfaceSummary: {
+            /** Format: int32 */
+            internalEndpoints?: number;
+            /** Format: int32 */
+            publicEndpoints?: number;
+            /** Format: int32 */
+            sensitiveUnprotectedEndpoints?: number;
+            /** Format: int32 */
+            shadowEndpoints?: number;
+            /** Format: int32 */
+            totalEndpoints?: number;
+            /** Format: int32 */
+            unauthenticatedEndpoints?: number;
+        };
+        BacklogEntry: {
+            /** Format: int64 */
+            containerId?: number;
+            /** Format: double */
+            cvssScore?: number;
+            cvssVector?: string;
+            description?: string;
+            /** Format: double */
+            epssScore?: number;
+            filePath?: string;
+            fingerprint?: string;
+            /** Format: date-time */
+            firstSeenAt?: string;
+            /** Format: int64 */
+            firstSeenScanId?: number;
+            fixState?: string;
+            fixVersions?: string;
+            /** Format: int64 */
+            id?: number;
+            identifier?: string;
+            isDirectDependency?: boolean;
+            isKev?: boolean;
+            kev?: boolean;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: int64 */
+            lastSeenScanId?: number;
+            /** Format: int32 */
+            line?: number;
+            link?: string;
+            packageName?: string;
+            packageVersion?: string;
+            purl?: string;
+            reachability?: string;
+            reachableSymbols?: string;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int64 */
+            resolutionSeconds?: number;
+            /** Format: date-time */
+            resolvedAt?: string;
+            severity?: string;
+            /** Format: int64 */
+            slaDays?: number;
+            /** Format: date-time */
+            slaDueAt?: string;
+            slaState?: string;
+            source?: string;
+            state?: string;
+            targetKind?: string;
+            targetName?: string;
+            ticketRef?: string;
+            ticketUrl?: string;
+            /** Format: int32 */
+            timesSeen?: number;
+            triageComment?: string;
+            /** Format: date-time */
+            triageExpiresAt?: string;
+            triageJustification?: string;
+            triageStatus?: string;
+            /** Format: date-time */
+            triagedAt?: string;
+            triagedBy?: string;
+            type?: string;
+        };
+        BadgeState: {
+            published?: boolean;
+            token?: string;
+            url?: string;
+        };
+        BlastRadiusReport: {
+            /** Format: int32 */
+            blastRadiusScore?: number;
+            /** Format: int32 */
+            directUsages?: number;
+            graph?: components["schemas"]["DependencyGraph"];
+            query?: string;
+            queryType?: string;
+            targets?: components["schemas"]["TargetImpact"][];
+            /** Format: int32 */
+            totalAssociatedCves?: number;
+            /** Format: int32 */
+            totalTargetsAffected?: number;
+            /** Format: int32 */
+            transitiveUsages?: number;
+        };
+        Block: {
+            headers?: string[];
+            /** @enum {string} */
+            kind?: "HEADING" | "CATEGORY" | "PARAGRAPH" | "BULLET" | "NUMBERED" | "BLOCKQUOTE" | "TABLE";
+            /** Format: int32 */
+            level?: number;
+            marker?: string;
+            rows?: string[][];
+            text?: string;
+        };
+        Bucket: {
+            /** Format: int64 */
+            count?: number;
+            label?: string;
+        };
+        Builder: {
+            id?: string;
+            version?: string;
+        };
+        BulkTriageRequest: {
+            comment?: string;
+            /** Format: int32 */
+            expires_in_days?: number;
+            ids?: number[];
+            justification?: string;
+            status?: string;
+        };
+        BySeverity: {
+            /** Format: int64 */
+            late?: number;
+            /** Format: double */
+            medianDays?: number;
+            /** Format: double */
+            ninetiethDays?: number;
+            /** Format: int64 */
+            oldestOpenDays?: number;
+            /** Format: int64 */
+            openOverdue?: number;
+            /** Format: double */
+            percentageWithinSla?: number;
+            /** @enum {string} */
+            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+            /** Format: int32 */
+            windowDays?: number;
+            /** Format: int64 */
+            withinSla?: number;
+        };
+        Catalog: {
+            settings?: components["schemas"]["SettingView"][];
+        };
+        CataloguePreview: {
+            commit?: string;
+            languages?: {
+                [key: string]: number;
+            };
+            licence?: string;
+            licenceName?: string;
+            licence_sha256?: string;
+            upstream?: string;
+        };
+        CatalogueRequest: {
+            commit?: string;
+            languages?: string[];
+            licence_sha256?: string;
+        };
+        ChangePasswordRequest: {
+            current_password?: string;
+            new_password?: string;
+        };
+        CompatibilityCell: {
+            /** @enum {string} */
+            compatibility?: "COMPATIBLE" | "CONDITIONAL" | "INCOMPATIBLE_BLOCKING";
+            dependencyLicenseCategory?: string;
+            ruleDescription?: string;
+            targetLicenseType?: string;
+        };
+        ComplianceControl: {
+            /** @enum {string} */
+            category?: "VULNERABILITY_MANAGEMENT" | "SUPPLY_CHAIN" | "SECRETS_MANAGEMENT" | "SECURE_CODING" | "INFRASTRUCTURE_AS_CODE" | "GOVERNANCE" | "AUDIT_AND_LOGGING";
+            id?: string;
+            name?: string;
+            requirement?: string;
+        };
+        ComplianceEvaluation: {
+            controls?: components["schemas"]["ControlAssessment"][];
+            /** @enum {string} */
+            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            /** @enum {string} */
+            overallStatus?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            /** Format: int32 */
+            scorePercentage?: number;
+        };
+        ComplianceSummary: {
+            /** Format: int64 */
+            dueSoonCount?: number;
+            evaluations?: components["schemas"]["ComplianceEvaluation"][];
+            mttr?: components["schemas"]["MttrResult"];
+            /** Format: int64 */
+            overdueCount?: number;
+            /** Format: int32 */
+            passingGateTargets?: number;
+            targets?: components["schemas"]["TargetCompliance"][];
+            /** Format: int32 */
+            totalMonitoredTargets?: number;
+        };
+        Component: {
+            "bom-ref"?: string;
+            group?: string;
+            name?: string;
+            purl?: string;
+            scope?: string;
+            type?: string;
+            version?: string;
+        };
+        ComponentDelta: {
+            /** @enum {string} */
+            changeType?: "ADDED" | "REMOVED" | "VERSION_CHANGED" | "LICENSE_CHANGED" | "UNCHANGED";
+            isDirect?: boolean;
+            name?: string;
+            newLicense?: string;
+            newVersion?: string;
+            oldLicense?: string;
+            oldVersion?: string;
+            purl?: string;
+            type?: string;
+        };
+        ControlAssessment: {
+            control?: components["schemas"]["ComplianceControl"];
+            details?: string;
+            remediationGuidance?: string;
+            /** Format: int32 */
+            scorePercentage?: number;
+            /** @enum {string} */
+            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+        };
+        CreateRequest: {
+            display_name?: string;
+            email?: string;
+            password?: string;
+            role?: string;
+            username?: string;
+        };
+        CreateTicketRequest: {
+            provider?: string;
+            ticketKey?: string;
+            ticketUrl?: string;
+        };
+        CsafDocument: {
+            document?: components["schemas"]["Document"];
+            product_tree?: components["schemas"]["ProductTree"];
+            vulnerabilities?: components["schemas"]["Vulnerability"][];
+        };
+        CveDelta: {
+            cveId?: string;
+            packageName?: string;
+            severity?: string;
+            /** @enum {string} */
+            status?: "INTRODUCED" | "RESOLVED" | "PERSISTENT";
+            version?: string;
+        };
+        CycloneDxDocument: {
+            bomFormat?: string;
+            components?: components["schemas"]["Component"][];
+            metadata?: components["schemas"]["Metadata"];
+            serialNumber?: string;
+            specVersion?: string;
+            /** Format: int32 */
+            version?: number;
+            vulnerabilities?: components["schemas"]["Vulnerability"][];
+        };
+        DailyPosturePoint: {
+            /** Format: date */
+            date?: string;
+            /** Format: int64 */
+            newlyDiscovered?: number;
+            /** Format: int64 */
+            newlyResolved?: number;
+            /** Format: int64 */
+            openBacklog?: number;
+            /** Format: double */
+            rollingMttrDays?: number;
+        };
+        Decision: {
+            actor?: string;
+            comment?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            fromStatus?: string;
+            justification?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            origin?: string;
+            /** Format: int64 */
+            scanId?: number;
+            toStatus?: string;
+            version?: string;
+        };
+        DeclaredAgent: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            secret?: string;
+        };
+        DependencyFinding: {
+            description?: string;
+            fixVersions?: string;
+            identifier?: string;
+            installedVersion?: string;
+            packageName?: string;
+            purl?: string;
+            referenceUrl?: string;
+            /** @enum {string} */
+            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+        };
+        DependencyGraph: {
+            edges?: components["schemas"]["GraphEdge"][];
+            nodes?: components["schemas"]["GraphNode"][];
+        };
+        Detail: {
+            findings?: components["schemas"]["FindingView"][];
+            /** Format: int64 */
+            findingsTotal?: number;
+            findingsTruncated?: boolean;
+            hasSbom?: boolean;
+            projectType?: string;
+            projectVersion?: string;
+            scan?: components["schemas"]["Summary"];
+            subPath?: string;
+        };
+        Document: {
+            category?: string;
+            csaf_version?: string;
+            notes?: components["schemas"]["Note"][];
+            publisher?: components["schemas"]["Publisher"];
+            title?: string;
+            tracking?: components["schemas"]["Tracking"];
+        };
+        Dossier: {
+            /** Format: date-time */
+            generatedAt?: string;
+            repository?: components["schemas"]["Repository"];
+            scans?: components["schemas"]["Scan"][];
+        };
+        Driver: {
+            informationUri?: string;
+            name?: string;
+            rules?: components["schemas"]["Rule"][];
+            version?: string;
+        };
+        Email: {
+            primary?: boolean;
+            type?: string;
+            value?: string;
+        };
+        EnableResponse: {
+            backupCodes?: string[];
+            success?: boolean;
+        };
+        EndpointView: {
+            authRequired?: boolean;
+            authType?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            filePath?: string;
+            framework?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int32 */
+            lineNumber?: number;
+            method?: string;
+            operationId?: string;
+            path?: string;
+            /** Format: int64 */
+            repositoryId?: number;
+            /** Format: int64 */
+            scanId?: number;
+            shadowStatus?: string;
+            summary?: string;
+            tags?: string;
+            visibility?: string;
+        };
+        Engine: {
+            name?: string;
+            version?: string;
+        };
+        EpssFleetSummary: {
+            /** Format: int32 */
+            activeKevCount?: number;
+            /** Format: double */
+            averageFleetEpss?: number;
+            breakdownByTier?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            highEpssCount?: number;
+            /** Format: int32 */
+            reachableEpssCount?: number;
+            topPriorities?: components["schemas"]["EpssPrioritizedIssue"][];
+            /** Format: int32 */
+            totalVulnerabilities?: number;
+        };
+        EpssPrioritizedIssue: {
+            /** Format: double */
+            cvssScore?: number;
+            /** Format: double */
+            epssPercentile?: number;
+            /** Format: double */
+            epssScore?: number;
+            identifier?: string;
+            isKev?: boolean;
+            /** Format: int64 */
+            issueId?: number;
+            /** Format: int32 */
+            priorityScore?: number;
+            priorityTier?: string;
+            reachability?: string;
+            recommendedAction?: string;
+            severity?: string;
+            targetKind?: string;
+            targetName?: string;
+            title?: string;
+        };
+        ExceptionEntry: {
+            actor?: string;
+            comment?: string;
+            /** Format: date-time */
+            decided_at?: string;
+            decision?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            identifier?: string;
+            /** Format: int64 */
+            issue_id?: number;
+            justification?: string;
+            lapsed?: boolean;
+            origin?: string;
+            severity?: string;
+            /** Format: int64 */
+            target_id?: number;
+            target_kind?: string;
+            target_name?: string;
+        };
+        Failure: {
+            reason?: string;
+            step?: string;
+        };
+        FindingView: {
+            description?: string;
+            filePath?: string;
+            fixVersions?: string;
+            /** Format: int64 */
+            id?: number;
+            identifier?: string;
+            /** Format: int32 */
+            line?: number;
+            link?: string;
+            packageName?: string;
+            packageVersion?: string;
+            severity?: string;
+            type?: string;
+        };
+        FindingsSummary: {
+            /** Format: int64 */
+            critical?: number;
+            /** Format: int64 */
+            high?: number;
+            /** Format: int64 */
+            kev?: number;
+            /** Format: int64 */
+            low?: number;
+            /** Format: int64 */
+            medium?: number;
+            /** Format: int64 */
+            secrets?: number;
+            /** Format: int64 */
+            total?: number;
+        };
+        FullProductName: {
+            name?: string;
+            product_id?: string;
+            product_identification_helper?: components["schemas"]["ProductIdentificationHelper"];
+        };
+        GateRequest: {
+            /** Format: int64 */
+            container_id?: number;
+            fail_on_kev?: boolean;
+            fail_on_severity?: string;
+            fixable_only?: boolean;
+            include_ai_review?: boolean;
+            include_triaged?: boolean;
+            /** Format: int64 */
+            repository_id?: number;
+        };
+        GateResponse: {
+            counts_by_severity?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            evaluated?: number;
+            ignored_relaxations?: string[];
+            passed?: boolean;
+            policy?: components["schemas"]["AppliedPolicy"];
+            violations?: components["schemas"]["ViolationView"][];
+        };
+        Generator: {
+            date?: string;
+            engine?: components["schemas"]["Engine"];
+        };
+        GlobalAttackSurface: {
+            allEndpoints?: components["schemas"]["EndpointView"][];
+            frameworks?: string[];
+            highRiskEndpoints?: components["schemas"]["EndpointView"][];
+            /** Format: int32 */
+            internalEndpoints?: number;
+            /** Format: int32 */
+            publicEndpoints?: number;
+            /** Format: int32 */
+            sensitiveUnprotectedEndpoints?: number;
+            /** Format: int32 */
+            shadowEndpoints?: number;
+            /** Format: int32 */
+            totalEndpoints?: number;
+            /** Format: int32 */
+            unauthenticatedEndpoints?: number;
+        };
+        GraphEdge: {
+            relationship?: string;
+            source?: string;
+            target?: string;
+        };
+        GraphNode: {
+            cves?: string[];
+            ecosystem?: string;
+            id?: string;
+            isDirect?: boolean;
+            label?: string;
+            /** Format: int32 */
+            riskScore?: number;
+            type?: string;
+            version?: string;
+        };
+        HelloRequest: {
+            capabilities?: string;
+            contract_version?: string;
+            hostname?: string;
+            platform?: string;
+            scanner_engine?: string;
+            sealing_public_key?: string;
+            version?: string;
+        };
+        HelloResponse: {
+            contractVersion?: string;
+            credentialsMode?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: int32 */
+            maxConcurrent?: number;
+            name?: string;
+        };
+        HighImpactFix: {
+            affectedCves?: string[];
+            affectedTargetNames?: string[];
+            /** Format: int64 */
+            criticalCveCount?: number;
+            currentVersion?: string;
+            /** Format: int64 */
+            cveCountResolved?: number;
+            /** Format: double */
+            estimatedHours?: number;
+            /** Format: int64 */
+            highCveCount?: number;
+            /** Format: double */
+            leverageScore?: number;
+            packageName?: string;
+            recommendedVersion?: string;
+        };
+        IacFinding: {
+            checkId?: string;
+            checkName?: string;
+            file?: string;
+            guideline?: string;
+            /** Format: int32 */
+            line?: number;
+            resource?: string;
+        };
+        InTotoAttestation: {
+            _type?: string;
+            predicate?: components["schemas"]["Predicate"];
+            predicateType?: string;
+            subject?: components["schemas"]["Subject"][];
+        };
+        IngestionResult: {
+            appliedCves?: string[];
+            /** Format: int32 */
+            matchedIssues?: number;
+            /** Format: int32 */
+            statementsProcessed?: number;
+            /** Format: int32 */
+            triagedIssues?: number;
+        };
+        Invocation: {
+            branch?: string;
+            commitSha?: string;
+            /** Format: int64 */
+            scanId?: number;
+            targetKind?: string;
+            targetName?: string;
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        IssueEntity: {
+            /** Format: int64 */
+            containerId?: number;
+            /** Format: double */
+            cvssScore?: number;
+            cvssVector?: string;
+            description?: string;
+            /** Format: double */
+            epssScore?: number;
+            filePath?: string;
+            fingerprint?: string;
+            /** Format: date-time */
+            firstSeenAt?: string;
+            /** Format: int64 */
+            firstSeenScanId?: number;
+            fixState?: string;
+            fixVersions?: string;
+            /** Format: int64 */
+            id?: number;
+            identifier?: string;
+            isDirectDependency?: boolean;
+            isKev?: boolean;
+            kev?: boolean;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: int64 */
+            lastSeenScanId?: number;
+            /** Format: int32 */
+            line?: number;
+            link?: string;
+            packageName?: string;
+            packageVersion?: string;
+            purl?: string;
+            reachability?: string;
+            reachableSymbols?: string;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int64 */
+            resolutionSeconds?: number;
+            /** Format: date-time */
+            resolvedAt?: string;
+            severity?: string;
+            source?: string;
+            state?: string;
+            ticketRef?: string;
+            ticketUrl?: string;
+            /** Format: int32 */
+            timesSeen?: number;
+            triageComment?: string;
+            /** Format: date-time */
+            triageExpiresAt?: string;
+            triageJustification?: string;
+            triageStatus?: string;
+            /** Format: date-time */
+            triagedAt?: string;
+            triagedBy?: string;
+            type?: string;
+        };
+        IssueTicketEntity: {
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            issueId?: number;
+            provider?: string;
+            status?: string;
+            ticketKey?: string;
+            ticketUrl?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        IssuedKey: {
+            key?: components["schemas"]["Summary"];
+            secret?: string;
+        };
+        JsonNode: Record<string, never>;
+        LicenseConflict: {
+            /** @enum {string} */
+            compatibility?: "COMPATIBLE" | "CONDITIONAL" | "INCOMPATIBLE_BLOCKING";
+            legalRiskExplanation?: string;
+            licenseExpression?: string;
+            packageName?: string;
+            packageVersion?: string;
+            remediationAdvice?: string;
+            /** @enum {string} */
+            riskCategory?: "PERMISSIVE" | "WEAK_COPYLEFT" | "STRONG_COPYLEFT" | "FORBIDDEN" | "UNKNOWN";
+            targetKind?: string;
+            targetName?: string;
+        };
+        LicenseEntry: {
+            compliant?: boolean;
+            license?: string;
+            packageName?: string;
+            packageVersion?: string;
+            purl?: string;
+            /** @enum {string} */
+            riskCategory?: "PERMISSIVE" | "WEAK_COPYLEFT" | "STRONG_COPYLEFT" | "FORBIDDEN" | "UNKNOWN";
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetName?: string;
+            violationReason?: string;
+        };
+        LicensePolicy: {
+            disallowedCategories?: ("PERMISSIVE" | "WEAK_COPYLEFT" | "STRONG_COPYLEFT" | "FORBIDDEN" | "UNKNOWN")[];
+            explicitlyAllowedLicenses?: string[];
+            explicitlyDisallowedLicenses?: string[];
+        };
+        LicenseSummary: {
+            breakdownByRisk?: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            nonCompliantCount?: number;
+            /** Format: int64 */
+            totalDependencies?: number;
+            /** Format: int64 */
+            uniqueLicenses?: number;
+        };
+        Listing: {
+            /** Format: int64 */
+            currentUserId?: number;
+            users?: components["schemas"]["Summary"][];
+        };
+        Location: {
+            logicalLocations?: components["schemas"]["LogicalLocation"][];
+            physicalLocation?: components["schemas"]["PhysicalLocation"];
+        };
+        LogicalLocation: {
+            kind?: string;
+            name?: string;
+        };
+        LoginRequest: {
+            client_id?: string;
+            password?: string;
+            username?: string;
+        };
+        LoginResponse: {
+            /** Format: date-time */
+            expiresAt?: string;
+            mfa_required?: boolean;
+            mfa_token?: string;
+            token?: string;
+            user?: components["schemas"]["UserSummary"];
+        };
+        Member: {
+            display?: string;
+            ref?: string;
+            value?: string;
+        };
+        Meta: {
+            created?: string;
+            lastModified?: string;
+            location?: string;
+            resourceType?: string;
+        };
+        Metadata: {
+            component?: components["schemas"]["Component"];
+            /** Format: date-time */
+            timestamp?: string;
+            tools?: components["schemas"]["Tool"][];
+        };
+        MfaDisableRequest: {
+            code?: string;
+        };
+        MfaEnableRequest: {
+            code?: string;
+            secret?: string;
+        };
+        MfaVerifyRequest: {
+            code?: string;
+            mfa_token?: string;
+        };
+        MttrResult: {
+            mttrBySeverityDays?: {
+                [key: string]: number;
+            };
+            /** Format: double */
+            overallMttrDays?: number;
+            /** Format: int32 */
+            resolvedCount?: number;
+        };
+        Name: {
+            familyName?: string;
+            formatted?: string;
+            givenName?: string;
+        };
+        Note: {
+            category?: string;
+            text?: string;
+            title?: string;
+        };
+        NotificationChannelStatus: {
+            configured?: boolean;
+            destination?: string;
+            name?: string;
+            supportedEvents?: string[];
+            type?: string;
+        };
+        NotificationTestResult: {
+            message?: string;
+            success?: boolean;
+            /** Format: date-time */
+            testedAt?: string;
+            type?: string;
+        };
+        ObservedIssue: {
+            decisions?: components["schemas"]["Decision"][];
+            filePath?: string;
+            /** Format: date-time */
+            firstSeenAt?: string;
+            /** Format: int64 */
+            id?: number;
+            identifier?: string;
+            packageName?: string;
+            packageVersion?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+            severity?: string;
+            state?: string;
+            triageStatus?: string;
+            type?: string;
+        };
+        Occurrence: {
+            branch?: string;
+            component?: string;
+            componentVersion?: string;
+            direct?: boolean;
+            projectVersion?: string;
+            purl?: string;
+            /** Format: int64 */
+            scanId?: number;
+            /** Format: date-time */
+            scannedAt?: string;
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetName?: string;
+            type?: string;
+        };
+        OllamaCheck: {
+            detail?: string;
+            model?: string;
+            modelInstalled?: boolean;
+            models?: string[];
+            provider?: string;
+            reachable?: boolean;
+            remoteAllowed?: boolean;
+            url?: string;
+        };
+        OpenVexDocument: {
+            "@context"?: string;
+            "@id"?: string;
+            author?: string;
+            role?: string;
+            statements?: components["schemas"]["OpenVexStatement"][];
+            /** Format: date-time */
+            timestamp?: string;
+            tooling?: string;
+            /** Format: int32 */
+            version?: number;
+        };
+        OpenVexStatement: {
+            action_statement?: string;
+            impact_statement?: string;
+            /** @enum {string} */
+            justification?: "component_not_present" | "vulnerable_code_not_present" | "vulnerable_code_not_in_execute_path" | "vulnerable_code_cannot_be_controlled_by_adversary" | "inline_mitigations_exist";
+            products?: string[];
+            /** @enum {string} */
+            status?: "not_affected" | "affected" | "fixed" | "under_investigation";
+            status_notes?: string;
+            vulnerability?: {
+                [key: string]: string;
+            };
+        };
+        Overview: {
+            /** Format: int64 */
+            fileCount?: number;
+            /** Format: int64 */
+            openCount?: number;
+            /** Format: int64 */
+            ruleCount?: number;
+            topFiles?: components["schemas"]["Bucket"][];
+            topRules?: components["schemas"]["Bucket"][];
+            topTargets?: components["schemas"]["Bucket"][];
+        };
+        Page: {
+            items?: components["schemas"]["BacklogEntry"][];
+            /** Format: int32 */
+            limit?: number;
+            /** Format: int32 */
+            offset?: number;
+            /** Format: int64 */
+            total?: number;
+        };
+        PatchOperation: {
+            op?: string;
+            path?: string;
+            value?: components["schemas"]["JsonNode"];
+        };
+        PendingScanItem: {
+            branch?: string;
+            isRoutable?: boolean;
+            /** Format: int32 */
+            positionInQueue?: number;
+            /** Format: date-time */
+            queuedAt?: string;
+            requiredLabel?: string;
+            /** Format: int64 */
+            scanId?: number;
+            /** Format: int64 */
+            targetId?: number;
+            targetName?: string;
+            targetType?: string;
+            /** Format: int64 */
+            waitDurationSeconds?: number;
+        };
+        PhysicalLocation: {
+            artifactLocation?: components["schemas"]["ArtifactLocation"];
+            region?: components["schemas"]["Region"];
+        };
+        PinnedSigningKey: {
+            /** Format: uuid */
+            id?: string;
+            privateKey?: string;
+            signsResults?: boolean;
+        };
+        PoliciesResponse: {
+            built_in?: components["schemas"]["PolicyView"];
+            policies?: components["schemas"]["PolicyView"][];
+        };
+        PolicyAssessment: {
+            enforcedPolicy?: string;
+            gatePassed?: boolean;
+            violations?: string[];
+        };
+        PolicyRequest: {
+            fail_on_kev?: boolean;
+            fail_on_severity?: string;
+            fixable_only?: boolean;
+            include_ai_review?: boolean;
+            include_triaged?: boolean;
+            note?: string;
+        };
+        PolicyView: {
+            created_at?: string;
+            created_by?: string;
+            fail_on_kev?: boolean;
+            fail_on_severity?: string;
+            fixable_only?: boolean;
+            include_ai_review?: boolean;
+            include_triaged?: boolean;
+            kind?: string;
+            note?: string;
+            /** Format: int64 */
+            target_id?: number;
+            target_name?: string;
+            /** Format: int32 */
+            version?: number;
+        };
+        PostureTrendAnalytics: {
+            dailySeries?: components["schemas"]["DailyPosturePoint"][];
+            mttrBySeverity?: {
+                [key: string]: number;
+            };
+            /** Format: double */
+            netResolutionRatePercentage?: number;
+            /** Format: double */
+            overallMttrDays?: number;
+            targetScoreboard?: components["schemas"]["TargetMaturityScore"][];
+            /** Format: int64 */
+            totalOpenedInWindow?: number;
+            /** Format: int64 */
+            totalResolvedInWindow?: number;
+            /** Format: int32 */
+            windowDays?: number;
+        };
+        Predicate: {
+            builder?: components["schemas"]["Builder"];
+            findings?: components["schemas"]["FindingsSummary"];
+            invocation?: components["schemas"]["Invocation"];
+            policy?: components["schemas"]["PolicyAssessment"];
+            sbomDigestSha256?: string;
+        };
+        ProductIdentificationHelper: {
+            cpe?: string;
+            purl?: string;
+        };
+        ProductTree: {
+            full_product_names?: components["schemas"]["FullProductName"][];
+        };
+        Project: {
+            type?: string;
+            version?: string;
+        };
+        Publisher: {
+            category?: string;
+            name?: string;
+            namespace?: string;
+        };
+        QueueStats: {
+            /** Format: int64 */
+            avgScanDurationSeconds?: number;
+            /** Format: int32 */
+            busyAgents?: number;
+            /** Format: int32 */
+            idleAgents?: number;
+            /** Format: int32 */
+            onlineAgents?: number;
+            /** Format: int64 */
+            pendingScansCount?: number;
+            /** Format: int64 */
+            runningScansCount?: number;
+            /** Format: int64 */
+            scansCompleted24h?: number;
+            /** Format: int32 */
+            totalAgents?: number;
+        };
+        QueuedScan: {
+            /** Format: int64 */
+            id?: number;
+            status?: string;
+        };
+        Region: {
+            /** Format: int32 */
+            startLine?: number;
+        };
+        Register: {
+            /** Format: int64 */
+            awaiting_approval?: number;
+            entries?: components["schemas"]["ExceptionEntry"][];
+            /** Format: int64 */
+            granted?: number;
+            /** Format: int64 */
+            lapsed?: number;
+        };
+        RemediationAdvice: {
+            cliCommand?: string;
+            codeSnippetOrDiff?: string;
+            fixAction?: string;
+            suggestedVersion?: string;
+        };
+        RemediationDistribution: {
+            bySeverity?: components["schemas"]["BySeverity"][];
+            /** Format: int64 */
+            oldestOpenDays?: number;
+            /** @enum {string} */
+            oldestOpenSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+            /** Format: int32 */
+            windowDays?: number;
+        };
+        Report: {
+            blocks?: components["schemas"]["Block"][];
+            content?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            error?: string;
+            /** Format: int64 */
+            id?: number;
+            model?: string;
+            /** Format: int64 */
+            scanId?: number;
+            status?: string;
+        };
+        Repository: {
+            branch?: string;
+            /** Format: int64 */
+            decisions?: number;
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            lastScanAt?: string;
+            name?: string;
+            /** Format: int64 */
+            openIssues?: number;
+            projectType?: string;
+            /** Format: int32 */
+            scanCount?: number;
+            url?: string;
+            version?: string;
+        };
+        RepositoryApisOverview: {
+            contracts?: components["schemas"]["ApiContractEntity"][];
+            endpoints?: components["schemas"]["EndpointView"][];
+            /** Format: int64 */
+            repositoryId?: number;
+            summary?: components["schemas"]["AttackSurfaceSummary"];
+        };
+        Result: {
+            level?: string;
+            locations?: components["schemas"]["Location"][];
+            message?: components["schemas"]["Text"];
+            partialFingerprints?: {
+                [key: string]: string;
+            };
+            properties?: {
+                [key: string]: Record<string, never>;
+            };
+            ruleId?: string;
+            /** Format: int32 */
+            ruleIndex?: number;
+            suppressions?: components["schemas"]["Suppression"][];
+        };
+        Results: {
+            occurrences?: components["schemas"]["Occurrence"][];
+            /** Format: int32 */
+            total?: number;
+            truncated?: boolean;
+        };
+        RoleEntry: {
+            primary?: boolean;
+            value?: string;
+        };
+        Rule: {
+            fullDescription?: components["schemas"]["Text"];
+            helpUri?: string;
+            id?: string;
+            name?: string;
+            properties?: {
+                [key: string]: Record<string, never>;
+            };
+            shortDescription?: components["schemas"]["Text"];
+        };
+        RuleSetResponse: {
+            contentHash?: string;
+            files?: components["schemas"]["StoredFile"][];
+        };
+        Run: {
+            properties?: {
+                [key: string]: Record<string, never>;
+            };
+            results?: components["schemas"]["Result"][];
+            tool?: components["schemas"]["Tool"];
+        };
+        RunningScanItem: {
+            agentId?: string;
+            agentName?: string;
+            branch?: string;
+            /** Format: date-time */
+            claimedAt?: string;
+            /** Format: int64 */
+            durationSeconds?: number;
+            requiredLabel?: string;
+            /** Format: int64 */
+            scanId?: number;
+            /** Format: int64 */
+            targetId?: number;
+            targetName?: string;
+            targetType?: string;
+        };
+        SarifLog: {
+            $schema?: string;
+            runs?: components["schemas"]["Run"][];
+            version?: string;
+        };
+        SastFinding: {
+            category?: string;
+            confidence?: string;
+            file?: string;
+            /** Format: int32 */
+            line?: number;
+            message?: string;
+            ruleId?: string;
+            /** @enum {string} */
+            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+        };
+        SbomDiffReport: {
+            /** Format: int32 */
+            addedCount?: number;
+            componentDeltas?: components["schemas"]["ComponentDelta"][];
+            cveDeltas?: components["schemas"]["CveDelta"][];
+            /** Format: int64 */
+            fromScanId?: number;
+            fromVersion?: string;
+            /** Format: int32 */
+            introducedCveCount?: number;
+            /** Format: int32 */
+            licenseChangedCount?: number;
+            /** Format: int32 */
+            removedCount?: number;
+            /** Format: int32 */
+            resolvedCveCount?: number;
+            /** Format: int64 */
+            toScanId?: number;
+            toVersion?: string;
+            /** Format: int32 */
+            versionChangedCount?: number;
+        };
+        Scan: {
+            branch?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            durationMs?: number;
+            error?: string;
+            /** Format: int32 */
+            findingsCount?: number;
+            /** Format: int64 */
+            id?: number;
+            issues?: components["schemas"]["ObservedIssue"][];
+            /** Format: int32 */
+            newIssuesCount?: number;
+            projectType?: string;
+            /** Format: int32 */
+            resolvedIssuesCount?: number;
+            status?: string;
+            version?: string;
+        };
+        ScanArtifacts: {
+            apiContracts?: components["schemas"]["ApiContract"][];
+            apiEndpoints?: components["schemas"]["ApiEndpoint"][];
+            dependencies?: components["schemas"]["DependencyFinding"][];
+            duration?: {
+                /** Format: int32 */
+                nano?: number;
+                negative?: boolean;
+                positive?: boolean;
+                /** Format: int64 */
+                seconds?: number;
+                units?: {
+                    dateBased?: boolean;
+                    durationEstimated?: boolean;
+                    timeBased?: boolean;
+                }[];
+                zero?: boolean;
+            };
+            failures?: components["schemas"]["Failure"][];
+            iac?: components["schemas"]["IacFinding"][];
+            project?: components["schemas"]["Project"];
+            sast?: components["schemas"]["SastFinding"][];
+            sbom?: components["schemas"]["JsonNode"];
+            secrets?: components["schemas"]["SecretFinding"][];
+        };
+        ScimGroupDto: {
+            displayName?: string;
+            externalId?: string;
+            id?: string;
+            members?: components["schemas"]["Member"][];
+            meta?: components["schemas"]["Meta"];
+            schemas?: string[];
+        };
+        ScimListResponseScimGroupDto: {
+            Resources?: components["schemas"]["ScimGroupDto"][];
+            /** Format: int32 */
+            itemsPerPage?: number;
+            schemas?: string[];
+            /** Format: int32 */
+            startIndex?: number;
+            /** Format: int32 */
+            totalResults?: number;
+        };
+        ScimListResponseScimUserDto: {
+            Resources?: components["schemas"]["ScimUserDto"][];
+            /** Format: int32 */
+            itemsPerPage?: number;
+            schemas?: string[];
+            /** Format: int32 */
+            startIndex?: number;
+            /** Format: int32 */
+            totalResults?: number;
+        };
+        ScimPatchOp: {
+            Operations?: components["schemas"]["PatchOperation"][];
+            schemas?: string[];
+        };
+        ScimUserDto: {
+            active?: boolean;
+            displayName?: string;
+            emails?: components["schemas"]["Email"][];
+            externalId?: string;
+            id?: string;
+            meta?: components["schemas"]["Meta"];
+            name?: components["schemas"]["Name"];
+            roles?: components["schemas"]["RoleEntry"][];
+            schemas?: string[];
+            userName?: string;
+        };
+        SecretFinding: {
+            description?: string;
+            file?: string;
+            fingerprint?: string;
+            /** Format: int32 */
+            line?: number;
+            rule?: string;
+        };
+        SecretRequest: {
+            secret?: string;
+        };
+        SecurityDebtReport: {
+            /** Format: int64 */
+            criticalIssues?: number;
+            /** Format: double */
+            eolDebtHours?: number;
+            /** Format: int64 */
+            highIssues?: number;
+            /** Format: double */
+            iacDebtHours?: number;
+            /** Format: double */
+            licenseDebtHours?: number;
+            /** Format: int64 */
+            lowIssues?: number;
+            /** Format: int64 */
+            mediumIssues?: number;
+            /** Format: double */
+            sastDebtHours?: number;
+            /** Format: double */
+            secretsDebtHours?: number;
+            topHighImpactFixes?: components["schemas"]["HighImpactFix"][];
+            /** Format: double */
+            totalEstimatedHours?: number;
+            /** Format: double */
+            totalEstimatedPersonDays?: number;
+            /** Format: int64 */
+            totalOpenIssues?: number;
+            /** Format: double */
+            vulnerabilitiesDebtHours?: number;
+        };
+        SecurityOverviewView: {
+            /** Format: int32 */
+            failingCount?: number;
+            /** Format: int64 */
+            kevCount?: number;
+            /** Format: int64 */
+            lastScanFailedCount?: number;
+            /** Format: int64 */
+            neverScannedCount?: number;
+            targets?: components["schemas"]["TargetView"][];
+            /** Format: int32 */
+            totalCount?: number;
+        };
+        SecurityScorecard: {
+            /** @enum {string} */
+            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F";
+            hasAttestation?: boolean;
+            /** Format: int64 */
+            licenseViolationCount?: number;
+            /** Format: int64 */
+            openCriticalCount?: number;
+            /** Format: int64 */
+            openHighCount?: number;
+            /** Format: int64 */
+            openKevCount?: number;
+            /** Format: int64 */
+            overdueCount?: number;
+            recommendations?: string[];
+            /** Format: int32 */
+            score?: number;
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetName?: string;
+        };
+        SettingView: {
+            configured?: boolean;
+            default?: string;
+            governor_only?: boolean;
+            help?: string;
+            key?: string;
+            label?: string;
+            section?: string;
+            type?: string;
+            value?: string;
+        };
+        SetupResponse: {
+            issuer?: string;
+            qrCodeUri?: string;
+            secret?: string;
+        };
+        SiemConfigRequest: {
+            authHeader?: string;
+            enabled?: boolean;
+            endpoint?: string;
+            minSeverity?: string;
+            protocol?: string;
+        };
+        SiemConfigResponse: {
+            enabled?: boolean;
+            endpoint?: string;
+            hasAuthHeader?: boolean;
+            minSeverity?: string;
+            protocol?: string;
+            updatedAt?: string;
+        };
+        SiemTestRequest: {
+            authHeader?: string;
+            endpoint?: string;
+        };
+        SignInMethods: {
+            brandName?: string;
+            configured?: boolean;
+            gitlabUrl?: string;
+            label?: string;
+            password?: boolean;
+        };
+        SigningKeyRequest: {
+            public_key?: string;
+        };
+        StoredFile: {
+            content?: string;
+            originalName?: string;
+            path?: string;
+        };
+        Subject: {
+            digest?: {
+                [key: string]: string;
+            };
+            name?: string;
+        };
+        Summary: {
+            /** Format: int64 */
+            activeSessions?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            displayName?: string;
+            email?: string;
+            /** Format: int64 */
+            id?: number;
+            isActive?: boolean;
+            mustChangePassword?: boolean;
+            role?: string;
+            username?: string;
+        };
+        Suppression: {
+            justification?: string;
+            kind?: string;
+        };
+        TargetAssignment: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+        };
+        TargetCompliance: {
+            frameworkScores?: {
+                [key: string]: number;
+            };
+            gateStatus?: string;
+            name?: string;
+            /** Format: int64 */
+            openIssuesCount?: number;
+            /** Format: int32 */
+            overallScore?: number;
+            overallStatus?: string;
+            /** Format: int64 */
+            overdueCount?: number;
+            targetId?: string;
+            type?: string;
+        };
+        TargetImpact: {
+            cves?: string[];
+            isDirect?: boolean;
+            packageName?: string;
+            packageVersion?: string;
+            purl?: string;
+            reachability?: string;
+            /** Format: int64 */
+            scanId?: number;
+            sourceFile?: string;
+            targetContext?: string;
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            targetName?: string;
+        };
+        TargetMaturityScore: {
+            maturityGrade?: string;
+            /** Format: int64 */
+            openCritical?: number;
+            /** Format: int64 */
+            openHigh?: number;
+            /** Format: int64 */
+            openLow?: number;
+            /** Format: int64 */
+            openMedium?: number;
+            /** Format: int32 */
+            securityScore?: number;
+            /** Format: int64 */
+            targetId?: number;
+            targetKind?: string;
+            /** Format: double */
+            targetMttrDays?: number;
+            targetName?: string;
+            /** Format: int64 */
+            totalResolved?: number;
+        };
+        TargetOption: {
+            /** Format: int64 */
+            id?: number;
+            label?: string;
+        };
+        TargetView: {
+            kind?: string;
+            /** Format: date-time */
+            lastScanAt?: string;
+            /** Format: int64 */
+            lastScanId?: number;
+            name?: string;
+            observation?: string;
+            observed?: boolean;
+            passed?: boolean;
+            policy?: components["schemas"]["PolicyView"];
+            /** Format: int64 */
+            targetId?: number;
+            verdict?: components["schemas"]["VerdictView"];
+        };
+        Targets: {
+            containers?: components["schemas"]["TargetOption"][];
+            repositories?: components["schemas"]["TargetOption"][];
+        };
+        TeamRequest: {
+            description?: string;
+            name?: string;
+        };
+        TeamSummary: {
+            description?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int32 */
+            memberCount?: number;
+            name?: string;
+            notified?: boolean;
+            /** Format: int32 */
+            targetCount?: number;
+        };
+        TestResult: {
+            message?: string;
+            /** Format: int32 */
+            statusCode?: number;
+            success?: boolean;
+        };
+        Text: {
+            text?: string;
+        };
+        ThreatIntelRecord: {
+            cveId?: string;
+            /** Format: date-time */
+            dateAdded?: string;
+            /** Format: double */
+            epssPercentile?: number;
+            /** Format: double */
+            epssScore?: number;
+            isKev?: boolean;
+            notes?: string;
+        };
+        ThreatIntelSyncStatus: {
+            /** Format: int64 */
+            backlogUpdatedCount?: number;
+            /** Format: date-time */
+            lastSyncedAt?: string;
+            status?: string;
+            /** Format: int64 */
+            totalCves?: number;
+            /** Format: int64 */
+            totalKev?: number;
+        };
+        TokenRequest: {
+            token?: string;
+        };
+        Tool: {
+            driver?: components["schemas"]["Driver"];
+        };
+        TopImpactPackage: {
+            /** Format: int32 */
+            affectedTargetsCount?: number;
+            /** Format: int32 */
+            blastRadiusScore?: number;
+            /** Format: int32 */
+            directUsages?: number;
+            ecosystem?: string;
+            /** Format: double */
+            maxCvss?: number;
+            packageName?: string;
+            /** Format: int32 */
+            totalCves?: number;
+            /** Format: int32 */
+            transitiveUsages?: number;
+        };
+        Tracking: {
+            current_release_date?: string;
+            generator?: components["schemas"]["Generator"];
+            id?: string;
+            initial_release_date?: string;
+            status?: string;
+            version?: string;
+        };
+        TrendPoint: {
+            day?: string;
+            /** Format: int64 */
+            open?: number;
+            /** Format: int64 */
+            opened?: number;
+            /** Format: int64 */
+            resolved?: number;
+        };
+        Trends: {
+            /** Format: double */
+            mean_days_to_resolve?: number;
+            points?: components["schemas"]["TrendPoint"][];
+            /** Format: int32 */
+            resolved_in_window?: number;
+        };
+        TriageImpact: {
+            /** Format: int32 */
+            addedRules?: number;
+            /** Format: int64 */
+            affectedIssues?: number;
+            losingIssues?: string[];
+            /** Format: int32 */
+            removedRules?: number;
+        };
+        TriageRequest: {
+            comment?: string;
+            /** Format: int32 */
+            expires_in_days?: number;
+            justification?: string;
+            status?: string;
+        };
+        UnroutableLabel: {
+            label?: string;
+            /** Format: int64 */
+            queued?: number;
+        };
+        UpdateRequest: {
+            is_active?: boolean;
+            password?: string;
+            role?: string;
+        };
+        UploadRequest: {
+            files?: components["schemas"]["UploadedFile"][];
+            name?: string;
+        };
+        Uploaded: {
+            contentHash?: string;
+            /** Format: int32 */
+            fileCount?: number;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int32 */
+            ruleCount?: number;
+        };
+        UploadedFile: {
+            content?: string;
+            name?: string;
+        };
+        UserSummary: {
+            displayName?: string;
+            mfaEnabled?: boolean;
+            mustChangePassword?: boolean;
+            role?: string;
+            username?: string;
+        };
+        VerdictRegister: {
+            /** Format: int64 */
+            passed?: number;
+            /** Format: int64 */
+            refused?: number;
+            verdicts?: components["schemas"]["VerdictView"][];
+        };
+        VerdictView: {
+            countsBySeverity?: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            evaluated?: number;
+            passed?: boolean;
+            violations?: components["schemas"]["ViolationView"][];
+        };
+        Verification: {
+            broken?: string;
+            intact?: boolean;
+            mirrored?: boolean;
+            /** Format: int32 */
+            missingFromMirror?: number;
+            /** Format: int32 */
+            missingFromTable?: number;
+            /** Format: int64 */
+            total?: number;
+            /** Format: int32 */
+            unverifiable?: number;
+            /** Format: int64 */
+            verified?: number;
+        };
+        VerifyRequest: {
+            payload?: string;
+            publicKey?: string;
+            signature?: string;
+        };
+        VerifyResponse: {
+            algorithm?: string;
+            keyId?: string;
+            message?: string;
+            valid?: boolean;
+        };
+        VexSuggestion: {
+            actionStatement?: string;
+            impactStatement?: string;
+            justification?: string;
+            status?: string;
+        };
+        ViolationView: {
+            fixVersions?: string;
+            identifier?: string;
+            /** Format: int64 */
+            issueId?: number;
+            package?: string;
+            reason?: string;
+            rule?: string;
+            severity?: string;
+        };
+        Vulnerability: {
+            name?: string;
+        };
+        WebhookRequest: {
+            url?: string;
+        };
+        WebhookSyncResult: {
+            actionTaken?: string;
+            /** Format: int64 */
+            issueId?: number;
+            matched?: boolean;
+            ticketRef?: string;
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -176,7 +4264,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    AuthController_login: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -185,15 +4273,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
             };
         };
     };
-    AuthController_logout: {
+    create_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DeclaredAgent"];
+                };
+            };
+        };
+    };
+    activity: {
         parameters: {
             query?: never;
             header?: never;
@@ -202,6 +4317,49 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgentActivitySummary"];
+                };
+            };
+        };
+    };
+    unroutable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UnroutableLabel"][];
+                };
+            };
+        };
+    };
+    remove_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -210,7 +4368,228 @@ export interface operations {
             };
         };
     };
-    AuthController_me: {
+    update_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    pinSigningKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SigningKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PinnedSigningKey"];
+                };
+            };
+        };
+    };
+    hello: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelloRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HelloResponse"];
+                };
+            };
+        };
+    };
+    claimJob: {
+        parameters: {
+            query?: {
+                wait?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": Record<string, never>;
+                };
+            };
+        };
+    };
+    heartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    submitResult: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Vectispire-Agent-Signature"?: string;
+            };
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanArtifacts"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    ruleSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuleSetResponse"];
+                };
+            };
+        };
+    };
+    explainCve: {
+        parameters: {
+            query?: {
+                packageName?: string;
+                currentVersion?: string;
+                fixVersion?: string;
+                reachability?: string;
+            };
+            header?: never;
+            path: {
+                cveId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AiVulnerabilityAdvice"];
+                };
+            };
+        };
+    };
+    explainIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AiVulnerabilityAdvice"];
+                };
+            };
+        };
+    };
+    getStatus_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -219,15 +4598,20 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
             };
         };
     };
-    IssuesController_list: {
+    list_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -236,7 +4620,74 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    create_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IssuedKey"];
+                };
+            };
+        };
+    };
+    targets_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Targets"];
+                };
+            };
+        };
+    };
+    remove_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -244,7 +4695,584 @@ export interface operations {
             };
         };
     };
-    IssuesController_triage: {
+    getOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attack path overview retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AttackPathGraph"][];
+                };
+            };
+        };
+    };
+    getRepositoryAttackPath: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository unique ID */
+                repoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attack path graph generated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AttackPathGraph"];
+                };
+            };
+            /** @description Repository not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AttackPathGraph"];
+                };
+            };
+        };
+    };
+    globalAttackSurface: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global attack surface summary retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GlobalAttackSurface"];
+                };
+            };
+        };
+    };
+    clearAllAttackSurfaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global attack surface purged successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InTotoAttestation"];
+                };
+            };
+        };
+    };
+    list_13: {
+        parameters: {
+            query?: {
+                operation_type?: string;
+                user_id?: string;
+                search?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Page"];
+                };
+            };
+        };
+    };
+    operationTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string[];
+                };
+            };
+        };
+    };
+    verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Verification"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Authentication successful or MFA challenge initiated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LoginResponse"];
+                };
+            };
+        };
+    };
+    me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserSummary"];
+                };
+            };
+        };
+    };
+    methods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sign-in methods availability */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SignInMethods"];
+                };
+            };
+        };
+    };
+    disableMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaDisableRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA disabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    enableMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnableRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA activated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EnableResponse"];
+                };
+            };
+        };
+    };
+    setupMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MFA setup payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SetupResponse"];
+                };
+            };
+        };
+    };
+    verifyMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA verified, JWT session issued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LoginResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exchange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session established successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LoginResponse"];
+                };
+            };
+        };
+    };
+    explore: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BlastRadiusReport"];
+                };
+            };
+        };
+    };
+    getTopImpact: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TopImpactPackage"][];
+                };
+            };
+        };
+    };
+    exportEvidenceBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certified evidence bundle ZIP archive */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+        };
+    };
+    exportPdf: {
+        parameters: {
+            query?: {
+                /** @description Optional target ID filter */
+                targetId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Generated PDF report document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    framework: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Framework identifier (e.g. NIS2, ISO-27001, CRA) */
+                framework: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Framework evaluation details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ComplianceEvaluation"];
+                };
+            };
+        };
+    };
+    summary: {
+        parameters: {
+            query?: {
+                /** @description Optional target ID filter */
+                targetId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compliance summary evaluated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ComplianceSummary"];
+                };
+            };
+        };
+    };
+    list_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    create_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    remove_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -255,15 +5283,833 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    triggerScan_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QueuedScan"];
+                };
+            };
+        };
+    };
+    getCosignCliHelper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    getPublicKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-pem-file": string;
+                };
+            };
+        };
+    };
+    verifySignature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerifyResponse"];
+                };
+            };
+        };
+    };
+    getAggregateCsaf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsafDocument"];
+                };
+            };
+        };
+    };
+    getScanCsaf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsafDocument"];
+                };
+            };
+        };
+    };
+    getAggregateCycloneDx: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CycloneDxDocument"];
+                };
+            };
+        };
+    };
+    getScanCycloneDx: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CycloneDxDocument"];
+                };
+            };
+        };
+    };
+    overview_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Overview"];
+                };
+            };
+        };
+    };
+    postureAnalytics: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PostureTrendAnalytics"];
+                };
+            };
+        };
+    };
+    trends: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Trends"];
+                };
+            };
+        };
+    };
+    lookupCve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cveId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ThreatIntelRecord"];
+                };
+            };
+        };
+    };
+    getPriorities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EpssFleetSummary"];
+                };
+            };
+        };
+    };
+    sync_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ThreatIntelSyncStatus"];
+                };
+            };
+        };
+    };
+    register_1: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Register returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Register"];
+                };
+            };
+        };
+    };
+    evaluate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateRequest"];
+            };
+        };
+        responses: {
+            /** @description Gate verdict evaluated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GateResponse"];
+                };
+            };
+        };
+    };
+    list_12: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PoliciesResponse"];
+                };
+            };
+        };
+    };
+    storeGlobal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyView"];
+                };
+            };
+        };
+    };
+    storeForTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyView"];
+                };
+            };
+        };
+    };
+    clear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Register returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerdictRegister"];
+                };
+            };
+        };
+    };
+    repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Repository"][];
+                };
+            };
+        };
+    };
+    dossier: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Dossier"];
+                };
+            };
+        };
+    };
+    csv_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    pdf_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                name: string;
+                version?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Results"];
+                };
+            };
+        };
+    };
+    versions: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string[];
+                };
+            };
+        };
+    };
+    list_11: {
+        parameters: {
+            query?: {
+                state?: string;
+                severity?: string;
+                type?: string;
+                triage_status?: string;
+                repository_id?: number;
+                container_id?: number;
+                only_direct?: boolean;
+                is_kev?: boolean;
+                overdue?: boolean;
+                search?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Page"];
+                };
+            };
+        };
+    };
+    triageMany: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkTriageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IssueEntity"][];
+                };
+            };
+        };
+    };
+    detail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    triage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IssueEntity"];
+                };
+            };
+        };
+    };
+    list_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IssueTicketEntity"][];
+                };
+            };
+        };
+    };
+    create_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTicketRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["IssueTicketEntity"];
+                };
             };
         };
     };
-    GateController_evaluateGate: {
+    getConflicts: {
+        parameters: {
+            query?: {
+                repo_id?: number;
+                container_id?: number;
+                proprietary?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LicenseConflict"][];
+                };
+            };
+        };
+    };
+    getInventory: {
+        parameters: {
+            query?: {
+                repo_id?: number;
+                container_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LicenseEntry"][];
+                };
+            };
+        };
+    };
+    getCompatibilityMatrix: {
         parameters: {
             query?: never;
             header?: never;
@@ -272,15 +6118,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["CompatibilityCell"][];
+                };
             };
         };
     };
-    GateController_overview: {
+    getPolicy: {
         parameters: {
             query?: never;
             header?: never;
@@ -289,27 +6138,253 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["LicensePolicy"];
+                };
             };
         };
     };
-    ExportsController_sarif: {
+    updatePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicensePolicy"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LicensePolicy"];
+                };
+            };
+        };
+    };
+    getSummary: {
+        parameters: {
+            query?: {
+                repo_id?: number;
+                container_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LicenseSummary"];
+                };
+            };
+        };
+    };
+    getChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationChannelStatus"][];
+                };
+            };
+        };
+    };
+    testChannel: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                kind: string;
-                id: string;
+                channelType: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NotificationTestResult"];
+                };
+            };
+        };
+    };
+    overview_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Overview"];
+                };
+            };
+        };
+    };
+    debt: {
+        parameters: {
+            query?: {
+                repoId?: number;
+                containerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecurityDebtReport"];
+                };
+            };
+        };
+    };
+    distribution: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distribution returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RemediationDistribution"];
+                };
+            };
+        };
+    };
+    highImpactFixes: {
+        parameters: {
+            query?: {
+                repoId?: number;
+                containerId?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HighImpactFix"][];
+                };
+            };
+        };
+    };
+    list_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repositories list retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository registered successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    remove_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository deleted successfully */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -317,21 +6392,1060 @@ export interface operations {
             };
         };
     };
-    ExportsController_vex: {
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    repositoryApis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository API inventory retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RepositoryApisOverview"];
+                };
+            };
+        };
+    };
+    clearRepositoryAttackSurface: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository attack surface purged successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportOpenApi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Synthesized OpenAPI 3.0 JSON document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+        };
+    };
+    latest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    pdf_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    triggerScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository identifier */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan queued successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QueuedScan"];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Listing"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Uploaded"];
+                };
+            };
+        };
+    };
+    catalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CataloguePreview"];
+                };
+            };
+        };
+    };
+    fetchCatalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogueRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Uploaded"];
+                };
+            };
+        };
+    };
+    coverage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coverage assessed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Assessment"];
+                };
+            };
+        };
+    };
+    deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    activate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ActivateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    impact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TriageImpact"];
+                };
+            };
+        };
+    };
+    diff: {
         parameters: {
             query: {
-                author: string;
+                fromScanId: number;
+                toScanId: number;
             };
             header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SbomDiffReport"];
+                };
+            };
+        };
+    };
+    diffLatest: {
+        parameters: {
+            query?: {
+                repoId?: number;
+                containerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SbomDiffReport"];
+                };
+            };
+        };
+    };
+    list_10: {
+        parameters: {
+            query?: {
+                /** @description Filter by repository ID */
+                repo_id?: number;
+                /** @description Filter by container ID */
+                container_id?: number;
+                /** @description Maximum results to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan history retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
             path: {
-                kind: string;
+                /** @description Scan ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan details retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    sbom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Scan ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Syft native JSON SBOM document, exactly as the cataloguer produced it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+        };
+    };
+    getPublishedBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Badge token */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dynamic SVG vector badge */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description No badge is published under this token */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                };
+            };
+        };
+    };
+    getContainerScorecard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Container ID */
+                containerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Container scorecard retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecurityScorecard"];
+                };
+            };
+        };
+    };
+    getGlobalScorecard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global scorecard retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecurityScorecard"];
+                };
+            };
+        };
+    };
+    getRepositoryScorecard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository ID */
+                repoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository scorecard retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecurityScorecard"];
+                };
+            };
+        };
+    };
+    badgeState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository ID */
+                repoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BadgeState"];
+                };
+            };
+        };
+    };
+    publishBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository ID */
+                repoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BadgeState"];
+                };
+            };
+        };
+    };
+    revokeBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Repository ID */
+                repoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BadgeState"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Security overview retrieved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecurityOverviewView"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Catalog"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: number;
+                    };
+                };
+            };
+        };
+    };
+    openAiKeyState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    setOpenAiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    testOllama: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OllamaCheck"];
+                };
+            };
+        };
+    };
+    ticketTokenState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    setTicketToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    ticketWebhookSecretState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    setTicketWebhookSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    webhookSigningSecretState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    setWebhookSigningSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    getConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SiemConfigResponse"];
+                };
+            };
+        };
+    };
+    updateConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiemConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SiemConfigResponse"];
+                };
+            };
+        };
+    };
+    testConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiemTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TestResult"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"][];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    remove_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
                 id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            /** @description No Content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -339,23 +7453,901 @@ export interface operations {
             };
         };
     };
-    ExportsController_csv: {
+    csaf: {
         parameters: {
-            query?: never;
+            query?: {
+                author?: string;
+            };
             header?: never;
             path: {
                 kind: string;
-                id: string;
+                id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "*/*": components["schemas"]["CsafDocument"];
+                };
+            };
+        };
+    };
+    csv: {
+        parameters: {
+            query?: {
+                state?: string;
+            };
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    sarif: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifLog"];
+                };
+            };
+        };
+    };
+    pdf: {
+        parameters: {
+            query?: {
+                state?: string;
+            };
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    vex: {
+        parameters: {
+            query?: {
+                author?: string;
+            };
+            header?: never;
+            path: {
+                kind: string;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OpenVexDocument"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamSummary"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamSummary"];
+                };
+            };
+        };
+    };
+    remove_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
+            };
+        };
+    };
+    rename: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamSummary"];
+                };
+            };
+        };
+    };
+    members: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number[];
+                };
+            };
+        };
+    };
+    setMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": number[];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": number[];
+                };
+            };
+        };
+    };
+    targets_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TargetAssignment"][];
+                };
+            };
+        };
+    };
+    setTargets_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TargetAssignment"][];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TargetAssignment"][];
+                };
+            };
+        };
+    };
+    setWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamSummary"];
+                };
+            };
+        };
+    };
+    getStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ThreatIntelSyncStatus"];
+                };
+            };
+        };
+    };
+    sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ThreatIntelSyncStatus"];
+                };
+            };
+        };
+    };
+    handleWebhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Gitlab-Token"?: string;
+                "X-Hub-Signature-256"?: string;
+                "X-Vectispire-Token"?: string;
+            };
+            path: {
+                /** @description Ticketing provider: jira, gitlab, github, servicenow */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "*/*": string;
+                "application/*+json": string;
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description Webhook processed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WebhookSyncResult"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Listing"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    targets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TargetAssignment"][];
+                };
+            };
+        };
+    };
+    setTargets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TargetAssignment"][];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TargetAssignment"][];
+                };
+            };
+        };
+    };
+    getAggregateVex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenVexDocument"];
+                };
+            };
+        };
+    };
+    ingestVex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IngestionResult"];
+                };
+            };
+        };
+    };
+    getScanVex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenVexDocument"];
+                };
+            };
+        };
+    };
+    listGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimListResponseScimGroupDto"];
+                };
+            };
+        };
+    };
+    createGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimGroupDto"];
+                "application/scim+json": components["schemas"]["ScimGroupDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+        };
+    };
+    getGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+        };
+    };
+    updateGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimGroupDto"];
+                "application/scim+json": components["schemas"]["ScimGroupDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+        };
+    };
+    deleteGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimPatchOp"];
+                "application/scim+json": components["schemas"]["ScimPatchOp"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                filter?: string;
+                startIndex?: number;
+                count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimListResponseScimUserDto"];
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimUserDto"];
+                "application/scim+json": components["schemas"]["ScimUserDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+        };
+    };
+    getUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+        };
+    };
+    updateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimUserDto"];
+                "application/scim+json": components["schemas"]["ScimUserDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScimPatchOp"];
+                "application/scim+json": components["schemas"]["ScimPatchOp"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
             };
         };
     };
