@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.repositories;
 
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
@@ -84,6 +85,31 @@ public interface IssueAggregates {
 
     /** The closed half of the scoreboard, counted and averaged by the database. */
     List<TargetResolutions> countResolvedByTarget(Specification<IssueEntity> filter);
+
+    /**
+     * One resolved issue's severity and how long it took, for the issues closed since an instant.
+     *
+     * <p><b>Rows, because percentiles need the values.</b> A median and a ninetieth percentile
+     * cannot be computed from a sum and a count, and no portable SQL across these three engines
+     * produces them. The window is what keeps this bounded: it reads the resolutions of a period,
+     * not of all history.
+     */
+    record ResolvedDuration(String severity, long seconds) {}
+
+    /**
+     * One severity's open backlog: how many, how many past their deadline, and the oldest.
+     *
+     * <p>Aggregated by the database — {@code count}, {@code min} — because none of the three
+     * numbers needs the rows themselves, and the open backlog is the half that grows with the
+     * estate.
+     *
+     * @param oldestFirstSeen when the oldest still-open issue of this severity was first seen
+     */
+    record OpenBacklog(String severity, long total, java.time.Instant oldestFirstSeen) {}
+
+    List<ResolvedDuration> resolvedDurationsSince(Specification<IssueEntity> filter, Instant since);
+
+    List<OpenBacklog> openBacklogBySeverity(Specification<IssueEntity> filter);
 
     /**
      * The vulnerable packages, weighted.

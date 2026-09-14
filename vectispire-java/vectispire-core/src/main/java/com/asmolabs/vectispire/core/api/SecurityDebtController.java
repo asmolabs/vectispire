@@ -2,9 +2,11 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.RemediationDistributionService;
 import com.asmolabs.vectispire.core.services.SecurityDebtService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import java.util.List;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
 
 /**
  * Endpoints for security debt analytics and prioritized high-impact remediation fixes.
@@ -24,12 +28,34 @@ public class SecurityDebtController {
 
     private final SecurityDebtService securityDebtService;
     private final VisibilityService visibilityService;
+    private final RemediationDistributionService distribution;
 
     public SecurityDebtController(
             SecurityDebtService securityDebtService,
-            VisibilityService visibilityService) {
+            VisibilityService visibilityService,
+            RemediationDistributionService distribution) {
         this.securityDebtService = securityDebtService;
         this.visibilityService = visibilityService;
+        this.distribution = distribution;
+    }
+
+    /**
+     * How long remediation takes, as a shape.
+     *
+     * <p><b>Beside the mean rather than instead of it.</b> The summary's mean answers "what does a
+     * fix usually cost"; this answers "what fraction met its deadline, and how bad is the worst
+     * thing still open". A process is proven by the second question — an estate with a mean of two
+     * days and a critical open since March is not remediating, and only the tail says so.
+     */
+    @Operation(summary = "Remediation time distribution", description = "Share within SLA, median, ninetieth percentile and oldest open item, per severity.")
+    @ApiResponse(responseCode = "200", description = "Distribution returned")
+    @GetMapping("/distribution")
+    public RemediationDistribution distribution(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(required = false, defaultValue = "90") int days) {
+
+        Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
+        return distribution.distribution(days, allowed);
     }
 
     @GetMapping("/debt")

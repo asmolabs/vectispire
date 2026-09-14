@@ -11,6 +11,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import java.util.Collection;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -98,6 +99,48 @@ public class IssueAggregatesImpl implements IssueAggregates {
                         (Long) row[1],
                         count(row[2]),
                         row[3] == null ? null : ((Number) row[3]).doubleValue()))
+                .toList();
+    }
+
+    @Override
+    public List<ResolvedDuration> resolvedDurationsSince(Specification<IssueEntity> filter, Instant since) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.array(issue.get("severity"), issue.get("resolutionSeconds")));
+        // `resolutionSeconds` is null for an issue closed in the instant it was seen, or one with
+        // no sighting — the cases `V24` deliberately leaves unmeasured. They are not resolutions
+        // of zero length, so they are absent from the distribution rather than at its floor.
+        restrict(
+                query,
+                filter,
+                issue,
+                builder,
+                builder.isNotNull(issue.get("resolutionSeconds")),
+                builder.greaterThanOrEqualTo(issue.get("resolvedAt"), since));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new ResolvedDuration((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Override
+    public List<OpenBacklog> openBacklogBySeverity(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.array(
+                        issue.get("severity"),
+                        builder.count(issue.get("id")),
+                        builder.least(issue.<java.time.Instant>get("firstSeenAt"))))
+                .groupBy(issue.get("severity"));
+        restrict(query, filter, issue, builder, builder.isNull(issue.get("resolvedAt")));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new OpenBacklog(
+                        (String) row[0], count(row[1]), (java.time.Instant) row[2]))
                 .toList();
     }
 
