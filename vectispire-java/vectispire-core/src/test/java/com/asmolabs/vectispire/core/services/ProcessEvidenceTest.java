@@ -138,7 +138,7 @@ class ProcessEvidenceTest extends VectispireContextTest {
     @Test
     @DisplayName("names what the installed rules can reach, so a zero is not read as clean")
     void coverageNamesWhatWasLookedFor() {
-        ProcessEvidenceService.CoverageEvidence coverage = evidence.coverage();
+        ProcessEvidenceService.CoverageEvidence coverage = evidence.coverage(Visibility.everything());
 
         assertThat(coverage.ruleCoverage()).isNotNull();
         assertThat(coverage.ruleCoverage().state()).isNotNull();

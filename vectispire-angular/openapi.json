@@ -3976,6 +3976,48 @@
         },
         "type" : "object"
       },
+      "ScopeCoverage" : {
+        "properties" : {
+          "declaredAssets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "inScope" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "neverScanned" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "scannedRecently" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "stale" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ScopeView" : {
+        "properties" : {
+          "coverage" : {
+            "$ref" : "#/components/schemas/ScopeCoverage"
+          },
+          "statement" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TargetRef"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "SecretFinding" : {
         "properties" : {
           "description" : {
@@ -4532,6 +4574,18 @@
             "type" : "integer"
           },
           "label" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TargetRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
             "type" : "string"
           }
         },
@@ -6285,6 +6339,98 @@
         },
         "summary" : "Get framework compliance details",
         "tags" : [ "Compliance" ]
+      }
+    },
+    "/api/v1/compliance/scope" : {
+      "get" : {
+        "description" : "What the scope covers, how many assets it declares, and how many carry current evidence.",
+        "operationId" : "scope",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopeView"
+                }
+              }
+            },
+            "description" : "Scope returned"
+          }
+        },
+        "summary" : "The certified scope and its coverage",
+        "tags" : [ "Certified scope" ]
+      }
+    },
+    "/api/v1/compliance/scope/containers/{id}" : {
+      "put" : {
+        "description" : "Marks one container image as inside or outside the certified scope.",
+        "operationId" : "setContainer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "in_scope",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopeView"
+                }
+              }
+            },
+            "description" : "Membership set"
+          }
+        },
+        "summary" : "Set an image's scope membership",
+        "tags" : [ "Certified scope" ]
+      }
+    },
+    "/api/v1/compliance/scope/repositories/{id}" : {
+      "put" : {
+        "description" : "Marks one repository as inside or outside the certified scope.",
+        "operationId" : "setRepository",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "in_scope",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopeView"
+                }
+              }
+            },
+            "description" : "Membership set"
+          }
+        },
+        "summary" : "Set a repository's scope membership",
+        "tags" : [ "Certified scope" ]
       }
     },
     "/api/v1/compliance/soa" : {
@@ -10488,6 +10634,9 @@
   }, {
     "description" : "Attack Path Visualization and Exploit Scenario Correlation",
     "name" : "Attack Paths"
+  }, {
+    "description" : "The ISMS scope, and the evidence covering it",
+    "name" : "Certified scope"
   }, {
     "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
     "name" : "Statement of Applicability"

@@ -236,7 +236,7 @@ public class EvidenceVaultService {
                     timelinessBytes);
 
             // 12. Control coverage — what the analysis was able to find
-            byte[] coverageBytes = json.writeValueAsBytes(processEvidence.coverage());
+            byte[] coverageBytes = json.writeValueAsBytes(processEvidence.coverage(allowed));
             addZipEntry(zip, entries, "12_control_coverage.json",
                     "Which languages the installed rules reach, and the freshness window applied to section 01 — what a zero finding count does and does not mean (ISO 27001 A.8.28)",
                     coverageBytes);

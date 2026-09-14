@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
+import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -71,6 +72,7 @@ public class ProcessEvidenceService {
     private final ExceptionsRegisterService exceptions;
     private final RemediationDistributionService remediation;
     private final RuleCoverageService ruleCoverage;
+    private final CertifiedScopeService scope;
     private final SettingsService settings;
 
     public ProcessEvidenceService(
@@ -78,11 +80,13 @@ public class ProcessEvidenceService {
             ExceptionsRegisterService exceptions,
             RemediationDistributionService remediation,
             RuleCoverageService ruleCoverage,
+            CertifiedScopeService scope,
             SettingsService settings) {
         this.verdicts = verdicts;
         this.exceptions = exceptions;
         this.remediation = remediation;
         this.ruleCoverage = ruleCoverage;
+        this.scope = scope;
         this.settings = settings;
     }
 
@@ -208,7 +212,9 @@ public class ProcessEvidenceService {
      */
     public record CoverageEvidence(
             @JsonProperty("freshness_days") int freshnessDays,
-            @JsonProperty("rule_coverage") RuleCoverage.Assessment ruleCoverage) {}
+            @JsonProperty("rule_coverage") RuleCoverage.Assessment ruleCoverage,
+            @JsonProperty("scope_statement") String scopeStatement,
+            @JsonProperty("scope_coverage") ScopeCoverage scopeCoverage) {}
 
     /**
      * Section 12 — what the analysis was <em>able</em> to find.
@@ -218,13 +224,20 @@ public class ProcessEvidenceService {
      * above it reads that as a clean result. Naming the gap is what turns "no findings" back into
      * "nothing was looked for".
      *
-     * <p>Not narrowed by visibility: rule installation and the settings beside it are properties
-     * of the instance, not of an estate somebody may or may not see.
+     * <p>Rule installation and the freshness setting are properties of the instance and are not
+     * narrowed. The scope coverage beside them is: its denominator is the scope statement's own
+     * asset count, which holds whoever is reading, and its numerator is the caller's slice — so a
+     * restricted reader's figure is worse than the estate's, which is the honest arithmetic. A
+     * reader who cannot see two thirds of the scope has not been told that two thirds of it is
+     * fine.
      */
     @Transactional(readOnly = true)
-    public CoverageEvidence coverage() {
+    public CoverageEvidence coverage(Visibility allowed) {
         return new CoverageEvidence(
-                Math.max(0, settings.asInt(Setting.COMPLIANCE_FRESHNESS_DAYS)), ruleCoverage.assess());
+                Math.max(0, settings.asInt(Setting.COMPLIANCE_FRESHNESS_DAYS)),
+                ruleCoverage.assess(),
+                scope.statement(),
+                scope.coverage(allowed));
     }
 
     /** Section 10 — what was argued away rather than fixed. */

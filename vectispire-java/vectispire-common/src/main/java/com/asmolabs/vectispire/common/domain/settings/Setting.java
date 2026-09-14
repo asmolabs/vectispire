@@ -340,6 +340,23 @@ public enum Setting {
                     + "à l'évaluation son comportement d'avant.",
             "30"),
 
+    ISMS_SCOPE_STATEMENT("isms_scope_statement", SettingType.TEXT, Section.RETENTION,
+            "Certified scope",
+            "What the management system's certified scope covers, in the words of the document that defines "
+                    + "it. Copied here so an evidence bundle carries the scope it describes — an archive whose "
+                    + "reader has to be told separately what it was about is half an archive.",
+            ""),
+
+    ISMS_SCOPE_ASSETS("isms_scope_assets", SettingType.INTEGER, Section.RETENTION,
+            "Assets the certified scope covers",
+            "**A tool measuring its own coverage always reports full coverage.** Vectispire knows the targets "
+                    + "somebody registered in it; an asset inside the certified scope that was never registered "
+                    + "has no row here to be missing from, so an estate made of half the certified assets reports "
+                    + "as entirely scanned. Taken from the scope document, this number is what makes the "
+                    + "difference visible. Zero means nobody has said — which is reported as *undeclared*, never "
+                    + "as complete.",
+            "0"),
+
     SLA_CRITICAL_DAYS("sla_critical_days", SettingType.INTEGER, Section.REMEDIATION,
             "Critical: days to remediate",
             "Counted from when the issue was **first seen**, never from the last scan — otherwise a target "

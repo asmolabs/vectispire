@@ -44,6 +44,16 @@ public class ContainerEntity {
     @Column(name = "tier", length = 32, nullable = false)
     private String tier = "TIER_2_BUSINESS_OPERATIONAL";
 
+    /**
+     * Whether this container belongs to the certified scope of the management system.
+     *
+     * <p>False by default, and deliberately not "everything is in scope until somebody says
+     * otherwise": a scope nobody has drawn is not the whole estate, it is an undrawn scope, and
+     * defaulting to true would report a coverage figure the organisation never claimed.
+     */
+    @Column(name = "in_certified_scope", nullable = false)
+    private boolean inCertifiedScope;
+
     public Long getId() {
         return id;
     }
@@ -114,5 +124,13 @@ public class ContainerEntity {
 
     public void setTier(String tier) {
         this.tier = tier != null ? tier : "TIER_2_BUSINESS_OPERATIONAL";
+    }
+
+    public boolean isInCertifiedScope() {
+        return inCertifiedScope;
+    }
+
+    public void setInCertifiedScope(boolean inCertifiedScope) {
+        this.inCertifiedScope = inCertifiedScope;
     }
 }
