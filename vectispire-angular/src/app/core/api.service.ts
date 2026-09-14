@@ -2,6 +2,16 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+    ControlDeclaration,
+    DeclarationRequest,
+    ExceptionsRegister,
+    RegisteredVerdict,
+    RemediationDistribution,
+    ReviewOutcome,
+    RuleCoverageAssessment,
+    ScopeView,
+    SoaStatement,
+    VerdictRegister,
     GatePolicies,
     GatePolicy,
     GatePolicyRequest,
@@ -821,5 +831,69 @@ export class ApiService {
     getAttackPathsOverview(): Observable<AttackPathGraph[]> {
         return this.http.get<AttackPathGraph[]>('/api/v1/attack-paths/overview');
     }
-}
 
+    /* --------------------------------------------------------------------- */
+    /* Preuve de processus                                                    */
+    /* --------------------------------------------------------------------- */
+
+    /**
+     * Les réponses de la barrière, la plus récente d'abord.
+     *
+     * Le serveur borne `limit` lui-même ; l'écran ne la valide pas une seconde fois, sinon les
+     * deux bornes divergent et c'est celle du client qu'on oublie de bouger.
+     */
+    gateVerdicts(limit?: number): Observable<VerdictRegister> {
+        let params = new HttpParams();
+        if (limit) params = params.set('limit', limit);
+        return this.http.get<VerdictRegister>('/api/v1/gate/verdicts', { params });
+    }
+
+    exceptionsRegister(limit?: number): Observable<ExceptionsRegister> {
+        let params = new HttpParams();
+        if (limit) params = params.set('limit', limit);
+        return this.http.get<ExceptionsRegister>('/api/v1/exceptions', { params });
+    }
+
+    /** La revue rend le registre entier : les compteurs bougent avec la ligne. */
+    reviewException(issueId: number, outcome: ReviewOutcome, comment: string | null, newExpiry: string | null) {
+        return this.http.post<ExceptionsRegister>(`/api/v1/exceptions/${issueId}/reviews`, {
+            outcome,
+            comment,
+            new_expiry: newExpiry
+        });
+    }
+
+    remediationDistribution(days?: number): Observable<RemediationDistribution> {
+        let params = new HttpParams();
+        if (days) params = params.set('days', days);
+        return this.http.get<RemediationDistribution>('/api/v1/remediation/distribution', { params });
+    }
+
+    ruleCoverage(): Observable<RuleCoverageAssessment> {
+        return this.http.get<RuleCoverageAssessment>('/api/v1/rule-sets/coverage');
+    }
+
+    statementsOfApplicability(): Observable<SoaStatement[]> {
+        return this.http.get<SoaStatement[]>('/api/v1/compliance/soa');
+    }
+
+    declareControl(framework: string, controlId: string, body: DeclarationRequest): Observable<ControlDeclaration> {
+        return this.http.put<ControlDeclaration>(`/api/v1/compliance/soa/${framework}/${controlId}`, body);
+    }
+
+    certifiedScope(): Observable<ScopeView> {
+        return this.http.get<ScopeView>('/api/v1/compliance/scope');
+    }
+
+    setRepositoryInScope(id: number, inScope: boolean): Observable<ScopeView> {
+        return this.http.put<ScopeView>(`/api/v1/compliance/scope/repositories/${id}`, null, {
+            params: new HttpParams().set('in_scope', inScope)
+        });
+    }
+
+    setContainerInScope(id: number, inScope: boolean): Observable<ScopeView> {
+        return this.http.put<ScopeView>(`/api/v1/compliance/scope/containers/${id}`, null, {
+            params: new HttpParams().set('in_scope', inScope)
+        });
+    }
+}

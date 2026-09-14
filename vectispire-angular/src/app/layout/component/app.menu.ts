@@ -50,7 +50,12 @@ export class AppMenu {
             { label: this.i18n.t('menu.attack_surface'), icon: 'pi pi-fw pi-compass', routerLink: ['/attack-surface'] },
             { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] },
             { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
-            { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] }
+            { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] },
+
+            // **Sous la conformité, parce que c'est la question qu'un évaluateur pose juste
+            // après.** L'écran de conformité dit où on en est ; celui-ci dit ce qu'on a écarté
+            // pour y arriver, et les deux se lisent ensemble ou pas du tout.
+            { label: this.i18n.t('menu.exceptions'), icon: 'pi pi-fw pi-file-edit', routerLink: ['/exceptions'] }
         ];
 
         const sections: MenuItem[] = [

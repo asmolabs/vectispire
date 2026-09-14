@@ -542,7 +542,8 @@
     "settings_threat_intel": "Threat Intelligence",
     "ssh_keys": "SSH keys",
     "teams": "Teams",
-    "users": "Users"
+    "users": "Users",
+    "exceptions": "Exceptions register"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -866,5 +867,50 @@
     "mfa_status": "2FA",
     "must_change_pw": "Must Change Password",
     "active": "Active Status"
+  },
+  "exceptions": {
+    "title": "Exceptions register",
+    "subtitle": "What somebody decided not to fix, and under what terms. A clean backlog means two very different things depending on whether it was cleared or argued away.",
+    "granted": "exemptions in force",
+    "awaiting": "awaiting approval",
+    "lapsed": "expired, not revisited",
+    "never_reviewed": "never revisited",
+    "column": {
+      "issue": "Issue",
+      "target": "Target",
+      "decision": "Decision",
+      "justification": "Justification",
+      "by": "By",
+      "expiry": "Expiry",
+      "reviewed": "Last reviewed",
+      "action": "Action"
+    },
+    "state": {
+      "lapsed": "expired",
+      "awaiting": "awaiting",
+      "granted": "granted"
+    },
+    "no_expiry": "no expiry",
+    "never": "never",
+    "review": "Review",
+    "empty": "No exception has been granted or requested.",
+    "footnote": "Fixes are not listed here. An issue closed because it was repaired is not an exception, and merging the two would bury these few rows under every resolution the estate has ever made.",
+    "review_dialog": {
+      "title": "Review an exception",
+      "help": "Confirming changes nothing, and that is the point: it records that somebody looked. Without it, an acceptance revisited each quarter and one nobody has opened since read identically.",
+      "new_expiry": "New expiry",
+      "comment": "Comment",
+      "record": "Record the review"
+    },
+    "outcome": {
+      "confirmed": "It still holds",
+      "confirmed_help": "Unchanged. The entry exists so that “somebody looked” is a dated fact.",
+      "extended": "It still holds, with a new date",
+      "extended_help": "Moves the expiry.",
+      "revoked": "It does not hold any more",
+      "revoked_help": "The issue goes back under review and the gate stops honouring the exception."
+    },
+    "load_failed": "Could not load the exceptions register.",
+    "review_failed": "The review was not recorded."
   }
 }

@@ -542,7 +542,8 @@
     "settings_threat_intel": "Threat Intelligence",
     "ssh_keys": "Clés SSH",
     "teams": "Équipes",
-    "users": "Utilisateurs"
+    "users": "Utilisateurs",
+    "exceptions": "Registre des exceptions"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -972,5 +973,50 @@
     "mfa_status": "2FA",
     "must_change_pw": "Doit changer de mot de passe",
     "active": "Statut actif"
+  },
+  "exceptions": {
+    "title": "Registre des exceptions",
+    "subtitle": "Ce que quelqu'un a décidé de ne pas corriger, et sous quelles conditions. Un backlog vert veut dire deux choses très différentes selon qu'il a été nettoyé ou argumenté.",
+    "granted": "acceptations en vigueur",
+    "awaiting": "en attente d'approbation",
+    "lapsed": "périmées, non revues",
+    "never_reviewed": "jamais revues",
+    "column": {
+      "issue": "Issue",
+      "target": "Cible",
+      "decision": "Décision",
+      "justification": "Justification",
+      "by": "Par",
+      "expiry": "Échéance",
+      "reviewed": "Dernière revue",
+      "action": "Action"
+    },
+    "state": {
+      "lapsed": "périmée",
+      "awaiting": "en attente",
+      "granted": "accordée"
+    },
+    "no_expiry": "sans échéance",
+    "never": "jamais",
+    "review": "Revoir",
+    "empty": "Aucune exception accordée ni demandée.",
+    "footnote": "Les corrections ne figurent pas ici. Une issue fermée parce qu'elle a été réparée n'est pas une exception, et les mélanger enterrerait ces quelques lignes sous toutes les résolutions du parc.",
+    "review_dialog": {
+      "title": "Revoir une exception",
+      "help": "Confirmer ne change rien, et c'est tout l'intérêt : cela enregistre que quelqu'un a regardé. Sans ça, une acceptation rouverte chaque trimestre et une que personne n'a ouverte depuis se lisent à l'identique.",
+      "new_expiry": "Nouvelle échéance",
+      "comment": "Commentaire",
+      "record": "Enregistrer la revue"
+    },
+    "outcome": {
+      "confirmed": "Elle tient toujours",
+      "confirmed_help": "Inchangée. L'entrée existe pour que « quelqu'un a regardé » soit un fait daté.",
+      "extended": "Elle tient, avec une nouvelle date",
+      "extended_help": "Déplace l'échéance.",
+      "revoked": "Elle ne tient plus",
+      "revoked_help": "L'issue repasse en revue et la barrière cesse de l'honorer."
+    },
+    "load_failed": "Le registre des exceptions n'a pas pu être chargé.",
+    "review_failed": "La revue n'a pas été enregistrée."
   }
 }

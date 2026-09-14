@@ -1486,3 +1486,162 @@ export interface AttackPathGraph {
     edges: AttackPathEdge[];
     attackPaths: AttackPath[];
 }
+
+/* ------------------------------------------------------------------------- */
+/* Preuve de processus : ce qui montre qu'un contrôle a fonctionné.           */
+/*                                                                           */
+/* Ces types portent des noms de champs en snake_case parce que le serveur    */
+/* les publie ainsi : ils partent aussi dans un bundle de preuves qu'un       */
+/* évaluateur ouvre à la main, et `target_kind` s'y lit mieux que             */
+/* `targetKind`. Les recopier en camelCase ici aurait demandé une couche de   */
+/* conversion dont le seul effet serait de faire diverger l'écran du fichier  */
+/* que l'auditeur a sous les yeux.                                           */
+/* ------------------------------------------------------------------------- */
+
+export interface RegisteredVerdict {
+    id: string;
+    target_kind: string;
+    target_id: number | null;
+    passed: boolean;
+    evaluated: number;
+    violations: number;
+    counts_by_severity: Record<string, number>;
+    fail_on_severity: string | null;
+    policy_source: string | null;
+    policy_version: number | null;
+    relaxations_ignored: boolean;
+    decided_at: string;
+    decided_by: string | null;
+}
+
+export interface VerdictRegister {
+    verdicts: RegisteredVerdict[];
+    passed: number;
+    refused: number;
+}
+
+export interface ExceptionEntry {
+    issue_id: number;
+    identifier: string | null;
+    severity: string | null;
+    target_kind: string;
+    target_id: number | null;
+    target_name: string | null;
+    decision: string;
+    justification: string | null;
+    comment: string | null;
+    actor: string | null;
+    origin: string | null;
+    decided_at: string | null;
+    expires_at: string | null;
+    lapsed: boolean;
+    last_reviewed_at: string | null;
+    last_reviewed_by: string | null;
+}
+
+export interface ExceptionsRegister {
+    entries: ExceptionEntry[];
+    granted: number;
+    awaiting_approval: number;
+    lapsed: number;
+    never_reviewed: number;
+}
+
+export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';
+
+export interface RemediationBySeverity {
+    severity: string;
+    windowDays: number;
+    withinSla: number;
+    late: number;
+    percentageWithinSla: number | null;
+    medianDays: number | null;
+    ninetiethDays: number | null;
+    openOverdue: number;
+    oldestOpenDays: number | null;
+}
+
+export interface RemediationDistribution {
+    windowDays: number;
+    bySeverity: RemediationBySeverity[];
+    oldestOpenDays: number | null;
+    oldestOpenSeverity: string | null;
+}
+
+export interface RuleCoverageAssessment {
+    state: 'UNCONFIGURED' | 'PARTIAL' | 'COVERED';
+    languagesWithRules: string[];
+    ecosystemsInEstate: string[];
+    uncovered: string[];
+    ruleFiles: number;
+}
+
+export type Applicability = 'APPLICABLE' | 'EXCLUDED';
+export type Implementation = 'IMPLEMENTED' | 'PARTIALLY_IMPLEMENTED' | 'PLANNED' | 'NOT_IMPLEMENTED';
+export type EvidenceSource = 'VECTISPIRE' | 'EXTERNAL' | 'BOTH';
+export type Divergence =
+    | 'CONTRADICTED'
+    | 'EXCLUDED_WITHOUT_JUSTIFICATION'
+    | 'UNDECLARED'
+    | 'OVERSTATED'
+    | 'UNDERSTATED'
+    | 'NOT_MEASURED_HERE'
+    | 'NOT_APPLICABLE'
+    | 'CONSISTENT';
+
+export interface ControlDeclaration {
+    framework: string;
+    controlId: string;
+    applicability: Applicability;
+    justification: string | null;
+    implementation: Implementation | null;
+    evidenceSource: EvidenceSource;
+    externalEvidence: string | null;
+    owner: string | null;
+    decidedBy: string | null;
+    decidedAt: string;
+    reviewedAt: string | null;
+    reviewDueAt: string | null;
+}
+
+export interface SoaLine {
+    control: { id: string; name: string; requirement: string; category: string };
+    declaration: ControlDeclaration | null;
+    measured: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT' | null;
+    divergence: Divergence;
+    reviewOverdue: boolean;
+}
+
+export interface SoaStatement {
+    framework: string;
+    lines: SoaLine[];
+    total: number;
+    declared: number;
+    findings: number;
+    reviewsOverdue: number;
+    complete: boolean;
+}
+
+export interface DeclarationRequest {
+    applicability: Applicability;
+    justification: string | null;
+    implementation: Implementation | null;
+    evidence_source: EvidenceSource;
+    external_evidence: string | null;
+    owner: string | null;
+    review_due_at: string | null;
+}
+
+export interface ScopeCoverage {
+    declaredAssets: number;
+    inScope: number;
+    scannedRecently: number;
+    stale: number;
+    neverScanned: number;
+}
+
+export interface ScopeView {
+    statement: string;
+    coverage: ScopeCoverage;
+    targets: { kind: string; id: number }[];
+}

@@ -1,0 +1,164 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'exceptions.title' | translate }}</div>
+    <p class="text-muted-color mb-4" style="max-width: 64ch">{{ 'exceptions.subtitle' | translate }}</p>
+
+    @if (register(); as data) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div>
+                <div class="text-2xl font-medium">{{ data.granted }}</div>
+                <div class="text-muted-color text-sm">{{ 'exceptions.granted' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium text-orange-600">{{ data.awaiting_approval }}</div>
+                <div class="text-muted-color text-sm">{{ 'exceptions.awaiting' | translate }}</div>
+            </div>
+            <div class="pl-4 border-l-4 border-red-500">
+                <div class="text-2xl font-medium text-red-700">{{ data.lapsed }}</div>
+                <div class="text-sm text-red-700 font-medium">{{ 'exceptions.lapsed' | translate }}</div>
+            </div>
+            <div class="pl-4 border-l-4 border-orange-400">
+                <div class="text-2xl font-medium text-orange-700">{{ data.never_reviewed }}</div>
+                <div class="text-sm text-orange-700 font-medium">{{ 'exceptions.never_reviewed' | translate }}</div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="border-collapse: collapse">
+                <thead>
+                    <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.issue' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.target' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.decision' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium">{{ 'exceptions.column.justification' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.by' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.expiry' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'exceptions.column.reviewed' | translate }}</th>
+                        @if (canReview()) {
+                            <th class="py-2 font-medium"><span class="sr-only">{{ 'exceptions.column.action' | translate }}</span></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (entry of data.entries; track entry.issue_id) {
+                        <tr class="border-b border-surface-100 dark:border-surface-800 align-top"
+                            [class.bg-red-50]="entry.lapsed">
+                            <td class="py-3 pr-4">
+                                <div class="font-medium font-mono text-xs">{{ entry.identifier ?? '—' }}</div>
+                                <p-tag [severity]="severityOf(entry)" [value]="entry.severity ?? '—'" styleClass="mt-1" />
+                            </td>
+                            <td class="py-3 pr-4">{{ entry.target_name ?? '—' }}</td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                @if (entry.lapsed) {
+                                    <p-tag severity="danger" [value]="'exceptions.state.lapsed' | translate" />
+                                } @else if (entry.decision === 'pending_approval') {
+                                    <p-tag severity="warn" [value]="'exceptions.state.awaiting' | translate" />
+                                } @else {
+                                    <p-tag severity="secondary" [value]="'exceptions.state.granted' | translate" />
+                                }
+                            </td>
+                            <td class="py-3 pr-4">
+                                <div>{{ entry.justification ?? '—' }}</div>
+                                @if (entry.comment) {
+                                    <div class="text-muted-color text-xs mt-1">{{ entry.comment }}</div>
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap">{{ entry.actor ?? '—' }}</td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                @if (entry.expires_at) {
+                                    <span [class.text-red-700]="entry.lapsed" [class.font-medium]="entry.lapsed">
+                                        {{ entry.expires_at | date: 'mediumDate' }}
+                                    </span>
+                                } @else {
+                                    <span class="text-muted-color">{{ 'exceptions.no_expiry' | translate }}</span>
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                @if (entry.last_reviewed_at) {
+                                    <div>{{ entry.last_reviewed_at | date: 'mediumDate' }}</div>
+                                    <div class="text-muted-color text-xs">{{ entry.last_reviewed_by ?? '—' }}</div>
+                                } @else {
+                                    <span class="text-orange-700 font-medium">{{ 'exceptions.never' | translate }}</span>
+                                }
+                            </td>
+                            @if (canReview()) {
+                                <td class="py-3">
+                                    <p-button [label]="'exceptions.review' | translate" [text]="true" size="small"
+                                        (onClick)="openReview(entry)" />
+                                </td>
+                            }
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td class="py-6 text-muted-color" [attr.colspan]="canReview() ? 8 : 7">
+                                {{ 'exceptions.empty' | translate }}
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-muted-color text-sm mt-4" style="max-width: 72ch">{{ 'exceptions.footnote' | translate }}</p>
+    } @else if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full" />
+    }
+</div>
+
+<p-dialog [visible]="!!reviewing()" (visibleChange)="reviewing.set(null)" [modal]="true" [style]="{ width: '34rem' }"
+    [header]="'exceptions.review_dialog.title' | translate">
+    @if (reviewing(); as entry) {
+        <p class="text-muted-color text-sm mb-4">{{ 'exceptions.review_dialog.help' | translate }}</p>
+
+        <div class="mb-4">
+            <div class="font-medium font-mono text-sm">{{ entry.identifier ?? '—' }}</div>
+            <div class="text-muted-color text-sm">{{ entry.target_name ?? '—' }}</div>
+        </div>
+
+        <div class="flex flex-col gap-2 mb-4">
+            <label class="flex items-start gap-2">
+                <input type="radio" name="outcome" value="CONFIRMED" [(ngModel)]="outcome" class="mt-1" />
+                <span>
+                    <span class="font-medium">{{ 'exceptions.outcome.confirmed' | translate }}</span>
+                    <span class="block text-muted-color text-sm">{{ 'exceptions.outcome.confirmed_help' | translate }}</span>
+                </span>
+            </label>
+            <label class="flex items-start gap-2">
+                <input type="radio" name="outcome" value="EXTENDED" [(ngModel)]="outcome" class="mt-1" />
+                <span>
+                    <span class="font-medium">{{ 'exceptions.outcome.extended' | translate }}</span>
+                    <span class="block text-muted-color text-sm">{{ 'exceptions.outcome.extended_help' | translate }}</span>
+                </span>
+            </label>
+            <label class="flex items-start gap-2">
+                <input type="radio" name="outcome" value="REVOKED" [(ngModel)]="outcome" class="mt-1" />
+                <span>
+                    <span class="font-medium">{{ 'exceptions.outcome.revoked' | translate }}</span>
+                    <span class="block text-muted-color text-sm">{{ 'exceptions.outcome.revoked_help' | translate }}</span>
+                </span>
+            </label>
+        </div>
+
+        @if (outcome === 'EXTENDED') {
+            <div class="mb-4">
+                <label for="newExpiry" class="block font-medium mb-1">{{ 'exceptions.review_dialog.new_expiry' | translate }}</label>
+                <input id="newExpiry" type="date" [(ngModel)]="newExpiry"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded" />
+            </div>
+        }
+
+        <div class="mb-4">
+            <label for="comment" class="block font-medium mb-1">{{ 'exceptions.review_dialog.comment' | translate }}</label>
+            <input id="comment" pInputText [(ngModel)]="comment" class="w-full" />
+        </div>
+
+        @if (error()) {
+            <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
+        }
+
+        <div class="flex justify-end gap-2">
+            <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="reviewing.set(null)" />
+            <p-button [label]="'exceptions.review_dialog.record' | translate" [disabled]="incomplete() || busy()"
+                (onClick)="submitReview()" />
+        </div>
+    }
+</p-dialog>
