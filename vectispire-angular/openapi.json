@@ -1593,6 +1593,13 @@
           "lapsed" : {
             "type" : "boolean"
           },
+          "last_reviewed_at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "last_reviewed_by" : {
+            "type" : "string"
+          },
           "origin" : {
             "type" : "string"
           },
@@ -3246,6 +3253,10 @@
           "lapsed" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "never_reviewed" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -3445,6 +3456,22 @@
           },
           "truncated" : {
             "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "ReviewRequest" : {
+        "properties" : {
+          "comment" : {
+            "type" : "string"
+          },
+          "new_expiry" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "outcome" : {
+            "enum" : [ "CONFIRMED", "EXTENDED", "REVOKED" ],
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -6869,6 +6896,55 @@
           }
         },
         "summary" : "The exceptions register",
+        "tags" : [ "Exceptions" ]
+      }
+    },
+    "/api/v1/exceptions/{issueId}/reviews" : {
+      "post" : {
+        "description" : "Confirm, extend or revoke one exception, and record that it was looked at.",
+        "operationId" : "review",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "issueId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Register"
+                }
+              }
+            },
+            "description" : "Review recorded"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Register"
+                }
+              }
+            },
+            "description" : "The issue carries no exception, or an extension names no date"
+          }
+        },
+        "summary" : "Review an exception",
         "tags" : [ "Exceptions" ]
       }
     },

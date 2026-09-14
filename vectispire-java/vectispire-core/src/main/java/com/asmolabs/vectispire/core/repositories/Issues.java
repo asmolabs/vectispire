@@ -15,6 +15,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface Issues
         extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity>, IssueAggregates {
+
+    /**
+     * The issues that currently carry an exception, newest decision first.
+     *
+     * <p><b>Driven by the issue's state rather than by the decision log, and the difference is a
+     * defect.</b> The register used to read triage <em>events</em>: an issue granted, expired and
+     * granted again produced two rows and was counted twice, and one whose exception had since
+     * been withdrawn kept its old row for ever — a register of current exceptions listing
+     * exceptions that no longer exist, which is the one thing it must never do.
+     *
+     * <p>Visibility is not expressed here, for the reason given on {@code GateVerdicts}: whose
+     * estate a row belongs to has one implementation and it is not in JPQL. The limit bounds what
+     * is read so a restricted reader sees fewer rows, never somebody else's.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.triageStatus in :statuses
+             order by i.triagedAt desc, i.id desc""")
+    List<IssueEntity> findWithException(
+            @Param("statuses") Collection<String> statuses, Limit limit);
+
     Optional<IssueEntity> findByFingerprint(String fingerprint);
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);

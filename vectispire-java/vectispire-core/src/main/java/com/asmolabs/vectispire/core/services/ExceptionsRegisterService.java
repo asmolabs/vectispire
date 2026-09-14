@@ -36,6 +36,9 @@ public class ExceptionsRegisterService {
     /** Past this, a register is exported rather than read. */
     public static final int MAX_ENTRIES = 500;
 
+    /** The origin {@code IssueTriageService} writes for a periodic review. */
+    private static final String REVIEW = "review";
+
     /** The decisions that are exceptions: granted, and awaiting a second pair of eyes. */
     private static final List<String> DECISIONS =
             List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.PENDING_APPROVAL.wireName());
@@ -55,6 +58,9 @@ public class ExceptionsRegisterService {
     /**
      * @param lapsed the expiry has passed and nothing has been decided since
      * @param origin who made the decision — a person, or a rule that applied it
+     * @param lastReviewedAt when somebody last revisited this exception and left it standing, or
+     *     null when nobody has since it was granted. <b>Null is the interesting value</b>
+     * @param lastReviewedBy who did
      */
     public record ExceptionEntry(
             @JsonProperty("issue_id") Long issueId,
@@ -70,18 +76,22 @@ public class ExceptionsRegisterService {
             String origin,
             @JsonProperty("decided_at") Instant decidedAt,
             @JsonProperty("expires_at") Instant expiresAt,
-            boolean lapsed) {}
+            boolean lapsed,
+            @JsonProperty("last_reviewed_at") Instant lastReviewedAt,
+            @JsonProperty("last_reviewed_by") String lastReviewedBy) {}
 
     /**
      * @param granted exemptions in force
      * @param awaitingApproval requested, not yet granted — the four-eyes queue
      * @param lapsed granted, expired, and not revisited. <b>The figure worth acting on</b>
+     * @param neverReviewed granted and never revisited since. The figure an assessment asks for
      */
     public record Register(
             List<ExceptionEntry> entries,
             long granted,
             @JsonProperty("awaiting_approval") long awaitingApproval,
-            long lapsed) {}
+            long lapsed,
+            @JsonProperty("never_reviewed") long neverReviewed) {}
 
     /**
      * The register, newest first, narrowed to what the caller may see.
@@ -95,20 +105,20 @@ public class ExceptionsRegisterService {
      */
     @Transactional(readOnly = true)
     public Register register(int limit, Visibility allowed) {
-        List<TriageEventEntity> decisions =
-                events.findDecisions(DECISIONS, Limit.of(Math.clamp(limit, 1, MAX_ENTRIES)));
+        List<IssueEntity> excepted =
+                issues.findWithException(DECISIONS, Limit.of(Math.clamp(limit, 1, MAX_ENTRIES)));
 
-        Map<Long, IssueEntity> byId = issues
-                .findAllById(decisions.stream().map(TriageEventEntity::getIssueId).distinct().toList())
+        Map<Long, List<TriageEventEntity>> history = events
+                .findForIssues(excepted.stream().map(IssueEntity::getId).toList())
                 .stream()
-                .collect(Collectors.toMap(IssueEntity::getId, Function.identity()));
+                .collect(Collectors.groupingBy(TriageEventEntity::getIssueId));
 
-        List<Long> repoIds = byId.values().stream()
+        List<Long> repoIds = excepted.stream()
                 .map(IssueEntity::getRepoId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        List<Long> containerIds = byId.values().stream()
+        List<Long> containerIds = excepted.stream()
                 .map(IssueEntity::getContainerId)
                 .filter(Objects::nonNull)
                 .distinct()
@@ -116,8 +126,9 @@ public class ExceptionsRegisterService {
         TargetNaming.Names names = naming.forIds(repoIds, containerIds);
 
         Instant now = clock.instant();
-        List<ExceptionEntry> entries = decisions.stream()
-                .map(event -> entry(event, byId.get(event.getIssueId()), names, allowed, now))
+        List<ExceptionEntry> entries = excepted.stream()
+                .map(issue -> entry(
+                        issue, history.getOrDefault(issue.getId(), List.of()), names, allowed, now))
                 .filter(Objects::nonNull)
                 .toList();
 
@@ -129,26 +140,28 @@ public class ExceptionsRegisterService {
                 entries.stream()
                         .filter(entry -> TriageStatus.PENDING_APPROVAL.wireName().equals(entry.decision()))
                         .count(),
-                entries.stream().filter(ExceptionEntry::lapsed).count());
+                entries.stream().filter(ExceptionEntry::lapsed).count(),
+                entries.stream().filter(entry -> entry.lastReviewedAt() == null).count());
     }
 
     /**
      * One row, or nothing when the caller may not see the issue it describes.
      *
      * <p>Narrowed here rather than in the query, by {@code permits} — the single implementation of
-     * that question. An issue the store no longer holds yields nothing too: an exception naming a
-     * deleted issue is a row about nothing.
+     * that question.
+     *
+     * <p><b>The decision fields come from the issue, the dates from its history.</b> The issue
+     * carries the exception as it stands now; the history says when it was granted and when it was
+     * last revisited. Reading the decision from the history instead — which is what the first
+     * version did — is what produced a register listing exceptions that had since been withdrawn.
      */
     private static ExceptionEntry entry(
-            TriageEventEntity event,
             IssueEntity issue,
+            List<TriageEventEntity> history,
             TargetNaming.Names names,
             Visibility allowed,
             Instant now) {
 
-        if (issue == null) {
-            return null;
-        }
         ScanTarget target = issue.getRepoId() != null
                 ? new ScanTarget.Repository(issue.getRepoId())
                 : new ScanTarget.Container(issue.getContainerId());
@@ -156,7 +169,19 @@ public class ExceptionsRegisterService {
             return null;
         }
 
-        boolean lapsed = event.getExpiresAt() != null && event.getExpiresAt().isBefore(now);
+        // Oldest first, so the last match of each kind is the current one.
+        TriageEventEntity granted = null;
+        TriageEventEntity reviewed = null;
+        for (TriageEventEntity event : history) {
+            if (REVIEW.equals(event.getOrigin())) {
+                reviewed = event;
+            } else if (issue.getTriageStatus() != null
+                    && issue.getTriageStatus().equals(event.getToStatus())) {
+                granted = event;
+            }
+        }
+
+        boolean lapsed = issue.getTriageExpiresAt() != null && issue.getTriageExpiresAt().isBefore(now);
         return new ExceptionEntry(
                 issue.getId(),
                 issue.getIdentifier(),
@@ -164,13 +189,15 @@ public class ExceptionsRegisterService {
                 issue.getRepoId() != null ? "REPOSITORY" : "CONTAINER",
                 issue.getRepoId() != null ? issue.getRepoId() : issue.getContainerId(),
                 names.of(issue.getRepoId(), issue.getContainerId()),
-                event.getToStatus(),
-                event.getJustification(),
-                event.getComment(),
-                event.getActor(),
-                event.getOrigin(),
-                event.getOccurredAt(),
-                event.getExpiresAt(),
-                lapsed);
+                issue.getTriageStatus(),
+                issue.getTriageJustification(),
+                issue.getTriageComment(),
+                issue.getTriagedBy(),
+                granted == null ? null : granted.getOrigin(),
+                issue.getTriagedAt(),
+                issue.getTriageExpiresAt(),
+                lapsed,
+                reviewed == null ? null : reviewed.getOccurredAt(),
+                reviewed == null ? null : reviewed.getActor());
     }
 }

@@ -1,14 +1,23 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.ExceptionsRegisterService;
+import com.asmolabs.vectispire.core.services.IssueTriageService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Instant;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,11 +54,66 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExceptionsRegisterController {
 
     private final ExceptionsRegisterService register;
+    private final IssueTriageService triage;
+    private final Issues issues;
     private final VisibilityService visibility;
 
-    public ExceptionsRegisterController(ExceptionsRegisterService register, VisibilityService visibility) {
+    public ExceptionsRegisterController(
+            ExceptionsRegisterService register,
+            IssueTriageService triage,
+            Issues issues,
+            VisibilityService visibility) {
         this.register = register;
+        this.triage = triage;
+        this.issues = issues;
         this.visibility = visibility;
+    }
+
+    /**
+     * What a reviewer concluded, and the date if they extended it.
+     *
+     * @param newExpiry required when extending, ignored otherwise
+     */
+    public record ReviewRequest(
+            IssueTriageService.ReviewOutcome outcome,
+            String comment,
+            @JsonProperty("new_expiry") Instant newExpiry) {}
+
+    /**
+     * Records that somebody revisited one exception.
+     *
+     * <p><b>A confirmation is the call that matters, and it changes nothing.</b> Every other write
+     * in this product exists because something moved; periodic review is the one control that is
+     * performed correctly by leaving a decision exactly as it was — and so the one that left no
+     * evidence at all. "Granted in January, expires in December" reads identically whether it was
+     * revisited every quarter or opened by nobody since.
+     *
+     * <p>A security lead, like granting the exception: withdrawing one puts an issue back in front
+     * of a gate, and confirming one is a statement about risk somebody has to own.
+     */
+    @Operation(summary = "Review an exception", description = "Confirm, extend or revoke one exception, and record that it was looked at.")
+    @ApiResponse(responseCode = "200", description = "Review recorded")
+    @ApiResponse(responseCode = "400", description = "The issue carries no exception, or an extension names no date")
+    @PostMapping("/{issueId}/reviews")
+    @RequiresSecurityLead
+    public ExceptionsRegisterService.Register review(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @PathVariable long issueId,
+            @RequestBody ReviewRequest body) {
+
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        // 404 rather than 403, like everywhere else here: a restricted reader must not learn that
+        // an issue exists by being refused it.
+        Visibilities.requireVisible(issues.findById(issueId).orElse(null), allowed);
+
+        triage.review(
+                issueId,
+                body.outcome(),
+                body.comment(),
+                principal.user().map(user -> user.getUsername()).orElse(null),
+                body.newExpiry());
+
+        return register.register(200, allowed);
     }
 
     @Operation(summary = "The exceptions register", description = "Risk acceptances and dismissals, newest first, narrowed to what the caller may see.")

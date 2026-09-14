@@ -30,6 +30,18 @@ public class IssueTriageService {
 
     private static final String EXPIRY = "expiry";
 
+    /**
+     * A periodic review of an exception, which may change nothing.
+     *
+     * <p><b>Its own origin because a review that confirms is the one an assessment asks for and
+     * the one nothing recorded.</b> Every other entry in this history exists because a status
+     * moved; somebody looking at an acceptance in March, judging it still sound and leaving it
+     * alone left no trace at all. An assessor reading "accepted in January, expires in December"
+     * cannot tell a decision revisited quarterly from one nobody has opened since — and the
+     * difference between those two is the whole of clause 8.1.
+     */
+    private static final String REVIEW = "review";
+
     private final Issues issues;
     private final TriageEvents events;
     private final Clock clock;
@@ -205,6 +217,80 @@ public class IssueTriageService {
             }
         }
         return requester;
+    }
+
+    /** What a reviewer concluded about an exception they were asked to look at again. */
+    public enum ReviewOutcome {
+        /** It still holds, unchanged. The entry exists so that "somebody looked" is a fact. */
+        CONFIRMED,
+        /** It still holds, with a new date. */
+        EXTENDED,
+        /** It does not hold any more; the issue goes back under review and the gate stops honouring it. */
+        REVOKED
+    }
+
+    /**
+     * Records that somebody revisited an exception, and applies what they concluded.
+     *
+     * <p><b>A confirmation writes a row that changes nothing, and that is the point.</b> The
+     * register could always show when an exception was granted and when it expires; it could never
+     * show that anybody had looked at it in between. Periodic review is the control ISO 27001
+     * clause 8.1 asks about, and it was the one activity in this product that left no evidence
+     * precisely when it was performed correctly.
+     *
+     * <p>Written into the issue's own history rather than a table of its own, because an assessor
+     * reads one timeline per exception and merging two sources at read time is how the two come to
+     * disagree. The origin is what separates a review from a decision.
+     *
+     * @param newExpiry required to extend, ignored otherwise
+     * @throws IllegalArgumentException when the issue carries no exception to review
+     */
+    @Transactional
+    public IssueEntity review(
+            long issueId, ReviewOutcome outcome, String comment, String actor, Instant newExpiry) {
+
+        IssueEntity issue = issues.findById(issueId)
+                .orElseThrow(() -> new IllegalArgumentException("No such issue: " + issueId));
+
+        TriageStatus current = TriageStatus.fromWireName(issue.getTriageStatus()).orElse(null);
+        if (current != TriageStatus.NOT_AFFECTED && current != TriageStatus.PENDING_APPROVAL) {
+            // Reviewing an issue nobody excepted would put a row in the register for something
+            // that is not an exception, which is exactly the noise the register exists to avoid.
+            throw new IllegalArgumentException(
+                    "Nothing to review: this issue carries no exception.");
+        }
+        if (outcome == ReviewOutcome.EXTENDED && newExpiry == null) {
+            throw new IllegalArgumentException("Extending an exception needs the date it now runs to.");
+        }
+
+        Instant now = clock.instant();
+        String from = issue.getTriageStatus();
+        String to = from;
+
+        switch (outcome) {
+            case CONFIRMED -> { }
+            case EXTENDED -> issue.setTriageExpiresAt(newExpiry);
+            case REVOKED -> {
+                to = TriageStatus.UNDER_REVIEW.wireName();
+                issue.setTriageStatus(to);
+                // Cleared rather than left: an expiry surviving a revocation would bring the
+                // withdrawn exception back through `expireStale` as though it had merely lapsed.
+                issue.setTriageExpiresAt(null);
+            }
+        }
+
+        events.save(event(
+                issue,
+                from,
+                to,
+                issue.getTriageJustification(),
+                comment,
+                actor,
+                REVIEW,
+                now,
+                issue.getTriageExpiresAt()));
+
+        return issues.save(issue);
     }
 
     /**
