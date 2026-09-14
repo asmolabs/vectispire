@@ -12,10 +12,23 @@ public final class ComplianceEngine {
 
     /**
      * Aggregated security posture input for compliance assessment.
+     *
+     * @param scannedTargets targets observed at all, ever. <b>This was declared and never read</b>
+     *     until the freshness cap below: coverage was not a weak signal in the assessment, it was
+     *     absent from it, and an estate nobody had scanned scored on its zero findings exactly
+     *     like one that was genuinely clean
+     * @param freshlyScannedTargets targets observed inside {@code freshnessWindowDays}.
+     *     <b>Ever-scanned is a memory, not a control</b>: a repository looked at once two years
+     *     ago satisfies "has been scanned" and says nothing about today, while every framework
+     *     here carries a continuous-monitoring obligation that asks whether observation is current
+     * @param freshnessWindowDays how recent an observation has to be to count. The operator's
+     *     number, not this engine's — how often an estate must be looked at is a policy question
      */
     public record PostureInput(
             int totalTargets,
             int scannedTargets,
+            int freshlyScannedTargets,
+            int freshnessWindowDays,
             int gatePassingTargets,
             long criticalIssues,
             long highIssues,
@@ -272,7 +285,8 @@ public final class ComplianceEngine {
         String details = notes.isEmpty() ? "All vulnerabilities are within SLA thresholds with zero unmitigated criticals." : String.join(", ", notes) + ".";
         String remGuidance = guidance.isEmpty() ? "Maintain continuous vulnerability scanning and remediation cadence." : String.join(" ", guidance);
 
-        return new ComplianceEvaluation.ControlAssessment(control, status, score, details, remGuidance);
+        return withCoverage(
+                new ComplianceEvaluation.ControlAssessment(control, status, score, details, remGuidance), input);
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateSupplyChain(ComplianceControl control, PostureInput input) {
@@ -336,6 +350,69 @@ public final class ComplianceEngine {
         String guidance = input.auditChainValid() ? "Audit logs are continuously sealed and tamper-evident." : "Investigate audit log integrity anomaly immediately.";
 
         return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);
+    }
+
+    /**
+     * Caps a finding-based verdict by how much of the estate was actually looked at.
+     *
+     * <p><b>A backlog of zero is not evidence of anything on its own.</b> Every control scored
+     * from issue counts reads "no findings" as "compliant", and an estate nobody has scanned has
+     * no findings — so silence scored the same as cleanliness, which is the most expensive false
+     * positive a security dashboard can produce.
+     *
+     * <p><b>A cap rather than a penalty, and the distinction is the point.</b> Subtracting points
+     * would say the target is <em>less compliant</em>; it is not, it is <em>unassessed</em>, and
+     * those are different sentences to put in front of an auditor. So a verdict resting on
+     * incomplete observation cannot read {@code COMPLIANT} however good the numbers are, and the
+     * detail says which part of the estate the verdict does not cover.
+     *
+     * <p>Nothing is capped when the whole estate was observed inside the window, which is the
+     * case the control is written for.
+     */
+    private static ComplianceEvaluation.ControlAssessment withCoverage(
+            ComplianceEvaluation.ControlAssessment assessment, PostureInput input) {
+
+        int total = Math.max(1, input.totalTargets());
+        int never = Math.max(0, total - input.scannedTargets());
+        int stale = Math.max(0, input.scannedTargets() - input.freshlyScannedTargets());
+        if (never == 0 && stale == 0) {
+            return assessment;
+        }
+
+        List<String> gaps = new ArrayList<>();
+        if (never > 0) {
+            gaps.add(never + " target(s) have never been scanned");
+        }
+        if (stale > 0) {
+            gaps.add(stale + " target(s) were last scanned more than " + input.freshnessWindowDays() + " days ago");
+        }
+
+        // Never scanned is the harder failure: a stale observation is out of date, an absent one
+        // was never made. The first can still describe the estate; the second describes nothing.
+        ComplianceControl.Status capped = never > 0
+                ? ComplianceControl.Status.NON_COMPLIANT
+                : worseOf(assessment.status(), ComplianceControl.Status.PARTIAL);
+
+        return new ComplianceEvaluation.ControlAssessment(
+                assessment.control(),
+                capped,
+                Math.min(assessment.scorePercentage(), Math.round(((float) input.freshlyScannedTargets() / total) * 100)),
+                assessment.details() + " Assessment covers " + input.freshlyScannedTargets() + "/" + total
+                        + " target(s) observed within " + input.freshnessWindowDays() + " days — "
+                        + String.join(", ", gaps) + ".",
+                "Scan the targets named above: a control cannot be evidenced on an estate it has "
+                        + "not observed. " + assessment.remediationGuidance());
+    }
+
+    /**
+     * The worse of two statuses, so a cap can never improve a verdict.
+     *
+     * <p>Declared order is best to worst — {@code COMPLIANT}, {@code PARTIAL},
+     * {@code NON_COMPLIANT} — so the higher ordinal is the worse one. Written out because the
+     * opposite reading is the natural one and would turn this cap into a whitewash.
+     */
+    private static ComplianceControl.Status worseOf(ComplianceControl.Status left, ComplianceControl.Status right) {
+        return left.ordinal() >= right.ordinal() ? left : right;
     }
 
     private static ComplianceControl.Status statusForScore(int score) {

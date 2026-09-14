@@ -11,7 +11,7 @@ class ComplianceEngineTest {
 
     /** A clean fleet: nothing found anywhere. What the platform has switched on varies per test. */
     private static final ComplianceEngine.PostureInput CLEAN = new ComplianceEngine.PostureInput(
-            10, 10, 10,
+            10, 10, 10, 30, 10,
             0, 0, 0, 0, 0, 0, 0, 0, 0,
             10,
             true);
@@ -29,7 +29,7 @@ class ComplianceEngineTest {
     @DisplayName("evaluates 100% compliant when security posture is clean")
     void perfectCompliance() {
         ComplianceEngine.PostureInput cleanPosture = new ComplianceEngine.PostureInput(
-                10, 10, 10,
+                10, 10, 10, 30, 10,
                 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 10,
                 true);
@@ -45,10 +45,66 @@ class ComplianceEngineTest {
     }
 
     @Test
+    @DisplayName("refuses to call an unscanned estate compliant, however clean its backlog looks")
+    void anUnscannedEstateIsNotCompliant() {
+        // Ten targets, not one of them ever observed, and therefore not one finding. This is the
+        // shape a brand-new deployment has, and the shape an abandoned one drifts into — and the
+        // assessment used to score it exactly like an estate that had been scanned and was clean.
+        ComplianceEngine.PostureInput unobserved = new ComplianceEngine.PostureInput(
+                10, 0, 0, 30, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0,
+                true);
+
+        ComplianceEvaluation.ControlAssessment assessed = control(
+                ComplianceEngine.evaluateAll(unobserved, ComplianceEngine.PlatformPosture.FULLY_ENABLED),
+                ComplianceControl.Category.VULNERABILITY_MANAGEMENT);
+
+        assertThat(assessed.status())
+                .as("no findings because nobody looked is not the same fact as no findings")
+                .isEqualTo(ComplianceControl.Status.NON_COMPLIANT);
+        assertThat(assessed.details())
+                .as("and the reader is told which part of the estate the verdict does not cover")
+                .contains("never been scanned");
+    }
+
+    @Test
+    @DisplayName("caps a stale estate at partial rather than failing it")
+    void aStaleEstateIsCappedNotFailed() {
+        // Everything was observed, none of it recently. That is a different failure from never
+        // having looked: the estate was described once, and the description is out of date.
+        ComplianceEngine.PostureInput stale = new ComplianceEngine.PostureInput(
+                10, 10, 0, 30, 10,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                10,
+                true);
+
+        ComplianceEvaluation.ControlAssessment assessed = control(
+                ComplianceEngine.evaluateAll(stale, ComplianceEngine.PlatformPosture.FULLY_ENABLED),
+                ComplianceControl.Category.VULNERABILITY_MANAGEMENT);
+
+        assertThat(assessed.status()).isEqualTo(ComplianceControl.Status.PARTIAL);
+        assertThat(assessed.details()).contains("more than 30 days ago");
+    }
+
+    @Test
+    @DisplayName("leaves a fully observed estate exactly as it was scored")
+    void afullyObservedEstateIsUntouched() {
+        ComplianceEvaluation.ControlAssessment assessed = control(
+                ComplianceEngine.evaluateAll(CLEAN, ComplianceEngine.PlatformPosture.FULLY_ENABLED),
+                ComplianceControl.Category.VULNERABILITY_MANAGEMENT);
+
+        assertThat(assessed.status())
+                .as("the cap must not touch the case the control was written for")
+                .isEqualTo(ComplianceControl.Status.COMPLIANT);
+        assertThat(assessed.details()).doesNotContain("Assessment covers");
+    }
+
+    @Test
     @DisplayName("marks non-compliant when critical issues, overdue SLA, or secrets are present")
     void nonCompliantState() {
         ComplianceEngine.PostureInput flawedPosture = new ComplianceEngine.PostureInput(
-                10, 8, 5,
+                10, 8, 8, 30, 5,
                 3, 10, 15, 20, 2, 4, 2, 5, 3,
                 5,
                 true);
@@ -126,7 +182,7 @@ class ComplianceEngineTest {
         // on findings must keep saying so — reporting it as PARTIAL because a switch is off would
         // be an improvement earned by a second defect.
         ComplianceEngine.PostureInput leaking = new ComplianceEngine.PostureInput(
-                10, 10, 10,
+                10, 10, 10, 30, 10,
                 0, 0, 0, 0, 0, 0, 8, 0, 0,
                 10,
                 true);

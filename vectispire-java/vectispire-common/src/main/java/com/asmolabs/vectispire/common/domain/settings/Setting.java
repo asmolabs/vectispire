@@ -320,6 +320,16 @@ public enum Setting {
     // Zero disables a severity. The help text says so on every one of them, because the other
     // reading — zero as "due immediately" — turns clearing a field into a backlog entirely in
     // breach, from a gesture that looked like switching something off.
+    COMPLIANCE_FRESHNESS_DAYS("compliance_freshness_days", SettingType.INTEGER, Section.REMEDIATION,
+            "Compliance: an observation counts as current for",
+            "**Une cible jamais observée n'a aucune vulnérabilité connue**, et sur un tableau naïf elle est "
+                    + "verte — c'est le seul vert qui devrait déclencher une alarme. Au-delà de ce nombre de "
+                    + "jours, un scan cesse de compter comme une observation courante, et un contrôle évalué "
+                    + "sur une couverture incomplète ne peut plus être rendu conforme : il est *non évalué*, "
+                    + "ce qui n'est pas la même phrase devant un auditeur. Zéro désactive le plafond et rend "
+                    + "à l'évaluation son comportement d'avant.",
+            "30"),
+
     SLA_CRITICAL_DAYS("sla_critical_days", SettingType.INTEGER, Section.REMEDIATION,
             "Critical: days to remediate",
             "Counted from when the issue was **first seen**, never from the last scan — otherwise a target "

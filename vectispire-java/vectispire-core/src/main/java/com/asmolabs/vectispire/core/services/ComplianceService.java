@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,7 @@ public class ComplianceService {
     private final SettingsService settings;
     /** Lue pour une seule question : par quelle porte entre-t-on, et y en a-t-il deux ? */
     private final SignInMethodPolicy signIn;
+    private final Clock clock;
 
     public ComplianceService(
             GateService gate,
@@ -50,7 +53,8 @@ public class ComplianceService {
             AuditLogService audit,
             EncryptionService encryption,
             SettingsService settings,
-            SignInMethodPolicy signIn) {
+            SignInMethodPolicy signIn,
+            Clock clock) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
@@ -61,6 +65,7 @@ public class ComplianceService {
         this.encryption = encryption;
         this.settings = settings;
         this.signIn = signIn;
+        this.clock = clock;
     }
 
     /**
@@ -216,6 +221,41 @@ public class ComplianceService {
         return getGlobalSummary(posture, allowed);
     }
 
+
+    /**
+     * How many targets carry an observation recent enough to count, and how recent that is.
+     *
+     * <p><b>Zero disables the cap</b> rather than making every target stale: an operator who sets
+     * it to nothing is asking for the behaviour the assessment had before this existed, and the
+     * alternative reading — every observation immediately out of date — would turn a disabled
+     * feature into a fleet-wide failure.
+     */
+    private record Freshness(int within, int windowDays) {}
+
+    /** One target counts as fresh on its own terms — or on nothing, when the cap is disabled. */
+    private int freshPerTarget(SecurityOverview.TargetPosture target, int windowDays) {
+        if (windowDays == 0) {
+            return 1;
+        }
+        Instant cutoff = clock.instant().minus(Duration.ofDays(windowDays));
+        return target.lastScan().map(scan -> !scan.createdAt().isBefore(cutoff)).orElse(false) ? 1 : 0;
+    }
+
+    private Freshness freshness(SecurityOverview.Overview posture) {
+        int windowDays = Math.max(0, settings.asInt(Setting.COMPLIANCE_FRESHNESS_DAYS));
+        if (windowDays == 0) {
+            return new Freshness(posture.totalCount(), 0);
+        }
+
+        Instant cutoff = clock.instant().minus(Duration.ofDays(windowDays));
+        int within = (int) posture.targets().stream()
+                .filter(target -> target.lastScan()
+                        .map(scan -> !scan.createdAt().isBefore(cutoff))
+                        .orElse(false))
+                .count();
+        return new Freshness(within, windowDays);
+    }
+
     private ComplianceSummary getGlobalSummary(SecurityOverview.Overview posture, Visibility allowed) {
         int totalTargets = posture.totalCount();
         int observedTargets = (int) posture.targets().stream().filter(SecurityOverview.TargetPosture::observed).count();
@@ -245,9 +285,12 @@ public class ComplianceService {
         Map<String, TargetCounts> counts = openCountsByTarget();
         Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
+        Freshness fresh = freshness(posture);
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 Math.max(1, totalTargets),
                 observedTargets,
+                fresh.within(),
+                fresh.windowDays(),
                 passingTargets,
                 critical, high, medium, low, kev, overdue, secrets, sast, iac,
                 observedTargets,
@@ -299,6 +342,8 @@ public class ComplianceService {
             ComplianceEngine.PostureInput tInput = new ComplianceEngine.PostureInput(
                     1,
                     isObserved ? 1 : 0,
+                    freshPerTarget(targetPosture, fresh.windowDays()),
+                    fresh.windowDays(),
                     isPassed ? 1 : 0,
                     tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
                     isObserved ? 1 : 0,
@@ -382,9 +427,12 @@ public class ComplianceService {
         Map<String, TargetCounts> counts = openCountsByTarget();
         Map<String, Long> overdueByTarget = sla.countOverdueByTarget(allowed);
 
+        Freshness fresh = freshness(posture);
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
                 totalTargets,
                 observed ? 1 : 0,
+                fresh.within(),
+                fresh.windowDays(),
                 passingTargets,
                 critical, high, medium, low, kev, overdue, secrets, sast, iac,
                 observed ? 1 : 0,
@@ -430,6 +478,8 @@ public class ComplianceService {
             ComplianceEngine.PostureInput tInput = new ComplianceEngine.PostureInput(
                     1,
                     isObs ? 1 : 0,
+                    freshPerTarget(tp, fresh.windowDays()),
+                    fresh.windowDays(),
                     isPass ? 1 : 0,
                     tCrit, tHigh, tMed, tLow, tKev, tOverdue, tSec, tSast, tIac,
                     isObs ? 1 : 0,
@@ -467,7 +517,7 @@ public class ComplianceService {
                 .findFirst()
                 .orElseGet(() -> ComplianceEngine.evaluate(
                         framework,
-                        new ComplianceEngine.PostureInput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true),
+                        new ComplianceEngine.PostureInput(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true),
                         platformPosture()));
     }
 
