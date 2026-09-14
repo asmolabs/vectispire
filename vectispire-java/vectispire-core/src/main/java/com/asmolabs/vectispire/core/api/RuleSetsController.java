@@ -26,6 +26,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
+import com.asmolabs.vectispire.core.services.RuleCoverageService;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
 
 /**
  * Uploading Semgrep rule sets, and choosing which one is active.
@@ -47,11 +51,15 @@ public class RuleSetsController {
     private final RuleCatalogueFetcher fetcher;
     private final AuditLogService audit;
 
+    private final RuleCoverageService coverageService;
+
     public RuleSetsController(
-            RuleSetService ruleSets, RuleCatalogueFetcher fetcher, AuditLogService audit) {
+            RuleSetService ruleSets, RuleCatalogueFetcher fetcher, AuditLogService audit,
+            RuleCoverageService coverageService) {
         this.ruleSets = ruleSets;
         this.fetcher = fetcher;
         this.audit = audit;
+        this.coverageService = coverageService;
     }
 
     public record Listing(List<RuleSetSummary> ruleSets) {}
@@ -114,6 +122,25 @@ public class RuleSetsController {
 
         return new Uploaded(
                 stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
+    }
+
+    /**
+     * What this instance can actually see, for the banner the screens raise.
+     *
+     * <p><b>A fresh deployment scans one pattern in one language and finds nothing</b>, which
+     * every other screen renders exactly like code that is clean. This route is what lets them
+     * say otherwise — and it names the ecosystems that are uncovered rather than the setting that
+     * is unset, because an operator acts on the first and not the second.
+     *
+     * <p>Open to any account: it describes this instance's own configuration, names no target and
+     * discloses no finding. A reader who cannot see a repository can still be told that the
+     * deployment does not analyse Go.
+     */
+    @Operation(summary = "Rule coverage", description = "Whether the installed rules reach the ecosystems in the estate.")
+    @ApiResponse(responseCode = "200", description = "Coverage assessed")
+    @GetMapping("/coverage")
+    public RuleCoverage.Assessment coverage() {
+        return coverageService.assess();
     }
 
     /**

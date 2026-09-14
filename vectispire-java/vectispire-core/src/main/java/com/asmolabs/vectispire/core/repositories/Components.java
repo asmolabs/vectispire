@@ -60,4 +60,15 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
     void deleteByScanIdIn(Collection<Long> scanIds);
 
     long countByScanIdIn(Collection<Long> scanIds);
+
+    /**
+     * Every distinct package URL the inventory holds.
+     *
+     * <p><b>Distinct, and the distinctness is the point.</b> What is being asked is which
+     * ecosystems this estate is written in, not how many packages it has — a thousand npm
+     * dependencies and one are the same answer to that question, and reading a thousand rows to
+     * arrive at it would make a banner cost more than the page it sits on.
+     */
+    @Query("select distinct c.purl from ComponentEntity c where c.purl is not null")
+    List<String> distinctPurls();
 }
