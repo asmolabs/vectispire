@@ -543,7 +543,8 @@
     "ssh_keys": "SSH keys",
     "teams": "Teams",
     "users": "Users",
-    "exceptions": "Exceptions register"
+    "exceptions": "Exceptions register",
+    "gate_verdicts": "Verdict register"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -912,5 +913,37 @@
     },
     "load_failed": "Could not load the exceptions register.",
     "review_failed": "The review was not recorded."
+  },
+  "gate_verdicts": {
+    "title": "Verdict register",
+    "subtitle": "What the gate answered, newest first. A refusal is the only proof a control runs: “every target passes” does not distinguish a clean estate from a gate that has never stopped anything.",
+    "total": "verdicts",
+    "refused": "refusals",
+    "refusal_rate": "refusal rate",
+    "refusals_only": "Refusals only",
+    "column": {
+      "target": "Target",
+      "verdict": "Verdict",
+      "examined": "Examined",
+      "policy": "Policy",
+      "asked_by": "Asked by",
+      "when": "When"
+    },
+    "kind": {
+      "repository": "Repository",
+      "container": "Image"
+    },
+    "passed": "passed",
+    "refused_one": "refused",
+    "nothing_to_judge": "nothing to judge",
+    "in_violation": "in violation",
+    "no_violation": "no violation",
+    "fails_at": "fails at",
+    "relaxation_refused": "relaxation requested, refused",
+    "unattributed": "unattributed",
+    "empty": "The gate has not answered yet.",
+    "empty_refusals": "The gate has refused nothing in this window.",
+    "footnote": "Verdicts are kept for the evidence retention window. A “passed” verdict over zero examined issues is shown as such: it proves nothing but the absence of anything to judge.",
+    "load_failed": "Could not load the verdict register."
   }
 }

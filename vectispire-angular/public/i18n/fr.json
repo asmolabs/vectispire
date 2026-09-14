@@ -543,7 +543,8 @@
     "ssh_keys": "Clés SSH",
     "teams": "Équipes",
     "users": "Utilisateurs",
-    "exceptions": "Registre des exceptions"
+    "exceptions": "Registre des exceptions",
+    "gate_verdicts": "Registre des verdicts"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1018,5 +1019,37 @@
     },
     "load_failed": "Le registre des exceptions n'a pas pu être chargé.",
     "review_failed": "La revue n'a pas été enregistrée."
+  },
+  "gate_verdicts": {
+    "title": "Registre des verdicts",
+    "subtitle": "Ce que la barrière a répondu, du plus récent au plus ancien. Un refus est la seule preuve qu'un contrôle s'exécute : « toutes les cibles passent » ne distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué.",
+    "total": "verdicts",
+    "refused": "refus",
+    "refusal_rate": "taux de refus",
+    "refusals_only": "Refus seulement",
+    "column": {
+      "target": "Cible",
+      "verdict": "Verdict",
+      "examined": "Examinées",
+      "policy": "Politique",
+      "asked_by": "Demandé par",
+      "when": "Quand"
+    },
+    "kind": {
+      "repository": "Dépôt",
+      "container": "Image"
+    },
+    "passed": "passé",
+    "refused_one": "refusé",
+    "nothing_to_judge": "rien à juger",
+    "in_violation": "en violation",
+    "no_violation": "aucune violation",
+    "fails_at": "échoue à",
+    "relaxation_refused": "assouplissement demandé, refusé",
+    "unattributed": "non attribué",
+    "empty": "La barrière n'a pas encore répondu.",
+    "empty_refusals": "La barrière n'a rien refusé sur cette fenêtre.",
+    "footnote": "Les verdicts sont conservés selon la fenêtre de rétention des preuves. Un verdict « passé » sur zéro issue examinée est affiché comme tel : il ne prouve rien d'autre que l'absence de matière.",
+    "load_failed": "Le registre des verdicts n'a pas pu être chargé."
   }
 }

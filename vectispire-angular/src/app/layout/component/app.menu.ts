@@ -102,6 +102,11 @@ export class AppMenu {
                 adminItems.push(
                     { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
                     { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
+
+                    // **Collée à la politique qu'elle applique.** La politique dit ce que la
+                    // barrière refuserait ; le registre dit ce qu'elle a refusé. Séparées dans
+                    // le menu, la première se lit comme une intention.
+                    { label: this.i18n.t('menu.gate_verdicts'), icon: 'pi pi-fw pi-ban', routerLink: ['/gate-verdicts'] },
                     { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
                     { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
                 );

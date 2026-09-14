@@ -1,0 +1,97 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-1">{{ 'gate_verdicts.title' | translate }}</div>
+    <p class="text-muted-color mb-4" style="max-width: 62ch">{{ 'gate_verdicts.subtitle' | translate }}</p>
+
+    @if (register(); as data) {
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <div>
+                <div class="text-2xl font-medium">{{ data.passed + data.refused }}</div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.total' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium text-red-700">{{ data.refused }}</div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.refused' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium">
+                    @if (refusalRate() !== null) {
+                        {{ refusalRate() }}&nbsp;%
+                    } @else {
+                        —
+                    }
+                </div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.refusal_rate' | translate }}</div>
+            </div>
+        </div>
+
+        <label class="inline-flex items-center gap-2 mb-4 cursor-pointer">
+            <input type="checkbox" [ngModel]="refusalsOnly()" (ngModelChange)="refusalsOnly.set($event)" />
+            <span class="font-medium">{{ 'gate_verdicts.refusals_only' | translate }}</span>
+        </label>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="border-collapse: collapse">
+                <thead>
+                    <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.target' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.verdict' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.examined' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium">{{ 'gate_verdicts.column.policy' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.asked_by' | translate }}</th>
+                        <th class="py-2 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.when' | translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (row of shown(); track row.id) {
+                        <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
+                            <td class="py-3 pr-4">
+                                <div class="font-medium">{{ row.target_kind === 'REPOSITORY' ? ('gate_verdicts.kind.repository' | translate) : ('gate_verdicts.kind.container' | translate) }} {{ row.target_id }}</div>
+                            </td>
+                            <td class="py-3 pr-4">
+                                @if (row.passed) {
+                                    <p-tag severity="success" [value]="'gate_verdicts.passed' | translate" />
+                                } @else {
+                                    <p-tag severity="danger" [value]="'gate_verdicts.refused_one' | translate" />
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                <div>{{ row.evaluated }}</div>
+                                @if (row.evaluated === 0) {
+                                    <div class="text-muted-color text-xs">{{ 'gate_verdicts.nothing_to_judge' | translate }}</div>
+                                } @else if (row.violations > 0) {
+                                    <div class="text-red-700 text-xs font-medium">{{ row.violations }} {{ 'gate_verdicts.in_violation' | translate }}</div>
+                                } @else {
+                                    <div class="text-muted-color text-xs">{{ 'gate_verdicts.no_violation' | translate }}</div>
+                                }
+                            </td>
+                            <td class="py-3 pr-4">
+                                <div>{{ 'gate_verdicts.fails_at' | translate }} <strong>{{ row.fail_on_severity ?? '—' }}</strong></div>
+                                <div class="text-muted-color text-xs">
+                                    {{ row.policy_source ?? '—' }}@if (row.policy_version) {<span> · v{{ row.policy_version }}</span>}
+                                </div>
+                                @if (row.relaxations_ignored) {
+                                    <div class="text-orange-700 text-xs font-medium">{{ 'gate_verdicts.relaxation_refused' | translate }}</div>
+                                }
+                                @for (count of counts(row); track count.severity) {
+                                    <span class="text-muted-color text-xs mr-2">{{ count.severity }} {{ count.count }}</span>
+                                }
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs">{{ row.decided_by ?? ('gate_verdicts.unattributed' | translate) }}</td>
+                            <td class="py-3 whitespace-nowrap text-muted-color">{{ row.decided_at | date: 'short' }}</td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td class="py-6 text-muted-color" colspan="6">
+                                {{ refusalsOnly() ? ('gate_verdicts.empty_refusals' | translate) : ('gate_verdicts.empty' | translate) }}
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-muted-color text-sm mt-4" style="max-width: 72ch">{{ 'gate_verdicts.footnote' | translate }}</p>
+    } @else if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full" />
+    }
+</div>
