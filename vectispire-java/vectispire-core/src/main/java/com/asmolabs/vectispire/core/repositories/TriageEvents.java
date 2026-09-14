@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.repositories;
 import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +11,22 @@ import org.springframework.data.repository.query.Param;
 public interface TriageEvents extends JpaRepository<TriageEventEntity, Long> {
 
     List<TriageEventEntity> findByIssueIdOrderByOccurredAtAscIdAsc(long issueId);
+
+    /**
+     * The decisions that took an issue out of a gate's way, newest first.
+     *
+     * <p><b>This is the exceptions register, and it is the first thing an assessor asks for.</b>
+     * Every other indicator describes what the estate contains; this one describes what somebody
+     * decided not to fix — the question that separates a backlog which is clean from one that was
+     * argued away.
+     *
+     * <p>Bounded rather than paged: past a few hundred rows a register stops being read and starts
+     * being exported. Visibility is not expressed here, for the reason given on {@code
+     * GateVerdicts}: whose estate a row belongs to has one implementation and it is not in JPQL.
+     */
+    @Query("select e from TriageEventEntity e where e.toStatus in :statuses order by e.occurredAt desc, e.id desc")
+    List<TriageEventEntity> findDecisions(
+            @Param("statuses") Collection<String> statuses, Limit limit);
 
     /**
      * The decisions taken on a set of issues, oldest first.

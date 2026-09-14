@@ -167,6 +167,52 @@ class VisibilityRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the exceptions register shows a restricted reader only their own acceptances")
+    void theExceptionsRegisterIsNarrowed() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        issue(mine, "CVE-MINE");
+        issue(theirs, "CVE-THEIRS");
+
+        String reader = assignedReader(mine);
+
+        // An acceptance names what somebody decided not to fix. Handed to the wrong reader it
+        // says that target exists, what it carries, and who waved it through — which is more
+        // than the backlog itself would have told them.
+        acceptEverything();
+
+        mvc.perform(authenticated(get("/api/v1/exceptions"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(2));
+
+        mvc.perform(authenticated(get("/api/v1/exceptions"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.entries[0].target_id").value(mine));
+    }
+
+    /** Accepts every issue in the estate, as an administrator, so the register has rows. */
+    private void acceptEverything() throws Exception {
+        com.fasterxml.jackson.databind.JsonNode listing = json.readTree(
+                mvc.perform(authenticated(get("/api/v1/issues"), asAdmin()))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString());
+
+        for (com.fasterxml.jackson.databind.JsonNode issue : listing.get("items")) {
+            mvc.perform(authenticated(
+                            post("/api/v1/issues/" + issue.get("id").asLong() + "/triage")
+                                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                    .content("{\"status\":\"not_affected\","
+                                            + "\"justification\":\"component_not_present\","
+                                            + "\"comment\":\"accepted for the test\"}"),
+                            asAdmin()))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
     @DisplayName("the gate register shows a restricted reader only their own verdicts")
     void theGateRegisterIsNarrowed() throws Exception {
         restrict();
