@@ -167,6 +167,40 @@ class VisibilityRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the gate register shows a restricted reader only their own verdicts")
+    void theGateRegisterIsNarrowed() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+
+        String reader = assignedReader(mine);
+
+        // Two verdicts asked for by an administrator, one per target. The register is a record of
+        // *decisions*, so it carries the same risk every other list does: a row names a target,
+        // and a row handed to the wrong reader says that target exists and how it scored.
+        askTheGate(mine, asAdmin());
+        askTheGate(theirs, asAdmin());
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(2));
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(1))
+                .andExpect(jsonPath("$.verdicts[0].target_id").value(mine));
+    }
+
+    private void askTheGate(long repositoryId, String token) throws Exception {
+        mvc.perform(authenticated(
+                        post("/api/v1/gate")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content("{\"repository_id\":" + repositoryId + "}"),
+                        token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("an administrator sees everything, restricted mode or not")
     void administratorsAreNeverRestricted() throws Exception {
         restrict();

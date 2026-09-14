@@ -150,13 +150,17 @@ public class MaintenanceJobs {
             digest.runOnce();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
-            if (cleaned.sessions() > 0 || cleaned.attempts() > 0 || cleaned.challenges() > 0) {
+            if (cleaned.sessions() > 0
+                    || cleaned.attempts() > 0
+                    || cleaned.challenges() > 0
+                    || cleaned.verdicts() > 0) {
                 log.info(
-                        "Maintenance: {} expired session(s), {} old login attempt(s) and {} abandoned "
-                                + "MFA challenge(s) removed.",
+                        "Maintenance: {} expired session(s), {} old login attempt(s), {} abandoned "
+                                + "MFA challenge(s) and {} aged gate verdict(s) removed.",
                         cleaned.sessions(),
                         cleaned.attempts(),
-                        cleaned.challenges());
+                        cleaned.challenges(),
+                        cleaned.verdicts());
             }
 
             targetDeletion.purgeOrphanedTargetData();

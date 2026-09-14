@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.gate.SeverityRequest;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.GateService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +26,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.repositories.GateVerdicts;
+import java.time.Instant;
+import org.springframework.data.domain.Limit;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * The gate: should this build fail?
@@ -34,11 +42,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresAccount
 public class GateController {
 
+    /** A register is read, not paged through: past a few hundred rows nobody is reading. */
+    private static final int MAX_VERDICTS = 500;
+
     private final GateService gate;
+    private final TrustedProxies proxies;
+    private final GateVerdicts verdicts;
     private final VisibilityService visibility;
 
-    public GateController(GateService gate, VisibilityService visibility) {
+    public GateController(
+            GateService gate, VisibilityService visibility, TrustedProxies proxies, GateVerdicts verdicts) {
         this.gate = gate;
+        this.proxies = proxies;
+        this.verdicts = verdicts;
         this.visibility = visibility;
     }
 
@@ -94,7 +110,9 @@ public class GateController {
     @ApiResponse(responseCode = "200", description = "Gate verdict evaluated")
     @PostMapping("/gate")
     public GateResponse evaluate(
-            @AuthenticationPrincipal VectispirePrincipal principal, @RequestBody GateRequest body) {
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestBody GateRequest body,
+            HttpServletRequest request) {
         if ((body.repositoryId() == null) == (body.containerId() == null)) {
             throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
         }
@@ -109,7 +127,13 @@ public class GateController {
         Visibilities.requireVisible(
                 target, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
-        GateService.Decision decision = gate.evaluate(target, requestedPolicy(body));
+        // **Recorded, not merely answered.** `evaluateAndRecord` is the only entry point this
+        // layer can reach: the evaluation alone is package-private in the service, so a route
+        // added later cannot consult the gate without the answer joining the register.
+        GateService.Decision decision = gate.evaluateAndRecord(
+                target,
+                requestedPolicy(body),
+                new GateService.Caller(callerName(principal), proxies.clientAddress(request)));
         GateVerdict verdict = decision.verdict();
         GatePolicy policy = decision.policy().policy();
 
@@ -128,6 +152,101 @@ public class GateController {
                         decision.policy().version().orElse(null),
                         decision.policy().describeSource()),
                 decision.policy().ignoredRelaxations());
+    }
+
+    /** What the caller may read of the gate's answers. */
+    public record VerdictView(
+            String id,
+            @JsonProperty("target_kind") String targetKind,
+            @JsonProperty("target_id") Long targetId,
+            boolean passed,
+            int evaluated,
+            int violations,
+            @JsonProperty("counts_by_severity") Map<String, Long> countsBySeverity,
+            @JsonProperty("fail_on_severity") String failOnSeverity,
+            @JsonProperty("policy_source") String policySource,
+            @JsonProperty("policy_version") Long policyVersion,
+            @JsonProperty("relaxations_ignored") boolean relaxationsIgnored,
+            @JsonProperty("decided_at") Instant decidedAt,
+            @JsonProperty("decided_by") String decidedBy) {}
+
+    /** How many answers of each kind, so the register has a headline as well as a list. */
+    public record VerdictRegister(List<VerdictView> verdicts, long passed, long refused) {}
+
+    /**
+     * The register: what the gate has answered, newest first.
+     *
+     * <p><b>This route is the whole point of recording verdicts.</b> "Every target passes the
+     * gate" is ambiguous between an estate that is clean and a gate that has never stopped
+     * anything; a list containing refusals is what separates the two, and it is what an assessor
+     * asks for when they want the control demonstrated rather than described.
+     *
+     * <p><b>The cap bounds what is read, not what is returned.</b> Visibility is applied after
+     * the read — by {@code permits}, the single implementation of that question — so a reader
+     * restricted to two repositories sees only their rows among the most recent ones. Widening
+     * the cap for such a reader would mean deciding in SQL whose rows to fetch, which is the
+     * mistake this codebase has made often enough to refuse making again.
+     */
+    @Operation(summary = "Gate verdict register", description = "The gate's recent answers, newest first, narrowed to what the caller may see.")
+    @ApiResponse(responseCode = "200", description = "Register returned")
+    @GetMapping("/gate/verdicts")
+    public VerdictRegister register(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(required = false, defaultValue = "100") int limit) {
+
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        int capped = Math.clamp(limit, 1, MAX_VERDICTS);
+
+        List<VerdictView> visible = verdicts.findAllByOrderByDecidedAtDesc(Limit.of(capped)).stream()
+                .filter(row -> allowed.permits(targetOf(row)))
+                .map(GateController::view)
+                .toList();
+
+        return new VerdictRegister(
+                visible,
+                visible.stream().filter(VerdictView::passed).count(),
+                visible.stream().filter(view -> !view.passed()).count());
+    }
+
+    private static ScanTarget targetOf(GateVerdictEntity row) {
+        return row.getRepoId() != null
+                ? new ScanTarget.Repository(row.getRepoId())
+                : new ScanTarget.Container(row.getContainerId());
+    }
+
+    private static VerdictView view(GateVerdictEntity row) {
+        boolean isRepository = row.getRepoId() != null;
+        return new VerdictView(
+                row.getId().toString(),
+                isRepository ? "REPOSITORY" : "CONTAINER",
+                isRepository ? row.getRepoId() : row.getContainerId(),
+                row.isPassed(),
+                row.getEvaluated(),
+                row.getViolations(),
+                Map.of(
+                        "critical", row.getCriticalCount(),
+                        "high", row.getHighCount(),
+                        "medium", row.getMediumCount(),
+                        "low", row.getLowCount()),
+                row.getFailOnSeverity(),
+                row.getPolicySource(),
+                row.getPolicyVersion(),
+                row.isRelaxationsIgnored(),
+                row.getDecidedAt(),
+                row.getDecidedBy());
+    }
+
+    /**
+     * Who to attribute a verdict to.
+     *
+     * <p>An agent's name rather than its key, an account's username rather than its id: the
+     * register is read by a person months later, and a row naming {@code 41} tells them nothing.
+     */
+    private static String callerName(VectispirePrincipal principal) {
+        return principal.user()
+                .map(user -> user.getUsername())
+                .or(() -> principal.agent().map(agent -> "agent:" + agent.getName()))
+                .orElse(null);
     }
 
     /** Every target's posture — what the security screen shows. */

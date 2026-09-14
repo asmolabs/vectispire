@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.PolicyLookup;
@@ -16,10 +17,12 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GatePolicies;
+import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -32,6 +35,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GateService {
 
+    private static final Logger log = LoggerFactory.getLogger(GateService.class);
+
     private static final String SCOPE_GLOBAL = "global";
 
     /** What a global policy stores in a column the schema declares not-null. */
@@ -53,6 +61,7 @@ public class GateService {
 
     private final Issues issues;
     private final GatePolicies policies;
+    private final GateVerdicts verdicts;
     private final GitRepositories repositories;
     private final Containers containers;
     private final Scans scans;
@@ -61,12 +70,14 @@ public class GateService {
     public GateService(
             Issues issues,
             GatePolicies policies,
+            GateVerdicts verdicts,
             GitRepositories repositories,
             Containers containers,
             Scans scans,
             Clock clock) {
         this.issues = issues;
         this.policies = policies;
+        this.verdicts = verdicts;
         this.repositories = repositories;
         this.containers = containers;
         this.scans = scans;
@@ -101,14 +112,91 @@ public class GateService {
     public record Decision(GateVerdict verdict, ResolvedPolicy policy) {}
 
     /**
-     * Evaluates one target.
+     * Who asked, so that a verdict can be attributed months later.
+     *
+     * @param principal the account or the agent key that called. Null when neither can be named
+     * @param ipAddress the client the rate limiter counted, already resolved against the trusted
+     *     proxies — an unvalidated {@code X-Forwarded-For} would make this field worse than absent
+     */
+    public record Caller(String principal, String ipAddress) {
+        public static Caller unattributed() {
+            return new Caller(null, null);
+        }
+    }
+
+    /**
+     * Evaluates the gate <b>and records what it answered</b>.
+     *
+     * <p><b>This is the only entry point reachable from outside this package, and that is the
+     * design.</b> The evaluation on its own is package-private below, so no future caller in the
+     * API layer can ask the gate a question without the answer being written down. A control that
+     * can be consulted without leaving a trace is a control nobody can later prove ran — and the
+     * omission would be invisible in review, because the code that forgets to record still
+     * returns the right verdict.
+     *
+     * <p><b>Not annotated, deliberately.</b> The evaluation below declares a read-only
+     * transaction and saving inside one fails at the driver. Calling it from here bypasses the
+     * proxy anyway — the self-invocation trap this codebase documents elsewhere — so the read
+     * runs plainly and the write takes the repository's own transaction. Neither needs the other
+     * to roll back: a verdict that was answered and not recorded is a gap in the register, and a
+     * verdict recorded twice would be worse.
+     */
+    public Decision evaluateAndRecord(ScanTarget target, RequestedPolicy requested, Caller caller) {
+        Decision decision = evaluate(target, requested);
+        record(target, decision, caller);
+        return decision;
+    }
+
+    private void record(ScanTarget target, Decision decision, Caller caller) {
+        try {
+            GateVerdict verdict = decision.verdict();
+            GateVerdictEntity row = new GateVerdictEntity();
+            row.setId(UUID.randomUUID());
+            row.setRepoId(target instanceof ScanTarget.Repository repository ? repository.id() : null);
+            row.setContainerId(target instanceof ScanTarget.Container container ? container.id() : null);
+            row.setPassed(verdict.passed());
+            row.setEvaluated(verdict.evaluated());
+            row.setViolations(verdict.violations().size());
+            row.setCriticalCount(count(verdict, Severity.CRITICAL));
+            row.setHighCount(count(verdict, Severity.HIGH));
+            row.setMediumCount(count(verdict, Severity.MEDIUM));
+            row.setLowCount(count(verdict, Severity.LOW));
+            row.setFailOnSeverity(decision.policy().policy().failOnSeverity() == null
+                    ? null
+                    : decision.policy().policy().failOnSeverity().wireName());
+            row.setPolicySource(decision.policy().source().name());
+            row.setPolicyVersion(decision.policy().version().map(Integer::longValue).orElse(null));
+            row.setRelaxationsIgnored(!decision.policy().ignoredRelaxations().isEmpty());
+            row.setDecidedAt(clock.instant());
+            row.setDecidedBy(caller.principal());
+            row.setIpAddress(caller.ipAddress());
+            verdicts.save(row);
+        } catch (RuntimeException failed) {
+            // **Never at the expense of the answer.** A pipeline waiting on a verdict must get
+            // one; a register that cannot be written is a hole to investigate, not a reason to
+            // fail somebody's build. Logged at error level for the same reason the audit log is:
+            // a register that stops filling in silence is worse than one that stops loudly.
+            log.error("Gate verdict could not be recorded: {}", failed.getMessage(), failed);
+        }
+    }
+
+    private static long count(GateVerdict verdict, Severity severity) {
+        return verdict.countsBySeverity().getOrDefault(severity, 0L);
+    }
+
+    /**
+     * Evaluates one target, recording nothing.
      *
      * <p>{@code requested} can only <b>tighten</b> what is stored; refused relaxations come back
      * inside {@link ResolvedPolicy} rather than being dropped, because a pipeline that believes
      * it has switched a rule off needs to find out that it has not.
+     *
+     * <p><b>Package-private on purpose</b> — see {@link #evaluateAndRecord}. It stays reachable
+     * from this package's own tests, which assert the arithmetic of a verdict and have no reason
+     * to fill a register while doing it.
      */
     @Transactional(readOnly = true)
-    public Decision evaluate(ScanTarget target, RequestedPolicy requested) {
+    Decision evaluate(ScanTarget target, RequestedPolicy requested) {
         Map<String, StoredPolicy> byScope = activePolicies();
         ResolvedPolicy resolved = PolicyResolution.resolve(
                 new PolicyLookup(

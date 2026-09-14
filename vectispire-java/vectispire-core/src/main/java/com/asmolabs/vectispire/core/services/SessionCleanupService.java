@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
@@ -37,13 +39,22 @@ public class SessionCleanupService {
     private final UserSessions sessions;
     private final LoginAttempts attempts;
     private final MfaChallenges challenges;
+    private final GateVerdicts verdicts;
+    private final SettingsService settings;
     private final Clock clock;
 
     public SessionCleanupService(
-            UserSessions sessions, LoginAttempts attempts, MfaChallenges challenges, Clock clock) {
+            UserSessions sessions,
+            LoginAttempts attempts,
+            MfaChallenges challenges,
+            GateVerdicts verdicts,
+            SettingsService settings,
+            Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
         this.challenges = challenges;
+        this.verdicts = verdicts;
+        this.settings = settings;
         this.clock = clock;
     }
 
@@ -52,7 +63,7 @@ public class SessionCleanupService {
      *     sweeps on write, which only clears what a <em>new</em> sign-in pays for; on an instance
      *     nobody signs into, the rows would sit until one did
      */
-    public record CleanupResult(int sessions, int attempts, int challenges) {}
+    public record CleanupResult(int sessions, int attempts, int challenges, int verdicts) {}
 
     /**
      * Never throws: see the class note.
@@ -63,7 +74,7 @@ public class SessionCleanupService {
      * bypassed and the annotation would mean nothing.
      */
     public CleanupResult prune() {
-        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges());
+        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(), pruneVerdicts());
     }
 
     private int pruneSessions() {
@@ -71,6 +82,28 @@ public class SessionCleanupService {
             return sessions.deleteExpired(clock.instant());
         } catch (RuntimeException failed) {
             log.warn("Session purge skipped: {}", failed.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Gate verdicts older than the retention window.
+     *
+     * <p><b>This table grows with the build rate, not with the estate.</b> A pipeline asks the
+     * gate on every push, so a busy fortnight writes more rows than a year of scanning does.
+     * Without a purge the register that proves the control works becomes the largest table in the
+     * database, and the first thing an operator deletes by hand — which destroys the proof.
+     *
+     * <p>It reuses {@code retention_max_age_days}, the window an operator has already chosen for
+     * scan payloads, rather than adding a second dial. How far back evidence must reach is one
+     * question, and it deserves one answer.
+     */
+    private int pruneVerdicts() {
+        try {
+            int days = Math.max(1, settings.asInt(Setting.RETENTION_MAX_AGE_DAYS));
+            return verdicts.deleteBefore(clock.instant().minus(Duration.ofDays(days)));
+        } catch (RuntimeException failed) {
+            log.warn("Gate verdict purge skipped: {}", failed.getMessage());
             return 0;
         }
     }

@@ -53,7 +53,7 @@ class MaintenanceJobsTest {
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
 
-        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0));
+        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0, 0));
         when(triage.expireStale()).thenReturn(List.of());
 
         jobs = new MaintenanceJobs(retention, outbox, tickets, sessions, backfill, scheduler, triage, digest, targetDeletion);
