@@ -1137,6 +1137,84 @@
         },
         "type" : "object"
       },
+      "Declaration" : {
+        "properties" : {
+          "applicability" : {
+            "enum" : [ "APPLICABLE", "EXCLUDED" ],
+            "type" : "string"
+          },
+          "controlId" : {
+            "type" : "string"
+          },
+          "decidedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "decidedBy" : {
+            "type" : "string"
+          },
+          "evidenceSource" : {
+            "enum" : [ "VECTISPIRE", "EXTERNAL", "BOTH" ],
+            "type" : "string"
+          },
+          "externalEvidence" : {
+            "type" : "string"
+          },
+          "framework" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
+            "type" : "string"
+          },
+          "implementation" : {
+            "enum" : [ "IMPLEMENTED", "PARTIALLY_IMPLEMENTED", "PLANNED", "NOT_IMPLEMENTED" ],
+            "type" : "string"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "owner" : {
+            "type" : "string"
+          },
+          "reviewDueAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reviewedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DeclarationRequest" : {
+        "properties" : {
+          "applicability" : {
+            "enum" : [ "APPLICABLE", "EXCLUDED" ],
+            "type" : "string"
+          },
+          "evidence_source" : {
+            "enum" : [ "VECTISPIRE", "EXTERNAL", "BOTH" ],
+            "type" : "string"
+          },
+          "external_evidence" : {
+            "type" : "string"
+          },
+          "implementation" : {
+            "enum" : [ "IMPLEMENTED", "PARTIALLY_IMPLEMENTED", "PLANNED", "NOT_IMPLEMENTED" ],
+            "type" : "string"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "owner" : {
+            "type" : "string"
+          },
+          "review_due_at" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DeclaredAgent" : {
         "properties" : {
           "id" : {
@@ -3030,6 +3108,20 @@
         },
         "type" : "object"
       },
+      "Product" : {
+        "properties" : {
+          "@id" : {
+            "type" : "string"
+          },
+          "identifiers" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          }
+        },
+        "type" : "object"
+      },
       "ProductIdentificationHelper" : {
         "properties" : {
           "cpe" : {
@@ -4156,6 +4248,35 @@
         "properties" : {
           "public_key" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Statement" : {
+        "properties" : {
+          "action_statement" : {
+            "type" : "string"
+          },
+          "impact_statement" : {
+            "type" : "string"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Product"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "type" : "string"
+          },
+          "vulnerability" : {
+            "$ref" : "#/components/schemas/Vulnerability"
           }
         },
         "type" : "object"
@@ -6137,6 +6258,137 @@
         },
         "summary" : "Get framework compliance details",
         "tags" : [ "Compliance" ]
+      }
+    },
+    "/api/v1/compliance/soa" : {
+      "get" : {
+        "description" : "The declaration of each framework, reconciled against the caller's view of the estate.",
+        "operationId" : "all",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Statement"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Statements returned"
+          }
+        },
+        "summary" : "Every framework's declaration",
+        "tags" : [ "Statement of Applicability" ]
+      }
+    },
+    "/api/v1/compliance/soa/reviews/overdue" : {
+      "get" : {
+        "description" : "Lines whose review date has passed, oldest first, across every framework.",
+        "operationId" : "reviewOverdue",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Declaration"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Declarations returned"
+          }
+        },
+        "summary" : "Declarations due for review",
+        "tags" : [ "Statement of Applicability" ]
+      }
+    },
+    "/api/v1/compliance/soa/{framework}" : {
+      "get" : {
+        "description" : "Declared and measured, line by line, with the divergence between them.",
+        "operationId" : "one",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "framework",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Statement"
+                }
+              }
+            },
+            "description" : "Statement returned"
+          }
+        },
+        "summary" : "One framework's declaration",
+        "tags" : [ "Statement of Applicability" ]
+      }
+    },
+    "/api/v1/compliance/soa/{framework}/{controlId}" : {
+      "put" : {
+        "description" : "Writes or revises one line. An exclusion needs a justification; evidence held elsewhere must say where.",
+        "operationId" : "declare",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "framework",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "controlId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeclarationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Declaration"
+                }
+              }
+            },
+            "description" : "Declaration recorded"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Declaration"
+                }
+              }
+            },
+            "description" : "The line is not a declaration: an unjustified exclusion, or external evidence naming nothing"
+          }
+        },
+        "summary" : "Declare a control",
+        "tags" : [ "Statement of Applicability" ]
       }
     },
     "/api/v1/compliance/summary" : {
@@ -10160,6 +10412,9 @@
   }, {
     "description" : "Attack Path Visualization and Exploit Scenario Correlation",
     "name" : "Attack Paths"
+  }, {
+    "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
+    "name" : "Statement of Applicability"
   }, {
     "description" : "The register of risk acceptances and dismissals",
     "name" : "Exceptions"

@@ -60,6 +60,7 @@ public class EvidenceVaultService {
     private final LicenseGovernanceService licenseService;
     private final SigningKeyService signingKeyService;
     private final ProcessEvidenceService processEvidence;
+    private final StatementOfApplicabilityService soa;
     private final ObjectMapper json;
 
     public EvidenceVaultService(
@@ -74,7 +75,8 @@ public class EvidenceVaultService {
             CycloneDxGeneratorService cycloneDxService,
             LicenseGovernanceService licenseService,
             SigningKeyService signingKeyService,
-            ProcessEvidenceService processEvidence) {
+            ProcessEvidenceService processEvidence,
+            StatementOfApplicabilityService soa) {
         this.compliance = compliance;
         this.auditService = auditService;
         this.auditLogRepo = auditLogRepo;
@@ -87,6 +89,7 @@ public class EvidenceVaultService {
         this.licenseService = licenseService;
         this.signingKeyService = signingKeyService;
         this.processEvidence = processEvidence;
+        this.soa = soa;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -238,14 +241,23 @@ public class EvidenceVaultService {
                     "Which languages the installed rules reach, and the freshness window applied to section 01 — what a zero finding count does and does not mean (ISO 27001 A.8.28)",
                     coverageBytes);
 
-            // 13. Verification & Manifest
+            // 13. Declaration of applicability — what was claimed, against what was measured
+            // Last of the content sections because it is the one that reads the others: it is
+            // section 01's verdicts set against the organisation's own claims, and the lines where
+            // the two disagree are what an assessment opens with.
+            byte[] soaBytes = json.writeValueAsBytes(soa.statements(allowed));
+            addZipEntry(zip, entries, "13_statement_of_applicability.json",
+                    "Declaration of applicability per framework, each control reconciled against its measured status (ISO 27001 clause 6.1.3 d)",
+                    soaBytes);
+
+            // 14. Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
-            // 1.1 adds sections 09-12. The version is in the manifest so an archive opened in two
+            // 1.1 adds sections 09-12, 1.2 section 13. The version is in the manifest so an archive opened in two
             // years says which generation produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
-                    "1.1",
+                    "1.2",
                     Instant.now(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
@@ -258,7 +270,7 @@ public class EvidenceVaultService {
             zip.write(manifestBytes);
             zip.closeEntry();
 
-            // 14. Manifest signature (Cosign detached signature)
+            // 15. Manifest signature (Cosign detached signature)
             String manifestSig = signingKeyService.sign(manifestBytes);
             ZipEntry sigEntry = new ZipEntry("manifest.json.sig");
             zip.putNextEntry(sigEntry);

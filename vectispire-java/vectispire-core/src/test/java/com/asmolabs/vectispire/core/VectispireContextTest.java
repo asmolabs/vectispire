@@ -60,6 +60,10 @@ public abstract class VectispireContextTest {
             "t_issue",
             "t_scan",
             "t_gate_policy",
+            // No foreign key to cascade from, unlike t_gate_verdict which a repository takes with
+            // it: a declaration belongs to the management system, not to a target. Left out, it
+            // would survive into the next test and the failure would read as a duplicate write.
+            "t_control_declaration",
             "t_processed_message",
             "t_outbox_message",
             "t_audit_log",

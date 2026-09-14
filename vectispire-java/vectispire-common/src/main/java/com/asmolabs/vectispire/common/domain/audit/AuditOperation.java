@@ -47,6 +47,17 @@ public enum AuditOperation {
     GATE_POLICY_UPDATED,
 
     /**
+     * A line of the declaration of applicability was written or revised.
+     *
+     * <p>Audited because it is the one place where somebody states, on the record, that a control
+     * is in place — or that it does not apply. The estate's measurement is recomputed from data
+     * and can always be re-derived; a declaration is a claim, and a claim without an author and a
+     * date is not evidence of anything. It is also the field an assessor is most likely to ask
+     * about when the declaration and the measurement disagree.
+     */
+    CONTROL_DECLARED,
+
+    /**
      * A team was created, renamed or deleted.
      *
      * <p>Audited for the same reason as a role change: it decides what a group of people can
