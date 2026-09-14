@@ -545,7 +545,8 @@
     "users": "Users",
     "exceptions": "Exceptions register",
     "gate_verdicts": "Verdict register",
-    "delays": "Time to fix"
+    "delays": "Time to fix",
+    "soa": "Statement of applicability"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -983,5 +984,79 @@
     },
     "import": "Import a catalogue",
     "add": "Add these languages"
+  },
+  "soa": {
+    "title": "Statement of applicability",
+    "subtitle": "What the organisation claims about each control, set against what the estate measures. The useful artefact is neither half: it is the line where the two disagree.",
+    "declared": "controls addressed",
+    "findings": "findings",
+    "reviews_overdue": "reviews lapsed",
+    "complete": "every control addressed",
+    "complete_yes": "Yes",
+    "complete_no": "No",
+    "incomplete_notice": "Clause 6.1.3 d asks for every Annex A control to be addressed — applicable or excluded. A control nobody has written a line for is a gap, not a blank.",
+    "column": {
+      "control": "Control",
+      "declared": "Declared",
+      "measured": "Measured",
+      "divergence": "Divergence",
+      "owner": "Owner",
+      "action": "Action"
+    },
+    "not_declared": "not declared",
+    "review_lapsed": "review lapsed",
+    "declare": "Declare",
+    "revise": "Revise",
+    "applicability": {
+      "APPLICABLE": "Applicable",
+      "EXCLUDED": "Excluded"
+    },
+    "implementation": {
+      "IMPLEMENTED": "Implemented",
+      "PARTIALLY_IMPLEMENTED": "Partially implemented",
+      "PLANNED": "Planned",
+      "NOT_IMPLEMENTED": "Not implemented"
+    },
+    "evidence": {
+      "VECTISPIRE": "Evidenced here",
+      "EXTERNAL": "Evidenced elsewhere",
+      "BOTH": "Evidenced here and elsewhere"
+    },
+    "divergence": {
+      "CONTRADICTED": "Contradicted",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion unargued",
+      "UNDECLARED": "Not addressed",
+      "OVERSTATED": "Overstated",
+      "UNDERSTATED": "Understated",
+      "NOT_MEASURED_HERE": "Not measured here",
+      "NOT_APPLICABLE": "Excluded",
+      "CONSISTENT": "Consistent"
+    },
+    "divergence_help": {
+      "CONTRADICTED": "Declared implemented; measured non-compliant. Not merely short of a control — the opposite was stated in writing.",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "Clause 6.1.3 d allows an exclusion and requires it to be argued.",
+      "UNDECLARED": "The framework has this control and the declaration does not mention it.",
+      "OVERSTATED": "Declared implemented; measured partial.",
+      "UNDERSTATED": "Declared planned or not implemented; measured compliant. The document has drifted behind the practice.",
+      "NOT_MEASURED_HERE": "Evidence lives outside this product, so nothing here bears on the claim.",
+      "NOT_APPLICABLE": "Excluded with a justification. Nothing to reconcile.",
+      "CONSISTENT": "The declaration and the measurement agree."
+    },
+    "dialog": {
+      "title": "Declare a control",
+      "applicability": "Applicability",
+      "implementation": "Implementation",
+      "evidence_source": "Where the evidence lives",
+      "evidence_help": "Vectispire measures a slice of each control, never the whole of it. A control evidenced elsewhere is not judged against what is measured here.",
+      "external_evidence": "Name the document, register or review",
+      "justification": "Justification",
+      "justification_excluded": "Why it does not apply",
+      "justification_required": "Required: clause 6.1.3 d does not accept an unargued exclusion.",
+      "owner": "Owner",
+      "review_due": "Review due",
+      "record": "Record the declaration"
+    },
+    "load_failed": "Could not load the statement of applicability.",
+    "declare_failed": "The declaration was not recorded."
   }
 }

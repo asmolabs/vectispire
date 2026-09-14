@@ -545,7 +545,8 @@
     "users": "Utilisateurs",
     "exceptions": "Registre des exceptions",
     "gate_verdicts": "Registre des verdicts",
-    "delays": "Délais de correction"
+    "delays": "Délais de correction",
+    "soa": "Déclaration d'applicabilité"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1089,5 +1090,79 @@
     },
     "import": "Importer un catalogue",
     "add": "Ajouter ces langages"
+  },
+  "soa": {
+    "title": "Déclaration d'applicabilité",
+    "subtitle": "Ce que l'organisme affirme de chaque contrôle, confronté à ce que le parc mesure. L'artefact utile n'est ni l'une ni l'autre : c'est la ligne où les deux divergent.",
+    "declared": "contrôles traités",
+    "findings": "constats",
+    "reviews_overdue": "revues périmées",
+    "complete": "chaque contrôle traité",
+    "complete_yes": "Oui",
+    "complete_no": "Non",
+    "incomplete_notice": "La clause 6.1.3 d demande que chaque contrôle de l'annexe A soit traité — applicable ou exclu. Un contrôle pour lequel personne n'a écrit de ligne est un manque, pas un blanc.",
+    "column": {
+      "control": "Contrôle",
+      "declared": "Déclaré",
+      "measured": "Mesuré",
+      "divergence": "Écart",
+      "owner": "Responsable",
+      "action": "Action"
+    },
+    "not_declared": "non déclaré",
+    "review_lapsed": "revue périmée",
+    "declare": "Déclarer",
+    "revise": "Réviser",
+    "applicability": {
+      "APPLICABLE": "Applicable",
+      "EXCLUDED": "Exclu"
+    },
+    "implementation": {
+      "IMPLEMENTED": "En place",
+      "PARTIALLY_IMPLEMENTED": "Partiellement en place",
+      "PLANNED": "Prévu",
+      "NOT_IMPLEMENTED": "Pas en place"
+    },
+    "evidence": {
+      "VECTISPIRE": "Preuve ici",
+      "EXTERNAL": "Preuve ailleurs",
+      "BOTH": "Preuve ici et ailleurs"
+    },
+    "divergence": {
+      "CONTRADICTED": "Contredit",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion non argumentée",
+      "UNDECLARED": "Non traité",
+      "OVERSTATED": "Surévalué",
+      "UNDERSTATED": "Sous-évalué",
+      "NOT_MEASURED_HERE": "Non mesuré ici",
+      "NOT_APPLICABLE": "Exclu",
+      "CONSISTENT": "Cohérent"
+    },
+    "divergence_help": {
+      "CONTRADICTED": "Déclaré en place ; mesuré non conforme. Pas seulement en défaut d'un contrôle — le contraire a été écrit.",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "La clause 6.1.3 d autorise une exclusion et exige qu'elle soit argumentée.",
+      "UNDECLARED": "Le cadre porte ce contrôle et la déclaration n'en parle pas.",
+      "OVERSTATED": "Déclaré en place ; mesuré partiel.",
+      "UNDERSTATED": "Déclaré prévu ou pas en place ; mesuré conforme. Le document a pris du retard sur la pratique.",
+      "NOT_MEASURED_HERE": "La preuve vit hors de ce produit : rien ici ne porte sur cette affirmation.",
+      "NOT_APPLICABLE": "Exclu avec justification. Rien à confronter.",
+      "CONSISTENT": "La déclaration et la mesure s'accordent."
+    },
+    "dialog": {
+      "title": "Déclarer un contrôle",
+      "applicability": "Applicabilité",
+      "implementation": "Mise en œuvre",
+      "evidence_source": "Où vit la preuve",
+      "evidence_help": "Vectispire mesure une tranche de chaque contrôle, jamais son entier. Un contrôle dont la preuve vit ailleurs n'est pas jugé contre ce qui est mesuré ici.",
+      "external_evidence": "Nommez le document, le registre ou la revue",
+      "justification": "Justification",
+      "justification_excluded": "Pourquoi il ne s'applique pas",
+      "justification_required": "Obligatoire : la clause 6.1.3 d n'accepte pas une exclusion non argumentée.",
+      "owner": "Responsable",
+      "review_due": "Revue due le",
+      "record": "Enregistrer la déclaration"
+    },
+    "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
+    "declare_failed": "La déclaration n'a pas été enregistrée."
   }
 }

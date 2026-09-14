@@ -74,6 +74,8 @@ describe('every screen', () => {
         }
         // Le registre porte ses compteurs à côté de ses lignes : rendu à vide, c'est un objet
         // dont `entries` est une liste, jamais une liste nue.
+        // La déclaration est une liste de documents, un par cadre : vide, c'est un tableau.
+        if (url.endsWith('/compliance/soa')) return [];
         if (url.includes('/remediation/distribution')) {
             return { windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null };
         }

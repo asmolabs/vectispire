@@ -46,6 +46,7 @@ export const appRoutes: Routes = [
             { path: 'compliance', loadComponent: () => import('./app/pages/compliance/compliance').then((m) => m.Compliance) },
             { path: 'exceptions', loadComponent: () => import('./app/pages/exceptions/exceptions').then((m) => m.Exceptions) },
             { path: 'remediation-delays', loadComponent: () => import('./app/pages/remediation-delays/remediation-delays').then((m) => m.RemediationDelays) },
+            { path: 'soa', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/soa/soa').then((m) => m.Soa) },
             { path: 'gate-verdicts', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/gate-verdicts/gate-verdicts').then((m) => m.GateVerdicts) },
             { path: 'epss', loadComponent: () => import('./app/pages/epss/epss').then((m) => m.Epss) },
             { path: 'blast-radius', loadComponent: () => import('./app/pages/blast-radius/blast-radius').then((m) => m.BlastRadius) },

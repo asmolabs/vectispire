@@ -59,7 +59,12 @@ export class AppMenu {
             // **Sous la conformité, parce que c'est la question qu'un évaluateur pose juste
             // après.** L'écran de conformité dit où on en est ; celui-ci dit ce qu'on a écarté
             // pour y arriver, et les deux se lisent ensemble ou pas du tout.
-            { label: this.i18n.t('menu.exceptions'), icon: 'pi pi-fw pi-file-edit', routerLink: ['/exceptions'] }
+            { label: this.i18n.t('menu.exceptions'), icon: 'pi pi-fw pi-file-edit', routerLink: ['/exceptions'] },
+
+            // **Le document ISO 27001, et il ouvre sur ses écarts.** Rangé avec la conformité
+            // plutôt qu'avec l'administration : ce qu'on déclare et ce qu'on mesure se lisent
+            // ensemble ou pas du tout.
+            { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] }
         ];
 
         const sections: MenuItem[] = [
