@@ -2562,6 +2562,9 @@ export interface components {
         ActivateRequest: {
             note?: string;
         };
+        Affects: {
+            ref?: string;
+        };
         AgentActivitySummary: {
             pendingScans?: components["schemas"]["PendingScanItem"][];
             runningScans?: components["schemas"]["RunningScanItem"][];
@@ -2613,6 +2616,12 @@ export interface components {
             summaryExplanation?: string;
             title?: string;
             vexSuggestion?: components["schemas"]["VexSuggestion"];
+        };
+        Analysis: {
+            detail?: string;
+            justification?: string;
+            responses?: string[];
+            state?: string;
         };
         ApiContract: {
             contractPath?: string;
@@ -3042,7 +3051,17 @@ export interface components {
         CsafDocument: {
             document?: components["schemas"]["Document"];
             product_tree?: components["schemas"]["ProductTree"];
-            vulnerabilities?: components["schemas"]["Vulnerability"][];
+            vulnerabilities?: components["schemas"]["CsafVulnerability"][];
+        };
+        CsafVulnerability: {
+            cve?: string;
+            flags?: components["schemas"]["Flag"][];
+            notes?: components["schemas"]["Note"][];
+            product_status?: components["schemas"]["ProductStatus"];
+            remediations?: components["schemas"]["Remediation"][];
+            scores?: components["schemas"]["Score"][];
+            threats?: components["schemas"]["Threat"][];
+            title?: string;
         };
         CveDelta: {
             cveId?: string;
@@ -3701,12 +3720,6 @@ export interface components {
             ref?: string;
             value?: string;
         };
-        Meta: {
-            created?: string;
-            lastModified?: string;
-            location?: string;
-            resourceType?: string;
-        };
         Metadata: {
             component?: components["schemas"]["Component"];
             /** Format: date-time */
@@ -3982,6 +3995,14 @@ export interface components {
             id?: number;
             status?: string;
         };
+        Rating: {
+            method?: string;
+            /** Format: double */
+            score?: number;
+            severity?: string;
+            source?: components["schemas"]["Source"];
+            vector?: string;
+        };
         RecentScan: {
             /** Format: int64 */
             containerId?: number;
@@ -4153,6 +4174,11 @@ export interface components {
             /** @enum {string} */
             outcome?: "CONFIRMED" | "EXTENDED" | "REVOKED";
         };
+        Revision: {
+            date?: string;
+            number?: string;
+            summary?: string;
+        };
         RoleEntry: {
             primary?: boolean;
             value?: string;
@@ -4195,7 +4221,7 @@ export interface components {
                 [key: string]: Record<string, never>;
             };
             results?: components["schemas"]["Result"][];
-            tool?: components["schemas"]["Tool"];
+            tool?: components["schemas"]["SarifTool"];
         };
         RunningScanItem: {
             agentId?: string;
@@ -4217,6 +4243,9 @@ export interface components {
             $schema?: string;
             runs?: components["schemas"]["Run"][];
             version?: string;
+        };
+        SarifTool: {
+            driver?: components["schemas"]["Driver"];
         };
         SastFinding: {
             category?: string;
@@ -4336,8 +4365,14 @@ export interface components {
             externalId?: string;
             id?: string;
             members?: components["schemas"]["Member"][];
-            meta?: components["schemas"]["Meta"];
+            meta?: components["schemas"]["ScimGroupMeta"];
             schemas?: string[];
+        };
+        ScimGroupMeta: {
+            created?: string;
+            lastModified?: string;
+            location?: string;
+            resourceType?: string;
         };
         ScimListResponseScimGroupDto: {
             Resources?: components["schemas"]["ScimGroupDto"][];
@@ -4369,11 +4404,17 @@ export interface components {
             emails?: components["schemas"]["Email"][];
             externalId?: string;
             id?: string;
-            meta?: components["schemas"]["Meta"];
+            meta?: components["schemas"]["ScimUserMeta"];
             name?: components["schemas"]["Name"];
             roles?: components["schemas"]["RoleEntry"][];
             schemas?: string[];
             userName?: string;
+        };
+        ScimUserMeta: {
+            created?: string;
+            lastModified?: string;
+            location?: string;
+            resourceType?: string;
         };
         ScopeCoverage: {
             /** Format: int32 */
@@ -4541,6 +4582,10 @@ export interface components {
             /** Format: int32 */
             total?: number;
         };
+        Source: {
+            name?: string;
+            url?: string;
+        };
         SshKeyCreateRequest: {
             name?: string;
             private_key?: string;
@@ -4683,6 +4728,11 @@ export interface components {
         Text: {
             text?: string;
         };
+        Threat: {
+            category?: string;
+            details?: string;
+            product_ids?: string[];
+        };
         ThreatIntelRecord: {
             cveId?: string;
             /** Format: date-time */
@@ -4709,7 +4759,9 @@ export interface components {
             token?: string;
         };
         Tool: {
-            driver?: components["schemas"]["Driver"];
+            name?: string;
+            vendor?: string;
+            version?: string;
         };
         TopImpactPackage: {
             /** Format: int32 */
@@ -4732,6 +4784,7 @@ export interface components {
             generator?: components["schemas"]["Generator"];
             id?: string;
             initial_release_date?: string;
+            revision_history?: components["schemas"]["Revision"][];
             status?: string;
             version?: string;
         };
@@ -4903,13 +4956,15 @@ export interface components {
             severity?: string;
         };
         Vulnerability: {
-            cve?: string;
-            flags?: components["schemas"]["Flag"][];
-            notes?: components["schemas"]["Note"][];
-            product_status?: components["schemas"]["ProductStatus"];
-            remediations?: components["schemas"]["Remediation"][];
-            scores?: components["schemas"]["Score"][];
-            title?: string;
+            affects?: components["schemas"]["Affects"][];
+            analysis?: components["schemas"]["Analysis"];
+            "bom-ref"?: string;
+            description?: string;
+            detail?: string;
+            id?: string;
+            ratings?: components["schemas"]["Rating"][];
+            recommendation?: string;
+            source?: components["schemas"]["Source"];
         };
         WebhookRequest: {
             url?: string;

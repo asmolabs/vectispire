@@ -53,13 +53,13 @@ class CsafExportTest {
 
         assertThat(doc.vulnerabilities()).hasSize(2);
 
-        CsafDocument.Vulnerability v1 = doc.vulnerabilities().get(0);
+        CsafDocument.CsafVulnerability v1 = doc.vulnerabilities().get(0);
         assertThat(v1.cve()).isEqualTo("CVE-2021-44228");
         assertThat(v1.productStatus().knownNotAffected()).isNotEmpty();
         assertThat(v1.flags()).isNotEmpty();
         assertThat(v1.flags().get(0).label()).isEqualTo("component_not_present");
 
-        CsafDocument.Vulnerability v2 = doc.vulnerabilities().get(1);
+        CsafDocument.CsafVulnerability v2 = doc.vulnerabilities().get(1);
         assertThat(v2.cve()).isEqualTo("CVE-2022-22965");
         assertThat(v2.productStatus().knownAffected()).isNotEmpty();
     }

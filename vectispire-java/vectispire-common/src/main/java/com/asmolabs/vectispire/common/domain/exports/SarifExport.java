@@ -122,7 +122,7 @@ public final class SarifExport {
                 SarifLog.SCHEMA,
                 SarifLog.VERSION,
                 List.of(new SarifLog.Run(
-                        new SarifLog.Tool(driver), List.copyOf(results), Map.of("target", options.targetName()))));
+                        new SarifLog.SarifTool(driver), List.copyOf(results), Map.of("target", options.targetName()))));
     }
 
     /**

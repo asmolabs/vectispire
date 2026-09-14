@@ -12,7 +12,7 @@ import java.util.Map;
 public record CsafDocument(
         Document document,
         @JsonProperty("product_tree") ProductTree productTree,
-        List<Vulnerability> vulnerabilities) {
+        List<CsafVulnerability> vulnerabilities) {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Document(
@@ -29,6 +29,14 @@ public record CsafDocument(
             String name,
             String namespace) {}
 
+    /**
+     * @param revisionHistory <b>required by the schema, and it was missing.</b> CSAF 2.0 lists six
+     *     mandatory tracking properties and this record carried five; a consumer validating
+     *     against the published schema rejects the document outright. Nothing here noticed,
+     *     because nothing validated: the generator's tests asserted the fields the generator
+     *     writes, which can only fail if the generator changes and never if it was wrong from the
+     *     start
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Tracking(
             @JsonProperty("current_release_date") String currentReleaseDate,
@@ -36,7 +44,18 @@ public record CsafDocument(
             String id,
             String status,
             String version,
+            @JsonProperty("revision_history") List<Revision> revisionHistory,
             Generator generator) {}
+
+    /**
+     * One entry of the revision history.
+     *
+     * <p>A generated advisory has one revision by construction — it is rebuilt from current data
+     * rather than amended — so the history has a single entry saying when this rendering was
+     * produced. That is honest and it is what the schema asks for; inventing a longer history for
+     * a document that has none would be worse than the omission it replaces.
+     */
+    public record Revision(String number, String date, String summary) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Generator(
@@ -70,15 +89,36 @@ public record CsafDocument(
             String cpe) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Vulnerability(
+    public record CsafVulnerability(
             String cve,
             String title,
             List<Note> notes,
             @JsonProperty("product_status") ProductStatus productStatus,
+            List<Threat> threats,
             List<Flag> flags,
             List<Remediation> remediations,
             List<Score> scores) {}
 
+    /**
+     * What the vulnerability does to the named products.
+     *
+     * <p>Carried over from the model this one replaced, which had it where this one did not. A
+     * consolidation that quietly dropped a populated field would have been a regression wearing
+     * the clothes of a clean-up.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Threat(
+            String category,
+            String details,
+            @JsonProperty("product_ids") List<String> productIds) {}
+
+    /**
+     * <p><b>Affected comes first here, and did not in the model this replaced.</b> The two records
+     * took their four lists in a different order, so a port that moved arguments across by
+     * position would have published every affected product as cleared and every cleared product as
+     * affected — in a signed document, over a machine-readable field whose whole purpose is to be
+     * believed without reading.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ProductStatus(
             @JsonProperty("known_affected") List<String> knownAffected,

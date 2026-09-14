@@ -55,20 +55,12 @@ import org.springframework.web.bind.annotation.RestController;
  * uniqueness on <em>that</em> set. No exemption list, and no false positive to argue about: every
  * pair it reports is a pair that really produces one schema out of two types.
  *
- * <h2>A ratchet, because a rule that fails on its first run is a rule somebody disables</h2>
+ * <h2>A ratchet that reached zero</h2>
  *
- * <p>Twenty names already collide. {@link #KNOWN} lists them, and the list may only shrink: a new
- * collision fails the build, and so does an entry that has been fixed without being struck off.
- * The second half matters as much as the first — an inventory nobody prunes stops being read, and
- * then it is an exemption list rather than a debt.
- *
- * <p><b>Each entry is a defect, not a permission.</b> Eleven of them are one defect wearing eleven
- * names: {@code common.domain.csaf} and {@code common.domain.exports} hold two complete CSAF 2.0
- * models, and {@code common.domain.vex} and {@code common.domain.exports} two OpenVEX models. The
- * product publishes both — {@code /api/v1/csaf/…} and {@code /api/v1/exports/…} — so two
- * implementations of one standard can disagree about the same estate. Renaming their types would
- * make the contract honest about a duplication that should not exist; that is a decision about the
- * exports, not about naming.
+ * <p>It was written as a ratchet rather than a prohibition — twenty names collided when it landed,
+ * and a rule that fails on its first run is a rule somebody disables. {@link #KNOWN} is empty now.
+ * The list may only shrink: a new collision fails the build, and so does an entry left behind
+ * after its fix, because an inventory nobody prunes stops being a debt and becomes an exemption.
  *
  * <h2>What it does not prove</h2>
  *
@@ -82,20 +74,17 @@ class SchemaNameCollisionTest {
     private static final String API_PACKAGE = "com.asmolabs.vectispire.core.api";
 
     /**
-     * The collisions that already exist, each a schema published as another type's shape.
+     * The collisions that still exist. <b>Empty, and it is meant to stay that way.</b>
      *
-     * <p>What remains is one defect wearing ten names: two CSAF 2.0 models, both published. It
-     * goes away when one of the pair is deleted, which is a decision about the exports and not
-     * about naming.
+     * <p>It held twenty. Nine were a habit — a record named for its place in its controller rather
+     * than for its subject, {@code Summary} in seven of them at once. Eleven were two duplicated
+     * standard models, OpenVEX and CSAF 2.0, each published on two routes and each free to
+     * disagree with itself.
      *
-     * <p>The other nine were a habit — a record named for its place in its controller rather than
-     * for its subject, {@code Summary} in seven of them at once — and are gone.
+     * <p>An entry here is a defect, never a permission, and the assertions below refuse both
+     * directions: a new collision fails, and so does an entry left behind after its fix.
      */
-    private static final Set<String> KNOWN = Set.of(
-            // Two CSAF 2.0 models, both published. See the class note. The OpenVEX pair that sat
-            // beside them is gone: one model, one standard.
-            "CsafDocument", "FullProductName", "Meta", "Note",
-            "ProductStatus", "ProductTree", "Publisher", "Tool", "Tracking", "Vulnerability");
+    private static final Set<String> KNOWN = Set.of();
 
     /** Everything the walk stops at: springdoc renders these inline, never as a named schema. */
     private static final Set<String> OPAQUE_PREFIXES =

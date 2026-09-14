@@ -18,7 +18,7 @@ public record ScimUserDto(
         List<Email> emails,
         List<RoleEntry> roles,
         Boolean active,
-        Meta meta) {
+        ScimUserMeta meta) {
 
     public static final String SCHEMA_USER = "urn:ietf:params:scim:schemas:core:2.0:User";
 
@@ -32,7 +32,7 @@ public record ScimUserDto(
     public record RoleEntry(String value, Boolean primary) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Meta(
+    public record ScimUserMeta(
             @JsonProperty("resourceType") String resourceType,
             String created,
             String lastModified,

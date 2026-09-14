@@ -19,9 +19,9 @@ public record SarifLog(@JsonProperty("$schema") String schema, String version, L
     public static final String VERSION = "2.1.0";
     public static final String SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json";
 
-    public record Run(Tool tool, List<Result> results, Map<String, Object> properties) {}
+    public record Run(SarifTool tool, List<Result> results, Map<String, Object> properties) {}
 
-    public record Tool(Driver driver) {}
+    public record SarifTool(Driver driver) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Driver(String name, String version, String informationUri, List<Rule> rules) {}

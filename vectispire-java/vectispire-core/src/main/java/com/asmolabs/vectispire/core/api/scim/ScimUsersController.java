@@ -273,7 +273,7 @@ public class ScimUsersController {
                 ? List.of(new ScimUserDto.RoleEntry(user.getRole(), true))
                 : List.of();
 
-        ScimUserDto.Meta meta = new ScimUserDto.Meta(
+        ScimUserDto.ScimUserMeta meta = new ScimUserDto.ScimUserMeta(
                 "User",
                 user.getCreatedAt() != null ? user.getCreatedAt().toString() : null,
                 user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null,

@@ -45,6 +45,8 @@ public final class CsafExport {
                         docId,
                         "final",
                         "1.0.0",
+                        List.of(new CsafDocument.Revision(
+                                "1.0.0", now.toString(), "Generated from the current triage state.")),
                         new CsafDocument.Generator(new CsafDocument.Engine("Vectispire", version), now.toString())),
                 List.of(new CsafDocument.Note("summary", "Summary", "Security and triage assessment for " + target)));
 
@@ -77,7 +79,7 @@ public final class CsafExport {
         CsafDocument.ProductTree productTree = new CsafDocument.ProductTree(fullProducts);
 
         // 3. Build Vulnerabilities
-        List<CsafDocument.Vulnerability> vulnerabilities = new ArrayList<>();
+        List<CsafDocument.CsafVulnerability> vulnerabilities = new ArrayList<>();
         for (ExportableIssue issue : issues) {
             String pkgKey = (issue.purl() != null && !issue.purl().isBlank())
                     ? issue.purl()
@@ -127,11 +129,12 @@ public final class CsafExport {
                 scores.add(new CsafDocument.Score(Map.of("version", "3.1", "baseScore", issue.cvssScore())));
             }
 
-            vulnerabilities.add(new CsafDocument.Vulnerability(
+            vulnerabilities.add(new CsafDocument.CsafVulnerability(
                     issue.identifier(),
                     issue.identifier() + " in " + (issue.packageName() != null ? issue.packageName() : target),
                     notes.isEmpty() ? null : notes,
                     productStatus,
+                    null,
                     flags.isEmpty() ? null : flags,
                     remediations.isEmpty() ? null : remediations,
                     scores.isEmpty() ? null : scores));

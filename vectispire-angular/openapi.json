@@ -9,6 +9,14 @@
         },
         "type" : "object"
       },
+      "Affects" : {
+        "properties" : {
+          "ref" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "AgentActivitySummary" : {
         "properties" : {
           "pendingScans" : {
@@ -153,6 +161,26 @@
           },
           "vexSuggestion" : {
             "$ref" : "#/components/schemas/VexSuggestion"
+          }
+        },
+        "type" : "object"
+      },
+      "Analysis" : {
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "justification" : {
+            "type" : "string"
+          },
+          "responses" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "state" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1295,9 +1323,53 @@
           },
           "vulnerabilities" : {
             "items" : {
-              "$ref" : "#/components/schemas/Vulnerability"
+              "$ref" : "#/components/schemas/CsafVulnerability"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CsafVulnerability" : {
+        "properties" : {
+          "cve" : {
+            "type" : "string"
+          },
+          "flags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Flag"
+            },
+            "type" : "array"
+          },
+          "notes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Note"
+            },
+            "type" : "array"
+          },
+          "product_status" : {
+            "$ref" : "#/components/schemas/ProductStatus"
+          },
+          "remediations" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Remediation"
+            },
+            "type" : "array"
+          },
+          "scores" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Score"
+            },
+            "type" : "array"
+          },
+          "threats" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Threat"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3045,23 +3117,6 @@
         },
         "type" : "object"
       },
-      "Meta" : {
-        "properties" : {
-          "created" : {
-            "type" : "string"
-          },
-          "lastModified" : {
-            "type" : "string"
-          },
-          "location" : {
-            "type" : "string"
-          },
-          "resourceType" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "Metadata" : {
         "properties" : {
           "component" : {
@@ -3807,6 +3862,27 @@
         },
         "type" : "object"
       },
+      "Rating" : {
+        "properties" : {
+          "method" : {
+            "type" : "string"
+          },
+          "score" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/Source"
+          },
+          "vector" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RecentScan" : {
         "properties" : {
           "containerId" : {
@@ -4250,6 +4326,20 @@
         },
         "type" : "object"
       },
+      "Revision" : {
+        "properties" : {
+          "date" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RoleEntry" : {
         "properties" : {
           "primary" : {
@@ -4366,7 +4456,7 @@
             "type" : "array"
           },
           "tool" : {
-            "$ref" : "#/components/schemas/Tool"
+            "$ref" : "#/components/schemas/SarifTool"
           }
         },
         "type" : "object"
@@ -4423,6 +4513,14 @@
           },
           "version" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SarifTool" : {
+        "properties" : {
+          "driver" : {
+            "$ref" : "#/components/schemas/Driver"
           }
         },
         "type" : "object"
@@ -4758,13 +4856,30 @@
             "type" : "array"
           },
           "meta" : {
-            "$ref" : "#/components/schemas/Meta"
+            "$ref" : "#/components/schemas/ScimGroupMeta"
           },
           "schemas" : {
             "items" : {
               "type" : "string"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ScimGroupMeta" : {
+        "properties" : {
+          "created" : {
+            "type" : "string"
+          },
+          "lastModified" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "resourceType" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -4865,7 +4980,7 @@
             "type" : "string"
           },
           "meta" : {
-            "$ref" : "#/components/schemas/Meta"
+            "$ref" : "#/components/schemas/ScimUserMeta"
           },
           "name" : {
             "$ref" : "#/components/schemas/Name"
@@ -4883,6 +4998,23 @@
             "type" : "array"
           },
           "userName" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ScimUserMeta" : {
+        "properties" : {
+          "created" : {
+            "type" : "string"
+          },
+          "lastModified" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "resourceType" : {
             "type" : "string"
           }
         },
@@ -5303,6 +5435,17 @@
         },
         "type" : "object"
       },
+      "Source" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SshKeyCreateRequest" : {
         "properties" : {
           "name" : {
@@ -5664,6 +5807,23 @@
         },
         "type" : "object"
       },
+      "Threat" : {
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "details" : {
+            "type" : "string"
+          },
+          "product_ids" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "ThreatIntelRecord" : {
         "properties" : {
           "cveId" : {
@@ -5724,8 +5884,14 @@
       },
       "Tool" : {
         "properties" : {
-          "driver" : {
-            "$ref" : "#/components/schemas/Driver"
+          "name" : {
+            "type" : "string"
+          },
+          "vendor" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -5778,6 +5944,12 @@
           },
           "initial_release_date" : {
             "type" : "string"
+          },
+          "revision_history" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Revision"
+            },
+            "type" : "array"
           },
           "status" : {
             "type" : "string"
@@ -6225,38 +6397,38 @@
       },
       "Vulnerability" : {
         "properties" : {
-          "cve" : {
+          "affects" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Affects"
+            },
+            "type" : "array"
+          },
+          "analysis" : {
+            "$ref" : "#/components/schemas/Analysis"
+          },
+          "bom-ref" : {
             "type" : "string"
           },
-          "flags" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Flag"
-            },
-            "type" : "array"
-          },
-          "notes" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Note"
-            },
-            "type" : "array"
-          },
-          "product_status" : {
-            "$ref" : "#/components/schemas/ProductStatus"
-          },
-          "remediations" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Remediation"
-            },
-            "type" : "array"
-          },
-          "scores" : {
-            "items" : {
-              "$ref" : "#/components/schemas/Score"
-            },
-            "type" : "array"
-          },
-          "title" : {
+          "description" : {
             "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "ratings" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Rating"
+            },
+            "type" : "array"
+          },
+          "recommendation" : {
+            "type" : "string"
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/Source"
           }
         },
         "type" : "object"

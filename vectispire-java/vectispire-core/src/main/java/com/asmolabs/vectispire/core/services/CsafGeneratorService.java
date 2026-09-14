@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.vectispire.common.domain.csaf.CsafDocument;
+import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
@@ -21,6 +21,17 @@ import org.springframework.stereotype.Service;
 
 /**
  * Generates OASIS CSAF 2.0 VEX security advisories for scans and aggregate target posture.
+ *
+ * <p><b>It built its own CSAF model until now, and the codebase held two.</b> This one, signed
+ * into the evidence bundle, and {@code CsafExport}'s, served on the per-target download — two
+ * renderings of one standard over the same estate, free to disagree and with nothing to notice if
+ * they did. Both omitted {@code /document/tracking/revision_history}, which the CSAF 2.0 schema
+ * makes mandatory, so both were invalid in the same way for the same reason: nothing ever
+ * validated either against the schema, only against itself.
+ *
+ * <p>One model now, {@code domain.exports.CsafDocument}, because it was the richer of the two —
+ * notes, flags, remediations, scores, a generator engine and a typed product identification
+ * helper where this one had a loose map.
  */
 @Service
 public class CsafGeneratorService {
@@ -54,10 +65,14 @@ public class CsafGeneratorService {
             String version = issue.getPackageVersion() != null ? issue.getPackageVersion() : "latest";
             String productId = "CSAFPID-" + Math.abs((pkg + "@" + version).hashCode());
 
+            // **Name then id, which is the opposite of the record this replaced.** Ported by
+            // position, the two would have swapped and every product would carry a human label
+            // where a machine expects an identifier.
             productMap.putIfAbsent(productId, new CsafDocument.FullProductName(
-                    productId,
                     pkg + " " + version,
-                    Map.of("purl", issue.getPurl() != null ? issue.getPurl() : "pkg:generic/" + pkg + "@" + version)));
+                    productId,
+                    new CsafDocument.ProductIdentificationHelper(
+                            issue.getPurl() != null ? issue.getPurl() : "pkg:generic/" + pkg + "@" + version, null)));
 
             // A person's triage clears a product. The reachability column does not: it was set
             // by a substring search that did not match, and this line published that as
@@ -72,9 +87,12 @@ public class CsafGeneratorService {
             List<String> fixedList = fixed ? List.of(productId) : List.of();
             List<String> underInvestigationList = underInvestigation ? List.of(productId) : List.of();
 
+            // **Affected first.** The record this replaced took not-affected first; moving these
+            // four lists across by position would have published every vulnerable product as
+            // cleared, in a signed document, over the one field a consumer trusts without reading.
             CsafDocument.ProductStatus productStatus = new CsafDocument.ProductStatus(
-                    notAffectedList.isEmpty() ? null : notAffectedList,
                     affectedList.isEmpty() ? null : affectedList,
+                    notAffectedList.isEmpty() ? null : notAffectedList,
                     fixedList.isEmpty() ? null : fixedList,
                     underInvestigationList.isEmpty() ? null : underInvestigationList);
 
@@ -90,21 +108,17 @@ public class CsafGeneratorService {
             vulnerabilities.add(new CsafDocument.CsafVulnerability(
                     cve,
                     cve + " in " + pkg,
+                    notes.isEmpty() ? null : notes,
                     productStatus,
                     threats.isEmpty() ? null : threats,
-                    notes.isEmpty() ? null : notes));
+                    null,
+                    null,
+                    null));
         }
 
         Instant now = Instant.now();
-        CsafDocument.DocumentMetadata meta = new CsafDocument.DocumentMetadata(
-                "csaf_vex",
-                "2.0",
-                "Vectispire Aggregate Security Advisory",
-                new CsafDocument.Publisher("vendor", "Vectispire Control Plane", "https://vectispire.internal"),
-                new CsafDocument.Tracking("VECTISPIRE-AGGREGATE-CSAF", now, now, "final", "1.0.0"));
-
         return new CsafDocument(
-                meta,
+                metadata("Vectispire Aggregate Security Advisory", "VECTISPIRE-AGGREGATE-CSAF", now),
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
                 vulnerabilities);
     }
@@ -125,9 +139,10 @@ public class CsafGeneratorService {
             String productId = "CSAFPID-" + Math.abs((pkg + "@" + version).hashCode());
 
             productMap.putIfAbsent(productId, new CsafDocument.FullProductName(
-                    productId,
                     pkg + " " + version,
-                    Map.of("purl", finding.getPurl() != null ? finding.getPurl() : "pkg:generic/" + pkg + "@" + version)));
+                    productId,
+                    new CsafDocument.ProductIdentificationHelper(
+                            finding.getPurl() != null ? finding.getPurl() : "pkg:generic/" + pkg + "@" + version, null)));
 
             // **Never from reachability.** That column was set by a substring search that did not
             // match, and this line put the product in the CSAF `known_not_affected` list on the
@@ -135,31 +150,60 @@ public class CsafGeneratorService {
             // cleared here only when a person triaged it as such.
             boolean notAffected = false;
             CsafDocument.ProductStatus productStatus = new CsafDocument.ProductStatus(
-                    notAffected ? List.of(productId) : null,
                     notAffected ? null : List.of(productId),
+                    notAffected ? List.of(productId) : null,
                     null,
                     null);
 
             vulnerabilities.add(new CsafDocument.CsafVulnerability(
                     cve,
                     cve + " in " + pkg,
+                    null,
                     productStatus,
+                    null,
+                    null,
                     null,
                     null));
         }
 
         Instant timestamp = scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now();
-        CsafDocument.DocumentMetadata meta = new CsafDocument.DocumentMetadata(
-                "csaf_vex",
-                "2.0",
-                "Vectispire Scan #" + scan.getId() + " Security Advisory",
-                new CsafDocument.Publisher("vendor", "Vectispire Control Plane", "https://vectispire.internal"),
-                new CsafDocument.Tracking("VECTISPIRE-SCAN-" + scan.getId(), timestamp, timestamp, "final", "1.0.0"));
-
         return new CsafDocument(
-                meta,
+                metadata(
+                        "Vectispire Scan #" + scan.getId() + " Security Advisory",
+                        "VECTISPIRE-SCAN-" + scan.getId(),
+                        timestamp),
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
                 vulnerabilities);
+    }
+
+    /**
+     * The document header both advisories share.
+     *
+     * <p>Written once because it carries the six mandatory tracking properties, and a mandatory
+     * field spelled out at two construction sites is a mandatory field that will be missing from
+     * one of them. It already was: {@code revision_history} was absent from both.
+     *
+     * <p>The history has a single entry, and honestly so. These advisories are regenerated from
+     * current data rather than amended, so there is one revision — the rendering the reader holds.
+     */
+    private static CsafDocument.Document metadata(String title, String id, Instant at) {
+        String stamp = at.toString();
+        return new CsafDocument.Document(
+                "csaf_vex",
+                "2.0",
+                title,
+                new CsafDocument.Publisher("vendor", "Vectispire Control Plane", "https://vectispire.internal"),
+                new CsafDocument.Tracking(
+                        stamp,
+                        stamp,
+                        id,
+                        "final",
+                        "1.0.0",
+                        List.of(new CsafDocument.Revision(
+                                "1.0.0", stamp, "Generated from the current triage state.")),
+                        new CsafDocument.Generator(
+                                new CsafDocument.Engine("Vectispire", "1.0.0"), stamp)),
+                null);
     }
 
     /**

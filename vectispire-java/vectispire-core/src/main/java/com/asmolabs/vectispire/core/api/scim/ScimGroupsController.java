@@ -279,7 +279,7 @@ public class ScimGroupsController {
             }
         }
 
-        ScimGroupDto.Meta meta = new ScimGroupDto.Meta(
+        ScimGroupDto.ScimGroupMeta meta = new ScimGroupDto.ScimGroupMeta(
                 "Group",
                 team.getCreatedAt() != null ? team.getCreatedAt().toString() : null,
                 null,

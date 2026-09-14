@@ -14,7 +14,7 @@ public record ScimGroupDto(
         String externalId,
         String displayName,
         List<Member> members,
-        Meta meta) {
+        ScimGroupMeta meta) {
 
     public static final String SCHEMA_GROUP = "urn:ietf:params:scim:schemas:core:2.0:Group";
 
@@ -22,7 +22,7 @@ public record ScimGroupDto(
     public record Member(String value, String display, String ref) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Meta(
+    public record ScimGroupMeta(
             @JsonProperty("resourceType") String resourceType,
             String created,
             String lastModified,
