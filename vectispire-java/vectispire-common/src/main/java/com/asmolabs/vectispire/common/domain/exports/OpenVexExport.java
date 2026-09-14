@@ -1,7 +1,9 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,6 +12,13 @@ import java.util.Map;
 
 /**
  * Builds an OpenVEX document for a product from its vulnerability issues.
+ *
+ * <p><b>It used to build a second OpenVEX model of its own.</b> Two records called
+ * {@code OpenVexDocument} lived in this codebase — this package's and {@code domain.vex}'s — on
+ * two routes, describing one standard. They disagreed: the other one modelled {@code products} as
+ * bare strings, so {@code /api/v1/vex/ingest} could not read what this builder emitted, and the
+ * signed advisory in the evidence bundle did not satisfy the version it declared. Neither half
+ * could see the other, because nothing ever asked one to read the other's output.
  *
  * <p>Only {@link FindingType#VULNERABILITY} issues are included: VEX is defined over
  * vulnerability identifiers, and a hardcoded secret or a failed IaC check has no CVE to make
@@ -32,7 +41,7 @@ public final class OpenVexExport {
     }
 
     public static OpenVexDocument build(Collection<ExportableIssue> issues, Options options) {
-        List<OpenVexDocument.Statement> statements = new ArrayList<>();
+        List<OpenVexStatement> statements = new ArrayList<>();
 
         for (ExportableIssue issue : issues) {
             if (issue.type() != FindingType.VULNERABILITY || issue.identifier() == null || issue.identifier().isBlank()) {
@@ -45,38 +54,49 @@ public final class OpenVexExport {
                 OpenVexDocument.CONTEXT,
                 options.documentId(),
                 options.author(),
-                Digests.canonical(options.timestamp()),
+                null,
+                options.timestamp(),
                 options.version(),
                 "Vectispire",
                 List.copyOf(statements));
     }
 
-    private static OpenVexDocument.Statement statement(ExportableIssue issue, Options options) {
+    private static OpenVexStatement statement(ExportableIssue issue, Options options) {
         VexStatus status = statusOf(issue);
 
         // The specification requires a justification for `not_affected`, and the triage
         // service guarantees one exists before the status can be set.
-        String justification = status == VexStatus.NOT_AFFECTED ? issue.triageJustification() : null;
+        VexJustification justification = status == VexStatus.NOT_AFFECTED
+                ? VexJustification.fromWireName(issue.triageJustification()).orElse(null)
+                : null;
         String impact = status == VexStatus.NOT_AFFECTED ? blankToNull(issue.triageComment()) : null;
         // For `affected`, the same free text belongs to the action statement instead.
         String action = status == VexStatus.AFFECTED ? blankToNull(issue.triageComment()) : null;
 
-        OpenVexDocument.Product product = issue.purl() == null || issue.purl().isBlank()
-                ? new OpenVexDocument.Product(options.productId(), null)
-                : new OpenVexDocument.Product(options.productId(), Map.of("purl", issue.purl()));
+        OpenVexStatement.Product product = issue.purl() == null || issue.purl().isBlank()
+                ? new OpenVexStatement.Product(options.productId(), null)
+                : new OpenVexStatement.Product(options.productId(), Map.of("purl", issue.purl()));
 
-        // RFC 3339, as OpenVEX requires. A timestamp with no timezone is not a valid instant
-        // under that standard, and a strict consumer is entitled to refuse the document.
-        Instant at = issue.triagedAt() != null ? issue.triagedAt() : issue.lastSeenAt();
-
-        return new OpenVexDocument.Statement(
-                new OpenVexDocument.Vulnerability(issue.identifier()),
+        return new OpenVexStatement(
+                Map.of("name", issue.identifier()),
                 List.of(product),
-                status.wireName(),
+                statusOfVex(status),
                 justification,
                 impact,
                 action,
-                at == null ? null : Digests.canonical(at));
+                null,
+                issue.triagedAt() != null ? issue.triagedAt() : issue.lastSeenAt());
+    }
+
+    /**
+     * The export's status enumeration, mapped onto the document's.
+     *
+     * <p>Two enumerations of one vocabulary remain here, and deliberately: this one answers "what
+     * does a triage status become in a VEX document", which is a question about Vectispire, while
+     * the other is the document's own field. They are kept apart until the mapping itself moves.
+     */
+    private static com.asmolabs.vectispire.common.domain.vex.VexStatus statusOfVex(VexStatus status) {
+        return com.asmolabs.vectispire.common.domain.vex.VexStatus.valueOf(status.name());
     }
 
     private static VexStatus statusOf(ExportableIssue issue) {

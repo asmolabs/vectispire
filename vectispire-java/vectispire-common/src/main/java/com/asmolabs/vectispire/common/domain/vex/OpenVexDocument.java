@@ -18,9 +18,18 @@ public record OpenVexDocument(
         @JsonProperty("tooling") String tooling,
         @JsonProperty("statements") List<OpenVexStatement> statements) {
 
+    /**
+     * The version this document claims, in one place.
+     *
+     * <p>It was written out at each construction site, and a claim repeated by hand is a claim
+     * that can be repeated wrongly — which is what happened: the string said v0.2.0 while the
+     * statements below it carried the v0.1.0 product shape.
+     */
+    public static final String CONTEXT = "https://openvex.dev/ns/v0.2.0";
+
     public static OpenVexDocument create(String documentUri, Instant timestamp, List<OpenVexStatement> statements) {
         return new OpenVexDocument(
-                "https://openvex.dev/ns/v0.2.0",
+                CONTEXT,
                 documentUri,
                 "Vectispire ASPM Control Plane",
                 "Document Creator",

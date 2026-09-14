@@ -18,6 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Ingests upstream vendor VEX documents (OpenVEX, OASIS CSAF 2.0, and CycloneDX VEX)
  * and cascades automated suppressions across matching codebase issues.
+ *
+ * <p><b>A document this cannot read says so.</b> It used to try each format in turn behind
+ * {@code catch (Exception ignored)} and, having exhausted them, return "nothing ingested" —
+ * HTTP 200, no error, no log. So when the OpenVEX model turned out to reject every conformant
+ * v0.2.0 document, the endpoint reported perfect health while doing nothing at all, for anyone
+ * who tried it.
+ *
+ * <p>Trying formats in turn is right: a caller uploads a file and should not have to declare its
+ * shape. Swallowing the reason is not. What is kept now is <em>why</em> each attempt failed, and
+ * a payload that matched no format at all returns that instead of silence.
  */
 @Service
 public class VexIngestorService {
@@ -48,8 +58,9 @@ public class VexIngestorService {
         try {
             JsonNode root = json.readTree(payload);
             return ingestAuto(root);
-        } catch (Exception e) {
-            return new IngestionResult(0, 0, 0, List.of());
+        } catch (Exception notJson) {
+            throw new IllegalArgumentException(
+                    "This is not a JSON document: " + firstLineOf(notJson), notJson);
         }
     }
 
@@ -59,12 +70,16 @@ public class VexIngestorService {
             return new IngestionResult(0, 0, 0, List.of());
         }
 
+        List<String> refusals = new ArrayList<>();
+
         // 1. CycloneDX VEX detection
         if (root.has("bomFormat") && "CycloneDX".equalsIgnoreCase(root.get("bomFormat").asText())) {
             try {
                 CycloneDxDocument cdx = json.treeToValue(root, CycloneDxDocument.class);
                 return ingestCycloneDx(cdx);
-            } catch (Exception ignored) {}
+            } catch (Exception refused) {
+                refusals.add("CycloneDX: " + firstLineOf(refused));
+            }
         }
 
         // 2. OpenVEX detection
@@ -72,7 +87,9 @@ public class VexIngestorService {
             try {
                 OpenVexDocument openVex = json.treeToValue(root, OpenVexDocument.class);
                 return ingestOpenVex(openVex);
-            } catch (Exception ignored) {}
+            } catch (Exception refused) {
+                refusals.add("OpenVEX: " + firstLineOf(refused));
+            }
         }
 
         // Fallback: try parsing as OpenVEX
@@ -81,9 +98,15 @@ public class VexIngestorService {
             if (doc.statements() != null && !doc.statements().isEmpty()) {
                 return ingestOpenVex(doc);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception refused) {
+            refusals.add("OpenVEX: " + firstLineOf(refused));
+        }
 
-        return new IngestionResult(0, 0, 0, List.of());
+        // A document nobody could read is the case this method exists to report, not to hide.
+        // An empty result and an unreadable file used to be the same answer.
+        throw new IllegalArgumentException(refusals.isEmpty()
+                ? "No VEX statement was found: the document declares neither CycloneDX nor OpenVEX."
+                : "No VEX format could read this document — " + String.join("; ", refusals));
     }
 
     @Transactional
@@ -195,18 +218,28 @@ public class VexIngestorService {
         return new IngestionResult(doc.statements().size(), matched, triaged, appliedCves);
     }
 
-    private com.asmolabs.vectispire.common.domain.issues.VexJustification mapJustification(
-            com.asmolabs.vectispire.common.domain.vex.VexJustification justification) {
-        if (justification == null) {
-            return com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
-        }
-        return switch (justification) {
-            case COMPONENT_NOT_PRESENT -> com.asmolabs.vectispire.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
-            case VULNERABLE_CODE_NOT_PRESENT -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_PRESENT;
-            case VULNERABLE_CODE_NOT_IN_EXECUTE_PATH -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH;
-            case VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY -> com.asmolabs.vectispire.common.domain.issues.VexJustification.VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY;
-            case INLINE_MITIGATIONS_EXIST -> com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
-        };
+    /** Jackson's messages carry the whole path on later lines; the first says what went wrong. */
+    private static String firstLineOf(Exception failure) {
+        return String.valueOf(failure.getMessage()).lines().findFirst().orElse(failure.toString());
+    }
+
+    /**
+     * A missing justification falls back rather than refusing the statement.
+     *
+     * <p>The specification requires one on {@code not_affected}; a document that omits it is
+     * malformed, and dropping the statement would discard an upstream vendor's assertion over a
+     * field the triage record does not act on. The fallback is the weakest of the five, so a
+     * missing justification never reads as a stronger claim than was made.
+     *
+     * <p>The translation table that used to live here is gone with the enumeration it translated:
+     * one controlled vocabulary now has one Java enum, and mapping a value to itself was the shape
+     * that let the two drift.
+     */
+    private static com.asmolabs.vectispire.common.domain.issues.VexJustification mapJustification(
+            com.asmolabs.vectispire.common.domain.issues.VexJustification justification) {
+        return justification == null
+                ? com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST
+                : justification;
     }
 
     private com.asmolabs.vectispire.common.domain.issues.VexJustification mapCycloneDxJustification(String justification) {

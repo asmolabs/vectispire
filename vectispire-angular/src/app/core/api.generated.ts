@@ -3313,6 +3313,11 @@ export interface components {
             /** Format: int64 */
             total?: number;
         };
+        Flag: {
+            date?: string;
+            label?: string;
+            product_ids?: string[];
+        };
         FullProductName: {
             name?: string;
             product_id?: string;
@@ -3812,11 +3817,13 @@ export interface components {
             action_statement?: string;
             impact_statement?: string;
             /** @enum {string} */
-            justification?: "component_not_present" | "vulnerable_code_not_present" | "vulnerable_code_not_in_execute_path" | "vulnerable_code_cannot_be_controlled_by_adversary" | "inline_mitigations_exist";
-            products?: string[];
+            justification?: "component_not_present" | "vulnerable_code_not_present" | "vulnerable_code_not_in_execute_path" | "vulnerable_code_cannot_be_controlled_by_adversary" | "inline_mitigations_already_exist";
+            products?: components["schemas"]["Product"][];
             /** @enum {string} */
             status?: "not_affected" | "affected" | "fixed" | "under_investigation";
             status_notes?: string;
+            /** Format: date-time */
+            timestamp?: string;
             vulnerability?: {
                 [key: string]: string;
             };
@@ -3913,9 +3920,21 @@ export interface components {
             policy?: components["schemas"]["PolicyAssessment"];
             sbomDigestSha256?: string;
         };
+        Product: {
+            "@id"?: string;
+            identifiers?: {
+                [key: string]: string;
+            };
+        };
         ProductIdentificationHelper: {
             cpe?: string;
             purl?: string;
+        };
+        ProductStatus: {
+            fixed?: string[];
+            known_affected?: string[];
+            known_not_affected?: string[];
+            under_investigation?: string[];
         };
         ProductTree: {
             full_product_names?: components["schemas"]["FullProductName"][];
@@ -4015,6 +4034,11 @@ export interface components {
             target_kind?: string;
             /** Format: int32 */
             violations?: number;
+        };
+        Remediation: {
+            category?: string;
+            details?: string;
+            product_ids?: string[];
         };
         RemediationAdvice: {
             cliCommand?: string;
@@ -4367,6 +4391,11 @@ export interface components {
             coverage?: components["schemas"]["ScopeCoverage"];
             statement?: string;
             targets?: components["schemas"]["TargetRef"][];
+        };
+        Score: {
+            cvss_v3?: {
+                [key: string]: Record<string, never>;
+            };
         };
         SecretFinding: {
             description?: string;
@@ -4874,7 +4903,13 @@ export interface components {
             severity?: string;
         };
         Vulnerability: {
-            name?: string;
+            cve?: string;
+            flags?: components["schemas"]["Flag"][];
+            notes?: components["schemas"]["Note"][];
+            product_status?: components["schemas"]["ProductStatus"];
+            remediations?: components["schemas"]["Remediation"][];
+            scores?: components["schemas"]["Score"][];
+            title?: string;
         };
         WebhookRequest: {
             url?: string;

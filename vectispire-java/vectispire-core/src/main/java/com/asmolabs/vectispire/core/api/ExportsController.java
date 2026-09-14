@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.exports.IssueCsv;
-import com.asmolabs.vectispire.common.domain.exports.OpenVexDocument;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.exports.OpenVexExport;
 import com.asmolabs.vectispire.common.domain.exports.SarifExport;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;

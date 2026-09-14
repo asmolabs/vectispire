@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
-import com.asmolabs.vectispire.common.domain.vex.VexJustification;
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
@@ -93,11 +93,12 @@ public class VexGeneratorService {
 
         return new OpenVexStatement(
                 Map.of("name", cve),
-                List.of(purl),
+                List.of(OpenVexStatement.Product.of(purl)),
                 VexStatus.UNDER_INVESTIGATION,
                 null,
                 null,
                 "Awaiting reachability confirmation and contextual triage.",
+                null,
                 null);
     }
 
@@ -113,7 +114,7 @@ public class VexGeneratorService {
 
         if ("false_positive".equalsIgnoreCase(issue.getTriageStatus()) || "accepted_risk".equalsIgnoreCase(issue.getTriageStatus())) {
             String justification = issue.getTriageJustification() != null ? issue.getTriageJustification() : "Accepted under documented security exception.";
-            return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_EXIST, justification);
+            return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST, justification);
         }
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.getReachability())) {

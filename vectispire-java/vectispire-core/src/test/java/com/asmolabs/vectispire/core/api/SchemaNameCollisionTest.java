@@ -84,16 +84,17 @@ class SchemaNameCollisionTest {
     /**
      * The collisions that already exist, each a schema published as another type's shape.
      *
-     * <p>What remains is one defect wearing eleven names: two CSAF 2.0 models and two OpenVEX
-     * models, both published. It goes away when one of each pair is deleted, which is a decision
-     * about the exports and not about naming.
+     * <p>What remains is one defect wearing ten names: two CSAF 2.0 models, both published. It
+     * goes away when one of the pair is deleted, which is a decision about the exports and not
+     * about naming.
      *
      * <p>The other nine were a habit — a record named for its place in its controller rather than
      * for its subject, {@code Summary} in seven of them at once — and are gone.
      */
     private static final Set<String> KNOWN = Set.of(
-            // Two CSAF 2.0 models and two OpenVEX models, both published. See the class note.
-            "CsafDocument", "OpenVexDocument", "FullProductName", "Meta", "Note",
+            // Two CSAF 2.0 models, both published. See the class note. The OpenVEX pair that sat
+            // beside them is gone: one model, one standard.
+            "CsafDocument", "FullProductName", "Meta", "Note",
             "ProductStatus", "ProductTree", "Publisher", "Tool", "Tracking", "Vulnerability");
 
     /** Everything the walk stops at: springdoc renders these inline, never as a named schema. */

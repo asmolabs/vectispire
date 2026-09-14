@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.common.domain.vex;
 
+import com.asmolabs.vectispire.common.domain.issues.VexJustification;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;

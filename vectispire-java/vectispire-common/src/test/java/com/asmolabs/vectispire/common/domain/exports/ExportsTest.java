@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
@@ -19,7 +21,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ExportsTest {
 
     private static final Instant AT = Instant.parse("2026-08-10T08:00:00.000Z");
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    /**
+     * Configured as the application's is, which is now load-bearing.
+     *
+     * <p>The document's timestamp is an {@code Instant} rather than a pre-formatted string — the
+     * OpenVEX model it shares with the ingest path holds instants. A bare mapper refuses those
+     * outright, so a test using one would be asserting against a serialization the product never
+     * produces.
+     */
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private static ExportableIssue.Builder issue() {
         return new ExportableIssue.Builder();
@@ -42,7 +54,7 @@ class ExportsTest {
             OpenVexDocument document = OpenVexExport.build(issues, options());
 
             assertThat(document.statements()).singleElement()
-                    .satisfies(s -> assertThat(s.vulnerability().name()).isEqualTo("CVE-2024-1"));
+                    .satisfies(s -> assertThat(s.vulnerability()).containsEntry("name", "CVE-2024-1"));
         }
 
         @Test
@@ -53,7 +65,7 @@ class ExportsTest {
                     List.of(vulnerability().triageStatus(TriageStatus.UNDER_REVIEW).build()), options());
 
             assertThat(document.statements()).singleElement()
-                    .satisfies(s -> assertThat(s.status()).isEqualTo("under_investigation"));
+                    .satisfies(s -> assertThat(s.status().serialized()).isEqualTo("under_investigation"));
         }
 
         @Test
@@ -65,7 +77,7 @@ class ExportsTest {
                     List.of(vulnerability().resolved(true).build()), options());
 
             assertThat(document.statements()).singleElement()
-                    .satisfies(s -> assertThat(s.status()).isEqualTo("fixed"));
+                    .satisfies(s -> assertThat(s.status().serialized()).isEqualTo("fixed"));
         }
 
         @Test
@@ -87,7 +99,7 @@ class ExportsTest {
 
             assertThat(notAffected.statements().getFirst())
                     .satisfies(s -> {
-                        assertThat(s.justification()).isEqualTo("vulnerable_code_not_in_execute_path");
+                        assertThat(s.justification().wireName()).isEqualTo("vulnerable_code_not_in_execute_path");
                         assertThat(s.impactStatement()).isEqualTo("The parser is never reached.");
                         assertThat(s.actionStatement()).isNull();
                     });
@@ -108,8 +120,10 @@ class ExportsTest {
             assertThat(node.get("@context").asText()).isEqualTo(OpenVexDocument.CONTEXT);
             assertThat(node.get("@id").asText()).isEqualTo("urn:vectispire:doc:1");
             // RFC 3339: a timestamp with no timezone is not a valid instant, and a strict
-            // consumer is entitled to refuse the document.
-            assertThat(node.get("timestamp").asText()).isEqualTo("2026-08-10T08:00:00.000Z");
+            // consumer is entitled to refuse the document. Trailing zero milliseconds went away
+            // when the document started holding an Instant instead of a pre-formatted string —
+            // both spellings are RFC 3339, and the offset is what the rule was ever about.
+            assertThat(node.get("timestamp").asText()).isEqualTo("2026-08-10T08:00:00Z");
             assertThat(node.get("statements").get(0).has("justification")).isFalse();
         }
 

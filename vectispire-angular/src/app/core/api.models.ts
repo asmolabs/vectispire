@@ -83,7 +83,7 @@ export interface OpenVexStatement {
     vulnerability: { name: string };
     products: string[];
     status: 'not_affected' | 'affected' | 'fixed' | 'under_investigation';
-    justification?: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_exist';
+    justification?: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist';
     impact_statement?: string;
     action_statement?: string;
     status_notes?: string;

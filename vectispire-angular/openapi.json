@@ -2007,6 +2007,23 @@
         },
         "type" : "object"
       },
+      "Flag" : {
+        "properties" : {
+          "date" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "product_ids" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "FullProductName" : {
         "properties" : {
           "name" : {
@@ -3348,12 +3365,12 @@
             "type" : "string"
           },
           "justification" : {
-            "enum" : [ "component_not_present", "vulnerable_code_not_present", "vulnerable_code_not_in_execute_path", "vulnerable_code_cannot_be_controlled_by_adversary", "inline_mitigations_exist" ],
+            "enum" : [ "component_not_present", "vulnerable_code_not_present", "vulnerable_code_not_in_execute_path", "vulnerable_code_cannot_be_controlled_by_adversary", "inline_mitigations_already_exist" ],
             "type" : "string"
           },
           "products" : {
             "items" : {
-              "type" : "string"
+              "$ref" : "#/components/schemas/Product"
             },
             "type" : "array"
           },
@@ -3362,6 +3379,10 @@
             "type" : "string"
           },
           "status_notes" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "format" : "date-time",
             "type" : "string"
           },
           "vulnerability" : {
@@ -3612,6 +3633,20 @@
         },
         "type" : "object"
       },
+      "Product" : {
+        "properties" : {
+          "@id" : {
+            "type" : "string"
+          },
+          "identifiers" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          }
+        },
+        "type" : "object"
+      },
       "ProductIdentificationHelper" : {
         "properties" : {
           "cpe" : {
@@ -3619,6 +3654,35 @@
           },
           "purl" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductStatus" : {
+        "properties" : {
+          "fixed" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "known_affected" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "known_not_affected" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "under_investigation" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -3865,6 +3929,23 @@
           "violations" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Remediation" : {
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "details" : {
+            "type" : "string"
+          },
+          "product_ids" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -4845,6 +4926,17 @@
               "$ref" : "#/components/schemas/TargetRef"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "Score" : {
+        "properties" : {
+          "cvss_v3" : {
+            "additionalProperties" : {
+              "type" : "object"
+            },
+            "type" : "object"
           }
         },
         "type" : "object"
@@ -6133,7 +6225,37 @@
       },
       "Vulnerability" : {
         "properties" : {
-          "name" : {
+          "cve" : {
+            "type" : "string"
+          },
+          "flags" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Flag"
+            },
+            "type" : "array"
+          },
+          "notes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Note"
+            },
+            "type" : "array"
+          },
+          "product_status" : {
+            "$ref" : "#/components/schemas/ProductStatus"
+          },
+          "remediations" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Remediation"
+            },
+            "type" : "array"
+          },
+          "scores" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Score"
+            },
+            "type" : "array"
+          },
+          "title" : {
             "type" : "string"
           }
         },
