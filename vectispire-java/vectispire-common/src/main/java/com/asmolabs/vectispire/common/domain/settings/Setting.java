@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
@@ -73,6 +74,15 @@ public enum Setting {
             "The two rules combine: a payload is purged only if it is **both** outside the window above and "
                     + "older than this age. Both at zero disables purging.",
             String.valueOf(RetentionPolicy.DEFAULT.maxAge().toDays())),
+
+    EVIDENCE_RETENTION_DAYS("evidence_retention_days", SettingType.INTEGER, Section.RETENTION,
+            "Evidence kept for (days)",
+            "Gate verdicts — every pass and every refusal the barrier returned. This is the only record that a "
+                    + "control **executed**, and unlike a payload it cannot be regenerated. Set it to the period an "
+                    + "assessor asks you to cover, plus the delay before they read it; the default is twelve months "
+                    + "and five weeks. Zero keeps them for ever. Kept deliberately apart from the payload window "
+                    + "above: bounding disk growth and surviving an audit are different questions.",
+            String.valueOf(EvidenceRetention.DEFAULT.toDays())),
 
     WEBHOOK_URL("notification_webhook_url", SettingType.TEXT, Section.NOTIFICATIONS,
             "Webhook URL",

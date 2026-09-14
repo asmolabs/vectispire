@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
+import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
@@ -94,14 +95,18 @@ public class SessionCleanupService {
      * Without a purge the register that proves the control works becomes the largest table in the
      * database, and the first thing an operator deletes by hand — which destroys the proof.
      *
-     * <p>It reuses {@code retention_max_age_days}, the window an operator has already chosen for
-     * scan payloads, rather than adding a second dial. How far back evidence must reach is one
-     * question, and it deserves one answer.
+     * <p><b>It has its own dial, {@code evidence_retention_days}, and no longer follows the payload
+     * window.</b> It did at first, on the reasoning that "how far back must we keep things" deserves
+     * one answer. It does not: a payload is bulky and reproducible, a verdict is tiny and gone for
+     * good. The payload default of ninety days would have emptied this register months before an
+     * annual assessment asked to see it — see {@link EvidenceRetention}. Zero purges nothing.
      */
     private int pruneVerdicts() {
         try {
-            int days = Math.max(1, settings.asInt(Setting.RETENTION_MAX_AGE_DAYS));
-            return verdicts.deleteBefore(clock.instant().minus(Duration.ofDays(days)));
+            int days = settings.asInt(Setting.EVIDENCE_RETENTION_DAYS);
+            return EvidenceRetention.cutoff(days, clock.instant())
+                    .map(verdicts::deleteBefore)
+                    .orElse(0);
         } catch (RuntimeException failed) {
             log.warn("Gate verdict purge skipped: {}", failed.getMessage());
             return 0;
