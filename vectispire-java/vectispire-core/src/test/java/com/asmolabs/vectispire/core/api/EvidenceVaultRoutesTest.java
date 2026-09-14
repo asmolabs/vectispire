@@ -50,6 +50,13 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
                 "05_openvex_advisory.json",
                 "05_openvex_advisory.json.sig",
                 "06_csaf_2_0_vex.json",
-                "08_cyclonedx_1_5_vex.json");
+                "08_cyclonedx_1_5_vex.json",
+                // The process sections. Asserted here rather than only in ProcessEvidenceTest
+                // because a service nothing calls is a service that is not wired, and no test of
+                // the service itself can see that the bundle stopped packaging it.
+                "09_gate_verdict_register.json",
+                "10_exception_register.json",
+                "11_remediation_timeliness.json",
+                "12_control_coverage.json");
     }
 }

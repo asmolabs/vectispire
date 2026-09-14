@@ -34,6 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Builds certified, cryptographically-sealed evidence bundles for regulatory compliance audits
  * (ISO/IEC 27001 A.8.8, DORA Article 10, NIS 2, SOC 2, and EU CRA).
+ *
+ * <p><b>Two halves, and the second one was missing for a long time.</b> Sections 00-08 describe
+ * what the estate contains: its posture against each framework, its SBOMs, its advisories, its
+ * attestations. Sections 09-12 describe whether the controls <em>operated</em> — the gate's
+ * answers month by month, what was excepted and by whom, whether deadlines were met at the tail,
+ * and what the installed rules were able to look for at all.
+ *
+ * <p>The distinction is not academic: an assessment tests the operation of a control, and an
+ * archive of eight perfect posture documents evidences a state rather than a process. See {@link
+ * ProcessEvidenceService}.
  */
 @Service
 public class EvidenceVaultService {
@@ -49,6 +59,7 @@ public class EvidenceVaultService {
     private final CycloneDxGeneratorService cycloneDxService;
     private final LicenseGovernanceService licenseService;
     private final SigningKeyService signingKeyService;
+    private final ProcessEvidenceService processEvidence;
     private final ObjectMapper json;
 
     public EvidenceVaultService(
@@ -62,7 +73,8 @@ public class EvidenceVaultService {
             CsafGeneratorService csafService,
             CycloneDxGeneratorService cycloneDxService,
             LicenseGovernanceService licenseService,
-            SigningKeyService signingKeyService) {
+            SigningKeyService signingKeyService,
+            ProcessEvidenceService processEvidence) {
         this.compliance = compliance;
         this.auditService = auditService;
         this.auditLogRepo = auditLogRepo;
@@ -74,6 +86,7 @@ public class EvidenceVaultService {
         this.cycloneDxService = cycloneDxService;
         this.licenseService = licenseService;
         this.signingKeyService = signingKeyService;
+        this.processEvidence = processEvidence;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -198,12 +211,41 @@ public class EvidenceVaultService {
                     "Cosign detached ECDSA signature for CycloneDX 1.5 SBOM/VEX",
                     signingKeyService.sign(cdxBytes).getBytes(StandardCharsets.UTF_8));
 
-            // 9. Verification & Manifest
+            // 9. Gate verdict register — that the barrier ran, and refused
+            // These four sections are the process evidence: 01-08 describe what the estate
+            // contains, and an assessor who has read them still has no answer to "did your
+            // controls operate throughout the period". See ProcessEvidenceService.
+            byte[] gateBytes = json.writeValueAsBytes(processEvidence.gate(allowed));
+            addZipEntry(zip, entries, "09_gate_verdict_register.json",
+                    "Every answer the release gate returned: monthly continuity, totals, and each refusal in full (ISO 27001 clause 9.1)",
+                    gateBytes);
+
+            // 10. Exceptions register — what was argued away rather than fixed
+            byte[] exceptionBytes = json.writeValueAsBytes(processEvidence.exceptions(allowed));
+            addZipEntry(zip, entries, "10_exception_register.json",
+                    "Risk acceptances and dismissals with their author, justification, approver and expiry, lapsed ones flagged (ISO 27001 A.5.36, clause 6.1.3)",
+                    exceptionBytes);
+
+            // 11. Remediation timeliness — deadlines met, by the tail and not the average
+            byte[] timelinessBytes = json.writeValueAsBytes(processEvidence.timeliness(allowed));
+            addZipEntry(zip, entries, "11_remediation_timeliness.json",
+                    "Time to fix against each deadline: share within target, median, 90th percentile, overdue backlog and oldest open item (ISO 27001 clause 9.1, 10.1)",
+                    timelinessBytes);
+
+            // 12. Control coverage — what the analysis was able to find
+            byte[] coverageBytes = json.writeValueAsBytes(processEvidence.coverage());
+            addZipEntry(zip, entries, "12_control_coverage.json",
+                    "Which languages the installed rules reach, and the freshness window applied to section 01 — what a zero finding count does and does not mean (ISO 27001 A.8.28)",
+                    coverageBytes);
+
+            // 13. Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
+            // 1.1 adds sections 09-12. The version is in the manifest so an archive opened in two
+            // years says which generation produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
-                    "1.0",
+                    "1.1",
                     Instant.now(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
@@ -216,7 +258,7 @@ public class EvidenceVaultService {
             zip.write(manifestBytes);
             zip.closeEntry();
 
-            // 10. Manifest signature (Cosign detached signature)
+            // 14. Manifest signature (Cosign detached signature)
             String manifestSig = signingKeyService.sign(manifestBytes);
             ZipEntry sigEntry = new ZipEntry("manifest.json.sig");
             zip.putNextEntry(sigEntry);
