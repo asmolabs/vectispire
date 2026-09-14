@@ -155,7 +155,7 @@ public class GateController {
     }
 
     /** What the caller may read of the gate's answers. */
-    public record VerdictView(
+    public record RegisteredVerdict(
             String id,
             @JsonProperty("target_kind") String targetKind,
             @JsonProperty("target_id") Long targetId,
@@ -171,7 +171,7 @@ public class GateController {
             @JsonProperty("decided_by") String decidedBy) {}
 
     /** How many answers of each kind, so the register has a headline as well as a list. */
-    public record VerdictRegister(List<VerdictView> verdicts, long passed, long refused) {}
+    public record VerdictRegister(List<RegisteredVerdict> verdicts, long passed, long refused) {}
 
     /**
      * The register: what the gate has answered, newest first.
@@ -197,14 +197,14 @@ public class GateController {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         int capped = Math.clamp(limit, 1, MAX_VERDICTS);
 
-        List<VerdictView> visible = verdicts.findAllByOrderByDecidedAtDesc(Limit.of(capped)).stream()
+        List<RegisteredVerdict> visible = verdicts.findAllByOrderByDecidedAtDesc(Limit.of(capped)).stream()
                 .filter(row -> allowed.permits(targetOf(row)))
                 .map(GateController::view)
                 .toList();
 
         return new VerdictRegister(
                 visible,
-                visible.stream().filter(VerdictView::passed).count(),
+                visible.stream().filter(RegisteredVerdict::passed).count(),
                 visible.stream().filter(view -> !view.passed()).count());
     }
 
@@ -214,9 +214,9 @@ public class GateController {
                 : new ScanTarget.Container(row.getContainerId());
     }
 
-    private static VerdictView view(GateVerdictEntity row) {
+    private static RegisteredVerdict view(GateVerdictEntity row) {
         boolean isRepository = row.getRepoId() != null;
-        return new VerdictView(
+        return new RegisteredVerdict(
                 row.getId().toString(),
                 isRepository ? "REPOSITORY" : "CONTAINER",
                 isRepository ? row.getRepoId() : row.getContainerId(),

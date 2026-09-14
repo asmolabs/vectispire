@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Divergence;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
-import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Statement;
+import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.ControlDeclarations;
@@ -53,7 +53,7 @@ class ControlDeclarationTest extends VectispireContextTest {
     void roundTrips() {
         soa.declare(ISO, VULN, applicable(Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE), "c.moreau");
 
-        Statement statement = soa.statement(ISO, Visibility.everything());
+        SoaStatement statement = soa.statement(ISO, Visibility.everything());
         Declaration stored = lineFor(statement, VULN).declaration();
 
         assertThat(stored).isNotNull();
@@ -188,7 +188,7 @@ class ControlDeclarationTest extends VectispireContextTest {
     @Test
     @DisplayName("reports every unaddressed control, so an empty document is not a clean one")
     void emptyDocumentIsIncomplete() {
-        Statement statement = soa.statement(ISO, Visibility.everything());
+        SoaStatement statement = soa.statement(ISO, Visibility.everything());
 
         assertThat(statement.complete()).isFalse();
         assertThat(statement.declared()).isZero();
@@ -210,7 +210,7 @@ class ControlDeclarationTest extends VectispireContextTest {
     }
 
     private static com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Line lineFor(
-            Statement statement, String controlId) {
+            SoaStatement statement, String controlId) {
         return statement.lines().stream()
                 .filter(line -> line.control().id().equals(controlId))
                 .findFirst()

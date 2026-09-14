@@ -166,7 +166,7 @@ public final class StatementOfApplicability {
      * @param findings lines an assessment would raise
      * @param complete every control is addressed — what clause 6.1.3 d asks for
      */
-    public record Statement(
+    public record SoaStatement(
             ComplianceFramework framework,
             List<Line> lines,
             int total,
@@ -186,7 +186,7 @@ public final class StatementOfApplicability {
      *
      * @param declarations by control id; duplicates are resolved by the last one seen
      */
-    public static Statement reconcile(
+    public static SoaStatement reconcile(
             ComplianceEvaluation evaluation, List<Declaration> declarations, Instant now) {
 
         Map<String, Declaration> byControl = declarations.stream()
@@ -212,7 +212,7 @@ public final class StatementOfApplicability {
                     declaration != null && declaration.reviewOverdue(now)));
         }
 
-        return new Statement(
+        return new SoaStatement(
                 evaluation.framework(),
                 lines,
                 lines.size(),

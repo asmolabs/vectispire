@@ -2382,6 +2382,28 @@
         },
         "type" : "object"
       },
+      "Line" : {
+        "properties" : {
+          "control" : {
+            "$ref" : "#/components/schemas/ComplianceControl"
+          },
+          "declaration" : {
+            "$ref" : "#/components/schemas/Declaration"
+          },
+          "divergence" : {
+            "enum" : [ "CONTRADICTED", "EXCLUDED_WITHOUT_JUSTIFICATION", "UNDECLARED", "OVERSTATED", "UNDERSTATED", "NOT_MEASURED_HERE", "NOT_APPLICABLE", "CONSISTENT" ],
+            "type" : "string"
+          },
+          "measured" : {
+            "enum" : [ "COMPLIANT", "PARTIAL", "NON_COMPLIANT" ],
+            "type" : "string"
+          },
+          "reviewOverdue" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
       "Listing" : {
         "properties" : {
           "currentUserId" : {
@@ -3115,20 +3137,6 @@
         },
         "type" : "object"
       },
-      "Product" : {
-        "properties" : {
-          "@id" : {
-            "type" : "string"
-          },
-          "identifiers" : {
-            "additionalProperties" : {
-              "type" : "string"
-            },
-            "type" : "object"
-          }
-        },
-        "type" : "object"
-      },
       "ProductIdentificationHelper" : {
         "properties" : {
           "cpe" : {
@@ -3256,6 +3264,59 @@
           },
           "never_reviewed" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "RegisteredVerdict" : {
+        "properties" : {
+          "counts_by_severity" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
+          "decided_at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "decided_by" : {
+            "type" : "string"
+          },
+          "evaluated" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fail_on_severity" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "passed" : {
+            "type" : "boolean"
+          },
+          "policy_source" : {
+            "type" : "string"
+          },
+          "policy_version" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "relaxations_ignored" : {
+            "type" : "boolean"
+          },
+          "target_id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "target_kind" : {
+            "type" : "string"
+          },
+          "violations" : {
+            "format" : "int32",
             "type" : "integer"
           }
         },
@@ -4321,31 +4382,36 @@
         },
         "type" : "object"
       },
-      "Statement" : {
+      "SoaStatement" : {
         "properties" : {
-          "action_statement" : {
+          "complete" : {
+            "type" : "boolean"
+          },
+          "declared" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "findings" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "framework" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
             "type" : "string"
           },
-          "impact_statement" : {
-            "type" : "string"
-          },
-          "justification" : {
-            "type" : "string"
-          },
-          "products" : {
+          "lines" : {
             "items" : {
-              "$ref" : "#/components/schemas/Product"
+              "$ref" : "#/components/schemas/Line"
             },
             "type" : "array"
           },
-          "status" : {
-            "type" : "string"
+          "reviewsOverdue" : {
+            "format" : "int32",
+            "type" : "integer"
           },
-          "timestamp" : {
-            "type" : "string"
-          },
-          "vulnerability" : {
-            "$ref" : "#/components/schemas/Vulnerability"
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -5013,7 +5079,7 @@
           },
           "verdicts" : {
             "items" : {
-              "$ref" : "#/components/schemas/VerdictView"
+              "$ref" : "#/components/schemas/RegisteredVerdict"
             },
             "type" : "array"
           }
@@ -6443,7 +6509,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/Statement"
+                    "$ref" : "#/components/schemas/SoaStatement"
                   },
                   "type" : "array"
                 }
@@ -6497,7 +6563,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Statement"
+                  "$ref" : "#/components/schemas/SoaStatement"
                 }
               }
             },

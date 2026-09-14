@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Declaration;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
-import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Statement;
+import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.persistence.ControlDeclarationEntity;
 import com.asmolabs.vectispire.core.repositories.ControlDeclarations;
 import java.time.Clock;
@@ -55,14 +55,14 @@ public class StatementOfApplicabilityService {
      * the statement carries the evaluation's own coverage wherever it is exported.
      */
     @Transactional(readOnly = true)
-    public Statement statement(ComplianceFramework framework, Visibility allowed) {
+    public SoaStatement statement(ComplianceFramework framework, Visibility allowed) {
         return StatementOfApplicability.reconcile(
                 compliance.getEvaluation(framework, allowed), declared(framework), clock.instant());
     }
 
     /** Every framework's declaration, for the bundle and the ISMS dashboard. */
     @Transactional(readOnly = true)
-    public List<Statement> statements(Visibility allowed) {
+    public List<SoaStatement> statements(Visibility allowed) {
         return java.util.Arrays.stream(ComplianceFramework.values())
                 .map(framework -> statement(framework, allowed))
                 .toList();

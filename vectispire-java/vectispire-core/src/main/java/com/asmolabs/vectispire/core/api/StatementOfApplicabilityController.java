@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Declaration;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
-import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Statement;
+import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
@@ -82,14 +82,14 @@ public class StatementOfApplicabilityController {
     @Operation(summary = "Every framework's declaration", description = "The declaration of each framework, reconciled against the caller's view of the estate.")
     @ApiResponse(responseCode = "200", description = "Statements returned")
     @GetMapping
-    public List<Statement> all(@AuthenticationPrincipal VectispirePrincipal principal) {
+    public List<SoaStatement> all(@AuthenticationPrincipal VectispirePrincipal principal) {
         return soa.statements(allowed(principal));
     }
 
     @Operation(summary = "One framework's declaration", description = "Declared and measured, line by line, with the divergence between them.")
     @ApiResponse(responseCode = "200", description = "Statement returned")
     @GetMapping("/{framework}")
-    public Statement one(
+    public SoaStatement one(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable ComplianceFramework framework) {
         return soa.statement(framework, allowed(principal));

@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Line;
-import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Statement;
+import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +35,7 @@ class StatementOfApplicabilityTest {
     @Test
     @DisplayName("reports a control declared implemented and measured non-compliant as the finding")
     void contradictionIsTheFinding() {
-        Statement statement = reconcile(
+        SoaStatement statement = reconcile(
                 List.of(declared(VULN, Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE)),
                 measured(VULN, ComplianceControl.Status.NON_COMPLIANT));
 
@@ -49,7 +49,7 @@ class StatementOfApplicabilityTest {
     @Test
     @DisplayName("calls a control declared implemented and measured partial overstated, not contradicted")
     void partialIsOverstatedNotContradicted() {
-        Statement statement = reconcile(
+        SoaStatement statement = reconcile(
                 List.of(declared(VULN, Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE)),
                 measured(VULN, ComplianceControl.Status.PARTIAL));
 
@@ -67,7 +67,7 @@ class StatementOfApplicabilityTest {
                 Implementation.IMPLEMENTED, EvidenceSource.EXTERNAL, "IAM quarterly access review, ref AR-2026-Q2",
                 "n.faure", "c.moreau", NOW, NOW, NOW.plusSeconds(86_400));
 
-        Statement statement =
+        SoaStatement statement =
                 reconcile(List.of(elsewhere), measured(SECRETS, ComplianceControl.Status.NON_COMPLIANT));
 
         assertThat(divergenceOf(statement, SECRETS))
@@ -103,7 +103,7 @@ class StatementOfApplicabilityTest {
                 FRAMEWORK, VULN, Applicability.EXCLUDED, "  ", null,
                 EvidenceSource.EXTERNAL, null, "n.faure", "c.moreau", NOW, NOW, null);
 
-        Statement statement = reconcile(List.of(bare), measured(VULN, ComplianceControl.Status.COMPLIANT));
+        SoaStatement statement = reconcile(List.of(bare), measured(VULN, ComplianceControl.Status.COMPLIANT));
 
         assertThat(divergenceOf(statement, VULN))
                 .as("clause 6.1.3 d allows an exclusion and requires it to be argued")
@@ -126,7 +126,7 @@ class StatementOfApplicabilityTest {
     @Test
     @DisplayName("shows a control nobody addressed rather than leaving it out")
     void undeclaredControlsAreShown() {
-        Statement statement = reconcile(List.of(), measured(VULN, ComplianceControl.Status.COMPLIANT));
+        SoaStatement statement = reconcile(List.of(), measured(VULN, ComplianceControl.Status.COMPLIANT));
 
         assertThat(statement.lines())
                 .as("driven by the framework, so an unaddressed control cannot disappear")
@@ -145,7 +145,7 @@ class StatementOfApplicabilityTest {
                 .map(control -> declared(control.id(), Implementation.IMPLEMENTED, EvidenceSource.EXTERNAL))
                 .toList();
 
-        Statement statement = reconcile(all, measured(VULN, ComplianceControl.Status.COMPLIANT));
+        SoaStatement statement = reconcile(all, measured(VULN, ComplianceControl.Status.COMPLIANT));
 
         assertThat(statement.complete()).isTrue();
         assertThat(statement.declared()).isEqualTo(statement.total());
@@ -171,7 +171,7 @@ class StatementOfApplicabilityTest {
                 EvidenceSource.VECTISPIRE, null, "n.faure", "c.moreau",
                 NOW.minusSeconds(400L * 86_400), NOW.minusSeconds(400L * 86_400), NOW.minusSeconds(86_400));
 
-        Statement statement = reconcile(List.of(stale), measured(VULN, ComplianceControl.Status.COMPLIANT));
+        SoaStatement statement = reconcile(List.of(stale), measured(VULN, ComplianceControl.Status.COMPLIANT));
 
         assertThat(divergenceOf(statement, VULN))
                 .as("the claim still matches the estate — what lapsed is the confirmation of it")
@@ -184,7 +184,7 @@ class StatementOfApplicabilityTest {
     void foreignControlsAreDropped() {
         Declaration ghost = declared("ISO-A.99.99", Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE);
 
-        Statement statement = reconcile(List.of(ghost), measured(VULN, ComplianceControl.Status.COMPLIANT));
+        SoaStatement statement = reconcile(List.of(ghost), measured(VULN, ComplianceControl.Status.COMPLIANT));
 
         assertThat(statement.lines())
                 .as("a row for a control the framework denies would be a document contradicting itself")
@@ -205,7 +205,7 @@ class StatementOfApplicabilityTest {
                 .isEqualTo(Divergence.UNDECLARED);
     }
 
-    private static Divergence divergenceOf(Statement statement, String controlId) {
+    private static Divergence divergenceOf(SoaStatement statement, String controlId) {
         return statement.lines().stream()
                 .filter(line -> line.control().id().equals(controlId))
                 .map(Line::divergence)
@@ -220,7 +220,7 @@ class StatementOfApplicabilityTest {
                 "n.faure", "c.moreau", NOW, NOW, NOW.plusSeconds(86_400));
     }
 
-    private static Statement reconcile(List<Declaration> declarations, ComplianceEvaluation evaluation) {
+    private static SoaStatement reconcile(List<Declaration> declarations, ComplianceEvaluation evaluation) {
         return StatementOfApplicability.reconcile(evaluation, declarations, NOW);
     }
 
