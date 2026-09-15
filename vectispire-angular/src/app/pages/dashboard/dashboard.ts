@@ -152,14 +152,26 @@ export class Dashboard {
     }
 
     /**
-     * The two curves, on two axes.
+     * L'encours, sur son propre graphique.
      *
-     * The standing backlog and the daily movements differ by two orders of magnitude on a real
-     * install: drawn against one axis, "opened" and "resolved" flatten onto zero and the panel
-     * shows one line pretending to be three. Hence the second scale on the right, and the axis
-     * titles that say which is which.
+     * <h2>Pourquoi deux graphiques et non deux axes</h2>
+     *
+     * <p>L'encours et les mouvements quotidiens diffèrent de deux ordres de grandeur sur un parc
+     * réel : sur un seul axe, « ouverts » et « résolus » s'écrasent sur zéro et le panneau montre
+     * une courbe qui prétend en être trois. Le diagnostic était juste ; le remède — un second axe
+     * à droite — ne l'était pas.
+     *
+     * <p><b>Un double axe laisse lire un croisement qui ne veut rien dire.</b> La position
+     * relative des deux courbes est fixée par le cadrage que la bibliothèque a choisi, pas par
+     * les données : un lecteur voit « les résolutions passent au-dessus du retard » et en conclut
+     * quelque chose, alors qu'il suffit d'un jour de plus dans la fenêtre pour déplacer le
+     * croisement. Sur le panneau qu'on projette en réunion, c'est la faute qui coûte le plus
+     * cher.
+     *
+     * <p>Deux graphiques empilés partageant l'axe des dates : rien n'est perdu, et plus aucun
+     * croisement n'est suggéré.
      */
-    readonly chartData = computed(() => {
+    readonly backlogChart = computed(() => {
         const points = this.trends()?.points ?? [];
         return {
             labels: points.map((point) => point.day.slice(5)),
@@ -172,30 +184,48 @@ export class Dashboard {
                     fill: true,
                     tension: 0.2,
                     pointRadius: 0,
-                    borderWidth: 2,
-                    yAxisID: 'y'
-                },
+                    borderWidth: 2
+                }
+            ]
+        };
+    });
+
+    /** Les mouvements du jour, sur la même fenêtre et les mêmes dates que l'encours. */
+    readonly flowChart = computed(() => {
+        const points = this.trends()?.points ?? [];
+        return {
+            labels: points.map((point) => point.day.slice(5)),
+            datasets: [
                 {
                     label: this.i18n.t('dashboard.chart.opened'),
                     data: points.map((point) => point.opened),
                     borderColor: '#f97316',
                     pointRadius: 0,
-                    borderWidth: 1,
-                    yAxisID: 'flows'
+                    borderWidth: 1
                 },
                 {
                     label: this.i18n.t('dashboard.chart.resolved'),
                     data: points.map((point) => point.resolved),
                     borderColor: '#22c55e',
                     pointRadius: 0,
-                    borderWidth: 1,
-                    yAxisID: 'flows'
+                    borderWidth: 1
                 }
             ]
         };
     });
 
-    readonly chartOptions = computed(() => {
+    /**
+     * L'encours en haut, sans étiquettes de dates.
+     *
+     * <p>Elles sont portées par le graphique du dessous : deux jeux de dates l'un sous l'autre
+     * répètent la même information et volent la hauteur qui sert à lire les courbes. C'est ce qui
+     * fait des deux panneaux une seule lecture plutôt que deux graphiques voisins.
+     */
+    readonly backlogOptions = computed(() => this.options(this.i18n.t('dashboard.chart.open_backlog'), false));
+
+    readonly flowOptions = computed(() => this.options(this.i18n.t('dashboard.chart.per_day'), true));
+
+    private options(title: string, showDates: boolean) {
         const text = themeColour('--p-text-muted-color', '#71717a');
         const grid = themeColour('--p-content-border-color', '#e4e4e7');
         return {
@@ -206,26 +236,19 @@ export class Dashboard {
             interaction: { mode: 'index' as const, intersect: false },
             plugins: { legend: { labels: { color: text } } },
             scales: {
-                x: { ticks: { color: text, maxTicksLimit: 12 }, grid: { color: grid } },
-                y: {
-                    position: 'left' as const,
-                    beginAtZero: true,
-                    title: { display: true, text: 'Open backlog', color: text },
-                    ticks: { color: text, precision: 0 },
+                x: {
+                    ticks: { color: text, maxTicksLimit: 12, display: showDates },
                     grid: { color: grid }
                 },
-                flows: {
-                    position: 'right' as const,
+                y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Per day', color: text },
+                    title: { display: true, text: title, color: text },
                     ticks: { color: text, precision: 0 },
-                    // One grid only: two sets of horizontal lines at different intervals read as
-                    // a fault in the rendering.
-                    grid: { display: false }
+                    grid: { color: grid }
                 }
             }
         };
-    });
+    }
 
     /** Three violations at most: beyond that the row becomes a wall of text and the table
      *  stops serving its purpose, which is spotting what to handle. */

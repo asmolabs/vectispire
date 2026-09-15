@@ -32,24 +32,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVICE = 'src/app/core/api.service.ts';
 
 /**
- * Les méthodes qu'aucun écran n'appelle aujourd'hui, et ce qu'on attend d'elles.
+ * Les méthodes qu'aucun écran n'appelle, et qu'on tolère malgré tout.
  *
- * Onze au matin du 15 septembre 2026, après en avoir branché quatre le jour même. Trois le soir :
- * le rattachement de ticket, le différentiel de la dernière paire, la politique de licences et
- * les trois documents d'un scan ont trouvé leur écran ; les deux méthodes qui visaient
- * `t_issue_ticket` et les trois documents typés ont été retirées au profit du chemin qui
- * convient.
+ * **Vide, et c'est l'état qu'on voulait.** Quinze le matin du 15 septembre 2026 ; zéro le soir.
+ * Neuf ont trouvé leur écran — la déconnexion, le second facteur, la visibilité d'un compte, le
+ * rattachement d'un ticket, le différentiel de la dernière paire, la politique de licences,
+ * l'explication d'une CVE, la disponibilité du modèle, les revues échues — et six ont été
+ * retirées au profit du chemin qui convenait, ou parce que leur écran n'aurait rien apporté.
  *
- * **Les trois qui restent attendent une décision qui n'est pas technique** : le scorecard global
- * et le conseiller IA sont-ils une direction produit ou des expériences abandonnées ? Tant que la
- * question n'est pas tranchée, les laisser ici est plus honnête que de leur fabriquer un écran ou
- * de les supprimer à la place de quelqu'un d'autre.
+ * Le cliquet devient donc une interdiction, comme celui des libellés en dur avant lui : une
+ * méthode cliente que rien n'appelle fait échouer la suite, et l'ajouter ici est un geste
+ * délibéré qui se justifie dans le commit qui le fait.
  */
-const DEAD = new Set([
-    'getGlobalScorecard',
-    'getAiAdvisorStatus',
-    'explainCveWithAi'
-]);
+const DEAD = new Set([]);
 
 const walk = (dir) =>
     readdirSync(dir).flatMap((entry) => {

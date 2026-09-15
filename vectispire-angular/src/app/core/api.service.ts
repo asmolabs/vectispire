@@ -694,9 +694,6 @@ export class ApiService {
         return this.http.delete<BadgeState>(`/api/v1/scorecards/repositories/${repoId}/badge`);
     }
 
-    getGlobalScorecard(): Observable<SecurityScorecard> {
-        return this.http.get<SecurityScorecard>('/api/v1/scorecards/global');
-    }
 
     getPublicKeyPem(): Observable<string> {
         return this.http.get('/api/v1/crypto/public-key.pub', { responseType: 'text' });

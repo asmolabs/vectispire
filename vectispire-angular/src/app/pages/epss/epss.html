@@ -253,7 +253,7 @@
                     </div>
                     @if (lookupResult()!.isKev) {
                         <span class="px-2.5 py-1 text-xs font-bold rounded bg-rose-600 text-white">
-                            CISA KEV ACTIF
+                            {{ 'epss.kev_active' | translate }}
                         </span>
                     }
                 </div>
@@ -266,16 +266,45 @@
                         </span>
                     </div>
                     <div class="p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
-                        <span class="text-[11px] uppercase font-bold text-surface-500">Percentile Global</span>
+                        <span class="text-[11px] uppercase font-bold text-surface-500">{{ 'epss.percentile' | translate }}</span>
                         <span class="text-xl font-extrabold text-indigo-600 block mt-1">
                             {{ ((lookupResult()!.epssPercentile ?? 0) * 100).toFixed(1) }}e %
                         </span>
                     </div>
                 </div>
+
+                <!--
+                    **L'endroit où la question se pose.** On tape ici une CVE lue ailleurs — un
+                    bulletin, la presse — pour décider si elle mérite qu'on s'y arrête. Le
+                    conseiller n'était atteignable que depuis un constat du parc, c'est-à-dire
+                    seulement quand la réponse était déjà « oui ».
+                -->
+                @if (aiEnabled()) {
+                    <div class="border-t border-surface-200 dark:border-surface-700 pt-3">
+                        @if (advice(); as explanation) {
+                            <div class="flex flex-col gap-2 text-sm">
+                                <p class="m-0">{{ explanation.summaryExplanation }}</p>
+                                @if (explanation.exploitMechanics) {
+                                    <p class="m-0 text-xs text-muted-color">{{ explanation.exploitMechanics }}</p>
+                                }
+                                @if (explanation.remediation.fixAction) {
+                                    <p class="m-0 text-xs"><strong>{{ 'epss.explain_fix' | translate }}</strong>
+                                        {{ explanation.remediation.fixAction }}</p>
+                                }
+                            </div>
+                        } @else if (adviceError(); as message) {
+                            <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
+                        } @else {
+                            <p-button size="small" [outlined]="true" icon="pi pi-sparkles"
+                                      [label]="'epss.explain' | translate"
+                                      [loading]="adviceLoading()" (onClick)="explain()" />
+                        }
+                    </div>
+                }
             </div>
         }
         <ng-template #footer>
-            <button pButton label="Fermer" class="p-button-text" (click)="lookupDialogOpen.set(false)"></button>
+            <button pButton [label]="'common.close' | translate" class="p-button-text" (click)="lookupDialogOpen.set(false)"></button>
         </ng-template>
     </p-dialog>
 </div>

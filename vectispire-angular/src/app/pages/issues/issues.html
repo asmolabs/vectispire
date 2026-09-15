@@ -192,7 +192,14 @@
                 </td>
                 <td class="text-right">
                     <div class="flex items-center justify-end gap-1">
-                        <p-button icon="pi pi-sparkles" size="small" [text]="true" severity="help" [title]="'Explication & Remédiation IA'" (onClick)="openAiAdvisor(issue)" />
+                        <!--
+                            Offert seulement si un modèle est configuré : une option absente doit
+                            être absente, pas présente et refusante.
+                        -->
+                        @if (aiEnabled()) {
+                            <p-button icon="pi pi-sparkles" size="small" [text]="true" severity="help"
+                                      [title]="'issues.ai_explain' | translate" (onClick)="openAiAdvisor(issue)" />
+                        }
                         <!--
                             **Gardé comme le bouton groupé, et il ne l'était pas.** Le contrôle par
                             ligne avait été oublié quand le triage est devenu conscient du rôle :
@@ -262,13 +269,20 @@
 </p-dialog>
 
 <!-- AI Fix & Exploit Advisor Modal -->
-<p-dialog [header]="aiAdvice()?.title || 'Assistant IA de Triage & Remédiation'" [(visible)]="aiModalOpen" [modal]="true" [style]="{ width: '48rem', maxWidth: '95vw' }" [appendTo]="'body'">
+<p-dialog [header]="aiAdvice()?.title || ('issues.ai_dialog_title' | translate)" [(visible)]="aiModalOpen" [modal]="true" [style]="{ width: '48rem', maxWidth: '95vw' }" [appendTo]="'body'">
     @if (aiAdviceLoading()) {
         <div class="py-12 text-center">
             <i class="pi pi-spin pi-spinner text-4xl text-purple-600 mb-3"></i>
             <p class="text-base font-semibold">{{ 'issues.ai_running' | translate }}</p>
             <p class="text-sm text-muted-color">{{ 'issues.ai_running_help' | translate }}</p>
         </div>
+    } @else if (aiAdviceError(); as message) {
+        <!--
+            **Cette branche n'existait pas.** Le message était posé dans le signal et le gabarit
+            n'en avait aucun usage : la fenêtre s'ouvrait, le tourniquet s'arrêtait, et il ne
+            restait rien à lire.
+        -->
+        <p-message severity="warn" [closable]="false" styleClass="w-full my-4">{{ message }}</p-message>
     } @else if (aiAdvice()) {
         <div class="flex flex-col gap-5 py-2">
             <!-- Summary Banner -->
@@ -323,7 +337,7 @@
                 <div class="p-4 bg-surface-100 dark:bg-surface-800 border border-dashed border-surface-300 dark:border-surface-600 rounded-xl">
                     <div class="flex items-center justify-between mb-2">
                         <h5 class="font-semibold text-sm flex items-center gap-2">
-                            <i class="pi pi-file-check text-purple-600"></i> Suggestion de Justification VEX
+                            <i class="pi pi-file-check text-purple-600"></i> {{ 'issues.ai_vex_suggestion' | translate }}
                         </h5>
                         <p-tag [value]="aiAdvice()!.vexSuggestion.status" [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'" />
                     </div>
@@ -331,14 +345,14 @@
                         <strong>{{ 'issues.rule' | translate }}</strong> <code class="text-purple-600">{{ aiAdvice()!.vexSuggestion.justification }}</code>
                     </p>
                     <p class="text-xs text-surface-600 dark:text-surface-300 italic mb-3">"{{ aiAdvice()!.vexSuggestion.impactStatement }}"</p>
-                    <p-button label="Appliquer cette justification dans le Triage" icon="pi pi-check" size="small" (onClick)="applySuggestedVex()" />
+                    <p-button [label]="'issues.ai_apply_vex' | translate" icon="pi pi-check" size="small" (onClick)="applySuggestedVex()" />
                 </div>
             }
         </div>
     }
 
     <ng-template #footer>
-        <p-button label="Fermer" [text]="true" (onClick)="aiModalOpen = false" />
+        <p-button [label]="'common.close' | translate" [text]="true" (onClick)="aiModalOpen = false" />
     </ng-template>
 </p-dialog>
 

@@ -38,7 +38,7 @@ describe('the backlog trend', () => {
         // the key resolves — and an unresolved key renders as itself, which is precisely the
         // failure a reader would see on screen.
         TestBed.inject(I18nService).translations.set({
-            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved' } }
+            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
         });
 
         fixture = TestBed.createComponent(Dashboard);
@@ -91,7 +91,7 @@ describe('the backlog trend', () => {
         expect(fixture.nativeElement.textContent).toContain('9 issue(s) resolved');
     });
 
-    it('plots the three series the route returns', () => {
+    it('sépare l\'encours des mouvements, sur deux graphiques et non deux axes', () => {
         flushTrends({
             points: [
                 { day: '2026-08-20', open: 5, opened: 2, resolved: 1 },
@@ -101,13 +101,34 @@ describe('the backlog trend', () => {
             resolved_in_window: 1
         });
 
-        const chart = fixture.componentInstance.chartData();
-        expect(chart.datasets.map((set) => set.label)).toEqual(['Open backlog', 'Opened', 'Resolved']);
-        expect(chart.datasets[0].data).toEqual([5, 6]);
-        // On the second scale, because the standing backlog and the daily movements differ by two
-        // orders of magnitude and one axis would flatten these two onto zero.
-        expect(chart.datasets[1].yAxisID).toBe('flows');
-        expect(chart.datasets[2].yAxisID).toBe('flows');
+        const page = fixture.componentInstance;
+
+        // **Un double axe laissait lire un croisement qui ne veut rien dire** : la position
+        // relative des courbes venait du cadrage choisi par la bibliothèque, pas des données.
+        expect(page.backlogChart().datasets.map((set) => set.label)).toEqual(['Open backlog']);
+        expect(page.backlogChart().datasets[0].data).toEqual([5, 6]);
+        expect(page.flowChart().datasets.map((set) => set.label)).toEqual(['Opened', 'Resolved']);
+        expect(page.flowChart().datasets[0].data).toEqual([2, 1]);
+
+        // Les mêmes dates, dans le même ordre : c'est ce qui fait des deux panneaux une seule
+        // lecture. Un décalage d'un jour entre les deux ferait mentir la superposition.
+        expect(page.flowChart().labels).toEqual(page.backlogChart().labels);
+    });
+
+    it("ne répète pas les dates d'un graphique à l'autre", () => {
+        flushTrends({
+            points: [{ day: '2026-08-20', open: 5, opened: 2, resolved: 1 }],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1
+        });
+
+        const page = fixture.componentInstance;
+        // Portées par le graphique du bas seulement : deux jeux de dates l'un sous l'autre
+        // répètent la même information et volent la hauteur qui sert à lire les courbes.
+        expect(page.backlogOptions().scales.x.ticks.display).toBe(false);
+        expect(page.flowOptions().scales.x.ticks.display).toBe(true);
+        expect(page.backlogOptions().scales.y.title.text).toBe('Open backlog');
+        expect(page.flowOptions().scales.y.title.text).toBe('Per day');
     });
 
     it('re-asks the server for another window instead of slicing the series it holds', () => {

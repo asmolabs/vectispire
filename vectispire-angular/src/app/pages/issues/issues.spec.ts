@@ -52,6 +52,11 @@ describe('the issue backlog', () => {
         // The filters offer target names, so the page fetches both target kinds.
         http.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         http.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+
+        // Et la disponibilité du modèle, qui décide si le bouton d'explication existe. Un modèle
+        // configuré par défaut dans ces essais : l'absence a son propre cas.
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
+            .flush({ enabled: true, selectedModel: 'llama3', availableModels: ['llama3'] });
     }, 20_000);
 
     function firstPage(total: number): void {
@@ -150,6 +155,69 @@ describe('the issue backlog', () => {
         expect(url).not.toContain('overdue');
         expect(url).not.toContain('only_direct');
         expect(url).not.toContain('triage_status');
+    });
+
+    it("n'offre pas le conseiller quand aucun modèle n'est configuré", async () => {
+        // **Une option absente doit être absente, pas présente et refusante.** Le bouton était
+        // offert à tout le monde ; sans modèle il ouvrait une fenêtre sur un service injoignable.
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const offline = TestBed.createComponent(Issues);
+        const calls = TestBed.inject(HttpTestingController);
+        offline.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
+            .flush({ enabled: false, selectedModel: null, availableModels: [] });
+        calls.expectOne((call) => call.url === '/api/v1/issues')
+            .flush({ items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 });
+        offline.detectChanges();
+
+        expect(offline.componentInstance.aiEnabled()).toBe(false);
+    });
+
+    it("cache le conseiller aussi quand la disponibilité elle-même ne répond pas", async () => {
+        // Un défaut de lecture n'est pas un accès : promettre un bouton dont on ne sait pas s'il
+        // marchera est exactement ce que ce garde-fou empêche.
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const broken = TestBed.createComponent(Issues);
+        const calls = TestBed.inject(HttpTestingController);
+        broken.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
+            .error(new ProgressEvent('failed'));
+        calls.expectOne((call) => call.url === '/api/v1/issues')
+            .flush({ items: [], total: 0, limit: 50, offset: 0 });
+        broken.detectChanges();
+
+        expect(broken.componentInstance.aiEnabled()).toBe(false);
+    });
+
+    it("dit que le modèle n'a pas répondu, au lieu d'ouvrir une fenêtre vide", () => {
+        firstPage(1);
+
+        const page = fixture.componentInstance;
+        page.openAiAdvisor({ id: 1 } as never);
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1')
+            .error(new ProgressEvent('failed'));
+        fixture.detectChanges();
+
+        // **L'erreur était posée dans un signal que le gabarit n'utilisait pas** : la fenêtre
+        // s'ouvrait, le tourniquet s'arrêtait, et il ne restait rien. Le message promettait par
+        // ailleurs une « génération locale de secours » que ce code n'a jamais écrite.
+        expect(page.aiAdviceError()).toBeTruthy();
+        expect(page.aiAdviceError()).not.toContain('secours');
+        expect(page.aiAdviceLoading()).toBe(false);
     });
 });
 

@@ -239,6 +239,14 @@ export class Issues {
 
         this.loadTargets();
         this.reload(0);
+
+        // **Le conseiller n'est offert que s'il existe.** Sans modèle configuré, le bouton
+        // ouvrait une fenêtre qui ne pouvait rien dire ; un défaut de lecture — pas d'accès —
+        // donc un appel qui échoue laisse le bouton caché plutôt que d'en promettre un qui rate.
+        this.api.getAiAdvisorStatus().subscribe({
+            next: (status) => this.aiEnabled.set(status?.enabled === true),
+            error: () => this.aiEnabled.set(false)
+        });
     }
 
     /**
@@ -462,7 +470,21 @@ export class Issues {
         });
     }
 
-    // AI Vulnerability Advisor state
+    /**
+     * Le conseiller, et les deux façons dont il mentait.
+     *
+     * <p><b>Le bouton était offert à tout le monde, tout le temps.</b> Sans modèle configuré il
+     * ouvrait une fenêtre sur un service injoignable — et une option absente doit être absente,
+     * pas présente et refusante. `getAiAdvisorStatus` disait exactement cela et personne ne
+     * l'appelait.
+     *
+     * <p><b>Et l'échec ne s'affichait nulle part.</b> Le message posé dans `aiAdviceError`
+     * n'avait aucune branche dans le gabarit : la fenêtre s'ouvrait, le tourniquet s'arrêtait, et
+     * il ne restait rien. Le message lui-même promettait « génération locale de secours » — un
+     * repli que ce code n'a jamais écrit. Une erreur qui promet ce qui n'arrivera pas est pire
+     * qu'une erreur muette.
+     */
+    readonly aiEnabled = signal<boolean>(false);
     readonly aiAdviceLoading = signal<boolean>(false);
     readonly aiAdvice = signal<AiVulnerabilityAdvice | null>(null);
     readonly aiAdviceError = signal<string | null>(null);
@@ -481,10 +503,9 @@ export class Issues {
                 this.aiAdvice.set(advice);
                 this.aiAdviceLoading.set(false);
             },
-            error: () => {
-                // Fallback deterministic advice on client side if API call fails
+            error: (response) => {
                 this.aiAdviceLoading.set(false);
-                this.aiAdviceError.set('Impossible de joindre le service IA. Génération locale de secours.');
+                this.aiAdviceError.set(messageOf(response, this.i18n.t('issues.ai_unreachable')));
             }
         });
     }

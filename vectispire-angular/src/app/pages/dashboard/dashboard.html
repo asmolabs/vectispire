@@ -68,7 +68,15 @@
                     @if (series.points.length === 0) {
                         <p class="text-muted-color m-0">{{ 'dashboard.no_issue_recorded' | translate }}</p>
                     } @else {
-                        <p-chart type="line" [data]="chartData()" [options]="chartOptions()" height="18rem" />
+                        <!--
+                            **Deux graphiques, et non deux axes.** L'encours et les mouvements
+                            quotidiens diffèrent de deux ordres de grandeur ; un second axe à
+                            droite laissait lire un croisement dont la position vient du cadrage
+                            et non des données. Empilés, ils partagent l'axe des dates — porté par
+                            celui du bas — et ne suggèrent plus rien de faux.
+                        -->
+                        <p-chart type="line" [data]="backlogChart()" [options]="backlogOptions()" height="12rem" />
+                        <p-chart type="line" [data]="flowChart()" [options]="flowOptions()" height="7rem" />
                     }
                 } @else {
                     <p class="text-muted-color m-0">{{ 'dashboard.loading_trend' | translate }}</p>
