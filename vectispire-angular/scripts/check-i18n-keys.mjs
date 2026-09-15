@@ -81,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 965;
+const EXPECTED_KEYS = 982;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(
@@ -146,7 +146,7 @@ const frenchWords = new RegExp(
     '\\b(Composant|Composants|Cible|Cibles|Critique|Critiques|Ouverte|Ouvertes|Ouvert|Ouverts|' +
     'Résolue|Résolues|Sévérité|Dépôt|Dépôts|Règle|Règles|Chemin|Chemins|Exploitables|Priorité|' +
     'Aucun|Aucune|Levier|Estimé|Estimée|Détaillé|Détecté|Détectés|Détectées|Moyenne|Faible|' +
-    'Élevée|Élevé|Score de|Total Chemins|Liées|Impactées|Ajoutés|Supprimés)\\b');
+    'Élevée|Élevé|Score de|Total Chemins|Liées|Impactées|Ajoutés|Supprimés|Calculer|Différentiel|Nouveaux|Nouvelle|Ancienne|Licence|Licences|Changement|Solde)\\b');
 const textNode = />([^<>{}]{3,}?)</g;
 let frozenFrench = 0;
 const frenchOffenders = new Map();

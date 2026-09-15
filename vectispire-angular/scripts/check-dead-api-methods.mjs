@@ -50,8 +50,7 @@ const DEAD = new Set([
     'updateLicensePolicy',
     'getGlobalScorecard',
     'getAiAdvisorStatus',
-    'explainCveWithAi',
-    'getLatestSbomDiff'
+    'explainCveWithAi'
 ]);
 
 const walk = (dir) =>

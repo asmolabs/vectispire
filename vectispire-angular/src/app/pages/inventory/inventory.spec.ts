@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Inventory } from './inventory';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
  * The component search.
@@ -36,9 +37,22 @@ describe('the component search', () => {
             providers: [provideHttpClient(), provideHttpClientTesting()]
         }).compileComponents();
 
+        TestBed.inject(I18nService).translations.set({
+            inventory: {
+                diff_needs_two_scans: 'This target has a single scan: there is nothing to compare yet.',
+                diff_needs_two_ids: 'Name the two scans to compare.',
+                diff_failed: 'The difference could not be computed.'
+            }
+        });
+
         fixture = TestBed.createComponent(Inventory);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
+
+        // Les deux listes de cibles, demandées par le constructeur pour le sélecteur.
+        for (const request of http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers'))) {
+            request.flush([]);
+        }
     });
 
     function search(name: string, version: string, results: Record<string, unknown>): void {
@@ -106,5 +120,59 @@ describe('the component search', () => {
 
         const text = fixture.nativeElement.textContent;
         expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(true);
+    });
+
+    it('demande le différentiel de la dernière paire de scans, sans numéro à taper', () => {
+        // **La question telle qu'elle se pose.** Il fallait saisir deux identifiants internes
+        // qu'aucun écran n'affiche en évidence, alors que le serveur savait déjà répondre à
+        // « qu'est-ce qui a changé sur cette cible depuis la dernière fois ».
+        const page = fixture.componentInstance;
+        page.diffTarget = 'repo:5';
+        page.runLatestDiff();
+
+        const call = http.expectOne((request) => request.url.includes('/sbom/diff/latest'));
+        expect(call.request.params.get('repoId')).toBe('5');
+        expect(call.request.params.get('containerId')).toBeNull();
+        call.flush({ fromScanId: 33, toScanId: 34, addedCount: 2, removedCount: 0, componentDeltas: [], cveDeltas: [] });
+        fixture.detectChanges();
+
+        expect(page.diffReport()?.toScanId).toBe(34);
+    });
+
+    it('porte le genre de la cible, une image ne se comparant pas comme un dépôt', () => {
+        const page = fixture.componentInstance;
+        page.diffTarget = 'container:3';
+        page.runLatestDiff();
+
+        const call = http.expectOne((request) => request.url.includes('/sbom/diff/latest'));
+        expect(call.request.params.get('containerId')).toBe('3');
+        expect(call.request.params.get('repoId')).toBeNull();
+        call.flush({ fromScanId: 1, toScanId: 2, addedCount: 0, componentDeltas: [], cveDeltas: [] });
+    });
+
+    it("distingue « rien à comparer » de « le calcul a échoué »", () => {
+        // Une cible scannée une seule fois n'a pas de paire. Rendre la même erreur qu'un serveur
+        // en panne enverrait quelqu'un chercher une panne qui n'existe pas.
+        const page = fixture.componentInstance;
+        page.diffTarget = 'repo:5';
+        page.runLatestDiff();
+        http.expectOne((request) => request.url.includes('/sbom/diff/latest'))
+            .flush(null, { status: 404, statusText: 'Not Found' });
+        fixture.detectChanges();
+
+        expect(page.diffError()).toContain('nothing to compare yet');
+
+        page.runLatestDiff();
+        http.expectOne((request) => request.url.includes('/sbom/diff/latest'))
+            .flush(null, { status: 500, statusText: 'Server Error' });
+        fixture.detectChanges();
+
+        expect(page.diffError()).toContain('could not be computed');
+    });
+
+    it("ne demande rien tant qu'aucune cible n'est choisie", () => {
+        fixture.componentInstance.runLatestDiff();
+
+        http.expectNone((request) => request.url.includes('/sbom/diff/latest'));
     });
 });

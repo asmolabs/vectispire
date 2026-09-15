@@ -73,7 +73,7 @@
             [text]="activeTab() !== 'conflicts'"
             [outlined]="activeTab() === 'conflicts'"
             icon="pi pi-exclamation-triangle"
-            label="Conflits de Licences & Copyleft"
+            [label]="'licenses.tab_conflicts' | translate"
             size="small"
             severity="warn"
             (click)="setTab('conflicts')"
@@ -202,8 +202,8 @@
             <p-card>
                 <ng-template #title>
                     <div class="flex items-center justify-between">
-                        <span>Conflits & Risques de Licences Détectés ({{ conflicts().length }})</span>
-                        <p-tag [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'" [value]="blockingConflictsCount() > 0 ? (blockingConflictsCount() + ' Conflit(s) Bloquant(s)') : 'Aucun conflit bloquant'" />
+                        <span>{{ 'licenses.conflicts_title' | translate }} ({{ conflicts().length }})</span>
+                        <p-tag [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'" [value]="blockingConflictsCount() > 0 ? (blockingConflictsCount() + ' ' + ('licenses.blocking_conflicts' | translate)) : ('licenses.no_blocking_conflict' | translate)" />
                     </div>
                 </ng-template>
 
@@ -211,10 +211,10 @@
                     <ng-template #header>
                         <tr>
                             <th>{{ 'licenses.dependency' | translate }}</th>
-                            <th>Licence</th>
+                            <th>{{ 'licenses.licence' | translate }}</th>
                             <th>{{ 'licenses.compatibility' | translate }}</th>
                             <th>{{ 'licenses.target' | translate }}</th>
-                            <th>Explication Juridique</th>
+                            <th>{{ 'licenses.legal_explanation' | translate }}</th>
                             <th>{{ 'licenses.remediation_advice' | translate }}</th>
                         </tr>
                     </ng-template>
