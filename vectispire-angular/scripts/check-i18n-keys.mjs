@@ -81,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 982;
+const EXPECTED_KEYS = 1002;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(
@@ -148,11 +148,20 @@ const frenchWords = new RegExp(
     'Aucun|Aucune|Levier|Estimé|Estimée|Détaillé|Détecté|Détectés|Détectées|Moyenne|Faible|' +
     'Élevée|Élevé|Score de|Total Chemins|Liées|Impactées|Ajoutés|Supprimés|Calculer|Différentiel|Nouveaux|Nouvelle|Ancienne|Licence|Licences|Changement|Solde)\\b');
 const textNode = />([^<>{}]{3,}?)</g;
+
+// **Et les libellés d'attributs, que le nœud de texte ne voit pas.** `label="Matrice de
+// Compatibilité Légale"` n'est pas entre deux chevrons : il échappait aux deux cliquets — au
+// premier parce qu'il ne lit que les `.ts`, au second parce qu'il ne lit que les nœuds de texte.
+// C'est pourtant la forme que prend un bouton PrimeNG, donc l'endroit le plus probable pour un
+// libellé figé. Seules les valeurs statiques sont lues : `[label]="…"` est une expression, et une
+// expression passe déjà par le dictionnaire ou n'y passera jamais.
+const staticAttribute = /\s(?:label|placeholder|header|title|ariaLabel)="([^"{}]{3,}?)"/g;
 let frozenFrench = 0;
 const frenchOffenders = new Map();
 for (const file of walk(join(root, 'src/app'))) {
     if (!/\.html$/.test(file)) continue;
-    const hits = [...readFileSync(file, 'utf8').matchAll(textNode)]
+    const source = readFileSync(file, 'utf8');
+    const hits = [...source.matchAll(textNode), ...source.matchAll(staticAttribute)]
         .map((match) => match[1].trim())
         .filter((text) => accented.test(text) || frenchWords.test(text));
     if (hits.length > 0) {

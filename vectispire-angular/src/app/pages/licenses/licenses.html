@@ -87,7 +87,7 @@
             [text]="activeTab() !== 'matrix'"
             [outlined]="activeTab() === 'matrix'"
             icon="pi pi-table"
-            label="Matrice de Compatibilité Légale"
+            [label]="'licenses.tab_matrix' | translate"
             size="small"
             (click)="setTab('matrix')"
         ></button>
@@ -95,6 +95,85 @@
 
     <!-- TAB 1: INVENTORY & POLICIES -->
     @if (activeTab() === 'inventory') {
+        <!--
+            **La règle qui décide de « non conforme ».** Elle était chargée par l'écran et
+            affichée nulle part : le compteur de violations en tête, la conformité de chaque
+            ligne et les conflits en découlent tous, et personne ne pouvait ni la lire ni la
+            changer. Un décompte dont la règle est invisible ne se discute pas, il se subit.
+        -->
+        <p-card styleClass="mb-4">
+            <ng-template #title>{{ 'licenses.policy_title' | translate }}</ng-template>
+
+            @if (policyError(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="mb-3 w-full">{{ message }}</p-message>
+            }
+
+            @if (policy(); as current) {
+                @if (!editingPolicy()) {
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="flex flex-col gap-2 text-sm">
+                            <div>
+                                <span class="text-muted-color">{{ 'licenses.policy_disallowed' | translate }}</span>
+                                @if (current.disallowedCategories.length === 0) {
+                                    <span class="ml-2">{{ 'licenses.policy_nothing_disallowed' | translate }}</span>
+                                } @else {
+                                    <span class="ml-2 flex flex-wrap gap-1 inline-flex">
+                                        @for (category of current.disallowedCategories; track category) {
+                                            <p-tag severity="danger" [value]="category" />
+                                        }
+                                    </span>
+                                }
+                            </div>
+                            @if (current.explicitlyAllowedLicenses.length > 0) {
+                                <div><span class="text-muted-color">{{ 'licenses.policy_allowed_anyway' | translate }}</span>
+                                    <span class="ml-2 font-mono">{{ current.explicitlyAllowedLicenses.join(', ') }}</span></div>
+                            }
+                            @if (current.explicitlyDisallowedLicenses.length > 0) {
+                                <div><span class="text-muted-color">{{ 'licenses.policy_banned_outright' | translate }}</span>
+                                    <span class="ml-2 font-mono">{{ current.explicitlyDisallowedLicenses.join(', ') }}</span></div>
+                            }
+                        </div>
+                        @if (canEditPolicy()) {
+                            <p-button size="small" [outlined]="true" icon="pi pi-pencil"
+                                      [label]="'licenses.policy_edit' | translate" (onClick)="editPolicy()" />
+                        }
+                    </div>
+                } @else {
+                    <div class="flex flex-col gap-4">
+                        <p class="text-sm text-muted-color m-0">{{ 'licenses.policy_edit_warning' | translate }}</p>
+
+                        <div class="flex flex-col gap-2">
+                            @for (category of CATEGORIES; track category) {
+                                <div class="flex items-center gap-3">
+                                    <p-toggleswitch [ngModel]="isDisallowed(category)" [name]="'policy-' + category"
+                                                    (ngModelChange)="toggleCategory(category, $event)" />
+                                    <span class="text-sm">{{ category }}</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label for="policy-allowed" class="font-medium text-sm">{{ 'licenses.policy_allowed_anyway' | translate }}</label>
+                            <input pInputText id="policy-allowed" name="policy-allowed" [(ngModel)]="draftAllowedLicenses" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="policy-banned" class="font-medium text-sm">{{ 'licenses.policy_banned_outright' | translate }}</label>
+                            <input pInputText id="policy-banned" name="policy-banned" [(ngModel)]="draftDisallowedLicenses" />
+                        </div>
+
+                        <div class="flex gap-2">
+                            <p-button size="small" [label]="'common.save' | translate"
+                                      [loading]="savingPolicy()" (onClick)="savePolicy()" />
+                            <p-button size="small" severity="secondary" [text]="true"
+                                      [label]="'common.cancel' | translate" (onClick)="editingPolicy.set(false)" />
+                        </div>
+                    </div>
+                }
+            } @else {
+                <span class="text-muted-color">{{ 'licenses.policy_unavailable' | translate }}</span>
+            }
+        </p-card>
+
         <!-- Inventory Card -->
         <p-card>
             <ng-template #title>

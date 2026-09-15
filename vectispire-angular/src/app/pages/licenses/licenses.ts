@@ -9,7 +9,10 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
+import { SessionStore } from '../../core/session.store';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import type {
     MonitoredContainer,
@@ -35,6 +38,7 @@ import type {
         TagModule,
         SelectModule,
         ToggleSwitchModule,
+        InputTextModule,
         TranslatePipe
     ],
     templateUrl: './licenses.html'
@@ -42,6 +46,7 @@ import type {
 export class Licenses {
     private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
+    private readonly session = inject(SessionStore);
 
     readonly summary = signal<LicenseSummary | null>(null);
     readonly inventory = signal<LicenseEntry[]>([]);
@@ -109,6 +114,73 @@ export class Licenses {
     onTargetChange(target: string): void {
         this.selectedTarget.set(target);
         this.loadData();
+    }
+
+    /**
+     * La politique de licences : lue, et désormais modifiable.
+     *
+     * <p><b>Elle était chargée et affichée nulle part.</b> C'est elle qui décide de ce que
+     * l'écran appelle « non conforme » — sur le compteur en tête, sur chaque ligne de
+     * l'inventaire, dans les conflits — et personne ne pouvait ni la voir ni la changer. Un
+     * décompte de violations dont la règle est invisible ne se discute pas : on le subit.
+     *
+     * <p>Réservée au responsable sécurité, comme le serveur l'exige, et tracée par lui : changer
+     * ce qui est interdit change la conformité de tout le parc d'un coup.
+     */
+    readonly CATEGORIES: LicenseRiskCategory[] =
+        ['PERMISSIVE', 'WEAK_COPYLEFT', 'STRONG_COPYLEFT', 'FORBIDDEN', 'UNKNOWN'];
+
+    readonly canEditPolicy = computed(() => this.session.isSecurityLead());
+    readonly editingPolicy = signal(false);
+    readonly savingPolicy = signal(false);
+    readonly policyError = signal<string | null>(null);
+
+    draftDisallowed: LicenseRiskCategory[] = [];
+    draftAllowedLicenses = '';
+    draftDisallowedLicenses = '';
+
+    editPolicy(): void {
+        const policy = this.policy();
+        this.draftDisallowed = [...(policy?.disallowedCategories ?? [])];
+        this.draftAllowedLicenses = (policy?.explicitlyAllowedLicenses ?? []).join(', ');
+        this.draftDisallowedLicenses = (policy?.explicitlyDisallowedLicenses ?? []).join(', ');
+        this.policyError.set(null);
+        this.editingPolicy.set(true);
+    }
+
+    isDisallowed(category: LicenseRiskCategory): boolean {
+        return this.draftDisallowed.includes(category);
+    }
+
+    toggleCategory(category: LicenseRiskCategory, disallowed: boolean): void {
+        this.draftDisallowed = disallowed
+            ? [...new Set([...this.draftDisallowed, category])]
+            : this.draftDisallowed.filter((entry) => entry !== category);
+    }
+
+    savePolicy(): void {
+        this.savingPolicy.set(true);
+        this.policyError.set(null);
+
+        this.api.updateLicensePolicy({
+            disallowedCategories: this.draftDisallowed,
+            explicitlyAllowedLicenses: identifiers(this.draftAllowedLicenses),
+            explicitlyDisallowedLicenses: identifiers(this.draftDisallowedLicenses)
+        }).subscribe({
+            next: (updated) => {
+                this.savingPolicy.set(false);
+                this.editingPolicy.set(false);
+                this.policy.set(updated);
+                // La conformité de chaque ligne vient d'être recalculée par le serveur : la
+                // garder à l'écran telle qu'elle était afficherait la règle d'hier sous la
+                // politique d'aujourd'hui.
+                this.loadData();
+            },
+            error: (response) => {
+                this.savingPolicy.set(false);
+                this.policyError.set(messageOf(response, this.i18n.t('licenses.policy_save_failed')));
+            }
+        });
     }
 
     setTab(tab: 'inventory' | 'conflicts' | 'matrix'): void {
@@ -203,3 +275,12 @@ export class Licenses {
     }
 }
 
+/**
+ * Une liste d'identifiants SPDX saisie à la main.
+ *
+ * <p>Séparés par des virgules ou des espaces, les vides écartés : une virgule finale est la
+ * façon dont on tape une liste, pas une licence nommée « ».
+ */
+function identifiers(raw: string): string[] {
+    return raw.split(/[,\s]+/).map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+}

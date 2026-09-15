@@ -6,7 +6,7 @@
     <div class="flex items-center gap-3">
         @if (isAdmin() && repositories().length > 0) {
             <p-button
-                label="Analyser tous les dépôts"
+                [label]="'repositories.scan_all' | translate"
                 icon="pi pi-server"
                 severity="secondary"
                 [outlined]="true"

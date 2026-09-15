@@ -47,7 +47,6 @@ const DEAD = new Set([
     'getScanAttestation',
     'getScanCsaf',
     'getScanCycloneDx',
-    'updateLicensePolicy',
     'getGlobalScorecard',
     'getAiAdvisorStatus',
     'explainCveWithAi'

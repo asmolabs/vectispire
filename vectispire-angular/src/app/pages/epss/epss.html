@@ -235,7 +235,7 @@
     }
 
     <!-- CVE Lookup Dialog -->
-    <p-dialog header="Détail Threat Intelligence CVE" [(visible)]="lookupDialogOpen" [modal]="true" [style]="{ width: '32rem' }" [appendTo]="'body'">
+    <p-dialog [header]="'epss.lookup_title' | translate" [(visible)]="lookupDialogOpen" [modal]="true" [style]="{ width: '32rem' }" [appendTo]="'body'">
         @if (lookupLoading()) {
             <div class="flex justify-center py-6">
                 <p-progressSpinner strokeWidth="4"></p-progressSpinner>

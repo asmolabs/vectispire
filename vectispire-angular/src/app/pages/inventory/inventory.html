@@ -7,7 +7,7 @@
     </div>
     <div class="flex gap-2">
         <p-button
-            label="Recherche Composants"
+            [label]="'inventory.tab_search' | translate"
             icon="pi pi-search"
             [outlined]="activeTab() !== 'search'"
             (onClick)="activeTab.set('search')" />

@@ -11,8 +11,8 @@
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <a pButton label="Paramètres des Webhooks" icon="pi pi-cog" class="p-button-outlined" routerLink="/settings"></a>
-            <button pButton label="Rafraîchir" icon="pi pi-refresh" class="p-button-secondary" (click)="loadChannels()" [loading]="loading()"></button>
+            <a pButton [label]="'notifications.webhook_settings' | translate" icon="pi pi-cog" class="p-button-outlined" routerLink="/settings"></a>
+            <button pButton [label]="'notifications.refresh' | translate" icon="pi pi-refresh" class="p-button-secondary" (click)="loadChannels()" [loading]="loading()"></button>
         </div>
     </div>
 

@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Licenses } from './licenses';
+import { SessionStore } from '@/app/core/session.store';
 
 /**
  * The licence screen, and the three places it decides rather than displays.
@@ -83,6 +84,12 @@ describe('the licence inventory screen', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        // Un responsable sécurité : c'est le rôle que le serveur exige pour écrire la politique,
+        // et l'écran ne doit pas offrir le bouton à quelqu'un d'autre.
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'ciso', displayName: null, role: 'CISO', mustChangePassword: false
+        });
+
         fixture = TestBed.createComponent(Licenses);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -152,5 +159,72 @@ describe('the licence inventory screen', () => {
 
         expect(options[0].value).toBe('ALL');
         expect(options.map((option) => option.value)).toEqual(['ALL', 'repo:7', 'container:3']);
+    });
+
+    it("envoie la politique telle que le formulaire la porte, listes nettoyées", () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+
+        // Prérempli de l'existant : partir d'un formulaire vide ferait de chaque enregistrement
+        // un effacement de la règle en place.
+        expect(page.draftDisallowed).toEqual(['FORBIDDEN']);
+        expect(page.draftAllowedLicenses).toBe('Apache-2.0');
+
+        page.toggleCategory('STRONG_COPYLEFT', true);
+        page.draftDisallowedLicenses = 'GPL-2.0, , AGPL-3.0  ';
+        page.savePolicy();
+
+        const call = http.expectOne((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy');
+        // Une virgule finale est la façon dont on tape une liste, pas une licence nommée « ».
+        expect(call.request.body).toEqual({
+            disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'],
+            explicitlyAllowedLicenses: ['Apache-2.0'],
+            explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0']
+        });
+        call.flush({ disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0'] });
+
+        expect(page.editingPolicy()).toBe(false);
+        expect(page.policy()?.disallowedCategories)
+            .toContain('STRONG_COPYLEFT');
+
+        // **Et tout l'écran est rechargé.** La conformité de chaque ligne vient d'être recalculée
+        // par le serveur ; garder l'inventaire tel quel afficherait la règle d'hier sous la
+        // politique d'aujourd'hui.
+        expect(http.match((request) => request.url === '/api/v1/licenses/inventory'))
+            .toHaveLength(1);
+        settle();
+    });
+
+    it('décoche une catégorie sans toucher aux autres', () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+        page.toggleCategory('STRONG_COPYLEFT', true);
+        page.toggleCategory('FORBIDDEN', false);
+
+        expect(page.draftDisallowed).toEqual(['STRONG_COPYLEFT']);
+        expect(page.isDisallowed('FORBIDDEN')).toBe(false);
+    });
+
+    it('garde le formulaire ouvert et dit pourquoi quand le serveur refuse', () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+        page.savePolicy();
+
+        http.expectOne((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy')
+            .flush({ message: 'Forbidden.' }, { status: 403, statusText: 'Forbidden' });
+
+        expect(page.editingPolicy()).toBe(true);
+        expect(page.policyError()).toContain('Forbidden.');
+    });
+
+    it("n'offre pas la modification à un compte qui ne gouverne rien", async () => {
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'reader', displayName: null, role: 'USER', mustChangePassword: false
+        });
+        fixture.detectChanges();
+
+        // Le serveur exige le responsable sécurité ; offrir le bouton à un autre serait offrir
+        // une porte qu'il ferme.
+        expect(fixture.componentInstance.canEditPolicy()).toBe(false);
     });
 });

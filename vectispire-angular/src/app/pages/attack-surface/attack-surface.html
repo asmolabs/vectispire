@@ -170,7 +170,7 @@
                 optionLabel="label"
                 optionValue="value"
                 [showClear]="true"
-                placeholder="Sélectionner un dépôt..."
+                [placeholder]="'attack_surface.pick_repository' | translate"
                 [ngModel]="selectedRepoId()"
                 (ngModelChange)="onSelectRepo($event)"
                 styleClass="w-72"
