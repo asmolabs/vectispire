@@ -18,6 +18,30 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         await expect(page).not.toHaveURL(/\/(login|change-password)/);
     });
 
+    test('signing out ends the session, on the server as well as in the tab', async ({ page }) => {
+        // **Le bouton n'a jamais rien fait.** Il portait l'icône et le libellé, sans gestionnaire :
+        // on cliquait, la page ne bougeait pas, et la session restait ouverte des deux côtés. Sur
+        // un poste partagé, le suivant n'avait qu'à revenir en arrière.
+        await signIn(page);
+
+        // Le jeton tel que l'application l'utilisera, capté sur une requête qu'elle émet
+        // d'elle-même : c'est lui qui doit devenir inutilisable, et non « une » session.
+        const authorized = await page.waitForRequest((request) =>
+            request.url().includes('/api/v1/') && !!request.headers()['authorization']);
+        const bearer = authorized.headers()['authorization'];
+
+        await page.getByRole('button', { name: 'Sign out' }).click();
+        await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
+
+        // **La preuve côté serveur, et non seulement côté écran.** Une déconnexion qui ne ferait
+        // qu'oublier le jeton dans l'onglet laisserait la ligne de session vivante : quiconque a
+        // vu passer l'en-tête resterait connecté.
+        const afterwards = await page.request.get('/api/v1/auth/me', {
+            headers: { Authorization: bearer }
+        });
+        expect(afterwards.status(), 'le jeton répond encore après la déconnexion').toBe(401);
+    });
+
     test('login fails with invalid credentials', async ({ page }) => {
         await page.goto('/login');
 

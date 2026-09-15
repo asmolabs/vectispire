@@ -1,11 +1,13 @@
-import { Component, inject } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { BrandingService } from '@/app/core/branding.service';
+import { ApiService } from '@/app/core/api.service';
+import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
@@ -89,7 +91,8 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                         <i class="pi pi-key"></i>
                         <span>{{ 'topbar.password' | translate }}</span>
                     </button>
-                    <button type="button" class="layout-topbar-action">
+                    <button type="button" class="layout-topbar-action"
+                            [disabled]="signingOut()" (click)="signOut()">
                         <i class="pi pi-sign-out"></i>
                         <span>{{ 'topbar.sign_out' | translate }}</span>
                     </button>
@@ -102,6 +105,47 @@ export class AppTopbar {
     layoutService = inject(LayoutService);
     i18n = inject(I18nService);
     branding = inject(BrandingService);
+
+    private readonly api = inject(ApiService);
+    private readonly session = inject(SessionStore);
+    private readonly router = inject(Router);
+
+    /** Le temps de l'aller-retour, pour qu'un second clic n'ouvre pas une seconde révocation. */
+    readonly signingOut = signal(false);
+
+    /**
+     * Fermer la session, pour de vrai.
+     *
+     * <p><b>Ce bouton n'a jamais rien fait.</b> Il portait l'icône, le libellé traduit et aucun
+     * gestionnaire : on cliquait, la page ne bougeait pas, le jeton restait en mémoire et la
+     * session restait ouverte côté serveur. C'est le pire cas de figure pour un contrôle de
+     * sécurité — absent est visible, inerte ne l'est pas — et sur un poste partagé, le suivant
+     * n'avait qu'à revenir en arrière.
+     *
+     * <p><b>La session locale se ferme quoi qu'il arrive, même si le serveur n'a pas répondu.</b>
+     * L'ordre importe : si l'échec réseau laissait l'utilisateur connecté dans son navigateur, le
+     * bouton mentirait à nouveau, et cette fois seulement de temps en temps. Le jeton est en
+     * mémoire — le fermer ici le rend inutilisable pour ce navigateur ; ce qui peut survivre à un
+     * réseau coupé est la ligne de session côté serveur, que son expiration finit par emporter.
+     *
+     * <p>`replaceUrl`, comme dans l'intercepteur : la page quittée ne doit pas rester dans
+     * l'historique, sans quoi le bouton « précédent » ramène un écran vide.
+     */
+    signOut(): void {
+        if (this.signingOut()) return;
+        this.signingOut.set(true);
+
+        this.api.logout().subscribe({
+            next: () => this.forget(),
+            error: () => this.forget()
+        });
+    }
+
+    private forget(): void {
+        this.session.close();
+        this.signingOut.set(false);
+        void this.router.navigate(['/login'], { replaceUrl: true });
+    }
 
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({
