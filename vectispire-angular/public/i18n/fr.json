@@ -1071,15 +1071,26 @@
     "switch_dark": "Passer au thème sombre"
   },
   "users": {
-    "title": "Gestion des utilisateurs",
-    "subtitle": "Gestion des comptes d'accès, rôles RBAC et autorisations.",
+    "access_for": "Visibilité de",
+    "access_header": "Visibilité",
+    "access_help": "Ce compte voit ces cibles, plus celles de ses équipes — les deux ensembles s'additionnent. Aucune cible cochée veut dire qu'il ne voit rien.",
+    "access_mode_everyone": "Le réglage « ce que voit un non-administrateur » est sur « tout le monde » : tout compte connecté voit tout le parc, et ces affectations ne décident de rien tant qu'il n'a pas changé.",
+    "access_none": "Aucune",
+    "access_read_failed": "Les cibles actuelles de ce compte n'ont pas pu être lues.",
+    "access_role_global": "Ce rôle voit tout le parc sans affectation — c'est la contrepartie de son droit de lire la gouvernance. Cocher des cibles ici ne changera rien pour lui.",
+    "access_save_failed": "Les cibles n'ont pas pu être enregistrées.",
+    "access_targets": "Cibles visibles",
+    "active": "Statut actif",
     "add_user": "Créer un utilisateur",
-    "username": "Nom d'utilisateur",
     "email": "Email",
-    "role": "Rôle",
     "mfa_status": "2FA",
     "must_change_pw": "Doit changer de mot de passe",
-    "active": "Statut actif"
+    "role": "Rôle",
+    "subtitle": "Gestion des comptes d'accès, rôles RBAC et autorisations.",
+    "target_image": "Image",
+    "target_repository": "Dépôt",
+    "title": "Gestion des utilisateurs",
+    "username": "Nom d'utilisateur"
   },
   "exceptions": {
     "title": "Registre des exceptions",

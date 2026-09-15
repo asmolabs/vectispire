@@ -965,15 +965,26 @@
     "switch_dark": "Switch to dark theme"
   },
   "users": {
-    "title": "User Management",
-    "subtitle": "Manage user accounts, RBAC roles and permissions.",
+    "access_for": "Visibility of",
+    "access_header": "Visibility",
+    "access_help": "This account sees these targets, plus those of its teams — the two sets add up. No target ticked means it sees nothing.",
+    "access_mode_everyone": "The “what a non-administrator sees” setting is on “everyone”: every signed-in account sees the whole estate, and these assignments decide nothing until it changes.",
+    "access_none": "None",
+    "access_read_failed": "This account's current targets could not be read.",
+    "access_role_global": "This role sees the whole estate without any assignment — the counterpart of its right to read governance. Ticking targets here will change nothing for it.",
+    "access_save_failed": "The targets could not be saved.",
+    "access_targets": "Visible targets",
+    "active": "Active Status",
     "add_user": "Create User Account",
-    "username": "Username",
     "email": "Email",
-    "role": "Role",
     "mfa_status": "2FA",
     "must_change_pw": "Must Change Password",
-    "active": "Active Status"
+    "role": "Role",
+    "subtitle": "Manage user accounts, RBAC roles and permissions.",
+    "target_image": "Image",
+    "target_repository": "Repository",
+    "title": "User Management",
+    "username": "Username"
   },
   "exceptions": {
     "title": "Exceptions register",

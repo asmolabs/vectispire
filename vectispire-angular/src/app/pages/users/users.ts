@@ -7,19 +7,21 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
+import { MultiSelectModule } from '@openng/optimus-ui/multiselect';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { UserSummary } from '../../core/api.models';
+import type { UserSummary, UserTargetAssignment } from '../../core/api.models';
+import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-users',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, MultiSelectModule, SelectModule, TableModule, TagModule, TranslatePipe],
     templateUrl: './users.html'
 })
 export class Users {
@@ -57,8 +59,114 @@ export class Users {
     form = { username: '', displayName: '', role: 'USER', password: '' };
     resetPassword = '';
 
+    /**
+     * La visibilité, compte par compte.
+     *
+     * <p><b>Cette moitié du modèle n'était administrable que par l'API.</b>
+     * {@code VisibilityService} lit les affectations directes pour décider de ce qu'un compte
+     * voit — c'est le champ de lecture de l'application entière — et les équipes avaient leur
+     * écran quand les comptes n'en avaient pas. Restreindre quelqu'un demandait un `curl`, ce qui
+     * revient à ne pas offrir la restriction du tout.
+     */
+    readonly accessVisible = signal(false);
+    readonly accessUser = signal<UserSummary | null>(null);
+    readonly targetOptions = signal<{ label: string; value: string }[]>([]);
+    selectedTargets: string[] = [];
+
+    /**
+     * Le mode de visibilité du déploiement, lu pour pouvoir se dénoncer.
+     *
+     * <p>En mode {@code everyone}, tout compte connecté voit tout le parc et ces affectations ne
+     * décident de rien. Un écran qui laisserait cocher des cibles sans le dire ferait croire à
+     * une restriction posée ; c'est la même faute que l'ordre de travail qui n'expliquait pas son
+     * unique ligne.
+     */
+    readonly visibilityMode = signal<string | null>(null);
+
+    /** Vrai quand le mode rend ces affectations sans effet, pour personne. */
+    readonly restrictionsInactive = computed(() => this.visibilityMode() === 'everyone');
+
+    /**
+     * Le rôle du compte ouvert ignore toute restriction.
+     *
+     * <p>Les rôles à portée globale sont exactement ceux qui lisent la gouvernance — c'est
+     * délibéré côté serveur : lire le journal d'audit ou la politique de barrière renseigne sur
+     * la posture de toutes les cibles, donc l'accorder à un compte restreint contournerait la
+     * portée au lieu d'en être une version réduite.
+     */
+    readonly accessUnrestricted = computed(() => {
+        const role = this.accessUser()?.role;
+        return role != null && GOVERNANCE_READER_ROLES.includes(role);
+    });
+
     constructor() {
         this.reload();
+
+        // Les cibles et le mode sont chargés à part : ne pas les obtenir dégrade la boîte de
+        // dialogue sans empêcher d'administrer les comptes, qui est le sujet de l'écran.
+        this.api.apiKeyTargets().subscribe({
+            next: (targets) =>
+                this.targetOptions.set([
+                    ...(targets?.repositories ?? []).map((row) => ({
+                        label: `${this.i18n.t('users.target_repository')} — ${row.label}`,
+                        value: `repository:${row.id}`
+                    })),
+                    ...(targets?.containers ?? []).map((row) => ({
+                        label: `${this.i18n.t('users.target_image')} — ${row.label}`,
+                        value: `container:${row.id}`
+                    }))
+                ]),
+            error: () => this.targetOptions.set([])
+        });
+        this.api.settings().subscribe({
+            next: (result) => this.visibilityMode.set(
+                (result?.settings ?? []).find((setting) => setting.key === 'target_visibility')?.value ?? null),
+            error: () => this.visibilityMode.set(null)
+        });
+    }
+
+    /** Ouvre la boîte de visibilité, en relisant ce que le compte a aujourd'hui. */
+    openAccess(user: UserSummary): void {
+        this.accessUser.set(user);
+        this.formError.set(null);
+        this.selectedTargets = [];
+        this.accessVisible.set(true);
+
+        this.api.userTargets(user.id).subscribe({
+            next: (targets) =>
+                (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
+        });
+    }
+
+    /**
+     * Envoie l'ensemble tel qu'il est affiché, vide compris.
+     *
+     * <p>Le vide est une décision et non une absence de décision : c'est ainsi qu'on retire à
+     * quelqu'un tout ce qu'il voyait, et une garde « ne rien envoyer si rien n'est coché » aurait
+     * fait de ce retrait un bouton sans effet.
+     */
+    saveAccess(): void {
+        const user = this.accessUser();
+        if (!user) return;
+
+        const targets: UserTargetAssignment[] = this.selectedTargets.map((value) => {
+            const [kind, id] = value.split(':');
+            return { kind, id: Number(id) };
+        });
+
+        this.saving.set(true);
+        this.formError.set(null);
+        this.api.setUserTargets(user.id, targets).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.accessVisible.set(false);
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.access_save_failed')));
+            }
+        });
     }
 
     /**

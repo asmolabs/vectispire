@@ -527,6 +527,18 @@ export interface TeamTargetAssignment {
     id: number;
 }
 
+/**
+ * Une cible qu'un compte voit directement, sans passer par une équipe.
+ *
+ * <p>Même forme que {@link TeamTargetAssignment} et pourtant distincte : les deux ensembles
+ * s'additionnent côté serveur, et les confondre dans un seul type ferait écrire un écran qui
+ * remplace l'un en croyant remplacer l'autre.
+ */
+export interface UserTargetAssignment {
+    kind: string;
+    id: number;
+}
+
 export interface ApiKeyTargets {
     repositories: { id: number; label: string }[];
     containers: { id: number; label: string }[];

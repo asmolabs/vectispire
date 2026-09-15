@@ -51,6 +51,7 @@ import {
     SignInMethods,
     TeamSummary,
     TeamTargetAssignment,
+    UserTargetAssignment,
     OllamaCheck,
     OwaspReport,
     HistoryRepository,
@@ -521,6 +522,21 @@ export class ApiService {
     /** Replaced wholesale: a server that only added would make a removal silently do nothing. */
     setTeamMembers(id: number, userIds: number[]): Observable<number[]> {
         return this.http.put<number[]>(`/api/v1/teams/${id}/members`, userIds);
+    }
+
+    /** Les cibles qu'un compte voit directement. Vide veut dire « aucune », en mode restreint. */
+    userTargets(id: number): Observable<UserTargetAssignment[]> {
+        return this.http.get<UserTargetAssignment[]>(`/api/v1/users/${id}/targets`);
+    }
+
+    /**
+     * Remplace l'ensemble en bloc.
+     *
+     * <p>En bloc et non par ajouts : l'opération qui compte est le <em>retrait</em>, et un écran
+     * qui n'enverrait que ce qu'il veut voir ajouté ferait d'une révocation un clic sans effet.
+     */
+    setUserTargets(id: number, targets: UserTargetAssignment[]): Observable<UserTargetAssignment[]> {
+        return this.http.put<UserTargetAssignment[]>(`/api/v1/users/${id}/targets`, targets);
     }
 
     teamTargets(id: number): Observable<TeamTargetAssignment[]> {

@@ -59,6 +59,9 @@
                     <p-button [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
                               [ariaLabel]="(user.isActive ? 'Disable ' : 'Re-enable ') + user.username"
                               [disabled]="busy() === user.id" (onClick)="toggleActive(user)" />
+                    <p-button icon="pi pi-eye" [text]="true" [rounded]="true"
+                              [ariaLabel]="('users.access_for' | translate) + ' ' + user.username"
+                              [disabled]="busy() === user.id" (onClick)="openAccess(user)" />
                     <p-button icon="pi pi-key" [text]="true" [rounded]="true"
                               [ariaLabel]="'Reset the password of ' + user.username"
                               [disabled]="busy() === user.id" (onClick)="openReset(user)" />
@@ -132,5 +135,55 @@
     <ng-template #footer>
         <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
         <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+    </ng-template>
+</p-dialog>
+
+<!--
+    **La visibilité d'un compte, enfin administrable.** `VisibilityService` lit ces affectations
+    pour décider de ce que le compte voit ; l'API existait, l'écran non, et restreindre quelqu'un
+    demandait un `curl`. Les libellés passent par les traductions, contrairement au reste de cet
+    écran — l'anglais figé qu'il porte est une dette antérieure, et l'élargir au prétexte de la
+    cohérence serait l'aggraver sans le dire.
+-->
+<p-dialog [(visible)]="accessVisible" [modal]="true" [style]="{ width: '34rem' }"
+          [header]="('users.access_header' | translate) + ' — ' + (accessUser()?.username ?? '')">
+    @if (formError(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+
+    <!--
+        L'écran se dénonce avant de laisser cocher : en mode « tout le monde », ces cases ne
+        décident de rien, et un réglage qui annule silencieusement une action se lit comme une
+        panne le jour où l'on vérifie.
+    -->
+    @if (restrictionsInactive()) {
+        <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
+            {{ 'users.access_mode_everyone' | translate }}
+        </p-message>
+    }
+    @if (accessUnrestricted()) {
+        <p-message severity="info" [closable]="false" styleClass="mb-4 w-full">
+            {{ 'users.access_role_global' | translate }}
+        </p-message>
+    }
+
+    <div class="flex flex-col gap-2">
+        <label for="user-targets" class="font-medium">{{ 'users.access_targets' | translate }}</label>
+        <p-multiselect
+            inputId="user-targets"
+            name="user-targets"
+            [options]="targetOptions()"
+            [(ngModel)]="selectedTargets"
+            optionLabel="label"
+            optionValue="value"
+            [filter]="true"
+            [placeholder]="'users.access_none' | translate"
+            styleClass="w-full" />
+        <small class="text-muted-color">{{ 'users.access_help' | translate }}</small>
+    </div>
+
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="accessVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveAccess()" />
     </ng-template>
 </p-dialog>
