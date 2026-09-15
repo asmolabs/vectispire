@@ -633,7 +633,8 @@
     "soa": "Statement of applicability",
     "scope": "Certified scope",
     "evidence": "Compliance & evidence",
-    "posture": "Security posture"
+    "posture": "Security posture",
+    "compliance_history": "Compliance progression"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -1285,5 +1286,20 @@
     "outbox_when": "at the instant a scan result or a gate verdict is committed. Each channel is delivered on its own, with",
     "outbox_retry": "should the receiver be briefly unavailable. Messages can be signed with",
     "kev_epss_critical": "CISA KEV / critical EPSS"
+  },
+  "history_compliance": {
+    "title": "Compliance progression",
+    "subtitle": "Each framework's verdict month by month, with the estate that produced it. Read the reason before the score: it falls when a repository is registered and when a detector is switched on, in both cases because the estate is being watched more widely.",
+    "not_comparable": "the estate kept changing — this is a shape, not a trend",
+    "column": {
+      "month": "Month",
+      "score": "Score",
+      "change": "Change",
+      "targets": "Targets",
+      "why": "Why"
+    },
+    "empty": "No month has been captured yet. The first capture lands on the next maintenance pass.",
+    "footnote": "Six frameworks, six series, and deliberately no overall figure: an aggregate score improves by adding an easy framework, and a number that can be improved without touching the estate is one somebody eventually improves that way.",
+    "load_failed": "Could not load the compliance progression."
   }
 }

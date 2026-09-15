@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.repositories.ComplianceSnapshots;
 import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
@@ -41,6 +42,7 @@ public class SessionCleanupService {
     private final LoginAttempts attempts;
     private final MfaChallenges challenges;
     private final GateVerdicts verdicts;
+    private final ComplianceSnapshots snapshots;
     private final SettingsService settings;
     private final Clock clock;
 
@@ -49,12 +51,14 @@ public class SessionCleanupService {
             LoginAttempts attempts,
             MfaChallenges challenges,
             GateVerdicts verdicts,
+            ComplianceSnapshots snapshots,
             SettingsService settings,
             Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
         this.challenges = challenges;
         this.verdicts = verdicts;
+        this.snapshots = snapshots;
         this.settings = settings;
         this.clock = clock;
     }
@@ -75,7 +79,27 @@ public class SessionCleanupService {
      * bypassed and the annotation would mean nothing.
      */
     public CleanupResult prune() {
-        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(), pruneVerdicts());
+        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(),
+                pruneVerdicts() + pruneSnapshots());
+    }
+
+    /**
+     * Compliance captures older than the evidence window.
+     *
+     * <p>Counted with the verdicts rather than on a line of its own: both are evidence purged by
+     * the same dial, and a result that separated them would invite somebody to give them separate
+     * windows — which is the drift the single dial exists to prevent.
+     */
+    private int pruneSnapshots() {
+        try {
+            int days = settings.asInt(Setting.EVIDENCE_RETENTION_DAYS);
+            return EvidenceRetention.cutoff(days, clock.instant())
+                    .map(snapshots::deleteBefore)
+                    .orElse(0);
+        } catch (RuntimeException failed) {
+            log.warn("Compliance snapshot purge skipped: {}", failed.getMessage());
+            return 0;
+        }
     }
 
     private int pruneSessions() {

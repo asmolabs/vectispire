@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+    ComplianceSeries,
     ControlDeclaration,
     DeclarationRequest,
     ExceptionsRegister,
@@ -878,6 +879,10 @@ export class ApiService {
 
     ruleCoverage(): Observable<RuleCoverageAssessment> {
         return this.http.get<RuleCoverageAssessment>('/api/v1/rule-sets/coverage');
+    }
+
+    complianceHistory(): Observable<ComplianceSeries[]> {
+        return this.http.get<ComplianceSeries[]>('/api/v1/compliance/history');
     }
 
     statementsOfApplicability(): Observable<SoaStatement[]> {

@@ -89,6 +89,11 @@ export class AppMenu {
                 ? [
                       // **Le document ISO 27001, et il ouvre sur ses écarts.** Ce qu'on déclare et
                       // ce qu'on mesure se lisent ensemble ou pas du tout.
+                      // **Collée à la matrice, pas rangée ailleurs.** La matrice dit où on en
+                      // est, celle-ci dit si on progresse — c'est la question de la clause 9.3, et
+                      // les deux se lisent l'une après l'autre.
+                      { label: this.i18n.t('menu.compliance_history'), icon: 'pi pi-fw pi-chart-line', routerLink: ['/compliance-history'] },
+
                       { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
 
                       // Le périmètre est ce à quoi les contrôles s'appliquent, mais personne ne

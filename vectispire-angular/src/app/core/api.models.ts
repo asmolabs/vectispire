@@ -1669,3 +1669,39 @@ export interface OwaspGrid {
     withFindings: number;
     unmeasured: number;
 }
+
+export type ComplianceMovement =
+    | 'FIRST' | 'ESTATE_GREW' | 'ESTATE_SHRANK' | 'RULES_CHANGED'
+    | 'IMPROVED' | 'DECLINED' | 'STEADY';
+
+export interface ComplianceSnapshot {
+    period: string;
+    framework: string;
+    score: number;
+    status: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+    targets: number;
+    observed: number;
+    fresh: number;
+    freshnessDays: number;
+    endOfLifeEnabled: boolean;
+    codeAnalysisReaches: boolean;
+    controlsTotal: number;
+    controlsDeclared: number;
+    soaFindings: number;
+    capturedAt: string;
+}
+
+export interface ComplianceStep {
+    snapshot: ComplianceSnapshot;
+    delta: number;
+    movement: ComplianceMovement;
+    /** Une phrase, destinée à être citée sous le point. */
+    because: string;
+}
+
+export interface ComplianceSeries {
+    framework: string;
+    steps: ComplianceStep[];
+    /** **À lire avant la tendance** : un parc qui change n'a pas de tendance, il a une forme. */
+    comparable: boolean;
+}

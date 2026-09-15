@@ -633,7 +633,8 @@
     "soa": "Déclaration d'applicabilité",
     "scope": "Périmètre certifié",
     "evidence": "Conformité & preuves",
-    "posture": "Posture de sécurité"
+    "posture": "Posture de sécurité",
+    "compliance_history": "Progression de la conformité"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1391,5 +1392,20 @@
     "outbox_when": "au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de",
     "outbox_retry": "en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par",
     "kev_epss_critical": "CISA KEV / EPSS Critique"
+  },
+  "history_compliance": {
+    "title": "Progression de la conformité",
+    "subtitle": "Le verdict de chaque cadre mois par mois, avec le parc qui l'a produit. Lisez la raison avant la note : elle baisse quand on enregistre un dépôt et quand on allume un détecteur, dans les deux cas parce qu'on surveille plus large.",
+    "not_comparable": "le parc n'a cessé de changer — c'est une forme, pas une tendance",
+    "column": {
+      "month": "Mois",
+      "score": "Note",
+      "change": "Écart",
+      "targets": "Cibles",
+      "why": "Pourquoi"
+    },
+    "empty": "Aucun mois n'a encore été capturé. La première capture arrive au prochain passage de maintenance.",
+    "footnote": "Six cadres, six séries, et délibérément aucun chiffre global : une note agrégée s'améliore en ajoutant un cadre facile, et un chiffre qu'on peut améliorer sans toucher au parc est un chiffre que quelqu'un finit par améliorer ainsi.",
+    "load_failed": "La progression de la conformité n'a pas pu être chargée."
   }
 }

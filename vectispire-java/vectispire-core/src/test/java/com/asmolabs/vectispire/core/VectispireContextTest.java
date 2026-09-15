@@ -64,6 +64,7 @@ public abstract class VectispireContextTest {
             // it: a declaration belongs to the management system, not to a target. Left out, it
             // would survive into the next test and the failure would read as a duplicate write.
             "t_control_declaration",
+            "t_compliance_snapshot",
             "t_processed_message",
             "t_outbox_message",
             "t_audit_log",

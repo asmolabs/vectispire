@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.repositories.ComplianceSnapshots;
 import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
@@ -49,8 +50,10 @@ class EvidenceRetentionTest {
         UserSessions sessions = mock(UserSessions.class);
         LoginAttempts attempts = mock(LoginAttempts.class);
         MfaChallenges challenges = mock(MfaChallenges.class);
+        ComplianceSnapshots snapshots = mock(ComplianceSnapshots.class);
         cleanup = new SessionCleanupService(
-                sessions, attempts, challenges, verdicts, settings, Clock.fixed(NOW, ZoneOffset.UTC));
+                sessions, attempts, challenges, verdicts, snapshots, settings,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test

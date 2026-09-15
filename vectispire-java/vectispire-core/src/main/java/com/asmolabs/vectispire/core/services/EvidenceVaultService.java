@@ -61,6 +61,7 @@ public class EvidenceVaultService {
     private final SigningKeyService signingKeyService;
     private final ProcessEvidenceService processEvidence;
     private final StatementOfApplicabilityService soa;
+    private final ComplianceHistoryService complianceHistory;
     private final ObjectMapper json;
 
     public EvidenceVaultService(
@@ -76,7 +77,8 @@ public class EvidenceVaultService {
             LicenseGovernanceService licenseService,
             SigningKeyService signingKeyService,
             ProcessEvidenceService processEvidence,
-            StatementOfApplicabilityService soa) {
+            StatementOfApplicabilityService soa,
+            ComplianceHistoryService complianceHistory) {
         this.compliance = compliance;
         this.auditService = auditService;
         this.auditLogRepo = auditLogRepo;
@@ -90,6 +92,7 @@ public class EvidenceVaultService {
         this.signingKeyService = signingKeyService;
         this.processEvidence = processEvidence;
         this.soa = soa;
+        this.complianceHistory = complianceHistory;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -250,14 +253,24 @@ public class EvidenceVaultService {
                     "Declaration of applicability per framework, each control reconciled against its measured status (ISO 27001 clause 6.1.3 d)",
                     soaBytes);
 
-            // 14. Verification & Manifest
+            // 14. Compliance progression — whether the management system is getting better
+            // Clause 9.3 asks a management review to look at the ISMS over time. Sections 09-13
+            // show the controls operating; this one is the only place the archive says whether
+            // that operation improved, and it is stored rather than recomputed for the reason
+            // spelt out on ComplianceSnapshot.
+            byte[] historyBytes = json.writeValueAsBytes(complianceHistory.history());
+            addZipEntry(zip, entries, "14_compliance_progression.json",
+                    "Each framework's verdict month by month, with the estate that produced it and what plausibly moved it (ISO 27001 clause 9.3)",
+                    historyBytes);
+
+            // 15. Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
-            // 1.1 adds sections 09-12, 1.2 section 13. The version is in the manifest so an archive opened in two
+            // 1.1 adds sections 09-12, 1.2 section 13, 1.3 section 14. The version is in the manifest so an archive opened in two
             // years says which generation produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
-                    "1.2",
+                    "1.3",
                     Instant.now(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
@@ -270,7 +283,7 @@ public class EvidenceVaultService {
             zip.write(manifestBytes);
             zip.closeEntry();
 
-            // 15. Manifest signature (Cosign detached signature)
+            // 16. Manifest signature (Cosign detached signature)
             String manifestSig = signingKeyService.sign(manifestBytes);
             ZipEntry sigEntry = new ZipEntry("manifest.json.sig");
             zip.putNextEntry(sigEntry);

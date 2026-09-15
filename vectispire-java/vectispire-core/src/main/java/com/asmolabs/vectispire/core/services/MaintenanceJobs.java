@@ -39,6 +39,7 @@ public class MaintenanceJobs {
     private final SchedulerService scheduler;
     private final IssueTriageService triage;
     private final PostureDigestService digest;
+    private final ComplianceHistoryService complianceHistory;
     private final TargetDeletionService targetDeletion;
 
     /**
@@ -62,6 +63,7 @@ public class MaintenanceJobs {
             SchedulerService scheduler,
             IssueTriageService triage,
             PostureDigestService digest,
+            ComplianceHistoryService complianceHistory,
             TargetDeletionService targetDeletion) {
         this.retention = retention;
         this.outbox = outbox;
@@ -71,6 +73,7 @@ public class MaintenanceJobs {
         this.scheduler = scheduler;
         this.triage = triage;
         this.digest = digest;
+        this.complianceHistory = complianceHistory;
         this.targetDeletion = targetDeletion;
     }
 
@@ -148,6 +151,12 @@ public class MaintenanceJobs {
             // Hourly for a weekly job: the digest decides for itself whether one has gone out
             // since Monday, so the tick only has to be more frequent than the period.
             digest.runOnce();
+
+            // **Écrit à chaque passage, pas une fois par mois.** La capture réécrit la ligne du
+            // mois courant, si bien qu'un mois clos porte son état de fin de mois plutôt que celui
+            // du premier du mois. Un déclencheur mensuel donnerait l'inverse, et personne ne
+            // s'attend à ce que « août » désigne le 1er août.
+            complianceHistory.capture();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();
             if (cleaned.sessions() > 0

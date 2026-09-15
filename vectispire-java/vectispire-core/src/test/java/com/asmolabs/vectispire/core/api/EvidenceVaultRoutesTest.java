@@ -58,6 +58,7 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
                 "10_exception_register.json",
                 "11_remediation_timeliness.json",
                 "12_control_coverage.json",
-                "13_statement_of_applicability.json");
+                "13_statement_of_applicability.json",
+                "14_compliance_progression.json");
     }
 }

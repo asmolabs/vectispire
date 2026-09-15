@@ -668,6 +668,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compliance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compliance progression
+         * @description Every framework's monthly captures, each attributed to what plausibly moved it.
+         */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compliance/scope": {
         parameters: {
             query?: never;
@@ -2991,11 +3011,42 @@ export interface components {
             /** Format: int32 */
             scorePercentage?: number;
         };
+        ComplianceSnapshot: {
+            /** Format: date-time */
+            capturedAt?: string;
+            codeAnalysisReaches?: boolean;
+            /** Format: int32 */
+            controlsDeclared?: number;
+            /** Format: int32 */
+            controlsTotal?: number;
+            endOfLifeEnabled?: boolean;
+            /** @enum {string} */
+            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            /** Format: int32 */
+            fresh?: number;
+            /** Format: int32 */
+            freshnessDays?: number;
+            /** Format: int32 */
+            observed?: number;
+            period?: string;
+            /** Format: int32 */
+            score?: number;
+            /** Format: int32 */
+            soaFindings?: number;
+            /** @enum {string} */
+            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            /** Format: int32 */
+            targets?: number;
+        };
         ComplianceSummary: {
             /** Format: int64 */
             dueSoonCount?: number;
             evaluations?: components["schemas"]["ComplianceEvaluation"][];
+            /** Format: int32 */
+            freshTargets?: number;
             mttr?: components["schemas"]["MttrResult"];
+            /** Format: int32 */
+            observedTargets?: number;
             /** Format: int64 */
             overdueCount?: number;
             /** Format: int32 */
@@ -4552,6 +4603,12 @@ export interface components {
             targetKind?: string;
             targetName?: string;
         };
+        Series: {
+            comparable?: boolean;
+            /** @enum {string} */
+            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            steps?: components["schemas"]["Step"][];
+        };
         SettingView: {
             configured?: boolean;
             default?: string;
@@ -4641,6 +4698,14 @@ export interface components {
             publicKey?: string;
             /** Format: int64 */
             usedByRepositories?: number;
+        };
+        Step: {
+            because?: string;
+            /** Format: int32 */
+            delta?: number;
+            /** @enum {string} */
+            movement?: "FIRST" | "ESTATE_GREW" | "ESTATE_SHRANK" | "RULES_CHANGED" | "IMPROVED" | "DECLINED" | "STEADY";
+            snapshot?: components["schemas"]["ComplianceSnapshot"];
         };
         StoredFile: {
             content?: string;
@@ -5963,6 +6028,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ComplianceEvaluation"];
+                };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Series returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Series"][];
                 };
             };
         };

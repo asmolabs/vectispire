@@ -189,6 +189,13 @@ public class ComplianceService {
             String overallStatus,
             Map<String, Integer> frameworkScores) {}
 
+    /**
+     * @param observedTargets how many have ever been scanned, and {@code freshTargets} how many
+     *     inside the freshness window. <b>Both were computed and neither left the method.</b> They
+     *     are what the verdicts above were capped by, so a reader handed a score without them
+     *     cannot tell a clean estate from an unobserved one — and the monthly capture cannot
+     *     record what produced its own number
+     */
     public record ComplianceSummary(
             List<ComplianceEvaluation> evaluations,
             MttrCalculator.MttrResult mttr,
@@ -196,6 +203,8 @@ public class ComplianceService {
             long dueSoonCount,
             int totalMonitoredTargets,
             int passingGateTargets,
+            int observedTargets,
+            int freshTargets,
             List<TargetCompliance> targets) {
         public ComplianceSummary(
                 List<ComplianceEvaluation> evaluations,
@@ -204,7 +213,8 @@ public class ComplianceService {
                 long dueSoonCount,
                 int totalMonitoredTargets,
                 int passingGateTargets) {
-            this(evaluations, mttr, overdueCount, dueSoonCount, totalMonitoredTargets, passingGateTargets, List.of());
+            this(evaluations, mttr, overdueCount, dueSoonCount, totalMonitoredTargets,
+                    passingGateTargets, 0, 0, List.of());
         }
     }
 
@@ -406,7 +416,8 @@ public class ComplianceService {
             return new TargetCompliance(tid, targetPosture.name(), type, gateStatus, totalOpen, tOverdue, avgScore, status, scores);
         }).toList();
 
-        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets, targetComplianceList);
+        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets,
+                observedTargets, fresh.within(), targetComplianceList);
     }
 
     private ComplianceSummary getSummaryForTarget(String targetId, SecurityOverview.Overview posture, Visibility allowed) {
@@ -547,7 +558,8 @@ public class ComplianceService {
             return new TargetCompliance(tid, tp.name(), type, gateStatus, totalOpen, tOverdue, avgScore, status, scores);
         }).toList();
 
-        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets, targetComplianceList);
+        return new ComplianceSummary(evaluations, mttr, overdue, 0L, totalTargets, passingTargets,
+                observed ? 1 : 0, fresh.within(), targetComplianceList);
     }
 
     @Transactional(readOnly = true)

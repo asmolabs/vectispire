@@ -1107,6 +1107,64 @@
         },
         "type" : "object"
       },
+      "ComplianceSnapshot" : {
+        "properties" : {
+          "capturedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "codeAnalysisReaches" : {
+            "type" : "boolean"
+          },
+          "controlsDeclared" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "controlsTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "endOfLifeEnabled" : {
+            "type" : "boolean"
+          },
+          "framework" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
+            "type" : "string"
+          },
+          "fresh" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "freshnessDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "observed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "period" : {
+            "type" : "string"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "soaFindings" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "COMPLIANT", "PARTIAL", "NON_COMPLIANT" ],
+            "type" : "string"
+          },
+          "targets" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "ComplianceSummary" : {
         "properties" : {
           "dueSoonCount" : {
@@ -1119,8 +1177,16 @@
             },
             "type" : "array"
           },
+          "freshTargets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "mttr" : {
             "$ref" : "#/components/schemas/MttrResult"
+          },
+          "observedTargets" : {
+            "format" : "int32",
+            "type" : "integer"
           },
           "overdueCount" : {
             "format" : "int64",
@@ -5296,6 +5362,24 @@
         },
         "type" : "object"
       },
+      "Series" : {
+        "properties" : {
+          "comparable" : {
+            "type" : "boolean"
+          },
+          "framework" : {
+            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
+            "type" : "string"
+          },
+          "steps" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Step"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "SettingView" : {
         "properties" : {
           "configured" : {
@@ -5533,6 +5617,25 @@
           "usedByRepositories" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Step" : {
+        "properties" : {
+          "because" : {
+            "type" : "string"
+          },
+          "delta" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "movement" : {
+            "enum" : [ "FIRST", "ESTATE_GREW", "ESTATE_SHRANK", "RULES_CHANGED", "IMPROVED", "DECLINED", "STEADY" ],
+            "type" : "string"
+          },
+          "snapshot" : {
+            "$ref" : "#/components/schemas/ComplianceSnapshot"
           }
         },
         "type" : "object"
@@ -7664,6 +7767,29 @@
         },
         "summary" : "Get framework compliance details",
         "tags" : [ "Compliance" ]
+      }
+    },
+    "/api/v1/compliance/history" : {
+      "get" : {
+        "description" : "Every framework's monthly captures, each attributed to what plausibly moved it.",
+        "operationId" : "history",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Series"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Series returned"
+          }
+        },
+        "summary" : "Compliance progression",
+        "tags" : [ "Compliance history" ]
       }
     },
     "/api/v1/compliance/scope" : {
@@ -11984,6 +12110,9 @@
   }, {
     "description" : "Security findings, triage workflow, risk assessment and remediation",
     "name" : "Issues & Vulnerabilities"
+  }, {
+    "description" : "Each framework's verdict over time, with what moved it",
+    "name" : "Compliance history"
   }, {
     "description" : "Container image registry tracking, digest verification and scanning",
     "name" : "Containers"

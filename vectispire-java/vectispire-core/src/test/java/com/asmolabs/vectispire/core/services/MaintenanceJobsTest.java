@@ -39,6 +39,7 @@ class MaintenanceJobsTest {
     private IssueTriageService triage;
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
+    private ComplianceHistoryService complianceHistory;
     private MaintenanceJobs jobs;
 
     @BeforeEach
@@ -52,11 +53,13 @@ class MaintenanceJobsTest {
         triage = mock(IssueTriageService.class);
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
+        complianceHistory = mock(ComplianceHistoryService.class);
 
         when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0, 0));
         when(triage.expireStale()).thenReturn(List.of());
 
-        jobs = new MaintenanceJobs(retention, outbox, tickets, sessions, backfill, scheduler, triage, digest, targetDeletion);
+        jobs = new MaintenanceJobs(retention, outbox, tickets, sessions, backfill, scheduler, triage, digest,
+                complianceHistory, targetDeletion);
     }
 
     @Test
