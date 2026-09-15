@@ -844,25 +844,28 @@
     "delete_confirm": "Are you sure you want to delete this rule set?"
   },
   "scans": {
-    "title": "Scans",
+    "artifacts": "Scan Artifacts",
     "back_to_repos": "← Repositories",
-    "scan_title": "Scan",
-    "state": "State",
-    "findings": "Findings",
-    "new_issues": "New issues",
-    "resolved_issues": "Resolved issues",
+    "components": "Components",
+    "download_attestation": "in-toto attestation",
+    "download_csaf": "CSAF advisory",
+    "download_cyclonedx": "CycloneDX VEX",
     "download_sbom": "Download SBOM",
+    "duration": "Duration",
+    "findings": "Findings",
+    "never_scanned": "Never scanned",
+    "new_issues": "New issues",
     "openvex_btn": "OpenVEX",
     "raw_output": "Raw Scanner Output",
-    "artifacts": "Scan Artifacts",
-    "components": "Components",
-    "duration": "Duration",
-    "never_scanned": "Never scanned",
-    "status_queued": "Queued",
-    "status_running": "Scanning",
+    "resolved_issues": "Resolved issues",
+    "scan_title": "Scan",
+    "state": "State",
+    "status_cancelled": "Cancelled",
     "status_completed": "Completed",
     "status_failed": "Failed",
-    "status_cancelled": "Cancelled"
+    "status_queued": "Queued",
+    "status_running": "Scanning",
+    "title": "Scans"
   },
   "schedule": {
     "cron_hint": "Five fields — minute, hour, day of month, month, day of week. 0 2 * * * is every day at 02:00, 0 */6 * * * every six hours. The server refuses an expression it cannot read, so a mistake here is reported rather than saved.",
@@ -1172,15 +1175,10 @@
     "add": "Add these languages"
   },
   "soa": {
-    "title": "Statement of applicability",
-    "subtitle": "What the organisation claims about each control, set against what the estate measures. The useful artefact is neither half: it is the line where the two disagree.",
-    "declared": "controls addressed",
-    "findings": "findings",
-    "reviews_overdue": "reviews lapsed",
-    "complete": "every control addressed",
-    "complete_yes": "Yes",
-    "complete_no": "No",
-    "incomplete_notice": "Clause 6.1.3 d asks for every Annex A control to be addressed — applicable or excluded. A control nobody has written a line for is a gap, not a blank.",
+    "applicability": {
+      "APPLICABLE": "Applicable",
+      "EXCLUDED": "Excluded"
+    },
     "column": {
       "control": "Control",
       "declared": "Declared",
@@ -1189,24 +1187,25 @@
       "owner": "Owner",
       "action": "Action"
     },
-    "not_declared": "not declared",
-    "review_lapsed": "review lapsed",
+    "complete": "every control addressed",
+    "complete_no": "No",
+    "complete_yes": "Yes",
     "declare": "Declare",
-    "revise": "Revise",
-    "applicability": {
-      "APPLICABLE": "Applicable",
-      "EXCLUDED": "Excluded"
-    },
-    "implementation": {
-      "IMPLEMENTED": "Implemented",
-      "PARTIALLY_IMPLEMENTED": "Partially implemented",
-      "PLANNED": "Planned",
-      "NOT_IMPLEMENTED": "Not implemented"
-    },
-    "evidence": {
-      "VECTISPIRE": "Evidenced here",
-      "EXTERNAL": "Evidenced elsewhere",
-      "BOTH": "Evidenced here and elsewhere"
+    "declare_failed": "The declaration was not recorded.",
+    "declared": "controls addressed",
+    "dialog": {
+      "title": "Declare a control",
+      "applicability": "Applicability",
+      "implementation": "Implementation",
+      "evidence_source": "Where the evidence lives",
+      "evidence_help": "Vectispire measures a slice of each control, never the whole of it. A control evidenced elsewhere is not judged against what is measured here.",
+      "external_evidence": "Name the document, register or review",
+      "justification": "Justification",
+      "justification_excluded": "Why it does not apply",
+      "justification_required": "Required: clause 6.1.3 d does not accept an unargued exclusion.",
+      "owner": "Owner",
+      "review_due": "Review due",
+      "record": "Record the declaration"
     },
     "divergence": {
       "CONTRADICTED": "Contradicted",
@@ -1228,27 +1227,33 @@
       "NOT_APPLICABLE": "Excluded with a justification. Nothing to reconcile.",
       "CONSISTENT": "The declaration and the measurement agree."
     },
-    "dialog": {
-      "title": "Declare a control",
-      "applicability": "Applicability",
-      "implementation": "Implementation",
-      "evidence_source": "Where the evidence lives",
-      "evidence_help": "Vectispire measures a slice of each control, never the whole of it. A control evidenced elsewhere is not judged against what is measured here.",
-      "external_evidence": "Name the document, register or review",
-      "justification": "Justification",
-      "justification_excluded": "Why it does not apply",
-      "justification_required": "Required: clause 6.1.3 d does not accept an unargued exclusion.",
-      "owner": "Owner",
-      "review_due": "Review due",
-      "record": "Record the declaration"
+    "evidence": {
+      "VECTISPIRE": "Evidenced here",
+      "EXTERNAL": "Evidenced elsewhere",
+      "BOTH": "Evidenced here and elsewhere"
     },
+    "findings": "findings",
+    "implementation": {
+      "IMPLEMENTED": "Implemented",
+      "PARTIALLY_IMPLEMENTED": "Partially implemented",
+      "PLANNED": "Planned",
+      "NOT_IMPLEMENTED": "Not implemented"
+    },
+    "incomplete_notice": "Clause 6.1.3 d asks for every Annex A control to be addressed — applicable or excluded. A control nobody has written a line for is a gap, not a blank.",
     "load_failed": "Could not load the statement of applicability.",
-    "declare_failed": "The declaration was not recorded.",
     "measured": {
       "COMPLIANT": "Compliant",
       "PARTIAL": "Partial",
       "NON_COMPLIANT": "Non-compliant"
-    }
+    },
+    "not_declared": "not declared",
+    "overdue_since": "due since",
+    "overdue_title": "Reviews overdue, across every framework",
+    "review_lapsed": "review lapsed",
+    "reviews_overdue": "reviews lapsed",
+    "revise": "Revise",
+    "subtitle": "What the organisation claims about each control, set against what the estate measures. The useful artefact is neither half: it is the line where the two disagree.",
+    "title": "Statement of applicability"
   },
   "scope": {
     "title": "Certified scope",

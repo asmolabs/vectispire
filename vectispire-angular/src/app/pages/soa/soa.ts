@@ -11,7 +11,7 @@ import { ApiService } from '@/app/core/api.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
-import type { Applicability, Divergence, EvidenceSource, Implementation, SoaLine, SoaStatement } from '@/app/core/api.models';
+import type { Applicability, ControlDeclaration, Divergence, EvidenceSource, Implementation, SoaLine, SoaStatement } from '@/app/core/api.models';
 
 /**
  * La déclaration d'applicabilité : ce qu'on affirme, confronté à ce qui est mesuré.
@@ -41,6 +41,19 @@ export class Soa {
     private readonly session = inject(SessionStore);
 
     readonly statements = signal<SoaStatement[]>([]);
+
+    /**
+     * Les revues expirées, tous référentiels confondus.
+     *
+     * <p><b>Le compteur était là, la liste nulle part.</b> Chaque document affichait « n revues
+     * échues » et rien ne disait lesquelles : un chiffre qu'on ne peut pas ouvrir n'est pas une
+     * trace de revue, c'est un reproche. La route existait et personne ne l'appelait.
+     *
+     * <p>Rendue à part des documents, parce que la question se pose ainsi : un examen de
+     * direction demande ce que l'organisation a cessé de regarder, pas ce qu'un référentiel
+     * particulier a laissé filer.
+     */
+    readonly overdue = signal<ControlDeclaration[]>([]);
     readonly framework = signal<string | null>(null);
     readonly error = signal<string | null>(null);
     readonly busy = signal(false);
@@ -105,6 +118,13 @@ export class Soa {
     }
 
     load(): void {
+        // À part : ne pas obtenir la liste des revues expirées n'empêche pas de lire la
+        // déclaration, qui est le sujet de l'écran.
+        this.api.overdueReviews().subscribe({
+            next: (declarations) => this.overdue.set(declarations ?? []),
+            error: () => this.overdue.set([])
+        });
+
         this.api.statementsOfApplicability().subscribe({
             next: (data) => this.statements.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('soa.load_failed')))

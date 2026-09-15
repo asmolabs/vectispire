@@ -58,10 +58,8 @@ import {
     ScanDetail,
     SecurityOverview,
     ComplianceSummary,
-    ComplianceEvaluation,
     MfaSetupResponse,
     MfaEnableResponse,
-    InTotoAttestation,
     LicenseEntry,
     LicensePolicy,
     LicenseSummary,
@@ -568,9 +566,6 @@ export class ApiService {
         return this.http.get<ComplianceSummary>('/api/v1/compliance/summary', { params });
     }
 
-    complianceFramework(framework: string): Observable<ComplianceEvaluation> {
-        return this.http.get<ComplianceEvaluation>(`/api/v1/compliance/frameworks/${framework}`);
-    }
 
     exportCompliancePdf(targetId?: string): Observable<HttpResponse<Blob>> {
         let url = '/api/v1/compliance/export.pdf';
@@ -611,9 +606,6 @@ export class ApiService {
         return this.http.put<Issue>(`/api/v1/issues/${issueId}/ticket`, { reference, url: url ?? null });
     }
 
-    getScanAttestation(scanId: number): Observable<InTotoAttestation> {
-        return this.http.get<InTotoAttestation>(`/api/v1/attestations/scans/${scanId}`);
-    }
 
     getSiemConfig(): Observable<SiemConfig> {
         return this.http.get<SiemConfig>('/api/v1/siem/config');
@@ -643,17 +635,11 @@ export class ApiService {
         return this.http.get<OpenVexDocument>('/api/v1/vex/aggregate.json');
     }
 
-    getScanCsaf(scanId: number): Observable<unknown> {
-        return this.http.get<unknown>(`/api/v1/csaf/scans/${scanId}/csaf.json`);
-    }
 
     getAggregateCsaf(): Observable<unknown> {
         return this.http.get<unknown>('/api/v1/csaf/aggregate.json');
     }
 
-    getScanCycloneDx(scanId: number): Observable<unknown> {
-        return this.http.get<unknown>(`/api/v1/cyclonedx/scans/${scanId}/cyclonedx-vex.json`);
-    }
 
     getAggregateCycloneDx(): Observable<unknown> {
         return this.http.get<unknown>('/api/v1/cyclonedx/aggregate.json');
@@ -921,6 +907,17 @@ export class ApiService {
 
     statementsOfApplicability(): Observable<SoaStatement[]> {
         return this.http.get<SoaStatement[]>('/api/v1/compliance/soa');
+    }
+
+    /**
+     * Les déclarations dont la revue a expiré, tous référentiels confondus.
+     *
+     * Sa propre route plutôt qu'un filtre sur un document : « qu'avons-nous cessé de regarder »
+     * se demande à l'échelle du système de management, et un écran qui devrait aller chercher six
+     * documents pour l'assembler ne poserait pas la question.
+     */
+    overdueReviews(): Observable<ControlDeclaration[]> {
+        return this.http.get<ControlDeclaration[]>('/api/v1/compliance/soa/reviews/overdue');
     }
 
     declareControl(framework: string, controlId: string, body: DeclarationRequest): Observable<ControlDeclaration> {

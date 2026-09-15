@@ -43,6 +43,32 @@
             </div>
         </div>
 
+        <!--
+            **Le compteur existait, la liste nulle part.** Un nombre de revues échues qu'on ne peut
+            pas ouvrir n'est pas une trace de revue, c'est un reproche. La liste porte tous les
+            référentiels : un examen de direction demande ce que l'organisation a cessé de
+            regarder, pas ce qu'un document particulier a laissé filer.
+        -->
+        @if (overdue().length > 0) {
+            <div class="border border-orange-300 dark:border-orange-800 rounded-lg p-4 mb-6">
+                <div class="font-medium mb-2">{{ 'soa.overdue_title' | translate }}</div>
+                <ul class="m-0 pl-0 list-none flex flex-col gap-1 text-sm">
+                    @for (declaration of overdue(); track declaration.framework + declaration.controlId) {
+                        <li class="flex flex-wrap gap-2">
+                            <span class="font-mono">{{ declaration.controlId }}</span>
+                            <span class="text-muted-color">{{ declaration.framework }}</span>
+                            @if (declaration.owner) {
+                                <span class="text-muted-color">· {{ declaration.owner }}</span>
+                            }
+                            <span class="text-orange-700">·
+                                {{ 'soa.overdue_since' | translate }}
+                                {{ declaration.reviewDueAt | date: 'dd/MM/yyyy' }}</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
         @if (!statement.complete) {
             <p-message severity="warn" styleClass="w-full mb-4" [text]="'soa.incomplete_notice' | translate" />
         }

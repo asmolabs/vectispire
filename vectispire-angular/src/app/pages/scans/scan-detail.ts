@@ -68,9 +68,32 @@ export class ScanDetailPage {
     downloadSbom(id: number): void {
         // Through HttpClient, never a navigation: the token is in memory and a navigation
         // carries none, so the browser would save the 401's empty body as a zero-byte file.
-        this.api.downloadDocument(`/api/v1/scans/${id}/sbom`).subscribe({
-            next: (response) => saveDocument(response, `vectispire-scan-${id}.sbom.json`)
-        });
+        this.download(`/api/v1/scans/${id}/sbom`, `vectispire-scan-${id}.sbom.json`);
+    }
+
+    /**
+     * Les trois documents qu'un scan produit et que personne ne pouvait obtenir.
+     *
+     * <p><b>L'attestation in-toto et les deux documents VEX étaient calculés, servis, et offerts
+     * nulle part.</b> Ce sont précisément les pièces qu'un évaluateur demande d'un scan : ce qui
+     * a produit ce résultat, et ce que l'éditeur dit de chaque vulnérabilité. Trois méthodes
+     * clientes typées existaient et n'étaient appelées par rien ; elles sont retirées au profit
+     * du chemin qui convient à un téléchargement, celui que le SBOM emprunte déjà.
+     */
+    downloadAttestation(id: number): void {
+        this.download(`/api/v1/attestations/scans/${id}`, `vectispire-scan-${id}.attestation.json`);
+    }
+
+    downloadCsaf(id: number): void {
+        this.download(`/api/v1/csaf/scans/${id}/csaf.json`, `vectispire-scan-${id}.csaf.json`);
+    }
+
+    downloadCycloneDx(id: number): void {
+        this.download(`/api/v1/cyclonedx/scans/${id}/cyclonedx-vex.json`, `vectispire-scan-${id}.cyclonedx-vex.json`);
+    }
+
+    private download(path: string, filename: string): void {
+        this.api.downloadDocument(path).subscribe({ next: (response) => saveDocument(response, filename) });
     }
 
     seconds(durationMs: number): number {

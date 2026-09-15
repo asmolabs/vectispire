@@ -52,6 +52,22 @@ describe("la déclaration d'applicabilité", () => {
         ]
     };
 
+    /** Deux référentiels : la question se pose à l'échelle du système de management. */
+    const OVERDUE = [
+        {
+            framework: 'ISO_27001', controlId: 'ISO-A.8.8', applicability: 'APPLICABLE',
+            justification: null, implementation: 'IMPLEMENTED', evidenceSource: 'VECTISPIRE',
+            externalEvidence: null, owner: 'c.moreau', decidedBy: 'ciso',
+            decidedAt: '2025-01-10T09:00:00Z', reviewedAt: null, reviewDueAt: '2026-02-01T00:00:00Z'
+        },
+        {
+            framework: 'NIS_2', controlId: 'NIS2-ART21-2-E', applicability: 'APPLICABLE',
+            justification: null, implementation: 'PLANNED', evidenceSource: 'EXTERNAL',
+            externalEvidence: 'PSSI §4', owner: null, decidedBy: 'ciso',
+            decidedAt: '2025-03-01T09:00:00Z', reviewedAt: null, reviewDueAt: '2026-06-01T00:00:00Z'
+        }
+    ];
+
     beforeEach(async () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
@@ -63,6 +79,8 @@ describe("la déclaration d'applicabilité", () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         http.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        http.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush(OVERDUE);
+        fixture.detectChanges();
     }, 20_000);
 
     it('ouvre sur les écarts, du plus grave au moins grave', () => {
@@ -117,5 +135,58 @@ describe("la déclaration d'applicabilité", () => {
         // Recalculer la divergence dans le navigateur en ferait une seconde implémentation
         // de la règle, qui finirait par ne plus dire la même chose que le bundle de preuves.
         http.expectOne((request) => request.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+    });
+
+    it('ouvre le compteur de revues échues sur la liste, tous référentiels confondus', () => {
+        // **Un chiffre qu'on ne peut pas ouvrir n'est pas une trace de revue, c'est un
+        // reproche.** Chaque document affichait « n revues échues » et rien ne disait lesquelles,
+        // alors que la route existait.
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('ISO-A.8.8');
+        expect(text).toContain('NIS2-ART21-2-E');
+        // Le référentiel est nommé sur chaque ligne : la liste traverse les documents, et une
+        // ligne sans son cadre ne se rattache à rien.
+        expect(text).toContain('NIS_2');
+        expect(text).toContain('c.moreau');
+    });
+
+    it("n'affiche aucune section quand aucune revue n'a expiré", async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Soa],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const clean = TestBed.createComponent(Soa);
+        const calls = TestBed.inject(HttpTestingController);
+        clean.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush([]);
+        clean.detectChanges();
+
+        // Un encart affiché quand tout va bien perd son sens en quelques jours, et alors celui
+        // qui compte devient invisible aussi.
+        expect(clean.nativeElement.textContent).not.toContain('Reviews overdue');
+        expect(clean.componentInstance.overdue()).toEqual([]);
+    });
+
+    it('affiche la déclaration même quand la liste des revues échoue', async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Soa],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        const degraded = TestBed.createComponent(Soa);
+        const calls = TestBed.inject(HttpTestingController);
+        degraded.detectChanges();
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
+        calls.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue')
+            .error(new ProgressEvent('failed'));
+        degraded.detectChanges();
+
+        // Le sujet de l'écran est la déclaration ; une liste indisponible ne doit pas l'emporter.
+        expect(degraded.componentInstance.lines().length).toBeGreaterThan(0);
+        expect(degraded.componentInstance.error()).toBeNull();
     });
 });

@@ -43,16 +43,43 @@
         </p-card>
     </div>
 
-    @if (detail.hasSbom) {
-        <div class="mb-4">
+    <!--
+        **Les documents que ce scan a produits.** L'attestation in-toto et les deux documents VEX
+        étaient calculés et servis, et aucun écran ne les offrait : ce sont pourtant les pièces
+        qu'un évaluateur demande d'un scan — ce qui a produit ce résultat, et ce que l'éditeur dit
+        de chaque vulnérabilité.
+    -->
+    <div class="mb-4 flex flex-wrap gap-2">
+        @if (detail.hasSbom) {
             <p-button
                 [label]="'scans.download_sbom' | translate"
                 icon="pi pi-download"
                 severity="secondary"
                 size="small"
                 (onClick)="downloadSbom(detail.id)" />
-        </div>
-    }
+        }
+        <p-button
+            [label]="'scans.download_attestation' | translate"
+            icon="pi pi-verified"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadAttestation(detail.id)" />
+        <p-button
+            [label]="'scans.download_csaf' | translate"
+            icon="pi pi-file"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadCsaf(detail.id)" />
+        <p-button
+            [label]="'scans.download_cyclonedx' | translate"
+            icon="pi pi-file"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (onClick)="downloadCycloneDx(detail.id)" />
+    </div>
 
     <p-card>
         <ng-template #title>

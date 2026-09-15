@@ -844,25 +844,28 @@
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer ce jeu de règles ?"
   },
   "scans": {
-    "title": "Analyses",
+    "artifacts": "Artefacts d'analyse",
     "back_to_repos": "← Dépôts Git",
-    "scan_title": "Analyse",
-    "state": "État",
-    "findings": "Constats",
-    "new_issues": "Nouvelles failles",
-    "resolved_issues": "Failles résolues",
+    "components": "Composants",
+    "download_attestation": "Attestation in-toto",
+    "download_csaf": "Avis CSAF",
+    "download_cyclonedx": "VEX CycloneDX",
     "download_sbom": "Télécharger le SBOM",
+    "duration": "Durée",
+    "findings": "Constats",
+    "never_scanned": "Jamais analysé",
+    "new_issues": "Nouvelles failles",
     "openvex_btn": "OpenVEX",
     "raw_output": "Sortie brute des scanners",
-    "artifacts": "Artefacts d'analyse",
-    "components": "Composants",
-    "duration": "Durée",
-    "never_scanned": "Jamais analysé",
-    "status_queued": "En attente",
-    "status_running": "En cours d'analyse",
+    "resolved_issues": "Failles résolues",
+    "scan_title": "Analyse",
+    "state": "État",
+    "status_cancelled": "Annulé",
     "status_completed": "Terminé",
     "status_failed": "Échoué",
-    "status_cancelled": "Annulé"
+    "status_queued": "En attente",
+    "status_running": "En cours d'analyse",
+    "title": "Analyses"
   },
   "schedule": {
     "cron_hint": "Cinq champs — minute, heure, jour du mois, mois, jour de la semaine. 0 2 * * * correspond à chaque jour à 02h00, 0 */6 * * * toutes les 6 heures. Les erreurs sont signalées immédiatement.",
@@ -1278,15 +1281,10 @@
     "add": "Ajouter ces langages"
   },
   "soa": {
-    "title": "Déclaration d'applicabilité",
-    "subtitle": "Ce que l'organisme affirme de chaque contrôle, confronté à ce que le parc mesure. L'artefact utile n'est ni l'une ni l'autre : c'est la ligne où les deux divergent.",
-    "declared": "contrôles traités",
-    "findings": "constats",
-    "reviews_overdue": "revues périmées",
-    "complete": "chaque contrôle traité",
-    "complete_yes": "Oui",
-    "complete_no": "Non",
-    "incomplete_notice": "La clause 6.1.3 d demande que chaque contrôle de l'annexe A soit traité — applicable ou exclu. Un contrôle pour lequel personne n'a écrit de ligne est un manque, pas un blanc.",
+    "applicability": {
+      "APPLICABLE": "Applicable",
+      "EXCLUDED": "Exclu"
+    },
     "column": {
       "control": "Contrôle",
       "declared": "Déclaré",
@@ -1295,24 +1293,25 @@
       "owner": "Responsable",
       "action": "Action"
     },
-    "not_declared": "non déclaré",
-    "review_lapsed": "revue périmée",
+    "complete": "chaque contrôle traité",
+    "complete_no": "Non",
+    "complete_yes": "Oui",
     "declare": "Déclarer",
-    "revise": "Réviser",
-    "applicability": {
-      "APPLICABLE": "Applicable",
-      "EXCLUDED": "Exclu"
-    },
-    "implementation": {
-      "IMPLEMENTED": "En place",
-      "PARTIALLY_IMPLEMENTED": "Partiellement en place",
-      "PLANNED": "Prévu",
-      "NOT_IMPLEMENTED": "Pas en place"
-    },
-    "evidence": {
-      "VECTISPIRE": "Preuve ici",
-      "EXTERNAL": "Preuve ailleurs",
-      "BOTH": "Preuve ici et ailleurs"
+    "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "declared": "contrôles traités",
+    "dialog": {
+      "title": "Déclarer un contrôle",
+      "applicability": "Applicabilité",
+      "implementation": "Mise en œuvre",
+      "evidence_source": "Où vit la preuve",
+      "evidence_help": "Vectispire mesure une tranche de chaque contrôle, jamais son entier. Un contrôle dont la preuve vit ailleurs n'est pas jugé contre ce qui est mesuré ici.",
+      "external_evidence": "Nommez le document, le registre ou la revue",
+      "justification": "Justification",
+      "justification_excluded": "Pourquoi il ne s'applique pas",
+      "justification_required": "Obligatoire : la clause 6.1.3 d n'accepte pas une exclusion non argumentée.",
+      "owner": "Responsable",
+      "review_due": "Revue due le",
+      "record": "Enregistrer la déclaration"
     },
     "divergence": {
       "CONTRADICTED": "Contredit",
@@ -1334,27 +1333,33 @@
       "NOT_APPLICABLE": "Exclu avec justification. Rien à confronter.",
       "CONSISTENT": "La déclaration et la mesure s'accordent."
     },
-    "dialog": {
-      "title": "Déclarer un contrôle",
-      "applicability": "Applicabilité",
-      "implementation": "Mise en œuvre",
-      "evidence_source": "Où vit la preuve",
-      "evidence_help": "Vectispire mesure une tranche de chaque contrôle, jamais son entier. Un contrôle dont la preuve vit ailleurs n'est pas jugé contre ce qui est mesuré ici.",
-      "external_evidence": "Nommez le document, le registre ou la revue",
-      "justification": "Justification",
-      "justification_excluded": "Pourquoi il ne s'applique pas",
-      "justification_required": "Obligatoire : la clause 6.1.3 d n'accepte pas une exclusion non argumentée.",
-      "owner": "Responsable",
-      "review_due": "Revue due le",
-      "record": "Enregistrer la déclaration"
+    "evidence": {
+      "VECTISPIRE": "Preuve ici",
+      "EXTERNAL": "Preuve ailleurs",
+      "BOTH": "Preuve ici et ailleurs"
     },
+    "findings": "constats",
+    "implementation": {
+      "IMPLEMENTED": "En place",
+      "PARTIALLY_IMPLEMENTED": "Partiellement en place",
+      "PLANNED": "Prévu",
+      "NOT_IMPLEMENTED": "Pas en place"
+    },
+    "incomplete_notice": "La clause 6.1.3 d demande que chaque contrôle de l'annexe A soit traité — applicable ou exclu. Un contrôle pour lequel personne n'a écrit de ligne est un manque, pas un blanc.",
     "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
-    "declare_failed": "La déclaration n'a pas été enregistrée.",
     "measured": {
       "COMPLIANT": "Conforme",
       "PARTIAL": "Partiel",
       "NON_COMPLIANT": "Non conforme"
-    }
+    },
+    "not_declared": "non déclaré",
+    "overdue_since": "à revoir depuis le",
+    "overdue_title": "Revues échues, tous référentiels confondus",
+    "review_lapsed": "revue périmée",
+    "reviews_overdue": "revues périmées",
+    "revise": "Réviser",
+    "subtitle": "Ce que l'organisme affirme de chaque contrôle, confronté à ce que le parc mesure. L'artefact utile n'est ni l'une ni l'autre : c'est la ligne où les deux divergent.",
+    "title": "Déclaration d'applicabilité"
   },
   "scope": {
     "title": "Périmètre certifié",

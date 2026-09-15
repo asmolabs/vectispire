@@ -34,19 +34,18 @@ const SERVICE = 'src/app/core/api.service.ts';
 /**
  * Les méthodes qu'aucun écran n'appelle aujourd'hui, et ce qu'on attend d'elles.
  *
- * Onze au 15 septembre 2026, après en avoir branché quatre le jour même. Neuf depuis que les deux
- * qui visaient `t_issue_ticket` ont été retirées : cette table a son propre point d'entrée et
- * personne ne la lit — ni le webhook, ni la balayeuse, ni un écran. Le rattachement d'un ticket
- * se fait sur `ticketRef`, qui est le champ que tout le produit regarde.
+ * Onze au matin du 15 septembre 2026, après en avoir branché quatre le jour même. Trois le soir :
+ * le rattachement de ticket, le différentiel de la dernière paire, la politique de licences et
+ * les trois documents d'un scan ont trouvé leur écran ; les deux méthodes qui visaient
+ * `t_issue_ticket` et les trois documents typés ont été retirées au profit du chemin qui
+ * convient.
  *
- * Chacune des neuf restantes est un calcul livré que personne ne peut atteindre : soit on lui
- * donne un écran, soit on la retire — et les deux se font dans un commit qui le dit.
+ * **Les trois qui restent attendent une décision qui n'est pas technique** : le scorecard global
+ * et le conseiller IA sont-ils une direction produit ou des expériences abandonnées ? Tant que la
+ * question n'est pas tranchée, les laisser ici est plus honnête que de leur fabriquer un écran ou
+ * de les supprimer à la place de quelqu'un d'autre.
  */
 const DEAD = new Set([
-    'complianceFramework',
-    'getScanAttestation',
-    'getScanCsaf',
-    'getScanCycloneDx',
     'getGlobalScorecard',
     'getAiAdvisorStatus',
     'explainCveWithAi'
