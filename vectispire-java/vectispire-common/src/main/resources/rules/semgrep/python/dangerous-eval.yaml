@@ -15,6 +15,12 @@ rules:
     severity: ERROR
     metadata:
       category: security
+      # **La catégorie OWASP, déclarée ici plutôt que devinée ailleurs.** `OwaspTag` lit cette
+      # clé, la grille place le constat, et A03 cesse d'être annoncée comme non couverte alors
+      # qu'une règle la regarde. L'édition compte : `A03:2021` est Injection, `A01:2017` aussi —
+      # et `A01:2021` est le contrôle d'accès. Seule la forme 2021 est lue.
+      owasp:
+        - A03:2021 - Injection
       confidence: HIGH
       impact: HIGH
       likelihood: MEDIUM

@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Where this product's findings land in the OWASP Top 10, and — more to the point — where they
@@ -28,8 +29,15 @@ import java.util.Optional;
  * <p><b>A category with no findings and a category nothing looks at produce the same green.</b>
  * That is the defect this whole record exists to remove, and it is the same one the freshness
  * window removed from the compliance matrix and the rule-coverage banner removed from the quality
- * screen. Seven of the ten categories are <em>not covered</em> by any scanner here, and saying so
- * is the single most useful thing this grid does.
+ * screen. Most of the ten are <em>not covered</em> by anything here, and saying so is the single
+ * most useful thing this grid does.
+ *
+ * <p><b>How many is "most" is a property of the deployment, not of this class.</b> Four types
+ * place findings by rule, and beyond them the installed code-analysis rules cover whatever their
+ * authors declared — so an instance that installs the upstream corpus speaks to more categories
+ * than one running on the bundled rule alone. That is the honest shape of the answer: the grid
+ * reports what this installation can look at, and a number written into this comment would stop
+ * being true the first time somebody uploaded a rule set.
  */
 public final class OwaspCoverage {
 
@@ -103,10 +111,13 @@ public final class OwaspCoverage {
      *       rather than both: a finding counted twice inflates the only number here that matters.
      * </ul>
      *
-     * <p><b>Code analysis places nothing, and that is the honest state today.</b> A Semgrep rule
-     * may declare its OWASP category in its own metadata; this product does not read that
-     * metadata yet, so no code finding can be placed by rule — and placing them by guessing at
-     * rule identifiers is exactly what this class refuses to do.
+     * <p><b>Code analysis is placed elsewhere, and by the same standard.</b> It has no entry
+     * here because its category is not a property of the type: one Semgrep rule finds injections
+     * and another finds server-side request forgery. Each rule declares its own category in its
+     * {@code metadata.owasp}, that declaration travels with the finding, and
+     * {@link OwaspTag} reads it. Reading an author's declaration is not guessing; placing a
+     * finding by matching substrings in a rule identifier would be, which is what this class
+     * still refuses to do.
      */
     private static final Map<FindingType, String> BY_TYPE = Map.of(
             FindingType.IAC, "A05",
@@ -129,12 +140,36 @@ public final class OwaspCoverage {
      *     present. Both halves matter: rules that reach nothing find nothing, which is not the
      *     same sentence as "there is nothing"
      * @param openByType open findings per type, however they were counted
+     * @param declaredByRules the categories the <em>installed</em> rules declare. <b>This is what
+     *     makes an empty category honest.</b> Counting only the categories that already have a
+     *     finding would make "nothing found here" indistinguishable from "no rule looks here",
+     *     which is the one distinction this whole record exists to draw — and it would flip a
+     *     category from covered to uncovered the day its last finding is fixed
+     * @param openByCategory open code findings per declared category. Only categories in
+     *     {@code declaredByRules} are read from it
      */
     public record Measurement(
             boolean scanned,
             boolean endOfLifeEnabled,
             boolean codeAnalysisReaches,
-            Map<FindingType, Long> openByType) {}
+            Map<FindingType, Long> openByType,
+            Set<String> declaredByRules,
+            Map<String, Long> openByCategory) {
+
+        /** The reading a caller that knows nothing of code analysis gets: the previous shape. */
+        public Measurement(
+                boolean scanned,
+                boolean endOfLifeEnabled,
+                boolean codeAnalysisReaches,
+                Map<FindingType, Long> openByType) {
+            this(scanned, endOfLifeEnabled, codeAnalysisReaches, openByType, Set.of(), Map.of());
+        }
+
+        public Measurement {
+            declaredByRules = declaredByRules == null ? Set.of() : Set.copyOf(declaredByRules);
+            openByCategory = openByCategory == null ? Map.of() : Map.copyOf(openByCategory);
+        }
+    }
 
     /**
      * @param findings how many open findings this category holds; zero unless {@code state} is
@@ -169,7 +204,13 @@ public final class OwaspCoverage {
                 .map(Map.Entry::getKey)
                 .toList();
 
-        if (types.isEmpty()) {
+        // **Two ways in, and they are not the same question.** A type covers a category by rule,
+        // for every estate. Code analysis covers one because a rule somebody installed says so —
+        // so the answer differs from one deployment to the next, and it is read rather than
+        // assumed.
+        boolean declared = measurement.declaredByRules().contains(id);
+
+        if (types.isEmpty() && !declared) {
             return new CoverageLine(id, title, State.NOT_COVERED, 0,
                     "No scanner in this deployment produces a finding in this category.");
         }
@@ -183,32 +224,58 @@ public final class OwaspCoverage {
         // open rather than resolving them, precisely so that "we stopped looking" never reads as
         // "it is fixed". The same sentence belongs here.
         List<FindingType> measured = types.stream().filter(type -> measures(type, measurement)).toList();
-        if (measured.isEmpty()) {
-            return new CoverageLine(id, title, State.NOT_MEASURED, 0, whyUnmeasured(types));
+        boolean codeMeasured = declared && measurement.codeAnalysisReaches();
+
+        if (measured.isEmpty() && !codeMeasured) {
+            return new CoverageLine(id, title, State.NOT_MEASURED, 0, whyUnmeasured(types, declared));
         }
 
         long findings = measured.stream()
                 .mapToLong(type -> measurement.openByType().getOrDefault(type, 0L))
-                .sum();
+                .sum()
+                + (codeMeasured ? measurement.openByCategory().getOrDefault(id, 0L) : 0L);
 
         return findings > 0
                 ? new CoverageLine(id, title, State.FINDINGS, findings, "Open findings placed here by rule.")
-                : new CoverageLine(id, title, State.NO_FINDING, 0,
-                        "Scanned by " + names(measured) + ", with nothing open.");
+                : new CoverageLine(id, title, State.NO_FINDING, 0, "Scanned by " + what(measured, codeMeasured)
+                        + ", with nothing open.");
     }
 
     private static boolean measures(FindingType type, Measurement measurement) {
         return switch (type) {
             case EOL -> measurement.endOfLifeEnabled();
-            case SAST -> measurement.codeAnalysisReaches();
             default -> true;
         };
     }
 
-    private static String whyUnmeasured(List<FindingType> types) {
-        return types.contains(FindingType.SAST)
-                ? "Code analysis is off, or no installed rule reaches the languages in this estate."
-                : "Detection is switched off for " + names(types) + ", so this category is not measured.";
+    /**
+     * Why a covered category is nonetheless unmeasured — naming the half that is off.
+     *
+     * <p>Both halves can be off at once, and saying only one of them would send somebody to
+     * switch on a detector that was already running.
+     */
+    private static String whyUnmeasured(List<FindingType> types, boolean declared) {
+        // **Trois causes, nommées toutes les trois.** Sur une instance neuve la plus fréquente est
+        // la deuxième — seule la règle livrée est installée — et n'en citer qu'une enverrait
+        // quelqu'un rallumer un détecteur qui tournait déjà.
+        String code = "code analysis is off, or only the rule this product ships is installed, or none "
+                + "of the installed rules reaches the languages in this estate";
+        if (types.isEmpty()) {
+            return capitalise(code) + ".";
+        }
+        String detectors = "detection is switched off for " + names(types);
+        return capitalise(declared ? detectors + ", and " + code : detectors) + ", so this category is not measured.";
+    }
+
+    private static String what(List<FindingType> measured, boolean codeMeasured) {
+        if (measured.isEmpty()) {
+            return "code analysis";
+        }
+        return codeMeasured ? names(measured) + ", code analysis" : names(measured);
+    }
+
+    private static String capitalise(String sentence) {
+        return Character.toUpperCase(sentence.charAt(0)) + sentence.substring(1);
     }
 
     private static String names(List<FindingType> types) {

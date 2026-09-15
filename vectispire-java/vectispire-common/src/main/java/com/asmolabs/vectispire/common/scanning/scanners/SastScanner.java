@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -59,10 +60,15 @@ public final class SastScanner {
      * @param ruleId enters the fingerprint: it must not move
      * @param category {@code security} or a quality category — this is what decides where the
      *     finding goes, and whether it can fail a build
+     * @param owaspCategory the OWASP 2021 id the rule declares about itself, or null. <b>Read,
+     *     never inferred</b>: see {@link com.asmolabs.vectispire.common.domain.owasp.OwaspTag}.
+     *     Null is the ordinary case — most rules declare nothing — and it means the finding is
+     *     placed in no category rather than in a guessed one
      * @param message for a SAST finding, the message <em>is</em> the finding
      */
     public record SastFinding(
-            String ruleId, String category, Severity severity, String confidence, String file, int line, String message) {}
+            String ruleId, String category, Severity severity, String confidence, String file, int line,
+            String message, String owaspCategory) {}
 
     /**
      * The findings, or empty when the tool ended well and covered too little to be read.
@@ -206,9 +212,36 @@ public final class SastScanner {
                     metadata.path("confidence").isTextual() ? metadata.get("confidence").asText() : null,
                     ContainerPaths.relativeToSource(entry.path("path").asText(""), subPath),
                     entry.path("start").path("line").asInt(0),
-                    extra.path("message").asText("")));
+                    extra.path("message").asText(""),
+                    owaspOf(metadata.path("owasp"))));
         }
         return List.copyOf(findings);
+    }
+
+    /**
+     * The OWASP category the rule declares, if it declares a usable one.
+     *
+     * <p><b>A string on some rules and an array on others</b>, because the upstream corpus is
+     * written by hand and both forms are valid YAML. Both are read; anything else declares
+     * nothing.
+     *
+     * <p><b>The first usable value, when a rule names several.</b> A finding counted in two
+     * categories would inflate the only number the grid carries — the same reason a secret is
+     * filed under A07 alone rather than under A02 as well.
+     */
+    static String owaspOf(JsonNode declared) {
+        if (declared.isTextual()) {
+            return OwaspTag.categoryOf(declared.asText()).orElse(null);
+        }
+        if (declared.isArray()) {
+            for (JsonNode value : declared) {
+                Optional<String> category = OwaspTag.categoryOf(value.asText(""));
+                if (category.isPresent()) {
+                    return category.get();
+                }
+            }
+        }
+        return null;
     }
 
     /**

@@ -2883,6 +2883,7 @@ export interface components {
             /** Format: int32 */
             line?: number;
             link?: string;
+            owaspCategory?: string;
             packageName?: string;
             packageVersion?: string;
             purl?: string;
@@ -3626,6 +3627,7 @@ export interface components {
             /** Format: int32 */
             line?: number;
             link?: string;
+            owaspCategory?: string;
             packageName?: string;
             packageVersion?: string;
             purl?: string;
@@ -3687,6 +3689,7 @@ export interface components {
             /** Format: int32 */
             line?: number;
             link?: string;
+            owaspCategory?: string;
             packageName?: string;
             packageVersion?: string;
             purl?: string;
@@ -4378,6 +4381,7 @@ export interface components {
             /** Format: int32 */
             line?: number;
             message?: string;
+            owaspCategory?: string;
             ruleId?: string;
             /** @enum {string} */
             severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";

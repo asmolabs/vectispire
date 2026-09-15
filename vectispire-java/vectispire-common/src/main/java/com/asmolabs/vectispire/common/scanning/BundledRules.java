@@ -77,4 +77,26 @@ public final class BundledRules {
     public static List<String> expected() {
         return FILES;
     }
+
+    /**
+     * The content of one bundled file, as it will be handed to the scanner.
+     *
+     * <p>Read for the rules a scan runs with but nobody uploaded: the OWASP grid asks which
+     * categories the <em>installed</em> rules declare, and on a fresh instance the installed
+     * rules are exactly these. Answering "none" there would understate coverage for the same
+     * reason {@link #expected()} is counted by the rule-coverage assessment.
+     *
+     * @throws IllegalStateException when the jar does not carry the file — a packaging mistake,
+     *     and the same one {@link #materialise(Path)} refuses to paper over
+     */
+    public static String contentOf(String file) {
+        try (InputStream source = BundledRules.class.getResourceAsStream(ROOT + file)) {
+            if (source == null) {
+                throw new IllegalStateException("Bundled rule " + file + " is missing from the jar.");
+            }
+            return new String(source.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException failed) {
+            throw new UncheckedIOException("Could not read the bundled rule " + file, failed);
+        }
+    }
 }

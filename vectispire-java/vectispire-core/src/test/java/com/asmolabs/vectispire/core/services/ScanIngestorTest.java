@@ -182,13 +182,20 @@ class ScanIngestorTest {
                     scan(),
                     ScanArtifacts.builder()
                             .sast(List.of(
-                                    new SastFinding("r1", "security", Severity.HIGH, null, "a.py", 1, "eval"),
-                                    new SastFinding("r2", "maintainability", Severity.LOW, null, "b.py", 2, "long")))
+                                    new SastFinding("r1", "security", Severity.HIGH, null, "a.py", 1, "eval", "A03"),
+                                    new SastFinding("r2", "maintainability", Severity.LOW, null, "b.py", 2, "long", null)))
                             .build(Duration.ZERO));
 
             assertThat(producedFindings())
                     .extracting(FindingEntity::getType)
                     .containsExactly(FindingType.SAST.wireName(), FindingType.QUALITY.wireName());
+
+            // **La catégorie déclarée par la règle voyage avec le constat**, et l'absence de
+            // déclaration reste une absence : lui donner une catégorie par défaut ferait entrer un
+            // constat dans une catégorie que personne n'a revendiquée.
+            assertThat(producedFindings())
+                    .extracting(FindingEntity::getOwaspCategory)
+                    .containsExactly("A03", null);
         }
 
         @Test

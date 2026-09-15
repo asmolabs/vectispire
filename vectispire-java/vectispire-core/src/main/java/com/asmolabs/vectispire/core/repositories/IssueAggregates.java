@@ -128,6 +128,21 @@ public interface IssueAggregates {
     List<TypePackaging> countOpenByTypeAndPackaging(Specification<IssueEntity> filter);
 
     /**
+     * Combien de constats d'analyse de code sont ouverts dans chaque catégorie OWASP déclarée.
+     *
+     * <p>Restreint au type {@code sast}, c'est-à-dire aux règles de catégorie « sécurité ». Une
+     * règle de qualité peut porter la même métadonnée ; la compter placerait dans une grille de
+     * sécurité un constat dont ce dépôt dit par ailleurs qu'il ne fait jamais échouer une
+     * barrière.
+     *
+     * @param category jamais nulle : les lignes sans catégorie sont écartées par la requête, et
+     *     une catégorie absente n'est pas une catégorie vide
+     */
+    record OwaspCategoryCount(String category, long count) {}
+
+    List<OwaspCategoryCount> countOpenSastByOwaspCategory(Specification<IssueEntity> filter);
+
+    /**
      * The vulnerable packages, weighted.
      *
      * <p>Restricted to vulnerabilities carrying a package name: a finding with no package cannot

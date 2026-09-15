@@ -50,6 +50,16 @@ public class FindingEntity {
     @Column(name = "file_path", length = 500)
     private String filePath;
 
+    /**
+     * La catégorie OWASP 2021 que la règle a déclarée sur elle-même, ou null.
+     *
+     * <p>Conservée avec le constat plutôt que relue à l'affichage : la relire depuis l'ensemble
+     * de règles courant donnerait à un constat d'hier la catégorie d'une règle modifiée depuis,
+     * et la grille de l'an dernier changerait de forme en silence.
+     */
+    @Column(name = "owasp_category", length = 3)
+    private String owaspCategory;
+
     @Column(name = "source", length = 50, nullable = false)
     private String source;
 
@@ -163,6 +173,14 @@ public class FindingEntity {
 
     public String getFilePath() {
         return filePath;
+    }
+
+    public String getOwaspCategory() {
+        return owaspCategory;
+    }
+
+    public void setOwaspCategory(String owaspCategory) {
+        this.owaspCategory = owaspCategory;
     }
 
     public void setFilePath(String filePath) {

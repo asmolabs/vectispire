@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -23,11 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <b>has anything been scanned at all</b>, and <b>is each detector switched on and able to
  * reach this estate</b>.
  *
- * <p>The second is why {@link RuleCoverageService} is a dependency. Code analysis that runs with
- * no rule reaching the languages present returns zero findings, and a grid taking that at face
- * value would report the categories it covers as clean. It covers none of them today, so the
- * question is moot — and it will not stay moot, which is why the wiring is here rather than
- * waiting.
+ * <p>The second is why {@link RuleCoverageService} is a dependency, and it now carries a third
+ * question with it: <b>which categories the installed rules declare</b>. Code analysis that runs
+ * with no rule reaching the languages present returns zero findings, and a grid taking that at
+ * face value would report the categories those rules cover as clean.
  */
 @Service
 public class OwaspCoverageService {
@@ -57,7 +57,30 @@ public class OwaspCoverageService {
                 settings.isEnabled(Setting.EOL_ENABLED),
                 settings.isEnabled(Setting.SAST_ENABLED)
                         && ruleCoverage.assess().state() != RuleCoverage.State.UNCONFIGURED,
-                Map.copyOf(open)));
+                Map.copyOf(open),
+                // **Ce que les règles installées déclarent, et non ce que les constats portent.**
+                // Dériver l'ensemble des catégories depuis les constats ferait sortir une
+                // catégorie de la grille le jour où son dernier constat est corrigé — c'est-à-dire
+                // au moment où elle mérite le plus de dire « regardée, rien à signaler ».
+                ruleCoverage.declaredOwaspCategories(),
+                openByCategory(allowed)));
+    }
+
+    /**
+     * Les constats de code ouverts, par catégorie déclarée.
+     *
+     * <p>Un regroupement en base : au plus dix lignes, quelle que soit la taille du retard, et la
+     * visibilité du lecteur est portée par le même filtre que partout ailleurs.
+     */
+    private Map<String, Long> openByCategory(Visibility allowed) {
+        return issues.countOpenSastByOwaspCategory(new IssueFilters(
+                        IssueState.OPEN.wireName(), null, null, null, null, null,
+                        false, false, null, true, Map.of(), allowed)
+                .toSpecification()).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        IssueAggregates.OwaspCategoryCount::category,
+                        IssueAggregates.OwaspCategoryCount::count,
+                        Long::sum));
     }
 
     /**

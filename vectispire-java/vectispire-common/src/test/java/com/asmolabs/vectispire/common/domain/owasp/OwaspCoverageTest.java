@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.CoverageLine;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Measurement;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.State;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -106,14 +107,117 @@ class OwaspCoverageTest {
     }
 
     @Test
-    @DisplayName("places no code finding, because no rule in this product declares where it goes")
-    void codeAnalysisPlacesNothing() {
+    @DisplayName("ne place aucun constat de code sur son seul type, la catégorie n'en étant pas une propriété")
+    void codeAnalysisIsNotPlacedByItsType() {
+        // Une règle Semgrep trouve des injections, une autre des SSRF : le type ne dit rien de la
+        // catégorie, et c'est pour cela que la déclaration voyage avec le constat.
         assertThat(OwaspCoverage.categoryOf(FindingType.SAST))
                 .as("placer un constat de code en lisant des morceaux de son identifiant de règle "
                         + "serait reproductible et resterait une supposition")
                 .isEmpty();
         assertThat(OwaspCoverage.categoryOf(FindingType.LICENSE)).isEmpty();
         assertThat(OwaspCoverage.categoryOf(FindingType.QUALITY)).isEmpty();
+    }
+
+
+    @Test
+    @DisplayName("ouvre une catégorie qu'aucun type ne couvre, dès qu'une règle installée la déclare")
+    void aDeclaredCategoryBecomesCovered() {
+        // A03 — Injection — n'est couverte par aucun type de constat. Elle l'est dès qu'une règle
+        // d'analyse de code le déclare dans ses propres métadonnées, et c'est ce qui la fait
+        // sortir de « rien ici ne regarde ça ».
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, true, Map.of(), Set.of("A03"), Map.of("A03", 4L)));
+
+        assertThat(line(grid, "A03").state()).isEqualTo(State.FINDINGS);
+        assertThat(line(grid, "A03").findings()).isEqualTo(4);
+        assertThat(grid.covered())
+                .as("les trois d'origine, plus celle que les règles installées déclarent")
+                .isEqualTo(4);
+        assertThat(states(grid, State.NOT_COVERED)).containsExactly("A01", "A02", "A04", "A08", "A09", "A10");
+    }
+
+    @Test
+    @DisplayName("dit « regardée, rien à signaler » pour une catégorie déclarée sans constat")
+    void aDeclaredCategoryWithoutFindingsIsClean() {
+        // **Le cas qui justifie de lire les règles plutôt que les constats.** Dériver la
+        // couverture des constats ferait sortir A03 de la grille le jour où son dernier constat
+        // est corrigé — c'est-à-dire au moment où elle mérite le plus de dire qu'elle a été
+        // regardée.
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, true, Map.of(), Set.of("A03"), Map.of()));
+
+        assertThat(line(grid, "A03").state()).isEqualTo(State.NO_FINDING);
+        assertThat(line(grid, "A03").because()).contains("code analysis");
+    }
+
+    @Test
+    @DisplayName("une catégorie déclarée reste non mesurée quand l'analyse de code n'atteint rien")
+    void aDeclaredCategoryUnreached() {
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, false, Map.of(), Set.of("A03"), Map.of("A03", 4L)));
+
+        assertThat(line(grid, "A03").state()).isEqualTo(State.NOT_MEASURED);
+        assertThat(line(grid, "A03").findings())
+                .as("des constats d'hier ne mesurent pas aujourd'hui : le compte serait lu comme un résultat")
+                .isZero();
+        assertThat(line(grid, "A03").because()).contains("Code analysis is off");
+    }
+
+    @Test
+    @DisplayName("additionne un type et l'analyse de code quand les deux couvrent la même catégorie")
+    void aCategoryCoveredTwice() {
+        // A05 est couverte par les contrôles d'infrastructure, et une règle de code peut la
+        // déclarer aussi. Les deux comptes s'ajoutent — ce sont des constats distincts.
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, true, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 2L)));
+
+        assertThat(line(grid, "A05").findings()).isEqualTo(5);
+        assertThat(line(grid, "A05").state()).isEqualTo(State.FINDINGS);
+    }
+
+    @Test
+    @DisplayName("n'ajoute pas les constats de code à une catégorie que l'analyse ne mesure plus")
+    void unreachedCodeFindingsAreNotAdded() {
+        // A05 est mesurée par les contrôles d'infrastructure ; l'analyse de code, elle, n'atteint
+        // rien. Ses constats d'hier existent toujours — éteindre un détecteur ne les résout pas —
+        // et les additionner ici les ferait passer pour une mesure d'aujourd'hui, sous une
+        // catégorie qui, elle, est bien mesurée. C'est la pire forme du défaut : un chiffre juste
+        // au mauvais endroit, dans une ligne verte par ailleurs.
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, false, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 7L)));
+
+        assertThat(line(grid, "A05").state()).isEqualTo(State.FINDINGS);
+        assertThat(line(grid, "A05").findings())
+                .as("les trois de l'infrastructure, et rien de l'analyse de code qui ne mesure pas")
+                .isEqualTo(3);
+        assertThat(line(grid, "A05").because()).doesNotContain("code analysis");
+    }
+
+    @Test
+    @DisplayName("nomme les deux moitiés éteintes plutôt qu'une seule")
+    void bothHalvesOff() {
+        // A06 est couverte par grype et par la fin de vie ; si une règle de code la déclare aussi
+        // et que l'analyse n'atteint rien, dire une seule des deux causes enverrait quelqu'un
+        // rallumer un détecteur qui tournait déjà.
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, false, false, Map.of(), Set.of("A06"), Map.of()));
+
+        assertThat(line(grid, "A06").state())
+                .as("grype mesure toujours A06 : la catégorie reste mesurée")
+                .isEqualTo(State.NO_FINDING);
+    }
+
+    @Test
+    @DisplayName("un constat de code n'entre dans aucune catégorie quand sa règle n'en déclare pas")
+    void anUndeclaredCodeFindingIsPlacedNowhere() {
+        // La plupart des règles ne déclarent rien. Leur trouver une catégorie par défaut ferait
+        // entrer des constats dans une catégorie que personne n'a revendiquée.
+        Grid grid = OwaspCoverage.assess(new Measurement(
+                true, true, true, Map.of(), Set.of(), Map.of("A03", 12L)));
+
+        assertThat(line(grid, "A03").state()).isEqualTo(State.NOT_COVERED);
+        assertThat(line(grid, "A03").findings()).isZero();
     }
 
     @Test

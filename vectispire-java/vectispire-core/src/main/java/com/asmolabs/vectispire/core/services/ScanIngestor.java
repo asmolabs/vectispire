@@ -196,6 +196,10 @@ public class ScanIngestor {
                 finding.setFilePath(result.file());
                 finding.setLine(result.line());
                 finding.setDescription(result.message());
+                // Déclarée par la règle, jamais devinée ici : la plupart des règles ne déclarent
+                // rien, et ce null est ce qui empêche un constat d'entrer dans une catégorie que
+                // personne n'a revendiquée.
+                finding.setOwaspCategory(result.owaspCategory());
                 findings.add(finding);
             });
         });

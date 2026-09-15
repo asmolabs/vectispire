@@ -716,6 +716,9 @@
           "link" : {
             "type" : "string"
           },
+          "owaspCategory" : {
+            "type" : "string"
+          },
           "packageName" : {
             "type" : "string"
           },
@@ -2694,6 +2697,9 @@
           "link" : {
             "type" : "string"
           },
+          "owaspCategory" : {
+            "type" : "string"
+          },
           "packageName" : {
             "type" : "string"
           },
@@ -2847,6 +2853,9 @@
             "type" : "integer"
           },
           "link" : {
+            "type" : "string"
+          },
+          "owaspCategory" : {
             "type" : "string"
           },
           "packageName" : {
@@ -4690,6 +4699,9 @@
             "type" : "integer"
           },
           "message" : {
+            "type" : "string"
+          },
+          "owaspCategory" : {
             "type" : "string"
           },
           "ruleId" : {

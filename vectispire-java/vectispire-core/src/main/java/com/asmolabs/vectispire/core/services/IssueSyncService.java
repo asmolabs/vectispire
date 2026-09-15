@@ -274,6 +274,10 @@ public class IssueSyncService {
         // not tell direct from transitive, and must not erase what a repository scan established.
         set(finding.getIsDirectDependency(), issue::setIsDirectDependency, overwriteNulls);
         set(finding.getSeverity(), issue::setSeverity, overwriteNulls);
+        // Rafraîchie comme le reste, donc jamais effacée par un scan qui ne la porte pas : une
+        // règle qui gagne sa déclaration OWASP la transmet à ses constats déjà ouverts, et un
+        // agent d'une version antérieure — qui n'envoie pas le champ — ne la retire pas.
+        set(finding.getOwaspCategory(), issue::setOwaspCategory, overwriteNulls);
         set(finding.getSource(), issue::setSource, overwriteNulls);
         set(finding.getEpssScore(), issue::setEpssScore, overwriteNulls);
         set(finding.getCvssScore(), issue::setCvssScore, overwriteNulls);

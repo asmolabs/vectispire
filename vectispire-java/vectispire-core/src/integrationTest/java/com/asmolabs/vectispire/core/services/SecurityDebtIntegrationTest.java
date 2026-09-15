@@ -17,9 +17,12 @@ import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.IssueAggregates;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -182,6 +185,34 @@ class SecurityDebtIntegrationTest {
         assertThat(coverage.beyondUpgrades()).isEqualTo(3);
         assertThat(coverage.gaps()).extracting(RemediationGap::family)
                 .containsExactly("iac", "secret", RemediationCoverage.UNPACKAGED);
+    }
+
+    @Test
+    @DisplayName("le regroupement par catégorie OWASP se fait sur le serveur, et n'y met que le code")
+    void theOwaspGroupingParses() {
+        // Un `group by` sur une colonne nullable, avec un `count` : la construction est simple et
+        // c'est précisément ce qui la rend facile à écrire d'une façon qui ne tient que sur un
+        // moteur. Les lignes sans catégorie ne doivent pas former un groupe.
+        IssueEntity placed = build(alpha, "fp-owasp-1", "rule.injection", FindingType.SAST, Severity.HIGH);
+        placed.setOwaspCategory("A03");
+        issues.save(placed);
+
+        IssueEntity unplaced = build(alpha, "fp-owasp-2", "rule.plain", FindingType.SAST, Severity.LOW);
+        issues.save(unplaced);
+
+        Map<String, Long> byCategory = issues.countOpenSastByOwaspCategory(
+                        new IssueFilters(
+                                IssueState.OPEN.wireName(), null, null, null, null, null,
+                                false, false, null, true, Map.of(), Visibility.everything())
+                        .toSpecification())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        IssueAggregates.OwaspCategoryCount::category,
+                        IssueAggregates.OwaspCategoryCount::count));
+
+        assertThat(byCategory)
+                .as("une catégorie absente n'est pas une catégorie vide : elle ne forme pas de groupe")
+                .containsExactly(java.util.Map.entry("A03", 1L));
     }
 
     @Test

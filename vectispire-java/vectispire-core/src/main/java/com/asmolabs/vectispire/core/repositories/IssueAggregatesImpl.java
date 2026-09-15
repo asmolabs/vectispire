@@ -164,6 +164,23 @@ public class IssueAggregatesImpl implements IssueAggregates {
     }
 
     @Override
+    public List<OwaspCategoryCount> countOpenSastByOwaspCategory(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.array(issue.get("owaspCategory"), builder.count(issue.get("id"))))
+                .groupBy(issue.get("owaspCategory"));
+        restrict(query, filter, issue, builder,
+                builder.equal(issue.get("type"), FindingType.SAST.wireName()),
+                builder.isNotNull(issue.get("owaspCategory")));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new OwaspCategoryCount((String) row[0], count(row[1])))
+                .toList();
+    }
+
+    @Override
     public List<PackageWeight> weighPackages(Specification<IssueEntity> filter) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);

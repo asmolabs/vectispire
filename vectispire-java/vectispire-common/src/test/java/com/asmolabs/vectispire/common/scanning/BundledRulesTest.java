@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,19 @@ class BundledRulesTest {
                     .isRegularFile()
                     .isNotEmptyFile();
         }
+    }
+
+    @Test
+    @DisplayName("déclarent la catégorie OWASP de la règle livrée, sans quoi la grille dirait qu'elle ne regarde rien")
+    void theBundledRuleDeclaresItsCategory() {
+        String rule = BundledRules.contentOf("semgrep/python/dangerous-eval.yaml");
+
+        // `eval` sur une entrée est une injection : A03. La déclarer fait passer la catégorie de
+        // « rien ici ne regarde ça » à « regardée », sur une instance qui n'a rien installé —
+        // c'est-à-dire là où la grille est le plus souvent lue.
+        assertThat(OwaspTag.declaredIn(rule))
+                .as("la règle que ce produit écrit lui-même doit dire où ses constats se rangent")
+                .containsExactly("A03");
     }
 
     @Test
