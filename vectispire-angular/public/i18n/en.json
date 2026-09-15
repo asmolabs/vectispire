@@ -547,7 +547,9 @@
     "gate_verdicts": "Verdict register",
     "delays": "Time to fix",
     "soa": "Statement of applicability",
-    "scope": "Certified scope"
+    "scope": "Certified scope",
+    "evidence": "Compliance & evidence",
+    "posture": "Security posture"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",

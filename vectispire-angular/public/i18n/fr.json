@@ -547,7 +547,9 @@
     "gate_verdicts": "Registre des verdicts",
     "delays": "Délais de correction",
     "soa": "Déclaration d'applicabilité",
-    "scope": "Périmètre certifié"
+    "scope": "Périmètre certifié",
+    "evidence": "Conformité & preuves",
+    "posture": "Posture de sécurité"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",

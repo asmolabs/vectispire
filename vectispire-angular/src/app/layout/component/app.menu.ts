@@ -34,13 +34,20 @@ export class AppMenu {
         // Read the signal so the computed signal re-evaluates when language changes
         this.i18n.translations();
 
+        /**
+         * **L'état du parc : ce qui ne va pas, et ce qu'on en fait.**
+         *
+         * Seize entrées s'y étaient accumulées, dont sept qui ne parlaient pas du parc mais de ce
+         * qu'on peut en montrer. Une section qu'on parcourt des yeux pour trouver son écran a
+         * cessé d'être un menu ; les deux questions sont maintenant deux sections.
+         */
         const securityItems = [
-            { label: this.i18n.t('menu.security'), icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
+            { label: this.i18n.t('menu.posture'), icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
             { label: this.i18n.t('menu.issues'), icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
 
             // **Juste après la liste des constats, et pas ailleurs.** L'une dit ce qui ne va pas,
             // l'autre ce qu'on en fait ; les séparer dans le menu séparait la question de sa
-            // réponse. Le calcul existait depuis longtemps et n'avait pas d'écran.
+            // réponse.
             { label: this.i18n.t('menu.remediation'), icon: 'pi pi-fw pi-wrench', routerLink: ['/remediation'] },
 
             // **Juste après l'ordre de travail, parce que c'est sa mesure.** L'un dit par quoi
@@ -52,24 +59,50 @@ export class AppMenu {
             { label: this.i18n.t('menu.blast_radius'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/blast-radius'] },
             { label: this.i18n.t('menu.licenses'), icon: 'pi pi-fw pi-book', routerLink: ['/licenses'] },
             { label: this.i18n.t('menu.attack_surface'), icon: 'pi pi-fw pi-compass', routerLink: ['/attack-surface'] },
-            { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] },
-            { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
+            { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] }
+        ];
+
+        /**
+         * **Ce qu'on peut montrer, et à qui.**
+         *
+         * <p>Ces écrans se lisaient dans deux sections éloignées : la matrice, les exceptions, la
+         * déclaration et le périmètre rangés avec l'état du parc, l'attestation, les verdicts et
+         * le journal d'audit rangés avec l'administration. Or ils répondent à une seule question,
+         * et un évaluateur les ouvre l'un après l'autre. Les séparer obligeait à connaître le
+         * produit pour trouver la suite de sa propre lecture.
+         *
+         * <p><b>Chaque entrée porte sa propre condition, jamais la section.</b> Quatre de ces
+         * routes exigent la lecture de gouvernance ; les proposer à tout le monde serait offrir un
+         * lien qui mène à un refus — le défaut que les clés de déploiement ont déjà eu ici. Un
+         * compte ordinaire voit les trois premières, un auditeur les huit.
+         */
+        const evidenceItems = [
             { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] },
+            { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
 
             // **Sous la conformité, parce que c'est la question qu'un évaluateur pose juste
             // après.** L'écran de conformité dit où on en est ; celui-ci dit ce qu'on a écarté
-            // pour y arriver, et les deux se lisent ensemble ou pas du tout.
+            // pour y arriver.
             { label: this.i18n.t('menu.exceptions'), icon: 'pi pi-fw pi-file-edit', routerLink: ['/exceptions'] },
 
-            // **Le document ISO 27001, et il ouvre sur ses écarts.** Rangé avec la conformité
-            // plutôt qu'avec l'administration : ce qu'on déclare et ce qu'on mesure se lisent
-            // ensemble ou pas du tout.
-            { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
+            ...(this.session.canReadGovernance()
+                ? [
+                      // **Le document ISO 27001, et il ouvre sur ses écarts.** Ce qu'on déclare et
+                      // ce qu'on mesure se lisent ensemble ou pas du tout.
+                      { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
 
-            // **Avant la déclaration dans l'ordre de lecture, après elle dans le menu.** Le
-            // périmètre est ce à quoi les contrôles s'appliquent, mais personne ne vient le
-            // chercher : on y arrive parce qu'un chiffre de la déclaration ne s'explique pas.
-            { label: this.i18n.t('menu.scope'), icon: 'pi pi-fw pi-map', routerLink: ['/certified-scope'] }
+                      // Le périmètre est ce à quoi les contrôles s'appliquent, mais personne ne
+                      // vient le chercher : on y arrive parce qu'un chiffre de la déclaration ne
+                      // s'explique pas.
+                      { label: this.i18n.t('menu.scope'), icon: 'pi pi-fw pi-map', routerLink: ['/certified-scope'] },
+
+                      // **Ce que la barrière a répondu.** Sa politique est un réglage et reste
+                      // côté administration ; ses refus sont une preuve et sont ici.
+                      { label: this.i18n.t('menu.gate_verdicts'), icon: 'pi pi-fw pi-ban', routerLink: ['/gate-verdicts'] },
+                      { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
+                      { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
+                  ]
+                : [])
         ];
 
         const sections: MenuItem[] = [
@@ -87,6 +120,10 @@ export class AppMenu {
             {
                 label: this.i18n.t('menu.security'),
                 items: securityItems
+            },
+            {
+                label: this.i18n.t('menu.evidence'),
+                items: evidenceItems
             },
             {
                 label: this.i18n.t('menu.operations'),
@@ -113,16 +150,13 @@ export class AppMenu {
             // `isSecurityLead` would have left that account an empty sidebar in front of pages
             // that answer 200 — a permission granted on the server and withheld by the client.
             if (this.session.canReadGovernance()) {
+                // **Ce qui *règle* un contrôle reste ici ; ce qu'il *produit* est passé dans les
+                // preuves.** La politique de barrière dit ce qui serait refusé, les jeux de règles
+                // ce qui serait cherché : deux réglages. Les verdicts, l'attestation et le journal
+                // d'audit sont ce qu'on montre, et se lisent à la suite du reste des preuves.
                 adminItems.push(
-                    { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
                     { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
-
-                    // **Collée à la politique qu'elle applique.** La politique dit ce que la
-                    // barrière refuserait ; le registre dit ce qu'elle a refusé. Séparées dans
-                    // le menu, la première se lit comme une intention.
-                    { label: this.i18n.t('menu.gate_verdicts'), icon: 'pi pi-fw pi-ban', routerLink: ['/gate-verdicts'] },
-                    { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] },
-                    { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
+                    { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] }
                 );
             }
 
