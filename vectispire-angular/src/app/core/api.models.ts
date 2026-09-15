@@ -1649,3 +1649,21 @@ export interface ScopeView {
     coverage: ScopeCoverage;
     targets: { kind: string; id: number }[];
 }
+
+export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
+
+export interface OwaspCoverageLine {
+    id: string;
+    title: string;
+    state: OwaspState;
+    findings: number;
+    because: string;
+}
+
+export interface OwaspGrid {
+    lines: OwaspCoverageLine[];
+    /** Combien des dix un scanner d'ici peut seulement regarder. **À lire avant le reste.** */
+    covered: number;
+    withFindings: number;
+    unmeasured: number;
+}

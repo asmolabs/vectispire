@@ -8,6 +8,7 @@ import {
     RegisteredVerdict,
     RemediationDistribution,
     ReviewOutcome,
+    OwaspGrid,
     RuleCoverageAssessment,
     ScopeView,
     SoaStatement,
@@ -869,6 +870,10 @@ export class ApiService {
         let params = new HttpParams();
         if (days) params = params.set('days', days);
         return this.http.get<RemediationDistribution>('/api/v1/remediation/distribution', { params });
+    }
+
+    owaspCoverage(): Observable<OwaspGrid> {
+        return this.http.get<OwaspGrid>('/api/v1/owasp/coverage');
     }
 
     ruleCoverage(): Observable<RuleCoverageAssessment> {

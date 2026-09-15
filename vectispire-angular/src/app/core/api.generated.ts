@@ -1500,6 +1500,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owasp/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OWASP Top 10 coverage
+         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here.
+         */
+        get: operations["grid"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quality/overview": {
         parameters: {
             query?: never;
@@ -3043,6 +3063,15 @@ export interface components {
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
         };
+        CoverageLine: {
+            because?: string;
+            /** Format: int64 */
+            findings?: number;
+            id?: string;
+            /** @enum {string} */
+            state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
+            title?: string;
+        };
         CreateTicketRequest: {
             provider?: string;
             ticketKey?: string;
@@ -3416,6 +3445,15 @@ export interface components {
             riskScore?: number;
             type?: string;
             version?: string;
+        };
+        Grid: {
+            /** Format: int32 */
+            covered?: number;
+            lines?: components["schemas"]["CoverageLine"][];
+            /** Format: int32 */
+            unmeasured?: number;
+            /** Format: int32 */
+            withFindings?: number;
         };
         HelloRequest: {
             capabilities?: string;
@@ -7160,6 +7198,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NotificationTestResult"];
+                };
+            };
+        };
+    };
+    grid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Grid returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Grid"];
                 };
             };
         };

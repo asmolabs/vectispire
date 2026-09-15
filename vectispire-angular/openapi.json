@@ -1299,6 +1299,28 @@
         },
         "type" : "object"
       },
+      "CoverageLine" : {
+        "properties" : {
+          "because" : {
+            "type" : "string"
+          },
+          "findings" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "state" : {
+            "enum" : [ "FINDINGS", "NOT_MEASURED", "NOT_COVERED", "NO_FINDING" ],
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CreateTicketRequest" : {
         "properties" : {
           "provider" : {
@@ -2316,6 +2338,29 @@
           },
           "version" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Grid" : {
+        "properties" : {
+          "covered" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CoverageLine"
+            },
+            "type" : "array"
+          },
+          "unmeasured" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "withFindings" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -9238,6 +9283,26 @@
         "tags" : [ "notification-center-controller" ]
       }
     },
+    "/api/v1/owasp/coverage" : {
+      "get" : {
+        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here.",
+        "operationId" : "grid",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Grid"
+                }
+              }
+            },
+            "description" : "Grid returned"
+          }
+        },
+        "summary" : "OWASP Top 10 coverage",
+        "tags" : [ "OWASP coverage" ]
+      }
+    },
     "/api/v1/quality/overview" : {
       "get" : {
         "operationId" : "overview_1",
@@ -11893,6 +11958,9 @@
     "url" : "/"
   } ],
   "tags" : [ {
+    "description" : "The Top 10 by rule, with what this deployment cannot see",
+    "name" : "OWASP coverage"
+  }, {
     "description" : "Regulatory conformity frameworks (NIS2, ISO 27001, CRA, SOC2, PCI-DSS)",
     "name" : "Compliance"
   }, {

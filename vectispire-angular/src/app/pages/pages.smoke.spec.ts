@@ -76,6 +76,11 @@ describe('every screen', () => {
         // dont `entries` est une liste, jamais une liste nue.
         // La déclaration est une liste de documents, un par cadre : vide, c'est un tableau.
         if (url.endsWith('/compliance/soa')) return [];
+        // La grille est un verdict par catégorie : rendue à vide, c'est un objet à dix lignes,
+        // jamais une liste nue.
+        if (url.endsWith('/owasp/coverage')) {
+            return { lines: [], covered: 0, withFindings: 0, unmeasured: 0 };
+        }
         if (url.endsWith('/compliance/scope')) {
             return { statement: '', coverage: { declaredAssets: 0, inScope: 0, scannedRecently: 0, stale: 0, neverScanned: 0 }, targets: [] };
         }

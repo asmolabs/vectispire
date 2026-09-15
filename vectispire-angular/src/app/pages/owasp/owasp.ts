@@ -23,11 +23,12 @@ import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
  * the table with reports nobody read.
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { OwaspGridComponent } from '@/app/shared/owasp-grid';
 
 @Component({
     selector: 'app-owasp',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule, OwaspGridComponent, TranslatePipe],
     templateUrl: './owasp.html'
 })
 export class Owasp {

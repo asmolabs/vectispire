@@ -1083,5 +1083,25 @@
     "footnote": "Nothing is in scope until somebody puts it there: a scope nobody has drawn is an undrawn scope, not the whole estate. Never scanned is counted apart from stale — a target scanned a year ago produced evidence once, one never scanned never has.",
     "load_failed": "Could not load the certified scope.",
     "update_failed": "The scope was not changed."
+  },
+  "owasp_grid": {
+    "title": "Top 10 coverage, by rule",
+    "subtitle": "The same ten questions answered from the finding's type alone — every mapping is one sentence you can check. Where no rule applies the answer is “covered by no scanner here”, never a guess. The report below is written by a model and is not evidence.",
+    "covered": "categories any scanner here can see",
+    "with_findings": "with open findings",
+    "unmeasured": "covered but unmeasured",
+    "column": {
+      "category": "Category",
+      "state": "State",
+      "findings": "Open",
+      "because": "Why"
+    },
+    "state": {
+      "FINDINGS": "Findings",
+      "NOT_MEASURED": "Not measured",
+      "NOT_COVERED": "No scanner here",
+      "NO_FINDING": "Nothing found"
+    },
+    "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places no finding: a Semgrep rule may declare its OWASP category in its own metadata, and this product does not read that metadata yet."
   }
 }

@@ -1,0 +1,53 @@
+@if (grid(); as data) {
+    <div class="card mb-4">
+        <div class="font-semibold text-xl mb-1">{{ 'owasp_grid.title' | translate }}</div>
+        <p class="text-muted-color mb-4" style="max-width: 68ch">{{ 'owasp_grid.subtitle' | translate }}</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <div class="pl-4 border-l-4 border-surface-300">
+                <div class="text-2xl font-medium">{{ data.covered }} / 10</div>
+                <div class="text-muted-color text-sm">{{ 'owasp_grid.covered' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium text-red-700">{{ data.withFindings }}</div>
+                <div class="text-muted-color text-sm">{{ 'owasp_grid.with_findings' | translate }}</div>
+            </div>
+            <div>
+                <div class="text-2xl font-medium text-orange-700">{{ data.unmeasured }}</div>
+                <div class="text-muted-color text-sm">{{ 'owasp_grid.unmeasured' | translate }}</div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="border-collapse: collapse">
+                <thead>
+                    <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'owasp_grid.column.category' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'owasp_grid.column.state' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'owasp_grid.column.findings' | translate }}</th>
+                        <th class="py-2 font-medium">{{ 'owasp_grid.column.because' | translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (line of lines(); track line.id) {
+                        <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                <span class="font-mono text-xs font-medium">{{ line.id }}</span>
+                                <span class="ml-2">{{ line.title }}</span>
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="colourOf(line.state)">
+                                {{ 'owasp_grid.state.' + line.state | translate }}
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+                                {{ line.state === 'FINDINGS' ? line.findings : '—' }}
+                            </td>
+                            <td class="py-3 text-muted-color">{{ line.because }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-muted-color text-sm mt-4" style="max-width: 74ch">{{ 'owasp_grid.footnote' | translate }}</p>
+    </div>
+}

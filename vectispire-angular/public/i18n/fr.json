@@ -1189,5 +1189,25 @@
     "footnote": "Rien n'est dans le périmètre tant que personne ne l'y met : un périmètre que personne n'a tracé est un périmètre non tracé, pas le parc entier. Jamais scannée est compté à part de périmée — une cible scannée il y a un an a produit une preuve une fois, une cible jamais scannée n'en a jamais produit.",
     "load_failed": "Le périmètre certifié n'a pas pu être chargé.",
     "update_failed": "Le périmètre n'a pas été modifié."
+  },
+  "owasp_grid": {
+    "title": "Couverture du Top 10, par règle",
+    "subtitle": "Les mêmes dix questions répondues à partir du seul type du constat — chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
+    "covered": "catégories qu'un scanner d'ici peut voir",
+    "with_findings": "avec des constats ouverts",
+    "unmeasured": "couvertes mais non mesurées",
+    "column": {
+      "category": "Catégorie",
+      "state": "État",
+      "findings": "Ouverts",
+      "because": "Pourquoi"
+    },
+    "state": {
+      "FINDINGS": "Constats",
+      "NOT_MEASURED": "Non mesurée",
+      "NOT_COVERED": "Aucun scanner ici",
+      "NO_FINDING": "Rien trouvé"
+    },
+    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code ne place aucun constat — une règle Semgrep peut déclarer sa catégorie OWASP dans ses propres métadonnées, et ce produit ne lit pas encore ces métadonnées."
   }
 }
