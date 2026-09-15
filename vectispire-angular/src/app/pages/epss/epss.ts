@@ -11,6 +11,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { DialogModule } from '@openng/optimus-ui/dialog';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-epss',
@@ -24,8 +25,7 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        DialogModule
-    ],
+        DialogModule, TranslatePipe],
     templateUrl: './epss.html'
 })
 export class Epss implements OnInit {

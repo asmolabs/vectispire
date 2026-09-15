@@ -310,7 +310,7 @@
     @if (selectedCicdRepo(); as repo) {
         <div class="flex flex-col gap-4">
             <p class="text-sm text-surface-600 dark:text-surface-400 m-0">
-                Copiez et intégrez ces configurations prêtes à l'emploi dans votre pipeline pour bloquer automatiquement les builds non conformes et auditer votre code à chaque commit.
+                {{ 'repositories.pipeline_help' | translate }}
             </p>
 
             <!-- Tabs selector -->
@@ -384,7 +384,7 @@
             <div class="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 text-xs flex items-start gap-2.5">
                 <i class="pi pi-info-circle text-blue-500 text-base mt-0.5 shrink-0"></i>
                 <div class="text-blue-900 dark:text-blue-200 leading-normal">
-                    <strong>Configuration requise :</strong> Créez une variable de pipeline masquée nommée <code class="font-mono bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">VECTISPIRE_API_KEY</code> dans les paramètres de votre dépôt CI/CD. Vous pouvez générer une clé API dédiée dans la section <em>Clés API</em> de Vectispire.
+                    <strong>Configuration requise :</strong> {{ 'repositories.create_masked_variable' | translate }} <code class="font-mono bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">VECTISPIRE_API_KEY</code> {{ 'repositories.pipeline_variable_help' | translate }} <em>{{ 'repositories.api_keys' | translate }}</em> de Vectispire.
                 </div>
             </div>
         </div>

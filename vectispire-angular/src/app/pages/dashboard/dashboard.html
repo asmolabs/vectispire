@@ -84,30 +84,30 @@
 
                 @if (postureAnalytics(); as pa) {
                     <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
-                        <div class="text-xs uppercase font-semibold text-muted-color">MTTR par Sévérité</div>
+                        <div class="text-xs uppercase font-semibold text-muted-color">{{ 'dashboard.mttr_by_severity' | translate }}</div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center">
-                                <span class="font-bold text-red-600 dark:text-red-400">Critique</span>
+                                <span class="font-bold text-red-600 dark:text-red-400">{{ 'dashboard.sev_critical' | translate }}</span>
                                 <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['CRITICAL'] != null ? pa.mttrBySeverity['CRITICAL'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center">
-                                <span class="font-bold text-amber-600 dark:text-amber-400">Élevée</span>
+                                <span class="font-bold text-amber-600 dark:text-amber-400">{{ 'dashboard.sev_high' | translate }}</span>
                                 <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['HIGH'] != null ? pa.mttrBySeverity['HIGH'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center">
-                                <span class="font-bold text-blue-600 dark:text-blue-400">Moyenne</span>
+                                <span class="font-bold text-blue-600 dark:text-blue-400">{{ 'dashboard.sev_medium' | translate }}</span>
                                 <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['MEDIUM'] != null ? pa.mttrBySeverity['MEDIUM'] + 'j' : '—' }}</span>
                             </div>
                             <div class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center">
-                                <span class="font-semibold text-muted-color">Faible</span>
+                                <span class="font-semibold text-muted-color">{{ 'dashboard.sev_low' | translate }}</span>
                                 <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['LOW'] != null ? pa.mttrBySeverity['LOW'] + 'j' : '—' }}</span>
                             </div>
                         </div>
 
                         <div class="mt-2 pt-2 border-t border-surface-200 dark:border-surface-700 flex justify-between items-center text-xs">
-                            <span class="text-muted-color">Vélocité de Remédiation :</span>
+                            <span class="text-muted-color">{{ 'dashboard.remediation_velocity' | translate }}</span>
                             <span class="font-bold" [class.text-emerald-600]="pa.netResolutionRatePercentage >= 80" [class.text-amber-600]="pa.netResolutionRatePercentage < 80">
-                                {{ pa.netResolutionRatePercentage }}% ({{ pa.totalResolvedInWindow }} résolues / {{ pa.totalOpenedInWindow }} ouvertes)
+                                {{ 'dashboard.resolution_ratio' | translate: { percent: pa.netResolutionRatePercentage, resolved: pa.totalResolvedInWindow, opened: pa.totalOpenedInWindow } }}
                             </span>
                         </div>
                     </div>
@@ -122,32 +122,32 @@
             <p-card styleClass="xl:col-span-1 border-l-4 border-l-primary-500 h-full">
                 <ng-template #title>
                     <div class="flex items-center justify-between">
-                        <span>Dette de Sécurité Estimée</span>
-                        <p-tag [value]="debt.totalEstimatedPersonDays + ' J/H'" severity="warn" />
+                        <span>{{ 'dashboard.estimated_debt' | translate }}</span>
+                        <p-tag [value]="debt.totalEstimatedPersonDays + ' ' + ('dashboard.person_days' | translate)" severity="warn" />
                     </div>
                 </ng-template>
                 <div class="text-sm text-muted-color mb-3">
-                    Temps d'ingénierie estimé pour résorber le backlog de sécurité ({{ debt.totalOpenIssues }} tickets ouverts).
+                    {{ 'dashboard.debt_help' | translate: { count: debt.totalOpenIssues } }}
                 </div>
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Vulnérabilités (SCA) :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_sca' | translate }}</span>
                         <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Secrets & Clés :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_secrets' | translate }}</span>
                         <span class="font-semibold">{{ debt.secretsDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Code Source (SAST) :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_sast' | translate }}</span>
                         <span class="font-semibold">{{ debt.sastDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Infrastructure-as-Code :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_iac' | translate }}</span>
                         <span class="font-semibold">{{ debt.iacDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Conformité des Licences :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_licenses' | translate }}</span>
                         <span class="font-semibold">{{ debt.licenseDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
@@ -156,7 +156,7 @@
                     </div>
                     <div class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400">
                         <span>Charge Totale :</span>
-                        <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} J/H)</span>
+                        <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} {{ 'dashboard.person_days' | translate }})</span>
                     </div>
                 </div>
             </p-card>
@@ -164,21 +164,21 @@
             <p-card styleClass="xl:col-span-2 h-full">
                 <ng-template #title>
                     <div class="flex items-center justify-between">
-                        <span>Actions à Fort Impact (High-Impact Fixes)</span>
-                        <span class="text-xs text-muted-color font-normal">Priorisation par ROI Sécurité (CVEs résolues / effort)</span>
+                        <span>{{ 'dashboard.high_impact' | translate }}</span>
+                        <span class="text-xs text-muted-color font-normal">{{ 'dashboard.high_impact_help' | translate }}</span>
                     </div>
                 </ng-template>
                 @if (!debt.topHighImpactFixes || debt.topHighImpactFixes.length === 0) {
-                    <p class="text-muted-color m-0 py-4 text-center">Aucune action de remédiation prioritaire requise.</p>
+                    <p class="text-muted-color m-0 py-4 text-center">{{ 'dashboard.no_high_impact' | translate }}</p>
                 } @else {
                     <p-table [value]="debt.topHighImpactFixes || []" styleClass="p-datatable-sm">
                         <ng-template #header>
                             <tr>
-                                <th>Composant</th>
-                                <th>CVEs Résolues</th>
-                                <th>Effort Estimé</th>
-                                <th>Score de Levier (ROI)</th>
-                                <th>Cibles Affectées</th>
+                                <th>{{ 'dashboard.component' | translate }}</th>
+                                <th>{{ 'dashboard.cves_resolved' | translate }}</th>
+                                <th>{{ 'dashboard.effort' | translate }}</th>
+                                <th>{{ 'dashboard.leverage_score' | translate }}</th>
+                                <th>{{ 'dashboard.targets_affected' | translate }}</th>
                             </tr>
                         </ng-template>
                         <ng-template #body let-fix>
@@ -217,21 +217,21 @@
                 <div class="flex items-center justify-between">
                     <span class="flex items-center gap-2">
                         <i class="pi pi-trophy text-amber-500"></i>
-                        Scoreboard de Maturité & Posture de Sécurité des Cibles
+                        {{ 'dashboard.scoreboard' | translate }}
                     </span>
-                    <span class="text-xs text-muted-color font-normal">Calculé sur les délais MTTR et le stock d'anomalies ouvertes</span>
+                    <span class="text-xs text-muted-color font-normal">{{ 'dashboard.scoreboard_help' | translate }}</span>
                 </div>
             </ng-template>
 
             <p-table [value]="postureAnalytics()!.targetScoreboard" styleClass="p-datatable-sm" [paginator]="true" [rows]="5">
                 <ng-template #header>
                     <tr>
-                        <th>Cible</th>
+                        <th>{{ 'dashboard.target' | translate }}</th>
                         <th>Rang / Grade</th>
-                        <th>Score Sécurité</th>
-                        <th class="text-center">Critiques Ouvertes</th>
-                        <th class="text-center">Élevées Ouvertes</th>
-                        <th class="text-center">Résolues</th>
+                        <th>{{ 'dashboard.security_score' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.critical_open' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.high_open' | translate }}</th>
+                        <th class="text-center">{{ 'dashboard.resolved' | translate }}</th>
                         <th class="text-right">MTTR Moyen</th>
                     </tr>
                 </ng-template>

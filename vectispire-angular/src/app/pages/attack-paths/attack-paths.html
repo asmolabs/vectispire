@@ -2,10 +2,10 @@
     <div>
         <h1 class="text-2xl font-semibold m-0 flex items-center gap-2">
             <i class="pi pi-sitemap text-primary-500"></i>
-            <span>Visualiseur de Chemins d'Attaque (Attack Path Visualizer)</span>
+            <span>{{ 'attack_paths.title_long' | translate }}</span>
         </h1>
         <p class="text-muted-color mt-1 mb-0 text-sm">
-            Cartographie des scénarios d'exploitation réels : <em>Internet / Ingress &rarr; API Endpoint &rarr; Composant Vulnérable (RCE) &rarr; Secret / Base de Données</em>.
+            {{ 'attack_paths.subtitle' | translate }} <em>{{ 'attack_paths.chain' | translate }}</em>.
         </p>
     </div>
 
@@ -39,7 +39,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
             <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
-                Chemins Critiques Exploitables
+                {{ 'attack_paths.exploitable_paths' | translate }}
             </span>
             <div class="flex items-baseline justify-between mt-2">
                 <span class="text-3xl font-extrabold" [ngClass]="g.criticalExploitablePaths > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-500'">
@@ -47,12 +47,12 @@
                 </span>
                 <i class="pi pi-bolt text-rose-500 text-xl"></i>
             </div>
-            <span class="text-xs text-surface-400 mt-1">Chaînes d'attaque directes depuis l'extérieur</span>
+            <span class="text-xs text-surface-400 mt-1">{{ 'attack_paths.direct_chains' | translate }}</span>
         </div>
 
         <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
             <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
-                Score de Risque Topologique
+                {{ 'attack_paths.topological_score' | translate }}
             </span>
             <div class="flex items-baseline justify-between mt-2">
                 <span class="text-3xl font-extrabold" [ngClass]="getRiskScoreColor(g.riskScore)">
@@ -60,29 +60,29 @@
                 </span>
                 <i class="pi pi-shield text-primary-500 text-xl"></i>
             </div>
-            <span class="text-xs text-surface-400 mt-1">Exposition x Exploitation x Criticité</span>
+            <span class="text-xs text-surface-400 mt-1">{{ 'attack_paths.axes' | translate }}</span>
         </div>
 
         <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
             <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
-                Points d'Entrée Exposés
+                {{ 'attack_paths.entry_points' | translate }}
             </span>
             <div class="flex items-baseline justify-between mt-2">
                 <span class="text-3xl font-extrabold text-amber-500">{{ endpointNodes().length }}</span>
                 <i class="pi pi-link text-amber-500 text-xl"></i>
             </div>
-            <span class="text-xs text-surface-400 mt-1">Routes API publiques & non-authentifiées</span>
+            <span class="text-xs text-surface-400 mt-1">{{ 'attack_paths.entry_points_help' | translate }}</span>
         </div>
 
         <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
             <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
-                Composants Vulnérables Liés
+                {{ 'attack_paths.linked_components' | translate }}
             </span>
             <div class="flex items-baseline justify-between mt-2">
                 <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{ vulnNodes().length }}</span>
                 <i class="pi pi-box text-surface-400 text-xl"></i>
             </div>
-            <span class="text-xs text-surface-400 mt-1">Dépendances critiques & RCE atteignables</span>
+            <span class="text-xs text-surface-400 mt-1">{{ 'attack_paths.linked_components_help' | translate }}</span>
         </div>
     </div>
 
@@ -106,7 +106,7 @@
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-list"></i>
-                <span>Scénarios d'Exploitation</span>
+                <span>{{ 'attack_paths.scenarios' | translate }}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
                     {{ g.attackPaths.length }}
                 </span>
@@ -167,7 +167,7 @@
                     </div>
                     @if (endpointNodes().length === 0) {
                         <div class="p-4 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 text-xs text-muted-color text-center">
-                            Aucun endpoint API exposé ou non-authentifié.
+                            {{ 'attack_paths.no_endpoint' | translate }}
                         </div>
                     }
                     @for (node of endpointNodes(); track node.id) {
@@ -193,11 +193,11 @@
                 <!-- Column 3: Vulnerabilities & RCE Components -->
                 <div class="flex flex-col gap-3">
                     <div class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5 pb-2 border-b border-rose-200 dark:border-rose-900/40">
-                        <i class="pi pi-shield text-base"></i> 3. Composants Vulnérables
+                        <i class="pi pi-shield text-base"></i> {{ 'attack_paths.step_components' | translate }}
                     </div>
                     @if (vulnNodes().length === 0) {
                         <div class="p-4 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 text-xs text-muted-color text-center">
-                            Aucune vulnérabilité critique active.
+                            {{ 'attack_paths.no_critical' | translate }}
                         </div>
                     }
                     @for (node of vulnNodes(); track node.id) {
@@ -225,7 +225,7 @@
                 <!-- Column 4: Sinks / Assets / Database -->
                 <div class="flex flex-col gap-3">
                     <div class="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5 pb-2 border-b border-purple-200 dark:border-purple-900/40">
-                        <i class="pi pi-database text-base"></i> 4. Assets & Données Sensibles
+                        <i class="pi pi-database text-base"></i> {{ 'attack_paths.step_assets' | translate }}
                     </div>
                     @for (node of sinkNodes(); track node.id) {
                         <div
@@ -272,7 +272,7 @@
 
                     <!-- Remediation Guidance Block -->
                     <div class="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 text-xs text-blue-900 dark:text-blue-200 flex flex-col gap-1.5">
-                        <span class="font-bold flex items-center gap-1.5"><i class="pi pi-check-circle text-blue-500"></i> Plan de Remédiation Prioritaire :</span>
+                        <span class="font-bold flex items-center gap-1.5"><i class="pi pi-check-circle text-blue-500"></i> {{ 'attack_paths.plan' | translate }}</span>
                         <pre class="font-sans whitespace-pre-wrap m-0 leading-relaxed text-xs">{{ path.remediationAdvice }}</pre>
                     </div>
 
@@ -296,10 +296,10 @@
             <p-table [value]="overviewList()" [rowHover]="true" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>
-                        <th>Dépôt</th>
-                        <th>Chemins Critiques Exploitables</th>
-                        <th>Total Chemins</th>
-                        <th>Score de Risque Topologique</th>
+                        <th>{{ 'attack_paths.repository' | translate }}</th>
+                        <th>{{ 'attack_paths.exploitable_paths' | translate }}</th>
+                        <th>{{ 'attack_paths.total_paths' | translate }}</th>
+                        <th>{{ 'attack_paths.topological_score' | translate }}</th>
                         <th class="text-right">Action</th>
                     </tr>
                 </ng-template>
@@ -360,7 +360,7 @@
 
             @if (node.metadata) {
                 <div class="flex flex-col gap-2">
-                    <span class="text-xs font-semibold text-surface-500 uppercase">Métadonnées Techniques :</span>
+                    <span class="text-xs font-semibold text-surface-500 uppercase">{{ 'attack_paths.metadata' | translate }}</span>
                     <div class="grid grid-cols-2 gap-2 text-xs">
                         @for (entry of node.metadata | keyvalue; track entry.key) {
                             <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">

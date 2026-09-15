@@ -183,9 +183,9 @@
         <!-- Prompt when no repo selected -->
         <div *ngIf="!selectedRepoId()" class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900">
             <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
-            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">Sélectionnez un dépôt cible</h3>
+            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">{{ 'attack_surface.pick_repository' | translate }}</h3>
             <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">
-                Veuillez choisir un dépôt dans la liste déroulante ci-dessus pour afficher et explorer ses routes d'APIs et ses spécifications.
+                {{ 'attack_surface.pick_repository_routes' | translate }}
             </p>
         </div>
 
@@ -322,9 +322,9 @@
         <!-- Prompt when no repo selected -->
         <div *ngIf="!selectedRepoId()" class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900">
             <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
-            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">Sélectionnez un dépôt cible</h3>
+            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">{{ 'attack_surface.pick_repository' | translate }}</h3>
             <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">
-                Veuillez choisir un dépôt dans la liste déroulante ci-dessus pour inspecter ses contrats déclarés (OpenAPI / Swagger).
+                {{ 'attack_surface.pick_repository_contracts' | translate }}
             </p>
         </div>
 

@@ -81,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 740;
+const EXPECTED_KEYS = 904;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(
@@ -134,8 +134,19 @@ for (const file of walk(join(root, 'src/app'))) {
 // figé, mécaniquement : aucune clé de traduction n'en contient. L'anglais figé ne se détecte pas
 // de la même façon — n'importe quel mot en est — donc ce cliquet ne couvre qu'une moitié du
 // problème, et le dire ici vaut mieux que de laisser croire qu'il les couvre toutes deux.
-const FRENCH_IN_TEMPLATES_CEILING = 142;
+//
+// **Les accents seuls ne suffisaient pas non plus.** Le compteur est passé à zéro alors que le
+// tableau de bord affichait encore « Composant », « Score de Levier (ROI) », « Critiques
+// Ouvertes » — du français sans un seul accent. Une liste de mots comble l'écart là où les
+// accents s'arrêtent ; elle ne sera jamais complète, mais chaque mot ajouté est un mot qui ne
+// repassera plus.
+const FRENCH_IN_TEMPLATES_CEILING = 0;
 const accented = /[éèêàùûôîçÉÈÊÀÇ]/;
+const frenchWords = new RegExp(
+    '\\b(Composant|Composants|Cible|Cibles|Critique|Critiques|Ouverte|Ouvertes|Ouvert|Ouverts|' +
+    'Résolue|Résolues|Sévérité|Dépôt|Dépôts|Règle|Règles|Chemin|Chemins|Exploitables|Priorité|' +
+    'Aucun|Aucune|Levier|Estimé|Estimée|Détaillé|Détecté|Détectés|Détectées|Moyenne|Faible|' +
+    'Élevée|Élevé|Score de|Total Chemins|Liées|Impactées|Ajoutés|Supprimés)\\b');
 const textNode = />([^<>{}]{3,}?)</g;
 let frozenFrench = 0;
 const frenchOffenders = new Map();
@@ -143,7 +154,7 @@ for (const file of walk(join(root, 'src/app'))) {
     if (!/\.html$/.test(file)) continue;
     const hits = [...readFileSync(file, 'utf8').matchAll(textNode)]
         .map((match) => match[1].trim())
-        .filter((text) => accented.test(text));
+        .filter((text) => accented.test(text) || frenchWords.test(text));
     if (hits.length > 0) {
         frozenFrench += hits.length;
         frenchOffenders.set(file.slice(root.length + 1), hits.length);

@@ -10,6 +10,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { RouterLink } from '@angular/router';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-notifications',
@@ -22,8 +23,7 @@ import { RouterLink } from '@angular/router';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        RouterLink
-    ],
+        RouterLink, TranslatePipe],
     templateUrl: './notifications.html'
 })
 export class Notifications implements OnInit {
