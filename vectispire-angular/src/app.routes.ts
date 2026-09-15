@@ -59,6 +59,7 @@ export const appRoutes: Routes = [
             { path: 'quality', loadComponent: () => import('./app/pages/quality/quality').then((m) => m.Quality) },
             { path: 'remediation', loadComponent: () => import('./app/pages/remediation/remediation').then((m) => m.Remediation) },
             { path: 'attestation', canActivate: [requires('governance-read')], loadComponent: () => import('./app/pages/attestation/attestation').then((m) => m.Attestation) },
+            { path: 'account', loadComponent: () => import('./app/pages/account/account').then((m) => m.Account) },
             { path: 'forbidden', loadComponent: () => import('./app/pages/forbidden/forbidden').then((m) => m.Forbidden) }
         ]
     },

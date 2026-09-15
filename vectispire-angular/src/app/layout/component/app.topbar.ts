@@ -87,6 +87,10 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
             -->
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
+                    <button type="button" class="layout-topbar-action" routerLink="/account">
+                        <i class="pi pi-user"></i>
+                        <span>{{ 'topbar.account' | translate }}</span>
+                    </button>
                     <button type="button" class="layout-topbar-action" routerLink="/change-password">
                         <i class="pi pi-key"></i>
                         <span>{{ 'topbar.password' | translate }}</span>

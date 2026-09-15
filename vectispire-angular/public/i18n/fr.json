@@ -1,4 +1,25 @@
 {
+  "account": {
+    "backup_warning": "Notez ces codes de secours maintenant : ils ne seront plus jamais affichés. Chacun ouvre une session une fois, si vous perdez votre téléphone.",
+    "change_password": "Changer le mot de passe",
+    "identity": "Compte",
+    "mfa": "Authentification",
+    "mfa_code": "Code affiché par l'application",
+    "mfa_confirm": "Vérifier et activer",
+    "mfa_disable": "Retirer le second facteur",
+    "mfa_disable_failed": "Ce code n'a pas été accepté ; le second facteur reste actif.",
+    "mfa_disable_help": "Saisissez un code courant ou un code de secours : sans lui, un poste laissé déverrouillé une minute suffirait à désarmer cette protection.",
+    "mfa_enable": "Activer le second facteur",
+    "mfa_enable_failed": "Ce code n'a pas été accepté. Vérifiez l'heure de votre téléphone, puis réessayez avec le code suivant.",
+    "mfa_help": "Un code à usage unique sera demandé à chaque connexion, en plus du mot de passe. Il vient d'une application d'authentification installée sur votre téléphone.",
+    "mfa_off": "Désactivé",
+    "mfa_on": "Activé",
+    "mfa_scan": "Ajoutez ce secret dans votre application d'authentification, puis saisissez le code qu'elle affiche. Rien n'est activé tant que ce premier code n'est pas vérifié.",
+    "mfa_setup_failed": "Le secret n'a pas pu être généré.",
+    "mfa_totp": "Second facteur (TOTP)",
+    "subtitle": "Votre identité, votre mot de passe et le second facteur qui protège la connexion.",
+    "title": "Mon compte"
+  },
   "agents": {
     "title": "Centre de contrôle des agents & File d'attente",
     "subtitle": "Supervision en temps réel des démons d'exécution, des analyses en cours et de la file d'attente.",
@@ -1063,12 +1084,13 @@
     "sla_t3": "SLA: Critique 30j | Élevé 60j"
   },
   "topbar": {
+    "account": "Mon compte",
     "appearance": "Apparence",
+    "language": "Langue",
     "password": "Mot de passe",
     "sign_out": "Déconnexion",
-    "language": "Langue",
-    "switch_light": "Passer au thème clair",
-    "switch_dark": "Passer au thème sombre"
+    "switch_dark": "Passer au thème sombre",
+    "switch_light": "Passer au thème clair"
   },
   "users": {
     "access_for": "Visibilité de",

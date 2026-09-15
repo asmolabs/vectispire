@@ -101,6 +101,18 @@ export class SessionStore {
         this.user.set(user);
     }
 
+    /**
+     * Le second facteur vient d'être activé ou retiré.
+     *
+     * <p>Le jeton ne change pas — la session en cours reste la même — mais l'écran du compte
+     * doit dire l'état nouveau, et le relire par `/auth/me` demanderait un aller-retour pour une
+     * information que la réponse vient de donner.
+     */
+    setMfaEnabled(enabled: boolean): void {
+        const user = this.user();
+        if (user) this.user.set({ ...user, mfaEnabled: enabled });
+    }
+
     close(): void {
         this.token.set(null);
         this.user.set(null);

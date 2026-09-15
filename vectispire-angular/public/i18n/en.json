@@ -1,4 +1,25 @@
 {
+  "account": {
+    "backup_warning": "Write these backup codes down now — they will never be shown again. Each one signs you in once, if you lose your phone.",
+    "change_password": "Change password",
+    "identity": "Account",
+    "mfa": "Authentication",
+    "mfa_code": "Code shown by the app",
+    "mfa_confirm": "Verify and turn on",
+    "mfa_disable": "Turn off the second factor",
+    "mfa_disable_failed": "That code was not accepted; the second factor stays on.",
+    "mfa_disable_help": "Type a current code or a backup code: without one, a workstation left unlocked for a minute would be enough to disarm this protection.",
+    "mfa_enable": "Turn on the second factor",
+    "mfa_enable_failed": "That code was not accepted. Check the time on your phone, then try again with the next code.",
+    "mfa_help": "A one-time code will be asked for at every sign-in, on top of the password. It comes from an authenticator app on your phone.",
+    "mfa_off": "Off",
+    "mfa_on": "On",
+    "mfa_scan": "Add this secret to your authenticator app, then type the code it shows. Nothing is turned on until that first code is verified.",
+    "mfa_setup_failed": "The secret could not be generated.",
+    "mfa_totp": "Second factor (TOTP)",
+    "subtitle": "Your identity, your password, and the second factor that protects signing in.",
+    "title": "My account"
+  },
   "agents": {
     "title": "Agent Control Center & Scan Queue",
     "subtitle": "Real-time supervision of execution daemons, running scans, and pending workload.",
@@ -957,12 +978,13 @@
     "sla_t3": "SLA: Critical 30d | High 60d"
   },
   "topbar": {
+    "account": "My account",
     "appearance": "Appearance",
+    "language": "Language",
     "password": "Password",
     "sign_out": "Sign out",
-    "language": "Language",
-    "switch_light": "Switch to light theme",
-    "switch_dark": "Switch to dark theme"
+    "switch_dark": "Switch to dark theme",
+    "switch_light": "Switch to light theme"
   },
   "users": {
     "access_for": "Visibility of",

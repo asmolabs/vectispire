@@ -1,0 +1,115 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'account.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'account.subtitle' | translate }}</p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <p-card>
+        <div class="flex flex-col gap-3">
+            <div>
+                <div class="text-sm text-muted-color">{{ 'account.identity' | translate }}</div>
+                <div class="text-xl font-semibold">{{ user()?.displayName || user()?.username }}</div>
+                <div class="text-sm text-muted-color">{{ user()?.username }} · {{ user()?.role }}</div>
+            </div>
+            <div>
+                <p-button [label]="'account.change_password' | translate" icon="pi pi-key"
+                          [outlined]="true" size="small" routerLink="/change-password" />
+            </div>
+        </div>
+    </p-card>
+
+    <p-card>
+        <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <div class="text-sm text-muted-color">{{ 'account.mfa' | translate }}</div>
+                    <div class="font-semibold">{{ 'account.mfa_totp' | translate }}</div>
+                </div>
+                @if (mfaEnabled()) {
+                    <p-tag severity="success" [value]="'account.mfa_on' | translate" />
+                } @else {
+                    <p-tag severity="warn" [value]="'account.mfa_off' | translate" />
+                }
+            </div>
+
+            <!--
+                **L'enrôlement est en deux temps parce que le serveur l'est.** Le secret est
+                proposé, puis confirmé par un premier code : sans cette confirmation, une horloge
+                décalée ou un secret mal recopié ne se verrait qu'à la déconnexion suivante.
+            -->
+            @if (!mfaEnabled() && !enrolment()) {
+                <p class="text-sm text-muted-color m-0">{{ 'account.mfa_help' | translate }}</p>
+                <div>
+                    <p-button [label]="'account.mfa_enable' | translate" icon="pi pi-shield"
+                              [loading]="busy()" (onClick)="begin()" />
+                </div>
+            }
+
+            @if (enrolment(); as setup) {
+                <div class="flex flex-col gap-3">
+                    <p class="text-sm m-0">{{ 'account.mfa_scan' | translate }}</p>
+
+                    <!--
+                        Pas d'image QR : la dessiner demande une dépendance de plus, et c'est une
+                        décision qui ne se prend pas en passant. Le secret en groupes de quatre est
+                        la saisie manuelle que toute application d'authentification accepte.
+                    -->
+                    <div class="font-mono text-lg tracking-wide break-all p-3 rounded bg-surface-100 dark:bg-surface-800">
+                        {{ readableSecret() }}
+                    </div>
+                    <div class="text-xs text-muted-color break-all">{{ setup.qrCodeUri }}</div>
+
+                    <div class="flex flex-col gap-2">
+                        <label for="mfa-code" class="font-medium">{{ 'account.mfa_code' | translate }}</label>
+                        <input pInputText id="mfa-code" inputmode="numeric" autocomplete="one-time-code"
+                               [(ngModel)]="code" name="mfa-code" />
+                    </div>
+                    <div class="flex gap-2">
+                        <p-button [label]="'account.mfa_confirm' | translate" [loading]="busy()" (onClick)="confirm()" />
+                        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="cancel()" />
+                    </div>
+                </div>
+            }
+
+            <!--
+                Montrés une fois, et l'écran le dit avant de les afficher : le serveur les chiffre
+                et ne les rendra plus. Sans cet avertissement, on ferme l'onglet en pensant les
+                retrouver plus tard.
+            -->
+            @if (backupCodes().length > 0) {
+                <p-message severity="warn" [closable]="false" styleClass="w-full">
+                    {{ 'account.backup_warning' | translate }}
+                </p-message>
+                <div class="grid grid-cols-2 gap-2 font-mono text-sm">
+                    @for (backup of backupCodes(); track backup) {
+                        <div class="p-2 rounded bg-surface-100 dark:bg-surface-800 text-center">{{ backup }}</div>
+                    }
+                </div>
+            }
+
+            @if (mfaEnabled() && !removing()) {
+                <div>
+                    <p-button [label]="'account.mfa_disable' | translate" severity="danger"
+                              [outlined]="true" size="small" (onClick)="askRemoval()" />
+                </div>
+            }
+
+            @if (removing()) {
+                <div class="flex flex-col gap-2">
+                    <p class="text-sm m-0">{{ 'account.mfa_disable_help' | translate }}</p>
+                    <input pInputText inputmode="numeric" [(ngModel)]="code" name="mfa-removal-code" />
+                    <div class="flex gap-2">
+                        <p-button [label]="'account.mfa_disable' | translate" severity="danger"
+                                  [loading]="busy()" (onClick)="remove()" />
+                        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true"
+                                  (onClick)="removing.set(false)" />
+                    </div>
+                </div>
+            }
+        </div>
+    </p-card>
+</div>
