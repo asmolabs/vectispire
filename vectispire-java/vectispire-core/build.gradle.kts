@@ -390,6 +390,18 @@ tasks.named<Test>("test") {
     systemProperty(
         "vectispire.openapi.write",
         providers.systemProperty("vectispire.openapi.write").getOrElse("false"))
+
+    // **Les fichiers que la suite lit hors du module doivent être déclarés, sinon elle ne
+    // retourne pas quand ils changent.** `ApiReferenceTest` lit la référence REST et le contrat ;
+    // sans ces entrées, Gradle voit la tâche à jour, la saute, et le garde reste vert sur une
+    // documentation qu'on vient de casser. Constaté en mutant la doc : le test ne s'est pas
+    // exécuté du tout, ce qui se lit exactement comme un succès.
+    inputs.files(
+        rootProject.file("../docs/en/api/rest_api_reference.md"),
+        rootProject.file("../docs/fr/api/rest_api_reference.md"),
+        rootProject.file("../vectispire-angular/openapi.json"))
+        .withPropertyName("documentsTheSuiteReads")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {

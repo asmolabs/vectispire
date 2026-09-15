@@ -61,6 +61,19 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Publish the badge. Its grade then becomes readable by anyone holding the URL. |
 | **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Revoke it. Every README carrying the old URL starts answering 404. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/badges/{token}.svg` | Public | Dynamic SVG vector badge for embedding into Git README files. |
+| **Process evidence** | `GET` | `/api/v1/gate/verdicts` | Governance | The gate's answers, newest first, with a cursor. A refusal is the only proof a control runs: "every target passes" does not distinguish a clean estate from a gate that has never stopped anything. |
+| **Process evidence** | `GET` | `/api/v1/exceptions` | Account | Risk acceptances and dismissals, with who decided, on what justification, until when, and when it was last revisited. |
+| **Process evidence** | `POST` | `/api/v1/exceptions/{issueId}/reviews` | Lead/Admin | Record that somebody revisited an exception — confirmed, extended or revoked. A confirmation changes nothing, which is the point: it is the only thing that makes "somebody looked" a dated fact. |
+| **Process evidence** | `GET` | `/api/v1/remediation/distribution` | Account | Time to fix by the tail rather than the average: share within the deadline, median, 90th percentile, overdue backlog and oldest open item. |
+| **Process evidence** | `GET` | `/api/v1/rule-sets/coverage` | Governance | Which languages the installed code-analysis rules reach, and which ecosystems in the estate they do not. What makes a zero finding count readable. |
+| **ISMS** | `GET` | `/api/v1/compliance/soa` | Governance | The declaration of applicability per framework, each control reconciled against its measured status (ISO 27001 clause 6.1.3 d). |
+| **ISMS** | `GET` | `/api/v1/compliance/soa/{framework}` | Governance | One framework's declaration, line by line, with the divergence between claim and measurement. |
+| **ISMS** | `GET` | `/api/v1/compliance/soa/reviews/overdue` | Governance | Declarations whose review date has passed, across every framework. |
+| **ISMS** | `PUT` | `/api/v1/compliance/soa/{framework}/{controlId}` | Lead/Admin | Write or revise one line. An exclusion needs a justification; evidence held elsewhere must say where. |
+| **ISMS** | `GET` | `/api/v1/compliance/scope` | Governance | The certified scope, how many assets it declares, and how many carry current evidence. |
+| **ISMS** | `PUT` | `/api/v1/compliance/scope/repositories/{id}` | Lead/Admin | Mark one repository as inside or outside the certified scope. |
+| **ISMS** | `PUT` | `/api/v1/compliance/scope/containers/{id}` | Lead/Admin | Mark one container image as inside or outside the certified scope. |
+| **OWASP** | `GET` | `/api/v1/owasp/coverage` | Account | The Top 10 answered by rule, in four states. Seven categories are covered by no scanner here, and this route says so rather than showing them green. |
 | **Crypto** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Instance ECDSA public key for Sigstore / Cosign signature verification. |
 
 ---

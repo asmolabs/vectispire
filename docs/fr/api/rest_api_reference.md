@@ -61,6 +61,19 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Publie le badge. Sa note devient alors lisible par quiconque détient l'URL. |
 | **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Le révoque. Tout README portant l'ancienne URL répond désormais 404. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/badges/{token}.svg` | Public | Badge SVG dynamique pour affichage dans les fichiers README Git. |
+| **Preuve de processus** | `GET` | `/api/v1/gate/verdicts` | Gouvernance | Les réponses de la barrière, la plus récente d'abord, avec un curseur. Un refus est la seule preuve qu'un contrôle s'exécute : « toutes les cibles passent » ne distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué. |
+| **Preuve de processus** | `GET` | `/api/v1/exceptions` | Compte | Acceptations de risque et rejets, avec qui a décidé, sur quelle justification, jusqu'à quand, et quand la ligne a été rouverte pour la dernière fois. |
+| **Preuve de processus** | `POST` | `/api/v1/exceptions/{issueId}/reviews` | Responsable/Admin | Enregistre qu'une exception a été revue — confirmée, prolongée ou révoquée. Une confirmation ne change rien, et c'est tout l'intérêt : c'est la seule chose qui fasse de « quelqu'un a regardé » un fait daté. |
+| **Preuve de processus** | `GET` | `/api/v1/remediation/distribution` | Compte | Les délais par la queue de distribution plutôt que par la moyenne : part dans le délai, médiane, 90e centile, retard ouvert et plus ancien élément. |
+| **Preuve de processus** | `GET` | `/api/v1/rule-sets/coverage` | Gouvernance | Quels langages les règles d'analyse de code installées atteignent, et quels écosystèmes du parc elles n'atteignent pas. Ce qui rend lisible un compte de constats à zéro. |
+| **SMSI** | `GET` | `/api/v1/compliance/soa` | Gouvernance | La déclaration d'applicabilité par cadre, chaque contrôle confronté à son état mesuré (ISO 27001, clause 6.1.3 d). |
+| **SMSI** | `GET` | `/api/v1/compliance/soa/{framework}` | Gouvernance | La déclaration d'un cadre, ligne par ligne, avec l'écart entre ce qui est affirmé et ce qui est mesuré. |
+| **SMSI** | `GET` | `/api/v1/compliance/soa/reviews/overdue` | Gouvernance | Les déclarations dont la date de revue est passée, tous cadres confondus. |
+| **SMSI** | `PUT` | `/api/v1/compliance/soa/{framework}/{controlId}` | Responsable/Admin | Écrit ou révise une ligne. Une exclusion demande une justification ; une preuve détenue ailleurs doit dire où. |
+| **SMSI** | `GET` | `/api/v1/compliance/scope` | Gouvernance | Le périmètre certifié, combien d'actifs il déclare, et combien portent une preuve courante. |
+| **SMSI** | `PUT` | `/api/v1/compliance/scope/repositories/{id}` | Responsable/Admin | Marque un dépôt comme dans ou hors du périmètre certifié. |
+| **SMSI** | `PUT` | `/api/v1/compliance/scope/containers/{id}` | Responsable/Admin | Marque une image comme dans ou hors du périmètre certifié. |
+| **OWASP** | `GET` | `/api/v1/owasp/coverage` | Compte | Le Top 10 répondu par règle, en quatre états. Sept catégories ne sont couvertes par aucun scanner ici, et cette route le dit au lieu de les montrer vertes. |
 | **Cryptographie** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Clé publique ECDSA pour vérification des signatures Cosign / Sigstore. |
 
 ---
