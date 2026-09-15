@@ -12,7 +12,7 @@
                     [class.border-surface-300]="current()?.framework !== statement.framework"
                     [class.text-muted-color]="current()?.framework !== statement.framework"
                     (click)="framework.set(statement.framework)">
-                    {{ statement.framework }}
+                    {{ statement.title }}
                     @if (statement.findings > 0) {
                         <span class="ml-2 text-red-700">{{ statement.findings }}</span>
                     }
@@ -80,7 +80,9 @@
                                     <span class="text-red-700 font-medium">{{ 'soa.not_declared' | translate }}</span>
                                 }
                             </td>
-                            <td class="py-3 pr-4 whitespace-nowrap">{{ line.measured ?? '—' }}</td>
+                            <td class="py-3 pr-4 whitespace-nowrap">
+                                {{ line.measured ? ('soa.measured.' + line.measured | translate) : '—' }}
+                            </td>
                             <td class="py-3 pr-4">
                                 <p-tag [severity]="severityOf(line)" [value]="'soa.divergence.' + line.divergence | translate" />
                                 <div class="text-muted-color text-xs mt-1" style="max-width: 40ch">

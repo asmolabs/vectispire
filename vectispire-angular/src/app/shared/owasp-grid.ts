@@ -42,6 +42,19 @@ export class OwaspGridComponent {
         });
     }
 
+    /**
+     * Un zéro qui va bien se peint en vert, pas en alarme.
+     *
+     * <p>« 0 couverte mais non mesurée » en orange était une bonne nouvelle affichée comme un
+     * problème. Un tableau où les bonnes nouvelles sont oranges apprend à ignorer l'orange.
+     */
+    alarming(count: number, tone: 'danger' | 'warn'): string {
+        if (count === 0) {
+            return 'text-emerald-700';
+        }
+        return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
+    }
+
     /** Le gris de « non couvert » n'est pas le vert de « rien trouvé », et c'est tout le sujet. */
     colourOf(state: OwaspState): string {
         switch (state) {

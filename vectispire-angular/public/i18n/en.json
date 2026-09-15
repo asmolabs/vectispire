@@ -488,7 +488,8 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Not controllable by an adversary",
       "inline_mitigations_already_exist": "Inline mitigations already exist"
     },
-    "what_it_is": "What it is"
+    "what_it_is": "What it is",
+    "reads_only": "This account observes and does not decide — triage belongs to the teams that own the targets."
   },
   "layout": {
     "menu_mode": {
@@ -976,7 +977,8 @@
     "no_deadline_help": "No deadline set — a percentage against an absent rule would not be one.",
     "empty": "Nothing has been resolved in this window.",
     "footnote": "The 90th percentile is at nearest rank: it is a duration an issue really had, not a point interpolated between two. Issues closed in the instant they were seen are absent from the distribution rather than sitting at its floor.",
-    "load_failed": "Could not load the remediation distribution."
+    "load_failed": "Could not load the remediation distribution.",
+    "nothing_resolved": "Nothing was resolved in this window — the deadline holds, there is simply nothing to measure it against."
   },
   "rule_coverage": {
     "unconfigured": {
@@ -1062,7 +1064,12 @@
       "record": "Record the declaration"
     },
     "load_failed": "Could not load the statement of applicability.",
-    "declare_failed": "The declaration was not recorded."
+    "declare_failed": "The declaration was not recorded.",
+    "measured": {
+      "COMPLIANT": "Compliant",
+      "PARTIAL": "Partial",
+      "NON_COMPLIANT": "Non-compliant"
+    }
   },
   "scope": {
     "title": "Certified scope",
@@ -1104,6 +1111,7 @@
       "NOT_COVERED": "No scanner here",
       "NO_FINDING": "Nothing found"
     },
-    "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places no finding: a Semgrep rule may declare its OWASP category in its own metadata, and this product does not read that metadata yet."
+    "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places no finding: a Semgrep rule may declare its OWASP category in its own metadata, and this product does not read that metadata yet.",
+    "not_covered_note": "“No scanner here” means no scanner in this deployment produces a finding in that category at all — it is a property of the product, not a verdict on the estate."
   }
 }

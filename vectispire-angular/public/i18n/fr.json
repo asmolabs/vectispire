@@ -488,7 +488,8 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
       "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
     },
-    "what_it_is": "Description du constat"
+    "what_it_is": "Description du constat",
+    "reads_only": "Ce compte constate et ne décide pas — le triage appartient aux équipes qui portent les cibles."
   },
   "layout": {
     "menu_mode": {
@@ -1082,7 +1083,8 @@
     "no_deadline_help": "Aucun délai fixé — un pourcentage contre une règle absente n'en serait pas un.",
     "empty": "Rien n'a été résolu sur cette fenêtre.",
     "footnote": "Le 90e centile est au rang le plus proche : c'est une durée qu'une issue a réellement eue, pas un point interpolé entre deux. Les issues fermées dans l'instant où elles ont été vues sont absentes de la distribution plutôt qu'à son plancher.",
-    "load_failed": "La distribution des délais n'a pas pu être chargée."
+    "load_failed": "La distribution des délais n'a pas pu être chargée.",
+    "nothing_resolved": "Rien n'a été résolu sur cette fenêtre — le délai tient, il n'y a simplement rien à mesurer contre lui."
   },
   "rule_coverage": {
     "unconfigured": {
@@ -1168,7 +1170,12 @@
       "record": "Enregistrer la déclaration"
     },
     "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
-    "declare_failed": "La déclaration n'a pas été enregistrée."
+    "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "measured": {
+      "COMPLIANT": "Conforme",
+      "PARTIAL": "Partiel",
+      "NON_COMPLIANT": "Non conforme"
+    }
   },
   "scope": {
     "title": "Périmètre certifié",
@@ -1210,6 +1217,7 @@
       "NOT_COVERED": "Aucun scanner ici",
       "NO_FINDING": "Rien trouvé"
     },
-    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code ne place aucun constat — une règle Semgrep peut déclarer sa catégorie OWASP dans ses propres métadonnées, et ce produit ne lit pas encore ces métadonnées."
+    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code ne place aucun constat — une règle Semgrep peut déclarer sa catégorie OWASP dans ses propres métadonnées, et ce produit ne lit pas encore ces métadonnées.",
+    "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc."
   }
 }

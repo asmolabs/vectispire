@@ -56,10 +56,22 @@ export class Soa {
 
     readonly canDeclare = computed(() => this.session.isSecurityLead());
 
+    /**
+     * L'écran ouvre sur ISO 27001, pas sur le premier cadre de l'énumération.
+     *
+     * <p>Il ouvrait sur NIS 2 parce que c'est la première valeur déclarée — sur un écran dont le
+     * sous-titre parle de la clause 6.1.3 d d'ISO 27001. Le défaut de l'énumération n'est pas un
+     * choix d'écran.
+     */
+    private static readonly OPENS_ON = 'ISO_27001';
+
     readonly current = computed<SoaStatement | null>(() => {
         const all = this.statements();
         const chosen = this.framework();
-        return all.find((statement) => statement.framework === chosen) ?? all[0] ?? null;
+        return all.find((statement) => statement.framework === chosen)
+            ?? all.find((statement) => statement.framework === Soa.OPENS_ON)
+            ?? all[0]
+            ?? null;
     });
 
     /**

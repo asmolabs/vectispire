@@ -9,19 +9,24 @@
                 <div class="text-muted-color text-sm">{{ 'exceptions.granted' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium text-orange-600">{{ awaiting() }}</div>
+                <div class="text-2xl font-medium" [class]="alarming(awaiting(), 'warn')">{{ awaiting() }}</div>
                 <div class="text-muted-color text-sm">{{ 'exceptions.awaiting' | translate }}</div>
             </div>
-            <div class="pl-4 border-l-4 border-red-500">
-                <div class="text-2xl font-medium text-red-700">{{ lapsed() }}</div>
-                <div class="text-sm text-red-700 font-medium">{{ 'exceptions.lapsed' | translate }}</div>
+            <div class="pl-4 border-l-4" [class]="rail(lapsed(), 'danger')">
+                <div class="text-2xl font-medium" [class]="alarming(lapsed(), 'danger')">{{ lapsed() }}</div>
+                <div class="text-sm font-medium" [class]="alarming(lapsed(), 'danger')">{{ 'exceptions.lapsed' | translate }}</div>
             </div>
-            <div class="pl-4 border-l-4 border-orange-400">
-                <div class="text-2xl font-medium text-orange-700">{{ neverReviewed() }}</div>
-                <div class="text-sm text-orange-700 font-medium">{{ 'exceptions.never_reviewed' | translate }}</div>
+            <div class="pl-4 border-l-4" [class]="rail(neverReviewed(), 'warn')">
+                <div class="text-2xl font-medium" [class]="alarming(neverReviewed(), 'warn')">{{ neverReviewed() }}</div>
+                <div class="text-sm font-medium" [class]="alarming(neverReviewed(), 'warn')">{{ 'exceptions.never_reviewed' | translate }}</div>
             </div>
         </div>
 
+        @if (!loaded().length) {
+            <!-- Un en-tête de tableau sans lignes est du mobilier mort : il demande au lecteur de
+                 parcourir six colonnes pour découvrir qu'elles sont vides. -->
+            <p class="text-muted-color py-6">{{ 'exceptions.empty' | translate }}</p>
+        } @else {
         <div class="overflow-x-auto">
             <table class="w-full text-sm" style="border-collapse: collapse">
                 <thead>
@@ -87,16 +92,11 @@
                                 </td>
                             }
                         </tr>
-                    } @empty {
-                        <tr>
-                            <td class="py-6 text-muted-color" [attr.colspan]="canReview() ? 8 : 7">
-                                {{ 'exceptions.empty' | translate }}
-                            </td>
-                        </tr>
                     }
                 </tbody>
             </table>
         </div>
+        }
 
         @if (hasMore()) {
             <div class="mt-4">

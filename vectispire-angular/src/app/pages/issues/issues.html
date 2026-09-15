@@ -85,7 +85,7 @@
     -->
     @if (selected().length > 0 && !canTriage()) {
         <div class="flex items-center gap-3 mb-3 text-muted-color text-sm">
-            Ce compte constate et ne décide pas — le triage appartient aux équipes qui portent les cibles.
+            {{ 'issues.reads_only' | translate }}
         </div>
     }
 
@@ -94,6 +94,13 @@
         table matches selected rows by identity, and a reload of the same page would leave the
         header checkbox lit over objects that no longer exist.
     -->
+    <!--
+        **Le tableau défile dans son propre conteneur, et la page jamais.** Sans lui, un chemin de
+        fichier long élargit la colonne au-delà de la carte et c'est la colonne de gravité, à
+        l'autre bout, qui sort de l'écran : la donnée sur laquelle on trie mentalement est celle
+        qu'on perd, et rien n'indique qu'il manque quelque chose à droite.
+    -->
+    <div class="overflow-x-auto">
     <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()"
              dataKey="id" selectionMode="multiple" [selection]="selected()" (selectionChange)="selected.set($event)">
         <ng-template #header>
@@ -131,7 +138,7 @@
                     } @else if (issue.reachability === 'UNREACHABLE') {
                         <p-tag severity="success" value="🛡️ UNREACHABLE" styleClass="ml-1" />
                     }
-                    <div class="text-muted-color text-sm">{{ issue.filePath ?? '—' }}</div>
+                    <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">{{ issue.filePath ?? '—' }}</div>
                 </td>
                 <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
                 <td>
@@ -205,6 +212,7 @@
             <tr><td colspan="10" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
         </ng-template>
     </p-table>
+    </div>
 
     <div class="flex items-center justify-between mt-4">
         <span class="text-muted-color">{{ pageLabel() }}</span>

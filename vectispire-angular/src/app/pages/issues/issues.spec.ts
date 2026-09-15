@@ -309,10 +309,15 @@ describe('triaging a selection', () => {
         expect(fixture.nativeElement.textContent).not.toContain('Trier (2)');
 
         // Un auditeur constate et ne décide pas : le contrôle est absent, pas grisé.
+        //
+        // **Asserté sur la clé et non sur la phrase.** Le libellé était en dur en français dans un
+        // gabarit par ailleurs anglais ; il passe maintenant par les bundles, et une assertion sur
+        // le texte traduit dirait quelle langue la suite a chargée plutôt que ce que l'écran
+        // montre.
         as('AUDITOR');
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).not.toContain('(2)');
-        expect(fixture.nativeElement.textContent).toContain('constate et ne décide pas');
+        expect(fixture.nativeElement.textContent).toContain('issues.reads_only');
     });
 });
 

@@ -5476,6 +5476,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "title" : {
+            "type" : "string"
+          },
           "total" : {
             "format" : "int32",
             "type" : "integer"

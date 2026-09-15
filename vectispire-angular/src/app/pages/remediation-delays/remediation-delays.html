@@ -4,8 +4,11 @@
 
     @if (distribution(); as data) {
         @if (data.oldestOpenDays !== null) {
-            <div class="mb-6 p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-950 rounded-r flex flex-wrap items-baseline gap-4">
-                <div class="text-2xl font-medium text-red-700">
+            <div class="mb-6 p-4 border-l-4 rounded-r flex flex-wrap items-baseline gap-4"
+                [class.border-red-500]="oldestIsOverdue()"
+                [class.bg-red-50]="oldestIsOverdue()"
+                [class.border-surface-300]="!oldestIsOverdue()">
+                <div class="text-2xl font-medium" [class.text-red-700]="oldestIsOverdue()">
                     {{ data.oldestOpenDays }} {{ 'delays.days' | translate }}
                 </div>
                 <div class="text-sm">
@@ -47,7 +50,9 @@
                                 }
                             </td>
                             <td class="py-3 pr-4">
-                                @if (hasDeadline(row)) {
+                                @if (nothingToMeasure(row)) {
+                                    <div class="text-muted-color text-xs" style="max-width: 26ch">{{ 'delays.nothing_resolved' | translate }}</div>
+                                } @else if (hasDeadline(row)) {
                                     <div class="flex items-baseline gap-2 mb-1">
                                         <span class="font-medium" style="font-variant-numeric: tabular-nums">{{ row.percentageWithinSla }}&nbsp;%</span>
                                         <span class="text-muted-color text-xs" style="font-variant-numeric: tabular-nums">

@@ -9,11 +9,11 @@
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.covered' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium text-red-700">{{ data.withFindings }}</div>
+                <div class="text-2xl font-medium" [class]="alarming(data.withFindings, 'danger')">{{ data.withFindings }}</div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.with_findings' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium text-orange-700">{{ data.unmeasured }}</div>
+                <div class="text-2xl font-medium" [class]="alarming(data.unmeasured, 'warn')">{{ data.unmeasured }}</div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.unmeasured' | translate }}</div>
             </div>
         </div>
@@ -41,13 +41,21 @@
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
                                 {{ line.state === 'FINDINGS' ? line.findings : '—' }}
                             </td>
-                            <td class="py-3 text-muted-color">{{ line.because }}</td>
+                            <td class="py-3 text-muted-color">
+                                @if (line.state !== 'NOT_COVERED') {
+                                    {{ line.because }}
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
 
-        <p class="text-muted-color text-sm mt-4" style="max-width: 74ch">{{ 'owasp_grid.footnote' | translate }}</p>
+        <!-- Dite une fois sous le tableau plutôt que répétée sur chaque ligne non couverte :
+             sept fois la même phrase est du bruit, et le bruit cache les trois lignes qui, elles,
+             disent quelque chose de différent. -->
+        <p class="text-muted-color text-sm mt-4" style="max-width: 74ch">{{ 'owasp_grid.not_covered_note' | translate }}</p>
+        <p class="text-muted-color text-sm mt-2" style="max-width: 74ch">{{ 'owasp_grid.footnote' | translate }}</p>
     </div>
 }

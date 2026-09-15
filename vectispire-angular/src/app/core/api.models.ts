@@ -1618,6 +1618,8 @@ export interface SoaLine {
 
 export interface SoaStatement {
     framework: string;
+    /** Le nom de la norme. `framework` est la constante Java, pas un libellé. */
+    title: string;
     lines: SoaLine[];
     total: number;
     declared: number;

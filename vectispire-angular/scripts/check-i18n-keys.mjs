@@ -81,7 +81,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
 // donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
 // d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
-const EXPECTED_KEYS = 737;
+const EXPECTED_KEYS = 740;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
     console.error(
@@ -122,6 +122,53 @@ for (const file of walk(join(root, 'src/app'))) {
         worstOffenders.set(file.slice(root.length + 1), hits.length);
     }
 }
+// **Le second cliquet : les libellés figés dans les *gabarits*, que le premier ne voit pas.**
+//
+// Le plafond ci-dessus ne lit que les fichiers `.ts` et n'y cherche que `label: '…'`. Il
+// annonçait donc zéro libellé en dur pendant que douze gabarits en portaient cent quarante-trois,
+// en français, dans une interface anglaise : le tableau de bord enchaînait « Failing targets » et
+// « Dette de Sécurité Estimée », et une colonne « Cibles Affectées » voisinait une colonne
+// « Target ». Une règle qui regarde à côté est pire qu'une règle absente — elle rassure.
+//
+// **Ce qui est détectable, et ce qui ne l'est pas.** Un nœud de texte accentué est du français
+// figé, mécaniquement : aucune clé de traduction n'en contient. L'anglais figé ne se détecte pas
+// de la même façon — n'importe quel mot en est — donc ce cliquet ne couvre qu'une moitié du
+// problème, et le dire ici vaut mieux que de laisser croire qu'il les couvre toutes deux.
+const FRENCH_IN_TEMPLATES_CEILING = 142;
+const accented = /[éèêàùûôîçÉÈÊÀÇ]/;
+const textNode = />([^<>{}]{3,}?)</g;
+let frozenFrench = 0;
+const frenchOffenders = new Map();
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.html$/.test(file)) continue;
+    const hits = [...readFileSync(file, 'utf8').matchAll(textNode)]
+        .map((match) => match[1].trim())
+        .filter((text) => accented.test(text));
+    if (hits.length > 0) {
+        frozenFrench += hits.length;
+        frenchOffenders.set(file.slice(root.length + 1), hits.length);
+    }
+}
+if (frozenFrench > FRENCH_IN_TEMPLATES_CEILING) {
+    console.error(
+        `${frozenFrench} libellé(s) français figés dans les gabarits, alors que le plafond est ` +
+        `${FRENCH_IN_TEMPLATES_CEILING}.`);
+    console.error(
+        `Un libellé écrit en clair s'affiche dans la langue où il a été tapé, à tout le monde. ` +
+        `Routez-le par le pipe translate et ajoutez la clé aux deux bundles.`);
+    for (const [file, count] of [...frenchOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+        console.error(`  ${String(count).padStart(3)}  ${file}`);
+    }
+    process.exit(1);
+}
+if (frozenFrench < FRENCH_IN_TEMPLATES_CEILING) {
+    console.error(
+        `${frozenFrench} libellé(s) français figés, contre un plafond de ` +
+        `${FRENCH_IN_TEMPLATES_CEILING} : abaissez FRENCH_IN_TEMPLATES_CEILING dans le même ` +
+        `commit. Un cliquet qu'on ne resserre pas cesse d'être une dette et devient une permission.`);
+    process.exit(1);
+}
+
 if (hardcoded > HARDCODED_LABEL_CEILING) {
     console.error(`${hardcoded} libellé(s) en dur dans src/app, alors que le plafond est 0.`);
     console.error(
@@ -152,4 +199,5 @@ if (failed) {
 
 console.log(
     `Vérification i18n : ${referenced.size} clés référencées, toutes présentes en français et ` +
-    `en anglais ; ${hardcoded} libellés en dur (plafond ${HARDCODED_LABEL_CEILING}).`);
+    `en anglais ; ${hardcoded} libellés en dur (plafond ${HARDCODED_LABEL_CEILING}) ; ` +
+    `${frozenFrench} libellés français figés dans les gabarits (plafond ${FRENCH_IN_TEMPLATES_CEILING}).`);

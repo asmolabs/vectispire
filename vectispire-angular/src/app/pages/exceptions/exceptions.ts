@@ -74,6 +74,29 @@ export class Exceptions {
      */
     readonly hasMore = computed(() => this.register()?.next_cursor != null);
 
+    /**
+     * La couleur suit le sens, pas la métrique.
+     *
+     * <p><b>« 0 périmée » en rouge était une bonne nouvelle peinte en alarme.</b> Un tableau où
+     * les bonnes nouvelles sont rouges apprend à ignorer le rouge, et c'est alors celui qui compte
+     * qui devient invisible — le même raisonnement que le bandeau de couverture, appliqué à un
+     * chiffre plutôt qu'à un avertissement.
+     */
+    alarming(count: number, tone: 'danger' | 'warn'): string {
+        if (count === 0) {
+            return 'text-emerald-700';
+        }
+        return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
+    }
+
+    /** Le filet de la carte disparaît avec l'alarme, pour la même raison. */
+    rail(count: number, tone: 'danger' | 'warn'): string {
+        if (count === 0) {
+            return 'border-emerald-500';
+        }
+        return tone === 'danger' ? 'border-red-500' : 'border-orange-400';
+    }
+
     /** La ligne en cours de revue, et ce que le formulaire porte. */
     readonly reviewing = signal<ExceptionEntry | null>(null);
     outcome: ReviewOutcome = 'CONFIRMED';

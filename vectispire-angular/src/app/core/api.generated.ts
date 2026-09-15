@@ -4618,6 +4618,7 @@ export interface components {
             lines?: components["schemas"]["Line"][];
             /** Format: int32 */
             reviewsOverdue?: number;
+            title?: string;
             /** Format: int32 */
             total?: number;
         };

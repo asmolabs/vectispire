@@ -162,12 +162,16 @@ public final class StatementOfApplicability {
             boolean reviewOverdue) {}
 
     /**
+     * @param title the standard's own name — <b>{@code framework} alone is the Java constant</b>,
+     *     and a screen showing {@code ISO_27001} or {@code EU_CRA} to an assessor is showing them
+     *     an enum. The name has always existed on the framework; nothing carried it to the client
      * @param declared how many of the framework's controls the declaration addresses
      * @param findings lines an assessment would raise
      * @param complete every control is addressed — what clause 6.1.3 d asks for
      */
     public record SoaStatement(
             ComplianceFramework framework,
+            String title,
             List<Line> lines,
             int total,
             int declared,
@@ -214,6 +218,7 @@ public final class StatementOfApplicability {
 
         return new SoaStatement(
                 evaluation.framework(),
+                evaluation.framework().getTitle(),
                 lines,
                 lines.size(),
                 (int) lines.stream().filter(line -> line.declaration() != null).count(),
