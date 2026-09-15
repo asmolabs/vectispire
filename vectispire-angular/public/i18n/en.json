@@ -508,6 +508,12 @@
     "action_false_positive": "False Positive",
     "action_reopen": "Reopen Issue",
     "action_resolve": "Mark Resolved",
+    "ai_mechanism": "How it is exploited",
+    "ai_reachability": "Whether your code reaches it",
+    "ai_remediation": "What to do about it",
+    "ai_running": "Reading the vulnerability and working out what to do…",
+    "ai_running_help": "Asking the configured model, and correlating exposure in the code.",
+    "ai_summary": "In plain words",
     "back_to_issues": "← Issues",
     "cisa_kev_badge": "Actively exploited (CISA KEV)",
     "component": "Component",
@@ -527,6 +533,8 @@
     "line": "Line",
     "location": "Location",
     "no_issues": "No issues match the selected criteria.",
+    "reads_only": "This account observes and does not decide — triage belongs to the teams that own the targets.",
+    "rule": "Rule:",
     "rule_id": "Rule ID",
     "sla_status": "SLA Status",
     "states": {
@@ -535,6 +543,16 @@
       "all": "All"
     },
     "subtitle": "Continuous backlog triage, reachability analysis and remediation tracking.",
+    "target_label": "Target:",
+    "ticket": "Ticket",
+    "ticket_attach": "Attach a ticket",
+    "ticket_attach_failed": "The ticket could not be attached.",
+    "ticket_change": "Change the reference",
+    "ticket_none": "No ticket attached.",
+    "ticket_reference": "Reference",
+    "ticket_reference_help": "What the tracker calls it — SEC-1234, #87. This is the reference its webhook will look for to close this finding, and it stops a second ticket from being opened automatically.",
+    "ticket_synced": "Closing this ticket in the tracker can close this finding.",
+    "ticket_url": "Link (optional)",
     "time_seen_single": "time",
     "times_seen": "times",
     "title": "Vulnerability Issues",
@@ -568,16 +586,7 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Not controllable by an adversary",
       "inline_mitigations_already_exist": "Inline mitigations already exist"
     },
-    "what_it_is": "What it is",
-    "reads_only": "This account observes and does not decide — triage belongs to the teams that own the targets.",
-    "ai_running": "Reading the vulnerability and working out what to do…",
-    "ai_running_help": "Asking the configured model, and correlating exposure in the code.",
-    "ai_summary": "In plain words",
-    "ai_mechanism": "How it is exploited",
-    "ai_reachability": "Whether your code reaches it",
-    "ai_remediation": "What to do about it",
-    "rule": "Rule:",
-    "target_label": "Target:"
+    "what_it_is": "What it is"
   },
   "layout": {
     "menu_mode": {

@@ -44,17 +44,6 @@ export interface MfaEnableResponse {
     backupCodes: string[];
 }
 
-export interface IssueTicket {
-    id: number;
-    issueId: number;
-    provider: 'JIRA' | 'GITHUB' | 'GITLAB';
-    ticketKey: string;
-    ticketUrl: string;
-    status: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
 export interface SiemConfig {
     enabled: boolean;
     protocol: 'WEBHOOK' | 'SYSLOG_UDP' | 'SYSLOG_TCP' | 'SYSLOG_TLS';

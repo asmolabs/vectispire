@@ -508,6 +508,12 @@
     "action_false_positive": "Faux positif",
     "action_reopen": "Rouvrir la faille",
     "action_resolve": "Marquer comme résolu",
+    "ai_mechanism": "Mécanisme d'Exploitation",
+    "ai_reachability": "Évaluation d'Exposition (Reachability)",
+    "ai_remediation": "Remédiation Recommandée",
+    "ai_running": "Analyse de la vulnérabilité et calcul de remédiation en cours...",
+    "ai_running_help": "Interrogation du modèle IA local & corrélation d'exposition de code.",
+    "ai_summary": "Vulgarisation & Résumé Exécutif",
     "back_to_issues": "← Vulnérabilités",
     "cisa_kev_badge": "Exploité activement (CISA KEV)",
     "component": "Composant",
@@ -527,6 +533,8 @@
     "line": "Ligne",
     "location": "Emplacement",
     "no_issues": "Aucune vulnérabilité ne correspond aux critères sélectionnés.",
+    "reads_only": "Ce compte constate et ne décide pas — le triage appartient aux équipes qui portent les cibles.",
+    "rule": "Règle :",
     "rule_id": "Identifiant de règle",
     "sla_status": "Statut SLA",
     "states": {
@@ -535,6 +543,16 @@
       "all": "Tous"
     },
     "subtitle": "Arbitrage continu du backlog, analyse d'atteignabilité et suivi de remédiation.",
+    "target_label": "Cible :",
+    "ticket": "Ticket",
+    "ticket_attach": "Rattacher un ticket",
+    "ticket_attach_failed": "Le ticket n'a pas pu être rattaché.",
+    "ticket_change": "Changer la référence",
+    "ticket_none": "Aucun ticket rattaché.",
+    "ticket_reference": "Référence",
+    "ticket_reference_help": "Ce que le traqueur appelle le ticket — SEC-1234, #87. C'est cette référence que son webhook cherchera pour refermer ce constat, et elle empêche l'ouverture automatique d'un second ticket.",
+    "ticket_synced": "La fermeture de ce ticket dans le traqueur peut refermer ce constat.",
+    "ticket_url": "Lien (facultatif)",
     "time_seen_single": "fois",
     "times_seen": "fois",
     "title": "Vulnérabilités",
@@ -568,16 +586,7 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
       "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
     },
-    "what_it_is": "Description du constat",
-    "reads_only": "Ce compte constate et ne décide pas — le triage appartient aux équipes qui portent les cibles.",
-    "ai_running": "Analyse de la vulnérabilité et calcul de remédiation en cours...",
-    "ai_running_help": "Interrogation du modèle IA local & corrélation d'exposition de code.",
-    "ai_summary": "Vulgarisation & Résumé Exécutif",
-    "ai_mechanism": "Mécanisme d'Exploitation",
-    "ai_reachability": "Évaluation d'Exposition (Reachability)",
-    "ai_remediation": "Remédiation Recommandée",
-    "rule": "Règle :",
-    "target_label": "Cible :"
+    "what_it_is": "Description du constat"
   },
   "layout": {
     "menu_mode": {

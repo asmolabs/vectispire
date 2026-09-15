@@ -43,11 +43,14 @@ import org.springframework.data.domain.Limit;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
@@ -110,6 +113,15 @@ public class IssuesController {
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
     /**
+     * Le ticket qu'un humain rattache à un constat.
+     *
+     * @param reference ce que le traqueur appelle le ticket — {@code SEC-1234}, {@code #87}
+     * @param url où un humain va le lire ; facultative, et absente elle laisse la référence
+     *     s'afficher sans lien plutôt que d'exiger une URL pour un traqueur interne
+     */
+    public record AttachTicketRequest(String reference, String url) {}
+
+    /**
      * @param ids the issues to decide on. Its own record rather than {@code TriageRequest} plus a
      *     list parameter, so that the single-issue route cannot acquire an optional {@code ids}
      *     field nobody notices is being ignored
@@ -129,6 +141,11 @@ public class IssuesController {
      * the API refuses.
      */
     private static final int MAX_BULK_TRIAGE = 500;
+
+    /** Ce que la colonne accepte : une référence plus longue serait tronquée par la base. */
+    private static final int MAX_TICKET_REFERENCE = 64;
+
+    private static final int MAX_TICKET_URL = 500;
 
     @GetMapping
     public IssuePage list(
@@ -333,6 +350,85 @@ public class IssuesController {
                 request.getHeader("User-Agent")));
 
         return issue;
+    }
+
+    /**
+     * Rattache un ticket existant à un constat.
+     *
+     * <h2>Pourquoi ce point d'entrée, et pourquoi sur ce champ-là</h2>
+     *
+     * <p><b>La balayeuse ouvre des tickets, personne d'autre.</b> {@code TicketSweepService} le
+     * fait pour les constats qui violent la barrière, avec le traqueur configuré globalement, et
+     * écrit la référence sur le constat — c'est ce champ que la liste affiche, que le webhook
+     * entrant cherche pour refermer le constat, et que la balayeuse lit pour ne pas rouvrir deux
+     * fois. Tout le reste du produit parle de ce champ.
+     *
+     * <p>Un constat qui ne viole aucune barrière, ou un traqueur non configuré, n'avait donc
+     * aucun moyen d'être rattaché à quoi que ce soit. Une équipe qui suit ce constat dans
+     * {@code SEC-1234} ne pouvait pas le dire, et le webhook de fermeture ne pouvait pas la
+     * reconnaître.
+     *
+     * <p><b>Écrit sur {@code ticketRef}, et non dans {@code t_issue_ticket}.</b> Cette seconde
+     * table existe, avec son propre point d'entrée, et rien ne la lit : ni le webhook, ni la
+     * balayeuse, ni un écran. Y écrire aurait livré un rattachement que la synchronisation
+     * ignore — une fonctionnalité qui a l'air de marcher et ne se synchronise jamais.
+     *
+     * <h2>Un humain peut corriger, la balayeuse n'efface jamais</h2>
+     *
+     * <p>La référence posée par la balayeuse est écrite une fois et jamais effacée : c'est sa clé
+     * de déduplication. Celle-ci peut être remplacée, parce que le cas qui existe est la faute de
+     * frappe — et parce que la remplacer est tracé. L'invariant de la balayeuse est intact : elle
+     * ne touche jamais un constat qui porte déjà une référence, quelle qu'en soit l'origine.
+     *
+     * <p>Effet de bord voulu et dit ici : rattacher un ticket <b>empêche</b> la balayeuse d'en
+     * ouvrir un second pour le même constat.
+     */
+    @RequiresWriteAccount
+    @PutMapping("/{id}/ticket")
+    public IssueEntity attachTicket(
+            @PathVariable long id,
+            @RequestBody AttachTicketRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        // Vérifiée avant l'écriture, et 404 plutôt que 403 — voir `Visibilities`.
+        IssueEntity issue = issues.findById(id).orElse(null);
+        Visibilities.requireVisible(
+                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        if (issue == null) {
+            throw new NoSuchElementException("Issue not found.");
+        }
+
+        String reference = body == null || body.reference() == null ? "" : body.reference().trim();
+        if (reference.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A ticket reference is required.");
+        }
+        if (reference.length() > MAX_TICKET_REFERENCE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "That reference is longer than " + MAX_TICKET_REFERENCE + " characters.");
+        }
+        String url = body.url() == null || body.url().isBlank() ? null : body.url().trim();
+        if (url != null && url.length() > MAX_TICKET_URL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "That URL is longer than " + MAX_TICKET_URL + " characters.");
+        }
+
+        String previous = issue.getTicketRef();
+        issues.attachTicket(id, reference, url);
+
+        // Tracé comme une décision, parce que c'en est une : le webhook du traqueur peut
+        // désormais refermer ce constat, et remplacer la référence change qui a ce pouvoir.
+        audit.record(new AuditLogService.Record(
+                AuditOperation.ISSUE_TRIAGED,
+                String.valueOf(id),
+                previous == null
+                        ? "Ticket " + reference + " attached"
+                        : "Ticket reference changed from " + previous + " to " + reference,
+                principal.user().map(user -> user.getUsername()).orElse("unknown"),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
+
+        return issues.findById(id).orElseThrow();
     }
 
     /**

@@ -435,6 +435,17 @@
         },
         "type" : "object"
       },
+      "AttachTicketRequest" : {
+        "properties" : {
+          "reference" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "AttackPath" : {
         "properties" : {
           "description" : {
@@ -9117,6 +9128,43 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/IssueDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "issues-controller" ]
+      }
+    },
+    "/api/v1/issues/{id}/ticket" : {
+      "put" : {
+        "operationId" : "attachTicket",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AttachTicketRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IssueEntity"
                 }
               }
             },

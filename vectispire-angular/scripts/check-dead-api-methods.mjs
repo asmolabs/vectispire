@@ -34,14 +34,16 @@ const SERVICE = 'src/app/core/api.service.ts';
 /**
  * Les méthodes qu'aucun écran n'appelle aujourd'hui, et ce qu'on attend d'elles.
  *
- * Onze au 15 septembre 2026, après en avoir branché quatre le jour même. Chacune est un calcul
- * livré que personne ne peut atteindre : soit on lui donne un écran, soit on la retire — et les
- * deux se font dans un commit qui le dit.
+ * Onze au 15 septembre 2026, après en avoir branché quatre le jour même. Neuf depuis que les deux
+ * qui visaient `t_issue_ticket` ont été retirées : cette table a son propre point d'entrée et
+ * personne ne la lit — ni le webhook, ni la balayeuse, ni un écran. Le rattachement d'un ticket
+ * se fait sur `ticketRef`, qui est le champ que tout le produit regarde.
+ *
+ * Chacune des neuf restantes est un calcul livré que personne ne peut atteindre : soit on lui
+ * donne un écran, soit on la retire — et les deux se font dans un commit qui le dit.
  */
 const DEAD = new Set([
     'complianceFramework',
-    'getIssueTickets',
-    'createIssueTicket',
     'getScanAttestation',
     'getScanCsaf',
     'getScanCycloneDx',

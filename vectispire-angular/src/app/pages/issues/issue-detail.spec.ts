@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IssueDetailPage } from './issue-detail';
+import { SessionStore } from '@/app/core/session.store';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
  * One issue's detail.
@@ -47,6 +49,8 @@ describe('the issue detail', () => {
         triagedBy: null,
         triagedAt: null,
         isDirectDependency: true,
+        ticketRef: null,
+        ticketUrl: null,
         sightings: [
             {
                 scanId: 34,
@@ -65,6 +69,21 @@ describe('the issue detail', () => {
             imports: [IssueDetailPage],
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
+
+        // Un compte qui peut agir : le formulaire de rattachement n'est offert qu'à ceux-là,
+        // et un auditeur qui le verrait se ferait refuser par le serveur.
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false
+        });
+        TestBed.inject(I18nService).translations.set({
+            common: { save: 'Save', cancel: 'Cancel' },
+            issues: {
+                ticket: 'Ticket', ticket_none: 'No ticket attached.', ticket_attach: 'Attach a ticket',
+                ticket_change: 'Change the reference', ticket_reference: 'Reference',
+                ticket_reference_help: '—', ticket_url: 'Link', ticket_synced: 'Closing this ticket can close this finding.',
+                ticket_attach_failed: 'The ticket could not be attached.'
+            }
+        });
 
         fixture = TestBed.createComponent(IssueDetailPage);
         fixture.componentRef.setInput('id', '7');
@@ -127,6 +146,93 @@ describe('the issue detail', () => {
         // The case that needs a human decision is exactly the one an empty cell hides.
         const text = fixture.nativeElement.textContent;
         expect(text.includes('none published') || text.includes('issues.fix_none_published')).toBe(true);
+    });
+
+
+    it("dit qu'aucun ticket ne suit ce constat, plutôt que de laisser la case vide", async () => {
+        await load();
+
+        // « Aucun ticket » et « la carte n'a rien affiché » se ressemblent à l'écran et ne
+        // veulent pas dire la même chose ; c'est la phrase qui fait cliquer sur « rattacher ».
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('No ticket attached.');
+        expect(text).toContain('Attach a ticket');
+    });
+
+    it('rattache la référence sur le champ que le webhook cherche', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '  SEC-1234  ';
+        page.ticketUrl = 'https://tracker.invalid/SEC-1234';
+        page.saveTicket();
+
+        const call = http.expectOne('/api/v1/issues/7/ticket');
+        expect(call.request.method).toBe('PUT');
+        // Rognée ici plutôt que sur le serveur : une référence entourée d'espaces ne serait
+        // retrouvée par aucun webhook.
+        expect(call.request.body).toEqual({ reference: 'SEC-1234', url: 'https://tracker.invalid/SEC-1234' });
+        call.flush({ ...ISSUE, ticketRef: 'SEC-1234', ticketUrl: 'https://tracker.invalid/SEC-1234' });
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('SEC-1234');
+        expect(text).toContain('Closing this ticket can close this finding.');
+        expect(page.editingTicket()).toBe(false);
+    });
+
+    it('envoie une URL nulle plutôt que vide, un traqueur interne pouvant ne pas en avoir', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '#87';
+        page.saveTicket();
+
+        const call = http.expectOne('/api/v1/issues/7/ticket');
+        expect(call.request.body).toEqual({ reference: '#87', url: null });
+        call.flush({ ...ISSUE, ticketRef: '#87', ticketUrl: null });
+    });
+
+    it("n'envoie rien sur une référence vide, au lieu de faire refuser le geste", async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = '   ';
+        page.saveTicket();
+
+        // Le serveur refuse, et il a raison : un champ vidé par mégarde rendrait le constat
+        // invisible au webhook et rouvrirait la porte à un second ticket de la balayeuse.
+        http.expectNone('/api/v1/issues/7/ticket');
+    });
+
+    it('garde le formulaire ouvert et dit pourquoi quand le serveur refuse', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        page.ticketReference = 'SEC-1234';
+        page.saveTicket();
+        http.expectOne('/api/v1/issues/7/ticket')
+            .flush({ message: 'Issue not found.' }, { status: 404, statusText: 'Not Found' });
+        fixture.detectChanges();
+
+        expect(page.editingTicket()).toBe(true);
+        expect(page.ticketError()).toContain('Issue not found.');
+    });
+
+    it("n'offre pas le rattachement à un compte qui ne peut rien changer", async () => {
+        TestBed.inject(SessionStore).open('a-token', {
+            username: 'audit', displayName: null, role: 'AUDITOR', mustChangePassword: false
+        });
+        await load();
+
+        // Offrir une porte que le serveur ferme est pire que ne rien offrir : l'auditeur clique,
+        // reçoit un refus, et apprend à se méfier de l'écran.
+        expect(fixture.componentInstance.canAttach()).toBe(false);
+        expect(fixture.nativeElement.textContent).not.toContain('Attach a ticket');
     });
 
     it('reports a load failure instead of rendering half a page', async () => {

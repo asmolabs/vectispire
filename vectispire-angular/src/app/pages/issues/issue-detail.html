@@ -104,6 +104,61 @@
         }
     </p-card>
 
+    <!--
+        **Le ticket qui suit ce constat.** La balayeuse en ouvre pour les constats qui violent la
+        barrière ; pour tous les autres, personne ne pouvait dire « celui-ci est suivi dans
+        SEC-1234 ». C'est la référence que le webhook du traqueur cherche pour refermer le
+        constat, donc la rattacher ne fait pas que documenter : elle branche la synchronisation.
+    -->
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'issues.ticket' | translate }}</ng-template>
+
+        @if (ticketError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="mb-3 w-full">{{ message }}</p-message>
+        }
+
+        @if (!editingTicket()) {
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    @if (detail.ticketRef) {
+                        @if (detail.ticketUrl) {
+                            <a [href]="detail.ticketUrl" target="_blank" rel="noopener noreferrer"
+                               class="font-medium">{{ detail.ticketRef }}</a>
+                        } @else {
+                            <span class="font-medium">{{ detail.ticketRef }}</span>
+                        }
+                        <div class="text-sm text-muted-color mt-1">{{ 'issues.ticket_synced' | translate }}</div>
+                    } @else {
+                        <span class="text-muted-color">{{ 'issues.ticket_none' | translate }}</span>
+                    }
+                </div>
+                @if (canAttach()) {
+                    <p-button size="small" [outlined]="true" icon="pi pi-link"
+                              [label]="(detail.ticketRef ? 'issues.ticket_change' : 'issues.ticket_attach') | translate"
+                              (onClick)="editTicket()" />
+                }
+            </div>
+        } @else {
+            <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-2">
+                    <label for="ticket-reference" class="font-medium">{{ 'issues.ticket_reference' | translate }}</label>
+                    <input pInputText id="ticket-reference" name="ticket-reference" [(ngModel)]="ticketReference" />
+                    <small class="text-muted-color">{{ 'issues.ticket_reference_help' | translate }}</small>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label for="ticket-url" class="font-medium">{{ 'issues.ticket_url' | translate }}</label>
+                    <input pInputText id="ticket-url" name="ticket-url" [(ngModel)]="ticketUrl" />
+                </div>
+                <div class="flex gap-2">
+                    <p-button size="small" [label]="'common.save' | translate"
+                              [loading]="attaching()" [disabled]="!ticketReference.trim()" (onClick)="saveTicket()" />
+                    <p-button size="small" severity="secondary" [text]="true"
+                              [label]="'common.cancel' | translate" (onClick)="editingTicket.set(false)" />
+                </div>
+            </div>
+        }
+    </p-card>
+
     <p-card styleClass="mb-4">
         <ng-template #title>{{ 'history.decisions' | translate }}</ng-template>
         @if (detail.decisions.length === 0) {

@@ -61,7 +61,6 @@ import {
     ComplianceEvaluation,
     MfaSetupResponse,
     MfaEnableResponse,
-    IssueTicket,
     InTotoAttestation,
     LicenseEntry,
     LicensePolicy,
@@ -599,12 +598,17 @@ export class ApiService {
         return this.http.post<{ mfaEnabled: boolean }>('/api/v1/auth/mfa/disable', { code });
     }
 
-    getIssueTickets(issueId: number): Observable<IssueTicket[]> {
-        return this.http.get<IssueTicket[]>(`/api/v1/issues/${issueId}/tickets`);
-    }
-
-    createIssueTicket(issueId: number, payload: { provider: string; ticketKey: string; ticketUrl: string }): Observable<IssueTicket> {
-        return this.http.post<IssueTicket>(`/api/v1/issues/${issueId}/tickets`, payload);
+    /**
+     * Rattache un ticket existant à un constat.
+     *
+     * **Sur `ticketRef`, et non sur `t_issue_ticket`.** Les deux méthodes qui visaient cette
+     * seconde table ont été retirées d'ici : rien ne la lit — ni le webhook entrant, qui cherche
+     * le constat par sa référence, ni la balayeuse, ni un écran. Y écrire aurait livré un
+     * rattachement que la synchronisation ignore, c'est-à-dire une fonctionnalité qui a l'air de
+     * marcher et ne se synchronise jamais.
+     */
+    attachTicket(issueId: number, reference: string, url?: string | null): Observable<Issue> {
+        return this.http.put<Issue>(`/api/v1/issues/${issueId}/ticket`, { reference, url: url ?? null });
     }
 
     getScanAttestation(scanId: number): Observable<InTotoAttestation> {
