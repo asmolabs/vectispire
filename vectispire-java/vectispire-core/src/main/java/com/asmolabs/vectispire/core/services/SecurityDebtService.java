@@ -292,11 +292,20 @@ public class SecurityDebtService {
 
         // By identifier, not `findAll()`: the names wanted are those of the targets that appeared
         // above, and there are at most a few per package.
+        //
+        // **Through `TargetNaming`, and this route used to bypass it.** It read `getName()`
+        // straight off the entity, and that column is null on every repository whose operator
+        // never chose one — the ordinary case, since the name is optional and the URL carries a
+        // perfectly good one. `Collectors.toMap` refuses a null value, so the whole remediation
+        // plan answered 500 as soon as one such repository fell in scope: the global view worked,
+        // narrowing to that repository did not.
+        //
+        // The naming rule is not this class's to hold anyway. Had the null not thrown, this
+        // screen would have called a repository something no other screen calls it.
         Map<Long, String> repoNames = repositories.findAllById(repoIds).stream()
-                .collect(Collectors.toMap(RepositoryEntity::getId, RepositoryEntity::getName, (a, b) -> a));
+                .collect(Collectors.toMap(RepositoryEntity::getId, TargetNaming::of, (a, b) -> a));
         Map<Long, String> containerNames = containers.findAllById(containerIds).stream()
-                .collect(Collectors.toMap(
-                        ContainerEntity::getId, c -> c.getImageName() + ":" + c.getTag(), (a, b) -> a));
+                .collect(Collectors.toMap(ContainerEntity::getId, TargetNaming::of, (a, b) -> a));
 
         Map<String, Detail> details = new LinkedHashMap<>();
         for (IssueAggregates.PackageDetail row : rows) {
