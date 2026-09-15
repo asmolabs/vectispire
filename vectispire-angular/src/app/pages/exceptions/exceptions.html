@@ -5,19 +5,19 @@
     @if (register(); as data) {
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div>
-                <div class="text-2xl font-medium">{{ data.granted }}</div>
+                <div class="text-2xl font-medium">{{ granted() }}</div>
                 <div class="text-muted-color text-sm">{{ 'exceptions.granted' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium text-orange-600">{{ data.awaiting_approval }}</div>
+                <div class="text-2xl font-medium text-orange-600">{{ awaiting() }}</div>
                 <div class="text-muted-color text-sm">{{ 'exceptions.awaiting' | translate }}</div>
             </div>
             <div class="pl-4 border-l-4 border-red-500">
-                <div class="text-2xl font-medium text-red-700">{{ data.lapsed }}</div>
+                <div class="text-2xl font-medium text-red-700">{{ lapsed() }}</div>
                 <div class="text-sm text-red-700 font-medium">{{ 'exceptions.lapsed' | translate }}</div>
             </div>
             <div class="pl-4 border-l-4 border-orange-400">
-                <div class="text-2xl font-medium text-orange-700">{{ data.never_reviewed }}</div>
+                <div class="text-2xl font-medium text-orange-700">{{ neverReviewed() }}</div>
                 <div class="text-sm text-orange-700 font-medium">{{ 'exceptions.never_reviewed' | translate }}</div>
             </div>
         </div>
@@ -39,7 +39,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (entry of data.entries; track entry.issue_id) {
+                    @for (entry of loaded(); track entry.issue_id) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top"
                             [class.bg-red-50]="entry.lapsed">
                             <td class="py-3 pr-4">
@@ -97,6 +97,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if (hasMore()) {
+            <div class="mt-4">
+                <p-button [label]="'exceptions.more' | translate" [outlined]="true" (onClick)="more()" />
+            </div>
+        }
 
         <p class="text-muted-color text-sm mt-4" style="max-width: 72ch">{{ 'exceptions.footnote' | translate }}</p>
     } @else if (error()) {

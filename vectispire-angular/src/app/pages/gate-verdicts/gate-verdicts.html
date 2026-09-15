@@ -5,8 +5,8 @@
     @if (register(); as data) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
             <div>
-                <div class="text-2xl font-medium">{{ data.passed + data.refused }}</div>
-                <div class="text-muted-color text-sm">{{ 'gate_verdicts.total' | translate }}</div>
+                <div class="text-2xl font-medium">{{ shown().length }}</div>
+                <div class="text-muted-color text-sm">{{ 'gate_verdicts.loaded' | translate }}</div>
             </div>
             <div>
                 <div class="text-2xl font-medium text-red-700">{{ data.refused }}</div>
@@ -89,6 +89,13 @@
                 </tbody>
             </table>
         </div>
+
+        @if (hasMore()) {
+            <div class="mt-4">
+                <p-button [label]="'gate_verdicts.more' | translate" [outlined]="true"
+                    [disabled]="loadingMore()" (onClick)="more()" />
+            </div>
+        }
 
         <p class="text-muted-color text-sm mt-4" style="max-width: 72ch">{{ 'gate_verdicts.footnote' | translate }}</p>
     } @else if (error()) {

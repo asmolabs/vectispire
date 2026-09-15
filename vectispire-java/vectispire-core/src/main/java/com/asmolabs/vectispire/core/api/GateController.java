@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import java.time.Instant;
@@ -170,8 +173,18 @@ public class GateController {
             @JsonProperty("decided_at") Instant decidedAt,
             @JsonProperty("decided_by") String decidedBy) {}
 
-    /** How many answers of each kind, so the register has a headline as well as a list. */
-    public record VerdictRegister(List<RegisteredVerdict> verdicts, long passed, long refused) {}
+    /**
+     * @param passed how many of <em>this page</em> passed, and {@code refused} likewise. Not of
+     *     the register: counting the whole of it would mean reading the whole of it, which is the
+     *     thing paging exists to avoid
+     * @param nextCursor where the next page starts, or null when the read reached the end.
+     *     <b>Derived from the rows read, never from the rows returned</b> — see the route
+     */
+    public record VerdictRegister(
+            List<RegisteredVerdict> verdicts,
+            long passed,
+            long refused,
+            @JsonProperty("next_cursor") String nextCursor) {}
 
     /**
      * The register: what the gate has answered, newest first.
@@ -181,23 +194,42 @@ public class GateController {
      * anything; a list containing refusals is what separates the two, and it is what an assessor
      * asks for when they want the control demonstrated rather than described.
      *
-     * <p><b>The cap bounds what is read, not what is returned.</b> Visibility is applied after
+     * <p><b>The limit bounds what is read, not what is returned.</b> Visibility is applied after
      * the read — by {@code permits}, the single implementation of that question — so a reader
-     * restricted to two repositories sees only their rows among the most recent ones. Widening
-     * the cap for such a reader would mean deciding in SQL whose rows to fetch, which is the
+     * restricted to two repositories sees only their rows among the ones this page covers.
+     * Narrowing in SQL instead would mean deciding there whose rows to fetch, which is the
      * mistake this codebase has made often enough to refuse making again.
+     *
+     * <p><b>Which is exactly why the cursor comes from the rows read and not from the rows
+     * returned.</b> A restricted reader's page can be empty while the register still holds rows
+     * they may see: everything in that window belonged to somebody else. A cursor taken from the
+     * visible rows would then be absent, the client would stop, and the register would have
+     * quietly ended one page in — for the one class of reader least able to notice.
+     *
+     * <p>It used to answer the newest hundred and nothing else, with no way to ask for more. That
+     * is the right answer for somebody watching a pipeline and the wrong one for an assessment:
+     * a busy estate writes a hundred verdicts before lunch, so the page proved yesterday.
      */
     @Operation(summary = "Gate verdict register", description = "The gate's recent answers, newest first, narrowed to what the caller may see.")
     @ApiResponse(responseCode = "200", description = "Register returned")
     @GetMapping("/gate/verdicts")
     public VerdictRegister register(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @RequestParam(required = false, defaultValue = "100") int limit) {
+            @RequestParam(required = false, defaultValue = "100") int limit,
+            @RequestParam(required = false) String cursor) {
 
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         int capped = Math.clamp(limit, 1, MAX_VERDICTS);
 
-        List<RegisteredVerdict> visible = verdicts.findAllByOrderByDecidedAtDesc(Limit.of(capped)).stream()
+        // **Un identifiant illisible ramène à la première page**, comme un curseur absent. Le
+        // record promet qu'un curseur inutilisable se lit comme « depuis le début » ; laisser
+        // `UUID.fromString` lever ici en ferait un 400 sur une valeur que le client n'a pas
+        // composée — il a renvoyé ce que le serveur lui avait donné.
+        List<GateVerdictEntity> read = RegisterCursor.parse(cursor)
+                .flatMap(from -> uuid(from.id()).map(id -> verdicts.pageAfter(from.at(), id, Limit.of(capped))))
+                .orElseGet(() -> verdicts.firstPage(Limit.of(capped)));
+
+        List<RegisteredVerdict> visible = read.stream()
                 .filter(row -> allowed.permits(targetOf(row)))
                 .map(GateController::view)
                 .toList();
@@ -205,7 +237,31 @@ public class GateController {
         return new VerdictRegister(
                 visible,
                 visible.stream().filter(RegisteredVerdict::passed).count(),
-                visible.stream().filter(view -> !view.passed()).count());
+                visible.stream().filter(view -> !view.passed()).count(),
+                nextCursor(read, capped));
+    }
+
+    private static Optional<UUID> uuid(String value) {
+        try {
+            return Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException unreadable) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Where the next page starts, or nothing when this one reached the end.
+     *
+     * <p>A short read means the register is exhausted — there is nothing after it to point at. A
+     * full one means there may be more, and the cursor names the last row <em>read</em>, whether
+     * or not the caller was allowed to see it.
+     */
+    private static String nextCursor(List<GateVerdictEntity> read, int limit) {
+        if (read.size() < limit) {
+            return null;
+        }
+        GateVerdictEntity last = read.getLast();
+        return new RegisterCursor(last.getDecidedAt(), last.getId().toString()).encoded();
     }
 
     private static ScanTarget targetOf(GateVerdictEntity row) {

@@ -84,11 +84,11 @@ class ExceptionReviewTest extends VectispireContextTest {
         excepted();
         long reviewed = excepted();
 
-        assertThat(register.register(200, Visibility.everything()).neverReviewed()).isEqualTo(2);
+        assertThat(register.register(200, null, Visibility.everything()).neverReviewed()).isEqualTo(2);
 
         triage.review(reviewed, IssueTriageService.ReviewOutcome.CONFIRMED, null, "n.faure", null);
 
-        assertThat(register.register(200, Visibility.everything()).neverReviewed()).isEqualTo(1);
+        assertThat(register.register(200, null, Visibility.everything()).neverReviewed()).isEqualTo(1);
     }
 
     @Test
@@ -98,7 +98,7 @@ class ExceptionReviewTest extends VectispireContextTest {
 
         triage.review(issueId, IssueTriageService.ReviewOutcome.REVOKED, "No longer true.", "n.faure", null);
 
-        assertThat(register.register(200, Visibility.everything()).entries())
+        assertThat(register.register(200, null, Visibility.everything()).entries())
                 .as("a register of current exceptions listing a withdrawn one is the one thing it must not do")
                 .extracting(ExceptionsRegisterService.ExceptionEntry::issueId)
                 .doesNotContain(issueId);
@@ -117,7 +117,7 @@ class ExceptionReviewTest extends VectispireContextTest {
         triage.review(issueId, IssueTriageService.ReviewOutcome.REVOKED, null, "n.faure", null);
         grant(issueId);
 
-        ExceptionsRegisterService.Register current = register.register(200, Visibility.everything());
+        ExceptionsRegisterService.Register current = register.register(200, null, Visibility.everything());
 
         assertThat(current.entries())
                 .as("the register lists exceptions, not the decisions that produced them")
@@ -174,7 +174,7 @@ class ExceptionReviewTest extends VectispireContextTest {
     }
 
     private ExceptionsRegisterService.ExceptionEntry entry(long issueId) {
-        return register.register(200, Visibility.everything()).entries().stream()
+        return register.register(200, null, Visibility.everything()).entries().stream()
                 .filter(candidate -> candidate.issueId() == issueId)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no register entry for issue " + issueId));

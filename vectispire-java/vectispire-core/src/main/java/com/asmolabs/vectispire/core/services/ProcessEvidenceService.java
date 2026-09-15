@@ -243,7 +243,7 @@ public class ProcessEvidenceService {
     /** Section 10 — what was argued away rather than fixed. */
     @Transactional(readOnly = true)
     public ExceptionsRegisterService.Register exceptions(Visibility allowed) {
-        return exceptions.register(ExceptionsRegisterService.MAX_ENTRIES, allowed);
+        return exceptions.register(ExceptionsRegisterService.MAX_ENTRIES, null, allowed);
     }
 
     /**

@@ -28,6 +28,46 @@ public interface GateVerdicts extends JpaRepository<GateVerdictEntity, java.util
      */
     List<GateVerdictEntity> findAllByOrderByDecidedAtDesc(Limit limit);
 
+    /**
+     * One page of the register, continuing after a cursor.
+     *
+     * <p><b>Ordered by instant <em>and</em> id, which the method above is not.</b> A pipeline
+     * writes several verdicts in the same millisecond, so an order on the instant alone leaves
+     * ties arbitrary — harmless when everything is read at once, and a silent loss when the reader
+     * comes back for the next page: rows sharing the boundary instant land on either side
+     * depending on what the engine felt like, and some are never returned at all.
+     *
+     * <p>The id is a UUID and says nothing about time. It does not have to: what a cursor needs is
+     * a <em>total</em> order, not a meaningful one.
+     *
+     * <p>No visibility clause, as everywhere in this file. What that costs here is worth naming:
+     * a page can come back empty while the register still has rows the caller may see, so the
+     * caller must decide "is there more" from what was <em>read</em> and never from what survived
+     * {@code permits}.
+     */
+    @Query("""
+            select v from GateVerdictEntity v
+             order by v.decidedAt desc, v.id desc""")
+    List<GateVerdictEntity> firstPage(Limit limit);
+
+    /**
+     * The page after a cursor.
+     *
+     * <p><b>A second method rather than a nullable parameter, and {@code TriageEvents} says why.</b>
+     * A clause written {@code (:decidedAt is null or v.decidedAt < :decidedAt)} runs on SQLite —
+     * which the unit suite uses — and fails on PostgreSQL with <i>could not determine data type of
+     * parameter</i>: an untyped null in a comparison leaves the driver nothing to infer from. That
+     * defect has already shipped once in this codebase, on a route that returned 500 while every
+     * test was green.
+     */
+    @Query("""
+            select v from GateVerdictEntity v
+             where v.decidedAt < :decidedAt
+                or (v.decidedAt = :decidedAt and v.id < :id)
+             order by v.decidedAt desc, v.id desc""")
+    List<GateVerdictEntity> pageAfter(
+            @Param("decidedAt") Instant decidedAt, @Param("id") java.util.UUID id, Limit limit);
+
     /** One target's verdicts, newest first — what a repository's own page shows. */
     List<GateVerdictEntity> findByRepoIdOrderByDecidedAtDesc(Long repoId, Limit limit);
 

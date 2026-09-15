@@ -1021,12 +1021,12 @@
       "revoked_help": "L'issue repasse en revue et la barrière cesse de l'honorer."
     },
     "load_failed": "Le registre des exceptions n'a pas pu être chargé.",
-    "review_failed": "La revue n'a pas été enregistrée."
+    "review_failed": "La revue n'a pas été enregistrée.",
+    "more": "Charger la suite"
   },
   "gate_verdicts": {
     "title": "Registre des verdicts",
     "subtitle": "Ce que la barrière a répondu, du plus récent au plus ancien. Un refus est la seule preuve qu'un contrôle s'exécute : « toutes les cibles passent » ne distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué.",
-    "total": "verdicts",
     "refused": "refus",
     "refusal_rate": "taux de refus",
     "refusals_only": "Refus seulement",
@@ -1053,7 +1053,9 @@
     "empty": "La barrière n'a pas encore répondu.",
     "empty_refusals": "La barrière n'a rien refusé sur cette fenêtre.",
     "footnote": "Les verdicts sont conservés selon la fenêtre de rétention des preuves. Un verdict « passé » sur zéro issue examinée est affiché comme tel : il ne prouve rien d'autre que l'absence de matière.",
-    "load_failed": "Le registre des verdicts n'a pas pu être chargé."
+    "load_failed": "Le registre des verdicts n'a pas pu être chargé.",
+    "more": "Charger la suite",
+    "loaded": "verdicts chargés"
   },
   "delays": {
     "title": "Délais de correction",

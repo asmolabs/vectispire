@@ -3952,6 +3952,9 @@
           "never_reviewed" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "next_cursor" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -6215,6 +6218,9 @@
       },
       "VerdictRegister" : {
         "properties" : {
+          "next_cursor" : {
+            "type" : "string"
+          },
           "passed" : {
             "format" : "int64",
             "type" : "integer"
@@ -8299,6 +8305,13 @@
             "format" : "int32",
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -8522,6 +8535,13 @@
             "default" : 100,
             "format" : "int32",
             "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {

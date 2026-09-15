@@ -4033,6 +4033,7 @@ export interface components {
             lapsed?: number;
             /** Format: int64 */
             never_reviewed?: number;
+            next_cursor?: string;
         };
         RegisteredVerdict: {
             counts_by_severity?: {
@@ -4886,6 +4887,7 @@ export interface components {
             role?: string;
         };
         VerdictRegister: {
+            next_cursor?: string;
             /** Format: int64 */
             passed?: number;
             /** Format: int64 */
@@ -6507,6 +6509,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -6680,6 +6683,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string;
             };
             header?: never;
             path?: never;

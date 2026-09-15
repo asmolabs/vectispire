@@ -1516,8 +1516,11 @@ export interface RegisteredVerdict {
 
 export interface VerdictRegister {
     verdicts: RegisteredVerdict[];
+    /** De *cette page*, non du registre : le compter en entier demanderait de le lire en entier. */
     passed: number;
     refused: number;
+    /** Où reprendre, ou `null` à la fin du registre. */
+    next_cursor: string | null;
 }
 
 export interface ExceptionEntry {
@@ -1545,6 +1548,7 @@ export interface ExceptionsRegister {
     awaiting_approval: number;
     lapsed: number;
     never_reviewed: number;
+    next_cursor: string | null;
 }
 
 export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
@@ -24,7 +25,7 @@ import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
 @Component({
     selector: 'zs-gate-verdicts',
     standalone: true,
-    imports: [CommonModule, FormsModule, MessageModule, TagModule, TranslatePipe],
+    imports: [CommonModule, FormsModule, ButtonModule, MessageModule, TagModule, TranslatePipe],
     templateUrl: './gate-verdicts.html'
 })
 export class GateVerdicts {
@@ -34,6 +35,26 @@ export class GateVerdicts {
     readonly register = signal<VerdictRegister | null>(null);
     readonly error = signal<string | null>(null);
     readonly refusalsOnly = signal(false);
+    readonly loadingMore = signal(false);
+
+    /**
+     * Les lignes déjà chargées, accumulées page après page.
+     *
+     * <p><b>Séparées du registre parce que les compteurs, eux, ne s'accumulent pas.</b> Le serveur
+     * compte ce qu'il a rendu sur *cette* page ; additionner les pages donnerait un total qui
+     * grandit à mesure qu'on lit, ce qui n'est le total de rien.
+     */
+    readonly loaded = signal<RegisteredVerdict[]>([]);
+
+    /**
+     * Il reste des lignes à demander.
+     *
+     * <p><b>Un curseur peut arriver avec une page vide, et c'est voulu.</b> La visibilité est
+     * appliquée après la lecture : une fenêtre entière peut n'appartenir qu'à d'autres. Masquer
+     * le bouton parce que la page est vide ferait s'arrêter le lecteur restreint juste avant ses
+     * propres lignes.
+     */
+    readonly hasMore = computed(() => this.register()?.next_cursor != null);
 
     /**
      * Le taux de refus, ou rien.
@@ -47,19 +68,40 @@ export class GateVerdicts {
         if (!data) {
             return null;
         }
-        const total = data.passed + data.refused;
-        return total === 0 ? null : Math.round((data.refused / total) * 1000) / 10;
+        const rows = this.loaded();
+        return rows.length === 0
+            ? null
+            : Math.round((rows.filter((row) => !row.passed).length / rows.length) * 1000) / 10;
     });
 
     readonly shown = computed<RegisteredVerdict[]>(() => {
-        const rows = this.register()?.verdicts ?? [];
+        const rows = this.loaded();
         return this.refusalsOnly() ? rows.filter((row) => !row.passed) : rows;
     });
 
     constructor() {
-        this.api.gateVerdicts(200).subscribe({
-            next: (data) => this.register.set(data),
-            error: (failure) => this.error.set(messageOf(failure, this.i18n.t('gate_verdicts.load_failed')))
+        this.fetch(null);
+    }
+
+    more(): void {
+        const cursor = this.register()?.next_cursor;
+        if (cursor) {
+            this.fetch(cursor);
+        }
+    }
+
+    private fetch(cursor: string | null): void {
+        this.loadingMore.set(true);
+        this.api.gateVerdicts(200, cursor).subscribe({
+            next: (data) => {
+                this.register.set(data);
+                this.loaded.update((rows) => (cursor ? [...rows, ...data.verdicts] : data.verdicts));
+                this.loadingMore.set(false);
+            },
+            error: (failure) => {
+                this.error.set(messageOf(failure, this.i18n.t('gate_verdicts.load_failed')));
+                this.loadingMore.set(false);
+            }
         });
     }
 

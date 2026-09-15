@@ -113,7 +113,7 @@ public class ExceptionsRegisterController {
                 principal.user().map(user -> user.getUsername()).orElse(null),
                 body.newExpiry());
 
-        return register.register(200, allowed);
+        return register.register(200, null, allowed);
     }
 
     @Operation(summary = "The exceptions register", description = "Risk acceptances and dismissals, newest first, narrowed to what the caller may see.")
@@ -121,9 +121,10 @@ public class ExceptionsRegisterController {
     @GetMapping
     public ExceptionsRegisterService.Register register(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @RequestParam(required = false, defaultValue = "200") int limit) {
+            @RequestParam(required = false, defaultValue = "200") int limit,
+            @RequestParam(required = false) String cursor) {
 
         return register.register(
-                limit, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+                limit, cursor, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 }

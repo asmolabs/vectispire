@@ -842,15 +842,17 @@ export class ApiService {
      * Le serveur borne `limit` lui-même ; l'écran ne la valide pas une seconde fois, sinon les
      * deux bornes divergent et c'est celle du client qu'on oublie de bouger.
      */
-    gateVerdicts(limit?: number): Observable<VerdictRegister> {
+    gateVerdicts(limit?: number, cursor?: string | null): Observable<VerdictRegister> {
         let params = new HttpParams();
         if (limit) params = params.set('limit', limit);
+        if (cursor) params = params.set('cursor', cursor);
         return this.http.get<VerdictRegister>('/api/v1/gate/verdicts', { params });
     }
 
-    exceptionsRegister(limit?: number): Observable<ExceptionsRegister> {
+    exceptionsRegister(limit?: number, cursor?: string | null): Observable<ExceptionsRegister> {
         let params = new HttpParams();
         if (limit) params = params.set('limit', limit);
+        if (cursor) params = params.set('cursor', cursor);
         return this.http.get<ExceptionsRegister>('/api/v1/exceptions', { params });
     }
 

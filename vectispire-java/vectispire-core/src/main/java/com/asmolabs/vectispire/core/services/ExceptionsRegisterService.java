@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
@@ -85,28 +87,41 @@ public class ExceptionsRegisterService {
      * @param awaitingApproval requested, not yet granted — the four-eyes queue
      * @param lapsed granted, expired, and not revisited. <b>The figure worth acting on</b>
      * @param neverReviewed granted and never revisited since. The figure an assessment asks for
+     * @param nextCursor where the next page starts, or null at the end of the register. Taken
+     *     from the rows <b>read</b>, never from the rows returned — see {@link #register}
      */
     public record Register(
             List<ExceptionEntry> entries,
             long granted,
             @JsonProperty("awaiting_approval") long awaitingApproval,
             long lapsed,
-            @JsonProperty("never_reviewed") long neverReviewed) {}
+            @JsonProperty("never_reviewed") long neverReviewed,
+            @JsonProperty("next_cursor") String nextCursor) {}
 
     /**
      * The register, newest first, narrowed to what the caller may see.
      *
-     * <p><b>The cap bounds what is read, not what is returned.</b> Visibility is applied after the
-     * read, by {@code permits} — a reader restricted to two repositories sees only their rows among
-     * the most recent ones, rather than a page assembled in SQL from somebody else's.
+     * <p><b>The limit bounds what is read, not what is returned.</b> Visibility is applied after
+     * the read, by {@code permits} — a reader restricted to two repositories sees only their rows
+     * among the ones this page covers, rather than a page assembled in SQL from somebody else's.
+     *
+     * <p><b>And so the cursor is taken from the rows read.</b> A restricted reader's page can come
+     * back empty while the register still holds exceptions they may see — everything in that
+     * window belonged to somebody else. A cursor drawn from the visible rows would be absent
+     * there, the client would stop, and the register would have ended one page in for the reader
+     * least able to tell.
      *
      * @param limit how many decisions to read; clamped to {@link #MAX_ENTRIES}
+     * @param cursor where to continue, or null to start at the newest
      * @param allowed the caller's allowance
      */
     @Transactional(readOnly = true)
-    public Register register(int limit, Visibility allowed) {
-        List<IssueEntity> excepted =
-                issues.findWithException(DECISIONS, Limit.of(Math.clamp(limit, 1, MAX_ENTRIES)));
+    public Register register(int limit, String cursor, Visibility allowed) {
+        int capped = Math.clamp(limit, 1, MAX_ENTRIES);
+        List<IssueEntity> excepted = RegisterCursor.parse(cursor)
+                .flatMap(from -> asId(from.id())
+                        .map(id -> issues.findWithExceptionAfter(DECISIONS, from.at(), id, Limit.of(capped))))
+                .orElseGet(() -> issues.findWithException(DECISIONS, Limit.of(capped)));
 
         Map<Long, List<TriageEventEntity>> history = events
                 .findForIssues(excepted.stream().map(IssueEntity::getId).toList())
@@ -141,7 +156,36 @@ public class ExceptionsRegisterService {
                         .filter(entry -> TriageStatus.PENDING_APPROVAL.wireName().equals(entry.decision()))
                         .count(),
                 entries.stream().filter(ExceptionEntry::lapsed).count(),
-                entries.stream().filter(entry -> entry.lastReviewedAt() == null).count());
+                entries.stream().filter(entry -> entry.lastReviewedAt() == null).count(),
+                nextCursor(excepted, capped));
+    }
+
+    /**
+     * Where the next page starts, or nothing when this one reached the end.
+     *
+     * <p>A short read exhausts the register; a full one may not, and the cursor names the last row
+     * <em>read</em> whether or not the caller was allowed to see it.
+     *
+     * <p>A row with no triage instant cannot be pointed at, and does not need to be: it sorts last
+     * under {@code desc}, so it only ever appears on a final page — and a final page is short,
+     * which is precisely when no cursor is issued.
+     */
+    private static String nextCursor(List<IssueEntity> read, int limit) {
+        if (read.size() < limit) {
+            return null;
+        }
+        IssueEntity last = read.getLast();
+        return last.getTriagedAt() == null
+                ? null
+                : new RegisterCursor(last.getTriagedAt(), String.valueOf(last.getId())).encoded();
+    }
+
+    private static Optional<Long> asId(String value) {
+        try {
+            return Optional.of(Long.parseLong(value));
+        } catch (NumberFormatException unreadable) {
+            return Optional.empty();
+        }
     }
 
     /**

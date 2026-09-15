@@ -46,7 +46,8 @@ describe('le registre des exceptions', () => {
         granted: 1,
         awaiting_approval: 0,
         lapsed: 0,
-        never_reviewed: 1
+        never_reviewed: 1,
+        next_cursor: null
     };
 
     beforeEach(async () => {
@@ -72,9 +73,16 @@ describe('le registre des exceptions', () => {
         expect(call.request.body.outcome).toBe('CONFIRMED');
         expect(call.request.body.new_expiry).toBeNull();
 
-        call.flush({ ...REGISTER, never_reviewed: 0 });
+        // **La ligne revient datée**, comme le serveur la renverrait : les compteurs sont dérivés
+        // des lignes et non repris du serveur, si bien qu'un jeu de données où le compteur bouge
+        // sans que la ligne bouge ne décrit plus rien de réel.
+        call.flush({
+            ...REGISTER,
+            entries: [{ ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }],
+            never_reviewed: 0
+        });
 
-        expect(component.register()!.never_reviewed).toBe(0);
+        expect(component.neverReviewed()).toBe(0);
         expect(component.reviewing()).toBeNull();
     });
 
@@ -89,11 +97,55 @@ describe('le registre des exceptions', () => {
         http.expectNone('/api/v1/exceptions/41/reviews');
     });
 
+    it('propose la suite même quand la page ne contenait rien de visible', () => {
+        // **La moitié cliente du même défaut que côté serveur.** La visibilité s'applique après la
+        // lecture : une fenêtre entière peut n'appartenir qu'à d'autres. Masquer le bouton parce
+        // que la page est vide ferait s'arrêter le lecteur restreint juste avant ses propres
+        // lignes — et il est le seul à ne pas pouvoir s'en apercevoir.
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+            entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0,
+            next_cursor: '1757836800000:41'
+        });
+
+        expect(component.loaded()).toHaveLength(0);
+        expect(component.hasMore()).toBe(true);
+
+        component.more();
+        const next = http.expectOne((call) => call.url === '/api/v1/exceptions');
+        expect(next.request.params.get('cursor')).toBe('1757836800000:41');
+        next.flush({ ...REGISTER, next_cursor: null });
+
+        expect(component.loaded()).toHaveLength(1);
+        expect(component.hasMore()).toBe(false);
+    });
+
+    it('accumule les pages et recompte sur ce qui est chargé', () => {
+        const component = fixture.componentInstance;
+        expect(component.granted()).toBe(1);
+
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions')
+            .flush({ ...REGISTER, next_cursor: '1757836800000:41' });
+        component.more();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+            ...REGISTER,
+            entries: [{ ...REGISTER.entries[0], issue_id: 42 }],
+            next_cursor: null
+        });
+
+        // Les compteurs viennent des lignes chargées et non du serveur : additionner les pages
+        // donnerait un total qui grandit à mesure qu'on lit, ce qui n'est le total de rien.
+        expect(component.loaded()).toHaveLength(2);
+        expect(component.granted()).toBe(2);
+    });
+
     it("compte les jamais revues comme un chiffre à part des périmées", () => {
         // Les deux disent « personne ne s'en occupe » et ne sont pas la même phrase : une
         // exception périmée a eu une échéance qui est passée, une jamais revue peut être
         // parfaitement en cours et n'avoir jamais été rouverte.
-        expect(fixture.componentInstance.register()!.lapsed).toBe(0);
-        expect(fixture.componentInstance.register()!.never_reviewed).toBe(1);
+        expect(fixture.componentInstance.lapsed()).toBe(0);
+        expect(fixture.componentInstance.neverReviewed()).toBe(1);
     });
 });

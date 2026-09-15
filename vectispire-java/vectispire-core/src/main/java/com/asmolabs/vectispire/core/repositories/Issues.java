@@ -36,6 +36,28 @@ public interface Issues
     List<IssueEntity> findWithException(
             @Param("statuses") Collection<String> statuses, Limit limit);
 
+    /**
+     * The page of exceptions after a cursor.
+     *
+     * <p><b>A second method rather than a nullable parameter</b>, for the reason spelt out on
+     * {@code GateVerdicts.pageAfter}: an untyped null in a comparison runs on SQLite and fails on
+     * PostgreSQL, and that has already shipped here once.
+     *
+     * <p>{@code triagedAt} can be null on a row written before triage recorded one. Such a row
+     * sorts last under {@code desc} on every engine here, so it is reachable only on the final
+     * page — where the cursor never points, because a final page is short.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.triageStatus in :statuses
+               and (i.triagedAt < :triagedAt or (i.triagedAt = :triagedAt and i.id < :id))
+             order by i.triagedAt desc, i.id desc""")
+    List<IssueEntity> findWithExceptionAfter(
+            @Param("statuses") Collection<String> statuses,
+            @Param("triagedAt") Instant triagedAt,
+            @Param("id") Long id,
+            Limit limit);
+
     Optional<IssueEntity> findByFingerprint(String fingerprint);
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);
