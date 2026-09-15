@@ -185,6 +185,47 @@ test.describe('Evidence screens', () => {
         expect(ids.slice(0, 2)).toEqual(['ISO-A.8.8', 'ISO-A.5.15']);
     });
 
+    test('the compliance progression does not paint a wider estate as regression', async ({ page }) => {
+        await stub(page, '**/api/v1/compliance/history', [{
+            framework: 'ISO_27001',
+            comparable: false,
+            steps: [
+                {
+                    snapshot: {
+                        period: '2026-07', framework: 'ISO_27001', score: 90, status: 'PARTIAL',
+                        targets: 10, observed: 10, fresh: 10, freshnessDays: 30,
+                        endOfLifeEnabled: true, codeAnalysisReaches: true,
+                        controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
+                        capturedAt: '2026-07-31T00:00:00Z'
+                    },
+                    delta: 0, movement: 'FIRST', because: 'First capture for this framework.'
+                },
+                {
+                    snapshot: {
+                        period: '2026-08', framework: 'ISO_27001', score: 71, status: 'PARTIAL',
+                        targets: 14, observed: 14, fresh: 14, freshnessDays: 30,
+                        endOfLifeEnabled: true, codeAnalysisReaches: true,
+                        controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
+                        capturedAt: '2026-08-31T00:00:00Z'
+                    },
+                    delta: -19, movement: 'ESTATE_GREW',
+                    because: '4 target(s) more than last month. A score that falls here is the cost of watching wider, not a regression.'
+                }
+            ]
+        }]);
+        await signIn(page);
+        await goTo(page, '/compliance-history');
+
+        // Dix-neuf points perdus, et la raison est à l'écran plutôt que laissée à l'interprétation
+        // d'une courbe qui descend.
+        await expect(page.getByText('-19')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('not a regression', { exact: false })).toBeVisible();
+
+        // Sans cette mention, deux points reliés se lisent comme une trajectoire quelle que soit
+        // la distance entre les deux parcs qui les ont produits.
+        await expect(page.getByText('this is a shape, not a trend', { exact: false })).toBeVisible();
+    });
+
     test('the certified scope reports an undeclared scope as undeclared, not as complete', async ({ page }) => {
         await stub(page, '**/api/v1/compliance/scope', {
             statement: '',

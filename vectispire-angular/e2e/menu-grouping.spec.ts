@@ -19,7 +19,10 @@ test.describe('Sidebar grouping', () => {
     test.beforeEach(() => resetLoginThrottle());
 
     /** Les quatre entrées de la section « preuves » réservées à la lecture de gouvernance. */
-    const GOVERNANCE_ONLY = ['Statement of applicability', 'Certified scope', 'Verdict register', 'Audit log'];
+    const GOVERNANCE_ONLY = [
+        'Compliance progression', 'Statement of applicability', 'Certified scope',
+        'Verdict register', 'Audit log'
+    ];
 
     /** Les trois que tout compte peut ouvrir. */
     const EVERYONE = ['Compliance matrix', 'OWASP report', 'Exceptions register'];

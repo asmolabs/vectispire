@@ -147,6 +147,7 @@ const LINKS: Record<string, string> = {
     '/remediation-delays': 'Time to fix',
     '/soa': 'Statement of applicability',
     '/certified-scope': 'Certified scope',
+    '/compliance-history': 'Compliance progression',
 
     // Le bandeau de couverture n'a pas d'écran à lui : il se pose sur ceux où son absence produit
     // une conclusion fausse. Celui-ci est le seul des deux qui ait une entrée de menu.
