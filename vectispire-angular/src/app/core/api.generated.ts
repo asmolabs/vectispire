@@ -1556,6 +1556,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/remediation/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Remediation plan coverage
+         * @description How many open findings an upgrade can close, and which families it cannot.
+         */
+        get: operations["coverage_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/remediation/debt": {
         parameters: {
             query?: never;
@@ -4157,6 +4177,15 @@ export interface components {
             fixAction?: string;
             suggestedVersion?: string;
         };
+        RemediationCoverage: {
+            /** Format: int64 */
+            addressableByUpgrade?: number;
+            /** Format: int64 */
+            beyondUpgrades?: number;
+            gaps?: components["schemas"]["RemediationGap"][];
+            /** Format: int64 */
+            openFindings?: number;
+        };
         RemediationDistribution: {
             bySeverity?: components["schemas"]["BySeverity"][];
             /** Format: int64 */
@@ -4165,6 +4194,11 @@ export interface components {
             oldestOpenSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
             /** Format: int32 */
             windowDays?: number;
+        };
+        RemediationGap: {
+            family?: string;
+            /** Format: int64 */
+            findings?: number;
         };
         Report: {
             blocks?: components["schemas"]["Block"][];
@@ -7324,6 +7358,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QualityOverview"];
+                };
+            };
+        };
+    };
+    coverage_1: {
+        parameters: {
+            query?: {
+                repoId?: number;
+                containerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coverage returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RemediationCoverage"];
                 };
             };
         };

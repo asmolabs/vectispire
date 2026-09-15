@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationGap;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
@@ -298,6 +300,91 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         assertThat(report.totalOpenIssues()).isZero();
         assertThat(report.totalEstimatedHours()).isZero();
         assertThat(report.topHighImpactFixes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("l'aveu du plan : ce qu'une montée de version ne fermera pas, et de quelle famille")
+    void theCoverageNamesWhatThePlanCannotReach() {
+        // **Le constat d'usage qui a motivé ce calcul.** Le classement ne retient que des
+        // vulnérabilités portant un paquet ; un dépôt dont le retard est fait de secrets affiche
+        // donc une seule action face à des centaines de lignes, et rien ne disait pourquoi.
+        RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
+
+        assertThat(coverage.openFindings())
+                .as("le même parc ouvert que celui du rapport de dette, et non un sous-ensemble")
+                .isEqualTo(9);
+        assertThat(coverage.addressableByUpgrade())
+                .as("cinq vulnérabilités nomment un paquet ; ce sont les seules qu'un plan peut fermer")
+                .isEqualTo(5);
+        assertThat(coverage.beyondUpgrades()).isEqualTo(4);
+        assertThat(coverage.openFindings())
+                .isEqualTo(coverage.addressableByUpgrade() + coverage.beyondUpgrades());
+
+        // Les manques, du plus nombreux au moins nombreux puis par nom : ici tous à un, donc
+        // l'ordre est alphabétique et deux lectures des mêmes données s'accordent.
+        assertThat(coverage.gaps())
+                .extracting(RemediationGap::family, RemediationGap::findings)
+                .containsExactly(
+                        org.assertj.core.api.Assertions.tuple("iac", 1L),
+                        org.assertj.core.api.Assertions.tuple("quality", 1L),
+                        org.assertj.core.api.Assertions.tuple("secret", 1L),
+                        org.assertj.core.api.Assertions.tuple(RemediationCoverage.UNPACKAGED, 1L));
+    }
+
+    @Test
+    @DisplayName("une vulnérabilité sans paquet est un manque à elle seule, et non une ligne classée trop bas")
+    void anUnpackagedVulnerabilityIsItsOwnFamily() {
+        // La diluer dans `vulnerability` laisserait croire au lecteur qu'elle figure plus bas
+        // dans le plan. Il n'y a rien à monter : le scanner n'a pas dit de quel composant elle
+        // vient.
+        vulnerability(beta, null, "fp-b9", "CVE-2023-7777", Severity.HIGH, "   ", null);
+
+        RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
+
+        assertThat(coverage.gaps())
+                .as("un nom de paquet fait de blancs n'est pas un nom de paquet, ici comme dans le classement")
+                .filteredOn(gap -> gap.family().equals(RemediationCoverage.UNPACKAGED))
+                .singleElement()
+                .satisfies(gap -> assertThat(gap.findings()).isEqualTo(2));
+        assertThat(coverage.addressableByUpgrade()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("l'aveu compte ce que la dette compte : ni la revue par modèle, ni le résolu")
+    void theCoverageCountsWhatTheDebtCounts() {
+        issue(alpha, null, "fp-ai", "ai-1", FindingType.AI_REVIEW, Severity.CRITICAL, IssueState.OPEN);
+
+        RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
+
+        assertThat(coverage.openFindings())
+                .as("un dépôt ne doit pas pouvoir gonfler son propre reste-à-faire par un modèle local")
+                .isEqualTo(9);
+        assertThat(coverage.gaps()).extracting(RemediationGap::family).doesNotContain("ai_review");
+        assertThat(coverage.openFindings())
+                .as("et c'est bien le total du rapport de dette, qui écarte la même chose")
+                .isEqualTo(debt.calculateDebt(null, null, Visibility.everything()).totalOpenIssues());
+    }
+
+    @Test
+    @DisplayName("l'aveu est porté par la portée demandée et par ce que le lecteur a le droit de voir")
+    void theCoverageIsScopedAndVisible() {
+        RemediationCoverage scoped = debt.coverage(alpha, null, Visibility.everything());
+
+        assertThat(scoped.openFindings()).isEqualTo(6);
+        assertThat(scoped.addressableByUpgrade()).isEqualTo(3);
+        assertThat(scoped.gaps()).extracting(RemediationGap::family)
+                .containsExactly("quality", "secret", RemediationCoverage.UNPACKAGED);
+
+        // L'inversion que `Visibility` existe pour empêcher, à l'endroit où elle se verrait : une
+        // habilitation vide est une habilitation, et non l'absence de filtre.
+        assertThat(debt.coverage(null, null, Visibility.only(List.of())).openFindings()).isZero();
+        assertThat(debt.coverage(null, null, Visibility.only(List.of())).gaps()).isEmpty();
+
+        RemediationCoverage restricted = debt.coverage(
+                null, null, Visibility.only(List.of(new ScanTarget.Repository(beta))));
+        assertThat(restricted.openFindings()).isEqualTo(2);
+        assertThat(restricted.addressableByUpgrade()).isEqualTo(1);
+        assertThat(restricted.gaps()).extracting(RemediationGap::family).containsExactly("iac");
     }
 
     @Test

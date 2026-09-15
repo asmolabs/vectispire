@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationGap;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireApplication;
@@ -163,6 +165,23 @@ class SecurityDebtIntegrationTest {
                 .as("an unnamed finding is one unnamed CVE, not zero — the coalesce, on the server")
                 .isEqualTo(1);
         assertThat(leftPad.affectedCves()).containsExactly("UNKNOWN-CVE");
+    }
+
+    @Test
+    @DisplayName("l'aveu du plan se groupe par type et compte le nommage sur le serveur")
+    void theCoverageParses() {
+        // Deux `sum(case when …)` sur un même prédicat, groupés par type : la construction dont
+        // le type de retour appartient au pilote, et qui décide ici de ce qu'un lecteur comprend
+        // — un secret annoncé comme couvert par une montée de version serait un mensonge poli.
+        RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
+
+        assertThat(coverage.openFindings()).isEqualTo(7);
+        assertThat(coverage.addressableByUpgrade())
+                .as("quatre vulnérabilités nomment un paquet ; un nom fait de blancs n'en est pas un, sur aucun moteur")
+                .isEqualTo(4);
+        assertThat(coverage.beyondUpgrades()).isEqualTo(3);
+        assertThat(coverage.gaps()).extracting(RemediationGap::family)
+                .containsExactly("iac", "secret", RemediationCoverage.UNPACKAGED);
     }
 
     @Test

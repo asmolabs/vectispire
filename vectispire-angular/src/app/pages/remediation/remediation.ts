@@ -8,7 +8,7 @@ import { ApiService } from '@/app/core/api.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { FormsModule } from '@angular/forms';
-import type { HighImpactFix, MonitoredContainer, MonitoredRepository, SecurityDebtReport } from '@/app/core/api.models';
+import type { HighImpactFix, MonitoredContainer, MonitoredRepository, RemediationCoverage, SecurityDebtReport } from '@/app/core/api.models';
 
 /**
  * Ce qu'il faut faire, dans l'ordre — et non ce qui ne va pas.
@@ -40,6 +40,16 @@ export class Remediation {
 
     readonly fixes = signal<HighImpactFix[]>([]);
     readonly debt = signal<SecurityDebtReport | null>(null);
+
+    /**
+     * L'aveu du plan : ce qu'une montée de version ne fermera pas.
+     *
+     * <p><b>Parce qu'un utilisateur a lu une panne là où il y avait un calcul juste.</b> Un dépôt
+     * dont le retard est fait de secrets exposés affiche une seule action face à des centaines de
+     * constats ouverts — c'est exact, le classement ne retient que les vulnérabilités portant un
+     * paquet, et rien à l'écran ne le disait. Un chiffre faux se corrige ; une défiance se garde.
+     */
+    readonly coverage = signal<RemediationCoverage | null>(null);
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
     readonly expanded = signal<string | null>(null);
@@ -129,6 +139,12 @@ export class Remediation {
         // est arrivé. C'est le contexte de la page, pas son sujet.
         this.api.getSecurityDebt(repoId, containerId)
             .subscribe({ next: (debt) => this.debt.set(debt), error: () => {} });
+
+        // Et l'aveu de même : ne pas savoir ce que le plan laisse de côté vaut mieux que ne pas
+        // voir le plan. Remis à zéro d'abord, pour qu'une portée ne garde pas l'aveu de l'autre.
+        this.coverage.set(null);
+        this.api.getRemediationCoverage(repoId, containerId)
+            .subscribe({ next: (coverage) => this.coverage.set(coverage), error: () => {} });
     }
 
     /** Change de cible : la taille demandée repart à dix, le plan n'étant plus le même. */

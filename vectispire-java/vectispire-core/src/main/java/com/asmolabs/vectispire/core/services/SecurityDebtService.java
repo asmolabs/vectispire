@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
@@ -164,6 +165,27 @@ public class SecurityDebtService {
             Long repoId, Long containerId, int wanted, Visibility allowed) {
         int bounded = Math.clamp(wanted, 1, MOST_LEVERAGE_EVER);
         return rank(openIssuesOf(repoId, containerId, allowed), bounded);
+    }
+
+    /**
+     * Ce que le plan atteint, et ce qui lui échappe.
+     *
+     * <p><b>Pourquoi ce calcul existe.</b> {@link #rank} ne classe que des vulnérabilités portant
+     * un nom de paquet, parce qu'une ligne du plan est une montée de version. Un dépôt dont le
+     * retard est fait de secrets exposés affiche donc une seule action face à des centaines de
+     * constats ouverts — c'est exact, et illisible. Ceci compte ce que le classement écarte et de
+     * quelle famille, pour que l'écran dise pourquoi plutôt que de laisser conclure à une panne.
+     *
+     * <p>Une lecture groupée, du même ordre de grandeur que les tallies : au plus une ligne par
+     * type.
+     */
+    @Transactional(readOnly = true)
+    public RemediationCoverage coverage(Long repoId, Long containerId, Visibility allowed) {
+        return RemediationCoverage.of(
+                issues.countOpenByTypeAndPackaging(openIssuesOf(repoId, containerId, allowed)).stream()
+                        .map(row -> new RemediationCoverage.OpenFamily(
+                                row.type(), row.packageNamed(), row.unnamed()))
+                        .toList());
     }
 
     private static Specification<IssueEntity> openIssuesOf(Long repoId, Long containerId, Visibility allowed) {

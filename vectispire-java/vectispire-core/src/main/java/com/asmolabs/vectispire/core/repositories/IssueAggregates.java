@@ -112,6 +112,22 @@ public interface IssueAggregates {
     List<OpenBacklog> openBacklogBySeverity(Specification<IssueEntity> filter);
 
     /**
+     * Combien de constats chaque type compte, et combien d'entre eux nomment un paquet.
+     *
+     * <p><b>Le nommage du paquet est mesuré avec le prédicat exact du classement</b> — non nul et
+     * non blanc après {@code trim} — et non « approximativement le même ». C'est ce qui rend
+     * l'aveu vérifiable : la couverture annoncée par l'écran est le complément de ce que
+     * {@link #weighPackages} accepte, et deux prédicats voisins finiraient par se contredire d'un
+     * constat, ce qui est pire que de ne rien dire.
+     *
+     * @param packageNamed combien de constats du type portent un nom de paquet exploitable
+     * @param unnamed combien n'en portent pas
+     */
+    record TypePackaging(String type, long packageNamed, long unnamed) {}
+
+    List<TypePackaging> countOpenByTypeAndPackaging(Specification<IssueEntity> filter);
+
+    /**
      * The vulnerable packages, weighted.
      *
      * <p>Restricted to vulnerabilities carrying a package name: a finding with no package cannot

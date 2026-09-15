@@ -95,6 +95,7 @@ import {
     SbomDiffReport,
     SecurityDebtReport,
     HighImpactFix,
+    RemediationCoverage,
     AttackPathGraph,
     AttackPathNode,
     AttackPath
@@ -824,6 +825,19 @@ export class ApiService {
         if (containerId) params = params.set('containerId', containerId);
         if (limit) params = params.set('limit', limit);
         return this.http.get<HighImpactFix[]>('/api/v1/remediation/high-impact-fixes', { params });
+    }
+
+    /**
+     * Ce que le plan ne peut pas fermer, et de quelle famille.
+     *
+     * Appelé à part du plan : ne pas obtenir l'aveu n'empêche pas d'afficher l'ordre de travail,
+     * qui est le sujet de l'écran.
+     */
+    getRemediationCoverage(repoId?: number, containerId?: number): Observable<RemediationCoverage> {
+        let params = new HttpParams();
+        if (repoId) params = params.set('repoId', repoId);
+        if (containerId) params = params.set('containerId', containerId);
+        return this.http.get<RemediationCoverage>('/api/v1/remediation/coverage', { params });
     }
 
     getAttackPathGraph(repoId: number): Observable<AttackPathGraph> {

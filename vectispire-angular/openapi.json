@@ -4157,6 +4157,29 @@
         },
         "type" : "object"
       },
+      "RemediationCoverage" : {
+        "properties" : {
+          "addressableByUpgrade" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "beyondUpgrades" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "gaps" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RemediationGap"
+            },
+            "type" : "array"
+          },
+          "openFindings" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "RemediationDistribution" : {
         "properties" : {
           "bySeverity" : {
@@ -4175,6 +4198,18 @@
           },
           "windowDays" : {
             "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "RemediationGap" : {
+        "properties" : {
+          "family" : {
+            "type" : "string"
+          },
+          "findings" : {
+            "format" : "int64",
             "type" : "integer"
           }
         },
@@ -9448,6 +9483,43 @@
           }
         },
         "tags" : [ "quality-controller" ]
+      }
+    },
+    "/api/v1/remediation/coverage" : {
+      "get" : {
+        "description" : "How many open findings an upgrade can close, and which families it cannot.",
+        "operationId" : "coverage_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "repoId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "containerId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RemediationCoverage"
+                }
+              }
+            },
+            "description" : "Coverage returned"
+          }
+        },
+        "summary" : "Remediation plan coverage",
+        "tags" : [ "security-debt-controller" ]
       }
     },
     "/api/v1/remediation/debt" : {

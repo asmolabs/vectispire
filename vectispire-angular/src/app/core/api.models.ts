@@ -1429,6 +1429,31 @@ export interface HighImpactFix {
     affectedTargetNames: string[];
 }
 
+/**
+ * Un ensemble de constats ouverts qu'aucune montée de version ne fermera.
+ *
+ * `family` est un jeton — le type de constat, ou `unpackaged` — et non une phrase : la phrase qui
+ * dit comment on referme cette famille-là est traduite, clé par clé, côté écran.
+ */
+export interface RemediationGap {
+    family: string;
+    findings: number;
+}
+
+/**
+ * Ce que le plan de remédiation atteint, et ce qu'il ne peut pas atteindre.
+ *
+ * Le classement ne retient que des vulnérabilités portant un nom de paquet, parce qu'une ligne du
+ * plan est une montée de version. Un dépôt dont le retard est fait de secrets exposés affiche donc
+ * une seule action face à des centaines de constats — exact, et illisible sans cet aveu.
+ */
+export interface RemediationCoverage {
+    openFindings: number;
+    addressableByUpgrade: number;
+    beyondUpgrades: number;
+    gaps: RemediationGap[];
+}
+
 export interface SecurityDebtReport {
     totalOpenIssues: number;
     criticalIssues: number;

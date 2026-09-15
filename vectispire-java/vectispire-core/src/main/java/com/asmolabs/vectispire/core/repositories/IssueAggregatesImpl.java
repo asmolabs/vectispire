@@ -145,6 +145,25 @@ public class IssueAggregatesImpl implements IssueAggregates {
     }
 
     @Override
+    public List<TypePackaging> countOpenByTypeAndPackaging(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        Predicate named = packageIsNamed(builder, issue);
+        query.select(builder.array(
+                        issue.get("type"),
+                        builder.sum(builder.<Long>selectCase().when(named, 1L).otherwise(0L)),
+                        builder.sum(builder.<Long>selectCase().when(named, 0L).otherwise(1L))))
+                .groupBy(issue.get("type"));
+        restrict(query, filter, issue, builder);
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new TypePackaging((String) row[0], count(row[1]), count(row[2])))
+                .toList();
+    }
+
+    @Override
     public List<PackageWeight> weighPackages(Specification<IssueEntity> filter) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
@@ -228,6 +247,18 @@ public class IssueAggregatesImpl implements IssueAggregates {
     private static Predicate vulnerabilityWithAPackage(CriteriaBuilder builder, Root<IssueEntity> issue) {
         return builder.and(
                 builder.equal(issue.get("type"), FindingType.VULNERABILITY.wireName()),
+                packageIsNamed(builder, issue));
+    }
+
+    /**
+     * Le paquet est nommé.
+     *
+     * <p>Extrait pour être partagé avec {@link #countOpenByTypeAndPackaging}, qui annonce à
+     * l'écran ce que le classement laisse de côté : les deux lectures doivent s'accorder au
+     * constat près, et deux copies d'un même prédicat finissent par ne plus s'accorder.
+     */
+    private static Predicate packageIsNamed(CriteriaBuilder builder, Root<IssueEntity> issue) {
+        return builder.and(
                 builder.isNotNull(issue.get("packageName")),
                 builder.notEqual(builder.trim(issue.<String>get("packageName")), ""));
     }

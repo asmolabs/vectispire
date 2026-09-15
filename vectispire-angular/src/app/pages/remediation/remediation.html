@@ -46,6 +46,49 @@
         </div>
     }
 
+    <!--
+        **L'aveu du plan, avant la liste.** Un utilisateur a lu une panne là où il y avait un
+        calcul juste : une seule action face à des centaines de constats ouverts, parce que le
+        classement ne retient que les vulnérabilités portant un nom de paquet. L'écran le dit
+        maintenant, et dit comment on referme le reste — chaque famille par son geste, qui n'est
+        jamais une montée de version.
+
+        Les libellés passent par un `@switch` sur des clés littérales plutôt que par une clé
+        construite depuis la famille : le garde des traductions ne sait lire que les clés
+        littérales, et une clé fabriquée s'afficherait telle quelle le jour où elle manque.
+    -->
+    @if (coverage(); as c) {
+        @if (c.beyondUpgrades > 0) {
+            <div class="border border-surface rounded-lg p-4 mb-6">
+                <div class="font-medium mb-1">{{ 'remediation.coverage_title' | translate }}</div>
+                <p class="text-sm text-muted-color mb-2">
+                    {{ 'remediation.coverage_summary' | translate: { covered: c.addressableByUpgrade, open: c.openFindings, beyond: c.beyondUpgrades } }}
+                </p>
+                <ul class="text-sm flex flex-col gap-1 pl-0 m-0 list-none">
+                    @for (gap of c.gaps; track gap.family) {
+                        <li>
+                            <span class="font-semibold tabular-nums mr-1">{{ gap.findings }}</span>
+                            @switch (gap.family) {
+                                @case ('secret') { {{ 'remediation.gap_secret' | translate }} }
+                                @case ('iac') { {{ 'remediation.gap_iac' | translate }} }
+                                @case ('license') { {{ 'remediation.gap_license' | translate }} }
+                                @case ('eol') { {{ 'remediation.gap_eol' | translate }} }
+                                @case ('sast') { {{ 'remediation.gap_sast' | translate }} }
+                                @case ('quality') { {{ 'remediation.gap_quality' | translate }} }
+                                @case ('unpackaged') { {{ 'remediation.gap_unpackaged' | translate }} }
+                                @default { {{ 'remediation.gap_other' | translate }} }
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        } @else if (c.openFindings > 0) {
+            <p class="text-sm text-muted-color mb-6">
+                {{ 'remediation.coverage_all' | translate: { open: c.openFindings } }}
+            </p>
+        }
+    }
+
     @if (loading()) {
         <div class="text-muted-color">{{ 'common.loading' | translate }}</div>
     } @else if (fixes().length === 0) {

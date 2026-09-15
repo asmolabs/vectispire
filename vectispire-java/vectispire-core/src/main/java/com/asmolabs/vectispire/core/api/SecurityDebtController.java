@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
+import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
@@ -65,6 +66,23 @@ public class SecurityDebtController {
             @RequestParam(value = "containerId", required = false) Long containerId) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
         return securityDebtService.calculateDebt(repoId, containerId, allowed);
+    }
+
+    /**
+     * Ce que le plan ne peut pas fermer, et pourquoi.
+     *
+     * <p>Une ressource à part plutôt qu'un champ de plus sur le plan : un écran qui n'a pas pu
+     * obtenir l'aveu doit tout de même afficher l'ordre de travail, qui est son sujet.
+     */
+    @Operation(summary = "Remediation plan coverage", description = "How many open findings an upgrade can close, and which families it cannot.")
+    @ApiResponse(responseCode = "200", description = "Coverage returned")
+    @GetMapping("/coverage")
+    public RemediationCoverage coverage(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(value = "repoId", required = false) Long repoId,
+            @RequestParam(value = "containerId", required = false) Long containerId) {
+        Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
+        return securityDebtService.coverage(repoId, containerId, allowed);
     }
 
     @GetMapping("/high-impact-fixes")
