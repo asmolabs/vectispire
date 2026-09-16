@@ -1209,6 +1209,14 @@ export type ComplianceCategory = Schema<'ComplianceControl'>['category'];
 /** A control's verdict, and the framework's own. One vocabulary for both. */
 export type ComplianceStatus = 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
 
+/**
+ * Les référentiels évalués, **lus dans le document**.
+ *
+ * Ils étaient listés à la main, et `SOC_2` manquait : un `switch` exhaustif l'aurait omis sans que
+ * le compilateur le signale, parce que l'exhaustivité se mesure au type et non à la réalité.
+ */
+export type ComplianceFramework = NonNullable<Schema<'ComplianceEvaluation'>['framework']>;
+
 export type ComplianceControl = Refine<
     Schema<'ComplianceControl'>,
     { id: string; name: string; requirement: string; category: ComplianceCategory }
@@ -1227,13 +1235,7 @@ export type ComplianceControlAssessment = Refine<
 export type ComplianceEvaluation = Refine<
     Schema<'ComplianceEvaluation'>,
     {
-        /**
-         * **Six, et `SOC_2` manquait.** Le serveur en déclare six depuis toujours ; ce type en
-         * listait cinq, si bien qu'un `switch` exhaustif sur ce champ aurait omis SOC 2 sans que
-         * le compilateur le signale — l'exhaustivité se mesure au type, pas à la réalité. La
-         * liste vient désormais du document, ce qui retire la question.
-         */
-        framework: NonNullable<Schema<'ComplianceEvaluation'>['framework']>;
+        framework: ComplianceFramework;
         overallStatus: ComplianceStatus;
         controls: ComplianceControlAssessment[];
     }
@@ -1460,64 +1462,73 @@ export interface PostureTrendAnalytics {
     }>;
 }
 
-export interface ApiEndpointView {
-    id: number;
-    scanId: number;
-    repositoryId: number;
-    method: string;
-    path: string;
-    authRequired: boolean;
-    authType: string | null;
-    visibility: 'PUBLIC' | 'INTERNAL' | 'UNKNOWN';
-    filePath: string | null;
-    lineNumber: number | null;
-    framework: string | null;
-    operationId: string | null;
-    summary: string | null;
-    tags: string | null;
-    shadowStatus: 'DOCUMENTED' | 'SHADOW_API' | 'UNDOCUMENTED' | 'HIGH_RISK_EXPOSURE';
-    createdAt: string;
-}
+/** Qui peut l'atteindre. Le document type `visibility` en `string` sur cette vue-ci. */
+export type EndpointVisibility = 'PUBLIC' | 'INTERNAL' | 'UNKNOWN';
 
-export interface ApiContractView {
-    id: number;
-    repositoryId: number;
-    scanId: number | null;
-    contractPath: string;
-    format: string | null;
-    title: string | null;
-    version: string | null;
-    endpointsCount: number;
-    createdAt: string;
-}
+/**
+ * Ce que la découverte conclut d'un point d'entrée face aux contrats déclarés.
+ *
+ * `SHADOW_API` est le cas qui justifie l'écran : une route servie que rien ne documente.
+ */
+export type ShadowStatus = 'DOCUMENTED' | 'SHADOW_API' | 'UNDOCUMENTED' | 'HIGH_RISK_EXPOSURE';
 
-export interface AttackSurfaceSummary {
-    totalEndpoints: number;
-    publicEndpoints: number;
-    internalEndpoints: number;
-    unauthenticatedEndpoints: number;
-    shadowEndpoints: number;
-    sensitiveUnprotectedEndpoints: number;
-}
+export type ApiEndpointView = Refine<
+    Schema<'EndpointView'>,
+    {
+        id: number;
+        scanId: number;
+        repositoryId: number;
+        method: string;
+        path: string;
+        visibility: EndpointVisibility;
+        shadowStatus: ShadowStatus;
+        createdAt: string;
+        authType: string | null;
+        filePath: string | null;
+        lineNumber: number | null;
+        framework: string | null;
+        operationId: string | null;
+        summary: string | null;
+        tags: string | null;
+    }
+>;
 
-export interface RepositoryApisOverview {
-    repositoryId: number;
-    endpoints: ApiEndpointView[];
-    contracts: ApiContractView[];
-    summary: AttackSurfaceSummary;
-}
+export type ApiContractView = Refine<
+    Schema<'ApiContractEntity'>,
+    {
+        id: number;
+        repositoryId: number;
+        contractPath: string;
+        endpointsCount: number;
+        createdAt: string;
+        scanId: number | null;
+        format: string | null;
+        title: string | null;
+        version: string | null;
+    }
+>;
 
-export interface GlobalAttackSurface {
-    totalEndpoints: number;
-    publicEndpoints: number;
-    internalEndpoints: number;
-    unauthenticatedEndpoints: number;
-    shadowEndpoints: number;
-    sensitiveUnprotectedEndpoints: number;
-    frameworks: string[];
-    highRiskEndpoints: ApiEndpointView[];
-    allEndpoints?: ApiEndpointView[];
-}
+/** Six comptes, tous primitifs : le document les marque déjà tous « toujours envoyés ». */
+export type AttackSurfaceSummary = Schema<'AttackSurfaceSummary'>;
+
+export type RepositoryApisOverview = Refine<
+    Schema<'RepositoryApisOverview'>,
+    {
+        repositoryId: number;
+        endpoints: ApiEndpointView[];
+        contracts: ApiContractView[];
+        summary: AttackSurfaceSummary;
+    }
+>;
+
+export type GlobalAttackSurface = Refine<
+    Schema<'GlobalAttackSurface'>,
+    {
+        frameworks: string[];
+        highRiskEndpoints: ApiEndpointView[];
+        allEndpoints?: ApiEndpointView[];
+    }
+>;
 
 export type ChangeType = 'ADDED' | 'REMOVED' | 'VERSION_CHANGED' | 'LICENSE_CHANGED' | 'UNCHANGED';
 
@@ -1745,69 +1756,89 @@ export interface RuleCoverageAssessment {
     ruleFiles: number;
 }
 
-export type Applicability = 'APPLICABLE' | 'EXCLUDED';
-export type Implementation = 'IMPLEMENTED' | 'PARTIALLY_IMPLEMENTED' | 'PLANNED' | 'NOT_IMPLEMENTED';
-export type EvidenceSource = 'VECTISPIRE' | 'EXTERNAL' | 'BOTH';
-export type Divergence = 'CONTRADICTED' | 'EXCLUDED_WITHOUT_JUSTIFICATION' | 'UNDECLARED' | 'OVERSTATED' | 'UNDERSTATED' | 'NOT_MEASURED_HERE' | 'NOT_APPLICABLE' | 'CONSISTENT';
+/** Les quatre unions de la déclaration d'applicabilité viennent du document. */
+export type Applicability = NonNullable<Schema<'Declaration'>['applicability']>;
+export type Implementation = NonNullable<Schema<'Declaration'>['implementation']>;
+export type EvidenceSource = NonNullable<Schema<'Declaration'>['evidenceSource']>;
 
-export interface ControlDeclaration {
-    framework: string;
-    controlId: string;
-    applicability: Applicability;
-    justification: string | null;
-    implementation: Implementation | null;
-    evidenceSource: EvidenceSource;
-    externalEvidence: string | null;
-    owner: string | null;
-    decidedBy: string | null;
-    decidedAt: string;
-    reviewedAt: string | null;
-    reviewDueAt: string | null;
-}
+/**
+ * L'écart entre ce qu'une organisation déclare et ce que ce produit mesure.
+ *
+ * Le document type `divergence` en `string` sur la ligne : la liste est tenue ici, et
+ * `NOT_MEASURED_HERE` est celle qui compte — elle dit qu'aucun désaccord n'est constaté parce que
+ * rien n'a été observé, ce qui n'est pas un accord.
+ */
+export type Divergence =
+    | 'CONTRADICTED'
+    | 'EXCLUDED_WITHOUT_JUSTIFICATION'
+    | 'UNDECLARED'
+    | 'OVERSTATED'
+    | 'UNDERSTATED'
+    | 'NOT_MEASURED_HERE'
+    | 'NOT_APPLICABLE'
+    | 'CONSISTENT';
 
-export interface SoaLine {
-    control: { id: string; name: string; requirement: string; category: string };
-    declaration: ControlDeclaration | null;
-    measured: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT' | null;
-    divergence: Divergence;
-    reviewOverdue: boolean;
-}
+export type ControlDeclaration = Refine<
+    Schema<'Declaration'>,
+    {
+        framework: ComplianceFramework;
+        controlId: string;
+        applicability: Applicability;
+        evidenceSource: EvidenceSource;
+        decidedAt: string;
+        justification: string | null;
+        implementation: Implementation | null;
+        externalEvidence: string | null;
+        owner: string | null;
+        decidedBy: string | null;
+        reviewedAt: string | null;
+        reviewDueAt: string | null;
+    }
+>;
 
-export interface SoaStatement {
-    framework: string;
-    /** Le nom de la norme. `framework` est la constante Java, pas un libellé. */
-    title: string;
-    lines: SoaLine[];
-    total: number;
-    declared: number;
-    findings: number;
-    reviewsOverdue: number;
-    complete: boolean;
-}
+export type SoaLine = Refine<
+    Schema<'Line'>,
+    {
+        control: ComplianceControl;
+        declaration: ControlDeclaration | null;
+        measured: ComplianceStatus | null;
+        divergence: Divergence;
+    }
+>;
 
-export interface DeclarationRequest {
-    applicability: Applicability;
-    justification: string | null;
-    implementation: Implementation | null;
-    evidence_source: EvidenceSource;
-    external_evidence: string | null;
-    owner: string | null;
-    review_due_at: string | null;
-}
+export type SoaStatement = Refine<
+    Schema<'SoaStatement'>,
+    {
+        framework: ComplianceFramework;
+        /** Le nom de la norme. `framework` est la constante Java, pas un libellé. */
+        title: string;
+        lines: SoaLine[];
+    }
+>;
 
-export interface ScopeCoverage {
-    declaredAssets: number;
-    inScope: number;
-    scannedRecently: number;
-    stale: number;
-    neverScanned: number;
-}
+export type DeclarationRequest = Refine<
+    Schema<'DeclarationRequest'>,
+    {
+        applicability: Applicability;
+        evidence_source: EvidenceSource;
+        justification: string | null;
+        implementation: Implementation | null;
+        external_evidence: string | null;
+        owner: string | null;
+        review_due_at: string | null;
+    }
+>;
 
-export interface ScopeView {
-    statement: string;
-    coverage: ScopeCoverage;
-    targets: { kind: string; id: number }[];
-}
+/** Cinq comptes, tous primitifs — le document les marque déjà tous « toujours envoyés ». */
+export type ScopeCoverage = Schema<'ScopeCoverage'>;
+
+/** Une cible du périmètre certifié, identifiée et qualifiée. */
+export type ScopeTarget = Refine<Schema<'TargetRef'>, { kind: string; id: number }>;
+
+export type ScopeView = Refine<
+    Schema<'ScopeView'>,
+    { statement: string; coverage: ScopeCoverage; targets: ScopeTarget[] }
+>;
 
 export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
 
