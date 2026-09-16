@@ -259,21 +259,26 @@ describe('every screen', () => {
         fixture.detectChanges();
 
         for (const request of http.match(() => true)) {
+            // The summary is nested under `scan`, as the route sends it. This fixture used to
+            // spread it flat — the same belief the client type held — so the screen reading
+            // `detail.id` found nothing here and nothing in production, and both agreed.
             request.flush({
-                id: 34,
-                status: 'completed',
-                branch: 'master',
-                createdAt: '2026-08-21T05:03:00Z',
-                durationMs: 1000,
-                findingsCount: 0,
-                newIssuesCount: 0,
-                resolvedIssuesCount: 0,
-                error: null,
-                claimedBy: null,
-                attempts: 1,
-                targetKind: 'repository',
-                targetId: 5,
-                targetName: 'Arm Libs Spring',
+                scan: {
+                    id: 34,
+                    status: 'completed',
+                    branch: 'master',
+                    createdAt: '2026-08-21T05:03:00Z',
+                    durationMs: 1000,
+                    findingsCount: 0,
+                    newIssuesCount: 0,
+                    resolvedIssuesCount: 0,
+                    error: null,
+                    claimedBy: null,
+                    attempts: 1,
+                    targetKind: 'repository',
+                    targetId: 5,
+                    targetName: 'Arm Libs Spring'
+                },
                 subPath: null,
                 projectType: 'maven',
                 projectVersion: '1.17.6',

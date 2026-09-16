@@ -712,157 +712,136 @@ export interface Trends {
 }
 
 /** Un agent, tel que l'administration le voit. */
-export interface AgentSummary {
-    id: string;
-    name: string;
-    description: string | null;
-    kind: string;
-    enabled: boolean;
-    credentialsMode: string;
-    /** What this agent can reach, comma-separated. `null`: no labelled target. */
-    labels: string | null;
-    /** Did it announce an ephemeral public key? If not, its secrets travel in clear. */
-    sealsCredentials: boolean;
-    /**
-     * Is a result-signing key pinned for this agent?
-     *
-     * False means its results are accepted on its API key alone — so whoever holds that key can
-     * hand back an empty result and resolve the target's whole backlog. The screen says so,
-     * because nothing else would.
-     */
-    signsResults: boolean;
-    maxConcurrent: number | null;
-    hostname: string | null;
-    platform: string | null;
-    version: string | null;
-    contractVersion: string | null;
-    lastSeenAt: string | null;
-    /** Seen recently — not "enabled". An enabled but silent agent is the case that matters. */
-    online: boolean;
-    runningScans: number;
-}
+export type AgentSummary = Refine<
+    Schema<'AgentSummary'>,
+    {
+        id: string;
+        name: string;
+        kind: string;
+        credentialsMode: string;
+        description: string | null;
+        /** What this agent can reach, comma-separated. `null`: no labelled target. */
+        labels: string | null;
+        maxConcurrent: number | null;
+        hostname: string | null;
+        platform: string | null;
+        version: string | null;
+        contractVersion: string | null;
+        lastSeenAt: string | null;
+    }
+>;
 
-export interface RunningScanItem {
-    scanId: number;
-    targetType: 'repository' | 'container';
-    targetId: number;
-    targetName: string;
-    branch: string;
-    agentId: string | null;
-    agentName: string;
-    claimedAt: string;
-    durationSeconds: number;
-    requiredLabel: string | null;
-}
+export type RunningScanItem = Refine<
+    Schema<'RunningScanItem'>,
+    {
+        scanId: number;
+        targetType: 'repository' | 'container';
+        targetId: number;
+        targetName: string;
+        branch: string;
+        agentName: string;
+        claimedAt: string;
+        agentId: string | null;
+        requiredLabel: string | null;
+    }
+>;
 
-export interface PendingScanItem {
-    scanId: number;
-    targetType: 'repository' | 'container';
-    targetId: number;
-    targetName: string;
-    branch: string;
-    requiredLabel: string | null;
-    queuedAt: string;
-    waitDurationSeconds: number;
-    isRoutable: boolean;
-    positionInQueue: number;
-}
+export type PendingScanItem = Refine<
+    Schema<'PendingScanItem'>,
+    {
+        scanId: number;
+        targetType: 'repository' | 'container';
+        targetId: number;
+        targetName: string;
+        branch: string;
+        queuedAt: string;
+        requiredLabel: string | null;
+    }
+>;
 
-export interface QueueStats {
-    totalAgents: number;
-    onlineAgents: number;
-    busyAgents: number;
-    idleAgents: number;
-    runningScansCount: number;
-    pendingScansCount: number;
-    scansCompleted24h: number;
-    avgScanDurationSeconds: number;
-}
+/** Every figure is a count the server computes; the document marks them all as always sent. */
+export type QueueStats = Schema<'QueueStats'>;
 
-export interface AgentActivitySummary {
-    runningScans: RunningScanItem[];
-    pendingScans: PendingScanItem[];
-    stats: QueueStats;
-}
+export type AgentActivitySummary = Refine<
+    Schema<'AgentActivitySummary'>,
+    { runningScans: RunningScanItem[]; pendingScans: PendingScanItem[]; stats: QueueStats }
+>;
 
-export interface NewAgent {
-    name: string;
-    description?: string;
-    credentials_mode: string;
-    /** Comma-separated. What this agent can reach. */
-    labels?: string;
-    max_concurrent?: number;
-}
+export type NewAgent = Refine<
+    Schema<'AgentCreateRequest'>,
+    { name: string; credentials_mode: string }
+>;
 
-/** A label demanded by targets that no enabled agent carries. */
-export interface UnroutableLabel {
-    label: string;
-    queued: number;
-}
+export type UnroutableLabel = Refine<Schema<'UnroutableLabel'>, { label: string }>;
 
-export interface IssuedAgent {
-    id: string;
-    name: string;
-    /** The one and only occurrence of the key in clear. */
-    secret: string;
-}
+export type IssuedAgent = Refine<
+    Schema<'DeclaredAgent'>,
+    {
+        id: string;
+        name: string;
+        /** The one and only occurrence of the key in clear. */
+        secret: string;
+    }
+>;
 
-/** Un agent, tel que l'administration le montre. */
+export type ScanSummary = Refine<
+    Schema<'ScanSummary'>,
+    {
+        id: number;
+        status: string;
+        branch: string;
+        targetKind: string;
+        targetName: string;
+        createdAt: string | null;
+        durationMs: number | null;
+        error: string | null;
+        claimedBy: string | null;
+        targetId: number | null;
+    }
+>;
 
-export interface ScanSummary {
-    id: number;
-    status: string;
-    branch: string;
-    createdAt: string | null;
-    durationMs: number | null;
-    findingsCount: number;
-    newIssuesCount: number;
-    resolvedIssuesCount: number;
-    error: string | null;
-    claimedBy: string | null;
-    attempts: number;
-    targetKind: string;
-    targetId: number | null;
-    targetName: string;
-}
-
-export interface ScanFinding {
-    id: number;
-    type: string;
-    severity: string | null;
-    identifier: string | null;
-    packageName: string | null;
-    packageVersion: string | null;
-    fixVersions: string | null;
-    filePath: string | null;
-    line: number | null;
-    description: string | null;
-    link: string | null;
-}
-
-export interface ScanDetail extends ScanSummary {
-    subPath: string | null;
-    /** What the scanned tree says about itself — `maven`, `gradle`, `npm`, `python`. */
-    projectType: string | null;
-    /**
-     * The project's own version, read from its manifest. Null is a real answer: a repository may
-     * carry no manifest, or one that names its ecosystem without stating a version.
-     */
-    projectVersion: string | null;
-    hasSbom: boolean;
-    findings: ScanFinding[];
-    findingsTotal: number;
-    /** Is the list truncated? Saying so avoids believing the scan lighter than it was. */
-    findingsTruncated: boolean;
-}
+export type ScanFinding = Refine<
+    Schema<'FindingView'>,
+    {
+        id: number;
+        type: string;
+        severity: string | null;
+        identifier: string | null;
+        packageName: string | null;
+        packageVersion: string | null;
+        fixVersions: string | null;
+        filePath: string | null;
+        line: number | null;
+        description: string | null;
+        link: string | null;
+    }
+>;
 
 /**
- * A setting, as the server describes it.
+ * One scan, with what the list cannot carry.
  *
- * The type and the explanation come from the server rather than being written here: adding a
- * setting must require no change to the interface, and above all the screen must not be able
- * to offer a key that no service reads.
+ * <b>The summary is nested under `scan`, not spread across this object.</b> It was declared here as
+ * `extends ScanSummary`, and the screen read `detail.id`, `detail.branch`, `detail.status` and the
+ * three counters straight off the response — where the server has never put them. Ten fields of
+ * that page rendered blank, and the type said they could not be. Nothing failed loudly enough for
+ * anyone to look.
  */
+export type ScanDetail = Refine<
+    Schema<'ScanDetail'>,
+    {
+        scan: ScanSummary;
+        findings: ScanFinding[];
+        subPath: string | null;
+        /** What the scanned tree says about itself — `maven`, `gradle`, `npm`, `python`. */
+        projectType: string | null;
+        /**
+         * The project's own version, read from its manifest. Null is a real answer: a repository
+         * may carry no manifest, or one that names its ecosystem without stating a version.
+         */
+        projectVersion: string | null;
+    }
+>;
+
 export interface SettingDefinition {
     key: string;
     type: 'boolean' | 'integer' | 'text' | 'severity';

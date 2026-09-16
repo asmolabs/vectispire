@@ -1,11 +1,11 @@
 @if (scan(); as detail) {
     <div class="mb-4">
         <a routerLink="/repositories" class="text-sm">{{ 'scans.back_to_repos' | translate }}</a>
-        <h1 class="text-2xl font-semibold m-0 mt-1">{{ 'scans.scan_title' | translate }} #{{ detail.id }} — {{ detail.targetName }}</h1>
+        <h1 class="text-2xl font-semibold m-0 mt-1">{{ 'scans.scan_title' | translate }} #{{ detail.scan.id }} — {{ detail.scan.targetName }}</h1>
         <p class="text-muted-color mt-1 mb-0">
-            {{ detail.branch }} · {{ detail.createdAt | date: 'dd/MM/yyyy HH:mm' }}
-            @if (detail.durationMs) {
-                · {{ seconds(detail.durationMs) }} s
+            {{ detail.scan.branch }} · {{ detail.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            @if (detail.scan.durationMs) {
+                · {{ seconds(detail.scan.durationMs) }} s
             }
             @if (detail.projectType) {
                 · {{ detail.projectType }}
@@ -16,29 +16,29 @@
         </p>
     </div>
 
-    @if (detail.error) {
-        <p-message [severity]="detail.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
-            {{ detail.error }}
+    @if (detail.scan.error) {
+        <p-message [severity]="detail.scan.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
+            {{ detail.scan.error }}
         </p-message>
     }
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.state' | translate }}</div>
-            <div class="mt-2"><app-last-scan [scan]="detail" /></div>
+            <div class="mt-2"><app-last-scan [scan]="detail.scan" /></div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.findings' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1">{{ detail.findingsCount }}</div>
+            <div class="text-3xl font-semibold mt-1">{{ detail.scan.findingsCount }}</div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.new_issues' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.newIssuesCount > 0">{{ detail.newIssuesCount }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.scan.newIssuesCount > 0">{{ detail.scan.newIssuesCount }}</div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.resolved_issues' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.resolvedIssuesCount > 0">
-                {{ detail.resolvedIssuesCount }}
+            <div class="text-3xl font-semibold mt-1" [class.text-green-600]="detail.scan.resolvedIssuesCount > 0">
+                {{ detail.scan.resolvedIssuesCount }}
             </div>
         </p-card>
     </div>
@@ -56,7 +56,7 @@
                 icon="pi pi-download"
                 severity="secondary"
                 size="small"
-                (onClick)="downloadSbom(detail.id)" />
+                (onClick)="downloadSbom(detail.scan.id)" />
         }
         <p-button
             [label]="'scans.download_attestation' | translate"
@@ -64,21 +64,21 @@
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadAttestation(detail.id)" />
+            (onClick)="downloadAttestation(detail.scan.id)" />
         <p-button
             [label]="'scans.download_csaf' | translate"
             icon="pi pi-file"
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadCsaf(detail.id)" />
+            (onClick)="downloadCsaf(detail.scan.id)" />
         <p-button
             [label]="'scans.download_cyclonedx' | translate"
             icon="pi pi-file"
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadCycloneDx(detail.id)" />
+            (onClick)="downloadCycloneDx(detail.scan.id)" />
     </div>
 
     <p-card>

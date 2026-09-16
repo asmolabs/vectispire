@@ -191,8 +191,12 @@ class RemainingContractTest extends ApiTestBase {
                 .andExpect(jsonPath("$.findings[0].severity").value("high"))
                 .andExpect(jsonPath("$.findingsTruncated").value(false))
                 .andExpect(jsonPath("$.hasSbom").value(false))
-                // The summary is flattened into the detail, as the screen reads it.
-                .andExpect(jsonPath("$.scan.targetKind").value("repository"));
+                // The summary is *nested* under `scan`, which is what this assertion has always
+                // checked — the comment that stood here said "flattened, as the screen reads it",
+                // and the screen did read it flat. It was the comment that was wrong, and it read
+                // as a confirmation to anyone who came to check.
+                .andExpect(jsonPath("$.scan.targetKind").value("repository"))
+                .andExpect(jsonPath("$.targetKind").doesNotExist());
     }
 
     @Test
