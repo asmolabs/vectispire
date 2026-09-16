@@ -29,6 +29,7 @@ import {
     DashboardOverview,
     Trends,
     Issue,
+    TriagedIssue,
     RuleSetImpact,
     RuleSetSummary,
     IssueFilters,
@@ -139,8 +140,8 @@ export class ApiService {
         return this.http.get<Page<Issue>>('/api/v1/issues', { params });
     }
 
-    triage(issueId: number, request: TriageRequest): Observable<Issue> {
-        return this.http.post<Issue>(`/api/v1/issues/${issueId}/triage`, request);
+    triage(issueId: number, request: TriageRequest): Observable<TriagedIssue> {
+        return this.http.post<TriagedIssue>(`/api/v1/issues/${issueId}/triage`, request);
     }
 
     /**
@@ -150,8 +151,8 @@ export class ApiService {
      * nothing was triaged. A caller that retried "the rest" after a failure would be inventing
      * a partial outcome the API does not produce.
      */
-    triageMany(request: BulkTriageRequest): Observable<Issue[]> {
-        return this.http.post<Issue[]>('/api/v1/issues/triage', request);
+    triageMany(request: BulkTriageRequest): Observable<TriagedIssue[]> {
+        return this.http.post<TriagedIssue[]>('/api/v1/issues/triage', request);
     }
 
     dashboard(): Observable<DashboardOverview> {
@@ -602,8 +603,8 @@ export class ApiService {
      * rattachement que la synchronisation ignore, c'est-à-dire une fonctionnalité qui a l'air de
      * marcher et ne se synchronise jamais.
      */
-    attachTicket(issueId: number, reference: string, url?: string | null): Observable<Issue> {
-        return this.http.put<Issue>(`/api/v1/issues/${issueId}/ticket`, { reference, url: url ?? null });
+    attachTicket(issueId: number, reference: string, url?: string | null): Observable<TriagedIssue> {
+        return this.http.put<TriagedIssue>(`/api/v1/issues/${issueId}/ticket`, { reference, url: url ?? null });
     }
 
 

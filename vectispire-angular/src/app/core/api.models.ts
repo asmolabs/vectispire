@@ -227,56 +227,88 @@ export interface InTotoAttestation {
     };
 }
 
-export interface Issue {
-    id: number;
-    repoId: number | null;
-    containerId: number | null;
-    /** Resolved by the server, so one target is never named two things on two screens. */
-    targetKind: 'repository' | 'container';
-    targetName: string | null;
-    type: string;
-    identifier: string | null;
-    severity: string | null;
-    packageName: string | null;
-    packageVersion: string | null;
-    purl: string | null;
-    filePath: string | null;
-    line: number | null;
-    cvssScore: number | null;
-    epssScore: number | null;
-    isKev: boolean;
-    fixState: string | null;
-    fixVersions: string | null;
-    link: string | null;
-    description: string | null;
-    state: string;
-    firstSeenAt: string;
-    lastSeenAt: string;
-    timesSeen: number;
-    triageStatus: string;
-    triageJustification: string | null;
-    triageComment: string | null;
-    triagedBy: string | null;
-    triagedAt: string | null;
-    triageExpiresAt: string | null;
-    isDirectDependency: boolean | null;
-    ticketRef: string | null;
-    ticketUrl: string | null;
-    reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
-    reachableSymbols?: string | null;
-    /** When this issue's remediation window closes; null when none applies — a severity with no
-     *  window, or an issue already settled or closed.
-     *
-     *  **Computed by the server**, like the gate verdict. Deriving it here from the policy would
-     *  be a second implementation of the deadline, and the two would disagree the day it moves. */
-    slaDueAt: string | null;
-    /** `on_time`, `due_soon` or `overdue`; null with no deadline. A state and not a date to
-     *  compare, so "late" means the same thing on this screen, in an export and in a report. */
-    slaState: 'on_time' | 'due_soon' | 'overdue' | null;
-    /** Days until due, **negative when late**. One signed field: "3 days late" and "due in 12
-     *  days" are one measurement read from opposite sides. */
-    slaDays: number | null;
-}
+/**
+ * A row of the backlog.
+ *
+ * <b>Three server shapes used to live under this one name.</b> The list sends `BacklogEntry`, which
+ * carries the remediation window and the resolved target; a triage or a ticket attachment answers
+ * with `IssueEntity`, which carries neither; the detail route sends `IssueDetail`. Declaring one
+ * interface for all three made the compiler promise `slaState` on a triage response that has never
+ * contained it — no screen happened to read it there, so nothing broke and nothing said anything.
+ * They are three types below, named after what the server actually sends.
+ */
+export type Issue = Refine<
+    Schema<'BacklogEntry'>,
+    {
+        id: number;
+        /** Resolved by the server, so one target is never named two things on two screens. */
+        targetKind: 'repository' | 'container';
+        type: string;
+        state: string;
+        firstSeenAt: string;
+        lastSeenAt: string;
+        triageStatus: string;
+        repoId: number | null;
+        containerId: number | null;
+        targetName: string | null;
+        identifier: string | null;
+        severity: string | null;
+        packageName: string | null;
+        packageVersion: string | null;
+        purl: string | null;
+        filePath: string | null;
+        line: number | null;
+        cvssScore: number | null;
+        epssScore: number | null;
+        fixState: string | null;
+        fixVersions: string | null;
+        link: string | null;
+        description: string | null;
+        triageJustification: string | null;
+        triageComment: string | null;
+        triagedBy: string | null;
+        triagedAt: string | null;
+        triageExpiresAt: string | null;
+        isDirectDependency: boolean | null;
+        ticketRef: string | null;
+        ticketUrl: string | null;
+        reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
+        reachableSymbols?: string | null;
+        /** When this issue's remediation window closes; null when none applies — a severity with
+         *  no window, or an issue already settled or closed.
+         *
+         *  **Computed by the server**, like the gate verdict. Deriving it here from the policy
+         *  would be a second implementation of the deadline, and the two would disagree the day it
+         *  moves. */
+        slaDueAt: string | null;
+        /** `on_time`, `due_soon` or `overdue`; null with no deadline. A state and not a date to
+         *  compare, so "late" means the same thing on this screen, in an export and in a report. */
+        slaState: 'on_time' | 'due_soon' | 'overdue' | null;
+        /** Days until due, **negative when late**. One signed field: "3 days late" and "due in 12
+         *  days" are one measurement read from opposite sides. */
+        slaDays: number | null;
+    }
+>;
+
+/**
+ * What a triage or a ticket attachment answers with: the stored issue, without the remediation
+ * window the backlog query computes and without the target's resolved name. Call sites use it to
+ * read back what the server accepted — a trimmed ticket reference, a refused one — and then
+ * reload.
+ */
+export type TriagedIssue = Refine<
+    Schema<'IssueEntity'>,
+    {
+        id: number;
+        type: string;
+        state: string;
+        triageStatus: string;
+        identifier: string | null;
+        severity: string | null;
+        ticketRef: string | null;
+        ticketUrl: string | null;
+    }
+>;
 
 export interface Page<T> {
     items: T[];
@@ -302,24 +334,32 @@ export interface IssueFilters {
     offset?: number;
 }
 
-export interface TriageRequest {
-    status: string;
-    justification?: string | null;
-    comment?: string | null;
-    expires_in_days?: number | null;
-}
-
 /**
- * The same decision on many issues.
- *
- * Its own type rather than `TriageRequest & { ids }`: the single-issue route would then accept an
- * `ids` field it silently ignores, which is the mistake the API deliberately avoided by keeping
- * two records.
+ * The three optional fields are sent as `null` rather than omitted, which the record accepts —
+ * `String` and `Integer`, both nullable. The document has no way to say "may be null on the way
+ * in", so the claim is made here.
  */
-export interface BulkTriageRequest extends TriageRequest {
-    /** At most 500 — the server refuses a longer batch rather than truncating it. */
-    ids: number[];
-}
+export type TriageRequest = Refine<
+    Schema<'TriageRequest'>,
+    {
+        status: string;
+        justification?: string | null;
+        comment?: string | null;
+        expires_in_days?: number | null;
+    }
+>;
+
+export type BulkTriageRequest = Refine<
+    Schema<'BulkTriageRequest'>,
+    {
+        status: string;
+        justification?: string | null;
+        comment?: string | null;
+        expires_in_days?: number | null;
+        /** At most 500 — the server refuses a longer batch rather than truncating it. */
+        ids: number[];
+    }
+>;
 
 export interface GateViolation {
     rule: 'kev' | 'severity';
@@ -905,20 +945,23 @@ export interface HistoryRepository {
     decisions: number;
 }
 
-export interface HistoryDecision {
-    fromStatus: string;
-    toStatus: string;
-    justification: string | null;
-    comment: string | null;
-    /** Null when nobody decided: the deadline passed. See `origin`. */
-    actor: string | null;
-    /** `manual` or `expiry`. */
-    origin: string;
-    occurredAt: string;
-    expiresAt: string | null;
-    scanId: number | null;
-    version: string | null;
-}
+export type HistoryDecision = Refine<
+    Schema<'Decision'>,
+    {
+        fromStatus: string;
+        toStatus: string;
+        occurredAt: string;
+        /** `manual` or `expiry`. */
+        origin: string;
+        justification: string | null;
+        comment: string | null;
+        /** Null when nobody decided: the deadline passed. See `origin`. */
+        actor: string | null;
+        expiresAt: string | null;
+        scanId: number | null;
+        version: string | null;
+    }
+>;
 
 export interface HistoryIssue {
     id: number;
@@ -1039,26 +1082,58 @@ export interface OllamaCheck {
 }
 
 /** Where an issue was seen: one scan, and the project version that scan read. */
-export interface IssueSighting {
-    scanId: number;
-    status: string;
-    branch: string;
-    version: string | null;
-    scannedAt: string;
-    severity: string | null;
-}
+export type IssueSighting = Refine<
+    Schema<'Sighting'>,
+    { scanId: number; status: string; branch: string; scannedAt: string; version: string | null }
+>;
 
 /**
  * One issue with what a backlog row cannot carry.
  *
- * Extends `Issue` because the server unwraps the entity into the same shape the list sends — a
- * second definition would drift from the first the day a column is added.
+ * Its own schema, not an extension of {@link Issue}: the detail route sends the sightings and the
+ * decisions, and does not send the remediation window. Extending the row is what quietly promised
+ * an `slaState` here.
  */
-export interface IssueDetail extends Issue {
-    sightings: IssueSighting[];
-    decisions: HistoryDecision[];
-    isDirectDependency: boolean | null;
-}
+export type IssueDetail = Refine<
+    Schema<'IssueDetail'>,
+    {
+        id: number;
+        targetKind: 'repository' | 'container';
+        type: string;
+        state: string;
+        firstSeenAt: string;
+        lastSeenAt: string;
+        triageStatus: string;
+        repoId: number | null;
+        containerId: number | null;
+        targetName: string | null;
+        identifier: string | null;
+        severity: string | null;
+        packageName: string | null;
+        packageVersion: string | null;
+        purl: string | null;
+        filePath: string | null;
+        line: number | null;
+        cvssScore: number | null;
+        epssScore: number | null;
+        fixState: string | null;
+        fixVersions: string | null;
+        link: string | null;
+        description: string | null;
+        triageJustification: string | null;
+        triageComment: string | null;
+        triagedBy: string | null;
+        triagedAt: string | null;
+        triageExpiresAt: string | null;
+        isDirectDependency: boolean | null;
+        ticketRef: string | null;
+        ticketUrl: string | null;
+        reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
+        reachableSymbols?: string | null;
+        sightings: IssueSighting[];
+        decisions: HistoryDecision[];
+    }
+>;
 
 /** Which ways in this deployment accepts. Read before anybody is authenticated. */
 export interface SignInMethods {
