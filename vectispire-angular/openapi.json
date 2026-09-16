@@ -721,9 +721,6 @@
           "isKev" : {
             "type" : "boolean"
           },
-          "kev" : {
-            "type" : "boolean"
-          },
           "lastSeenAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -829,6 +826,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isKev", "timesSeen" ],
         "type" : "object"
       },
       "BadgeState" : {
@@ -2732,9 +2730,6 @@
           "isKev" : {
             "type" : "boolean"
           },
-          "kev" : {
-            "type" : "boolean"
-          },
           "lastSeenAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -2835,6 +2830,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isKev", "timesSeen" ],
         "type" : "object"
       },
       "IssueEntity" : {
@@ -2888,9 +2884,6 @@
             "type" : "boolean"
           },
           "isKev" : {
-            "type" : "boolean"
-          },
-          "kev" : {
             "type" : "boolean"
           },
           "lastSeenAt" : {
@@ -2981,6 +2974,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isKev", "timesSeen" ],
         "type" : "object"
       },
       "IssuePage" : {
@@ -4954,6 +4948,7 @@
                       "type" : "boolean"
                     }
                   },
+                  "required" : [ "dateBased", "durationEstimated", "timeBased" ],
                   "type" : "object"
                 },
                 "type" : "array"
@@ -4962,6 +4957,7 @@
                 "type" : "boolean"
               }
             },
+            "required" : [ "nano", "negative", "positive", "seconds", "zero" ],
             "type" : "object"
           },
           "failures" : {

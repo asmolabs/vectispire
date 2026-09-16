@@ -7,6 +7,7 @@ import io.swagger.v3.core.converter.ModelConverterContext;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.RefUtils;
 import io.swagger.v3.oas.models.media.Schema;
+import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Iterator;
 import org.springframework.context.annotation.Bean;
@@ -30,11 +31,13 @@ import org.springframework.context.annotation.Configuration;
  *
  * <h2>The rule, and why it stops where it does</h2>
  *
- * <p>A record component of a primitive type — {@code boolean}, {@code int}, {@code long},
- * {@code double} — has no absent and no null value. Jackson serialises it on every response, in
- * every branch, with no configuration that could omit it. Marking those required states a fact
- * about the JVM rather than an intention about the API, which is why it is safe to apply to every
- * record at once without reading them.
+ * <p>A property of a primitive type — {@code boolean}, {@code int}, {@code long}, {@code double} —
+ * has no absent and no null value. Jackson serialises it on every response, in every branch, with
+ * no configuration that could omit it. Marking those required states a fact about the JVM rather
+ * than an intention about the API, which is why it is safe to apply to everything at once without
+ * reading it. A record says so through its components; a class — the JPA entities this API returns
+ * directly — through its primitive-returning getters, and those schemas carried no {@code required}
+ * at all until the rule reached them.
  *
  * <p><b>Reference types are deliberately left optional.</b> A {@code String} that is in practice
  * always present is a promise about the code, not about the type, and this converter has no way to
@@ -46,10 +49,10 @@ import org.springframework.context.annotation.Configuration;
  *     {@code api.models.ts}, where the claims this converter cannot make are written down</a>
  */
 @Configuration
-public class PrimitiveRecordComponentsAreRequired {
+public class PrimitivePropertiesAreRequired {
 
     @Bean
-    public ModelConverter primitiveRecordComponentRequirements() {
+    public ModelConverter primitivePropertyRequirements() {
         return new Converter();
     }
 
@@ -64,32 +67,81 @@ public class PrimitiveRecordComponentsAreRequired {
             }
 
             Class<?> raw = rawClass(type);
-            if (raw == null || !raw.isRecord()) {
+            if (raw == null) {
                 return resolved;
             }
 
             Schema<?> target = named(resolved, context);
-            if (target != null) {
-                markPrimitives(raw, target);
+            if (target == null || target.getProperties() == null) {
+                return resolved;
+            }
+            if (raw.isRecord()) {
+                markRecordComponents(raw, target);
+            } else {
+                markPrimitiveGetters(raw, target);
             }
             return resolved;
         }
 
-        private static void markPrimitives(Class<?> record, Schema<?> target) {
-            if (target.getProperties() == null) {
-                return;
-            }
+        private static void markRecordComponents(Class<?> record, Schema<?> target) {
             for (RecordComponent component : record.getRecordComponents()) {
-                if (!component.getType().isPrimitive()) {
+                if (component.getType().isPrimitive()) {
+                    mark(target, jsonName(record, component));
+                }
+            }
+        }
+
+        /**
+         * The same rule for a class that is not a record — the JPA entities this API serialises
+         * directly, whose schemas carried no {@code required} at all while the records around them
+         * did.
+         *
+         * <p>A getter that returns a primitive is the same proof as a primitive record component:
+         * the value exists, it is not null, and Jackson writes it. Only public no-argument methods
+         * are read, and only their conventional property name, so anything renamed or hidden
+         * simply finds no property to mark.
+         */
+        private static void markPrimitiveGetters(Class<?> type, Schema<?> target) {
+            for (Method method : type.getMethods()) {
+                if (method.getParameterCount() > 0
+                        || !method.getReturnType().isPrimitive()
+                        || method.getReturnType() == void.class
+                        || method.getDeclaringClass() == Object.class) {
                     continue;
                 }
-                String property = jsonName(record, component);
-                // A component can be hidden from the document, or renamed by something this does
-                // not model; only claim what the schema actually has a property for.
-                if (target.getProperties().containsKey(property)
-                        && (target.getRequired() == null || !target.getRequired().contains(property))) {
-                    target.addRequiredItem(property);
+                String property = propertyName(method);
+                if (property != null) {
+                    mark(target, property);
                 }
+            }
+        }
+
+        /** {@code getFoo} and {@code isFoo} become {@code foo}; anything else is not a getter. */
+        private static String propertyName(Method method) {
+            String name = method.getName();
+            JsonProperty renamed = method.getAnnotation(JsonProperty.class);
+            if (renamed != null && !renamed.value().isEmpty()) {
+                return renamed.value();
+            }
+            String stripped;
+            if (name.startsWith("get") && name.length() > 3) {
+                stripped = name.substring(3);
+            } else if (name.startsWith("is") && name.length() > 2 && method.getReturnType() == boolean.class) {
+                stripped = name.substring(2);
+            } else {
+                return null;
+            }
+            return Character.toLowerCase(stripped.charAt(0)) + stripped.substring(1);
+        }
+
+        /**
+         * A property is claimed only when the schema has one by that name: a getter that Jackson
+         * ignored, renamed or never published finds nothing here and says nothing.
+         */
+        private static void mark(Schema<?> target, String property) {
+            if (target.getProperties().containsKey(property)
+                    && (target.getRequired() == null || !target.getRequired().contains(property))) {
+                target.addRequiredItem(property);
             }
         }
 

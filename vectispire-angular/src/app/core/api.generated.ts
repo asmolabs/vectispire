@@ -2894,8 +2894,7 @@ export interface components {
             id?: number;
             identifier?: string;
             isDirectDependency?: boolean;
-            isKev?: boolean;
-            kev?: boolean;
+            isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
             /** Format: int64 */
@@ -2928,7 +2927,7 @@ export interface components {
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */
-            timesSeen?: number;
+            timesSeen: number;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -3638,8 +3637,7 @@ export interface components {
             id?: number;
             identifier?: string;
             isDirectDependency?: boolean;
-            isKev?: boolean;
-            kev?: boolean;
+            isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
             /** Format: int64 */
@@ -3668,7 +3666,7 @@ export interface components {
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */
-            timesSeen?: number;
+            timesSeen: number;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -3700,8 +3698,7 @@ export interface components {
             id?: number;
             identifier?: string;
             isDirectDependency?: boolean;
-            isKev?: boolean;
-            kev?: boolean;
+            isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
             /** Format: int64 */
@@ -3727,7 +3724,7 @@ export interface components {
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */
-            timesSeen?: number;
+            timesSeen: number;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -4454,17 +4451,17 @@ export interface components {
             dependencies?: components["schemas"]["DependencyFinding"][];
             duration?: {
                 /** Format: int32 */
-                nano?: number;
-                negative?: boolean;
-                positive?: boolean;
+                nano: number;
+                negative: boolean;
+                positive: boolean;
                 /** Format: int64 */
-                seconds?: number;
+                seconds: number;
                 units?: {
-                    dateBased?: boolean;
-                    durationEstimated?: boolean;
-                    timeBased?: boolean;
+                    dateBased: boolean;
+                    durationEstimated: boolean;
+                    timeBased: boolean;
                 }[];
-                zero?: boolean;
+                zero: boolean;
             };
             failures?: components["schemas"]["Failure"][];
             iac?: components["schemas"]["IacFinding"][];

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.persistence;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -290,6 +291,18 @@ public class IssueEntity {
         return isKev;
     }
 
+    /**
+     * The same value as {@link #getIsKev()}, and <b>not a second property</b>.
+     *
+     * <p>Jackson reads this as the getter for a property called {@code kev}, so every schema built
+     * from this entity published {@code isKev} and {@code kev} side by side — one field, two names,
+     * in {@code BacklogEntry}, {@code IssueDetail} and {@code IssueEntity}. A client had no way to
+     * know which one to read, and nothing said they could not diverge.
+     *
+     * <p>The method stays: a dozen call sites in the services read it, and it is the natural
+     * spelling in Java. It is the wire that gets one name.
+     */
+    @JsonIgnore
     public boolean isKev() {
         return isKev;
     }
