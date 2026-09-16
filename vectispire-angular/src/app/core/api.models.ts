@@ -1,48 +1,62 @@
 /**
  * The shapes the API returns.
  *
- * **Hand-written, and now replaceable — which it was not when this note was first written.**
- * That note described a NestJS control plane, where a response schema existed only where a
- * controller carried `@ApiResponse` and returned a DTO class; without them the generator emitted
- * operations with empty responses, useful for the URLs and silent on the shapes. The backend has
- * been Spring Boot for some time and the document it produces now carries 189 component schemas
- * across 136 paths, so the obstacle named here is gone.
+ * **Being replaced, area by area, by the schemas of `openapi.json`.** The note that used to stand
+ * here described a NestJS control plane whose generator emitted operations with empty responses;
+ * the backend has been Spring Boot for some time, and the document it produces now carries 252
+ * component schemas across 136 paths, so that obstacle is gone. The auth area below is the first
+ * one converted: `Schema<'…'>` names a shape the server declares, and nothing about it is
+ * duplicated here any more.
  *
- * What remains is the work: every screen imports the interfaces below, and swapping them for
- * `components['schemas'][…]` is a change to make deliberately, one area at a time, with the
- * compiler as the guide. Until then this file holds shapes only and no logic, so that removing
- * it costs nothing when somebody does it.
+ * **Two things the document does not say, and this file has to.** No schema in it carries a
+ * `required` list — all 252 are fully optional — and none marks a property nullable. Both are
+ * artefacts of springdoc reading records that annotate neither, not statements about the server:
+ * `mustChangePassword` is a Java `boolean` and is always sent, `displayName` is sent as `null`.
+ * `Always<>` and the explicit `| null` below are where each such claim is written down, one field
+ * at a time and visibly. Annotating the records (`@Schema(requiredMode = REQUIRED)`) is what
+ * removes them for good; until then, converting an area means deciding these per field, which is
+ * why it is done deliberately rather than in one sweep.
+ *
+ * The interfaces further down are still hand-written and hold shapes only, no logic.
  *
  * `openapi.json` beside this workspace is regenerated and *verified* by `ClientContractSpecTest`
  * in the control plane: a route whose shape changes fails that test rather than this screen.
  */
 
-export interface AuthenticatedUser {
-    username: string;
+import type { components } from './api.generated';
+
+/** A shape the control plane declares, named as `openapi.json` names it. */
+type Schema<K extends keyof components['schemas']> = components['schemas'][K];
+
+/**
+ * Marks the properties the server always sends. Every use is a claim the document does not make —
+ * keep them few, and delete them as the records gain `@Schema(requiredMode = REQUIRED)`.
+ */
+type Always<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
+/** `GET /api/v1/auth/me`, and the `user` of a successful login. */
+export type AuthenticatedUser = Omit<Always<Schema<'UserSummary'>, 'username' | 'role' | 'mustChangePassword'>, 'displayName'> & {
+    /**
+     * Sent on every response and `null` when unset — this deployment does not configure
+     * `NON_NULL` inclusion outside SCIM, so the key is there. The document cannot say `null`
+     * either, which is the second thing it under-specifies alongside `required`.
+     */
     displayName: string | null;
-    role: string;
-    mustChangePassword: boolean;
-    mfaEnabled?: boolean;
-}
+};
 
-export interface LoginResponse {
-    token?: string;
-    expiresAt?: string;
-    user?: AuthenticatedUser;
-    mfa_required?: boolean;
-    mfa_token?: string;
-}
+/**
+ * `POST /api/v1/auth/login` — every field is genuinely conditional here: a successful login carries
+ * `token` and `user`, an MFA challenge carries `mfa_required` and `mfa_token`, and never both.
+ * `user`, when present, is the same claim as {@link AuthenticatedUser} rather than the looser shape
+ * the document nests here.
+ */
+export type LoginResponse = Omit<Schema<'LoginResponse'>, 'user'> & { user?: AuthenticatedUser };
 
-export interface MfaSetupResponse {
-    secret: string;
-    qrCodeUri: string;
-    issuer: string;
-}
+/** `POST /api/v1/auth/mfa/setup` */
+export type MfaSetupResponse = Always<Schema<'SetupResponse'>, 'secret' | 'qrCodeUri' | 'issuer'>;
 
-export interface MfaEnableResponse {
-    success: boolean;
-    backupCodes: string[];
-}
+/** `POST /api/v1/auth/mfa/enable` */
+export type MfaEnableResponse = Always<Schema<'EnableResponse'>, 'success' | 'backupCodes'>;
 
 export interface SiemConfig {
     enabled: boolean;
@@ -736,7 +750,6 @@ export interface IssuedAgent {
 }
 
 /** Un agent, tel que l'administration le montre. */
-
 
 export interface ScanSummary {
     id: number;
@@ -1609,15 +1622,7 @@ export interface RuleCoverageAssessment {
 export type Applicability = 'APPLICABLE' | 'EXCLUDED';
 export type Implementation = 'IMPLEMENTED' | 'PARTIALLY_IMPLEMENTED' | 'PLANNED' | 'NOT_IMPLEMENTED';
 export type EvidenceSource = 'VECTISPIRE' | 'EXTERNAL' | 'BOTH';
-export type Divergence =
-    | 'CONTRADICTED'
-    | 'EXCLUDED_WITHOUT_JUSTIFICATION'
-    | 'UNDECLARED'
-    | 'OVERSTATED'
-    | 'UNDERSTATED'
-    | 'NOT_MEASURED_HERE'
-    | 'NOT_APPLICABLE'
-    | 'CONSISTENT';
+export type Divergence = 'CONTRADICTED' | 'EXCLUDED_WITHOUT_JUSTIFICATION' | 'UNDECLARED' | 'OVERSTATED' | 'UNDERSTATED' | 'NOT_MEASURED_HERE' | 'NOT_APPLICABLE' | 'CONSISTENT';
 
 export interface ControlDeclaration {
     framework: string;
@@ -1696,9 +1701,7 @@ export interface OwaspGrid {
     unmeasured: number;
 }
 
-export type ComplianceMovement =
-    | 'FIRST' | 'ESTATE_GREW' | 'ESTATE_SHRANK' | 'RULES_CHANGED'
-    | 'IMPROVED' | 'DECLINED' | 'STEADY';
+export type ComplianceMovement = 'FIRST' | 'ESTATE_GREW' | 'ESTATE_SHRANK' | 'RULES_CHANGED' | 'IMPROVED' | 'DECLINED' | 'STEADY';
 
 export interface ComplianceSnapshot {
     period: string;
