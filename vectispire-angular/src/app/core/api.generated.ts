@@ -2658,7 +2658,7 @@ export interface components {
             contractVersion?: string;
             credentialsMode?: string;
             description?: string;
-            enabled?: boolean;
+            enabled: boolean;
             hostname?: string;
             /** Format: uuid */
             id?: string;
@@ -2669,12 +2669,12 @@ export interface components {
             /** Format: int32 */
             maxConcurrent?: number;
             name?: string;
-            online?: boolean;
+            online: boolean;
             platform?: string;
             /** Format: int64 */
-            runningScans?: number;
-            sealsCredentials?: boolean;
-            signsResults?: boolean;
+            runningScans: number;
+            sealsCredentials: boolean;
+            signsResults: boolean;
             version?: string;
         };
         AgentUpdateRequest: {
@@ -2703,7 +2703,7 @@ export interface components {
             contractPath?: string;
             declaredPaths?: string[];
             /** Format: int32 */
-            endpointsCount?: number;
+            endpointsCount: number;
             format?: string;
             title?: string;
             version?: string;
@@ -2725,7 +2725,7 @@ export interface components {
             version?: string;
         };
         ApiEndpoint: {
-            authRequired?: boolean;
+            authRequired: boolean;
             authType?: string;
             filePath?: string;
             framework?: string;
@@ -2756,7 +2756,7 @@ export interface components {
             expiresAt?: string;
             /** Format: uuid */
             id?: string;
-            isExpired?: boolean;
+            isExpired: boolean;
             /** Format: date-time */
             lastUsedAt?: string;
             name?: string;
@@ -2769,11 +2769,11 @@ export interface components {
         };
         AppliedPolicy: {
             description?: string;
-            failOnKev?: boolean;
+            failOnKev: boolean;
             failOnSeverity?: string;
-            fixableOnly?: boolean;
-            includeAiReview?: boolean;
-            includeTriaged?: boolean;
+            fixableOnly: boolean;
+            includeAiReview: boolean;
+            includeTriaged: boolean;
             source?: string;
             /** Format: int32 */
             version?: number;
@@ -2785,7 +2785,7 @@ export interface components {
             ecosystemsInEstate?: string[];
             languagesWithRules?: string[];
             /** Format: int32 */
-            ruleFiles?: number;
+            ruleFiles: number;
             /** @enum {string} */
             state?: "UNCONFIGURED" | "PARTIAL" | "COVERED";
             uncovered?: string[];
@@ -2797,7 +2797,7 @@ export interface components {
         AttackPath: {
             description?: string;
             id?: string;
-            isDirectlyExploitable?: boolean;
+            isDirectlyExploitable: boolean;
             nodeIds?: string[];
             remediationAdvice?: string;
             riskLevel?: string;
@@ -2805,7 +2805,7 @@ export interface components {
         };
         AttackPathEdge: {
             id?: string;
-            isCriticalPath?: boolean;
+            isCriticalPath: boolean;
             label?: string;
             source?: string;
             target?: string;
@@ -2813,20 +2813,20 @@ export interface components {
         AttackPathGraph: {
             attackPaths?: components["schemas"]["AttackPath"][];
             /** Format: int32 */
-            criticalExploitablePaths?: number;
+            criticalExploitablePaths: number;
             edges?: components["schemas"]["AttackPathEdge"][];
             nodes?: components["schemas"]["AttackPathNode"][];
             /** Format: int32 */
-            riskScore?: number;
+            riskScore: number;
             /** Format: int64 */
             targetId?: number;
             targetName?: string;
             /** Format: int32 */
-            totalPaths?: number;
+            totalPaths: number;
         };
         AttackPathNode: {
             id?: string;
-            isExploitable?: boolean;
+            isExploitable: boolean;
             label?: string;
             metadata?: {
                 [key: string]: string;
@@ -2838,17 +2838,17 @@ export interface components {
         };
         AttackSurfaceSummary: {
             /** Format: int32 */
-            internalEndpoints?: number;
+            internalEndpoints: number;
             /** Format: int32 */
-            publicEndpoints?: number;
+            publicEndpoints: number;
             /** Format: int32 */
-            sensitiveUnprotectedEndpoints?: number;
+            sensitiveUnprotectedEndpoints: number;
             /** Format: int32 */
-            shadowEndpoints?: number;
+            shadowEndpoints: number;
             /** Format: int32 */
-            totalEndpoints?: number;
+            totalEndpoints: number;
             /** Format: int32 */
-            unauthenticatedEndpoints?: number;
+            unauthenticatedEndpoints: number;
         };
         AuditLogEntity: {
             description?: string;
@@ -2867,11 +2867,11 @@ export interface components {
         AuditLogPage: {
             items?: components["schemas"]["AuditLogEntity"][];
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            offset?: number;
+            offset: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
         };
         BacklogEntry: {
             /** Format: int64 */
@@ -2940,39 +2940,39 @@ export interface components {
             type?: string;
         };
         BadgeState: {
-            published?: boolean;
+            published: boolean;
             token?: string;
             url?: string;
         };
         BlastRadiusReport: {
             /** Format: int32 */
-            blastRadiusScore?: number;
+            blastRadiusScore: number;
             /** Format: int32 */
-            directUsages?: number;
+            directUsages: number;
             graph?: components["schemas"]["DependencyGraph"];
             query?: string;
             queryType?: string;
             targets?: components["schemas"]["TargetImpact"][];
             /** Format: int32 */
-            totalAssociatedCves?: number;
+            totalAssociatedCves: number;
             /** Format: int32 */
-            totalTargetsAffected?: number;
+            totalTargetsAffected: number;
             /** Format: int32 */
-            transitiveUsages?: number;
+            transitiveUsages: number;
         };
         Block: {
             headers?: string[];
             /** @enum {string} */
             kind?: "HEADING" | "CATEGORY" | "PARAGRAPH" | "BULLET" | "NUMBERED" | "BLOCKQUOTE" | "TABLE";
             /** Format: int32 */
-            level?: number;
+            level: number;
             marker?: string;
             rows?: string[][];
             text?: string;
         };
         Bucket: {
             /** Format: int64 */
-            count?: number;
+            count: number;
             label?: string;
         };
         Builder: {
@@ -2989,7 +2989,7 @@ export interface components {
         };
         BySeverity: {
             /** Format: int64 */
-            late?: number;
+            late: number;
             /** Format: double */
             medianDays?: number;
             /** Format: double */
@@ -2997,15 +2997,15 @@ export interface components {
             /** Format: int64 */
             oldestOpenDays?: number;
             /** Format: int64 */
-            openOverdue?: number;
+            openOverdue: number;
             /** Format: double */
             percentageWithinSla?: number;
             /** @enum {string} */
             severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
             /** Format: int32 */
-            windowDays?: number;
+            windowDays: number;
             /** Format: int64 */
-            withinSla?: number;
+            withinSla: number;
         };
         Catalog: {
             settings?: components["schemas"]["SettingView"][];
@@ -3050,51 +3050,51 @@ export interface components {
             /** @enum {string} */
             overallStatus?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
             /** Format: int32 */
-            scorePercentage?: number;
+            scorePercentage: number;
         };
         ComplianceSnapshot: {
             /** Format: date-time */
             capturedAt?: string;
-            codeAnalysisReaches?: boolean;
+            codeAnalysisReaches: boolean;
             /** Format: int32 */
-            controlsDeclared?: number;
+            controlsDeclared: number;
             /** Format: int32 */
-            controlsTotal?: number;
-            endOfLifeEnabled?: boolean;
+            controlsTotal: number;
+            endOfLifeEnabled: boolean;
             /** @enum {string} */
             framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
             /** Format: int32 */
-            fresh?: number;
+            fresh: number;
             /** Format: int32 */
-            freshnessDays?: number;
+            freshnessDays: number;
             /** Format: int32 */
-            observed?: number;
+            observed: number;
             period?: string;
             /** Format: int32 */
-            score?: number;
+            score: number;
             /** Format: int32 */
-            soaFindings?: number;
+            soaFindings: number;
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
             /** Format: int32 */
-            targets?: number;
+            targets: number;
         };
         ComplianceSummary: {
             /** Format: int64 */
-            dueSoonCount?: number;
+            dueSoonCount: number;
             evaluations?: components["schemas"]["ComplianceEvaluation"][];
             /** Format: int32 */
-            freshTargets?: number;
+            freshTargets: number;
             mttr?: components["schemas"]["MttrResult"];
             /** Format: int32 */
-            observedTargets?: number;
+            observedTargets: number;
             /** Format: int64 */
-            overdueCount?: number;
+            overdueCount: number;
             /** Format: int32 */
-            passingGateTargets?: number;
+            passingGateTargets: number;
             targets?: components["schemas"]["TargetCompliance"][];
             /** Format: int32 */
-            totalMonitoredTargets?: number;
+            totalMonitoredTargets: number;
         };
         Component: {
             "bom-ref"?: string;
@@ -3136,7 +3136,7 @@ export interface components {
             /** Format: date-time */
             lastScheduledScanAt?: string;
             /** Format: int64 */
-            openIssues?: number;
+            openIssues: number;
             reference?: string;
             registry?: string;
             requiredAgentLabel?: string;
@@ -3151,14 +3151,14 @@ export interface components {
             details?: string;
             remediationGuidance?: string;
             /** Format: int32 */
-            scorePercentage?: number;
+            scorePercentage: number;
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
         };
         CoverageLine: {
             because?: string;
             /** Format: int64 */
-            findings?: number;
+            findings: number;
             id?: string;
             /** @enum {string} */
             state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
@@ -3199,18 +3199,18 @@ export interface components {
             serialNumber?: string;
             specVersion?: string;
             /** Format: int32 */
-            version?: number;
+            version: number;
             vulnerabilities?: components["schemas"]["Vulnerability"][];
         };
         DailyPosturePoint: {
             /** Format: date */
             date?: string;
             /** Format: int64 */
-            newlyDiscovered?: number;
+            newlyDiscovered: number;
             /** Format: int64 */
-            newlyResolved?: number;
+            newlyResolved: number;
             /** Format: int64 */
-            openBacklog?: number;
+            openBacklog: number;
             /** Format: double */
             rollingMttrDays?: number;
         };
@@ -3221,7 +3221,7 @@ export interface components {
             failing?: components["schemas"]["FailingTarget"][];
             posture?: components["schemas"]["Posture"];
             /** Format: int64 */
-            qualityTotal?: number;
+            qualityTotal: number;
             recentScans?: components["schemas"]["RecentScan"][];
         };
         Decision: {
@@ -3321,10 +3321,10 @@ export interface components {
         };
         EnableResponse: {
             backupCodes?: string[];
-            success?: boolean;
+            success: boolean;
         };
         EndpointView: {
-            authRequired?: boolean;
+            authRequired: boolean;
             authType?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -3352,19 +3352,19 @@ export interface components {
         };
         EpssFleetSummary: {
             /** Format: int32 */
-            activeKevCount?: number;
+            activeKevCount: number;
             /** Format: double */
-            averageFleetEpss?: number;
+            averageFleetEpss: number;
             breakdownByTier?: {
                 [key: string]: number;
             };
             /** Format: int32 */
-            highEpssCount?: number;
+            highEpssCount: number;
             /** Format: int32 */
-            reachableEpssCount?: number;
+            reachableEpssCount: number;
             topPriorities?: components["schemas"]["EpssPrioritizedIssue"][];
             /** Format: int32 */
-            totalVulnerabilities?: number;
+            totalVulnerabilities: number;
         };
         EpssPrioritizedIssue: {
             /** Format: double */
@@ -3374,11 +3374,11 @@ export interface components {
             /** Format: double */
             epssScore?: number;
             identifier?: string;
-            isKev?: boolean;
+            isKev: boolean;
             /** Format: int64 */
             issueId?: number;
             /** Format: int32 */
-            priorityScore?: number;
+            priorityScore: number;
             priorityTier?: string;
             reachability?: string;
             recommendedAction?: string;
@@ -3399,7 +3399,7 @@ export interface components {
             /** Format: int64 */
             issue_id?: number;
             justification?: string;
-            lapsed?: boolean;
+            lapsed: boolean;
             /** Format: date-time */
             last_reviewed_at?: string;
             last_reviewed_by?: string;
@@ -3413,7 +3413,7 @@ export interface components {
         FailingTarget: {
             kind?: string;
             name?: string;
-            observed?: boolean;
+            observed: boolean;
             /** Format: int64 */
             targetId?: number;
             violations?: components["schemas"]["Violation"][];
@@ -3439,19 +3439,19 @@ export interface components {
         };
         FindingsSummary: {
             /** Format: int64 */
-            critical?: number;
+            critical: number;
             /** Format: int64 */
-            high?: number;
+            high: number;
             /** Format: int64 */
-            kev?: number;
+            kev: number;
             /** Format: int64 */
-            low?: number;
+            low: number;
             /** Format: int64 */
-            medium?: number;
+            medium: number;
             /** Format: int64 */
-            secrets?: number;
+            secrets: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
         };
         Flag: {
             date?: string;
@@ -3466,18 +3466,18 @@ export interface components {
         GatePolicyView: {
             created_at?: string;
             created_by?: string;
-            fail_on_kev?: boolean;
+            fail_on_kev: boolean;
             fail_on_severity?: string;
-            fixable_only?: boolean;
-            include_ai_review?: boolean;
-            include_triaged?: boolean;
+            fixable_only: boolean;
+            include_ai_review: boolean;
+            include_triaged: boolean;
             kind?: string;
             note?: string;
             /** Format: int64 */
             target_id?: number;
             target_name?: string;
             /** Format: int32 */
-            version?: number;
+            version: number;
         };
         GateRequest: {
             /** Format: int64 */
@@ -3495,9 +3495,9 @@ export interface components {
                 [key: string]: number;
             };
             /** Format: int32 */
-            evaluated?: number;
+            evaluated: number;
             ignored_relaxations?: string[];
-            passed?: boolean;
+            passed: boolean;
             policy?: components["schemas"]["AppliedPolicy"];
             violations?: components["schemas"]["ViolationView"][];
         };
@@ -3510,17 +3510,17 @@ export interface components {
             frameworks?: string[];
             highRiskEndpoints?: components["schemas"]["EndpointView"][];
             /** Format: int32 */
-            internalEndpoints?: number;
+            internalEndpoints: number;
             /** Format: int32 */
-            publicEndpoints?: number;
+            publicEndpoints: number;
             /** Format: int32 */
-            sensitiveUnprotectedEndpoints?: number;
+            sensitiveUnprotectedEndpoints: number;
             /** Format: int32 */
-            shadowEndpoints?: number;
+            shadowEndpoints: number;
             /** Format: int32 */
-            totalEndpoints?: number;
+            totalEndpoints: number;
             /** Format: int32 */
-            unauthenticatedEndpoints?: number;
+            unauthenticatedEndpoints: number;
         };
         GraphEdge: {
             relationship?: string;
@@ -3531,21 +3531,21 @@ export interface components {
             cves?: string[];
             ecosystem?: string;
             id?: string;
-            isDirect?: boolean;
+            isDirect: boolean;
             label?: string;
             /** Format: int32 */
-            riskScore?: number;
+            riskScore: number;
             type?: string;
             version?: string;
         };
         Grid: {
             /** Format: int32 */
-            covered?: number;
+            covered: number;
             lines?: components["schemas"]["CoverageLine"][];
             /** Format: int32 */
-            unmeasured?: number;
+            unmeasured: number;
             /** Format: int32 */
-            withFindings?: number;
+            withFindings: number;
         };
         HelloRequest: {
             capabilities?: string;
@@ -3562,23 +3562,23 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /** Format: int32 */
-            maxConcurrent?: number;
+            maxConcurrent: number;
             name?: string;
         };
         HighImpactFix: {
             affectedCves?: string[];
             affectedTargetNames?: string[];
             /** Format: int64 */
-            criticalCveCount?: number;
+            criticalCveCount: number;
             currentVersion?: string;
             /** Format: int64 */
-            cveCountResolved?: number;
+            cveCountResolved: number;
             /** Format: double */
-            estimatedHours?: number;
+            estimatedHours: number;
             /** Format: int64 */
-            highCveCount?: number;
+            highCveCount: number;
             /** Format: double */
-            leverageScore?: number;
+            leverageScore: number;
             packageName?: string;
             recommendedVersion?: string;
         };
@@ -3588,7 +3588,7 @@ export interface components {
             file?: string;
             guideline?: string;
             /** Format: int32 */
-            line?: number;
+            line: number;
             resource?: string;
         };
         InTotoAttestation: {
@@ -3600,11 +3600,11 @@ export interface components {
         IngestionResult: {
             appliedCves?: string[];
             /** Format: int32 */
-            matchedIssues?: number;
+            matchedIssues: number;
             /** Format: int32 */
-            statementsProcessed?: number;
+            statementsProcessed: number;
             /** Format: int32 */
-            triagedIssues?: number;
+            triagedIssues: number;
         };
         Invocation: {
             branch?: string;
@@ -3741,11 +3741,11 @@ export interface components {
         IssuePage: {
             items?: components["schemas"]["BacklogEntry"][];
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            offset?: number;
+            offset: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
         };
         IssueTicketEntity: {
             /** Format: date-time */
@@ -3788,7 +3788,7 @@ export interface components {
             targetName?: string;
         };
         LicenseEntry: {
-            compliant?: boolean;
+            compliant: boolean;
             license?: string;
             packageName?: string;
             packageVersion?: string;
@@ -3811,11 +3811,11 @@ export interface components {
                 [key: string]: number;
             };
             /** Format: int64 */
-            nonCompliantCount?: number;
+            nonCompliantCount: number;
             /** Format: int64 */
-            totalDependencies?: number;
+            totalDependencies: number;
             /** Format: int64 */
-            uniqueLicenses?: number;
+            uniqueLicenses: number;
         };
         Line: {
             control?: components["schemas"]["ComplianceControl"];
@@ -3824,7 +3824,7 @@ export interface components {
             divergence?: "CONTRADICTED" | "EXCLUDED_WITHOUT_JUSTIFICATION" | "UNDECLARED" | "OVERSTATED" | "UNDERSTATED" | "NOT_MEASURED_HERE" | "NOT_APPLICABLE" | "CONSISTENT";
             /** @enum {string} */
             measured?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
-            reviewOverdue?: boolean;
+            reviewOverdue: boolean;
         };
         Location: {
             logicalLocations?: components["schemas"]["LogicalLocation"][];
@@ -3842,7 +3842,7 @@ export interface components {
         LoginResponse: {
             /** Format: date-time */
             expiresAt?: string;
-            mfa_required?: boolean;
+            mfa_required: boolean;
             mfa_token?: string;
             token?: string;
             user?: components["schemas"]["UserSummary"];
@@ -3876,7 +3876,7 @@ export interface components {
             /** Format: double */
             overallMttrDays?: number;
             /** Format: int32 */
-            resolvedCount?: number;
+            resolvedCount: number;
         };
         Name: {
             familyName?: string;
@@ -3889,7 +3889,7 @@ export interface components {
             title?: string;
         };
         NotificationChannelStatus: {
-            configured?: boolean;
+            configured: boolean;
             destination?: string;
             name?: string;
             supportedEvents?: string[];
@@ -3897,7 +3897,7 @@ export interface components {
         };
         NotificationTestResult: {
             message?: string;
-            success?: boolean;
+            success: boolean;
             /** Format: date-time */
             testedAt?: string;
             type?: string;
@@ -3939,11 +3939,11 @@ export interface components {
         OllamaCheck: {
             detail?: string;
             model?: string;
-            modelInstalled?: boolean;
+            modelInstalled: boolean;
             models?: string[];
             provider?: string;
-            reachable?: boolean;
-            remoteAllowed?: boolean;
+            reachable: boolean;
+            remoteAllowed: boolean;
             url?: string;
         };
         OpenVexDocument: {
@@ -3956,7 +3956,7 @@ export interface components {
             timestamp?: string;
             tooling?: string;
             /** Format: int32 */
-            version?: number;
+            version: number;
         };
         OpenVexStatement: {
             action_statement?: string;
@@ -3985,9 +3985,9 @@ export interface components {
         };
         PendingScanItem: {
             branch?: string;
-            isRoutable?: boolean;
+            isRoutable: boolean;
             /** Format: int32 */
-            positionInQueue?: number;
+            positionInQueue: number;
             /** Format: date-time */
             queuedAt?: string;
             requiredLabel?: string;
@@ -3998,7 +3998,7 @@ export interface components {
             targetName?: string;
             targetType?: string;
             /** Format: int64 */
-            waitDurationSeconds?: number;
+            waitDurationSeconds: number;
         };
         PhysicalLocation: {
             artifactLocation?: components["schemas"]["ArtifactLocation"];
@@ -4008,7 +4008,7 @@ export interface components {
             /** Format: uuid */
             id?: string;
             privateKey?: string;
-            signsResults?: boolean;
+            signsResults: boolean;
         };
         PoliciesResponse: {
             built_in?: components["schemas"]["GatePolicyView"];
@@ -4016,7 +4016,7 @@ export interface components {
         };
         PolicyAssessment: {
             enforcedPolicy?: string;
-            gatePassed?: boolean;
+            gatePassed: boolean;
             violations?: string[];
         };
         PolicyRequest: {
@@ -4029,17 +4029,17 @@ export interface components {
         };
         Posture: {
             /** Format: int32 */
-            failingCount?: number;
+            failingCount: number;
             /** Format: int64 */
-            kevCount?: number;
+            kevCount: number;
             /** Format: int64 */
-            lastScanFailedCount?: number;
+            lastScanFailedCount: number;
             /** Format: int64 */
-            neverScannedCount?: number;
+            neverScannedCount: number;
             /** Format: int64 */
-            overdueCount?: number;
+            overdueCount: number;
             /** Format: int32 */
-            totalCount?: number;
+            totalCount: number;
         };
         PostureTrendAnalytics: {
             dailySeries?: components["schemas"]["DailyPosturePoint"][];
@@ -4047,16 +4047,16 @@ export interface components {
                 [key: string]: number;
             };
             /** Format: double */
-            netResolutionRatePercentage?: number;
+            netResolutionRatePercentage: number;
             /** Format: double */
             overallMttrDays?: number;
             targetScoreboard?: components["schemas"]["TargetMaturityScore"][];
             /** Format: int64 */
-            totalOpenedInWindow?: number;
+            totalOpenedInWindow: number;
             /** Format: int64 */
-            totalResolvedInWindow?: number;
+            totalResolvedInWindow: number;
             /** Format: int32 */
-            windowDays?: number;
+            windowDays: number;
         };
         Predicate: {
             builder?: components["schemas"]["Builder"];
@@ -4095,32 +4095,32 @@ export interface components {
         };
         QualityOverview: {
             /** Format: int64 */
-            fileCount?: number;
+            fileCount: number;
             /** Format: int64 */
-            openCount?: number;
+            openCount: number;
             /** Format: int64 */
-            ruleCount?: number;
+            ruleCount: number;
             topFiles?: components["schemas"]["Bucket"][];
             topRules?: components["schemas"]["Bucket"][];
             topTargets?: components["schemas"]["Bucket"][];
         };
         QueueStats: {
             /** Format: int64 */
-            avgScanDurationSeconds?: number;
+            avgScanDurationSeconds: number;
             /** Format: int32 */
-            busyAgents?: number;
+            busyAgents: number;
             /** Format: int32 */
-            idleAgents?: number;
+            idleAgents: number;
             /** Format: int32 */
-            onlineAgents?: number;
+            onlineAgents: number;
             /** Format: int64 */
-            pendingScansCount?: number;
+            pendingScansCount: number;
             /** Format: int64 */
-            runningScansCount?: number;
+            runningScansCount: number;
             /** Format: int64 */
-            scansCompleted24h?: number;
+            scansCompleted24h: number;
             /** Format: int32 */
-            totalAgents?: number;
+            totalAgents: number;
         };
         QueuedScan: {
             /** Format: int64 */
@@ -4142,7 +4142,7 @@ export interface components {
             createdAt?: string;
             error?: string;
             /** Format: int32 */
-            findingsCount?: number;
+            findingsCount: number;
             /** Format: int64 */
             id?: number;
             /** Format: int64 */
@@ -4153,18 +4153,18 @@ export interface components {
         };
         Region: {
             /** Format: int32 */
-            startLine?: number;
+            startLine: number;
         };
         Register: {
             /** Format: int64 */
-            awaiting_approval?: number;
+            awaiting_approval: number;
             entries?: components["schemas"]["ExceptionEntry"][];
             /** Format: int64 */
-            granted?: number;
+            granted: number;
             /** Format: int64 */
-            lapsed?: number;
+            lapsed: number;
             /** Format: int64 */
-            never_reviewed?: number;
+            never_reviewed: number;
             next_cursor?: string;
         };
         RegisteredVerdict: {
@@ -4175,19 +4175,19 @@ export interface components {
             decided_at?: string;
             decided_by?: string;
             /** Format: int32 */
-            evaluated?: number;
+            evaluated: number;
             fail_on_severity?: string;
             id?: string;
-            passed?: boolean;
+            passed: boolean;
             policy_source?: string;
             /** Format: int64 */
             policy_version?: number;
-            relaxations_ignored?: boolean;
+            relaxations_ignored: boolean;
             /** Format: int64 */
             target_id?: number;
             target_kind?: string;
             /** Format: int32 */
-            violations?: number;
+            violations: number;
         };
         Remediation: {
             category?: string;
@@ -4202,12 +4202,12 @@ export interface components {
         };
         RemediationCoverage: {
             /** Format: int64 */
-            addressableByUpgrade?: number;
+            addressableByUpgrade: number;
             /** Format: int64 */
-            beyondUpgrades?: number;
+            beyondUpgrades: number;
             gaps?: components["schemas"]["RemediationGap"][];
             /** Format: int64 */
-            openFindings?: number;
+            openFindings: number;
         };
         RemediationDistribution: {
             bySeverity?: components["schemas"]["BySeverity"][];
@@ -4216,12 +4216,12 @@ export interface components {
             /** @enum {string} */
             oldestOpenSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
             /** Format: int32 */
-            windowDays?: number;
+            windowDays: number;
         };
         RemediationGap: {
             family?: string;
             /** Format: int64 */
-            findings?: number;
+            findings: number;
         };
         Report: {
             blocks?: components["schemas"]["Block"][];
@@ -4239,17 +4239,17 @@ export interface components {
         Repository: {
             branch?: string;
             /** Format: int64 */
-            decisions?: number;
+            decisions: number;
             /** Format: int64 */
             id?: number;
             /** Format: date-time */
             lastScanAt?: string;
             name?: string;
             /** Format: int64 */
-            openIssues?: number;
+            openIssues: number;
             projectType?: string;
             /** Format: int32 */
-            scanCount?: number;
+            scanCount: number;
             url?: string;
             version?: string;
         };
@@ -4282,7 +4282,7 @@ export interface components {
             lastScheduledScanAt?: string;
             name?: string;
             /** Format: int64 */
-            openIssues?: number;
+            openIssues: number;
             requiredAgentLabel?: string;
             scanCron?: string;
             /** Format: int32 */
@@ -4305,14 +4305,14 @@ export interface components {
             };
             ruleId?: string;
             /** Format: int32 */
-            ruleIndex?: number;
+            ruleIndex: number;
             suppressions?: components["schemas"]["Suppression"][];
         };
         Results: {
             occurrences?: components["schemas"]["Occurrence"][];
             /** Format: int32 */
-            total?: number;
-            truncated?: boolean;
+            total: number;
+            truncated: boolean;
         };
         ReviewRequest: {
             comment?: string;
@@ -4351,13 +4351,13 @@ export interface components {
             activationNote?: string;
             contentHash?: string;
             /** Format: int32 */
-            fileCount?: number;
+            fileCount: number;
             /** Format: int64 */
             id?: number;
             isActive?: boolean;
             name?: string;
             /** Format: int32 */
-            ruleCount?: number;
+            ruleCount: number;
             sizeBytes?: string;
             /** Format: date-time */
             uploadedAt?: string;
@@ -4377,7 +4377,7 @@ export interface components {
             /** Format: date-time */
             claimedAt?: string;
             /** Format: int64 */
-            durationSeconds?: number;
+            durationSeconds: number;
             requiredLabel?: string;
             /** Format: int64 */
             scanId?: number;
@@ -4399,7 +4399,7 @@ export interface components {
             confidence?: string;
             file?: string;
             /** Format: int32 */
-            line?: number;
+            line: number;
             message?: string;
             owaspCategory?: string;
             ruleId?: string;
@@ -4408,25 +4408,25 @@ export interface components {
         };
         SbomDiffReport: {
             /** Format: int32 */
-            addedCount?: number;
+            addedCount: number;
             componentDeltas?: components["schemas"]["ComponentDelta"][];
             cveDeltas?: components["schemas"]["CveDelta"][];
             /** Format: int64 */
             fromScanId?: number;
             fromVersion?: string;
             /** Format: int32 */
-            introducedCveCount?: number;
+            introducedCveCount: number;
             /** Format: int32 */
-            licenseChangedCount?: number;
+            licenseChangedCount: number;
             /** Format: int32 */
-            removedCount?: number;
+            removedCount: number;
             /** Format: int32 */
-            resolvedCveCount?: number;
+            resolvedCveCount: number;
             /** Format: int64 */
             toScanId?: number;
             toVersion?: string;
             /** Format: int32 */
-            versionChangedCount?: number;
+            versionChangedCount: number;
         };
         Scan: {
             branch?: string;
@@ -4436,15 +4436,15 @@ export interface components {
             durationMs?: number;
             error?: string;
             /** Format: int32 */
-            findingsCount?: number;
+            findingsCount: number;
             /** Format: int64 */
             id?: number;
             issues?: components["schemas"]["ObservedIssue"][];
             /** Format: int32 */
-            newIssuesCount?: number;
+            newIssuesCount: number;
             projectType?: string;
             /** Format: int32 */
-            resolvedIssuesCount?: number;
+            resolvedIssuesCount: number;
             status?: string;
             version?: string;
         };
@@ -4476,9 +4476,9 @@ export interface components {
         ScanDetail: {
             findings?: components["schemas"]["FindingView"][];
             /** Format: int64 */
-            findingsTotal?: number;
-            findingsTruncated?: boolean;
-            hasSbom?: boolean;
+            findingsTotal: number;
+            findingsTruncated: boolean;
+            hasSbom: boolean;
             projectType?: string;
             projectVersion?: string;
             scan?: components["schemas"]["ScanSummary"];
@@ -4486,7 +4486,7 @@ export interface components {
         };
         ScanSummary: {
             /** Format: int32 */
-            attempts?: number;
+            attempts: number;
             branch?: string;
             claimedBy?: string;
             /** Format: date-time */
@@ -4495,13 +4495,13 @@ export interface components {
             durationMs?: number;
             error?: string;
             /** Format: int32 */
-            findingsCount?: number;
+            findingsCount: number;
             /** Format: int64 */
             id?: number;
             /** Format: int32 */
-            newIssuesCount?: number;
+            newIssuesCount: number;
             /** Format: int32 */
-            resolvedIssuesCount?: number;
+            resolvedIssuesCount: number;
             status?: string;
             /** Format: int64 */
             targetId?: number;
@@ -4525,22 +4525,22 @@ export interface components {
         ScimListResponseScimGroupDto: {
             Resources?: components["schemas"]["ScimGroupDto"][];
             /** Format: int32 */
-            itemsPerPage?: number;
+            itemsPerPage: number;
             schemas?: string[];
             /** Format: int32 */
-            startIndex?: number;
+            startIndex: number;
             /** Format: int32 */
-            totalResults?: number;
+            totalResults: number;
         };
         ScimListResponseScimUserDto: {
             Resources?: components["schemas"]["ScimUserDto"][];
             /** Format: int32 */
-            itemsPerPage?: number;
+            itemsPerPage: number;
             schemas?: string[];
             /** Format: int32 */
-            startIndex?: number;
+            startIndex: number;
             /** Format: int32 */
-            totalResults?: number;
+            totalResults: number;
         };
         ScimPatchOp: {
             Operations?: components["schemas"]["PatchOperation"][];
@@ -4566,15 +4566,15 @@ export interface components {
         };
         ScopeCoverage: {
             /** Format: int32 */
-            declaredAssets?: number;
+            declaredAssets: number;
             /** Format: int32 */
-            inScope?: number;
+            inScope: number;
             /** Format: int32 */
-            neverScanned?: number;
+            neverScanned: number;
             /** Format: int32 */
-            scannedRecently?: number;
+            scannedRecently: number;
             /** Format: int32 */
-            stale?: number;
+            stale: number;
         };
         ScopeView: {
             coverage?: components["schemas"]["ScopeCoverage"];
@@ -4591,7 +4591,7 @@ export interface components {
             file?: string;
             fingerprint?: string;
             /** Format: int32 */
-            line?: number;
+            line: number;
             rule?: string;
         };
         SecretRequest: {
@@ -4599,78 +4599,78 @@ export interface components {
         };
         SecurityDebtReport: {
             /** Format: int64 */
-            criticalIssues?: number;
+            criticalIssues: number;
             /** Format: double */
-            eolDebtHours?: number;
+            eolDebtHours: number;
             /** Format: int64 */
-            highIssues?: number;
+            highIssues: number;
             /** Format: double */
-            iacDebtHours?: number;
+            iacDebtHours: number;
             /** Format: double */
-            licenseDebtHours?: number;
+            licenseDebtHours: number;
             /** Format: int64 */
-            lowIssues?: number;
+            lowIssues: number;
             /** Format: int64 */
-            mediumIssues?: number;
+            mediumIssues: number;
             /** Format: double */
-            sastDebtHours?: number;
+            sastDebtHours: number;
             /** Format: double */
-            secretsDebtHours?: number;
+            secretsDebtHours: number;
             topHighImpactFixes?: components["schemas"]["HighImpactFix"][];
             /** Format: double */
-            totalEstimatedHours?: number;
+            totalEstimatedHours: number;
             /** Format: double */
-            totalEstimatedPersonDays?: number;
+            totalEstimatedPersonDays: number;
             /** Format: int64 */
-            totalOpenIssues?: number;
+            totalOpenIssues: number;
             /** Format: double */
-            vulnerabilitiesDebtHours?: number;
+            vulnerabilitiesDebtHours: number;
         };
         SecurityOverviewView: {
             /** Format: int32 */
-            failingCount?: number;
+            failingCount: number;
             /** Format: int64 */
-            kevCount?: number;
+            kevCount: number;
             /** Format: int64 */
-            lastScanFailedCount?: number;
+            lastScanFailedCount: number;
             /** Format: int64 */
-            neverScannedCount?: number;
+            neverScannedCount: number;
             targets?: components["schemas"]["TargetView"][];
             /** Format: int32 */
-            totalCount?: number;
+            totalCount: number;
         };
         SecurityScorecard: {
             /** @enum {string} */
             grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F";
-            hasAttestation?: boolean;
+            hasAttestation: boolean;
             /** Format: int64 */
-            licenseViolationCount?: number;
+            licenseViolationCount: number;
             /** Format: int64 */
-            openCriticalCount?: number;
+            openCriticalCount: number;
             /** Format: int64 */
-            openHighCount?: number;
+            openHighCount: number;
             /** Format: int64 */
-            openKevCount?: number;
+            openKevCount: number;
             /** Format: int64 */
-            overdueCount?: number;
+            overdueCount: number;
             recommendations?: string[];
             /** Format: int32 */
-            score?: number;
+            score: number;
             /** Format: int64 */
             targetId?: number;
             targetKind?: string;
             targetName?: string;
         };
         Series: {
-            comparable?: boolean;
+            comparable: boolean;
             /** @enum {string} */
             framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
             steps?: components["schemas"]["Step"][];
         };
         SettingView: {
-            configured?: boolean;
+            configured: boolean;
             default?: string;
-            governor_only?: boolean;
+            governor_only: boolean;
             help?: string;
             key?: string;
             label?: string;
@@ -4685,15 +4685,15 @@ export interface components {
         };
         SiemConfigRequest: {
             authHeader?: string;
-            enabled?: boolean;
+            enabled: boolean;
             endpoint?: string;
             minSeverity?: string;
             protocol?: string;
         };
         SiemConfigResponse: {
-            enabled?: boolean;
+            enabled: boolean;
             endpoint?: string;
-            hasAuthHeader?: boolean;
+            hasAuthHeader: boolean;
             minSeverity?: string;
             protocol?: string;
             updatedAt?: string;
@@ -4714,28 +4714,28 @@ export interface components {
         };
         SignInMethods: {
             brandName?: string;
-            configured?: boolean;
+            configured: boolean;
             gitlabUrl?: string;
             label?: string;
-            password?: boolean;
+            password: boolean;
         };
         SigningKeyRequest: {
             public_key?: string;
         };
         SoaStatement: {
-            complete?: boolean;
+            complete: boolean;
             /** Format: int32 */
-            declared?: number;
+            declared: number;
             /** Format: int32 */
-            findings?: number;
+            findings: number;
             /** @enum {string} */
             framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
             lines?: components["schemas"]["Line"][];
             /** Format: int32 */
-            reviewsOverdue?: number;
+            reviewsOverdue: number;
             title?: string;
             /** Format: int32 */
-            total?: number;
+            total: number;
         };
         Source: {
             name?: string;
@@ -4755,12 +4755,12 @@ export interface components {
             name?: string;
             publicKey?: string;
             /** Format: int64 */
-            usedByRepositories?: number;
+            usedByRepositories: number;
         };
         Step: {
             because?: string;
             /** Format: int32 */
-            delta?: number;
+            delta: number;
             /** @enum {string} */
             movement?: "FIRST" | "ESTATE_GREW" | "ESTATE_SHRANK" | "RULES_CHANGED" | "IMPROVED" | "DECLINED" | "STEADY";
             snapshot?: components["schemas"]["ComplianceSnapshot"];
@@ -4787,18 +4787,18 @@ export interface components {
             gateStatus?: string;
             name?: string;
             /** Format: int64 */
-            openIssuesCount?: number;
+            openIssuesCount: number;
             /** Format: int32 */
-            overallScore?: number;
+            overallScore: number;
             overallStatus?: string;
             /** Format: int64 */
-            overdueCount?: number;
+            overdueCount: number;
             targetId?: string;
             type?: string;
         };
         TargetImpact: {
             cves?: string[];
-            isDirect?: boolean;
+            isDirect: boolean;
             packageName?: string;
             packageVersion?: string;
             purl?: string;
@@ -4815,15 +4815,15 @@ export interface components {
         TargetMaturityScore: {
             maturityGrade?: string;
             /** Format: int64 */
-            openCritical?: number;
+            openCritical: number;
             /** Format: int64 */
-            openHigh?: number;
+            openHigh: number;
             /** Format: int64 */
-            openLow?: number;
+            openLow: number;
             /** Format: int64 */
-            openMedium?: number;
+            openMedium: number;
             /** Format: int32 */
-            securityScore?: number;
+            securityScore: number;
             /** Format: int64 */
             targetId?: number;
             targetKind?: string;
@@ -4831,7 +4831,7 @@ export interface components {
             targetMttrDays?: number;
             targetName?: string;
             /** Format: int64 */
-            totalResolved?: number;
+            totalResolved: number;
         };
         TargetOption: {
             /** Format: int64 */
@@ -4851,11 +4851,11 @@ export interface components {
             lastScanId?: number;
             name?: string;
             observation?: string;
-            observed?: boolean;
-            passed?: boolean;
+            observed: boolean;
+            passed: boolean;
             policy?: components["schemas"]["OverviewPolicyView"];
             /** Format: int64 */
-            targetId?: number;
+            targetId: number;
             verdict?: components["schemas"]["VerdictView"];
         };
         Targets: {
@@ -4871,11 +4871,11 @@ export interface components {
             /** Format: int64 */
             id?: number;
             /** Format: int32 */
-            memberCount?: number;
+            memberCount: number;
             name?: string;
-            notified?: boolean;
+            notified: boolean;
             /** Format: int32 */
-            targetCount?: number;
+            targetCount: number;
         };
         TeamTargetAssignment: {
             /** Format: int64 */
@@ -4885,8 +4885,8 @@ export interface components {
         TestResult: {
             message?: string;
             /** Format: int32 */
-            statusCode?: number;
-            success?: boolean;
+            statusCode: number;
+            success: boolean;
         };
         Text: {
             text?: string;
@@ -4904,19 +4904,19 @@ export interface components {
             epssPercentile?: number;
             /** Format: double */
             epssScore?: number;
-            isKev?: boolean;
+            isKev: boolean;
             notes?: string;
         };
         ThreatIntelSyncStatus: {
             /** Format: int64 */
-            backlogUpdatedCount?: number;
+            backlogUpdatedCount: number;
             /** Format: date-time */
             lastSyncedAt?: string;
             status?: string;
             /** Format: int64 */
-            totalCves?: number;
+            totalCves: number;
             /** Format: int64 */
-            totalKev?: number;
+            totalKev: number;
         };
         TokenRequest: {
             token?: string;
@@ -4928,19 +4928,19 @@ export interface components {
         };
         TopImpactPackage: {
             /** Format: int32 */
-            affectedTargetsCount?: number;
+            affectedTargetsCount: number;
             /** Format: int32 */
-            blastRadiusScore?: number;
+            blastRadiusScore: number;
             /** Format: int32 */
-            directUsages?: number;
+            directUsages: number;
             ecosystem?: string;
             /** Format: double */
-            maxCvss?: number;
+            maxCvss: number;
             packageName?: string;
             /** Format: int32 */
-            totalCves?: number;
+            totalCves: number;
             /** Format: int32 */
-            transitiveUsages?: number;
+            transitiveUsages: number;
         };
         Tracking: {
             current_release_date?: string;
@@ -4954,27 +4954,27 @@ export interface components {
         TrendPoint: {
             day?: string;
             /** Format: int64 */
-            open?: number;
+            open: number;
             /** Format: int64 */
-            opened?: number;
+            opened: number;
             /** Format: int64 */
-            resolved?: number;
+            resolved: number;
         };
         Trends: {
             /** Format: double */
             mean_days_to_resolve?: number;
             points?: components["schemas"]["TrendPoint"][];
             /** Format: int32 */
-            resolved_in_window?: number;
+            resolved_in_window: number;
         };
         TriageImpact: {
             /** Format: int32 */
-            addedRules?: number;
+            addedRules: number;
             /** Format: int64 */
-            affectedIssues?: number;
+            affectedIssues: number;
             losingIssues?: string[];
             /** Format: int32 */
-            removedRules?: number;
+            removedRules: number;
         };
         TriageRequest: {
             comment?: string;
@@ -4986,7 +4986,7 @@ export interface components {
         UnroutableLabel: {
             label?: string;
             /** Format: int64 */
-            queued?: number;
+            queued: number;
         };
         UploadRequest: {
             files?: components["schemas"]["UploadedFile"][];
@@ -4995,11 +4995,11 @@ export interface components {
         Uploaded: {
             contentHash?: string;
             /** Format: int32 */
-            fileCount?: number;
+            fileCount: number;
             /** Format: int64 */
             id?: number;
             /** Format: int32 */
-            ruleCount?: number;
+            ruleCount: number;
         };
         UploadedFile: {
             content?: string;
@@ -5007,15 +5007,15 @@ export interface components {
         };
         UserAdminSummary: {
             /** Format: int64 */
-            activeSessions?: number;
+            activeSessions: number;
             /** Format: date-time */
             createdAt?: string;
             displayName?: string;
             email?: string;
             /** Format: int64 */
             id?: number;
-            isActive?: boolean;
-            mustChangePassword?: boolean;
+            isActive: boolean;
+            mustChangePassword: boolean;
             role?: string;
             username?: string;
         };
@@ -5033,8 +5033,8 @@ export interface components {
         };
         UserSummary: {
             displayName?: string;
-            mfaEnabled?: boolean;
-            mustChangePassword?: boolean;
+            mfaEnabled: boolean;
+            mustChangePassword: boolean;
             role?: string;
             username?: string;
         };
@@ -5051,9 +5051,9 @@ export interface components {
         VerdictRegister: {
             next_cursor?: string;
             /** Format: int64 */
-            passed?: number;
+            passed: number;
             /** Format: int64 */
-            refused?: number;
+            refused: number;
             verdicts?: components["schemas"]["RegisteredVerdict"][];
         };
         VerdictView: {
@@ -5061,24 +5061,24 @@ export interface components {
                 [key: string]: number;
             };
             /** Format: int32 */
-            evaluated?: number;
-            passed?: boolean;
+            evaluated: number;
+            passed: boolean;
             violations?: components["schemas"]["ViolationView"][];
         };
         Verification: {
             broken?: string;
-            intact?: boolean;
-            mirrored?: boolean;
+            intact: boolean;
+            mirrored: boolean;
             /** Format: int32 */
-            missingFromMirror?: number;
+            missingFromMirror: number;
             /** Format: int32 */
-            missingFromTable?: number;
+            missingFromTable: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            unverifiable?: number;
+            unverifiable: number;
             /** Format: int64 */
-            verified?: number;
+            verified: number;
         };
         VerifyRequest: {
             payload?: string;
@@ -5089,7 +5089,7 @@ export interface components {
             algorithm?: string;
             keyId?: string;
             message?: string;
-            valid?: boolean;
+            valid: boolean;
         };
         VexSuggestion: {
             actionStatement?: string;
@@ -5101,7 +5101,7 @@ export interface components {
             fixVersions?: string;
             identifier?: string;
             /** Format: int64 */
-            issueId?: number;
+            issueId: number;
             packageName?: string;
             reason?: string;
             /** @enum {string} */
@@ -5113,7 +5113,7 @@ export interface components {
             fixVersions?: string;
             identifier?: string;
             /** Format: int64 */
-            issueId?: number;
+            issueId: number;
             package?: string;
             reason?: string;
             rule?: string;
@@ -5137,7 +5137,7 @@ export interface components {
             actionTaken?: string;
             /** Format: int64 */
             issueId?: number;
-            matched?: boolean;
+            matched: boolean;
             ticketRef?: string;
         };
     };

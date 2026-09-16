@@ -73,7 +73,7 @@ describe('the issue detail', () => {
         // Un compte qui peut agir : le formulaire de rattachement n'est offert qu'à ceux-là,
         // et un auditeur qui le verrait se ferait refuser par le serveur.
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false
+            username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
         });
         TestBed.inject(I18nService).translations.set({
             common: { save: 'Save', cancel: 'Cancel' },
@@ -225,7 +225,7 @@ describe('the issue detail', () => {
 
     it("n'offre pas le rattachement à un compte qui ne peut rien changer", async () => {
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'audit', displayName: null, role: 'AUDITOR', mustChangePassword: false
+            username: 'audit', displayName: null, role: 'AUDITOR', mustChangePassword: false, mfaEnabled: false
         });
         await load();
 

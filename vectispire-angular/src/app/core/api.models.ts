@@ -8,14 +8,18 @@
  * one converted: `Schema<'…'>` names a shape the server declares, and nothing about it is
  * duplicated here any more.
  *
- * **Two things the document does not say, and this file has to.** No schema in it carries a
- * `required` list — all 252 are fully optional — and none marks a property nullable. Both are
- * artefacts of springdoc reading records that annotate neither, not statements about the server:
- * `mustChangePassword` is a Java `boolean` and is always sent, `displayName` is sent as `null`.
- * `Always<>` and the explicit `| null` below are where each such claim is written down, one field
- * at a time and visibly. Annotating the records (`@Schema(requiredMode = REQUIRED)`) is what
- * removes them for good; until then, converting an area means deciding these per field, which is
- * why it is done deliberately rather than in one sweep.
+ * **What the document still does not say, and this file has to.** It used to say nothing at all
+ * about which properties are present: not one schema carried a `required` list. A converter in the
+ * control plane now marks every primitive record component — 115 schemas, 305 properties — because
+ * a Java `boolean` has no absent value and no null one, so that much is provable rather than
+ * intended. What it deliberately stops short of is reference types: a `String` that is always sent
+ * in practice is a promise about the code, and nothing tells it apart from one that is genuinely
+ * null sometimes. Nor does the document mark anything nullable, while this server does send
+ * `displayName: null`.
+ *
+ * `Always<>` and the explicit `| null` below are where each remaining claim is written down, one
+ * field at a time and visibly. Annotating the record removes the need for one; converting an area
+ * means deciding these per field, which is why it is done deliberately rather than in one sweep.
  *
  * The interfaces further down are still hand-written and hold shapes only, no logic.
  *
@@ -29,17 +33,18 @@ import type { components } from './api.generated';
 type Schema<K extends keyof components['schemas']> = components['schemas'][K];
 
 /**
- * Marks the properties the server always sends. Every use is a claim the document does not make —
- * keep them few, and delete them as the records gain `@Schema(requiredMode = REQUIRED)`.
+ * Marks a reference-typed property the server always sends. Every use is a claim the document does
+ * not make — keep them few, and delete each one as its record says so itself. Primitives need no
+ * wrapper: the document already marks them.
  */
 type Always<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 /** `GET /api/v1/auth/me`, and the `user` of a successful login. */
-export type AuthenticatedUser = Omit<Always<Schema<'UserSummary'>, 'username' | 'role' | 'mustChangePassword'>, 'displayName'> & {
+export type AuthenticatedUser = Omit<Always<Schema<'UserSummary'>, 'username' | 'role'>, 'displayName'> & {
     /**
      * Sent on every response and `null` when unset — this deployment does not configure
-     * `NON_NULL` inclusion outside SCIM, so the key is there. The document cannot say `null`
-     * either, which is the second thing it under-specifies alongside `required`.
+     * `NON_NULL` inclusion outside SCIM, so the key is there. Nullability is the one thing the
+     * document still says nothing about.
      */
     displayName: string | null;
 };
@@ -56,7 +61,7 @@ export type LoginResponse = Omit<Schema<'LoginResponse'>, 'user'> & { user?: Aut
 export type MfaSetupResponse = Always<Schema<'SetupResponse'>, 'secret' | 'qrCodeUri' | 'issuer'>;
 
 /** `POST /api/v1/auth/mfa/enable` */
-export type MfaEnableResponse = Always<Schema<'EnableResponse'>, 'success' | 'backupCodes'>;
+export type MfaEnableResponse = Always<Schema<'EnableResponse'>, 'backupCodes'>;
 
 export interface SiemConfig {
     enabled: boolean;

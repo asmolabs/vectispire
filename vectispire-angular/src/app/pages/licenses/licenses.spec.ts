@@ -87,7 +87,7 @@ describe('the licence inventory screen', () => {
         // Un responsable sécurité : c'est le rôle que le serveur exige pour écrire la politique,
         // et l'écran ne doit pas offrir le bouton à quelqu'un d'autre.
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'ciso', displayName: null, role: 'CISO', mustChangePassword: false
+            username: 'ciso', displayName: null, role: 'CISO', mustChangePassword: false, mfaEnabled: false
         });
 
         fixture = TestBed.createComponent(Licenses);
@@ -219,7 +219,7 @@ describe('the licence inventory screen', () => {
 
     it("n'offre pas la modification à un compte qui ne gouverne rien", async () => {
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'reader', displayName: null, role: 'USER', mustChangePassword: false
+            username: 'reader', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
         });
         fixture.detectChanges();
 

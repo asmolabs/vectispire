@@ -116,6 +116,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "enabled", "online", "runningScans", "sealsCredentials", "signsResults" ],
         "type" : "object"
       },
       "AgentUpdateRequest" : {
@@ -210,6 +211,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "endpointsCount" ],
         "type" : "object"
       },
       "ApiContractEntity" : {
@@ -290,6 +292,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "authRequired" ],
         "type" : "object"
       },
       "ApiKeyCreateRequest" : {
@@ -361,6 +364,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isExpired" ],
         "type" : "object"
       },
       "AppliedPolicy" : {
@@ -391,6 +395,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "failOnKev", "fixableOnly", "includeAiReview", "includeTriaged" ],
         "type" : "object"
       },
       "ArtifactLocation" : {
@@ -433,6 +438,7 @@
             "uniqueItems" : true
           }
         },
+        "required" : [ "ruleFiles" ],
         "type" : "object"
       },
       "AttachTicketRequest" : {
@@ -473,6 +479,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isDirectlyExploitable" ],
         "type" : "object"
       },
       "AttackPathEdge" : {
@@ -493,6 +500,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isCriticalPath" ],
         "type" : "object"
       },
       "AttackPathGraph" : {
@@ -535,6 +543,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "criticalExploitablePaths", "riskScore", "totalPaths" ],
         "type" : "object"
       },
       "AttackPathNode" : {
@@ -565,6 +574,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isExploitable" ],
         "type" : "object"
       },
       "AttackSurfaceSummary" : {
@@ -594,6 +604,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "internalEndpoints", "publicEndpoints", "sensitiveUnprotectedEndpoints", "shadowEndpoints", "totalEndpoints", "unauthenticatedEndpoints" ],
         "type" : "object"
       },
       "AuditLogEntity" : {
@@ -654,6 +665,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "limit", "offset", "total" ],
         "type" : "object"
       },
       "BacklogEntry" : {
@@ -831,6 +843,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "published" ],
         "type" : "object"
       },
       "BlastRadiusReport" : {
@@ -871,6 +884,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "blastRadiusScore", "directUsages", "totalAssociatedCves", "totalTargetsAffected", "transitiveUsages" ],
         "type" : "object"
       },
       "Block" : {
@@ -905,6 +919,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "level" ],
         "type" : "object"
       },
       "Bucket" : {
@@ -917,6 +932,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "count" ],
         "type" : "object"
       },
       "Builder" : {
@@ -994,6 +1010,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "late", "openOverdue", "windowDays", "withinSla" ],
         "type" : "object"
       },
       "Catalog" : {
@@ -1119,6 +1136,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "scorePercentage" ],
         "type" : "object"
       },
       "ComplianceSnapshot" : {
@@ -1177,6 +1195,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "codeAnalysisReaches", "controlsDeclared", "controlsTotal", "endOfLifeEnabled", "fresh", "freshnessDays", "observed", "score", "soaFindings", "targets" ],
         "type" : "object"
       },
       "ComplianceSummary" : {
@@ -1221,6 +1240,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "dueSoonCount", "freshTargets", "observedTargets", "overdueCount", "passingGateTargets", "totalMonitoredTargets" ],
         "type" : "object"
       },
       "Component" : {
@@ -1355,6 +1375,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "openIssues" ],
         "type" : "object"
       },
       "ControlAssessment" : {
@@ -1377,6 +1398,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "scorePercentage" ],
         "type" : "object"
       },
       "CoverageLine" : {
@@ -1399,6 +1421,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "findings" ],
         "type" : "object"
       },
       "CreateTicketRequest" : {
@@ -1528,6 +1551,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "version" ],
         "type" : "object"
       },
       "DailyPosturePoint" : {
@@ -1553,6 +1577,7 @@
             "type" : "number"
           }
         },
+        "required" : [ "newlyDiscovered", "newlyResolved", "openBacklog" ],
         "type" : "object"
       },
       "DashboardOverview" : {
@@ -1584,6 +1609,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "qualityTotal" ],
         "type" : "object"
       },
       "Decision" : {
@@ -1854,6 +1880,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "success" ],
         "type" : "object"
       },
       "EndpointView" : {
@@ -1912,6 +1939,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "authRequired" ],
         "type" : "object"
       },
       "Engine" : {
@@ -1961,6 +1989,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "activeKevCount", "averageFleetEpss", "highEpssCount", "reachableEpssCount", "totalVulnerabilities" ],
         "type" : "object"
       },
       "EpssPrioritizedIssue" : {
@@ -2013,6 +2042,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isKev", "priorityScore" ],
         "type" : "object"
       },
       "ExceptionEntry" : {
@@ -2071,6 +2101,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "lapsed" ],
         "type" : "object"
       },
       "FailingTarget" : {
@@ -2095,6 +2126,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "observed" ],
         "type" : "object"
       },
       "Failure" : {
@@ -2179,6 +2211,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "critical", "high", "kev", "low", "medium", "secrets", "total" ],
         "type" : "object"
       },
       "Flag" : {
@@ -2253,6 +2286,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "fail_on_kev", "fixable_only", "include_ai_review", "include_triaged", "version" ],
         "type" : "object"
       },
       "GateRequest" : {
@@ -2315,6 +2349,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "evaluated", "passed" ],
         "type" : "object"
       },
       "Generator" : {
@@ -2373,6 +2408,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "internalEndpoints", "publicEndpoints", "sensitiveUnprotectedEndpoints", "shadowEndpoints", "totalEndpoints", "unauthenticatedEndpoints" ],
         "type" : "object"
       },
       "GraphEdge" : {
@@ -2420,6 +2456,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isDirect", "riskScore" ],
         "type" : "object"
       },
       "Grid" : {
@@ -2443,6 +2480,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "covered", "unmeasured", "withFindings" ],
         "type" : "object"
       },
       "HelloRequest" : {
@@ -2491,6 +2529,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "maxConcurrent" ],
         "type" : "object"
       },
       "HighImpactFix" : {
@@ -2537,6 +2576,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "criticalCveCount", "cveCountResolved", "estimatedHours", "highCveCount", "leverageScore" ],
         "type" : "object"
       },
       "IacFinding" : {
@@ -2561,6 +2601,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "line" ],
         "type" : "object"
       },
       "InTotoAttestation" : {
@@ -2604,6 +2645,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "matchedIssues", "statementsProcessed", "triagedIssues" ],
         "type" : "object"
       },
       "Invocation" : {
@@ -2962,6 +3004,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "limit", "offset", "total" ],
         "type" : "object"
       },
       "IssueTicketEntity" : {
@@ -3099,6 +3142,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "compliant" ],
         "type" : "object"
       },
       "LicensePolicy" : {
@@ -3150,6 +3194,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "nonCompliantCount", "totalDependencies", "uniqueLicenses" ],
         "type" : "object"
       },
       "Line" : {
@@ -3172,6 +3217,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "reviewOverdue" ],
         "type" : "object"
       },
       "Location" : {
@@ -3232,6 +3278,7 @@
             "$ref" : "#/components/schemas/UserSummary"
           }
         },
+        "required" : [ "mfa_required" ],
         "type" : "object"
       },
       "Member" : {
@@ -3314,6 +3361,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "resolvedCount" ],
         "type" : "object"
       },
       "Name" : {
@@ -3365,6 +3413,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "configured" ],
         "type" : "object"
       },
       "NotificationTestResult" : {
@@ -3383,6 +3432,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "success" ],
         "type" : "object"
       },
       "ObservedIssue" : {
@@ -3506,6 +3556,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "modelInstalled", "reachable", "remoteAllowed" ],
         "type" : "object"
       },
       "OpenVexDocument" : {
@@ -3540,6 +3591,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "version" ],
         "type" : "object"
       },
       "OpenVexStatement" : {
@@ -3644,6 +3696,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "isRoutable", "positionInQueue", "waitDurationSeconds" ],
         "type" : "object"
       },
       "PhysicalLocation" : {
@@ -3670,6 +3723,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "signsResults" ],
         "type" : "object"
       },
       "PoliciesResponse" : {
@@ -3701,6 +3755,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "gatePassed" ],
         "type" : "object"
       },
       "PolicyRequest" : {
@@ -3753,6 +3808,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "failingCount", "kevCount", "lastScanFailedCount", "neverScannedCount", "overdueCount", "totalCount" ],
         "type" : "object"
       },
       "PostureTrendAnalytics" : {
@@ -3797,6 +3853,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "netResolutionRatePercentage", "totalOpenedInWindow", "totalResolvedInWindow", "windowDays" ],
         "type" : "object"
       },
       "Predicate" : {
@@ -3942,6 +3999,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "fileCount", "openCount", "ruleCount" ],
         "type" : "object"
       },
       "QueueStats" : {
@@ -3979,6 +4037,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "avgScanDurationSeconds", "busyAgents", "idleAgents", "onlineAgents", "pendingScansCount", "runningScansCount", "scansCompleted24h", "totalAgents" ],
         "type" : "object"
       },
       "QueuedScan" : {
@@ -4049,6 +4108,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "findingsCount" ],
         "type" : "object"
       },
       "Region" : {
@@ -4058,6 +4118,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "startLine" ],
         "type" : "object"
       },
       "Register" : {
@@ -4088,6 +4149,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "awaiting_approval", "granted", "lapsed", "never_reviewed" ],
         "type" : "object"
       },
       "RegisteredVerdict" : {
@@ -4141,6 +4203,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "evaluated", "passed", "relaxations_ignored", "violations" ],
         "type" : "object"
       },
       "Remediation" : {
@@ -4198,6 +4261,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "addressableByUpgrade", "beyondUpgrades", "openFindings" ],
         "type" : "object"
       },
       "RemediationDistribution" : {
@@ -4221,6 +4285,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "windowDays" ],
         "type" : "object"
       },
       "RemediationGap" : {
@@ -4233,6 +4298,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "findings" ],
         "type" : "object"
       },
       "Report" : {
@@ -4308,6 +4374,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "decisions", "openIssues", "scanCount" ],
         "type" : "object"
       },
       "RepositoryApisOverview" : {
@@ -4417,6 +4484,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "openIssues" ],
         "type" : "object"
       },
       "Result" : {
@@ -4459,6 +4527,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "ruleIndex" ],
         "type" : "object"
       },
       "Results" : {
@@ -4477,6 +4546,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "total", "truncated" ],
         "type" : "object"
       },
       "ReviewRequest" : {
@@ -4608,6 +4678,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "fileCount", "ruleCount" ],
         "type" : "object"
       },
       "Run" : {
@@ -4667,6 +4738,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "durationSeconds" ],
         "type" : "object"
       },
       "SarifLog" : {
@@ -4723,6 +4795,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "line" ],
         "type" : "object"
       },
       "SbomDiffReport" : {
@@ -4778,6 +4851,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "addedCount", "introducedCveCount", "licenseChangedCount", "removedCount", "resolvedCveCount", "versionChangedCount" ],
         "type" : "object"
       },
       "Scan" : {
@@ -4828,6 +4902,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "findingsCount", "newIssuesCount", "resolvedIssuesCount" ],
         "type" : "object"
       },
       "ScanArtifacts" : {
@@ -4953,6 +5028,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "findingsTotal", "findingsTruncated", "hasSbom" ],
         "type" : "object"
       },
       "ScanSummary" : {
@@ -5008,6 +5084,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "attempts", "findingsCount", "newIssuesCount", "resolvedIssuesCount" ],
         "type" : "object"
       },
       "ScimGroupDto" : {
@@ -5083,6 +5160,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "itemsPerPage", "startIndex", "totalResults" ],
         "type" : "object"
       },
       "ScimListResponseScimUserDto" : {
@@ -5112,6 +5190,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "itemsPerPage", "startIndex", "totalResults" ],
         "type" : "object"
       },
       "ScimPatchOp" : {
@@ -5215,6 +5294,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "declaredAssets", "inScope", "neverScanned", "scannedRecently", "stale" ],
         "type" : "object"
       },
       "ScopeView" : {
@@ -5264,6 +5344,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "line" ],
         "type" : "object"
       },
       "SecretRequest" : {
@@ -5335,6 +5416,7 @@
             "type" : "number"
           }
         },
+        "required" : [ "criticalIssues", "eolDebtHours", "highIssues", "iacDebtHours", "licenseDebtHours", "lowIssues", "mediumIssues", "sastDebtHours", "secretsDebtHours", "totalEstimatedHours", "totalEstimatedPersonDays", "totalOpenIssues", "vulnerabilitiesDebtHours" ],
         "type" : "object"
       },
       "SecurityOverviewView" : {
@@ -5366,6 +5448,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "failingCount", "kevCount", "lastScanFailedCount", "neverScannedCount", "totalCount" ],
         "type" : "object"
       },
       "SecurityScorecard" : {
@@ -5418,6 +5501,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "hasAttestation", "licenseViolationCount", "openCriticalCount", "openHighCount", "openKevCount", "overdueCount", "score" ],
         "type" : "object"
       },
       "Series" : {
@@ -5436,6 +5520,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "comparable" ],
         "type" : "object"
       },
       "SettingView" : {
@@ -5468,6 +5553,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "configured", "governor_only" ],
         "type" : "object"
       },
       "SetupResponse" : {
@@ -5502,6 +5588,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "enabled" ],
         "type" : "object"
       },
       "SiemConfigResponse" : {
@@ -5525,6 +5612,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "enabled", "hasAuthHeader" ],
         "type" : "object"
       },
       "SiemTestRequest" : {
@@ -5581,6 +5669,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "configured", "password" ],
         "type" : "object"
       },
       "SigningKeyRequest" : {
@@ -5626,6 +5715,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "complete", "declared", "findings", "reviewsOverdue", "total" ],
         "type" : "object"
       },
       "Source" : {
@@ -5677,6 +5767,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "usedByRepositories" ],
         "type" : "object"
       },
       "Step" : {
@@ -5696,6 +5787,7 @@
             "$ref" : "#/components/schemas/ComplianceSnapshot"
           }
         },
+        "required" : [ "delta" ],
         "type" : "object"
       },
       "StoredFile" : {
@@ -5774,6 +5866,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "openIssuesCount", "overallScore", "overdueCount" ],
         "type" : "object"
       },
       "TargetImpact" : {
@@ -5820,6 +5913,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isDirect" ],
         "type" : "object"
       },
       "TargetMaturityScore" : {
@@ -5866,6 +5960,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "openCritical", "openHigh", "openLow", "openMedium", "securityScore", "totalResolved" ],
         "type" : "object"
       },
       "TargetOption" : {
@@ -5928,6 +6023,7 @@
             "$ref" : "#/components/schemas/VerdictView"
           }
         },
+        "required" : [ "observed", "passed", "targetId" ],
         "type" : "object"
       },
       "Targets" : {
@@ -5982,6 +6078,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "memberCount", "notified", "targetCount" ],
         "type" : "object"
       },
       "TeamTargetAssignment" : {
@@ -6009,6 +6106,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "statusCode", "success" ],
         "type" : "object"
       },
       "Text" : {
@@ -6060,6 +6158,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "isKev" ],
         "type" : "object"
       },
       "ThreatIntelSyncStatus" : {
@@ -6084,6 +6183,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "backlogUpdatedCount", "totalCves", "totalKev" ],
         "type" : "object"
       },
       "TokenRequest" : {
@@ -6141,6 +6241,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "affectedTargetsCount", "blastRadiusScore", "directUsages", "maxCvss", "totalCves", "transitiveUsages" ],
         "type" : "object"
       },
       "Tracking" : {
@@ -6190,6 +6291,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "open", "opened", "resolved" ],
         "type" : "object"
       },
       "Trends" : {
@@ -6209,6 +6311,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "resolved_in_window" ],
         "type" : "object"
       },
       "TriageImpact" : {
@@ -6232,6 +6335,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "addedRules", "affectedIssues", "removedRules" ],
         "type" : "object"
       },
       "TriageRequest" : {
@@ -6262,6 +6366,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "queued" ],
         "type" : "object"
       },
       "UploadRequest" : {
@@ -6296,6 +6401,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "fileCount", "ruleCount" ],
         "type" : "object"
       },
       "UploadedFile" : {
@@ -6342,6 +6448,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "activeSessions", "isActive", "mustChangePassword" ],
         "type" : "object"
       },
       "UserCreateRequest" : {
@@ -6397,6 +6504,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "mfaEnabled", "mustChangePassword" ],
         "type" : "object"
       },
       "UserTargetAssignment" : {
@@ -6445,6 +6553,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "passed", "refused" ],
         "type" : "object"
       },
       "VerdictView" : {
@@ -6470,6 +6579,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "evaluated", "passed" ],
         "type" : "object"
       },
       "Verification" : {
@@ -6504,6 +6614,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "intact", "mirrored", "missingFromMirror", "missingFromTable", "total", "unverifiable", "verified" ],
         "type" : "object"
       },
       "VerifyRequest" : {
@@ -6535,6 +6646,7 @@
             "type" : "boolean"
           }
         },
+        "required" : [ "valid" ],
         "type" : "object"
       },
       "VexSuggestion" : {
@@ -6581,6 +6693,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "issueId" ],
         "type" : "object"
       },
       "ViolationView" : {
@@ -6608,6 +6721,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "issueId" ],
         "type" : "object"
       },
       "Vulnerability" : {
@@ -6672,6 +6786,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "matched" ],
         "type" : "object"
       }
     },
