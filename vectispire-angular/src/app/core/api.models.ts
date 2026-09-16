@@ -30,24 +30,45 @@
 import type { components } from './api.generated';
 
 /** A shape the control plane declares, named as `openapi.json` names it. */
-type Schema<K extends keyof components['schemas']> = components['schemas'][K];
+export type Schema<K extends keyof components['schemas']> = components['schemas'][K];
 
 /**
- * Marks a reference-typed property the server always sends. Every use is a claim the document does
- * not make — keep them few, and delete each one as its record says so itself. Primitives need no
- * wrapper: the document already marks them.
+ * A schema, with the claims the document cannot make written out beside it.
+ *
+ * Each claim says a property is always sent, or may be `null`, or holds a narrower set of values
+ * than `string`. **They are checked against the schema, not layered over it**: a key must be one
+ * the schema has, so a property renamed in the control plane fails here rather than being silently
+ * shadowed by the claim about it. A scalar claim is checked against the schema's own type too, so
+ * an `id` that turns from a number into a string fails the same way.
+ *
+ * The type check stops at object and array properties, and that is a deliberate hole: a claim
+ * there is usually another refined type — {@link UserList} holds {@link UserSummary}\[] — and a
+ * refinement is by construction not assignable to the shape it refines, since it adds `null` where
+ * the document had nothing. Checking the key is what remains, and it is the check that catches the
+ * rename.
+ *
+ * Primitives need no claim — the document marks those itself. Keep the rest few, and delete each
+ * one as its record starts saying so.
  */
-type Always<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+export type Claimable<S, K extends keyof S> = NonNullable<S[K]> extends object ? unknown : S[K] | null;
+
+export type Refine<S, Claims extends { [K in keyof Claims]: K extends keyof S ? Claimable<S, K> : never }> =
+    Omit<S, keyof Claims> & Claims;
 
 /** `GET /api/v1/auth/me`, and the `user` of a successful login. */
-export type AuthenticatedUser = Omit<Always<Schema<'UserSummary'>, 'username' | 'role'>, 'displayName'> & {
-    /**
-     * Sent on every response and `null` when unset — this deployment does not configure
-     * `NON_NULL` inclusion outside SCIM, so the key is there. Nullability is the one thing the
-     * document still says nothing about.
-     */
-    displayName: string | null;
-};
+export type AuthenticatedUser = Refine<
+    Schema<'UserSummary'>,
+    {
+        username: string;
+        role: string;
+        /**
+         * Sent on every response and `null` when unset — this deployment does not configure
+         * `NON_NULL` inclusion outside SCIM, so the key is there. Nullability is the one thing
+         * the document still says nothing about.
+         */
+        displayName: string | null;
+    }
+>;
 
 /**
  * `POST /api/v1/auth/login` — every field is genuinely conditional here: a successful login carries
@@ -58,10 +79,13 @@ export type AuthenticatedUser = Omit<Always<Schema<'UserSummary'>, 'username' | 
 export type LoginResponse = Omit<Schema<'LoginResponse'>, 'user'> & { user?: AuthenticatedUser };
 
 /** `POST /api/v1/auth/mfa/setup` */
-export type MfaSetupResponse = Always<Schema<'SetupResponse'>, 'secret' | 'qrCodeUri' | 'issuer'>;
+export type MfaSetupResponse = Refine<
+    Schema<'SetupResponse'>,
+    { secret: string; qrCodeUri: string; issuer: string }
+>;
 
 /** `POST /api/v1/auth/mfa/enable` */
-export type MfaEnableResponse = Always<Schema<'EnableResponse'>, 'backupCodes'>;
+export type MfaEnableResponse = Refine<Schema<'EnableResponse'>, { backupCodes: string[] }>;
 
 export interface SiemConfig {
     enabled: boolean;
@@ -429,142 +453,138 @@ export interface NewContainer {
 }
 
 /** Where a private key stands with respect to the configured encryption keys. */
+/**
+ * How readable the stored private half is. The document types it `string`: the server computes it
+ * rather than persisting an enum, so nothing in the schema narrows it and the screen would happily
+ * compare it against a value that can never occur.
+ */
 export type EncryptionState = 'current' | 'previous_key' | 'unreadable';
 
 /** A deployment key. The private half never appears here: the server does not return it, and
  *  no screen would have a reason to show it. */
-export interface SshKeySummary {
-    id: string;
-    name: string;
-    publicKey: string | null;
-    createdAt: string;
-    encryptionState: EncryptionState;
-    usedByRepositories: number;
-}
+export type SshKeySummary = Refine<
+    Schema<'SshKeySummary'>,
+    {
+        id: string;
+        name: string;
+        createdAt: string;
+        encryptionState: EncryptionState;
+        publicKey: string | null;
+    }
+>;
 
-export interface NewSshKey {
-    name: string;
-    private_key: string;
-    public_key?: string;
-}
+export type NewSshKey = Refine<Schema<'SshKeyCreateRequest'>, { name: string; private_key: string }>;
 
 /** An account. The password hash never appears here: the server does not return it, and a
  *  bcrypt hash that leaves the server is a hash to be cracked. */
-export interface UserSummary {
-    id: number;
-    username: string;
-    email: string | null;
-    displayName: string | null;
-    role: string;
-    isActive: boolean;
-    mustChangePassword: boolean;
-    createdAt: string;
-    activeSessions: number;
-}
+export type UserSummary = Refine<
+    Schema<'UserAdminSummary'>,
+    {
+        id: number;
+        username: string;
+        role: string;
+        createdAt: string;
+        email: string | null;
+        displayName: string | null;
+    }
+>;
 
-export interface UserList {
-    users: UserSummary[];
-    /** So the screen does not offer actions the server will refuse anyway. */
-    currentUserId: number | null;
-}
+export type UserList = Refine<
+    Schema<'UserListing'>,
+    {
+        users: UserSummary[];
+        /** So the screen does not offer actions the server will refuse anyway. */
+        currentUserId: number | null;
+    }
+>;
 
-export interface NewUser {
-    username: string;
-    password: string;
-    role: string;
-    email?: string;
-    display_name?: string;
-}
+export type NewUser = Refine<
+    Schema<'UserCreateRequest'>,
+    { username: string; password: string; role: string }
+>;
 
-export interface UserPatch {
-    role?: string;
-    is_active?: boolean;
-    password?: string;
-}
+/** Every field is a field left alone when absent, so the schema already says it exactly. */
+export type UserPatch = Schema<'UserUpdateRequest'>;
 
 /** An API key. The cleartext value is not here: it exists once only, in the response to its
  *  creation. */
-export interface ApiKeySummary {
-    id: string;
-    name: string;
-    /** The first twelve characters, in clear. This is not a secret. */
-    prefix: string | null;
-    scopes: string[];
-    targetKind: string | null;
-    targetId: number | null;
-    targetLabel: string | null;
-    createdAt: string | null;
-    lastUsedAt: string | null;
-    expiresAt: string | null;
-    /** Computed by the server: two notions of "expired" would diverge by a time zone. */
-    isExpired: boolean;
-}
+export type ApiKeySummary = Refine<
+    Schema<'ApiKeySummary'>,
+    {
+        id: string;
+        name: string;
+        scopes: string[];
+        /** The first twelve characters, in clear. This is not a secret. */
+        prefix: string | null;
+        targetKind: string | null;
+        targetId: number | null;
+        targetLabel: string | null;
+        createdAt: string | null;
+        lastUsedAt: string | null;
+        expiresAt: string | null;
+    }
+>;
 
-export interface NewApiKey {
-    name: string;
-    scopes: string[];
-    target_kind?: string;
-    target_id?: number;
-    expires_in_days?: number;
-}
+export type NewApiKey = Refine<Schema<'ApiKeyCreateRequest'>, { name: string; scopes: string[] }>;
 
-export interface IssuedApiKey {
-    key: ApiKeySummary;
-    /** The one and only occurrence of the cleartext value. It never reappears. */
-    secret: string;
-}
+export type IssuedApiKey = Refine<
+    Schema<'IssuedKey'>,
+    {
+        key: ApiKeySummary;
+        /** The one and only occurrence of the cleartext value. It never reappears. */
+        secret: string;
+    }
+>;
 
-/** A team: the grouping that makes restricted visibility administrable. */
-export interface TeamSummary {
-    id: number;
-    name: string;
-    description: string | null;
-    /** On the list so the screen can say "four people, two repositories" without one request
-     *  per team — and so that a team owning nothing, which grants nothing, is visible at a
-     *  glance rather than by opening it. */
-    memberCount: number;
-    targetCount: number;
-    /** Whether the team has its own notification channel — **not the URL**. A webhook URL is a
-     *  bearer capability: whoever reads it can post where the team awaits Vectispire's alerts, so no
-     *  route returns it and this screen cannot display it back. */
-    notified: boolean;
-}
+/** A team: the grouping that makes restricted visibility administrable.
+ *
+ *  `memberCount` and `targetCount` are on the list so the screen can say "four people, two
+ *  repositories" without one request per team — and so that a team owning nothing, which grants
+ *  nothing, is visible at a glance rather than by opening it.
+ *
+ *  `notified` says whether the team has its own notification channel — **not the URL**. A webhook
+ *  URL is a bearer capability: whoever reads it can post where the team awaits Vectispire's alerts,
+ *  so no route returns it and this screen cannot display it back. */
+export type TeamSummary = Refine<
+    Schema<'TeamSummary'>,
+    { id: number; name: string; description: string | null }
+>;
 
-export interface TeamTargetAssignment {
-    kind: string;
-    id: number;
-}
+export type TeamTargetAssignment = Refine<Schema<'TeamTargetAssignment'>, { kind: string; id: number }>;
 
 /**
- * Une cible qu'un compte voit directement, sans passer par une équipe.
+ * A target an account sees directly, without going through a team.
  *
- * <p>Même forme que {@link TeamTargetAssignment} et pourtant distincte : les deux ensembles
- * s'additionnent côté serveur, et les confondre dans un seul type ferait écrire un écran qui
- * remplace l'un en croyant remplacer l'autre.
+ * The same shape as {@link TeamTargetAssignment} and still distinct — the control plane names them
+ * separately too. The two sets add up server-side, and merging them into one type is how a screen
+ * comes to replace one believing it replaces the other.
  */
-export interface UserTargetAssignment {
-    kind: string;
-    id: number;
-}
+export type UserTargetAssignment = Refine<Schema<'UserTargetAssignment'>, { kind: string; id: number }>;
 
-export interface ApiKeyTargets {
-    repositories: { id: number; label: string }[];
-    containers: { id: number; label: string }[];
-}
+/** A target a key may be scoped to, as the picker needs it: identified and named. */
+export type TargetOption = Refine<Schema<'TargetOption'>, { id: number; label: string }>;
 
-/** An audit log entry. */
-export interface AuditEntry {
-    id: string;
-    timestamp: string | null;
-    operationType: string | null;
-    resourceId: string | null;
-    userId: string | null;
-    ipAddress: string | null;
-    userAgent: string | null;
-    description: string | null;
-    previousHash: string | null;
-    entryHash: string | null;
-}
+export type ApiKeyTargets = Refine<
+    Schema<'Targets'>,
+    { repositories: TargetOption[]; containers: TargetOption[] }
+>;
+
+/** An audit log entry. Everything but its identity can be absent, and is sent as `null`. */
+export type AuditEntry = Refine<
+    Schema<'AuditLogEntity'>,
+    {
+        id: string;
+        timestamp: string | null;
+        operationType: string | null;
+        resourceId: string | null;
+        userId: string | null;
+        ipAddress: string | null;
+        userAgent: string | null;
+        description: string | null;
+        previousHash: string | null;
+        entryHash: string | null;
+    }
+>;
 
 export interface AuditFilters {
     operation_type?: string;
@@ -575,26 +595,19 @@ export interface AuditFilters {
 }
 
 /** The result of verifying the integrity chain. */
-export interface AuditVerification {
-    total: number;
-    /** Entries predating the chaining: neither a proof nor an alarm. */
-    unverifiable: number;
-    verified: number;
-    /** The chain holds **and** nothing the mirror kept has left the table. */
-    intact: boolean;
-    broken: string | null;
-    /** Whether a copy outside this database is configured at all. `false` is a state to show,
-     *  not a detail to hide: "nothing missing" from a mirror that does not exist reads as
-     *  reassurance and is not. */
-    mirrored: boolean;
-    /** Entries the mirror holds and the table does not — the deletion the chain cannot see,
-     *  since nothing descends from the last entry written. */
-    missingFromTable: number;
-    /** Entries the table holds and the mirror does not: written before the mirror existed,
-     *  written while it could not be reached, or inserted by somebody who had the database and
-     *  not the file. */
-    missingFromMirror: number;
-}
+/**
+ * The state of the audit chain, as the server alone can compute it.
+ *
+ * `unverifiable` counts entries predating the chaining: neither a proof nor an alarm. `intact`
+ * means the chain holds **and** nothing the mirror kept has left the table. `mirrored` says
+ * whether a copy outside this database is configured at all — `false` is a state to show, not a
+ * detail to hide: "nothing missing" from a mirror that does not exist reads as reassurance and is
+ * not. `missingFromTable` counts entries the mirror holds and the table does not — the deletion
+ * the chain cannot see, since nothing descends from the last entry written. `missingFromMirror`
+ * counts the reverse: written before the mirror existed, written while it could not be reached, or
+ * inserted by somebody who had the database and not the file.
+ */
+export type AuditVerification = Refine<Schema<'Verification'>, { broken: string | null }>;
 
 /** What the dashboard shows. None of these figures is its own: the posture comes from the
  *  same construction as the Security screen and POST /gate. */
