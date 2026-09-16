@@ -18,13 +18,14 @@ import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
+import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, SelectModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe],
+    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, SelectModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe, RuleCoverageBanner],
     templateUrl: './repositories.html'
 })
 export class Repositories {

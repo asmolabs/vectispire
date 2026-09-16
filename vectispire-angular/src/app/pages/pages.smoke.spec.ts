@@ -245,6 +245,13 @@ describe('every screen', () => {
         }
         fixture.detectChanges();
 
+        // Le bandeau de couverture vit à l'intérieur du bloc qui attend le détail : il n'existe
+        // donc pas encore au passage ci-dessus, et sa requête n'arrive qu'une fois l'écran rendu.
+        for (const request of http.match(() => true)) {
+            request.flush(emptyFor(request.request.url));
+        }
+        fixture.detectChanges();
+
         expect(fixture.nativeElement.textContent).toBeDefined();
         http.verify();
     });
@@ -287,6 +294,13 @@ describe('every screen', () => {
                 findingsTotal: 0,
                 findingsTruncated: false
             });
+        }
+        fixture.detectChanges();
+
+        // Même raison qu'au-dessus : le bandeau de couverture est à l'intérieur du bloc qui
+        // attend le détail, donc sa requête n'existe qu'une fois celui-ci rendu.
+        for (const request of http.match(() => true)) {
+            request.flush(emptyFor(request.request.url));
         }
         fixture.detectChanges();
 

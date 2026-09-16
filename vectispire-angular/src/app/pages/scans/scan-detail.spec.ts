@@ -60,13 +60,32 @@ describe('the scan detail', () => {
         ]
     };
 
+    const COVERED = {
+        state: 'COVERED',
+        languagesWithRules: ['java'],
+        ecosystemsInEstate: ['maven'],
+        uncovered: [],
+        ruleFiles: 40
+    };
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [ScanDetailPage],
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
-        TestBed.inject(I18nService).translations.set({ common: { loading: 'Loading…' } });
+        TestBed.inject(I18nService).translations.set({
+            common: { loading: 'Loading…' },
+            rule_coverage: {
+                import: 'Import a catalogue',
+                add: 'Add this language',
+                unconfigured: {
+                    title: 'Code analysis covers one pattern, in Python.',
+                    body: 'Your repositories are not analysed.'
+                },
+                partial: { title: 'No rule covers', body: 'Injection is not measured there.' }
+            }
+        });
 
         fixture = TestBed.createComponent(ScanDetailPage);
         fixture.componentRef.setInput('id', '34');
@@ -74,10 +93,18 @@ describe('the scan detail', () => {
         fixture.detectChanges();
     });
 
-    async function load(detail: Record<string, unknown> = DETAIL): Promise<void> {
+    async function load(
+        detail: Record<string, unknown> = DETAIL,
+        coverage: Record<string, unknown> = COVERED
+    ): Promise<void> {
         // The request is queued on a microtask so the required input is set before it fires.
         await Promise.resolve();
         http.expectOne('/api/v1/scans/34').flush(detail);
+        fixture.detectChanges();
+
+        // The coverage banner sits inside the block that waits for the detail, so it asks only
+        // once the screen has rendered.
+        http.expectOne('/api/v1/rule-sets/coverage').flush(coverage);
         fixture.detectChanges();
     }
 
@@ -114,5 +141,32 @@ describe('the scan detail', () => {
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('CVE-2026-1234');
         expect(text).toContain('openssl');
+    });
+
+    /**
+     * <b>An empty findings list is the sentence this screen gets wrong on its own.</b> A scan of a
+     * repository no rule covers reports nothing, and the table below says "no finding" in the
+     * same words it uses for a repository that is genuinely clean. The banner is what separates
+     * "nothing was found" from "nothing was looked for", and this is the screen the design note
+     * named first.
+     */
+    it('says an empty findings list may be an empty search', async () => {
+        await load({ ...DETAIL, findings: [], findingsTotal: 0 }, {
+            state: 'UNCONFIGURED',
+            languagesWithRules: [],
+            ecosystemsInEstate: ['maven'],
+            uncovered: ['maven'],
+            ruleFiles: 1
+        });
+
+        expect(fixture.nativeElement.textContent as string).toContain(
+            'Code analysis covers one pattern, in Python.'
+        );
+    });
+
+    it('stays quiet when the estate is covered, so the one that matters stays visible', async () => {
+        await load();
+
+        expect(fixture.nativeElement.textContent as string).not.toContain('Code analysis covers');
     });
 });

@@ -20,6 +20,12 @@
     </div>
 </div>
 
+<!--
+    **Le langage d'un dépôt décide de ce qui a été cherché dedans.** La colonne d'état d'un dépôt
+    dont aucune règle ne couvre le langage est verte pour la seule raison que rien ne l'a lu.
+-->
+<zs-rule-coverage-banner />
+
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }

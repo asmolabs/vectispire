@@ -81,6 +81,13 @@
             (onClick)="downloadCycloneDx(detail.scan.id)" />
     </div>
 
+    <!--
+        **Juste au-dessus de la liste, parce que c'est là que le vide se lit.** Une liste de
+        constats vide sur un dépôt dont aucune règle ne couvre le langage dit « ce scan n'a rien
+        trouvé » là où il faut lire « ce scan n'a rien cherché ».
+    -->
+    <zs-rule-coverage-banner />
+
     <p-card>
         <ng-template #title>
             Findings from this scan

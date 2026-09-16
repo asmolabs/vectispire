@@ -2,6 +2,13 @@
     <div class="font-semibold text-xl mb-1">{{ 'security.title' | translate }}</div>
     <p class="text-muted-color mb-4">{{ 'security.subtitle' | translate }}</p>
 
+    <!--
+        **Ici une cible verte peut n'avoir jamais été regardée.** L'écran compte les cibles en
+        échec ; une analyse de code sans règle pour le langage du dépôt n'en produit aucune, et
+        la colonne se lit comme un parc sain. Le bandeau est ce qui empêche cette lecture.
+    -->
+    <zs-rule-coverage-banner />
+
     @if (overview(); as data) {
         <div class="flex flex-wrap gap-6 mb-4">
             <div>

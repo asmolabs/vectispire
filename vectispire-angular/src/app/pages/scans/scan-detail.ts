@@ -10,6 +10,7 @@ import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
 import type { ScanDetail } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
+import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
 
 /** Finding types, in words. Open table: an unknown type is shown raw. */
 const TYPE_LABELS: Record<string, string> = {
@@ -36,7 +37,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-scan-detail',
     standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, CardModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe],
+    imports: [CommonModule, RouterLink, ButtonModule, CardModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe, RuleCoverageBanner],
     templateUrl: './scan-detail.html'
 })
 export class ScanDetailPage {
