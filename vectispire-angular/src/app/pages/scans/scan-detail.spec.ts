@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ScanDetailPage } from './scan-detail';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * One scan's detail, against the shape the server actually sends.
@@ -20,7 +21,9 @@ describe('the scan detail', () => {
     let fixture: ComponentFixture<ScanDetailPage>;
     let http: HttpTestingController;
 
-    const DETAIL = {
+    // Read against the document rather than believed: this exact fixture used to spread the
+    // summary flat, which is what let the screen's ten blank fields go unnoticed.
+    const DETAIL = asSchema('ScanDetail', {
         scan: {
             id: 34,
             status: 'completed',
@@ -58,15 +61,15 @@ describe('the scan detail', () => {
                 link: null
             }
         ]
-    };
+    });
 
-    const COVERED = {
+    const COVERED = asSchema('Assessment', {
         state: 'COVERED',
         languagesWithRules: ['java'],
         ecosystemsInEstate: ['maven'],
         uncovered: [],
         ruleFiles: 40
-    };
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

@@ -2,7 +2,11 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "./out-tsc/spec",
-        "types": ["vitest/globals"]
+        "types": ["vitest/globals"],
+        // `openapi.json` is imported by `src/app/core/testing/contract.ts`, which checks a fixture
+        // against the schema it claims to be. Reading the committed document rather than a copy is
+        // the whole point: a copy would drift, and a drifting checker is worse than none.
+        "resolveJsonModule": true
     },
-    "include": ["src/**/*.spec.ts", "src/**/*.d.ts"]
+    "include": ["src/**/*.spec.ts", "src/**/*.d.ts", "src/app/core/testing/*.ts", "openapi.json"]
 }

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GatePolicies } from './gate-policies';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The screen that decides what fails a build.
@@ -22,7 +23,9 @@ describe('the gate policy screen', () => {
     let fixture: ComponentFixture<GatePolicies>;
     let http: HttpTestingController;
 
-    const BUILT_IN = {
+    // Lue contre le document : cette fixture a survécu à l'ajout d'un champ que le serveur envoie
+    // désormais toujours, et le formulaire l'a renvoyé `undefined` sans que rien ne le dise.
+    const BUILT_IN = asSchema('GatePolicyView', {
         kind: 'built_in',
         target_id: null,
         target_name: null,
@@ -36,7 +39,7 @@ describe('the gate policy screen', () => {
         note: null,
         created_by: null,
         created_at: null
-    };
+    });
 
     const GLOBAL = {
         ...BUILT_IN,

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { appRoutes } from '@/app.routes';
 import { ScanDetailPage } from './scans/scan-detail';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * Every screen mounts, renders, and survives an empty server.
@@ -270,7 +271,7 @@ describe('every screen', () => {
             // The summary is nested under `scan`, as the route sends it. This fixture used to
             // spread it flat — the same belief the client type held — so the screen reading
             // `detail.id` found nothing here and nothing in production, and both agreed.
-            request.flush({
+            request.flush(asSchema('ScanDetail', {
                 scan: {
                     id: 34,
                     status: 'completed',
@@ -294,7 +295,7 @@ describe('every screen', () => {
                 findings: [],
                 findingsTotal: 0,
                 findingsTruncated: false
-            });
+            }));
         }
         fixture.detectChanges();
 
