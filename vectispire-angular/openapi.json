@@ -2119,7 +2119,7 @@
           },
           "violations" : {
             "items" : {
-              "$ref" : "#/components/schemas/Violation"
+              "$ref" : "#/components/schemas/ViolationView"
             },
             "type" : "array"
           }
@@ -6660,36 +6660,6 @@
             "type" : "string"
           }
         },
-        "type" : "object"
-      },
-      "Violation" : {
-        "properties" : {
-          "fixVersions" : {
-            "type" : "string"
-          },
-          "identifier" : {
-            "type" : "string"
-          },
-          "issueId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "packageName" : {
-            "type" : "string"
-          },
-          "reason" : {
-            "type" : "string"
-          },
-          "rule" : {
-            "enum" : [ "KEV", "SEVERITY" ],
-            "type" : "string"
-          },
-          "severity" : {
-            "enum" : [ "CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN" ],
-            "type" : "string"
-          }
-        },
-        "required" : [ "issueId" ],
         "type" : "object"
       },
       "ViolationView" : {

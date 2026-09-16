@@ -361,70 +361,65 @@ export type BulkTriageRequest = Refine<
     }
 >;
 
-export interface GateViolation {
-    rule: 'kev' | 'severity';
-    issueId: number;
-    identifier: string | null;
-    severity: string;
-    package: string | null;
-    fixVersions: string | null;
-    reason: string;
-}
+export type GateViolation = Refine<
+    Schema<'ViolationView'>,
+    {
+        rule: 'kev' | 'severity';
+        issueId: number;
+        severity: string;
+        reason: string;
+        identifier: string | null;
+        package: string | null;
+        fixVersions: string | null;
+    }
+>;
 
-export interface ResolvedGatePolicy {
-    failOnSeverity: string | null;
-    failOnKev: boolean;
-    fixableOnly: boolean;
-    includeTriaged: boolean;
-    includeAiReview: boolean;
-    source: 'target' | 'global' | 'built-in';
-    version: number | null;
-    description: string;
-}
+export type ResolvedGatePolicy = Refine<
+    Schema<'AppliedPolicy'>,
+    {
+        source: 'target' | 'global' | 'built-in';
+        description: string;
+        failOnSeverity: string | null;
+        version: number | null;
+    }
+>;
 
-/** What the last scan says about how far the verdict can be trusted. */
 export type Observation = 'ok' | 'never_scanned' | 'last_scan_failed' | 'in_progress';
 
-export interface TargetPosture {
-    kind: 'repository' | 'container';
-    targetId: number;
-    name: string;
-    verdict: { passed: boolean; evaluated: number; violations: GateViolation[]; countsBySeverity: Record<string, number> };
-    policy: { source: string; version: number | null };
-    observation: Observation;
-    lastScanAt: string | null;
-    lastScanId: number | null;
-    passed: boolean;
-    /**
-     * Does the verdict rest on a real observation? A target that was never scanned produces an
-     * empty backlog, and an empty backlog passes every policy.
-     */
-    observed: boolean;
-}
+/** What the gate concluded about one target, and on how much. */
+export type GateVerdict = Refine<
+    Schema<'VerdictView'>,
+    { violations: GateViolation[]; countsBySeverity: Record<string, number> }
+>;
 
-export interface SecurityOverview {
-    targets: TargetPosture[];
-    failingCount: number;
-    totalCount: number;
-    kevCount: number;
-    neverScannedCount: number;
-    lastScanFailedCount: number;
-}
+/** Which policy decided, and which revision of it. */
+export type OverviewPolicy = Refine<
+    Schema<'OverviewPolicyView'>,
+    { source: string; version: number | null }
+>;
+
+export type TargetPosture = Refine<
+    Schema<'TargetView'>,
+    {
+        kind: 'repository' | 'container';
+        name: string;
+        observation: Observation;
+        verdict: GateVerdict;
+        policy: OverviewPolicy;
+        lastScanAt: string | null;
+        lastScanId: number | null;
+    }
+>;
+
+export type SecurityOverview = Refine<Schema<'SecurityOverviewView'>, { targets: TargetPosture[] }>;
 
 /** A grouped count — a rule, a file or a repository, and how many findings it carries. */
-export interface Tally {
-    label: string | null;
-    count: number;
-}
+export type Tally = Refine<Schema<'Bucket'>, { label: string | null }>;
 
-export interface QualityOverview {
-    openCount: number;
-    ruleCount: number;
-    fileCount: number;
-    topRules: Tally[];
-    topFiles: Tally[];
-    topTargets: Tally[];
-}
+export type QualityOverview = Refine<
+    Schema<'QualityOverview'>,
+    { topRules: Tally[]; topFiles: Tally[]; topTargets: Tally[] }
+>;
 
 export type AssetTier = 'TIER_1_MISSION_CRITICAL' | 'TIER_2_BUSINESS_OPERATIONAL' | 'TIER_3_INTERNAL';
 
@@ -651,65 +646,73 @@ export type AuditVerification = Refine<Schema<'Verification'>, { broken: string 
 
 /** What the dashboard shows. None of these figures is its own: the posture comes from the
  *  same construction as the Security screen and POST /gate. */
-export interface DashboardOverview {
-    posture: {
-        failingCount: number;
-        totalCount: number;
-        kevCount: number;
-        neverScannedCount: number;
-        lastScanFailedCount: number;
-        /** Open issues past their remediation window. Zero also means "every window disabled",
-         *  which the remediation section of the settings screen is where to check. */
-        overdueCount: number;
-    };
-    /** Outside quality, deliberately. */
-    backlogBySeverity: Record<string, number>;
-    /** Kept apart, and never mixed into the security backlog: it blocks nothing. */
-    qualityTotal: number;
-    failing: {
+/**
+ * The fleet's counters. `overdueCount` is open issues past their remediation window; zero also
+ * means "every window disabled", which the remediation section of the settings screen is where to
+ * check.
+ */
+export type PostureCounts = Schema<'Posture'>;
+
+export type FailingTarget = Refine<
+    Schema<'FailingTarget'>,
+    {
         kind: string;
         targetId: number;
         name: string;
-        observed: boolean;
-        violations: { rule: string; reason: string; identifier?: string | null; severity?: string | null }[];
-    }[];
-    recentScans: {
+        /** The same {@link GateViolation} every other route sends. It used to be the domain record
+         *  here, whose `rule` arrives as `KEV` where the screen compares `'kev'`. */
+        violations: GateViolation[];
+    }
+>;
+
+export type RecentScan = Refine<
+    Schema<'RecentScan'>,
+    {
         id: number;
-        repoId: number | null;
-        containerId: number | null;
+        status: string;
         /** Resolved by the server: the ids alone named nothing an operator recognises. */
         targetKind: 'repository' | 'container';
         targetName: string | null;
-        status: string;
-        findingsCount: number | null;
+        repoId: number | null;
+        containerId: number | null;
         error: string | null;
         createdAt: string | null;
-    }[];
-}
+    }
+>;
 
-/** One day of the backlog. `open` is the standing total that evening; `opened` and `resolved`
- *  are what moved that day. */
-export interface TrendPoint {
-    /** An ISO date in UTC, as the server formats it — the axis has to mean the same thing in
-     *  two timezones. */
-    day: string;
-    open: number;
-    opened: number;
-    resolved: number;
-}
+export type DashboardOverview = Refine<
+    Schema<'DashboardOverview'>,
+    {
+        posture: PostureCounts;
+        /** Outside quality, deliberately. */
+        backlogBySeverity: Record<string, number>;
+        failing: FailingTarget[];
+        recentScans: RecentScan[];
+    }
+>;
 
-/** The backlog over time. Snake case on two fields because the server names them that way. */
-export interface Trends {
-    points: TrendPoint[];
-    /**
-     * `null` when nothing was resolved in the window, and **not** zero: zero reads as
-     * "everything is fixed the day it appears", the opposite of "there is nothing to measure".
-     */
-    mean_days_to_resolve: number | null;
-    /** The population behind the mean. An average with no denominator is a number people quote
-     *  and should not. */
-    resolved_in_window: number;
-}
+export type TrendPoint = Refine<
+    Schema<'TrendPoint'>,
+    {
+        /** An ISO date in UTC, as the server formats it — the axis has to mean the same thing in
+         *  two timezones. */
+        day: string;
+    }
+>;
+
+export type Trends = Refine<
+    Schema<'Trends'>,
+    {
+        points: TrendPoint[];
+        /**
+         * `null` when nothing was resolved in the window, and **not** zero: zero reads as
+         * "everything is fixed the day it appears", the opposite of "there is nothing to measure".
+         * The population behind it, `resolved_in_window`, is always sent — an average with no
+         * denominator is a number people quote and should not.
+         */
+        mean_days_to_resolve: number | null;
+    }
+>;
 
 /** Un agent, tel que l'administration le voit. */
 export type AgentSummary = Refine<

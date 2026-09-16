@@ -111,8 +111,16 @@ public class DashboardController {
             long lastScanFailedCount,
             long overdueCount) {}
 
+    /**
+     * @param violations the violations <b>as the wire spells them</b>. This carried the domain
+     *     record, whose {@code rule} serialises as the enum — {@code KEV} — while the screen
+     *     compares {@code violation.rule === 'kev'}. Every violation on the dashboard was therefore
+     *     tagged "Severity", including the KEV ones, which is the tag the row exists to make stand
+     *     out. {@link ViolationView} is the spelling every other route already sends, and its own
+     *     documentation says the dashboard compares lowercase; it just was not used here.
+     */
     public record FailingTarget(
-            String kind, Long targetId, String name, boolean observed, List<GateVerdict.Violation> violations) {}
+            String kind, Long targetId, String name, boolean observed, List<ViolationView> violations) {}
 
     /**
      * @param targetName what the target is called. <b>The ids alone were what the screen
@@ -339,7 +347,7 @@ public class DashboardController {
                 },
                 posture.name(),
                 posture.observed(),
-                posture.verdict().violations());
+                ViolationView.of(posture.verdict().violations()));
     }
 
     /**

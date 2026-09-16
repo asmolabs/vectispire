@@ -152,3 +152,76 @@ describe('the backlog trend', () => {
         expect(fixture.nativeElement.textContent).toContain('Could not load the backlog trend.');
     });
 });
+
+/**
+ * The tag on a failing target's violation.
+ *
+ * <p>The row exists to make a KEV stand out — a vulnerability someone is known to be exploiting.
+ * The screen reads `violation.rule === 'kev'`, and this route used to send the domain record,
+ * whose rule serialises as the enum: `KEV`. Every violation on the dashboard was therefore tagged
+ * "Severity", the KEV ones included, and the one row meant to be unmissable read like the others.
+ * The route now sends the same spelling as every other; this is what says so from the screen's
+ * side.
+ */
+describe('the failing targets table', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const failing = (rule: string) => ({
+        posture: { failingCount: 1, totalCount: 2, kevCount: 1, neverScannedCount: 0, lastScanFailedCount: 0, overdueCount: 0 },
+        backlogBySeverity: { CRITICAL: 1 },
+        qualityTotal: 0,
+        failing: [
+            {
+                kind: 'repository',
+                targetId: 5,
+                name: 'Arm Libs Spring',
+                observed: true,
+                violations: [
+                    {
+                        rule,
+                        issueId: 7,
+                        identifier: 'CVE-2026-1234',
+                        severity: 'critical',
+                        package: 'openssl',
+                        fixVersions: '3.0.14',
+                        reason: 'known exploited'
+                    }
+                ]
+            }
+        ],
+        recentScans: []
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        TestBed.inject(I18nService).translations.set({
+            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
+        });
+
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('tags a known-exploited violation as KEV', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('kev'));
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent as string).toContain('KEV');
+    });
+
+    it('tags anything else as a severity breach', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Severity');
+        expect(text).toContain('known exploited');
+    });
+});

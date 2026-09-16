@@ -3415,7 +3415,7 @@ export interface components {
             observed: boolean;
             /** Format: int64 */
             targetId?: number;
-            violations?: components["schemas"]["Violation"][];
+            violations?: components["schemas"]["ViolationView"][];
         };
         Failure: {
             reason?: string;
@@ -5093,18 +5093,6 @@ export interface components {
             impactStatement?: string;
             justification?: string;
             status?: string;
-        };
-        Violation: {
-            fixVersions?: string;
-            identifier?: string;
-            /** Format: int64 */
-            issueId: number;
-            packageName?: string;
-            reason?: string;
-            /** @enum {string} */
-            rule?: "KEV" | "SEVERITY";
-            /** @enum {string} */
-            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
         };
         ViolationView: {
             fixVersions?: string;
