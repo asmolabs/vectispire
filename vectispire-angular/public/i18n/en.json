@@ -296,6 +296,9 @@
       "pci_dss_desc": "Payment Card Security Standard",
       "soc2_desc": "AICPA Trust Services Criteria — Security & Audit Integrity"
     },
+    "coverage_freshness": "Coverage freshness",
+    "coverage_freshness_help": "targets observed within the window",
+    "coverage_never_observed": "never observed",
     "frameworks_count": "Active Frameworks",
     "gate": "Gate",
     "gate_pass_rate": "Gate Compliance Rate",

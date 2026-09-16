@@ -4,13 +4,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Compliance } from './compliance';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 describe('Compliance Page', () => {
     let fixture: ComponentFixture<Compliance>;
     let component: Compliance;
     let http: HttpTestingController;
 
-    const MOCK_SUMMARY = {
+    const MOCK_SUMMARY = asSchema('ComplianceSummary', {
         evaluations: [
             {
                 framework: 'NIS_2',
@@ -46,8 +47,10 @@ describe('Compliance Page', () => {
         overdueCount: 0,
         dueSoonCount: 2,
         totalMonitoredTargets: 5,
-        passingGateTargets: 5
-    };
+        passingGateTargets: 5,
+        observedTargets: 4,
+        freshTargets: 3
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();
@@ -80,5 +83,38 @@ describe('Compliance Page', () => {
         component.selectFramework('DORA');
         expect(component.selectedFramework()).toBe('DORA');
         expect(component.activeEvaluation()?.framework).toBe('DORA');
+    });
+
+    /**
+     * La fraîcheur, et le seul vert qui devrait alerter.
+     *
+     * <p>Une cible jamais scannée ne présente aucune vulnérabilité connue. Sur un tableau qui
+     * compte des constats, elle est verte — et le serveur envoyait déjà de quoi le dire,
+     * `observedTargets` et `freshTargets`, que rien ne lisait.
+     */
+    it('sépare une observation périmée d\'une observation absente', () => {
+        http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+        fixture.detectChanges();
+
+        // 3 cibles fraîches sur 5 suivies, et 5 − 4 observées = 1 jamais regardée.
+        expect(fixture.componentInstance.freshnessRate()).toBe(60);
+        expect(fixture.componentInstance.neverObserved()).toBe(1);
+        expect(fixture.componentInstance.freshnessTone()).toBe('text-red-500');
+    });
+
+    it('ne crie pas sur un parc vide : cent pour cent, pas zéro', () => {
+        http.expectOne('/api/v1/compliance/summary').flush({
+            ...MOCK_SUMMARY,
+            totalMonitoredTargets: 0,
+            passingGateTargets: 0,
+            observedTargets: 0,
+            freshTargets: 0
+        });
+        fixture.detectChanges();
+
+        // Zéro se lirait comme une alarme là où il n'y a rien à observer, et une alarme qui se
+        // déclenche sur un déploiement neuf apprend à ignorer celle qui compte.
+        expect(fixture.componentInstance.freshnessRate()).toBe(100);
+        expect(fixture.componentInstance.neverObserved()).toBe(0);
     });
 });

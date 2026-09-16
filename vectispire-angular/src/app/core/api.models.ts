@@ -167,9 +167,15 @@ export type LicensePolicy = Refine<
     }
 >;
 
+/**
+ * `breakdownByRisk` ne porte que les catégories présentes dans le parc — `Partial`, donc, et non
+ * `Record` complet. Le déclarer complet a fait dire au compilateur que les `?? 0` du gabarit
+ * étaient superflus, alors qu'ils sont exactement ce qui empêche une somme de rendre `NaN` sur un
+ * chiffre de conformité le jour où une catégorie est absente.
+ */
 export type LicenseSummary = Refine<
     Schema<'LicenseSummary'>,
-    { breakdownByRisk: Record<LicenseRiskCategory, number> }
+    { breakdownByRisk: Partial<Record<LicenseRiskCategory, number>> }
 >;
 
 export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F';
@@ -1197,56 +1203,73 @@ export interface GatePolicyRequest {
     note: string | null;
 }
 
-export interface ComplianceControlAssessment {
-    control: {
-        id: string;
+/** The category a control belongs to, as the document enumerates it. */
+export type ComplianceCategory = Schema<'ComplianceControl'>['category'];
+
+/** A control's verdict, and the framework's own. One vocabulary for both. */
+export type ComplianceStatus = 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+
+export type ComplianceControl = Refine<
+    Schema<'ComplianceControl'>,
+    { id: string; name: string; requirement: string; category: ComplianceCategory }
+>;
+
+export type ComplianceControlAssessment = Refine<
+    Schema<'ControlAssessment'>,
+    {
+        control: ComplianceControl;
+        status: ComplianceStatus;
+        details: string;
+        remediationGuidance: string;
+    }
+>;
+
+export type ComplianceEvaluation = Refine<
+    Schema<'ComplianceEvaluation'>,
+    {
+        /**
+         * **Six, et `SOC_2` manquait.** Le serveur en déclare six depuis toujours ; ce type en
+         * listait cinq, si bien qu'un `switch` exhaustif sur ce champ aurait omis SOC 2 sans que
+         * le compilateur le signale — l'exhaustivité se mesure au type, pas à la réalité. La
+         * liste vient désormais du document, ce qui retire la question.
+         */
+        framework: NonNullable<Schema<'ComplianceEvaluation'>['framework']>;
+        overallStatus: ComplianceStatus;
+        controls: ComplianceControlAssessment[];
+    }
+>;
+
+export type TargetCompliance = Refine<
+    Schema<'TargetCompliance'>,
+    {
+        targetId: string;
         name: string;
-        requirement: string;
-        category: string;
-    };
-    status: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
-    scorePercentage: number;
-    details: string;
-    remediationGuidance: string;
-}
+        type: 'REPOSITORY' | 'CONTAINER';
+        gateStatus:
+            | 'PASSED'
+            | 'FAILED'
+            | 'NEVER_SCANNED'
+            | 'LAST_SCAN_FAILED'
+            | 'SCANNING'
+            | 'IN_PROGRESS';
+        overallStatus: ComplianceStatus;
+        frameworkScores: Record<string, number>;
+    }
+>;
 
-export interface ComplianceEvaluation {
-    /**
-     * **Six, et `SOC_2` manquait.** Le serveur en déclare six depuis toujours ; ce type en listait
-     * cinq, si bien qu'un `switch` exhaustif sur ce champ aurait omis SOC 2 sans que le
-     * compilateur le signale — l'exhaustivité se mesure au type, pas à la réalité.
-     */
-    framework: 'NIS_2' | 'DORA' | 'ISO_27001' | 'PCI_DSS' | 'EU_CRA' | 'SOC_2';
-    scorePercentage: number;
-    overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
-    controls: ComplianceControlAssessment[];
-}
+/**
+ * `overallMttrDays` is null when nothing was resolved in the window, and `resolvedCount` is the
+ * population behind it — an average with no denominator is a number people quote and should not.
+ */
+export type ComplianceMttr = Refine<
+    Schema<'MttrResult'>,
+    { mttrBySeverityDays: Record<string, number>; overallMttrDays: number | null }
+>;
 
-export interface TargetCompliance {
-    targetId: string;
-    name: string;
-    type: 'REPOSITORY' | 'CONTAINER';
-    gateStatus: 'PASSED' | 'FAILED' | 'NEVER_SCANNED' | 'LAST_SCAN_FAILED' | 'SCANNING' | 'IN_PROGRESS';
-    openIssuesCount: number;
-    overdueCount: number;
-    overallScore: number;
-    overallStatus: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
-    frameworkScores: Record<string, number>;
-}
-
-export interface ComplianceSummary {
-    evaluations: ComplianceEvaluation[];
-    mttr: {
-        mttrBySeverityDays: Record<string, number>;
-        overallMttrDays: number | null;
-        resolvedCount: number;
-    };
-    overdueCount: number;
-    dueSoonCount: number;
-    totalMonitoredTargets: number;
-    passingGateTargets: number;
-    targets?: TargetCompliance[];
-}
+export type ComplianceSummary = Refine<
+    Schema<'ComplianceSummary'>,
+    { evaluations: ComplianceEvaluation[]; mttr: ComplianceMttr; targets?: TargetCompliance[] }
+>;
 
 export interface GraphNode {
     id: string;

@@ -40,6 +40,41 @@ export class Compliance {
     readonly Math = Math;
 
     readonly summary = signal<ComplianceSummary | null>(null);
+
+    /**
+     * La part du parc observée dans la fenêtre de fraîcheur.
+     *
+     * **Cent pour cent sur un parc vide, et c'est délibéré.** Zéro se lirait comme une alarme là
+     * où il n'y a rien à observer, et une alarme qui se déclenche sur un déploiement neuf apprend
+     * à ignorer celle qui compte.
+     */
+    readonly freshnessRate = computed(() => {
+        const data = this.summary();
+        if (!data || data.totalMonitoredTargets === 0) {
+            return 100;
+        }
+        return Math.round((data.freshTargets / data.totalMonitoredTargets) * 100);
+    });
+
+    /**
+     * Les cibles dont aucune observation n'existe — pas « périmée », **absente**.
+     *
+     * Une observation périmée est datée : on sait ce qu'on ignore. Une cible jamais scannée ne
+     * présente aucune vulnérabilité connue, ce qui la rend verte sur tout tableau qui compte des
+     * constats. C'est le chiffre qui sépare « propre » de « jamais regardé ».
+     */
+    readonly neverObserved = computed(() => {
+        const data = this.summary();
+        return data ? Math.max(0, data.totalMonitoredTargets - data.observedTargets) : 0;
+    });
+
+    /** Rouge dès qu'une cible n'a jamais été observée ; orange sous les trois quarts du parc. */
+    readonly freshnessTone = computed(() => {
+        if (this.neverObserved() > 0) {
+            return 'text-red-500';
+        }
+        return this.freshnessRate() < 75 ? 'text-orange-500' : 'text-green-500';
+    });
     readonly selectedFramework = signal<string>('NIS_2');
     readonly selectedTarget = signal<string>('ALL');
     readonly targetsList = signal<{ targetId: string; name: string; type: string }[]>([]);

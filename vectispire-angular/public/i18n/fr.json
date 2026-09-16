@@ -296,6 +296,9 @@
       "pci_dss_desc": "Standard de sécurité des données de paiement",
       "soc2_desc": "AICPA Trust Services Criteria — Sécurité et intégrité de l'audit"
     },
+    "coverage_freshness": "Fraîcheur de couverture",
+    "coverage_freshness_help": "cibles observées dans la fenêtre",
+    "coverage_never_observed": "jamais observée",
     "frameworks_count": "Référentiels actifs",
     "gate": "Porte de Sécurité",
     "gate_pass_rate": "Taux de conformité Gate",
