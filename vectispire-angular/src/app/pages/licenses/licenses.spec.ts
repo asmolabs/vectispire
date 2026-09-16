@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Licenses } from './licenses';
 import { SessionStore } from '@/app/core/session.store';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The licence screen, and the three places it decides rather than displays.
@@ -19,26 +20,27 @@ describe('the licence inventory screen', () => {
     let fixture: ComponentFixture<Licenses>;
     let http: HttpTestingController;
 
-    const SUMMARY = {
+    const SUMMARY = asSchema('LicenseSummary', {
         totalDependencies: 3,
         uniqueLicenses: 2,
         nonCompliantCount: 2,
         // FORBIDDEN is genuinely absent, which is the point: the template adds it in.
         breakdownByRisk: { PERMISSIVE: 2, WEAK_COPYLEFT: 0, STRONG_COPYLEFT: 1 }
-    };
-
-    const entry = (packageName: string, license: string, riskCategory: string, compliant: boolean) => ({
-        packageName,
-        packageVersion: '1.0.0',
-        purl: null,
-        license,
-        riskCategory,
-        compliant,
-        violationReason: compliant ? null : 'Disallowed licence',
-        targetId: 7,
-        targetKind: 'repository',
-        targetName: 'ours'
     });
+
+    const entry = (packageName: string, license: string, riskCategory: string, compliant: boolean) =>
+        asSchema('LicenseEntry', {
+            packageName,
+            packageVersion: '1.0.0',
+            purl: null,
+            license,
+            riskCategory,
+            compliant,
+            violationReason: compliant ? null : 'Disallowed licence',
+            targetId: 7,
+            targetKind: 'repository',
+            targetName: 'ours'
+        });
 
     const INVENTORY = [
         entry('spring-core', 'Apache-2.0', 'PERMISSIVE', true),
@@ -46,17 +48,18 @@ describe('the licence inventory screen', () => {
         entry('jackson', 'Apache-2.0', 'PERMISSIVE', false)
     ];
 
-    const conflict = (packageName: string, compatibility: string) => ({
-        packageName,
-        packageVersion: '1.0.0',
-        licenseExpression: 'GPL-2.0',
-        riskCategory: 'STRONG_COPYLEFT',
-        targetKind: 'repository',
-        targetName: 'ours',
-        compatibility,
-        legalRiskExplanation: '',
-        remediationAdvice: ''
-    });
+    const conflict = (packageName: string, compatibility: string) =>
+        asSchema('LicenseConflict', {
+            packageName,
+            packageVersion: '1.0.0',
+            licenseExpression: 'GPL-2.0',
+            riskCategory: 'STRONG_COPYLEFT',
+            targetKind: 'repository',
+            targetName: 'ours',
+            compatibility,
+            legalRiskExplanation: '',
+            remediationAdvice: ''
+        });
 
     const CONFLICTS = [
         conflict('blocking', 'INCOMPATIBLE_BLOCKING'),

@@ -132,33 +132,45 @@ export interface OpenVexDocument {
     statements: OpenVexStatement[];
 }
 
-export type LicenseRiskCategory = 'PERMISSIVE' | 'WEAK_COPYLEFT' | 'STRONG_COPYLEFT' | 'FORBIDDEN' | 'UNKNOWN';
+/**
+ * The document types `riskCategory` as a bare `string` with an enum, which the generator widens to
+ * a union anyway — but naming it here keeps the screens reading one name rather than five literals.
+ */
+export type LicenseRiskCategory =
+    | 'PERMISSIVE'
+    | 'WEAK_COPYLEFT'
+    | 'STRONG_COPYLEFT'
+    | 'FORBIDDEN'
+    | 'UNKNOWN';
 
-export interface LicenseEntry {
-    packageName: string;
-    packageVersion: string;
-    purl: string | null;
-    license: string;
-    riskCategory: LicenseRiskCategory;
-    compliant: boolean;
-    violationReason: string | null;
-    targetId: number | null;
-    targetKind: string;
-    targetName: string;
-}
+export type LicenseEntry = Refine<
+    Schema<'LicenseEntry'>,
+    {
+        packageName: string;
+        packageVersion: string;
+        license: string;
+        riskCategory: LicenseRiskCategory;
+        targetKind: string;
+        targetName: string;
+        purl: string | null;
+        violationReason: string | null;
+        targetId: number | null;
+    }
+>;
 
-export interface LicensePolicy {
-    disallowedCategories: LicenseRiskCategory[];
-    explicitlyAllowedLicenses: string[];
-    explicitlyDisallowedLicenses: string[];
-}
+export type LicensePolicy = Refine<
+    Schema<'LicensePolicy'>,
+    {
+        disallowedCategories: LicenseRiskCategory[];
+        explicitlyAllowedLicenses: string[];
+        explicitlyDisallowedLicenses: string[];
+    }
+>;
 
-export interface LicenseSummary {
-    totalDependencies: number;
-    uniqueLicenses: number;
-    nonCompliantCount: number;
-    breakdownByRisk: Record<LicenseRiskCategory, number>;
-}
+export type LicenseSummary = Refine<
+    Schema<'LicenseSummary'>,
+    { breakdownByRisk: Record<LicenseRiskCategory, number> }
+>;
 
 export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -991,28 +1003,30 @@ export interface HistoryDossier {
  * `projectVersion` is ours — the release it went out in, which is what makes the answer
  * actionable rather than merely true.
  */
-export interface InventoryOccurrence {
-    component: string;
-    componentVersion: string | null;
-    purl: string | null;
-    type: string | null;
-    /** `null` when the SBOM carried no dependency graph: unknown, not transitive. */
-    direct: boolean | null;
-    targetKind: string;
-    targetId: number | null;
-    targetName: string;
-    branch: string;
-    projectVersion: string | null;
-    scanId: number;
-    scannedAt: string;
-}
+export type InventoryOccurrence = Refine<
+    Schema<'Occurrence'>,
+    {
+        component: string;
+        targetKind: string;
+        targetName: string;
+        branch: string;
+        scanId: number;
+        scannedAt: string;
+        componentVersion: string | null;
+        purl: string | null;
+        type: string | null;
+        /** `null` when the SBOM carried no dependency graph: unknown, not transitive. */
+        direct: boolean | null;
+        targetId: number | null;
+        projectVersion: string | null;
+    }
+>;
 
-export interface InventoryResults {
-    occurrences: InventoryOccurrence[];
-    total: number;
-    /** Said explicitly: a capped list read as complete is a wrong answer. */
-    truncated: boolean;
-}
+/** `truncated` is said explicitly: a capped list read as complete is a wrong answer. */
+export type InventoryResults = Refine<
+    Schema<'Results'>,
+    { occurrences: InventoryOccurrence[] }
+>;
 
 /**
  * A model-written OWASP posture report.
@@ -1366,24 +1380,33 @@ export interface AiVulnerabilityAdvice {
     references: string[];
 }
 
-export interface LicenseConflict {
-    packageName: string;
-    packageVersion: string;
-    licenseExpression: string;
-    riskCategory: string;
-    targetKind: string;
-    targetName: string;
-    compatibility: 'COMPATIBLE' | 'CONDITIONAL' | 'INCOMPATIBLE_BLOCKING';
-    legalRiskExplanation: string;
-    remediationAdvice: string;
-}
+/** How a dependency's licence sits with the target's, as the document enumerates it. */
+export type LicenseCompatibility = 'COMPATIBLE' | 'CONDITIONAL' | 'INCOMPATIBLE_BLOCKING';
 
-export interface CompatibilityCell {
-    targetLicenseType: string;
-    dependencyLicenseCategory: string;
-    compatibility: string;
-    ruleDescription: string;
-}
+export type LicenseConflict = Refine<
+    Schema<'LicenseConflict'>,
+    {
+        packageName: string;
+        packageVersion: string;
+        licenseExpression: string;
+        riskCategory: LicenseRiskCategory;
+        targetKind: string;
+        targetName: string;
+        compatibility: LicenseCompatibility;
+        legalRiskExplanation: string;
+        remediationAdvice: string;
+    }
+>;
+
+export type CompatibilityCell = Refine<
+    Schema<'CompatibilityCell'>,
+    {
+        targetLicenseType: string;
+        dependencyLicenseCategory: string;
+        compatibility: LicenseCompatibility;
+        ruleDescription: string;
+    }
+>;
 
 export interface PostureTrendAnalytics {
     windowDays: number;
