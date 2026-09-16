@@ -30,7 +30,8 @@ class SecurityOverviewTest {
                 Map.of(),
                 Optional.empty(),
                 issues,
-                scans);
+                scans,
+                Map.of());
     }
 
     private static GateIssue critical(long id) {
@@ -123,9 +124,9 @@ class SecurityOverviewTest {
     @DisplayName("a target's own policy replaces the global one rather than merging with it")
     void targetPolicyWins() {
         PolicyResolution.StoredPolicy strictGlobal =
-                new PolicyResolution.StoredPolicy(new GatePolicy(Severity.LOW, true, false, false, false), 4);
+                new PolicyResolution.StoredPolicy(new GatePolicy(Severity.LOW, true, false, false, false, false), 4);
         PolicyResolution.StoredPolicy lenientTarget =
-                new PolicyResolution.StoredPolicy(new GatePolicy(Severity.CRITICAL, false, false, false, false), 9);
+                new PolicyResolution.StoredPolicy(new GatePolicy(Severity.CRITICAL, false, false, false, false, false), 9);
 
         GateIssue high = new GateIssue(1, true, FindingType.VULNERABILITY, Severity.HIGH, "CVE-1", "pkg", null, false, null);
 
@@ -134,7 +135,8 @@ class SecurityOverviewTest {
                 Map.of(REPO, lenientTarget),
                 Optional.of(strictGlobal),
                 Map.of(REPO, List.of(high)),
-                Map.of(REPO, scan(ScanStatus.COMPLETED))));
+                Map.of(REPO, scan(ScanStatus.COMPLETED)),
+                Map.of()));
 
         // A half-inherited policy is impossible to reason about when a build fails.
         assertThat(overview.targets()).singleElement().satisfies(posture -> {

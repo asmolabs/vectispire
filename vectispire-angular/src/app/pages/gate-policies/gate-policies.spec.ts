@@ -32,6 +32,7 @@ describe('the gate policy screen', () => {
         fixable_only: false,
         include_triaged: false,
         include_ai_review: false,
+        fail_on_uncovered_languages: false,
         note: null,
         created_by: null,
         created_at: null
@@ -111,12 +112,34 @@ describe('the gate policy screen', () => {
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
         expect(request.request.body.fail_on_severity).toBe('none');
-        // Five flags, always: the server refuses a partial policy rather than defaulting the
+        // Every flag, always: the server refuses a partial policy rather than defaulting the
         // missing half, and a form that omitted one would only find out in production.
         expect(request.request.body.fail_on_kev).toBe(true);
         expect(request.request.body.fixable_only).toBe(false);
         expect(request.request.body.include_triaged).toBe(false);
         expect(request.request.body.include_ai_review).toBe(false);
+        expect(request.request.body.fail_on_uncovered_languages).toBe(false);
+        request.flush({ ...GLOBAL, version: 1 });
+    });
+
+    /**
+     * The clause that fails on an examination rather than on a finding.
+     *
+     * <p>Off in the form as it is off in the code: a target no rule reaches reports nothing, and
+     * nothing passes every policy. Turning it on is a deliberate act, and this is what says the
+     * switch reaches the server rather than only the screen.
+     */
+    it('leaves the coverage clause off unless the operator turns it on', () => {
+        load([]);
+
+        fixture.componentInstance.editGlobal();
+        expect(fixture.componentInstance.draft.failOnUncoveredLanguages).toBe(false);
+
+        fixture.componentInstance.draft.failOnUncoveredLanguages = true;
+        fixture.componentInstance.save();
+
+        const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
+        expect(request.request.body.fail_on_uncovered_languages).toBe(true);
         request.flush({ ...GLOBAL, version: 1 });
     });
 

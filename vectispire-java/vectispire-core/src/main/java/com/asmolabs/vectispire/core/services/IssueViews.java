@@ -90,7 +90,8 @@ public final class IssueViews {
                         policy.getFailOnKev(),
                         policy.getFixableOnly(),
                         policy.getIncludeTriaged(),
-                        policy.getIncludeAiReview()),
+                        policy.getIncludeAiReview(),
+                        policy.getFailOnUncoveredLanguages()),
                 policy.getVersion());
     }
 

@@ -2771,6 +2771,7 @@ export interface components {
             description?: string;
             failOnKev: boolean;
             failOnSeverity?: string;
+            failOnUncoveredLanguages: boolean;
             fixableOnly: boolean;
             includeAiReview: boolean;
             includeTriaged: boolean;
@@ -3467,6 +3468,7 @@ export interface components {
             created_by?: string;
             fail_on_kev: boolean;
             fail_on_severity?: string;
+            fail_on_uncovered_languages: boolean;
             fixable_only: boolean;
             include_ai_review: boolean;
             include_triaged: boolean;
@@ -4019,6 +4021,7 @@ export interface components {
         PolicyRequest: {
             fail_on_kev?: boolean;
             fail_on_severity?: string;
+            fail_on_uncovered_languages?: boolean;
             fixable_only?: boolean;
             include_ai_review?: boolean;
             include_triaged?: boolean;
@@ -5098,7 +5101,7 @@ export interface components {
             fixVersions?: string;
             identifier?: string;
             /** Format: int64 */
-            issueId: number;
+            issueId?: number;
             package?: string;
             reason?: string;
             rule?: string;

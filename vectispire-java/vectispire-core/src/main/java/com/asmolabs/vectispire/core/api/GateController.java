@@ -92,6 +92,7 @@ public class GateController {
             boolean fixableOnly,
             boolean includeTriaged,
             boolean includeAiReview,
+            boolean failOnUncoveredLanguages,
             String source,
             Integer version,
             String description) {}
@@ -151,6 +152,7 @@ public class GateController {
                         policy.flag(PolicyFlag.FIXABLE_ONLY),
                         policy.flag(PolicyFlag.INCLUDE_TRIAGED),
                         policy.flag(PolicyFlag.INCLUDE_AI_REVIEW),
+                        policy.flag(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES),
                         SecurityOverviewView.source(decision.policy().source()),
                         decision.policy().version().orElse(null),
                         decision.policy().describeSource()),

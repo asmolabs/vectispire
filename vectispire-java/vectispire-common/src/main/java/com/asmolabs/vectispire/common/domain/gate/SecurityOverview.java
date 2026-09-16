@@ -89,13 +89,18 @@ public final class SecurityOverview {
      * whose scope key ever collided with it would silently inherit the wrong rules.
      *
      * @param openIssues every open issue, read in one go, grouped here rather than per target
+     * @param uncoveredEcosystems the ecosystems no installed rule covers, per target. Absent means
+     *     nothing uncovered, so a target with no inventory at all reads as "nothing to report"
+     *     here — its {@link Observation} is what says it was never looked at, and saying it twice
+     *     in two vocabularies would be worse than saying it once
      */
     public record Input(
             List<NamedTarget> targets,
             Map<ScanTarget, PolicyResolution.StoredPolicy> policiesByTarget,
             Optional<PolicyResolution.StoredPolicy> globalPolicy,
             Map<ScanTarget, List<GateIssue>> openIssues,
-            Map<ScanTarget, LatestScan> latestScans) {}
+            Map<ScanTarget, LatestScan> latestScans,
+            Map<ScanTarget, List<String>> uncoveredEcosystems) {}
 
     /** Assembles the view from already-read data. No queries here, by construction. */
     public static Overview build(Input input) {
@@ -131,7 +136,10 @@ public final class SecurityOverview {
         Observation observation = observationOf(latest);
 
         GateVerdict verdict = PolicyGate.evaluate(
-                input.openIssues().getOrDefault(named.target(), List.of()), policy.policy());
+                input.openIssues().getOrDefault(named.target(), List.of()),
+                policy.policy(),
+                new GateVerdict.Coverage(
+                        input.uncoveredEcosystems().getOrDefault(named.target(), List.of())));
 
         return new TargetPosture(
                 named.target(),

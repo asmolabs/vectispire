@@ -7,7 +7,9 @@ import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.Components;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -92,5 +94,49 @@ public class RuleCoverageService {
                 .forEach(paths::add));
 
         return RuleCoverage.assess(paths, components.distinctPurls());
+    }
+
+    /**
+     * The ecosystems no installed rule covers, for each target that has an inventory.
+     *
+     * <p><b>Per target, because a fleet-wide answer would fail the wrong builds.</b> An estate
+     * holding one Go repository among forty Java ones is {@code PARTIAL}; refusing every verdict
+     * on that basis would stop the forty that <em>are</em> examined, and the clause would be
+     * switched off within the day. The question a gate asks is about the target in front of it.
+     *
+     * <p>Keyed by {@code kind:id} — the same scope key the policies use — and targets with nothing
+     * uncovered are absent rather than present and empty, so a lookup miss and a clean answer are
+     * the same thing to a caller.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> uncoveredEcosystemsByTarget() {
+        List<String> paths = installedRulePaths();
+
+        Map<String, List<String>> purlsByTarget = new LinkedHashMap<>();
+        for (Object[] row : components.distinctPurlsByTarget()) {
+            Long repoId = (Long) row[0];
+            Long containerId = (Long) row[1];
+            String purl = (String) row[2];
+            String key = repoId != null ? "repository:" + repoId : "container:" + containerId;
+            purlsByTarget.computeIfAbsent(key, ignored -> new ArrayList<>()).add(purl);
+        }
+
+        Map<String, List<String>> uncovered = new LinkedHashMap<>();
+        purlsByTarget.forEach((key, purls) -> {
+            Set<String> gaps = RuleCoverage.assess(paths, purls).uncovered();
+            if (!gaps.isEmpty()) {
+                uncovered.put(key, List.copyOf(gaps));
+            }
+        });
+        return uncovered;
+    }
+
+    /** The rule files this instance scans with: the active set, plus what the jar ships. */
+    private List<String> installedRulePaths() {
+        List<String> paths = new ArrayList<>(BundledRules.expected());
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row).stream()
+                .map(RuleCoverageService::asRuleTreePath)
+                .forEach(paths::add));
+        return paths;
     }
 }

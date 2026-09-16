@@ -28,8 +28,27 @@ public final class PolicyGate {
 
     private PolicyGate() {}
 
-    /** Applies {@code policy} to a target's issues and explains the result. */
+    /**
+     * Applies {@code policy} to a target's issues and explains the result.
+     *
+     * <p>For a caller whose verdict is about a single issue rather than a target — see
+     * {@link GateVerdict.Coverage#NOT_APPLICABLE}.
+     */
     public static GateVerdict evaluate(Collection<GateIssue> issues, GatePolicy policy) {
+        return evaluate(issues, policy, GateVerdict.Coverage.NOT_APPLICABLE);
+    }
+
+    /**
+     * The same, with what the examination could reach.
+     *
+     * <p><b>The coverage rule is not about the backlog, and that is why it is checked apart.</b>
+     * Every other rule here reads an issue; this one fails on the absence of any — a target whose
+     * ecosystems no rule covers reports nothing, and nothing passes. It is reported as a violation
+     * rather than as a bare {@code false} because a pipeline that stops has to be told why, and
+     * "no violation, build failed" is the least actionable sentence a gate can produce.
+     */
+    public static GateVerdict evaluate(
+            Collection<GateIssue> issues, GatePolicy policy, GateVerdict.Coverage coverage) {
         List<GateIssue> considered = issues.stream().filter(issue -> isConsidered(issue, policy)).toList();
 
         Map<Severity, Long> countsBySeverity = new EnumMap<>(Severity.class);
@@ -52,6 +71,18 @@ public final class PolicyGate {
                         "severity " + issue.severity().wireName()
                                 + " >= threshold " + policy.failOnSeverity().wireName()));
             }
+        }
+
+        if (policy.failOnUncoveredLanguages() && !coverage.uncoveredEcosystems().isEmpty()) {
+            violations.add(new GateVerdict.Violation(
+                    GateVerdict.Rule.COVERAGE,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "no installed rule covers " + String.join(", ", coverage.uncoveredEcosystems())
+                            + " — this target's code was not examined"));
         }
 
         return new GateVerdict(violations.isEmpty(), violations, considered.size(), countsBySeverity);

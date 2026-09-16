@@ -32,6 +32,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +66,7 @@ public class GateService {
     private final GitRepositories repositories;
     private final Containers containers;
     private final Scans scans;
+    private final RuleCoverageService ruleCoverage;
     private final Clock clock;
 
     public GateService(
@@ -74,10 +76,12 @@ public class GateService {
             GitRepositories repositories,
             Containers containers,
             Scans scans,
+            RuleCoverageService ruleCoverage,
             Clock clock) {
         this.issues = issues;
         this.policies = policies;
         this.verdicts = verdicts;
+        this.ruleCoverage = ruleCoverage;
         this.repositories = repositories;
         this.containers = containers;
         this.scans = scans;
@@ -205,7 +209,8 @@ public class GateService {
                 requested,
                 Scope.TARGET);
 
-        return new Decision(PolicyGate.evaluate(openIssuesOf(target), resolved.policy()), resolved);
+        return new Decision(
+                PolicyGate.evaluate(openIssuesOf(target), resolved.policy(), coverageOf(target)), resolved);
     }
 
     /** Every target's posture, for the security screen — narrowed to what the caller may see. */
@@ -237,7 +242,8 @@ public class GateService {
                 policiesByTarget,
                 Optional.ofNullable(byScope.get(SCOPE_GLOBAL + ":0")),
                 openIssuesByTarget(),
-                latestScans()));
+                latestScans(),
+                uncoveredByTarget()));
     }
 
     /** Every policy somebody has stored, newest version of each scope, for the screen. */
@@ -277,6 +283,7 @@ public class GateService {
         stored.setFixableOnly(policy.fixableOnly());
         stored.setIncludeTriaged(policy.includeTriaged());
         stored.setIncludeAiReview(policy.includeAiReview());
+        stored.setFailOnUncoveredLanguages(policy.failOnUncoveredLanguages());
         stored.setNote(note == null || note.isBlank() ? null : note.trim());
         stored.setCreatedBy(author);
         stored.setCreatedAt(clock.instant());
@@ -406,6 +413,25 @@ public class GateService {
             return Optional.of(new ScanTarget.Container(row.containerId()));
         }
         return Optional.empty();
+    }
+
+    /** What code analysis could not reach on one target, for the verdict it is about to render. */
+    private GateVerdict.Coverage coverageOf(ScanTarget target) {
+        return new GateVerdict.Coverage(
+                ruleCoverage.uncoveredEcosystemsByTarget().getOrDefault(scopeKey(target), List.of()));
+    }
+
+    /** The same, for every target the posture screen lists, read in one query rather than N. */
+    private Map<ScanTarget, List<String>> uncoveredByTarget() {
+        Map<ScanTarget, List<String>> byTarget = new LinkedHashMap<>();
+        ruleCoverage.uncoveredEcosystemsByTarget().forEach((key, ecosystems) -> {
+            String[] parts = key.split(":", 2);
+            ScanTarget target = "container".equals(parts[0])
+                    ? new ScanTarget.Container(Long.valueOf(parts[1]))
+                    : new ScanTarget.Repository(Long.valueOf(parts[1]));
+            byTarget.put(target, ecosystems);
+        });
+        return byTarget;
     }
 
     private static String scopeKey(ScanTarget target) {

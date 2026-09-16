@@ -78,6 +78,7 @@ public class GatePoliciesController {
             @JsonProperty("fixable_only") boolean fixableOnly,
             @JsonProperty("include_triaged") boolean includeTriaged,
             @JsonProperty("include_ai_review") boolean includeAiReview,
+            @JsonProperty("fail_on_uncovered_languages") boolean failOnUncoveredLanguages,
             String note,
             @JsonProperty("created_by") String createdBy,
             @JsonProperty("created_at") String createdAt) {}
@@ -103,6 +104,7 @@ public class GatePoliciesController {
             @JsonProperty("fixable_only") Boolean fixableOnly,
             @JsonProperty("include_triaged") Boolean includeTriaged,
             @JsonProperty("include_ai_review") Boolean includeAiReview,
+            @JsonProperty("fail_on_uncovered_languages") Boolean failOnUncoveredLanguages,
             String note) {}
 
     @GetMapping
@@ -197,7 +199,15 @@ public class GatePoliciesController {
                 required(body.failOnKev(), "fail_on_kev"),
                 required(body.fixableOnly(), "fixable_only"),
                 required(body.includeTriaged(), "include_triaged"),
-                required(body.includeAiReview(), "include_ai_review"));
+                required(body.includeAiReview(), "include_ai_review"),
+                // **The one field that may be absent, and for the opposite reason to the others.**
+                // They are refused when missing because a stored value would be silently
+                // reinstated under a version number saying somebody chose it. This flag has no
+                // prior value to reinstate: it did not exist before, every stored policy has it
+                // off, and absent means the behaviour the caller already had. Refusing it would
+                // break every pipeline that writes a policy today, over a rule none of them can
+                // yet know about.
+                body.failOnUncoveredLanguages() != null && body.failOnUncoveredLanguages());
     }
 
     private static boolean required(Boolean value, String field) {
@@ -252,6 +262,7 @@ public class GatePoliciesController {
                 resolved.fixableOnly(),
                 resolved.includeTriaged(),
                 resolved.includeAiReview(),
+                resolved.failOnUncoveredLanguages(),
                 policy.getNote(),
                 policy.getCreatedBy(),
                 policy.getCreatedAt() == null ? null : policy.getCreatedAt().toString());
@@ -276,6 +287,7 @@ public class GatePoliciesController {
                 policy.fixableOnly(),
                 policy.includeTriaged(),
                 policy.includeAiReview(),
+                policy.failOnUncoveredLanguages(),
                 null,
                 null,
                 null);
@@ -296,6 +308,9 @@ public class GatePoliciesController {
         }
         if (policy.includeAiReview()) {
             parts.add("model review counted");
+        }
+        if (policy.failOnUncoveredLanguages()) {
+            parts.add("fail when no rule covers the target");
         }
         return String.join(", ", parts);
     }

@@ -35,6 +35,10 @@
                     <li><span class="font-medium">Fixable only:</span> {{ policy.fixable_only ? 'yes' : 'no' }}</li>
                     <li><span class="font-medium">Triaged findings:</span> {{ policy.include_triaged ? 'counted' : 'not counted' }}</li>
                     <li><span class="font-medium">Model review:</span> {{ policy.include_ai_review ? 'counted' : 'not counted' }}</li>
+                    <li>
+                        <span class="font-medium">Unexamined targets:</span>
+                        {{ policy.fail_on_uncovered_languages ? 'fail the build' : 'pass' }}
+                    </li>
                     @if (policy.note) {
                         <li class="text-surface-500 dark:text-surface-400">“{{ policy.note }}”</li>
                     }
@@ -87,6 +91,7 @@
                 <th>Fixable only</th>
                 <th>Triaged</th>
                 <th>Model review</th>
+                <th>Unexamined</th>
                 <th>Version</th>
                 <th class="text-right">Actions</th>
             </tr>
@@ -104,6 +109,7 @@
                 <td>{{ policy.fixable_only ? 'yes' : '—' }}</td>
                 <td>{{ policy.include_triaged ? 'counted' : '—' }}</td>
                 <td>{{ policy.include_ai_review ? 'counted' : '—' }}</td>
+                <td>{{ policy.fail_on_uncovered_languages ? 'fails' : '—' }}</td>
                 <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
                 <td class="text-right whitespace-nowrap">
                     <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="editOverride(policy)" />
@@ -113,7 +119,7 @@
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="8">No target has rules of its own; every one follows the policy above.</td>
+                <td colspan="9">No target has rules of its own; every one follows the policy above.</td>
             </tr>
         </ng-template>
     </p-table>
@@ -193,6 +199,17 @@
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
                     Off by default: the model reads the repository's own source, and an invented “critical” would fail
                     somebody's build.
+                </span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-coverage" [(ngModel)]="draft.failOnUncoveredLanguages" />
+            <label for="policy-coverage" class="m-0">
+                Fail when no rule covers the target
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    Off by default. A target whose ecosystems no installed rule reaches reports no code finding, and
+                    an empty result passes every policy — this makes “not examined” block instead of inform.
                 </span>
             </label>
         </div>

@@ -364,9 +364,11 @@ export type BulkTriageRequest = Refine<
 export type GateViolation = Refine<
     Schema<'ViolationView'>,
     {
-        rule: 'kev' | 'severity';
-        issueId: number;
-        severity: string;
+        /** `coverage` fails on the absence of an examination rather than on a finding. */
+        rule: 'kev' | 'severity' | 'coverage';
+        /** Null on a `coverage` violation: there is no issue behind it, which is the point. */
+        issueId: number | null;
+        severity: string | null;
         reason: string;
         identifier: string | null;
         package: string | null;
@@ -1157,6 +1159,8 @@ export interface GatePolicy {
     fixable_only: boolean;
     include_triaged: boolean;
     include_ai_review: boolean;
+    /** Refuse a verdict whose code analysis reached none of the target's ecosystems. */
+    fail_on_uncovered_languages: boolean;
     note: string | null;
     created_by: string | null;
     created_at: string | null;
@@ -1175,6 +1179,7 @@ export interface GatePolicyRequest {
     fixable_only: boolean;
     include_triaged: boolean;
     include_ai_review: boolean;
+    fail_on_uncovered_languages: boolean;
     note: string | null;
 }
 

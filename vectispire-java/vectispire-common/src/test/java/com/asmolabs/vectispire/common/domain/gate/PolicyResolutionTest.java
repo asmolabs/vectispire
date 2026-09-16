@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 class PolicyResolutionTest {
 
     private static final PolicyResolution.StoredPolicy GLOBAL =
-            new PolicyResolution.StoredPolicy(new GatePolicy(Severity.MEDIUM, true, false, false, false), 4);
+            new PolicyResolution.StoredPolicy(new GatePolicy(Severity.MEDIUM, true, false, false, false, false), 4);
     private static final PolicyResolution.StoredPolicy FOR_TARGET =
-            new PolicyResolution.StoredPolicy(new GatePolicy(Severity.LOW, true, false, false, false), 9);
+            new PolicyResolution.StoredPolicy(new GatePolicy(Severity.LOW, true, false, false, false, false), 9);
 
     @Test
     @DisplayName("a target's policy replaces the global one entirely")

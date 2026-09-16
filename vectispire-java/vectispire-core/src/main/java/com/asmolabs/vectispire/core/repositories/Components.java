@@ -95,4 +95,21 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
             select distinct s.containerId from ComponentEntity c, ScanEntity s
              where c.scanId = s.id and s.containerId is not null""")
     List<Long> distinctContainersWithComponents();
+
+    /**
+     * Every distinct package URL, with the target its scan was of.
+     *
+     * <p><b>One query for the whole estate rather than one per target.</b> The posture screen asks
+     * the coverage question of every target it lists; asking the database once per row would make
+     * a screen's cost grow with the estate, which is the shape {@code ReadCostSweepTest} exists to
+     * refuse. The rows are grouped in memory, and distinctness keeps the result proportional to
+     * the ecosystems rather than to the dependencies.
+     *
+     * <p>Rows are {@code [repoId, containerId, purl]}; exactly one of the two ids is set, which is
+     * the discriminator a union would have had to invent a column for.
+     */
+    @Query("""
+            select distinct s.repoId, s.containerId, c.purl from ComponentEntity c, ScanEntity s
+             where c.scanId = s.id and c.purl is not null""")
+    List<Object[]> distinctPurlsByTarget();
 }

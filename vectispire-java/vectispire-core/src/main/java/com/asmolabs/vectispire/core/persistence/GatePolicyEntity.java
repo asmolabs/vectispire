@@ -53,6 +53,10 @@ public class GatePolicyEntity {
     @Column(name = "include_ai_review", nullable = false)
     private boolean includeAiReview;
 
+    /** Refuse a verdict whose code analysis reached none of the target's ecosystems. */
+    @Column(name = "fail_on_uncovered_languages", nullable = false)
+    private boolean failOnUncoveredLanguages;
+
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "note")
     private String note;
@@ -137,6 +141,14 @@ public class GatePolicyEntity {
 
     public boolean getIncludeAiReview() {
         return includeAiReview;
+    }
+
+    public boolean getFailOnUncoveredLanguages() {
+        return failOnUncoveredLanguages;
+    }
+
+    public void setFailOnUncoveredLanguages(boolean failOnUncoveredLanguages) {
+        this.failOnUncoveredLanguages = failOnUncoveredLanguages;
     }
 
     public void setIncludeAiReview(boolean includeAiReview) {

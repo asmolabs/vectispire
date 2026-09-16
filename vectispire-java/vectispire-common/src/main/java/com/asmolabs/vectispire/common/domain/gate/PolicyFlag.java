@@ -21,7 +21,21 @@ public enum PolicyFlag {
     INCLUDE_AI_REVIEW("include_ai_review", true),
 
     /** Fail only on issues that have a published fix — which evaluates fewer of them. */
-    FIXABLE_ONLY("fixable_only", false);
+    FIXABLE_ONLY("fixable_only", false),
+
+    /**
+     * Refuse a verdict whose code analysis reached none of the target's ecosystems.
+     *
+     * <p><b>Off by default, and that is the decision rather than the setting.</b> A target no rule
+     * covers reports no code finding, and an empty result passes every policy — the one green this
+     * product exists to distinguish from a clean one. Turning this on makes "not looked at" block
+     * instead of inform.
+     *
+     * <p>It ships off because switching it on for everyone would fail every existing build at the
+     * first deployment, over a condition nobody had been told about. The banner came first, on the
+     * screens where the absence reads as good news; this is the second half, and it is opt-in.
+     */
+    FAIL_ON_UNCOVERED_LANGUAGES("fail_on_uncovered_languages", true);
 
     private final String wireName;
     private final boolean strictValue;

@@ -140,7 +140,8 @@ describe('every screen', () => {
             const builtIn = {
                 kind: 'built_in', target_id: null, target_name: null, version: 0,
                 fail_on_severity: null, fail_on_kev: false, fixable_only: false,
-                include_triaged: false, include_ai_review: false, note: null,
+                include_triaged: false, include_ai_review: false,
+                fail_on_uncovered_languages: false, note: null,
                 created_by: null, created_at: null
             };
             return { policies: [], built_in: builtIn };

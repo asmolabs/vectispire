@@ -29,6 +29,7 @@ interface Draft {
     fixableOnly: boolean;
     includeTriaged: boolean;
     includeAiReview: boolean;
+    failOnUncoveredLanguages: boolean;
     note: string;
 }
 
@@ -186,6 +187,7 @@ export class GatePolicies {
                 fixable_only: this.draft.fixableOnly,
                 include_triaged: this.draft.includeTriaged,
                 include_ai_review: this.draft.includeAiReview,
+                fail_on_uncovered_languages: this.draft.failOnUncoveredLanguages,
                 note: this.draft.note.trim() || null
             })
             .subscribe({
@@ -230,6 +232,7 @@ function blank(): Draft {
         fixableOnly: false,
         includeTriaged: false,
         includeAiReview: false,
+        failOnUncoveredLanguages: false,
         note: ''
     };
 }
@@ -242,6 +245,7 @@ function draftOf(policy: GatePolicy | null): Draft {
         fixableOnly: policy.fixable_only,
         includeTriaged: policy.include_triaged,
         includeAiReview: policy.include_ai_review,
+        failOnUncoveredLanguages: policy.fail_on_uncovered_languages,
         note: policy.note ?? ''
     };
 }

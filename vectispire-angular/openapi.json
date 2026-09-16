@@ -378,6 +378,9 @@
           "failOnSeverity" : {
             "type" : "string"
           },
+          "failOnUncoveredLanguages" : {
+            "type" : "boolean"
+          },
           "fixableOnly" : {
             "type" : "boolean"
           },
@@ -395,7 +398,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "failOnKev", "fixableOnly", "includeAiReview", "includeTriaged" ],
+        "required" : [ "failOnKev", "failOnUncoveredLanguages", "fixableOnly", "includeAiReview", "includeTriaged" ],
         "type" : "object"
       },
       "ArtifactLocation" : {
@@ -2257,6 +2260,9 @@
           "fail_on_severity" : {
             "type" : "string"
           },
+          "fail_on_uncovered_languages" : {
+            "type" : "boolean"
+          },
           "fixable_only" : {
             "type" : "boolean"
           },
@@ -2284,7 +2290,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "fail_on_kev", "fixable_only", "include_ai_review", "include_triaged", "version" ],
+        "required" : [ "fail_on_kev", "fail_on_uncovered_languages", "fixable_only", "include_ai_review", "include_triaged", "version" ],
         "type" : "object"
       },
       "GateRequest" : {
@@ -3759,6 +3765,9 @@
           },
           "fail_on_severity" : {
             "type" : "string"
+          },
+          "fail_on_uncovered_languages" : {
+            "type" : "boolean"
           },
           "fixable_only" : {
             "type" : "boolean"
@@ -6687,7 +6696,6 @@
             "type" : "string"
           }
         },
-        "required" : [ "issueId" ],
         "type" : "object"
       },
       "Vulnerability" : {

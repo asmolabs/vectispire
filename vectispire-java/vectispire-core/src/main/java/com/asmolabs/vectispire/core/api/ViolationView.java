@@ -20,12 +20,17 @@ import java.util.Locale;
  *       only arrive through an annotation — and silently arrives as {@code packageName} without.
  * </ul>
  *
+ * <p><b>{@code issueId} is nullable, and that is a fourth difference from the domain record.</b>
+ * The coverage rule fails on the absence of an examination rather than on a finding, so there is
+ * no issue to point at. It was a primitive here, which the published document read as "always
+ * sent" — a promise this API would have broken the first time that rule fired.
+ *
  * <p>This is the payload a build failure is explained by. Getting it wrong does not break the
  * verdict, it breaks the sentence that tells somebody why their build stopped.
  */
 record ViolationView(
         String rule,
-        long issueId,
+        Long issueId,
         String identifier,
         String severity,
         @JsonProperty("package") String packageName,

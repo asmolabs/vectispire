@@ -26,7 +26,7 @@ class PolicyGateTest {
         void qualityNeverBlocks() {
             // Every flag on, including the ones that widen the evaluated set. Quality must
             // still be absent: there is no option, and this test is what keeps it that way.
-            GatePolicy everything = new GatePolicy(Severity.NEGLIGIBLE, true, false, true, true);
+            GatePolicy everything = new GatePolicy(Severity.NEGLIGIBLE, true, false, true, true, false);
 
             GateVerdict verdict = PolicyGate.evaluate(
                     List.of(issue(1, FindingType.QUALITY, Severity.CRITICAL, null)), everything);
@@ -145,7 +145,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("a null threshold disables the severity rule without disabling KEV")
         void nullThresholdKeepsKev() {
-            GatePolicy kevOnly = new GatePolicy(null, true, false, false, false);
+            GatePolicy kevOnly = new GatePolicy(null, true, false, false, false, false);
             GateIssue critical = issue(1, FindingType.VULNERABILITY, Severity.CRITICAL, null);
             GateIssue kev = new GateIssue(2, true, FindingType.VULNERABILITY, Severity.LOW, "CVE-2", "pkg", null, true, null);
 
@@ -204,7 +204,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("switching off a rule that was already off is not a relaxation")
         void disablingWhatIsAlreadyOffIsSilent() {
-            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false);
+            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false);
 
             PolicyGate.Hardened hardened =
                     PolicyGate.harden(noSeverityRule, RequestedPolicy.none().with(new SeverityRequest.Disabled()));
@@ -215,7 +215,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("adding a threshold where there was none is a tightening")
         void addingAThresholdTightens() {
-            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false);
+            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false);
 
             PolicyGate.Hardened hardened = PolicyGate.harden(
                     noSeverityRule, RequestedPolicy.none().with(new SeverityRequest.Threshold(Severity.CRITICAL)));
@@ -248,6 +248,86 @@ class PolicyGateTest {
             assertThat(hardened.policy().failOnKev()).isTrue();
             assertThat(hardened.policy().includeTriaged()).isTrue();
             assertThat(hardened.ignoredRelaxations()).containsExactly("fail_on_kev");
+        }
+    }
+
+    /**
+     * The rule that fails on an examination rather than on a finding.
+     *
+     * <p>A target whose ecosystems no installed rule covers reports nothing, and nothing passes
+     * every policy there is. That green is indistinguishable from a clean one, which is the whole
+     * reason this clause exists — and the reason it ships off, since turning it on for everyone
+     * would stop builds over a condition nobody had been shown.
+     */
+    @Nested
+    @DisplayName("the coverage clause")
+    class Coverage {
+
+        private static final GateVerdict.Coverage NOTHING_REACHED =
+                new GateVerdict.Coverage(List.of("maven", "npm"));
+
+        @Test
+        @DisplayName("passes a target no rule covers, until somebody asks it not to")
+        void offByDefault() {
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, NOTHING_REACHED);
+
+            assertThat(verdict.passed()).isTrue();
+            assertThat(verdict.violations()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("refuses it once the flag is on, and names the ecosystems nothing reached")
+        void failsWhenAsked() {
+            GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
+
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), strict, NOTHING_REACHED);
+
+            assertThat(verdict.passed()).isFalse();
+            assertThat(verdict.violations()).singleElement().satisfies(violation -> {
+                assertThat(violation.rule()).isEqualTo(GateVerdict.Rule.COVERAGE);
+                // No issue is behind it — that is the point, and 0 would be an id matching nothing.
+                assertThat(violation.issueId()).isNull();
+                assertThat(violation.reason()).contains("maven", "npm");
+            });
+        }
+
+        @Test
+        @DisplayName("says nothing when every ecosystem of the target is covered")
+        void silentWhenCovered() {
+            GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
+
+            GateVerdict verdict =
+                    PolicyGate.evaluate(List.of(), strict, new GateVerdict.Coverage(List.of()));
+
+            assertThat(verdict.passed()).isTrue();
+        }
+
+        @Test
+        @DisplayName("does not apply where the verdict is about one issue rather than a target")
+        void notApplicableForASingleIssue() {
+            GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
+
+            // The ticket sweep asks "is this one issue acceptable now". Answering "no, because
+            // another language has no rules" would keep a ticket open over something its own fix
+            // can never change.
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), strict);
+
+            assertThat(verdict.passed()).isTrue();
+        }
+
+        @Test
+        @DisplayName("a caller cannot switch it off once a policy has switched it on")
+        void relaxationIsRefused() {
+            GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
+
+            PolicyGate.Hardened hardened = PolicyGate.harden(
+                    strict,
+                    new RequestedPolicy(
+                            new SeverityRequest.Unset(),
+                            java.util.Map.of(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, false)));
+
+            assertThat(hardened.policy().failOnUncoveredLanguages()).isTrue();
+            assertThat(hardened.ignoredRelaxations()).containsExactly("fail_on_uncovered_languages");
         }
     }
 }
