@@ -1433,34 +1433,34 @@ export type CompatibilityCell = Refine<
     }
 >;
 
-export interface PostureTrendAnalytics {
-    windowDays: number;
-    overallMttrDays?: number;
-    mttrBySeverity: Record<string, number>;
-    totalOpenedInWindow: number;
-    totalResolvedInWindow: number;
-    netResolutionRatePercentage: number;
-    dailySeries: Array<{
-        date: string;
-        openBacklog: number;
-        newlyDiscovered: number;
-        newlyResolved: number;
-        rollingMttrDays?: number;
-    }>;
-    targetScoreboard: Array<{
+/** Un point de la série quotidienne : l'encours du jour, et ses deux mouvements. */
+export type DailyPosturePoint = Refine<
+    Schema<'DailyPosturePoint'>,
+    { date: string; rollingMttrDays: number | null }
+>;
+
+/** Une cible au tableau de maturité, avec la note que le serveur calcule. */
+export type TargetMaturityScore = Refine<
+    Schema<'TargetMaturityScore'>,
+    {
         targetId: number;
         targetKind: string;
         targetName: string;
-        openCritical: number;
-        openHigh: number;
-        openMedium: number;
-        openLow: number;
-        totalResolved: number;
-        targetMttrDays?: number;
-        securityScore: number;
         maturityGrade: string;
-    }>;
-}
+        targetMttrDays: number | null;
+    }
+>;
+
+export type PostureTrendAnalytics = Refine<
+    Schema<'PostureTrendAnalytics'>,
+    {
+        mttrBySeverity: Record<string, number>;
+        dailySeries: DailyPosturePoint[];
+        targetScoreboard: TargetMaturityScore[];
+        /** `null` quand rien n'a été résolu dans la fenêtre, et non zéro. */
+        overallMttrDays: number | null;
+    }
+>;
 
 /** Qui peut l'atteindre. Le document type `visibility` en `string` sur cette vue-ci. */
 export type EndpointVisibility = 'PUBLIC' | 'INTERNAL' | 'UNKNOWN';

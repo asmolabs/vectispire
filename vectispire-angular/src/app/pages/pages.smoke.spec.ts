@@ -43,38 +43,64 @@ describe('every screen', () => {
      * URL because that is what the server's own contract keys on.
      */
     function emptyFor(url: string): Record<string, unknown> | unknown[] {
-        if (url.endsWith('/settings')) return { settings: [] };
+        if (url.endsWith('/settings')) return asSchema('Catalog', { settings: [] });
+        // Deux routes qui répondent une forme anonyme : le document n'en publie aucun schéma,
+        // donc il n'y a rien à quoi les adosser. C'est dit plutôt que caché.
         if (url.endsWith('/ticket-token')) return { configured: false };
         if (url.endsWith('/webhook-secret')) return { configured: false };
-        if (url.endsWith('/issues')) return { items: [], total: 0, limit: 50, offset: 0 };
-        if (url.endsWith('/audit-log')) return { items: [], total: 0, limit: 50, offset: 0 };
+        if (url.endsWith('/issues')) return asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 });
+        if (url.endsWith('/audit-log/operation-types')) return [];
+        if (url.endsWith('/audit-log')) return asSchema('AuditLogPage', { items: [], total: 0, limit: 50, offset: 0 });
         if (url.endsWith('/security/overview')) {
-            return { generatedAt: '2026-08-21T09:00:00Z', targets: [], failing: [], passing: 0, failingCount: 0 };
+            return asSchema('SecurityOverviewView', {
+                targets: [], failingCount: 0, totalCount: 0, kevCount: 0,
+                neverScannedCount: 0, lastScanFailedCount: 0
+            });
         }
         if (url.endsWith('/quality/overview')) {
-            return { openCount: 0, ruleCount: 0, topRules: [], topFiles: [], topRepositories: [] };
+            return asSchema('QualityOverview', {
+                openCount: 0, ruleCount: 0, fileCount: 0, topRules: [], topFiles: [], topTargets: []
+            });
         }
-        // Before `/dashboard`, which this URL does not end with: an empty series is a fresh
-        // install, and the mean is absent rather than zero on purpose.
-        if (url.includes('/dashboard/analytics')) return { mttrBySeverity: { CRITICAL: null, HIGH: null, MEDIUM: null, LOW: null }, resolvedThisMonth: 0, slaComplianceRate: 100 };
-        if (url.includes('/dashboard/trends')) return { points: [], mean_days_to_resolve: null, resolved_in_window: 0 };
+        // **`/dashboard/analytics` ne correspondait à aucune route.** La route est
+        // `/dashboard/posture-analytics` ; ce motif ne l'atteignait pas, et la requête tombait sur
+        // le tableau vide rendu par défaut — un tableau là où l'écran attend un objet. Une branche
+        // morte dans un fabricant de réponses ne lève jamais : elle rend simplement autre chose.
+        if (url.includes('/dashboard/posture-analytics')) {
+            return asSchema('PostureTrendAnalytics', {
+                windowDays: 30,
+                overallMttrDays: null,
+                mttrBySeverity: {},
+                totalOpenedInWindow: 0,
+                totalResolvedInWindow: 0,
+                netResolutionRatePercentage: 0,
+                dailySeries: [],
+                targetScoreboard: []
+            });
+        }
+        if (url.includes('/dashboard/trends')) {
+            return asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+        }
         if (url.endsWith('/dashboard')) {
-            return {
-                posture: { failingCount: 0, totalCount: 0, kevCount: 0, neverScannedCount: 0, lastScanFailedCount: 0 },
+            return asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0, totalCount: 0, kevCount: 0,
+                    neverScannedCount: 0, lastScanFailedCount: 0, overdueCount: 0
+                },
                 backlogBySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
                 qualityTotal: 0,
                 failing: [],
                 recentScans: []
-            };
+            });
         }
-        if (url.endsWith('/rule-sets')) return { ruleSets: [] };
         // La couverture est un verdict, pas une collection : `COVERED` fait taire le bandeau,
         // ce qui est l'état d'un serveur vide autant que celui d'un serveur bien réglé.
         if (url.endsWith('/rule-sets/coverage')) {
-            return { state: 'COVERED', languagesWithRules: [], ecosystemsInEstate: [], uncovered: [], ruleFiles: 0 };
+            return asSchema('Assessment', {
+                state: 'COVERED', languagesWithRules: [], ecosystemsInEstate: [], uncovered: [], ruleFiles: 0
+            });
         }
-        // Le registre porte ses compteurs à côté de ses lignes : rendu à vide, c'est un objet
-        // dont `entries` est une liste, jamais une liste nue.
+        if (url.endsWith('/rule-sets')) return asSchema('RuleSetListing', { ruleSets: [] });
         // La déclaration est une liste de documents, un par cadre : vide, c'est un tableau.
         if (url.endsWith('/compliance/soa')) return [];
         // Une série par cadre : rendue à vide, c'est un tableau, jamais un objet.
@@ -82,22 +108,32 @@ describe('every screen', () => {
         // La grille est un verdict par catégorie : rendue à vide, c'est un objet à dix lignes,
         // jamais une liste nue.
         if (url.endsWith('/owasp/coverage')) {
-            return { lines: [], covered: 0, withFindings: 0, unmeasured: 0 };
+            return asSchema('Grid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0 });
         }
         if (url.endsWith('/compliance/scope')) {
-            return { statement: '', coverage: { declaredAssets: 0, inScope: 0, scannedRecently: 0, stale: 0, neverScanned: 0 }, targets: [] };
+            return asSchema('ScopeView', {
+                statement: '',
+                coverage: { declaredAssets: 0, inScope: 0, scannedRecently: 0, stale: 0, neverScanned: 0 },
+                targets: []
+            });
         }
         if (url.includes('/remediation/distribution')) {
-            return { windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null };
+            return asSchema('RemediationDistribution', {
+                windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null
+            });
         }
-        if (url.includes('/gate/verdicts')) return { verdicts: [], passed: 0, refused: 0 };
+        if (url.includes('/gate/verdicts')) {
+            return asSchema('VerdictRegister', { verdicts: [], passed: 0, refused: 0 });
+        }
         if (url.includes('/exceptions')) {
-            return { entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0 };
+            return asSchema('Register', {
+                entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0
+            });
         }
         // ApiKeysController.Targets: two named lists, not a collection.
-        if (url.endsWith('/api-keys/targets')) return { repositories: [], containers: [] };
+        if (url.endsWith('/api-keys/targets')) return asSchema('Targets', { repositories: [], containers: [] });
         if (url.endsWith('/attack-surface')) {
-            return {
+            return asSchema('GlobalAttackSurface', {
                 totalEndpoints: 0,
                 publicEndpoints: 0,
                 internalEndpoints: 0,
@@ -106,10 +142,10 @@ describe('every screen', () => {
                 sensitiveUnprotectedEndpoints: 0,
                 frameworks: [],
                 highRiskEndpoints: []
-            };
+            });
         }
         if (url.includes('/apis')) {
-            return {
+            return asSchema('RepositoryApisOverview', {
                 repositoryId: 1,
                 endpoints: [],
                 contracts: [],
@@ -121,9 +157,8 @@ describe('every screen', () => {
                     shadowEndpoints: 0,
                     sensitiveUnprotectedEndpoints: 0
                 }
-            };
+            });
         }
-        if (url.includes('/audit-log/operation-types')) return [];
 
         // **Quatre formes que ce fichier ne connaissait pas**, parce qu'il ne montait pas les
         // écrans qui les demandent. Elles sont arrivées avec la dérivation depuis les routes :
@@ -131,44 +166,52 @@ describe('every screen', () => {
         // mais un gabarit qui lit `sommaire.repartition['X']` sur le tableau vide que ce
         // fabricant rendait par défaut lève avant d'afficher quoi que ce soit.
         if (url.endsWith('/epss/priorities')) {
-            return {
+            return asSchema('EpssFleetSummary', {
                 totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0,
                 reachableEpssCount: 0, averageFleetEpss: 0, topPriorities: [],
                 breakdownByTier: {}
-            };
+            });
         }
         if (url.endsWith('/gate/policies')) {
-            const builtIn = {
+            const builtIn = asSchema('GatePolicyView', {
                 kind: 'built_in', target_id: null, target_name: null, version: 0,
                 fail_on_severity: null, fail_on_kev: false, fixable_only: false,
                 include_triaged: false, include_ai_review: false,
                 fail_on_uncovered_languages: false, note: null,
                 created_by: null, created_at: null
-            };
-            return { policies: [], built_in: builtIn };
+            });
+            return asSchema('PoliciesResponse', { policies: [], built_in: builtIn });
         }
         if (url.endsWith('/compliance/summary')) {
-            return {
+            return asSchema('ComplianceSummary', {
                 evaluations: [],
                 mttr: { mttrBySeverityDays: {}, overallMttrDays: null, resolvedCount: 0 },
                 overdueCount: 0, dueSoonCount: 0,
-                totalMonitoredTargets: 0, passingGateTargets: 0, targets: []
-            };
+                totalMonitoredTargets: 0, passingGateTargets: 0,
+                observedTargets: 0, freshTargets: 0, targets: []
+            });
         }
         if (url.endsWith('/licenses/summary')) {
-            return { totalDependencies: 0, uniqueLicenses: 0, nonCompliantCount: 0, breakdownByRisk: {} };
+            return asSchema('LicenseSummary', {
+                totalDependencies: 0, uniqueLicenses: 0, nonCompliantCount: 0, breakdownByRisk: {}
+            });
         }
         if (url.endsWith('/licenses/policy')) {
-            return { disallowedCategories: [], explicitlyAllowedLicenses: [], explicitlyDisallowedLicenses: [] };
+            return asSchema('LicensePolicy', {
+                disallowedCategories: [], explicitlyAllowedLicenses: [], explicitlyDisallowedLicenses: []
+            });
         }
-        if (url.endsWith('/licenses/matrix')) return { entries: [] };
+        // **La matrice est un tableau, et ce fabricant rendait `{ entries: [] }`.** La route
+        // répond `CompatibilityCell[]` ; un objet à sa place est précisément le cas que le
+        // commentaire en tête de cette fonction dit vouloir éviter.
+        if (url.endsWith('/licenses/matrix')) return [];
         if (url.endsWith('/remediation/debt')) {
-            return {
+            return asSchema('SecurityDebtReport', {
                 totalOpenIssues: 0, criticalIssues: 0, highIssues: 0, mediumIssues: 0, lowIssues: 0,
                 totalEstimatedHours: 0, totalEstimatedPersonDays: 0, vulnerabilitiesDebtHours: 0,
                 secretsDebtHours: 0, sastDebtHours: 0, iacDebtHours: 0, licenseDebtHours: 0,
                 eolDebtHours: 0, topHighImpactFixes: []
-            };
+            });
         }
 
         // Everything else in this application is a collection.
