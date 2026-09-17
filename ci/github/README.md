@@ -37,35 +37,28 @@ gh api /repos/asmolabs/vectispire/rules/branches/main
 | `required_linear_history` | Un commit de fusion sur `main` | Aucun : `main` avance déjà en avance rapide depuis `develop` |
 | `required_status_checks` | Avancer `main` sur un arbre que le pipeline n'a pas validé | Il faut attendre le pipeline |
 
-Dix des onze contextes listés sont les jobs de `verify` qui s'exécutent **toujours**. Les noms sont
-ceux des identifiants de job, aucun ne portant de `name:` — s'ils changent dans
-`.github/workflows/ci.yml`, ce fichier devient faux en silence et la protection s'affaiblit sans
-que rien ne le dise.
+**Les douze jobs de `verify` sont requis, les conditionnels compris.** Les noms sont ceux des
+identifiants de job, aucun ne portant de `name:` — s'ils changent dans `.github/workflows/ci.yml`,
+ce fichier devient faux en silence et la protection s'affaiblit sans que rien ne le dise.
 
-**Le onzième est `e2e`, et il est conditionnel — c'est une expérience en cours.** Il a échoué du
-15 au 17 septembre sans que personne ne le lise, parce qu'il ne bloquait rien : trois boutons de la
-barre du haut sans nom accessible, dont la déconnexion, écrits en toutes lettres dans chaque log.
-Un contrôle qu'on n'écoute pas finit par ne plus rien dire. Il est donc ajouté aux contextes requis
-— et la question ouverte plus bas sur `engines` devient une question qu'on observe au lieu de la
-supposer : **ce dépôt ne sait pas encore si une règle GitHub traite un job ignoré comme satisfait.**
-Si une poussée qui ne touche pas le front se trouve bloquée, la réponse est non, et il faut passer
-au job-relais décrit ci-dessous plutôt que retirer le contrôle.
+**Un job ignoré est traité comme satisfait, et ce dépôt l'a observé.** Le 17 septembre 2026, avec
+la règle active et `e2e` requis, un commit ne touchant que `ci/` a laissé `e2e` ignoré et
+la poussée de `main` est passée. C'est la question que ce fichier laissait ouverte depuis le
+2 septembre ; elle est close par une observation et non par une lecture de documentation.
 
-## Les deux règles absentes, et ce sont des décisions
+C'est ce qui permet d'exiger les deux jobs conditionnels. `e2e` a échoué du 15 au 17 septembre sans
+que personne ne le lise, **parce qu'il ne bloquait rien** : trois boutons de la barre du haut sans
+nom accessible, dont la déconnexion, écrits en toutes lettres dans chaque log. Un contrôle qui
+n'engage à rien finit par ne plus rien dire, et c'est la seule raison pour laquelle ce défaut a
+duré deux jours. `engines` est ajouté par le même raisonnement : quatre exécutions, quatre succès,
+aucun échec — il passe quand il s'exécute.
 
-**`engines` n'est pas dans les contrôles requis.** C'est le job qui exécute la campagne
-multi-moteurs, et il est conditionnel : il est ignoré quand la modification ne touche pas
-`db/migration/`. Exiger un contrôle qui n'apparaît pas toujours est le moyen classique de bloquer
-une pull request définitivement, l'attente d'un contrôle qui ne viendra jamais n'ayant pas de fin.
-GitHub traite en principe un job « ignoré » comme satisfait, mais **cela n'a pas été observé sur ce
-dépôt** : à ajouter après l'avoir constaté, pas avant. L'ajout de `e2e` ci-dessus est précisément
-l'observation — ce commit ne touche pas le front, `e2e` y sera donc ignoré, et la poussée de `main`
-qui suivra dira la réponse.
+## La règle absente, et c'est une décision
 
-**Si elle est « non », le remède n'est pas de retirer le contrôle** mais d'ajouter un job-relais qui
-s'exécute toujours et rapporte le verdict du job conditionnel : vert s'il a passé, vert s'il n'avait
-pas lieu d'être, rouge s'il a échoué. C'est lui qu'on rend requis. Le même remède vaut pour
-`engines`.
+**Si un jour un job conditionnel se met à bloquer**, le remède n'est pas de le retirer des contrôles
+requis mais d'ajouter un job-relais qui s'exécute toujours et rapporte le verdict du conditionnel :
+vert s'il a passé, vert s'il n'avait pas lieu d'être, rouge s'il a échoué. C'est lui qu'on rend
+requis. L'observation du 17 septembre dit que ce n'est pas nécessaire aujourd'hui.
 
 **`pull_request` n'y est pas non plus, et c'est le vrai arbitrage.** L'ajouter interdirait la
 poussée directe sur `main` — c'est-à-dire la façon dont cette branche a été mise à jour jusqu'ici,
