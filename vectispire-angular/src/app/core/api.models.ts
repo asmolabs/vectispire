@@ -177,40 +177,26 @@ export type LicenseSummary = Refine<
 
 export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F';
 
-export interface SecurityScorecard {
-    targetId: number | null;
-    targetKind: string;
-    targetName: string;
-    score: number;
-    grade: SecurityGrade;
-    openCriticalCount: number;
-    openHighCount: number;
-    openKevCount: number;
-    overdueCount: number;
-    licenseViolationCount: number;
-    hasAttestation: boolean;
-    recommendations: string[];
-}
+export type SecurityScorecard = Refine<
+    Schema<'SecurityScorecard'>,
+    {
+        targetKind: string;
+        targetName: string;
+        grade: SecurityGrade;
+        recommendations: string[];
+        targetId: number | null;
+    }
+>;
 
-/**
- * Whether a repository's grade is published, and where.
- *
- * `published` false means the badge route answers 404 for this repository — which is the state
- * every repository starts in, and the state that keeps a posture grade inside the visibility
- * model the rest of the product obeys.
- */
-export interface BadgeState {
-    published: boolean;
-    token: string | null;
-    url: string | null;
-}
+export type BadgeState = Refine<
+    Schema<'BadgeState'>,
+    { token: string | null; url: string | null }
+>;
 
-/** @param privateKey shown once, and only when the control plane generated the pair. */
-export interface PinnedSigningKey {
-    id: string;
-    signsResults: boolean;
-    privateKey: string | null;
-}
+export type PinnedSigningKey = Refine<
+    Schema<'PinnedSigningKey'>,
+    { id: string; privateKey: string | null }
+>;
 
 export interface InTotoAttestation {
     _type: string;
@@ -885,45 +871,36 @@ export interface SettingDefinition {
 }
 
 /** A stored Semgrep rule set, as the listing returns it — without its files. */
-export interface RuleSetSummary {
-    id: number;
-    name: string;
-    contentHash: string;
-    ruleCount: number;
-    fileCount: number;
-    sizeBytes: string;
-    isActive: boolean | null;
-    uploadedBy: string | null;
-    uploadedAt: string;
-    activationNote: string | null;
-}
+export type RuleSetSummary = Refine<
+    Schema<'RuleSetSummary'>,
+    {
+        id: number;
+        name: string;
+        contentHash: string;
+        sizeBytes: string;
+        uploadedAt: string;
+        isActive: boolean | null;
+        uploadedBy: string | null;
+        activationNote: string | null;
+    }
+>;
 
-/**
- * What activating a rule set would cost.
- *
- * `losingIssues` names the rules that currently have open issues and are absent from the
- * candidate: activating resolves those issues on the next scan, with their triage
- * decisions. This is what the screen must show before offering the button.
- */
-export interface RuleSetImpact {
-    losingIssues: string[];
-    affectedIssues: number;
-    addedRules: number;
-    removedRules: number;
-}
+export type RuleSetImpact = Refine<Schema<'TriageImpact'>, { losingIssues: string[] }>;
 
-/** What the upstream rule catalogue offers at one pinned tag. */
-export interface CataloguePreview {
-    upstream: string;
-    /** The commit that was actually fetched. The upstream publishes no tags at all. */
-    commit: string;
-    licenceName: string;
-    /** The full text at this tag, never a summary: a summary of a licence is an opinion. */
-    licence: string;
-    licence_sha256: string;
-    /** Language to rule count, so a choice is made on a number rather than on a name. */
-    languages: Record<string, number>;
-}
+export type CataloguePreview = Refine<
+    Schema<'CataloguePreview'>,
+    {
+        upstream: string;
+        /** The commit that was actually fetched. The upstream publishes no tags at all. */
+        commit: string;
+        licenceName: string;
+        /** The full text at this tag, never a summary: a summary of a licence is an opinion. */
+        licence: string;
+        licence_sha256: string;
+        /** Language to rule count, so a choice is made on a number rather than on a name. */
+        languages: Record<string, number>;
+    }
+>;
 
 /**
  * The detection-and-triage trail.
@@ -1070,19 +1047,17 @@ export interface OwaspReport {
 }
 
 /** What the configured model endpoint answered when asked what it offers. */
-export interface OllamaCheck {
-    reachable: boolean;
-    /** Separate from `reachable`: a reachable host without the model is the usual misconfiguration. */
-    modelInstalled: boolean;
-    model: string;
-    url: string;
-    models: string[];
-    detail: string;
-    /** `ollama` or `openai` — which wire protocol was spoken. */
-    provider: string;
-    /** Whether a destination outside the estate is permitted. Not "the code left" — see the server. */
-    remoteAllowed: boolean;
-}
+export type OllamaCheck = Refine<
+    Schema<'OllamaCheck'>,
+    {
+        model: string;
+        url: string;
+        models: string[];
+        detail: string;
+        /** `ollama` or `openai` — which wire protocol was spoken. */
+        provider: string;
+    }
+>;
 
 /** Where an issue was seen: one scan, and the project version that scan read. */
 export type IssueSighting = Refine<
@@ -1139,22 +1114,16 @@ export type IssueDetail = Refine<
 >;
 
 /** Which ways in this deployment accepts. Read before anybody is authenticated. */
-export interface SignInMethods {
-    /** False when no issuer is configured: the button is then absent, not disabled. */
-    configured: boolean;
-    label: string | null;
-    /** False when this deployment delegates authentication entirely to the provider — so the
-     *  second factor is the realm's, and Vectispire never sees a password. The form is then hidden
-     *  rather than shown and refused: an input that cannot work is worse than no input.
-     *
-     *  Always true when no provider is configured, whatever was asked for: the server refuses to
-     *  close the only door that works. */
-    password: boolean;
-    /** The brand name for this deployment (default: Vectispire). */
-    brandName?: string;
-    /** The reference GitLab URL for upstream Vectispire project. */
-    gitlabUrl?: string;
-}
+export type SignInMethods = Refine<
+    Schema<'SignInMethods'>,
+    {
+        label: string | null;
+        /** The brand name for this deployment (default: Vectispire). */
+        brandName?: string;
+        /** The reference GitLab URL for upstream Vectispire project. */
+        gitlabUrl?: string;
+    }
+>;
 
 /**
  * A stored gate policy, in the vocabulary the gate itself uses.
@@ -1360,41 +1329,40 @@ export type EpssFleetSummary = Refine<
     { topPriorities: EpssPrioritizedIssue[]; breakdownByTier: Record<string, number> }
 >;
 
-export interface NotificationChannelStatus {
-    type: string;
-    name: string;
-    destination: string;
-    configured: boolean;
-    supportedEvents: string[];
-}
+export type NotificationChannelStatus = Refine<
+    Schema<'NotificationChannelStatus'>,
+    { type: string; name: string; destination: string; supportedEvents: string[] }
+>;
 
-export interface NotificationTestResult {
-    type: string;
-    success: boolean;
-    message: string;
-    testedAt: string;
-}
+export type NotificationTestResult = Refine<
+    Schema<'NotificationTestResult'>,
+    { type: string; message: string; testedAt: string }
+>;
 
-export interface AiVulnerabilityAdvice {
-    identifier: string;
-    title: string;
-    summaryExplanation: string;
-    exploitMechanics: string;
-    exposureAssessment: string;
-    remediation: {
-        fixAction: string;
-        suggestedVersion: string;
-        codeSnippetOrDiff: string;
-        cliCommand: string;
-    };
-    vexSuggestion: {
-        status: string;
-        justification: string;
-        impactStatement: string;
-        actionStatement: string;
-    };
-    references: string[];
-}
+/** Ce que le modèle propose de faire, et ce qu'il propose de déclarer. Deux formes nommées. */
+export type AiRemediationAdvice = Refine<
+    Schema<'RemediationAdvice'>,
+    { fixAction: string; suggestedVersion: string; codeSnippetOrDiff: string; cliCommand: string }
+>;
+
+export type AiVexSuggestion = Refine<
+    Schema<'VexSuggestion'>,
+    { status: string; justification: string; impactStatement: string; actionStatement: string }
+>;
+
+export type AiVulnerabilityAdvice = Refine<
+    Schema<'AiVulnerabilityAdvice'>,
+    {
+        identifier: string;
+        title: string;
+        summaryExplanation: string;
+        exploitMechanics: string;
+        exposureAssessment: string;
+        references: string[];
+        remediation: AiRemediationAdvice;
+        vexSuggestion: AiVexSuggestion;
+    }
+>;
 
 /** How a dependency's licence sits with the target's, as the document enumerates it. */
 export type LicenseCompatibility = 'COMPATIBLE' | 'CONDITIONAL' | 'INCOMPATIBLE_BLOCKING';
