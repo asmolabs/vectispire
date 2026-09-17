@@ -441,23 +441,25 @@ export type QualityOverview = Refine<
 export type AssetTier = 'TIER_1_MISSION_CRITICAL' | 'TIER_2_BUSINESS_OPERATIONAL' | 'TIER_3_INTERNAL';
 
 /** A monitored repository, with the state of its last scan. */
-export interface MonitoredRepository {
-    id: number;
-    url: string;
-    branch: string;
-    name: string | null;
-    /** Computed by the server, so the same repository carries the same name everywhere. */
-    displayName: string;
-    subPath: string | null;
-    scanIntervalMinutes: number | null;
-    scanCron: string | null;
-    /** The label an agent must carry to scan this target. Sent by the server all along. */
-    requiredAgentLabel: string | null;
-    sshKeyId: string | null;
-    lastScan: { id: number; status: string; createdAt: string | null; error: string | null } | null;
-    openIssues: number;
-    tier?: AssetTier;
-}
+export type MonitoredRepository = Refine<
+    Schema<'RepositorySummary'>,
+    {
+        id: number;
+        url: string;
+        branch: string;
+        /** Computed by the server, so the same repository carries the same name everywhere. */
+        displayName: string;
+        name: string | null;
+        subPath: string | null;
+        scanIntervalMinutes: number | null;
+        scanCron: string | null;
+        /** The label an agent must carry to scan this target. Sent by the server all along. */
+        requiredAgentLabel: string | null;
+        sshKeyId: string | null;
+        lastScan: LastScan | null;
+        tier?: AssetTier;
+    }
+>;
 
 export interface NewRepository {
     url: string;
@@ -471,28 +473,28 @@ export interface NewRepository {
 }
 
 /** The state of a last scan, shared by repositories and containers. */
-export interface LastScan {
-    id: number;
-    status: string;
-    createdAt: string | null;
-    error: string | null;
-}
+export type LastScan = Refine<
+    Schema<'LastScan'>,
+    { id: number; status: string; createdAt: string | null; error: string | null }
+>;
 
 /** A monitored container image. */
-export interface MonitoredContainer {
-    id: number;
-    registry: string | null;
-    imageName: string;
-    tag: string;
-    /** Computed by the server: the form a registry expects. */
-    reference: string;
-    scanIntervalMinutes: number | null;
-    scanCron: string | null;
-    requiredAgentLabel: string | null;
-    lastScan: LastScan | null;
-    openIssues: number;
-    tier?: AssetTier;
-}
+export type MonitoredContainer = Refine<
+    Schema<'ContainerSummary'>,
+    {
+        id: number;
+        imageName: string;
+        tag: string;
+        /** Computed by the server: the form a registry expects. */
+        reference: string;
+        registry: string | null;
+        scanIntervalMinutes: number | null;
+        scanCron: string | null;
+        requiredAgentLabel: string | null;
+        lastScan: LastScan | null;
+        tier?: AssetTier;
+    }
+>;
 
 export interface NewContainer {
     registry?: string;
@@ -1639,87 +1641,89 @@ export type AttackPathGraph = Refine<
 /* que l'auditeur a sous les yeux.                                           */
 /* ------------------------------------------------------------------------- */
 
-export interface RegisteredVerdict {
-    id: string;
-    target_kind: string;
-    target_id: number | null;
-    passed: boolean;
-    evaluated: number;
-    violations: number;
-    counts_by_severity: Record<string, number>;
-    fail_on_severity: string | null;
-    policy_source: string | null;
-    policy_version: number | null;
-    relaxations_ignored: boolean;
-    decided_at: string;
-    decided_by: string | null;
-}
+export type RegisteredVerdict = Refine<
+    Schema<'RegisteredVerdict'>,
+    {
+        id: string;
+        target_kind: string;
+        decided_at: string;
+        counts_by_severity: Record<string, number>;
+        target_id: number | null;
+        fail_on_severity: string | null;
+        policy_source: string | null;
+        policy_version: number | null;
+        decided_by: string | null;
+    }
+>;
 
-export interface VerdictRegister {
-    verdicts: RegisteredVerdict[];
-    /** De *cette page*, non du registre : le compter en entier demanderait de le lire en entier. */
-    passed: number;
-    refused: number;
-    /** Où reprendre, ou `null` à la fin du registre. */
-    next_cursor: string | null;
-}
+export type VerdictRegister = Refine<
+    Schema<'VerdictRegister'>,
+    {
+        verdicts: RegisteredVerdict[];
+        /** Où reprendre, ou `null` à la fin du registre. */
+        next_cursor: string | null;
+    }
+>;
 
-export interface ExceptionEntry {
-    issue_id: number;
-    identifier: string | null;
-    severity: string | null;
-    target_kind: string;
-    target_id: number | null;
-    target_name: string | null;
-    decision: string;
-    justification: string | null;
-    comment: string | null;
-    actor: string | null;
-    origin: string | null;
-    decided_at: string | null;
-    expires_at: string | null;
-    lapsed: boolean;
-    last_reviewed_at: string | null;
-    last_reviewed_by: string | null;
-}
+export type ExceptionEntry = Refine<
+    Schema<'ExceptionEntry'>,
+    {
+        issue_id: number;
+        target_kind: string;
+        decision: string;
+        identifier: string | null;
+        severity: string | null;
+        target_id: number | null;
+        target_name: string | null;
+        justification: string | null;
+        comment: string | null;
+        actor: string | null;
+        origin: string | null;
+        decided_at: string | null;
+        expires_at: string | null;
+        last_reviewed_at: string | null;
+        last_reviewed_by: string | null;
+    }
+>;
 
-export interface ExceptionsRegister {
-    entries: ExceptionEntry[];
-    granted: number;
-    awaiting_approval: number;
-    lapsed: number;
-    never_reviewed: number;
-    next_cursor: string | null;
-}
+export type ExceptionsRegister = Refine<
+    Schema<'Register'>,
+    { entries: ExceptionEntry[]; next_cursor: string | null }
+>;
 
 export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';
 
-export interface RemediationBySeverity {
-    severity: string;
-    windowDays: number;
-    withinSla: number;
-    late: number;
-    percentageWithinSla: number | null;
-    medianDays: number | null;
-    ninetiethDays: number | null;
-    openOverdue: number;
-    oldestOpenDays: number | null;
-}
+export type RemediationBySeverity = Refine<
+    Schema<'BySeverity'>,
+    {
+        /** **En majuscules sur cette route, et sur elle seule** — le record rend l'énumération
+         *  Java telle quelle là où les autres passent par `wireName()`. */
+        severity: NonNullable<Schema<'BySeverity'>['severity']>;
+        percentageWithinSla: number | null;
+        medianDays: number | null;
+        ninetiethDays: number | null;
+        oldestOpenDays: number | null;
+    }
+>;
 
-export interface RemediationDistribution {
-    windowDays: number;
-    bySeverity: RemediationBySeverity[];
-    oldestOpenDays: number | null;
-    oldestOpenSeverity: string | null;
-}
+export type RemediationDistribution = Refine<
+    Schema<'RemediationDistribution'>,
+    {
+        bySeverity: RemediationBySeverity[];
+        oldestOpenDays: number | null;
+        oldestOpenSeverity: NonNullable<Schema<'RemediationDistribution'>['oldestOpenSeverity']> | null;
+    }
+>;
 
-export interface RuleCoverageAssessment {
-    state: 'UNCONFIGURED' | 'PARTIAL' | 'COVERED';
-    languagesWithRules: string[];
-    ecosystemsInEstate: string[];
-    uncovered: string[];
-    ruleFiles: number;
-}
+export type RuleCoverageAssessment = Refine<
+    Schema<'Assessment'>,
+    {
+        state: NonNullable<Schema<'Assessment'>['state']>;
+        languagesWithRules: string[];
+        ecosystemsInEstate: string[];
+        uncovered: string[];
+    }
+>;
 
 /** Les quatre unions de la déclaration d'applicabilité viennent du document. */
 export type Applicability = NonNullable<Schema<'Declaration'>['applicability']>;
@@ -1807,52 +1811,37 @@ export type ScopeView = Refine<
 
 export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
 
-export interface OwaspCoverageLine {
-    id: string;
-    title: string;
-    state: OwaspState;
-    findings: number;
-    because: string;
-}
+export type OwaspCoverageLine = Refine<
+    Schema<'CoverageLine'>,
+    { id: string; title: string; state: OwaspState; because: string }
+>;
 
-export interface OwaspGrid {
-    lines: OwaspCoverageLine[];
-    /** Combien des dix un scanner d'ici peut seulement regarder. **À lire avant le reste.** */
-    covered: number;
-    withFindings: number;
-    unmeasured: number;
-}
+/** `covered` dit combien des dix un scanner d'ici peut seulement regarder. **À lire avant le reste.** */
+export type OwaspGrid = Refine<Schema<'Grid'>, { lines: OwaspCoverageLine[] }>;
 
-export type ComplianceMovement = 'FIRST' | 'ESTATE_GREW' | 'ESTATE_SHRANK' | 'RULES_CHANGED' | 'IMPROVED' | 'DECLINED' | 'STEADY';
+export type ComplianceMovement = NonNullable<Schema<'Step'>['movement']>;
 
-export interface ComplianceSnapshot {
-    period: string;
-    framework: string;
-    score: number;
-    status: 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
-    targets: number;
-    observed: number;
-    fresh: number;
-    freshnessDays: number;
-    endOfLifeEnabled: boolean;
-    codeAnalysisReaches: boolean;
-    controlsTotal: number;
-    controlsDeclared: number;
-    soaFindings: number;
-    capturedAt: string;
-}
+export type ComplianceSnapshot = Refine<
+    Schema<'ComplianceSnapshot'>,
+    {
+        period: string;
+        framework: ComplianceFramework;
+        status: ComplianceStatus;
+        capturedAt: string;
+    }
+>;
 
-export interface ComplianceStep {
-    snapshot: ComplianceSnapshot;
-    delta: number;
-    movement: ComplianceMovement;
-    /** Une phrase, destinée à être citée sous le point. */
-    because: string;
-}
+export type ComplianceStep = Refine<
+    Schema<'Step'>,
+    {
+        snapshot: ComplianceSnapshot;
+        movement: ComplianceMovement;
+        /** Une phrase, destinée à être citée sous le point. */
+        because: string;
+    }
+>;
 
-export interface ComplianceSeries {
-    framework: string;
-    steps: ComplianceStep[];
-    /** **À lire avant la tendance** : un parc qui change n'a pas de tendance, il a une forme. */
-    comparable: boolean;
-}
+export type ComplianceSeries = Refine<
+    Schema<'Series'>,
+    { framework: ComplianceFramework; steps: ComplianceStep[] }
+>;
