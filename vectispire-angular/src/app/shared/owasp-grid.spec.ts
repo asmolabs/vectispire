@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { OwaspGridComponent } from './owasp-grid';
 import type { OwaspGrid } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -147,5 +148,98 @@ describe('la grille OWASP', () => {
         expect(text).toContain('partially in place');
         expect(text).toContain('c.moreau');
         expect(text).toContain('QUAL-2026');
+    });
+
+    /**
+     * Le formulaire de déclaration, et les deux endroits où il refuse.
+     *
+     * <p>Ce sont les refus du serveur, dits par un bouton éteint plutôt qu'après la frappe — et ce
+     * sont ceux d'ISO 27001, qui ne parlent d'aucun référentiel : une exclusion sans motif est une
+     * ligne qui sort du périmètre sans dire pourquoi, une preuve déclarée ailleurs sans dire où est
+     * la même omission déplacée.
+     */
+    describe('la déclaration', () => {
+        function asSecurityLead(): void {
+            TestBed.inject(SessionStore).open('a-token', {
+                username: 'c.moreau',
+                displayName: null,
+                role: 'CISO',
+                mustChangePassword: false,
+                mfaEnabled: false
+            });
+        }
+
+        it("ne s'offre que là où rien ne mesure", () => {
+            asSecurityLead();
+            const component = fixture.componentInstance;
+
+            // A05 porte des constats : une déclaration posée à côté d'une mesure est une seconde
+            // source, et c'est la mesure qui perdrait.
+            expect(component.declarable(component.lines()[1])).toBe(false);
+            expect(component.declarable(component.lines()[0])).toBe(true);
+        });
+
+        it("ne s'offre pas à qui ne peut pas l'écrire", () => {
+            // Le serveur refuse, et un bouton qui répond 403 dit que le produit est cassé plutôt
+            // que que l'action n'est pas la sienne.
+            expect(fixture.componentInstance.declarable(fixture.componentInstance.lines()[0])).toBe(false);
+        });
+
+        it('refuse une exclusion sans motif, et une preuve externe sans adresse', () => {
+            asSecurityLead();
+            const component = fixture.componentInstance;
+            component.openDeclare(component.lines()[0]);
+
+            component.applicability = 'EXCLUDED';
+            component.justification = '';
+            expect(component.incomplete()).toBe(true);
+
+            component.justification = 'Traitée par la revue de conception.';
+            expect(component.incomplete()).toBe(false);
+
+            component.applicability = 'APPLICABLE';
+            component.evidenceSource = 'EXTERNAL';
+            component.externalEvidence = '';
+            expect(component.incomplete()).toBe(true);
+
+            component.externalEvidence = 'Dossier QUAL-2026';
+            expect(component.incomplete()).toBe(false);
+        });
+
+        /**
+         * <b>`EXTERNAL` par défaut, et non `VECTISPIRE`.</b> La catégorie déclarée est celle que ce
+         * produit ne mesure pas : proposer sa propre preuve par défaut inviterait à cocher la seule
+         * réponse que la case contredit.
+         */
+        it('propose une preuve externe par défaut, puisque ce produit ne la détient pas', () => {
+            asSecurityLead();
+            const component = fixture.componentInstance;
+
+            component.openDeclare(component.lines()[0]);
+
+            expect(component.evidenceSource).toBe('EXTERNAL');
+        });
+
+        it('envoie la déclaration sur la catégorie de la ligne, et recharge la grille', () => {
+            asSecurityLead();
+            const component = fixture.componentInstance;
+            component.openDeclare(component.lines()[0]);
+            component.justification = 'Revue de conception à chaque évolution majeure.';
+            component.externalEvidence = 'Dossier QUAL-2026';
+            component.owner = 'c.moreau';
+
+            component.submit();
+
+            const sent = http.expectOne({ method: 'PUT', url: '/api/v1/owasp/coverage/A01/declaration' });
+            expect(sent.request.body.applicability).toBe('APPLICABLE');
+            expect(sent.request.body.evidence_source).toBe('EXTERNAL');
+            expect(sent.request.body.external_evidence).toBe('Dossier QUAL-2026');
+            sent.flush({});
+
+            // Rechargée plutôt que fusionnée sur place : la grille porte des compteurs, et les
+            // recalculer dans le navigateur en ferait une seconde implémentation.
+            http.expectOne((call) => call.url === '/api/v1/owasp/coverage').flush(GRID);
+            expect(component.editing()).toBeNull();
+        });
     });
 });

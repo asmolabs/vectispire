@@ -52,6 +52,13 @@
                                     échéance — c'est la différence entre constater une limite et
                                     l'assumer.
                                 -->
+                                @if (declarable(line)) {
+                                    <div class="mt-1">
+                                        <p-button
+                                            [label]="(line.declaration ? 'owasp_grid.revise' : 'owasp_grid.declare') | translate"
+                                            size="small" [text]="true" (onClick)="openDeclare(line)" />
+                                    </div>
+                                }
                                 @if (line.declaration; as declared) {
                                     <div class="mt-1 text-sm">
                                         <span class="font-medium">{{ 'owasp_grid.declared.' + declared.applicability | translate }}</span>
@@ -90,3 +97,87 @@
         <p class="text-muted-color text-sm mt-2" style="max-width: 74ch">{{ 'owasp_grid.footnote' | translate }}</p>
     </div>
 }
+
+<!--
+    **Le même formulaire que la SoA, parce que c'est la même déclaration.** Une catégorie qu'aucun
+    scanner d'ici ne mesure n'a que cela pour porter une revue : qui l'affirme, avec quelle preuve,
+    et quand elle se revoit. Deux modèles de saisie sur une seule table divergeraient à la première
+    règle ajoutée d'un côté.
+-->
+<p-dialog [visible]="!!editing()" (visibleChange)="editing.set(null)" [modal]="true" [style]="{ width: '38rem' }"
+    [header]="'owasp_grid.dialog.title' | translate">
+    @if (editing(); as line) {
+        <div class="mb-4">
+            <div class="font-mono text-sm font-medium">{{ line.id }} — {{ line.title }}</div>
+            <div class="text-muted-color text-sm">{{ 'owasp_grid.dialog.why' | translate }}</div>
+        </div>
+
+        <div class="mb-4">
+            <label for="owasp-applicability" class="block font-medium mb-1">{{ 'owasp_grid.dialog.applicability' | translate }}</label>
+            <select id="owasp-applicability" [(ngModel)]="applicability"
+                class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+                <option value="APPLICABLE">{{ 'owasp_grid.declared.APPLICABLE' | translate }}</option>
+                <option value="EXCLUDED">{{ 'owasp_grid.declared.EXCLUDED' | translate }}</option>
+            </select>
+        </div>
+
+        @if (applicability === 'APPLICABLE') {
+            <div class="mb-4">
+                <label for="owasp-implementation" class="block font-medium mb-1">{{ 'owasp_grid.dialog.implementation' | translate }}</label>
+                <select id="owasp-implementation" [(ngModel)]="implementation"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+                    <option value="IMPLEMENTED">{{ 'owasp_grid.implementation.IMPLEMENTED' | translate }}</option>
+                    <option value="PARTIALLY_IMPLEMENTED">{{ 'owasp_grid.implementation.PARTIALLY_IMPLEMENTED' | translate }}</option>
+                    <option value="PLANNED">{{ 'owasp_grid.implementation.PLANNED' | translate }}</option>
+                    <option value="NOT_IMPLEMENTED">{{ 'owasp_grid.implementation.NOT_IMPLEMENTED' | translate }}</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="owasp-evidence-source" class="block font-medium mb-1">{{ 'owasp_grid.dialog.evidence_source' | translate }}</label>
+                <select id="owasp-evidence-source" [(ngModel)]="evidenceSource"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+                    <option value="EXTERNAL">{{ 'owasp_grid.evidence_source.EXTERNAL' | translate }}</option>
+                    <option value="BOTH">{{ 'owasp_grid.evidence_source.BOTH' | translate }}</option>
+                    <option value="VECTISPIRE">{{ 'owasp_grid.evidence_source.VECTISPIRE' | translate }}</option>
+                </select>
+                <p class="text-muted-color text-xs mt-1">{{ 'owasp_grid.dialog.evidence_help' | translate }}</p>
+            </div>
+        }
+
+        @if (applicability !== 'APPLICABLE' || evidenceSource !== 'VECTISPIRE') {
+            <div class="mb-4">
+                <label for="owasp-external-evidence" class="block font-medium mb-1">{{ 'owasp_grid.dialog.external_evidence' | translate }}</label>
+                <input id="owasp-external-evidence" pInputText [(ngModel)]="externalEvidence" class="w-full" />
+            </div>
+        }
+
+        <div class="mb-4">
+            <label for="owasp-justification" class="block font-medium mb-1">
+                {{ applicability === 'EXCLUDED' ? ('owasp_grid.dialog.justification_excluded' | translate) : ('owasp_grid.dialog.justification' | translate) }}
+            </label>
+            <input id="owasp-justification" pInputText [(ngModel)]="justification" class="w-full" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="owasp-owner" class="block font-medium mb-1">{{ 'owasp_grid.dialog.owner' | translate }}</label>
+                <input id="owasp-owner" pInputText [(ngModel)]="owner" class="w-full" />
+            </div>
+            <div>
+                <label for="owasp-review-due" class="block font-medium mb-1">{{ 'owasp_grid.dialog.review_due' | translate }}</label>
+                <input id="owasp-review-due" type="date" [(ngModel)]="reviewDue"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent" />
+            </div>
+        </div>
+
+        @if (error()) {
+            <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
+        }
+
+        <div class="flex justify-end gap-2">
+            <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="editing.set(null)" />
+            <p-button [label]="'owasp_grid.dialog.record' | translate" [disabled]="incomplete() || busy()" (onClick)="submit()" />
+        </div>
+    }
+</p-dialog>

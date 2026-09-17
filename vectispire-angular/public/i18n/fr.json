@@ -1393,6 +1393,28 @@
     "update_failed": "Le périmètre n'a pas été modifié."
   },
   "owasp_grid": {
+    "declare": "Déclarer",
+    "revise": "Réviser",
+    "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "evidence_source": {
+      "VECTISPIRE": "Vectispire",
+      "BOTH": "Vectispire et une source externe",
+      "EXTERNAL": "Une source externe"
+    },
+    "dialog": {
+      "title": "Déclarer une catégorie",
+      "why": "Aucun scanner de ce déploiement ne produit de constat ici. Ce que l'organisation en dit tient lieu de mesure, et se revoit comme une mesure.",
+      "applicability": "Applicabilité",
+      "implementation": "Mise en œuvre",
+      "evidence_source": "Où vit la preuve",
+      "evidence_help": "Cette catégorie n'est pas mesurée ici : sa preuve vit ailleurs par construction.",
+      "external_evidence": "Où la trouver",
+      "justification": "Comment elle est traitée",
+      "justification_excluded": "Pourquoi elle ne s'applique pas",
+      "owner": "Qui en répond",
+      "review_due": "Prochaine revue",
+      "record": "Enregistrer"
+    },
     "declared": {
       "APPLICABLE": "Déclarée applicable",
       "EXCLUDED": "Déclarée hors périmètre"

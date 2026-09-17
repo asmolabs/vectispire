@@ -1287,6 +1287,28 @@
     "update_failed": "The scope was not changed."
   },
   "owasp_grid": {
+    "declare": "Declare",
+    "revise": "Revise",
+    "declare_failed": "The declaration was not recorded.",
+    "evidence_source": {
+      "VECTISPIRE": "Vectispire",
+      "BOTH": "Vectispire and an external source",
+      "EXTERNAL": "An external source"
+    },
+    "dialog": {
+      "title": "Declare a category",
+      "why": "No scanner in this deployment produces a finding here. What the organisation states stands in for the measurement, and is reviewed like one.",
+      "applicability": "Applicability",
+      "implementation": "Implementation",
+      "evidence_source": "Where the evidence lives",
+      "evidence_help": "This category is not measured here, so its evidence lives elsewhere by construction.",
+      "external_evidence": "Where to find it",
+      "justification": "How it is handled",
+      "justification_excluded": "Why it does not apply",
+      "owner": "Who answers for it",
+      "review_due": "Next review",
+      "record": "Record"
+    },
     "declared": {
       "APPLICABLE": "Declared applicable",
       "EXCLUDED": "Declared out of scope"

@@ -891,6 +891,16 @@ export class ApiService {
         return this.http.get<RemediationDistribution>('/api/v1/remediation/distribution', { params });
     }
 
+    /**
+     * Déclare ce qu'une catégorie devient quand aucun scanner d'ici ne la mesure.
+     *
+     * Le corps est celui de la SoA — mêmes règles, et elles ne parlent d'aucun référentiel en
+     * particulier : une déclaration doit dire ce qu'elle affirme et où vit sa preuve.
+     */
+    declareOwaspCategory(category: string, body: DeclarationRequest): Observable<ControlDeclaration> {
+        return this.http.put<ControlDeclaration>(`/api/v1/owasp/coverage/${category}/declaration`, body);
+    }
+
     owaspCoverage(): Observable<OwaspGrid> {
         return this.http.get<OwaspGrid>('/api/v1/owasp/coverage');
     }
