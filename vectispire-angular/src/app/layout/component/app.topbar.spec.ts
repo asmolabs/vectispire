@@ -40,7 +40,13 @@ describe('la barre du haut', () => {
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({
-            topbar: { sign_out: 'Sign out', password: 'Password', appearance: 'Appearance', language: 'Language' }
+            topbar: {
+                sign_out: 'Sign out',
+                password: 'Password',
+                account: 'Account',
+                appearance: 'Appearance',
+                language: 'Language'
+            }
         });
 
         session = TestBed.inject(SessionStore);
@@ -101,5 +107,27 @@ describe('la barre du haut', () => {
         pending.next();
         pending.complete();
         expect(session.isAuthenticated()).toBe(false);
+    });
+
+    /**
+     * **Le nom accessible, et non le texte du DOM.**
+     *
+     * <p>La feuille de style masque sans condition le libellé de ces boutons
+     * (`.layout-topbar-action span { display: none }`), si bien qu'ils n'avaient aucun nom : une
+     * aide à la lecture d'écran en annonçait trois, indistincts, dont celui qui ferme la session.
+     *
+     * <p>Rien ne le disait, et ce fichier est une raison. Il cherche le bouton par `textContent`,
+     * que jsdom expose parce qu'il n'applique aucune feuille de style — le test lisait un DOM que
+     * personne ne voit. Le navigateur, lui, l'a dit : la suite Playwright attendait cent vingt
+     * secondes un bouton nommé « Sign out », trois fois de suite, depuis le 15 septembre. Cette
+     * assertion-ci porte sur ce que les deux regardent.
+     */
+    it('nomme ses trois boutons pour autre chose que le DOM', () => {
+        const buttons: HTMLButtonElement[] = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('.layout-topbar-menu button')
+        );
+        const named = buttons.map((element) => element.getAttribute('aria-label'));
+
+        expect(named).toEqual(['Account', 'Password', 'Sign out']);
     });
 });

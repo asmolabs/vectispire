@@ -87,15 +87,29 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
             -->
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
-                    <button type="button" class="layout-topbar-action" routerLink="/account">
+                    <!--
+                        aria-label sur les trois, parce que le libellé visible n'existe pas.
+                        La feuille de style masque sans condition le texte de ces boutons
+                        (.layout-topbar-action span { display: none }) : ils n'ont donc aucun nom
+                        accessible, et une aide à la lecture d'écran en annonce trois sans les
+                        distinguer — dont celui qui ferme la session. Les boutons voisins de cette
+                        même barre en portent déjà un ; ceux-ci l'avaient perdu en passant du
+                        libellé en dur au gabarit traduit. Le span reste : c'est lui que la feuille
+                        de style montrera le jour où elle cessera de le cacher, et les deux disent
+                        la même chose puisqu'ils lisent la même clé.
+                    -->
+                    <button type="button" class="layout-topbar-action" routerLink="/account"
+                            [attr.aria-label]="'topbar.account' | translate">
                         <i class="pi pi-user"></i>
                         <span>{{ 'topbar.account' | translate }}</span>
                     </button>
-                    <button type="button" class="layout-topbar-action" routerLink="/change-password">
+                    <button type="button" class="layout-topbar-action" routerLink="/change-password"
+                            [attr.aria-label]="'topbar.password' | translate">
                         <i class="pi pi-key"></i>
                         <span>{{ 'topbar.password' | translate }}</span>
                     </button>
                     <button type="button" class="layout-topbar-action"
+                            [attr.aria-label]="'topbar.sign_out' | translate"
                             [disabled]="signingOut()" (click)="signOut()">
                         <i class="pi pi-sign-out"></i>
                         <span>{{ 'topbar.sign_out' | translate }}</span>
