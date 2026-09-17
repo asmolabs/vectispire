@@ -2987,7 +2987,7 @@ export interface components {
             justification?: string;
             status?: string;
         };
-        BySeverity: {
+        BySeverityView: {
             /** Format: int64 */
             late: number;
             /** Format: double */
@@ -3001,7 +3001,7 @@ export interface components {
             /** Format: double */
             percentageWithinSla?: number;
             /** @enum {string} */
-            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+            severity?: "critical" | "high" | "medium" | "low" | "negligible" | "unknown";
             /** Format: int32 */
             windowDays: number;
             /** Format: int64 */
@@ -4209,12 +4209,12 @@ export interface components {
             /** Format: int64 */
             openFindings: number;
         };
-        RemediationDistribution: {
-            bySeverity?: components["schemas"]["BySeverity"][];
+        RemediationDistributionView: {
+            bySeverity?: components["schemas"]["BySeverityView"][];
             /** Format: int64 */
             oldestOpenDays?: number;
             /** @enum {string} */
-            oldestOpenSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+            oldestOpenSeverity?: "critical" | "high" | "medium" | "low" | "negligible" | "unknown";
             /** Format: int32 */
             windowDays: number;
         };
@@ -7463,7 +7463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["RemediationDistribution"];
+                    "*/*": components["schemas"]["RemediationDistributionView"];
                 };
             };
         };

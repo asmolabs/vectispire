@@ -972,7 +972,7 @@
         },
         "type" : "object"
       },
-      "BySeverity" : {
+      "BySeverityView" : {
         "properties" : {
           "late" : {
             "format" : "int64",
@@ -999,7 +999,7 @@
             "type" : "number"
           },
           "severity" : {
-            "enum" : [ "CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN" ],
+            "enum" : [ "critical", "high", "medium", "low", "negligible", "unknown" ],
             "type" : "string"
           },
           "windowDays" : {
@@ -4267,11 +4267,11 @@
         "required" : [ "addressableByUpgrade", "beyondUpgrades", "openFindings" ],
         "type" : "object"
       },
-      "RemediationDistribution" : {
+      "RemediationDistributionView" : {
         "properties" : {
           "bySeverity" : {
             "items" : {
-              "$ref" : "#/components/schemas/BySeverity"
+              "$ref" : "#/components/schemas/BySeverityView"
             },
             "type" : "array"
           },
@@ -4280,7 +4280,7 @@
             "type" : "integer"
           },
           "oldestOpenSeverity" : {
-            "enum" : [ "CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN" ],
+            "enum" : [ "critical", "high", "medium", "low", "negligible", "unknown" ],
             "type" : "string"
           },
           "windowDays" : {
@@ -9725,7 +9725,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/RemediationDistribution"
+                  "$ref" : "#/components/schemas/RemediationDistributionView"
                 }
               }
             },

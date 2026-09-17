@@ -18,27 +18,21 @@ describe('les délais de correction', () => {
     let fixture: ComponentFixture<RemediationDelays>;
     let http: HttpTestingController;
 
-    /**
-     * **Les sévérités arrivent en majuscules sur cette route, et sur elle seule.** Le record rend
-     * l'énumération Java telle quelle là où les autres routes passent par `wireName()` — le
-     * backlog envoie `critical`, celle-ci envoie `CRITICAL`. L'écran n'en compare aucune à un
-     * littéral, donc rien ne casse ; la fixture, elle, doit dire ce qui arrive vraiment.
-     */
-    const DISTRIBUTION = asSchema('RemediationDistribution', {
+    const DISTRIBUTION = asSchema('RemediationDistributionView', {
             windowDays: 90,
             oldestOpenDays: 241,
-            oldestOpenSeverity: 'CRITICAL',
+            oldestOpenSeverity: 'critical',
             bySeverity: [
                 {
-                    severity: 'CRITICAL', windowDays: 7, withinSla: 17, late: 11,
+                    severity: 'critical', windowDays: 7, withinSla: 17, late: 11,
                     percentageWithinSla: 61, medianDays: 4.5, ninetiethDays: 38, openOverdue: 5, oldestOpenDays: 241
                 },
                 {
-                    severity: 'HIGH', windowDays: 30, withinSla: 141, late: 19,
+                    severity: 'high', windowDays: 30, withinSla: 141, late: 19,
                     percentageWithinSla: 88, medianDays: 6, ninetiethDays: 52, openOverdue: 12, oldestOpenDays: 118
                 },
                 {
-                    severity: 'LOW', windowDays: 0, withinSla: 0, late: 0,
+                    severity: 'low', windowDays: 0, withinSla: 0, late: 0,
                     percentageWithinSla: null, medianDays: 21, ninetiethDays: 147, openOverdue: 0, oldestOpenDays: 312
                 }
             ]
@@ -59,11 +53,11 @@ describe('les délais de correction', () => {
 
     it('ne prétend pas mesurer une gravité sans délai fixé', () => {
         const component = fixture.componentInstance;
-        // `LOW`, et non `low` : ce test cherchait la ligne en minuscules, donc il n'en trouvait
-        // aucune et le `!` la rendait `undefined` — `hasDeadline(undefined)` levait, et ne levait
-        // pas seulement parce que la fixture était fausse de la même façon. Deux erreurs qui
-        // s'accordent font un test vert.
-        const low = component.rows().find((row) => row.severity === 'LOW')!;
+        // `low`, comme le reste de l'API. Ce test cherchait déjà cette orthographe et ne trouvait
+        // aucune ligne, parce que la route était la seule à envoyer `LOW` — et sa fixture était
+        // fausse de la même façon, ce qui rendait l'absence invisible. La route est corrigée ;
+        // l'assertion, elle, était juste depuis le début.
+        const low = component.rows().find((row) => row.severity === 'low')!;
 
         expect(component.hasDeadline(low)).toBe(false);
     });

@@ -1712,12 +1712,17 @@ export type ExceptionsRegister = Refine<
 
 export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';
 
+/**
+ * La gravité arrive en minuscules, comme partout ailleurs dans cette API.
+ *
+ * Cette route était la seule à rendre l'énumération Java telle quelle — `CRITICAL` là où le backlog
+ * envoie `critical`. Une vue côté serveur l'épelle désormais comme le reste, et l'union vient du
+ * document plutôt que d'une liste tenue ici.
+ */
 export type RemediationBySeverity = Refine<
-    Schema<'BySeverity'>,
+    Schema<'BySeverityView'>,
     {
-        /** **En majuscules sur cette route, et sur elle seule** — le record rend l'énumération
-         *  Java telle quelle là où les autres passent par `wireName()`. */
-        severity: NonNullable<Schema<'BySeverity'>['severity']>;
+        severity: NonNullable<Schema<'BySeverityView'>['severity']>;
         percentageWithinSla: number | null;
         medianDays: number | null;
         ninetiethDays: number | null;
@@ -1726,11 +1731,13 @@ export type RemediationBySeverity = Refine<
 >;
 
 export type RemediationDistribution = Refine<
-    Schema<'RemediationDistribution'>,
+    Schema<'RemediationDistributionView'>,
     {
         bySeverity: RemediationBySeverity[];
         oldestOpenDays: number | null;
-        oldestOpenSeverity: NonNullable<Schema<'RemediationDistribution'>['oldestOpenSeverity']> | null;
+        oldestOpenSeverity:
+            | NonNullable<Schema<'RemediationDistributionView'>['oldestOpenSeverity']>
+            | null;
     }
 >;
 

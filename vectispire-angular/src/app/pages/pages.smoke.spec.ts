@@ -118,7 +118,7 @@ describe('every screen', () => {
             });
         }
         if (url.includes('/remediation/distribution')) {
-            return asSchema('RemediationDistribution', {
+            return asSchema('RemediationDistributionView', {
                 windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null
             });
         }

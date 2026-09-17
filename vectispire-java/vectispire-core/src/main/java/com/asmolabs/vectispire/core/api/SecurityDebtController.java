@@ -51,12 +51,12 @@ public class SecurityDebtController {
     @Operation(summary = "Remediation time distribution", description = "Share within SLA, median, ninetieth percentile and oldest open item, per severity.")
     @ApiResponse(responseCode = "200", description = "Distribution returned")
     @GetMapping("/distribution")
-    public RemediationDistribution distribution(
+    public RemediationDistributionView distribution(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false, defaultValue = "90") int days) {
 
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
-        return distribution.distribution(days, allowed);
+        return RemediationDistributionView.of(distribution.distribution(days, allowed));
     }
 
     @GetMapping("/debt")
