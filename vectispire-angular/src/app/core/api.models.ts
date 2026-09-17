@@ -909,19 +909,19 @@ export type CataloguePreview = Refine<
  * the tree it read, a finding links that scan to an issue, and a decision carries what was
  * concluded about that issue. The joining is the feature.
  */
-export interface HistoryRepository {
-    id: number;
-    name: string;
-    url: string;
-    branch: string;
-    /** The last version actually read. Null means nobody read one, not that there is none. */
-    version: string | null;
-    projectType: string | null;
-    scanCount: number;
-    lastScanAt: string | null;
-    openIssues: number;
-    decisions: number;
-}
+export type HistoryRepository = Refine<
+    Schema<'Repository'>,
+    {
+        id: number;
+        name: string;
+        url: string;
+        branch: string;
+        /** The last version actually read. Null means nobody read one, not that there is none. */
+        version: string | null;
+        projectType: string | null;
+        lastScanAt: string | null;
+    }
+>;
 
 export type HistoryDecision = Refine<
     Schema<'Decision'>,
@@ -941,42 +941,44 @@ export type HistoryDecision = Refine<
     }
 >;
 
-export interface HistoryIssue {
-    id: number;
-    type: string;
-    identifier: string | null;
-    severity: string | null;
-    packageName: string | null;
-    packageVersion: string | null;
-    filePath: string | null;
-    /** Where the issue stands **today**, not on the day of the scan. */
-    state: string;
-    triageStatus: string | null;
-    firstSeenAt: string | null;
-    resolvedAt: string | null;
-    decisions: HistoryDecision[];
-}
+export type HistoryIssue = Refine<
+    Schema<'ObservedIssue'>,
+    {
+        id: number;
+        type: string;
+        /** Where the issue stands **today**, not on the day of the scan. */
+        state: string;
+        identifier: string | null;
+        severity: string | null;
+        packageName: string | null;
+        packageVersion: string | null;
+        filePath: string | null;
+        triageStatus: string | null;
+        firstSeenAt: string | null;
+        resolvedAt: string | null;
+        decisions: HistoryDecision[];
+    }
+>;
 
-export interface HistoryScan {
-    id: number;
-    status: string;
-    branch: string;
-    version: string | null;
-    projectType: string | null;
-    createdAt: string;
-    durationMs: number | null;
-    findingsCount: number;
-    newIssuesCount: number;
-    resolvedIssuesCount: number;
-    error: string | null;
-    issues: HistoryIssue[];
-}
+export type HistoryScan = Refine<
+    Schema<'Scan'>,
+    {
+        id: number;
+        status: string;
+        branch: string;
+        createdAt: string;
+        version: string | null;
+        projectType: string | null;
+        durationMs: number | null;
+        error: string | null;
+        issues: HistoryIssue[];
+    }
+>;
 
-export interface HistoryDossier {
-    repository: HistoryRepository;
-    scans: HistoryScan[];
-    generatedAt: string;
-}
+export type HistoryDossier = Refine<
+    Schema<'Dossier'>,
+    { repository: HistoryRepository; scans: HistoryScan[]; generatedAt: string }
+>;
 
 /**
  * One place a component was catalogued.
@@ -1023,28 +1025,33 @@ export type InventoryResults = Refine<
  * interpreted — which is the point: this prose is model output derived from findings written by
  * the audited repository, and handing that to `innerHTML` would be an injection path.
  */
-export interface OwaspBlock {
-    kind: 'HEADING' | 'CATEGORY' | 'PARAGRAPH' | 'BULLET' | 'NUMBERED' | 'BLOCKQUOTE' | 'TABLE';
-    level: number;
-    marker: string | null;
-    text: string;
-    headers?: string[] | null;
-    rows?: string[][] | null;
-}
+export type OwaspBlock = Refine<
+    Schema<'Block'>,
+    {
+        kind: 'HEADING' | 'CATEGORY' | 'PARAGRAPH' | 'BULLET' | 'NUMBERED' | 'BLOCKQUOTE' | 'TABLE';
+        marker: string | null;
+        text: string;
+        headers?: string[] | null;
+        rows?: string[][] | null;
+    }
+>;
 
-export interface OwaspReport {
-    id: number;
-    status: 'completed' | 'failed';
-    /** The model that wrote it: comparing two reports without knowing this is a trap. */
-    model: string;
-    /** The model's answer as it came. Kept so nothing renders a report the raw text contradicts. */
-    content: string | null;
-    blocks: OwaspBlock[];
-    error: string | null;
-    /** The scan it was built from — what dates it and names the version it describes. */
-    scanId: number;
-    createdAt: string;
-}
+export type OwaspReport = Refine<
+    Schema<'Report'>,
+    {
+        id: number;
+        status: 'completed' | 'failed';
+        /** The model that wrote it: comparing two reports without knowing this is a trap. */
+        model: string;
+        /** The model's answer as it came. Kept so nothing renders a report the raw text contradicts. */
+        content: string | null;
+        blocks: OwaspBlock[];
+        error: string | null;
+        /** The scan it was built from — what dates it and names the version it describes. */
+        scanId: number;
+        createdAt: string;
+    }
+>;
 
 /** What the configured model endpoint answered when asked what it offers. */
 export type OllamaCheck = Refine<
@@ -1491,40 +1498,42 @@ export type GlobalAttackSurface = Refine<
 
 export type ChangeType = 'ADDED' | 'REMOVED' | 'VERSION_CHANGED' | 'LICENSE_CHANGED' | 'UNCHANGED';
 
-export interface ComponentDelta {
-    name: string;
-    purl: string | null;
-    type: string | null;
-    isDirect: boolean | null;
-    oldVersion: string | null;
-    newVersion: string | null;
-    oldLicense: string | null;
-    newLicense: string | null;
-    changeType: ChangeType;
-}
+export type ComponentDelta = Refine<
+    Schema<'ComponentDelta'>,
+    {
+        name: string;
+        changeType: ChangeType;
+        type: string | null;
+        purl: string | null;
+        oldVersion: string | null;
+        newVersion: string | null;
+        oldLicense: string | null;
+        newLicense: string | null;
+    }
+>;
 
-export interface CveDelta {
-    cveId: string;
-    severity: string | null;
-    packageName: string | null;
-    version: string | null;
-    status: 'INTRODUCED' | 'RESOLVED' | 'PERSISTENT';
-}
+export type CveDelta = Refine<
+    Schema<'CveDelta'>,
+    {
+        cveId: string;
+        packageName: string;
+        severity: string;
+        status: NonNullable<Schema<'CveDelta'>['status']>;
+        version: string | null;
+    }
+>;
 
-export interface SbomDiffReport {
-    fromScanId: number;
-    toScanId: number;
-    fromVersion: string;
-    toVersion: string;
-    addedCount: number;
-    removedCount: number;
-    versionChangedCount: number;
-    licenseChangedCount: number;
-    introducedCveCount: number;
-    resolvedCveCount: number;
-    componentDeltas: ComponentDelta[];
-    cveDeltas: CveDelta[];
-}
+export type SbomDiffReport = Refine<
+    Schema<'SbomDiffReport'>,
+    {
+        fromScanId: number;
+        toScanId: number;
+        componentDeltas: ComponentDelta[];
+        cveDeltas: CveDelta[];
+        fromVersion: string | null;
+        toVersion: string | null;
+    }
+>;
 
 export type HighImpactFix = Refine<
     Schema<'HighImpactFix'>,
