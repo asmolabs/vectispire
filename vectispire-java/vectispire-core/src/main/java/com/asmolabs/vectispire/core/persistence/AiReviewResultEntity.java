@@ -36,6 +36,17 @@ public class AiReviewResultEntity {
     @Column(name = "prompt", nullable = false)
     private String prompt;
 
+    /**
+     * What the model was actually shown: the evidence digest, not the instruction.
+     *
+     * <p>The prompt above is static. This is the half that decides what the prose says, and it was
+     * computed, handed over and dropped — which left the report unverifiable in the only way that
+     * matters, since the issues it was built from have moved on and nobody can recompute it.
+     */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "inputs")
+    private String inputs;
+
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "response")
     private String response;
@@ -75,6 +86,14 @@ public class AiReviewResultEntity {
 
     public String getPrompt() {
         return prompt;
+    }
+
+    public String getInputs() {
+        return inputs;
+    }
+
+    public void setInputs(String inputs) {
+        this.inputs = inputs;
     }
 
     public void setPrompt(String prompt) {

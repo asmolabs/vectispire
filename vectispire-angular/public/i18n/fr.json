@@ -725,6 +725,8 @@
     "backup_codes_desc": "Enregistrez ces codes de récupération à usage unique dans un gestionnaire de mots de passe sécurisé. Ils vous permettront de vous connecter en cas de perte de votre appareil."
   },
   "owasp": {
+    "inputs_title": "Ce que le modèle a reçu",
+    "inputs_help": "Le relevé de constats fourni au modèle, conservé tel quel. Le texte ci-dessous est un commentaire et non une mesure : rien de ce qu'il affirme ne devient un constat, n'atteint une barrière, ni ne fait bouger une case de la grille.",
     "title": "Rapport OWASP",
     "subtitle": "Rapport de posture Top 10 (2021) rédigé par le modèle configuré à partir des constats des scanners.",
     "repo_label": "Dépôt",

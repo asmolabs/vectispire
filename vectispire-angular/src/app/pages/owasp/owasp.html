@@ -70,6 +70,27 @@
                 {{ current.error }}
             </p-message>
         } @else {
+            <!--
+                What the model was shown, offered beside what it answered — and closed by default,
+                because a reader who does not ask for it is reading prose, not auditing it.
+
+                The prose below is a commentary and not a measurement: nothing it says becomes an
+                issue, reaches a gate, or moves a square of the grid above. That was already true in
+                the code and said nowhere a reader would see it. Saying it here, next to the
+                evidence the model was given, is what lets somebody weigh the two.
+            -->
+            @if (current.inputs; as shown) {
+                <details class="mb-4 border rounded" style="border-color: var(--surface-border)">
+                    <summary class="cursor-pointer px-3 py-2 text-sm font-medium">
+                        {{ 'owasp.inputs_title' | translate }}
+                    </summary>
+                    <p class="px-3 pt-2 pb-0 m-0 text-muted-color text-sm">
+                        {{ 'owasp.inputs_help' | translate }}
+                    </p>
+                    <pre class="px-3 pb-3 m-0 text-xs whitespace-pre-wrap font-mono">{{ shown }}</pre>
+                </details>
+            }
+
             <div class="owasp-report">
                 @for (block of current.blocks; track $index) {
                     @switch (block.kind) {

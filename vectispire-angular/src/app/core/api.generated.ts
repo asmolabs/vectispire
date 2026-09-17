@@ -4254,6 +4254,7 @@ export interface components {
             error?: string;
             /** Format: int64 */
             id?: number;
+            inputs?: string;
             model?: string;
             /** Format: int64 */
             scanId?: number;

@@ -78,6 +78,12 @@ public class OwaspController {
      *     comparing two reports written by different models without knowing it is a trap
      * @param content the model's answer as it came, kept so nothing renders a report the raw text
      *     could contradict
+     * @param inputs what the model was shown, kept beside what it answered. <b>This is what makes
+     *     the report traceable rather than merely dated.</b> The prompt is a static instruction;
+     *     the evidence digest is the half that decides what the prose says, and it cannot be
+     *     recomputed later because the issues it was built from have moved on. Without it a reader
+     *     can check when a claim was made and by which model, and nothing about what it was made
+     *     from
      * @param blocks the same answer parsed once, for a client that must place text into elements
      *     rather than interpret markup. Model prose derived from findings written by the audited
      *     repository is not something to hand a browser as HTML
@@ -90,6 +96,7 @@ public class OwaspController {
             List<OwaspMarkdown.Block> blocks,
             String error,
             Long scanId,
+            String inputs,
             Instant createdAt) {}
 
     @GetMapping
@@ -186,6 +193,7 @@ public class OwaspController {
                 OwaspMarkdown.parse(result.getResponse()),
                 result.getError(),
                 result.getScanId(),
+                result.getInputs(),
                 result.getCreatedAt());
     }
 }

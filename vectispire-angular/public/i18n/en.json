@@ -725,6 +725,8 @@
     "backup_codes_desc": "Save these single-use recovery codes in a secure password manager. They allow you to sign in if you lose your authenticator device."
   },
   "owasp": {
+    "inputs_title": "What the model was given",
+    "inputs_help": "The findings digest handed to the model, kept as it stands. The text below is a commentary and not a measurement: nothing it asserts becomes an issue, reaches a gate, or moves a square of the grid.",
     "title": "OWASP report",
     "subtitle": "A Top 10 (2021) posture report written by the configured model, from what the scanners found.",
     "repo_label": "Repository",

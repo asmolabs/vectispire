@@ -1089,6 +1089,14 @@ export type OwaspReport = Refine<
         error: string | null;
         /** The scan it was built from — what dates it and names the version it describes. */
         scanId: number;
+        /**
+         * What the model was shown, kept beside what it answered.
+         *
+         * **This is what makes the report traceable rather than merely dated.** The prompt is a
+         * static instruction; the evidence digest is the half that decides what the prose says, and
+         * it cannot be recomputed later because the issues it was built from have moved on.
+         */
+        inputs: string | null;
         createdAt: string;
     }
 >;

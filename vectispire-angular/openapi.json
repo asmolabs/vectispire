@@ -4335,6 +4335,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "inputs" : {
+            "type" : "string"
+          },
           "model" : {
             "type" : "string"
           },

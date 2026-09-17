@@ -109,6 +109,10 @@ public class OwaspReviewService {
         result.setScanId(scan.getId());
         result.setModel(models.selectedModel());
         result.setPrompt(OwaspReview.PROMPT);
+        // **Kept, because a report nobody can trace to its input is not evidence of anything.**
+        // The prompt is the instruction; this is what the model was shown, and the two answer
+        // different questions about a document somebody may have to defend.
+        result.setInputs(digest);
         result.setCreatedAt(clock.instant());
 
         try {

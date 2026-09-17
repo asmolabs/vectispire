@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Owasp } from './owasp';
 import { asSchema } from '@/app/core/testing/contract';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
  * The OWASP screen.
@@ -33,6 +34,18 @@ describe('the OWASP report screen', () => {
             imports: [Owasp],
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
+
+        // The labels come from the bundle: asserting on unresolved keys would prove `t()` was
+        // called and nothing about what a reader sees.
+        TestBed.inject(I18nService).translations.set({
+            owasp: {
+                inputs_title: 'What the model was given',
+                inputs_help:
+                    'The findings digest handed to the model, kept as it stands. The text below is a ' +
+                    'commentary and not a measurement: nothing it asserts becomes an issue, reaches a ' +
+                    'gate, or moves a square of the grid.'
+            }
+        });
 
         fixture = TestBed.createComponent(Owasp);
         http = TestBed.inject(HttpTestingController);
@@ -136,5 +149,52 @@ describe('the OWASP report screen', () => {
 
         expect(fixture.componentInstance.running()).toBe(false);
         expect(fixture.componentInstance.error()).not.toBeNull();
+    });
+
+    /**
+     * **What the model was given, offered beside what it answered.**
+     *
+     * A report used to carry its prompt, its model and its scan — and not its input. The prompt is
+     * a static instruction; the evidence digest is the half that decides what the prose says, and
+     * it cannot be recomputed later because the issues it was built from have moved on. Without it
+     * a reader can check when a claim was made and by which model, and nothing about what it was
+     * made from.
+     */
+    it('offers the evidence the model was shown, beside what it wrote', () => {
+        runProducing({
+            id: 3,
+            status: 'completed',
+            model: 'gemma4:e4b',
+            content: '## A03 — Injection\n\nA finding.',
+            blocks: [{ kind: 'CATEGORY', level: 2, marker: null, text: 'A03 — Injection' }],
+            error: null,
+            scanId: 34,
+            inputs: '=== DATA ===\nRepository: arm-libs\nOpen findings: 2',
+            createdAt: '2026-09-17T09:00:00Z'
+        });
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Repository: arm-libs');
+        // Said where a reader sees it, not only in the code: the prose is a commentary, and nothing
+        // it asserts becomes a finding or reaches a gate.
+        expect(text).toContain('nothing it asserts becomes an issue');
+    });
+
+    it('says nothing about an input a report was stored without', () => {
+        // Reports written before the column existed have none. An empty block would invite the
+        // reader to conclude the model was shown nothing, which is a different claim.
+        runProducing({
+            id: 4,
+            status: 'completed',
+            model: 'gemma4:e4b',
+            content: '## A03\n\nA finding.',
+            blocks: [{ kind: 'CATEGORY', level: 2, marker: null, text: 'A03' }],
+            error: null,
+            scanId: 34,
+            inputs: null,
+            createdAt: '2026-09-17T09:00:00Z'
+        });
+
+        expect(fixture.nativeElement.textContent as string).not.toContain('What the model was given');
     });
 });
