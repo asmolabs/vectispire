@@ -85,6 +85,32 @@ dependencies {
     implementation(platform(libs.spring.boot.bom))
     testImplementation(platform(libs.spring.boot.bom))
 
+    /*
+     * **Tomcat, une version devant ce que Spring Boot gère — et c'est temporaire par construction.**
+     *
+     * Trois avis critiques portent sur `tomcat-embed-core` avant 11.0.25 (GHSA-9xv2-5v5q-p794,
+     * GHSA-h3x4-894j-xpx5, GHSA-gcx9-497g-6cp6). Le BOM de Spring Boot 4.1.1 s'arrête à 11.0.24 :
+     * monter Spring Boot règle jackson et log4j, pas celui-ci. La barrière de vulnérabilités du
+     * pipeline échoue dessus, et un produit qui refuse aux autres ce qu'il tolère chez lui n'a pas
+     * d'argument.
+     *
+     * `require` et non `strictly` : la contrainte pose un plancher, elle ne fige rien. Le jour où
+     * le BOM passe à 11.0.25 ou au-delà, c'est lui qui gagne et ce bloc devient du bruit — **le
+     * supprimer est alors la bonne action**, et cette phrase est là pour que personne n'ait à se
+     * demander s'il ose.
+     *
+     * Les trois artefacts ensemble : `el` et `websocket` sont versionnés avec `core` en amont, et
+     * n'en monter qu'un produirait un écart que rien ne rattrape.
+     */
+    constraints {
+        listOf("tomcat-embed-core", "tomcat-embed-el", "tomcat-embed-websocket").forEach { artifact ->
+            implementation("org.apache.tomcat.embed:$artifact") {
+                version { require("11.0.25") }
+                because("GHSA-9xv2-5v5q-p794, GHSA-h3x4-894j-xpx5, GHSA-gcx9-497g-6cp6")
+            }
+        }
+    }
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     // **Declared, though it was already on the classpath through docker-java's transport.**
     // `PinnedHttpSender` needs a client that takes a DNS resolver per instance, which the JDK's

@@ -1,6 +1,6 @@
 # Versions in one place, so that "which Spring Boot is this?" has exactly one answer.
 [versions]
-springBoot = "4.1.0"
+springBoot = "4.1.1"
 archunit = "1.4.1"
 junit = "6.0.1"
 assertj = "3.27.6"
