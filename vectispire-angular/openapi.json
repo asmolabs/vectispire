@@ -1027,6 +1027,13 @@
       },
       "CataloguePreview" : {
         "properties" : {
+          "categories" : {
+            "additionalProperties" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
           "commit" : {
             "type" : "string"
           },

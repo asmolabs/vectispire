@@ -3011,6 +3011,9 @@ export interface components {
             settings?: components["schemas"]["SettingView"][];
         };
         CataloguePreview: {
+            categories?: {
+                [key: string]: number;
+            };
             commit?: string;
             languages?: {
                 [key: string]: number;

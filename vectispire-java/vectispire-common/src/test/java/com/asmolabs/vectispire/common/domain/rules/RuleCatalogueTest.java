@@ -16,9 +16,13 @@ class RuleCatalogueTest {
     /** A minimal rule file, in the shape the selection actually reads: a `rules:` block with an id. */
     private static final String RULE = "rules:\n  - id: a.rule\n    languages: [python]\n";
 
+    /** La même, avec la catégorie que son auteur déclare — les deux éditions, comme en amont. */
+    private static final String TAGGED_RULE = "rules:\n  - id: a.rule\n    languages: [python]\n"
+            + "    metadata:\n      owasp:\n        - A01:2017 - Injection\n        - A03:2021 - Injection\n";
+
     private static final List<RuleCatalogue.Entry> ARCHIVE = List.of(
             new RuleCatalogue.Entry("LICENSE", "LGPL-2.1 with Commons Clause"),
-            new RuleCatalogue.Entry("python/flask/sqli.yaml", RULE),
+            new RuleCatalogue.Entry("python/flask/sqli.yaml", TAGGED_RULE),
             new RuleCatalogue.Entry("python/django/xss.yml", RULE),
             new RuleCatalogue.Entry("java/spring/rce.yaml", RULE),
             new RuleCatalogue.Entry("java/README.md", "not a rule"),
@@ -160,6 +164,26 @@ class RuleCatalogueTest {
             // offered as one would have somebody select scaffolding and get nothing.
             assertThat(contents.languages()).containsExactly(
                     java.util.Map.entry("java", 1), java.util.Map.entry("python", 2));
+        }
+
+        /**
+         * <b>Ce que le catalogue couvre, avant de l'importer.</b>
+         *
+         * <p>La grille OWASP marque une catégorie « non couverte » quand aucune règle installée ne
+         * la déclare. La question « peut-on couvrir A09 ici » n'est donc pas une limite du produit,
+         * c'est une propriété du catalogue — et on ne pouvait y répondre qu'après l'avoir importé,
+         * ce qui est l'ordre inverse de celui qu'un opérateur veut.
+         *
+         * <p>Seule l'édition 2021 compte, pour la raison que {@code OwaspTag} donne : {@code A01}
+         * désigne l'injection en 2017 et le contrôle d'accès en 2021, et compter les deux placerait
+         * des règles d'injection sous une catégorie qu'elles ne couvrent pas.
+         */
+        @Test
+        @DisplayName("compte les catégories OWASP que les règles déclarent, édition 2021 seule")
+        void categoriesAreCounted() {
+            RuleCatalogue.Contents contents = RuleCatalogue.describe(ARCHIVE, "LICENSE");
+
+            assertThat(contents.categories()).containsExactly(java.util.Map.entry("A03", 1));
         }
 
         @Test

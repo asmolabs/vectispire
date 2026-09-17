@@ -931,6 +931,15 @@ export type CataloguePreview = Refine<
         licence_sha256: string;
         /** Language to rule count, so a choice is made on a number rather than on a name. */
         languages: Record<string, number>;
+        /**
+         * Catégorie OWASP au nombre de règles qui la déclarent.
+         *
+         * **Répond avant l'import à une question qu'on ne pouvait poser qu'après.** La grille
+         * marque une catégorie « non couverte » quand aucune règle installée ne la déclare — donc
+         * une case grise dit soit une limite du produit, soit un import qui n'a pas été fait, et
+         * rien ne permettait de savoir laquelle.
+         */
+        categories: Record<string, number>;
     }
 >;
 

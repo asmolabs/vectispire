@@ -73,6 +73,10 @@ public class RuleSetsController {
     /**
      * @param languages how many rule files each holds, so a choice is made on a number rather
      *     than on a name
+     * @param categories how many rule files declare each OWASP category. <b>Répond avant l'import
+     *     à une question qu'on ne pouvait poser qu'après.</b> La grille marque une catégorie « non
+     *     couverte » quand aucune règle installée ne la déclare ; savoir ce que ce catalogue
+     *     contient dit si c'est une limite du produit ou un import qui n'a pas été fait
      * @param licence the text at this tag, shown in full. Not summarised: a summary of a licence
      *     is an opinion about a licence
      * @param licenceSha256 echoed back on acceptance, which is what binds the two together
@@ -83,7 +87,8 @@ public class RuleSetsController {
             String licenceName,
             String licence,
             @JsonProperty("licence_sha256") String licenceSha256,
-            Map<String, Integer> languages) {}
+            Map<String, Integer> languages,
+            Map<String, Integer> categories) {}
 
     public record CatalogueRequest(
             String commit, List<String> languages, @JsonProperty("licence_sha256") String licenceSha256) {}
@@ -163,7 +168,8 @@ public class RuleSetsController {
                 RuleCatalogue.LICENCE,
                 fetched.contents().licence(),
                 fetched.licenceSha256(),
-                fetched.contents().languages());
+                fetched.contents().languages(),
+                fetched.contents().categories());
     }
 
     /**

@@ -62,6 +62,21 @@ export class RuleSets {
         return Object.entries(preview.languages).map(([name, count]) => ({ name, count }));
     }
 
+    /**
+     * Les catégories OWASP que ce catalogue couvre, triées par identifiant.
+     *
+     * **Ce que ça répond.** La grille OWASP marque une catégorie « non couverte » quand aucune
+     * règle installée ne la déclare. Une case grise disait donc deux choses très différentes — le
+     * produit ne sait pas regarder là, ou personne n'a importé les règles qui savent — et rien ne
+     * permettait de les distinguer sans importer d'abord, ce qui est l'ordre inverse de celui
+     * qu'un opérateur veut.
+     */
+    categoriesOf(preview: CataloguePreview): { id: string; count: number }[] {
+        return Object.entries(preview.categories)
+            .map(([id, count]) => ({ id, count }))
+            .sort((a, b) => a.id.localeCompare(b.id));
+    }
+
     choose(language: string, selected: boolean): void {
         const next = new Set(this.chosen());
         selected ? next.add(language) : next.delete(language);

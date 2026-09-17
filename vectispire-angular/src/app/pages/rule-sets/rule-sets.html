@@ -116,6 +116,29 @@
                 </div>
 
                 <!--
+                    Ce que ce catalogue couvre du Top 10, avant de l'importer. Une case grise de la
+                    grille OWASP dit soit « aucun scanner d'ici ne regarde là », soit « les règles
+                    qui regardent n'ont pas été importées » — et rien ne permettait de trancher sans
+                    importer. Rendu vide, ce bloc est une réponse aussi : ce catalogue ne déclare
+                    aucune catégorie.
+                -->
+                <div class="font-medium mb-2">OWASP Top 10 declared by these rules</div>
+                @if (categoriesOf(preview); as categories) {
+                    @if (categories.length > 0) {
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            @for (category of categories; track category.id) {
+                                <p-tag severity="secondary" [value]="category.id + ' (' + category.count + ')'" />
+                            }
+                        </div>
+                    } @else {
+                        <p class="text-muted-color text-sm mb-4">
+                            No rule in this catalogue declares an OWASP category, so importing it
+                            moves no square of the grid.
+                        </p>
+                    }
+                }
+
+                <!--
                     Taking everything is the highest-risk option, so it is not the default
                     and it is not one click. A rule id enters an issue fingerprint, so the
                     larger the set the more triage a later tag bump can destroy — and a

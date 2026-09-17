@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.rules;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -117,10 +118,20 @@ public final class RuleCatalogue {
     /**
      * @param languages how many rule files each top-level directory holds, ordered by name so
      *     two fetches of the same tag present the same list
+     * @param categories how many rule files declare each OWASP category, read from their own
+     *     {@code metadata.owasp}. <b>C'est ce qui rend « hors de portée » vérifiable au lieu
+     *     d'affirmé.</b> La grille marque une catégorie non couverte quand aucune règle installée
+     *     ne la déclare — donc la question « peut-on couvrir A09 ici » n'est pas architecturale,
+     *     elle est empirique : ce catalogue en contient-il. Personne ne pouvait y répondre sans
+     *     importer d'abord, ce qui est l'ordre inverse de celui qu'on veut.
      * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Vectispire: a
      *     licence can change between tags, and a copy would let somebody accept the wrong one
      */
-    public record Contents(Map<String, Integer> languages, String licence, List<Entry> entries) {}
+    public record Contents(
+            Map<String, Integer> languages,
+            Map<String, Integer> categories,
+            String licence,
+            List<Entry> entries) {}
 
     /**
      * Refuses anything that is not a full commit SHA.
@@ -146,13 +157,21 @@ public final class RuleCatalogue {
     /** What the archive holds, grouped the way the operator will choose from it. */
     public static Contents describe(List<Entry> entries, String licence) {
         Map<String, Integer> byLanguage = new TreeMap<>();
+        Map<String, Integer> byCategory = new TreeMap<>();
         for (Entry entry : entries) {
+            if (!isRule(entry)) {
+                continue;
+            }
             String language = topLevelOf(entry.path());
-            if (language != null && isRule(entry)) {
+            if (language != null) {
                 byLanguage.merge(language, 1, Integer::sum);
             }
+            // Une règle peut en déclarer plusieurs ; chacune compte pour ce qu'elle couvre.
+            for (String category : OwaspTag.declaredIn(entry.content())) {
+                byCategory.merge(category, 1, Integer::sum);
+            }
         }
-        return new Contents(byLanguage, licence, entries);
+        return new Contents(byLanguage, byCategory, licence, entries);
     }
 
     /**
