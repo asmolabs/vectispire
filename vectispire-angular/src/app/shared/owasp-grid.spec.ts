@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { OwaspGridComponent } from './owasp-grid';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * La grille des dix, et la distinction qui la justifie.
@@ -21,17 +22,17 @@ describe('la grille OWASP', () => {
         return { id, title: id, state, findings, because: 'parce que.' };
     }
 
-    const GRID = {
-        lines: [
-            line('A01', 'NOT_COVERED'),
-            line('A05', 'FINDINGS', 3),
-            line('A06', 'NO_FINDING'),
-            line('A07', 'NOT_MEASURED')
-        ],
-        covered: 3,
-        withFindings: 1,
-        unmeasured: 1
-    };
+    const GRID = asSchema('Grid', {
+            lines: [
+                line('A01', 'NOT_COVERED'),
+                line('A05', 'FINDINGS', 3),
+                line('A06', 'NO_FINDING'),
+                line('A07', 'NOT_MEASURED')
+            ],
+            covered: 3,
+            withFindings: 1,
+            unmeasured: 1
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();

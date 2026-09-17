@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { Attestation } from './attestation';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The auditor's page.
@@ -42,21 +43,40 @@ describe('the attestation', () => {
     }, 20_000);
 
     function chain(intact: boolean, broken: string | null = null): void {
-        http.expectOne('/api/v1/audit-log/verify').flush({
-            total: 48219, unverifiable: 0, verified: 48219, intact, broken, mirrorConfigured: true
-        });
+        http.expectOne('/api/v1/audit-log/verify').flush(
+            // `mirrorConfigured` n'existe pas : le champ s'appelle `mirrored`, et trois compteurs
+            // que le serveur envoie toujours manquaient. Cet écran n'en lit aucun — la fixture
+            // décrivait simplement une réponse qui n'arrive jamais.
+            asSchema('Verification', {
+                total: 48219,
+                unverifiable: 0,
+                verified: 48219,
+                intact,
+                broken,
+                mirrored: true,
+                missingFromTable: 0,
+                missingFromMirror: 0
+            })
+        );
     }
 
     function compliance(): void {
-        http.expectOne((c) => c.url === '/api/v1/compliance/summary').flush({
-            evaluations: [
-                { framework: 'SOC_2', scorePercentage: 90, overallStatus: 'COMPLIANT', controls: [] },
-                { framework: 'NIS_2', scorePercentage: 92, overallStatus: 'COMPLIANT', controls: [] },
-                { framework: 'PCI_DSS', scorePercentage: 64, overallStatus: 'PARTIAL', controls: [] }
-            ],
-            mttr: { mttrBySeverityDays: {}, overallMttrDays: null, resolvedCount: 0 },
-            overdueCount: 0, dueSoonCount: 0, totalMonitoredTargets: 46
-        });
+        http.expectOne((c) => c.url === '/api/v1/compliance/summary').flush(
+            asSchema('ComplianceSummary', {
+                evaluations: [
+                    { framework: 'SOC_2', scorePercentage: 90, overallStatus: 'COMPLIANT', controls: [] },
+                    { framework: 'NIS_2', scorePercentage: 92, overallStatus: 'COMPLIANT', controls: [] },
+                    { framework: 'PCI_DSS', scorePercentage: 64, overallStatus: 'PARTIAL', controls: [] }
+                ],
+                mttr: { mttrBySeverityDays: {}, overallMttrDays: null, resolvedCount: 0 },
+                overdueCount: 0,
+                dueSoonCount: 0,
+                totalMonitoredTargets: 46,
+                passingGateTargets: 46,
+                observedTargets: 46,
+                freshTargets: 46
+            })
+        );
     }
 
     it('leads with the chain, and says how many entries it stands on', () => {

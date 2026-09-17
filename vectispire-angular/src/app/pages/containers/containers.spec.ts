@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Containers } from './containers';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The container list, as cards rather than rows.
@@ -15,14 +16,14 @@ describe('the container list', () => {
     let fixture: ComponentFixture<Containers>;
     let http: HttpTestingController;
 
-    const CONTAINER = {
-        id: 3,
-        imageName: 'nginx',
-        reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        openIssues: 12,
-        lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
-    };
+    const CONTAINER = asSchema('ContainerSummary', {
+            id: 3,
+            imageName: 'nginx',
+            reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+            tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+            openIssues: 12,
+            lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

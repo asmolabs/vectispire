@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RuleCoverageBanner } from './rule-coverage-banner';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * Le bandeau qui dit qu'une absence de constat est une absence de recherche.
@@ -30,7 +31,9 @@ describe('le bandeau de couverture des règles', () => {
 
         const call = http.expectOne((request) => request.url === '/api/v1/rule-sets/coverage');
         if (body) {
-            call.flush(body);
+            // Adossé ici plutôt qu'à chaque appel : le fabricant est le seul point par lequel une
+            // réponse entre, donc c'est le seul endroit où la vérifier une fois les couvre toutes.
+            call.flush(asSchema('Assessment', body));
         } else {
             call.error(new ProgressEvent('failed'));
         }

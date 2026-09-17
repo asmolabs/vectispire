@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CertifiedScope } from './certified-scope';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * Le périmètre certifié, et les deux façons de mal lire un nombre absent.
@@ -32,8 +33,13 @@ describe('le périmètre certifié', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
 
-        http.expectOne((call) => call.url === '/api/v1/compliance/scope')
-            .flush({ statement: 'Le SI de production.', coverage, targets: [{ kind: 'REPOSITORY', id: 7 }] });
+        http.expectOne((call) => call.url === '/api/v1/compliance/scope').flush(
+            asSchema('ScopeView', {
+                statement: 'Le SI de production.',
+                coverage,
+                targets: [{ kind: 'REPOSITORY', id: 7 }]
+            })
+        );
         http.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         http.expectOne((call) => call.url === '/api/v1/containers').flush([]);
     }

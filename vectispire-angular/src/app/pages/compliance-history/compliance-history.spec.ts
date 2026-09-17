@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ComplianceHistoryPage } from './compliance-history';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * La progression, et la couleur qu'elle refuse de donner à une baisse.
@@ -24,7 +25,7 @@ describe('la progression de la conformité', () => {
     let http: HttpTestingController;
 
     function step(period: string, score: number, movement: string, targets = 10) {
-        return {
+        return asSchema('Step', {
             snapshot: {
                 period, framework: 'ISO_27001', score, status: 'PARTIAL',
                 targets, observed: targets, fresh: targets, freshnessDays: 30,
@@ -35,7 +36,7 @@ describe('la progression de la conformité', () => {
             delta: 0,
             movement,
             because: 'parce que.'
-        };
+        });
     }
 
     async function mount(body: unknown[]) {

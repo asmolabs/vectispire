@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GateVerdicts } from './gate-verdicts';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * Le registre des verdicts, et le chiffre qu'il ne doit pas inventer.
@@ -45,7 +46,7 @@ describe('le registre des verdicts', () => {
         fixture = TestBed.createComponent(GateVerdicts);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
-        http.expectOne((call) => call.url === '/api/v1/gate/verdicts').flush(body);
+        http.expectOne((call) => call.url === '/api/v1/gate/verdicts').flush(asSchema('VerdictRegister', body));
     }
 
     beforeEach(async () => {

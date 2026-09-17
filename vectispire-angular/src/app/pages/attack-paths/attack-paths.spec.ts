@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AttackPaths } from './attack-paths';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The attack path screen, and the filter that decides what an operator is shown.
@@ -18,23 +19,37 @@ describe('the attack path graph', () => {
 
     const REPOSITORIES = [{ id: 7, name: 'exposed', url: 'ssh://git@example.invalid/exposed.git', branch: 'main' }];
 
-    const GRAPH = {
-        targetId: 7,
-        targetName: 'exposed',
-        totalPaths: 1,
-        criticalExploitablePaths: 1,
-        riskScore: 85,
-        nodes: [
-            { id: 'ingress-ext', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS', severity: 'INFO', isExploitable: true, subtitle: '', metadata: {} },
-            { id: 'ep-1', label: 'GET /api/admin/users', type: 'API_ENDPOINT', severity: 'CRITICAL', isExploitable: true, subtitle: '', metadata: {} },
-            { id: 'ep-2', label: 'GET /api/health', type: 'API_ENDPOINT', severity: 'MEDIUM', isExploitable: false, subtitle: '', metadata: {} },
-            { id: 'vuln-1', label: 'CVE-2021-44228', type: 'VULNERABLE_COMPONENT', severity: 'CRITICAL', isExploitable: true, subtitle: '', metadata: {} },
-            { id: 'vuln-2', label: 'CVE-2020-0001', type: 'VULNERABLE_COMPONENT', severity: 'MEDIUM', isExploitable: false, subtitle: '', metadata: {} },
-            { id: 'secret-1', label: 'aws-key', type: 'SECRET', severity: 'HIGH', isExploitable: false, subtitle: '', metadata: {} }
-        ],
-        edges: [],
-        attackPaths: [{ id: 'path-1', nodeIds: ['ingress-ext', 'ep-1', 'vuln-1', 'secret-1'], severity: 'CRITICAL', isExploitable: true, description: '' }]
-    };
+    const GRAPH = asSchema('AttackPathGraph', {
+            targetId: 7,
+            targetName: 'exposed',
+            totalPaths: 1,
+            criticalExploitablePaths: 1,
+            riskScore: 85,
+            nodes: [
+                { id: 'ingress-ext', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS', severity: 'INFO', isExploitable: true, subtitle: '', metadata: {} },
+                { id: 'ep-1', label: 'GET /api/admin/users', type: 'API_ENDPOINT', severity: 'CRITICAL', isExploitable: true, subtitle: '', metadata: {} },
+                { id: 'ep-2', label: 'GET /api/health', type: 'API_ENDPOINT', severity: 'MEDIUM', isExploitable: false, subtitle: '', metadata: {} },
+                { id: 'vuln-1', label: 'CVE-2021-44228', type: 'VULNERABLE_COMPONENT', severity: 'CRITICAL', isExploitable: true, subtitle: '', metadata: {} },
+                { id: 'vuln-2', label: 'CVE-2020-0001', type: 'VULNERABLE_COMPONENT', severity: 'MEDIUM', isExploitable: false, subtitle: '', metadata: {} },
+                { id: 'secret-1', label: 'aws-key', type: 'SECRET', severity: 'HIGH', isExploitable: false, subtitle: '', metadata: {} }
+            ],
+            edges: [],
+            // **Un chemin n'a ni `severity` ni `isExploitable` : ce sont les mots des nœuds.**
+            // La fixture les portait, et l'écran lit `riskLevel` et `isDirectlyExploitable` — donc
+            // l'étiquette de niveau de risque rendait `undefined` dans chaque test qui l'affichait,
+            // sans que rien n'échoue.
+            attackPaths: [
+                {
+                    id: 'path-1',
+                    title: 'Internet → API admin → Log4Shell',
+                    nodeIds: ['ingress-ext', 'ep-1', 'vuln-1', 'secret-1'],
+                    riskLevel: 'CRITICAL',
+                    isDirectlyExploitable: true,
+                    description: '',
+                    remediationAdvice: ''
+                }
+            ]
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();

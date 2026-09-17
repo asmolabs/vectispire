@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Owasp } from './owasp';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The OWASP screen.
@@ -47,7 +48,8 @@ describe('the OWASP report screen', () => {
     function runProducing(report: Record<string, unknown>): void {
         fixture.componentInstance.selected = 5;
         fixture.componentInstance.run();
-        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' }).flush(report);
+        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' })
+            .flush(asSchema('Report', report));
         fixture.detectChanges();
     }
 

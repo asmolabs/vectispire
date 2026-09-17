@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Repositories } from './repositories';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The repository list, as cards rather than rows.
@@ -17,23 +18,23 @@ describe('the repository list', () => {
     let fixture: ComponentFixture<Repositories>;
     let http: HttpTestingController;
 
-    const REPOSITORY = {
-        id: 5,
-        url: 'ssh://git@bitbucket.example.com/art/arm-libs-spring.git',
-        branch: 'master',
-        name: null,
-        displayName: 'Arm Libs Spring',
-        subPath: 'backend',
-        scanIntervalMinutes: null,
-        scanCron: null,
-        openIssues: 38,
-        lastScan: {
-            id: 34,
-            status: 'completed',
-            createdAt: '2026-08-21T05:03:00Z',
-            error: null
-        }
-    };
+    const REPOSITORY = asSchema('RepositorySummary', {
+            id: 5,
+            url: 'ssh://git@bitbucket.example.com/art/arm-libs-spring.git',
+            branch: 'master',
+            name: null,
+            displayName: 'Arm Libs Spring',
+            subPath: 'backend',
+            scanIntervalMinutes: null,
+            scanCron: null,
+            openIssues: 38,
+            lastScan: {
+                id: 34,
+                status: 'completed',
+                createdAt: '2026-08-21T05:03:00Z',
+                error: null
+            }
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
