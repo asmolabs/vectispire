@@ -428,6 +428,17 @@ tasks.named<Test>("test") {
         rootProject.file("../vectispire-angular/openapi.json"))
         .withPropertyName("documentsTheSuiteReads")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // Same trap, and the one that would bite hardest: `ExportVersionTest` compares the version in
+    // the build, the runtime default, the domain fallback and both npm manifests. A commit
+    // touching only `package.json` changes no Java source, so without these the task stays
+    // up-to-date and the drift ships — which is precisely the commit this guard exists for.
+    inputs.files(
+        rootProject.file("gradle.properties"),
+        rootProject.file("../package.json"),
+        rootProject.file("../vectispire-angular/package.json"))
+        .withPropertyName("versionDeclarations")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {

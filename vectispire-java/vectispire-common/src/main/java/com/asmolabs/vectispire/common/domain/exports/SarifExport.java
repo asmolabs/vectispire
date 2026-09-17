@@ -41,7 +41,7 @@ public final class SarifExport {
     public record Options(String targetName, String toolVersion, String informationUri) {
 
         public Options(String targetName) {
-            this(targetName, "1.0.0", null);
+            this(targetName, ExportDefaults.TOOL_VERSION, null);
         }
     }
 
@@ -114,7 +114,7 @@ public final class SarifExport {
 
         SarifLog.Driver driver = new SarifLog.Driver(
                 "Vectispire",
-                options.toolVersion() == null ? "1.0.0" : options.toolVersion(),
+                options.toolVersion() == null ? ExportDefaults.TOOL_VERSION : options.toolVersion(),
                 blankToNull(options.informationUri()),
                 List.copyOf(rules.values()));
 

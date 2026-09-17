@@ -28,7 +28,9 @@ public final class CsafExport {
     public static CsafDocument build(List<ExportableIssue> issues, Options options) {
         String target = options.targetName() == null || options.targetName().isBlank() ? "target" : options.targetName();
         String author = options.author() == null || options.author().isBlank() ? "Vectispire" : options.author();
-        String version = options.toolVersion() == null || options.toolVersion().isBlank() ? "1.0.0" : options.toolVersion();
+        String version = options.toolVersion() == null || options.toolVersion().isBlank()
+                ? ExportDefaults.TOOL_VERSION
+                : options.toolVersion();
         String namespace = options.namespace() == null || options.namespace().isBlank() ? "https://vectispire.internal" : options.namespace();
         Instant now = options.generatedAt() == null ? Instant.now() : options.generatedAt();
 
