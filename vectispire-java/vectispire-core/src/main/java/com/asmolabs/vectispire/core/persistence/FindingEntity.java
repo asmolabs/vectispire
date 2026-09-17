@@ -51,11 +51,11 @@ public class FindingEntity {
     private String filePath;
 
     /**
-     * La catégorie OWASP 2021 que la règle a déclarée sur elle-même, ou null.
+     * The OWASP 2021 category the rule declared about itself, or null.
      *
-     * <p>Conservée avec le constat plutôt que relue à l'affichage : la relire depuis l'ensemble
-     * de règles courant donnerait à un constat d'hier la catégorie d'une règle modifiée depuis,
-     * et la grille de l'an dernier changerait de forme en silence.
+     * <p>Kept with the finding rather than read again at display time: reading it from the current
+     * rule set would give yesterday's finding the category of a rule modified since, and last
+     * year's grid would silently change shape.
      */
     @Column(name = "owasp_category", length = 3)
     private String owaspCategory;

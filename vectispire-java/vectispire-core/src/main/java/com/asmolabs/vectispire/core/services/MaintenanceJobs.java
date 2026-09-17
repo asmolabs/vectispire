@@ -152,10 +152,10 @@ public class MaintenanceJobs {
             // since Monday, so the tick only has to be more frequent than the period.
             digest.runOnce();
 
-            // **Écrit à chaque passage, pas une fois par mois.** La capture réécrit la ligne du
-            // mois courant, si bien qu'un mois clos porte son état de fin de mois plutôt que celui
-            // du premier du mois. Un déclencheur mensuel donnerait l'inverse, et personne ne
-            // s'attend à ce que « août » désigne le 1er août.
+            // **Written on every pass, not once a month.** The capture rewrites the current
+            // month's row, so that a closed month carries its end-of-month state rather than the
+            // state on the first. A monthly trigger would give the opposite, and nobody expects
+            // "August" to mean 1 August.
             complianceHistory.capture();
 
             SessionCleanupService.CleanupResult cleaned = sessions.prune();

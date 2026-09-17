@@ -316,22 +316,21 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     Double findAvgDurationMsByStatusAndCreatedAtAfter(@Param("status") String status, @Param("after") Instant after);
 
     /**
-     * Les identifiants des derniers scans d'un dépôt, du plus récent au plus ancien.
+     * The identifiers of a repository's recent scans, newest first.
      *
-     * <p><b>Des identifiants, et non des entités.</b> Le comparateur de SBOM appelait
-     * {@code findAll()} puis filtrait et gardait deux lignes en Java : toutes les lignes de scan
-     * du déploiement chargées pour en retenir deux identifiants — et une ligne de scan transporte
-     * sa charge SBOM entière, des mégaoctets pièce, comme le dit déjà
-     * {@link #findByRepoId(Long)} un peu plus haut. Comparer deux scans d'un dépôt lisait donc les
-     * SBOM de tout le parc.
+     * <p><b>Identifiers, not entities.</b> The SBOM comparison called {@code findAll()} and then
+     * filtered and kept two rows in Java: every scan row in the deployment loaded to retain two
+     * identifiers — and a scan row carries its whole SBOM payload, megabytes apiece, as
+     * {@link #findByRepoId(Long)} already says a little above. Comparing two scans of one
+     * repository therefore read the SBOMs of the entire estate.
      *
-     * <p>La projection sur {@code s.id} est la moitié du correctif ; la borne est l'autre. Les
-     * deux ensemble font que le coût de cette lecture ne dépend plus de l'historique.
+     * <p>The projection onto {@code s.id} is half the fix; the bound is the other. Together they
+     * make the cost of this read independent of the history.
      */
     @Query("select s.id from ScanEntity s where s.repoId = :repoId order by s.id desc")
     List<Long> findRecentIdsByRepoId(@Param("repoId") Long repoId, Limit limit);
 
-    /** La moitié conteneur de {@link #findRecentIdsByRepoId}. */
+    /** The container half of {@link #findRecentIdsByRepoId}. */
     @Query("select s.id from ScanEntity s where s.containerId = :containerId order by s.id desc")
     List<Long> findRecentIdsByContainerId(@Param("containerId") Long containerId, Limit limit);
 }

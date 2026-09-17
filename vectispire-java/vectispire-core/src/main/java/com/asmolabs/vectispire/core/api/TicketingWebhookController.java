@@ -94,16 +94,16 @@ public class TicketingWebhookController {
 
         TicketProvider provider = providerOpt.get();
 
-        // **La seule porte anonyme du système, et elle ne clôt plus rien.** Elle ne peut pas
-        // exiger de session — l'appelant est le tracker — et sans secret configuré elle reste
-        // ouverte, parce que la fermer d'un coup arrêterait la synchronisation de tous les
-        // déploiements existants sans que personne ne s'en aperçoive.
+        // **The system's only anonymous door, and it no longer settles anything.** It cannot
+        // require a session — the caller is the tracker — and with no secret configured it stays
+        // open, because closing it outright would stop synchronisation on every existing
+        // deployment without anyone noticing.
         //
-        // Ce qui a changé est ce qu'elle peut faire une fois entrée. Elle proposait un triage qui
-        // se réglait sur-le-champ ; elle en propose un qui part en approbation. Le secret reste
-        // ce qui sépare le tracker de quiconque a deviné une référence de ticket, et il reste
-        // vivement recommandé — mais il n'est plus la seule chose entre un inconnu et un
-        // « non affecté » dans un document signé.
+        // What changed is what it can do once inside. It used to offer a triage that settled on
+        // the spot; it offers one that goes to approval. The secret is still what separates the
+        // tracker from anyone who has guessed a ticket reference, and it is still strongly
+        // recommended — but it is no longer the only thing between a stranger and a
+        // "not affected" in a signed document.
         WebhookAuthenticity.Verdict verdict = WebhookAuthenticity.verify(
                 provider,
                 // Decrypted, not read raw: the row now holds a ciphertext. Comparing the presented
@@ -154,12 +154,12 @@ public class TicketingWebhookController {
                     ? VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH
                     : VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
 
-            // **L'auteur est l'intégration, et le nom revendiqué descend dans le commentaire.**
-            // Il venait de la charge utile : sur une route anonyme, cela laissait l'appelant
-            // choisir le nom que le journal d'audit — inviolable, jamais purgé — allait sceller
-            // à côté de sa décision. La chaîne de hachage protège l'entrée d'une modification
-            // ultérieure ; elle ne protège pas d'un mensonge qu'on lui a dicté. Le nom reste
-            // utile et reste écrit, mais comme une donnée rapportée et non comme une identité.
+            // **The author is the integration, and the claimed name goes down into the comment.**
+            // It used to come from the payload: on an anonymous route, that let the caller choose
+            // the name the audit log — tamper-evident, never purged — was going to seal beside its
+            // decision. The hash chain protects the entry against a later modification; it does not
+            // protect against a lie dictated to it. The name stays useful and stays written, but as
+            // reported data and not as an identity.
             String author = provider.name() + "_webhook";
             String claimed = event.author() != null && !event.author().isBlank()
                     ? " (annoncé par le tracker comme : " + event.author() + ")"
@@ -169,24 +169,24 @@ public class TicketingWebhookController {
                     : "Status updated from " + provider.name() + " ticket " + event.ticketRef())
                     + claimed;
 
-            // **`false`, et c'est tout le correctif.** Ce booléen valait `true` : la décision d'un
-            // tracker clôturait sur-le-champ, contournant la double validation. Sur une route qui
-            // n'exige aucune authentification tant qu'aucun secret n'est configuré — le défaut —
-            // cela signifiait qu'un POST anonyme pouvait poser `not_affected` avec la
-            // justification `vulnerable_code_not_in_execute_path`, laquelle part telle quelle dans
-            // les documents CycloneDX, OpenVEX et CSAF signés remis aux clients.
+            // **`false`, and that is the whole fix.** This boolean was `true`: a tracker's
+            // decision settled on the spot, bypassing four-eyes. On a route that requires no
+            // authentication as long as no secret is configured — the default — that meant an
+            // anonymous POST could set `not_affected` with the justification
+            // `vulnerable_code_not_in_execute_path`, which travels as it stands into the signed
+            // CycloneDX, OpenVEX and CSAF documents handed to customers.
             //
-            // C'est l'affirmation que ce dépôt a déjà retirée une fois : l'analyseur
-            // d'atteignabilité a été rendu unidirectionnel pour qu'aucune machine ne vide un
-            // composant sans humain, et `CycloneDxGeneratorService.mapAnalysis` réécrit
-            // l'invariant en toutes lettres — « le triage vide un composant ; l'atteignabilité,
-            // non ». Cette porte était le trou dedans : ni un humain, ni authentifiée.
+            // It is the claim this repository has already withdrawn once: the reachability analyser
+            // was made one-way so that no machine clears a component without a human, and
+            // `CycloneDxGeneratorService.mapAnalysis` writes the invariant out in full — "triage
+            // clears a component; reachability does not". This door was the hole in it: neither a
+            // human, nor authenticated.
             //
-            // **Rien ne casse.** `queueIfNotApprover` convertit la décision en
-            // `PENDING_APPROVAL` sans consulter le réglage de double validation, et
-            // `pending_approval` se rend « en cours d'examen » dans les documents, jamais
-            // « non affecté ». La synchronisation continue donc d'enregistrer ce que le tracker
-            // dit ; elle cesse seulement de le publier à la place d'un humain.
+            // **Nothing breaks.** `queueIfNotApprover` converts the decision into
+            // `PENDING_APPROVAL` without consulting the four-eyes setting, and `pending_approval`
+            // renders as "under review" in the documents, never as "not affected".
+            // Synchronisation therefore goes on recording what the tracker says; it only stops
+            // publishing it in a human's place.
             IssueEntity triaged = triageService.triage(
                     issue.getId(),
                     new Triage.Request(

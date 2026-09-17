@@ -69,10 +69,10 @@ public class SecurityDebtController {
     }
 
     /**
-     * Ce que le plan ne peut pas fermer, et pourquoi.
+     * What the plan cannot close, and why.
      *
-     * <p>Une ressource à part plutôt qu'un champ de plus sur le plan : un écran qui n'a pas pu
-     * obtenir l'aveu doit tout de même afficher l'ordre de travail, qui est son sujet.
+     * <p>A separate resource rather than one more field on the plan: a screen that could not
+     * obtain the admission must still show the work order, which is its subject.
      */
     @Operation(summary = "Remediation plan coverage", description = "How many open findings an upgrade can close, and which families it cannot.")
     @ApiResponse(responseCode = "200", description = "Coverage returned")
@@ -90,9 +90,8 @@ public class SecurityDebtController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(value = "repoId", required = false) Long repoId,
             @RequestParam(value = "containerId", required = false) Long containerId,
-            // Dix par défaut, parce qu'un ordre de travail court est le sujet ; le service ramène
-            // toute valeur dans ses bornes plutôt que de refuser, un plan n'étant pas un endroit
-            // où répondre 400.
+            // Ten by default, because a short work order is the point; the service clamps any
+            // value into its bounds rather than refusing, a plan being no place to answer 400.
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
         return securityDebtService.highImpactFixes(repoId, containerId, limit, allowed);

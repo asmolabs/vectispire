@@ -161,16 +161,15 @@ public class SbomDiffService {
     }
 
     /**
-     * Les deux derniers scans d'une cible, comparés.
+     * A target's two most recent scans, compared.
      *
-     * <p><b>Deux identifiants demandés, et non tout l'historique trié en mémoire.</b> Ceci lisait
-     * {@code scans.findAll()} puis filtrait, triait et gardait deux lignes : chaque ligne de scan
-     * du déploiement chargée — charge SBOM comprise, des mégaoctets pièce — pour n'en garder que
-     * deux identifiants. Le coût suivait l'historique du parc entier alors que la question ne
-     * porte que sur une cible.
+     * <p><b>Two identifiers asked for, not the whole history sorted in memory.</b> This read
+     * {@code scans.findAll()} and then filtered, sorted and kept two rows: every scan row in the
+     * deployment loaded — SBOM payload included, megabytes apiece — to retain two identifiers. The
+     * cost followed the entire estate's history although the question is about one target.
      *
-     * <p>Un seul scan donne une comparaison de ce scan avec lui-même : c'est délibéré, et cela
-     * répond « rien n'a changé » plutôt que « aucune donnée », qui se lit comme une panne.
+     * <p>A single scan yields a comparison of that scan with itself: this is deliberate, and it
+     * answers "nothing changed" rather than "no data", which reads as a failure.
      */
     @Transactional(readOnly = true)
     public Optional<SbomDiffReport> diffLatest(Long repoId, Long containerId) {
@@ -181,7 +180,7 @@ public class SbomDiffService {
                         : List.of();
 
         if (recent.size() >= 2) {
-            // Du plus récent au plus ancien : le premier est l'état d'arrivée.
+            // Newest first: the first is the end state.
             return diff(recent.get(1), recent.get(0));
         }
         if (recent.size() == 1) {

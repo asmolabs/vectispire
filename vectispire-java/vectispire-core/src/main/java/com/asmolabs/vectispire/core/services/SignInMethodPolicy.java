@@ -28,12 +28,11 @@ import org.springframework.stereotype.Component;
  * the same decision `OidcConfiguration` makes by hanging on the issuer variable rather than on a
  * bean: an optional feature that is off must be absent, never present and refusing.
  *
- * <p><b>Dans la couche services et non dans l'API, et ce n'est pas un rangement.</b> Cette classe
- * ne sert aucune route : elle énonce une propriété de la plateforme, que l'API consulte comme la
- * conformité la consulte. Elle vivait à côté de la configuration de sécurité, et le jour où
- * `ComplianceService` a eu besoin de savoir par quelle porte on entre, la règle de couches
- * d'ArchUnit a refusé — un service ne lit pas l'API. Le refus était juste : c'était la classe qui
- * était au mauvais étage.
+ * <p><b>In the services layer and not in the API, and this is not tidying.</b> This class serves
+ * no route: it states a property of the platform, which the API consults as compliance consults
+ * it. It used to live beside the security configuration, and the day `ComplianceService` needed to
+ * know which door people come in by, ArchUnit's layering rule refused — a service does not read
+ * the API. The refusal was right: it was the class that was on the wrong floor.
  *
  * <p><b>The way back, because there has to be one.</b> A realm that is unreachable, or a client
  * secret rotated without warning, leaves a deployment where nobody can sign in at all. The

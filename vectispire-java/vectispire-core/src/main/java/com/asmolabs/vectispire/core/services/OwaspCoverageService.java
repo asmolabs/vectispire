@@ -58,19 +58,19 @@ public class OwaspCoverageService {
                 settings.isEnabled(Setting.SAST_ENABLED)
                         && ruleCoverage.assess().state() != RuleCoverage.State.UNCONFIGURED,
                 Map.copyOf(open),
-                // **Ce que les règles installées déclarent, et non ce que les constats portent.**
-                // Dériver l'ensemble des catégories depuis les constats ferait sortir une
-                // catégorie de la grille le jour où son dernier constat est corrigé — c'est-à-dire
-                // au moment où elle mérite le plus de dire « regardée, rien à signaler ».
+                // **What the installed rules declare, not what the findings carry.** Deriving the
+                // set of categories from the findings would drop a category out of the grid the day
+                // its last finding is fixed — that is, at the moment it most deserves to say
+                // "looked at, nothing to report".
                 ruleCoverage.declaredOwaspCategories(),
                 openByCategory(allowed)));
     }
 
     /**
-     * Les constats de code ouverts, par catégorie déclarée.
+     * The open code findings, by declared category.
      *
-     * <p>Un regroupement en base : au plus dix lignes, quelle que soit la taille du retard, et la
-     * visibilité du lecteur est portée par le même filtre que partout ailleurs.
+     * <p>Grouped in the database: at most ten rows whatever the size of the backlog, and the
+     * reader's visibility is carried by the same filter as everywhere else.
      */
     private Map<String, Long> openByCategory(Visibility allowed) {
         return issues.countOpenSastByOwaspCategory(new IssueFilters(

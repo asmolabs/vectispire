@@ -49,10 +49,10 @@ public final class OwaspReview {
         categories.put("A08", "Software and Data Integrity Failures");
         categories.put("A09", "Security Logging and Monitoring Failures");
         categories.put("A10", "Server-Side Request Forgery");
-        // **`unmodifiableMap` et non `Map.copyOf`.** La seconde perd l'ordre d'insertion et itère
-        // dans un ordre salé par JVM : les sections du rapport changeaient de place d'une
-        // exécution à l'autre, ce qui contredit la reproductibilité que cette classe revendique
-        // deux paragraphes plus haut.
+        // **`unmodifiableMap` and not `Map.copyOf`.** The latter loses insertion order and
+        // iterates in an order salted per JVM: the report's sections moved about from one run to
+        // the next, which contradicts the reproducibility this class claims two paragraphs
+        // above.
         return java.util.Collections.unmodifiableMap(categories);
     }
 

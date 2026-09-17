@@ -319,13 +319,12 @@ public class AiReviewService {
 
         if (isEnabled()) {
             try {
-                // **`not_affected` n'est pas dans les choix offerts, et c'est délibéré.** Le champ
-                // `Reachability` passé ici vaut REACHABLE quand un constat de code mentionne le
-                // paquet, et UNKNOWN sinon — une corrélation de texte, pas un graphe d'appels. Un
-                // modèle à qui l'on tend cette valeur et l'option `code_not_reachable` produit une
-                // exonération plausible et infondée, qui arrive pré-remplie devant un développeur.
-                // Exonérer reste une décision de personne ; le modèle explique et propose un
-                // correctif.
+                // **`not_affected` is not among the choices offered, and that is deliberate.** The
+                // `Reachability` field handed over here is REACHABLE when a code finding mentions
+                // the package, and UNKNOWN otherwise — a text correlation, not a call graph. A
+                // model given that value and the `code_not_reachable` option produces a plausible
+                // and unfounded exemption, which arrives pre-filled in front of a developer.
+                // Exempting stays a person's decision; the model explains and proposes a fix.
                 String prompt = String.format(
                         "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, CodeEvidence: %s, KEV: %s, EPSS: %s. "
                                 + "CodeEvidence is a text correlation between the package name and code findings, not call-graph analysis: never present it as proof that the vulnerable method is or is not invoked. "

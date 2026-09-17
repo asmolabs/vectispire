@@ -93,14 +93,13 @@ public class SecurityDebtService {
     private static final int MOST_LEVERAGE = 10;
 
     /**
-     * Le plafond de « et après ces dix-là ? ».
+     * The ceiling on "and after those ten?".
      *
-     * <p><b>Une borne, et non l'absence de borne.</b> Dix lignes répondent à « par quoi je
-     * commence » et c'est la bonne réponse par défaut ; sur un parc réel quelqu'un veut voir la
-     * suite, et lui refuser revient à lui faire refaire le classement à la main. Mais rendre la
-     * limite libre rendrait le coût de cette lecture dépendant de ce qu'un appelant demande —
-     * chaque ligne supplémentaire coûte une lecture de détail — et un ordre de travail de cinq
-     * cents lignes n'est plus un ordre de travail.
+     * <p><b>A bound, and not the absence of one.</b> Ten lines answer "where do I start", and that
+     * is the right default; on a real estate somebody wants to see what comes next, and refusing
+     * amounts to making them redo the ranking by hand. But leaving the limit free would make the
+     * cost of this read depend on what a caller asks for — every extra line costs one detail read
+     * — and a five-hundred-line work order is no longer a work order.
      */
     private static final int MOST_LEVERAGE_EVER = 50;
 
@@ -157,9 +156,9 @@ public class SecurityDebtService {
     }
 
     /**
-     * @param wanted combien de lignes l'appelant veut voir, ramené dans
-     *     {@code [1, MOST_LEVERAGE_EVER]} — une valeur absurde est corrigée plutôt que refusée,
-     *     parce qu'un ordre de travail n'est pas un endroit où renvoyer un 400
+     * @param wanted how many lines the caller wants to see, clamped into
+     *     {@code [1, MOST_LEVERAGE_EVER]} — an absurd value is corrected rather than refused,
+     *     because a work order is no place to answer 400
      */
     public List<HighImpactFix> highImpactFixes(
             Long repoId, Long containerId, int wanted, Visibility allowed) {
@@ -168,15 +167,15 @@ public class SecurityDebtService {
     }
 
     /**
-     * Ce que le plan atteint, et ce qui lui échappe.
+     * What the plan reaches, and what escapes it.
      *
-     * <p><b>Pourquoi ce calcul existe.</b> {@link #rank} ne classe que des vulnérabilités portant
-     * un nom de paquet, parce qu'une ligne du plan est une montée de version. Un dépôt dont le
-     * retard est fait de secrets exposés affiche donc une seule action face à des centaines de
-     * constats ouverts — c'est exact, et illisible. Ceci compte ce que le classement écarte et de
-     * quelle famille, pour que l'écran dise pourquoi plutôt que de laisser conclure à une panne.
+     * <p><b>Why this calculation exists.</b> {@link #rank} ranks only vulnerabilities carrying a
+     * package name, because a line of the plan is a version bump. A repository whose debt is made
+     * of exposed secrets therefore shows a single action against hundreds of open findings — which
+     * is accurate, and unreadable. This counts what the ranking leaves out and of which family, so
+     * the screen can say why rather than let a reader conclude it is broken.
      *
-     * <p>Une lecture groupée, du même ordre de grandeur que les tallies : au plus une ligne par
+     * <p>One grouped read, of the same order of magnitude as the tallies: at most one row per
      * type.
      */
     @Transactional(readOnly = true)
@@ -274,15 +273,14 @@ public class SecurityDebtService {
                     weight.packageName(),
                     weight.version() != null ? weight.version() : "various",
 
-                    // **La version qui corrige, ou rien.** Ce champ portait la chaîne
-                    // « latest-patch », affichée telle quelle derrière une flèche sur le tableau
-                    // de bord : ni une version, ni un aveu d'ignorance. La réponse est dans les
-                    // constats — chacun porte les versions qui le corrigent — et il suffisait de
-                    // prendre la plus haute, ce qu'un tri de chaînes fait à l'envers.
+                    // **The version that fixes it, or nothing.** This field used to carry the
+                    // string "latest-patch", printed as it stood behind an arrow on the dashboard:
+                    // neither a version nor an admission of ignorance. The answer is in the
+                    // findings — each carries the versions that fix it — and it was enough to take
+                    // the highest, which a string sort gets backwards.
                     //
-                    // Nulle quand aucun constat n'annonce de correctif : « aucune version
-                    // corrigée publiée » est une réponse, et l'écran la dit autrement que
-                    // « passez à celle-ci ».
+                    // Null when no finding announces a fix: "no fixed version published" is an
+                    // answer, and the screen says it differently from "upgrade to this one".
                     Versions.highest(detail.fixVersions()).orElse(null),
                     weight.distinctIdentifiers(),
                     weight.criticalCount(),

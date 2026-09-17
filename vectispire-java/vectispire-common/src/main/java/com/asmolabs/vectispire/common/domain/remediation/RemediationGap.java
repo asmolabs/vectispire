@@ -1,13 +1,13 @@
 package com.asmolabs.vectispire.common.domain.remediation;
 
 /**
- * Un ensemble de constats ouverts qu'aucune montée de version ne fermera.
+ * A set of open findings that no version bump will close.
  *
- * @param family le jeton qui nomme la famille : le nom de transport d'un
- *     {@link com.asmolabs.vectispire.common.domain.issues.FindingType}, ou
- *     {@link RemediationCoverage#UNPACKAGED} pour les vulnérabilités dont aucun paquet n'est
- *     nommé. <b>Un jeton et non une phrase</b> : la phrase qui explique comment on referme cette
- *     famille-là est du texte d'écran, et le texte d'écran est traduit côté client
- * @param findings combien de constats ouverts la famille compte
+ * @param family the token naming the family: the wire name of a
+ *     {@link com.asmolabs.vectispire.common.domain.issues.FindingType}, or
+ *     {@link RemediationCoverage#UNPACKAGED} for vulnerabilities that name no package. <b>A token
+ *     and not a sentence</b>: the sentence explaining how that family is closed is screen text, and
+ *     screen text is translated on the client
+ * @param findings how many open findings the family holds
  */
 public record RemediationGap(String family, long findings) {}

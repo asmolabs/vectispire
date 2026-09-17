@@ -39,11 +39,11 @@ public class RuleCoverageService {
     }
 
     /**
-     * Le chemin d'un fichier stocké, exprimé comme l'arbre des règles livrées l'épelle.
+     * A stored file's path, expressed the way the shipped rule tree spells it.
      *
-     * <p>Le nom de stockage est plat par construction ; le nom d'origine porte le chemin amont.
-     * C'est ce dernier qui dit le langage, et le préfixer de {@code semgrep/} le met dans la
-     * forme que {@link RuleCoverage} lit.
+     * <p>The storage name is flat by construction; the original name carries the upstream path. It
+     * is the latter that states the language, and prefixing it with {@code semgrep/} puts it in
+     * the form {@link RuleCoverage} reads.
      */
     private static String asRuleTreePath(RuleSet.StoredFile file) {
         String origin = file.originalName() == null ? "" : file.originalName().replace('\\', '/');
@@ -80,15 +80,15 @@ public class RuleCoverageService {
         List<String> paths = new ArrayList<>(BundledRules.expected());
 
         Optional<SemgrepRuleSetEntity> active = ruleSets.active();
-        // **Le nom d'origine, et non le nom de stockage — sans quoi cette évaluation ne peut
-        // répondre que « non configurée ».** Les fichiers téléversés sont rangés à plat sous
-        // `rule-0001.yaml` ; `RuleCoverage` lit le langage dans le *chemin*, et un chemin sans
-        // dossier n'en porte aucun. Un opérateur pouvait donc importer tout le catalogue amont et
-        // continuer à lire « seules les règles livrées sont installées », indéfiniment.
+        // **The original name, not the storage name — without which this evaluation can only
+        // answer "not configured".** Uploaded files are stored flat as `rule-0001.yaml`;
+        // `RuleCoverage` reads the language from the *path*, and a path with no directory carries
+        // none. An operator could therefore import the whole upstream catalogue and go on reading
+        // "only the shipped rules are installed", indefinitely.
         //
-        // Le nom d'origine est le chemin amont — `java/xss/…​.yaml`, conservé délibérément parce
-        // qu'il entre dans l'identifiant de règle — et il se lit comme l'arbre livré dès qu'on le
-        // préfixe de la même façon.
+        // The original name is the upstream path — `java/xss/….yaml`, kept deliberately because it
+        // goes into the rule identifier — and it reads like the shipped tree as soon as it is
+        // prefixed the same way.
         active.ifPresent(row -> ruleSets.filesOf(row).stream()
                 .map(RuleCoverageService::asRuleTreePath)
                 .forEach(paths::add));

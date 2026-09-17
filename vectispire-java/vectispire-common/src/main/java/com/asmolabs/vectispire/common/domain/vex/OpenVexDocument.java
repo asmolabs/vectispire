@@ -35,10 +35,10 @@ public record OpenVexDocument(
                 "Document Creator",
                 timestamp != null ? timestamp : Instant.now(),
                 1,
-                // **Le nom que porte chaque document exporté.** Il annonçait un « Reachability &
-                // Exploitability Engine » alors que la corrélation d'atteignabilité rapproche des
-                // textes sans suivre de graphe d'appels — et ce champ `tooling` est précisément ce
-                // qu'un lecteur regarde pour juger du poids d'une affirmation.
+                // **The name every exported document carries.** It announced a "Reachability &
+                // Exploitability Engine" although the reachability correlation matches texts
+                // without following a call graph — and this `tooling` field is precisely what a
+                // reader looks at to judge the weight of a claim.
                 "Vectispire ASPM",
                 statements != null ? statements : List.of());
     }

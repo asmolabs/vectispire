@@ -58,10 +58,10 @@ public final class OwaspCoverage {
         titles.put("A08", "Software and Data Integrity Failures");
         titles.put("A09", "Security Logging and Monitoring Failures");
         titles.put("A10", "Server-Side Request Forgery");
-        // **`unmodifiableMap` et non `Map.copyOf`.** La seconde ne conserve pas l'ordre
-        // d'insertion, et son itération est salée par JVM : la grille sortait dans l'ordre du
-        // standard une exécution sur deux. C'est une question de questionnaire, pas de goût — on
-        // lit A01 puis A02, et une grille mélangée se relit à chaque ligne.
+        // **`unmodifiableMap` and not `Map.copyOf`.** The latter does not keep insertion order,
+        // and its iteration is salted per JVM: the grid came out in the standard's order one run in
+        // two. This is a matter of the questionnaire, not of taste — one reads A01 then A02, and a
+        // shuffled grid has to be re-read line by line.
         return java.util.Collections.unmodifiableMap(titles);
     }
 
@@ -255,9 +255,9 @@ public final class OwaspCoverage {
      * switch on a detector that was already running.
      */
     private static String whyUnmeasured(List<FindingType> types, boolean declared) {
-        // **Trois causes, nommées toutes les trois.** Sur une instance neuve la plus fréquente est
-        // la deuxième — seule la règle livrée est installée — et n'en citer qu'une enverrait
-        // quelqu'un rallumer un détecteur qui tournait déjà.
+        // **Three causes, all three named.** On a fresh instance the commonest is the second —
+        // only the shipped rule is installed — and naming just one would send somebody to switch
+        // back on a detector that was already running.
         String code = "code analysis is off, or only the rule this product ships is installed, or none "
                 + "of the installed rules reaches the languages in this estate";
         if (types.isEmpty()) {

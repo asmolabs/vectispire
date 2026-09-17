@@ -172,8 +172,8 @@ public class ComplianceService {
                 encryption.isExternallyManaged(),
                 audit.mirrorConfigured(),
                 settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED),
-                // Deux lectures de champ : la politique de connexion est fixée au démarrage, pas
-                // par un réglage, donc elle ne peut pas avoir changé depuis.
+                // Two field reads: the sign-in policy is settled at start-up rather than by a
+                // setting, so it cannot have changed since.
                 signIn.singleSignOnAvailable(),
                 signIn.passwordAllowed());
     }

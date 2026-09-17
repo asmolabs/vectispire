@@ -44,10 +44,10 @@ public interface IssueAggregates {
     /**
      * One {@code (package, CVE, target)} row, read only for the packages that made the cut.
      *
-     * @param fixVersions les versions qui corrigent ce constat, telles que le scanner les a
-     *     remontées — une énumération séparée par des virgules, souvent vide. C'est la seule
-     *     source de la version à conseiller : elle est ramenée ici, avec les lignes déjà lues
-     *     pour les paquets retenus, plutôt que par une requête de plus.
+     * @param fixVersions the versions that fix this finding, as the scanner reported them — a
+     *     comma-separated enumeration, often empty. It is the only source of the version to
+     *     advise: it is brought back here, with the rows already read for the packages that made
+     *     the cut, rather than by one more query.
      */
     record PackageDetail(
             String packageName, String identifier, Long repoId, Long containerId, String fixVersions) {}
@@ -112,31 +112,30 @@ public interface IssueAggregates {
     List<OpenBacklog> openBacklogBySeverity(Specification<IssueEntity> filter);
 
     /**
-     * Combien de constats chaque type compte, et combien d'entre eux nomment un paquet.
+     * How many findings each type holds, and how many of them name a package.
      *
-     * <p><b>Le nommage du paquet est mesuré avec le prédicat exact du classement</b> — non nul et
-     * non blanc après {@code trim} — et non « approximativement le même ». C'est ce qui rend
-     * l'aveu vérifiable : la couverture annoncée par l'écran est le complément de ce que
-     * {@link #weighPackages} accepte, et deux prédicats voisins finiraient par se contredire d'un
-     * constat, ce qui est pire que de ne rien dire.
+     * <p><b>Package naming is measured with the ranking's exact predicate</b> — non-null and
+     * non-blank after {@code trim} — and not "roughly the same one". That is what makes the
+     * admission checkable: the coverage the screen announces is the complement of what
+     * {@link #weighPackages} accepts, and two neighbouring predicates would end up disagreeing by
+     * a finding, which is worse than saying nothing.
      *
-     * @param packageNamed combien de constats du type portent un nom de paquet exploitable
-     * @param unnamed combien n'en portent pas
+     * @param packageNamed how many findings of the type carry a usable package name
+     * @param unnamed how many do not
      */
     record TypePackaging(String type, long packageNamed, long unnamed) {}
 
     List<TypePackaging> countOpenByTypeAndPackaging(Specification<IssueEntity> filter);
 
     /**
-     * Combien de constats d'analyse de code sont ouverts dans chaque catégorie OWASP déclarée.
+     * How many code-analysis findings are open in each declared OWASP category.
      *
-     * <p>Restreint au type {@code sast}, c'est-à-dire aux règles de catégorie « sécurité ». Une
-     * règle de qualité peut porter la même métadonnée ; la compter placerait dans une grille de
-     * sécurité un constat dont ce dépôt dit par ailleurs qu'il ne fait jamais échouer une
-     * barrière.
+     * <p>Restricted to the {@code sast} type, that is to rules of the "security" category. A
+     * quality rule can carry the same metadata; counting it would place in a security grid a
+     * finding this repository elsewhere says never fails a gate.
      *
-     * @param category jamais nulle : les lignes sans catégorie sont écartées par la requête, et
-     *     une catégorie absente n'est pas une catégorie vide
+     * @param category never null: rows without a category are dropped by the query, and an absent
+     *     category is not an empty one
      */
     record OwaspCategoryCount(String category, long count) {}
 

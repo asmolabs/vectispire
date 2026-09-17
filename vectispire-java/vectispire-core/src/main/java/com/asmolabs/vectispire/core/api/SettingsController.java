@@ -52,7 +52,7 @@ import com.asmolabs.vectispire.core.repositories.Users;
 @RequiresAccount
 public class SettingsController {
 
-    /** Les sections dont le contenu est une règle, pas un réglage. */
+    /** The sections whose contents are a rule, not a setting. */
     private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
             Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE);
 
@@ -103,13 +103,13 @@ public class SettingsController {
             String value,
             boolean configured,
 
-            // **Vrai quand ce réglage décide d'une règle et non d'un paramètre**, et que seul le
-            // gouverneur de la plateforme peut l'écrire.
+            // **True when this setting decides a rule rather than a parameter**, and only the
+            // platform governor may write it.
             //
-            // Porté par la réponse, et non recopié dans l'écran : la règle est un ensemble de
-            // sections, ici ; la recopier côté front en aurait fait une deuxième source, comparée
-            // à la première seulement par la surprise d'un 403. L'écran affiche ces réglages à qui
-            // peut les lire et n'en propose la modification qu'à qui peut la faire.
+            // Carried by the response, and not copied into the screen: the rule here is a set of
+            // sections, and copying it into the front end would have made a second source, compared
+            // with the first only by the surprise of a 403. The screen shows these settings to
+            // whoever may read them and offers the edit only to whoever may make it.
             @JsonProperty("governor_only") boolean governorOnly) {}
 
     public record Catalog(List<SettingView> settings) {}
@@ -193,24 +193,24 @@ public class SettingsController {
             // handed. Left open, it wrote tracker tokens, webhook secrets and provider keys in the
             // clear — 200 OK, no warning — and the audit description below would then have carried
             // the value itself into a log that is deliberately never purged.
-            // **Les deux réglages qui décident des règles, réservés au gouverneur.** Ce sont
-            // `target_visibility` — qui voit quelles cibles — et `triage_four_eyes_required` —
-            // faut-il deux personnes pour écarter une vulnérabilité. La double validation était
-            // contournable par quiconque pouvait à la fois l'éteindre et trier : éteindre, régler
-            // seul, rallumer, une entrée d'audit pour seule trace. Ce qui ferme le trou n'est pas
-            // de retirer le droit d'approuver — le service règle la décision de tout le monde quand
-            // le réglage est éteint — mais de casser la conjonction. Le seul rôle qui peut lever la
-            // règle est celui qui ne peut pas agir sous elle.
+            // **The two settings that decide rules, reserved to the governor.** They are
+            // `target_visibility` — who sees which targets — and `triage_four_eyes_required` — does
+            // dismissing a vulnerability take two people. Four-eyes was bypassable by anyone who
+            // could both switch it off and triage: switch off, settle alone, switch back on, one
+            // audit entry for a trace. What closes the hole is not removing the right to approve —
+            // the service settles everyone's decision when the setting is off — but breaking the
+            // conjunction. The one role that can lift the rule is the one that cannot act under
+            // it.
             if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(principal)) {
                 throw new AccessDeniedException(
                         setting.label() + " décide d'une règle et non d'un réglage : seul un "
                                 + "super-administrateur peut la changer, parce qu'il est le seul "
                                 + "qui ne puisse pas en tirer parti.");
             }
-            // **Activer un contrôle à deux personnes demande qu'il y en ait deux.** Sans ce garde,
-            // l'activer sur une installation qui n'a pas d'approbateur actif met chaque décision
-            // dans une file que personne ne peut vider — un contrôle qui bloque au lieu de
-            // contrôler, et dont la panne ne se voit qu'au premier triage.
+            // **Switching on a two-person control requires that there be two.** Without this
+            // guard, switching it on where no approver is active puts every decision in a queue
+            // nobody can empty — a control that blocks instead of controlling, and whose failure
+            // shows only at the first triage.
             if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value) && noApproverExists()) {
                 throw new IllegalArgumentException(
                         "Aucun compte actif ne peut approuver un triage : activer la double "
@@ -558,16 +558,16 @@ public class SettingsController {
         return Map.of("configured", tickets.hasWebhookSecret());
     }
 
-    /** Le rôle qui décide des règles, et le seul qui ne puisse pas agir sous elles. */
+    /** The role that decides the rules, and the only one that cannot act under them. */
     private static boolean governsPlatform(VectispirePrincipal principal) {
         return principal.user().flatMap(u -> Role.of(u.getRole())).map(Role::governsPlatform).orElse(false);
     }
 
     /**
-     * Reste-t-il quelqu'un pour approuver ?
+     * Is anyone left to approve?
      *
-     * <p>Compté en base et non déduit d'un rôle : la question porte sur les comptes <em>actifs</em>,
-     * et un parc peut très bien déclarer un rôle que personne ne détient.
+     * <p>Counted in the database rather than deduced from a role: the question is about
+     * <em>active</em> accounts, and an estate may perfectly well declare a role nobody holds.
      */
     private boolean noApproverExists() {
         return users.countActiveAdministratorsExcluding(APPROVER_ROLES, -1L) == 0;

@@ -48,10 +48,10 @@ import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 @RequiresAdministrator
 public class ScimGroupsController {
 
-    // **SCIM marque ses lignes, et c'est ce qui évite que deux annuaires se disputent.** La
-    // réconciliation de la revendication OIDC ne retire que les appartenances qu'elle a posées ;
-    // sans cette marque, les siennes seraient indistinguables et la première connexion emporterait
-    // ce que le provisionnement venait d'écrire.
+    // **SCIM marks its rows, and that is what keeps two directories from fighting.** The OIDC
+    // claim's reconciliation removes only the memberships it set itself; without this mark, its own
+    // would be indistinguishable and the first sign-in would carry away what provisioning had just
+    // written.
 
     private final Teams teams;
     private final TeamMembers members;

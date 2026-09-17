@@ -130,9 +130,9 @@ public class ComplianceHistoryService {
         row.setStatus(evaluation.overallStatus().name());
         row.setTargets(targets);
         row.setObservedTargets(observed);
-        // **Les deux viennent du résumé et ne sont pas recomptés ici.** Ce sont exactement les
-        // nombres qui ont plafonné les verdicts ci-dessus ; les recalculer à côté produirait une
-        // seconde réponse à la même question, et c'est la seconde qu'on ne rapprocherait jamais.
+        // **Both come from the summary and are not recounted here.** They are exactly the numbers
+        // that capped the verdicts above; recomputing them alongside would produce a second answer
+        // to the same question, and it is the second that would never be reconciled.
         row.setFreshTargets(fresh);
         row.setFreshnessDays(freshnessDays);
         row.setEndOfLifeEnabled(eol);

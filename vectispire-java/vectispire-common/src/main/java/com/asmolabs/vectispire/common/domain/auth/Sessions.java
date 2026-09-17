@@ -119,25 +119,23 @@ public final class Sessions {
     /**
      * Whether this request is worth writing down, given that the window it feeds is an hour wide.
      *
-     * <p><b>Une écriture par requête authentifiée, sur une seule ligne.</b> C'est ce que coûtait
-     * la précision à la milliseconde d'une fenêtre d'inactivité de soixante minutes : un écran qui
-     * lance trois appels en parallèle envoyait trois transactions concurrentes sur la même ligne,
-     * et sur le déploiement en fichier unique elles se bloquaient l'une l'autre — une session de
-     * suite navigateur a produit un millier de {@code SQLITE_BUSY}, chacun ressorti en {@code 500}
-     * devant l'utilisateur. Sur MySQL et PostgreSQL cela ne casse pas, mais reste une écriture
-     * par lecture.
+     * <p><b>One write per authenticated request, onto a single row.</b> That was the cost of
+     * millisecond precision on a sixty-minute idle window: a screen firing three calls in parallel
+     * sent three concurrent transactions at the same row, and on the single-file deployment they
+     * blocked one another — one browser-suite session produced a thousand {@code SQLITE_BUSY}, each
+     * surfacing as a {@code 500} in front of the user. On MySQL and PostgreSQL it does not break,
+     * but it remains one write per read.
      *
-     * <p><b>Le grain est un soixantième de la fenêtre</b>, soit une minute par défaut. Ce qui se
-     * perd est l'exactitude de l'instant de dernière activité, à ce grain près ; ce qui ne se perd
-     * pas est la fermeture des sessions inactives, parce que l'erreur va dans le sens sûr : une
-     * activité non écrite fait paraître la session plus vieille qu'elle n'est, donc elle expire
-     * éventuellement un peu tôt et jamais un peu tard.
+     * <p><b>The grain is a sixtieth of the window</b>, a minute by default. What is lost is the
+     * exactness of the last-activity instant, to within that grain; what is not lost is the closing
+     * of idle sessions, because the error goes the safe way: unwritten activity makes the session
+     * look older than it is, so it expires possibly a little early and never a little late.
      */
     public static boolean shouldRecordActivity(Instant lastSeenAt, Instant now, Policy policy) {
         Duration grain = policy.idleLifetime().dividedBy(60);
         if (grain.compareTo(Duration.ofSeconds(1)) < 0) {
-            // Une fenêtre très courte est un choix délibéré — un test, ou une politique stricte —
-            // et cadencer plus fin qu'une seconde ne ferait plus d'économie que de dégâts.
+            // A very short window is a deliberate choice — a test, or a strict policy — and
+            // throttling finer than a second would save less than it costs.
             grain = Duration.ofSeconds(1);
         }
         return !now.isBefore(lastSeenAt.plus(grain));

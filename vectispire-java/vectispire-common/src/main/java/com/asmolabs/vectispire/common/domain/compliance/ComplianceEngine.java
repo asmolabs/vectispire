@@ -181,11 +181,11 @@ public final class ComplianceEngine {
                                     + "this control counts only what was found in the scanned repositories",
                             "Set ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE) and re-save the stored credentials.");
 
-            // **Deux plafonds ici, et le second porte sur l'identité.** Le premier tient à ce que
-            // la chaîne ne peut pas prouver d'elle-même — qu'aucune entrée n'a été supprimée. Le
-            // second tient à ce qu'elle ne prouve pas non plus : que le nom porté par une entrée
-            // est celui de la personne qui a agi. Une chaîne intacte au-dessus d'un mot de passe
-            // partageable est une traçabilité plus faible que son score.
+            // **Two ceilings here, and the second is about identity.** The first comes from what
+            // the chain cannot prove of itself — that no entry was deleted. The second comes from
+            // what it does not prove either: that the name an entry carries is that of the person
+            // who acted. An intact chain on top of a shareable password is weaker traceability than
+            // its score.
             case AUDIT_AND_LOGGING -> authenticationCap(platform.auditMirrorConfigured()
                     ? assessment
                     : capped(assessment, 70,

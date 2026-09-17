@@ -186,8 +186,8 @@ public class AuthService {
             return Optional.empty();
         }
 
-        // Cadencé : voir `Sessions.shouldRecordActivity`. Écrire ici à chaque requête faisait de
-        // toute page à plusieurs appels une bagarre entre ses propres requêtes pour une ligne.
+        // Throttled: see `Sessions.shouldRecordActivity`. Writing here on every request turned any
+        // page making several calls into a fight between its own requests over one row.
         if (!Sessions.shouldRecordActivity(session.getLastSeenAt(), now, policy)) {
             return Optional.of(session);
         }

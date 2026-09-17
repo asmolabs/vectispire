@@ -6,35 +6,35 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Ce que le plan de remédiation peut atteindre, et ce qu'il ne peut pas.
+ * What the remediation plan can reach, and what it cannot.
  *
- * <h2>Pourquoi un écran de remédiation doit se dénoncer lui-même</h2>
+ * <h2>Why a remediation screen must denounce itself</h2>
  *
- * <p><b>Le classement ne regarde que les vulnérabilités portant un nom de paquet.</b> C'est
- * délibéré et c'est juste : une ligne du plan est une montée de version, et une montée de version
- * est la seule chose qui referme quatorze constats d'un coup. Mais la conséquence ne se voit nulle
- * part — un dépôt dont le retard est fait de secrets exposés affiche une seule action face à des
- * centaines de constats ouverts, et rien sur l'écran ne dit que ce n'est pas une erreur de calcul.
+ * <p><b>The ranking looks only at vulnerabilities carrying a package name.</b> That is deliberate
+ * and it is right: a line of the plan is a version bump, and a version bump is the only thing that
+ * closes fourteen findings at once. But the consequence shows nowhere — a repository whose debt is
+ * made of exposed secrets displays a single action against hundreds of open findings, and nothing
+ * on the screen says this is not a calculation error.
  *
- * <p>C'est exactement la lecture qu'un utilisateur en a faite. Le produit avait raison et
- * paraissait cassé, ce qui coûte plus cher qu'un chiffre faux : un chiffre faux se corrige, une
- * défiance se garde. <b>Ce modèle est donc l'aveu du plan, calculé plutôt que rédigé</b> — il
- * compte les constats que le classement écarte et dit de quelle famille ils sont, pour que
- * l'écran puisse dire comment on les referme autrement.
+ * <p>That is exactly the reading a user took from it. The product was right and looked broken,
+ * which costs more than a wrong number: a wrong number gets corrected, mistrust is kept. <b>This
+ * model is therefore the plan's admission, computed rather than written</b> — it counts the
+ * findings the ranking leaves out and says which family they belong to, so the screen can say how
+ * they are closed otherwise.
  *
- * <h2>Ce qui n'est pas compté ici</h2>
+ * <h2>What is not counted here</h2>
  *
- * <p>{@link FindingType#AI_REVIEW} est écarté du total comme il l'est de l'estimation d'effort :
- * sa sévérité est inventée par un modèle local lisant un dépôt qui peut être hostile. L'inclure
- * dans « ce qui reste à faire » laisserait un dépôt gonfler son propre reste-à-faire.
+ * <p>{@link FindingType#AI_REVIEW} is left out of the total as it is out of the effort estimate:
+ * its severity is invented by a local model reading a repository that may be hostile. Including it
+ * in "what is left to do" would let a repository inflate its own backlog.
  *
- * <h2>Des constats, et non des vulnérabilités distinctes</h2>
+ * <h2>Findings, not distinct vulnerabilities</h2>
  *
- * <p><b>Tout ce qui est compté ici est un constat ouvert</b>, alors qu'une ligne du plan annonce
- * des identifiants distincts — le même CVE sur deux dépôts est une montée de version et deux
- * constats. {@link #addressableByUpgrade} ne s'additionne donc pas en
- * {@code sum(cveCountResolved)}, et c'est voulu : la question à laquelle ce modèle répond est
- * « combien de lignes de mon retard ce plan peut-il fermer », qui se pose en constats.
+ * <p><b>Everything counted here is an open finding</b>, whereas a line of the plan announces
+ * distinct identifiers — the same CVE on two repositories is one version bump and two findings.
+ * {@link #addressableByUpgrade} therefore does not add up to {@code sum(cveCountResolved)}, and
+ * that is intended: the question this model answers is "how many lines of my backlog can this plan
+ * close", which is asked in findings.
  */
 public record RemediationCoverage(
         long openFindings,
@@ -43,35 +43,35 @@ public record RemediationCoverage(
         List<RemediationGap> gaps) {
 
     /**
-     * La famille des vulnérabilités qu'aucun paquet ne nomme.
+     * The family of vulnerabilities that no package names.
      *
-     * <p>Une vulnérabilité sans paquet est bien une vulnérabilité, et il n'y a pourtant rien à
-     * monter : le scanner l'a rapportée sur une cible sans dire de quel composant elle vient. Elle
-     * a donc sa propre famille plutôt que d'être diluée dans {@code vulnerability}, où elle
-     * laisserait croire que le plan l'a simplement classée trop bas.
+     * <p>A vulnerability without a package is a vulnerability all the same, and yet there is
+     * nothing to bump: the scanner reported it on a target without saying which component it comes
+     * from. It therefore has a family of its own rather than being diluted into
+     * {@code vulnerability}, where it would suggest the plan had merely ranked it too low.
      */
     public static final String UNPACKAGED = "unpackaged";
 
     /**
-     * Une famille ouverte, telle que la base la compte.
+     * One open family, as the database counts it.
      *
-     * @param type le nom de transport du type, tel que la ligne le porte. <b>Comparé à la lettre
-     *     et non traduit en {@link FindingType}</b> : le classement du plan filtre sur la chaîne
-     *     {@code vulnerability} exacte, et un type inconnu de cette version que l'on rangerait par
-     *     défaut parmi les vulnérabilités serait annoncé comme couvert par un plan qui ne le
-     *     regarde pas. Inconnu, il devient donc un manque portant son propre jeton — l'écran le
-     *     nommera faute de mieux, et il sera compté
-     * @param packageNamed combien de ces constats portent un nom de paquet
-     * @param unnamed combien n'en portent pas
+     * @param type the type's wire name, as the row carries it. <b>Compared to the letter and not
+     *     translated into {@link FindingType}</b>: the plan's ranking filters on the exact
+     *     {@code vulnerability} string, and a type unknown to this version that were defaulted in
+     *     among the vulnerabilities would be announced as covered by a plan that does not look at
+     *     it. Unknown, it therefore becomes a gap carrying its own token — the screen will name it
+     *     for want of better, and it will be counted
+     * @param packageNamed how many of those findings carry a package name
+     * @param unnamed how many do not
      */
     public record OpenFamily(String type, long packageNamed, long unnamed) {}
 
     /**
-     * Répartit les familles ouvertes entre ce qu'une montée de version referme et le reste.
+     * Splits the open families between what a version bump closes and the rest.
      *
-     * <p>Les manques sont rendus du plus nombreux au moins nombreux, à égalité par nom : un écran
-     * qui nomme d'abord la famille la plus grosse répond à « pourquoi une seule ligne » dès la
-     * première phrase, et deux lectures des mêmes données s'accordent.
+     * <p>The gaps are returned from the most numerous to the least, ties broken by name: a screen
+     * that names the largest family first answers "why a single line" in its opening sentence, and
+     * two readings of the same data agree.
      */
     public static RemediationCoverage of(List<OpenFamily> families) {
         long addressable = 0;

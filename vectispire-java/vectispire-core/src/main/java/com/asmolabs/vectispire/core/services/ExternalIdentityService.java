@@ -89,25 +89,25 @@ public class ExternalIdentityService {
     }
 
     /**
-     * Aligne les équipes d'un compte sur ce que l'annuaire vient de dire.
+     * Brings an account's teams into line with what the directory has just said.
      *
-     * <p><b>Une réconciliation, et plus un ajout.</b> Cette méthode n'ajoutait que : retirer
-     * quelqu'un d'un groupe dans l'annuaire ne lui retirait ni l'équipe ni la visibilité qui va
-     * avec. C'est l'inverse de ce que déléguer veut dire — on délègue précisément pour qu'un départ
-     * de groupe révoque un accès — et cela rendait la promesse « l'annuaire fait autorité »
-     * intenable.
+     * <p><b>A reconciliation, no longer an addition.</b> This method only ever added: removing
+     * somebody from a group in the directory took away neither the team nor the visibility that
+     * comes with it. That is the opposite of what delegating means — one delegates precisely so
+     * that leaving a group revokes an access — and it made the promise "the directory is
+     * authoritative" untenable.
      *
-     * <p><b>Elle ne touche que ses propres lignes.</b> Réconcilier tout aurait remplacé ce défaut
-     * par un pire : chaque connexion effacerait les équipes qu'un administrateur a attribuées à la
-     * main, en silence. L'origine portée par l'appartenance décide qui peut la retirer ; ce qui
-     * vient de SCIM ou d'une décision humaine reste où il est.
+     * <p><b>It touches only its own rows.</b> Reconciling everything would have replaced that
+     * defect with a worse one: every sign-in would silently erase the teams an administrator
+     * assigned by hand. The origin carried by the membership decides who may remove it; what comes
+     * from SCIM or from a human decision stays where it is.
      *
-     * <p><b>Une revendication vide n'est pas une révocation.</b> Un fournisseur mal configuré, un
-     * mapper oublié, un jeton sans la revendication : l'absence de groupes se lit comme une panne
-     * de configuration et non comme « cette personne n'est plus dans aucune équipe ». Retirer tout
-     * sur cette base couperait l'accès de tout le monde au premier mapper mal réglé — l'appelant
-     * ne nous appelle d'ailleurs que si la revendication est présente et non vide, et cette garde
-     * est répétée ici parce qu'elle protège d'une révocation de masse.
+     * <p><b>An empty claim is not a revocation.</b> A misconfigured provider, a forgotten mapper, a
+     * token without the claim: an absence of groups reads as a configuration failure and not as
+     * "this person is no longer in any team". Removing everything on that basis would cut off
+     * everyone's access at the first badly set mapper — the caller in fact calls us only when the
+     * claim is present and non-empty, and the guard is repeated here because it protects against a
+     * mass revocation.
      */
     @Transactional
     public void syncGroups(UserEntity user, List<String> groupNames) {
@@ -118,9 +118,8 @@ public class ExternalIdentityService {
         Teams teamsRepo = teams.get();
         TeamMembers membersRepo = teamMembers.get();
 
-        // Les équipes que la revendication nomme et qui existent ici. Un groupe sans équipe
-        // correspondante n'est pas une erreur : l'annuaire d'une organisation est plus large que
-        // ce que cet outil suit.
+        // The teams the claim names and that exist here. A group with no matching team is not an
+        // error: an organisation's directory is wider than what this tool tracks.
         Set<Long> claimed = new LinkedHashSet<>();
         for (String groupName : groupNames) {
             if (groupName == null || groupName.isBlank()) continue;

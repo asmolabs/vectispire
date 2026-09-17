@@ -268,11 +268,11 @@ public class IssueAggregatesImpl implements IssueAggregates {
     }
 
     /**
-     * Le paquet est nommé.
+     * The package is named.
      *
-     * <p>Extrait pour être partagé avec {@link #countOpenByTypeAndPackaging}, qui annonce à
-     * l'écran ce que le classement laisse de côté : les deux lectures doivent s'accorder au
-     * constat près, et deux copies d'un même prédicat finissent par ne plus s'accorder.
+     * <p>Extracted so it can be shared with {@link #countOpenByTypeAndPackaging}, which tells the
+     * screen what the ranking leaves out: the two reads must agree to the finding, and two copies
+     * of one predicate end up no longer agreeing.
      */
     private static Predicate packageIsNamed(CriteriaBuilder builder, Root<IssueEntity> issue) {
         return builder.and(

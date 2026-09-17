@@ -113,11 +113,11 @@ public class IssuesController {
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
     /**
-     * Le ticket qu'un humain rattache à un constat.
+     * The ticket a human attaches to a finding.
      *
-     * @param reference ce que le traqueur appelle le ticket — {@code SEC-1234}, {@code #87}
-     * @param url où un humain va le lire ; facultative, et absente elle laisse la référence
-     *     s'afficher sans lien plutôt que d'exiger une URL pour un traqueur interne
+     * @param reference what the tracker calls the ticket — {@code SEC-1234}, {@code #87}
+     * @param url where a human will read it; optional, and when absent the reference is shown
+     *     without a link rather than requiring a URL for an internal tracker
      */
     public record AttachTicketRequest(String reference, String url) {}
 
@@ -142,7 +142,7 @@ public class IssuesController {
      */
     private static final int MAX_BULK_TRIAGE = 500;
 
-    /** Ce que la colonne accepte : une référence plus longue serait tronquée par la base. */
+    /** What the column accepts: a longer reference would be truncated by the database. */
     private static final int MAX_TICKET_REFERENCE = 64;
 
     private static final int MAX_TICKET_URL = 500;
@@ -353,35 +353,34 @@ public class IssuesController {
     }
 
     /**
-     * Rattache un ticket existant à un constat.
+     * Attaches an existing ticket to a finding.
      *
-     * <h2>Pourquoi ce point d'entrée, et pourquoi sur ce champ-là</h2>
+     * <h2>Why this endpoint, and why on that field</h2>
      *
-     * <p><b>La balayeuse ouvre des tickets, personne d'autre.</b> {@code TicketSweepService} le
-     * fait pour les constats qui violent la barrière, avec le traqueur configuré globalement, et
-     * écrit la référence sur le constat — c'est ce champ que la liste affiche, que le webhook
-     * entrant cherche pour refermer le constat, et que la balayeuse lit pour ne pas rouvrir deux
-     * fois. Tout le reste du produit parle de ce champ.
+     * <p><b>The sweep opens tickets, nobody else.</b> {@code TicketSweepService} does so for
+     * findings that breach the gate, with the globally configured tracker, and writes the
+     * reference onto the finding — that field is the one the list shows, the one the inbound
+     * webhook looks up to close the finding, and the one the sweep reads so as not to open twice.
+     * The whole of the rest of the product speaks about this field.
      *
-     * <p>Un constat qui ne viole aucune barrière, ou un traqueur non configuré, n'avait donc
-     * aucun moyen d'être rattaché à quoi que ce soit. Une équipe qui suit ce constat dans
-     * {@code SEC-1234} ne pouvait pas le dire, et le webhook de fermeture ne pouvait pas la
-     * reconnaître.
+     * <p>A finding that breaches no gate, or a tracker that is not configured, therefore had no
+     * way of being attached to anything. A team tracking that finding in {@code SEC-1234} could
+     * not say so, and the closing webhook could not recognise it.
      *
-     * <p><b>Écrit sur {@code ticketRef}, et non dans {@code t_issue_ticket}.</b> Cette seconde
-     * table existe, avec son propre point d'entrée, et rien ne la lit : ni le webhook, ni la
-     * balayeuse, ni un écran. Y écrire aurait livré un rattachement que la synchronisation
-     * ignore — une fonctionnalité qui a l'air de marcher et ne se synchronise jamais.
+     * <p><b>Written onto {@code ticketRef}, and not into {@code t_issue_ticket}.</b> That second
+     * table exists, with an endpoint of its own, and nothing reads it: not the webhook, not the
+     * sweep, not a screen. Writing there would have shipped an attachment that synchronisation
+     * ignores — a feature that looks as though it works and never synchronises.
      *
-     * <h2>Un humain peut corriger, la balayeuse n'efface jamais</h2>
+     * <h2>A human may correct, the sweep never erases</h2>
      *
-     * <p>La référence posée par la balayeuse est écrite une fois et jamais effacée : c'est sa clé
-     * de déduplication. Celle-ci peut être remplacée, parce que le cas qui existe est la faute de
-     * frappe — et parce que la remplacer est tracé. L'invariant de la balayeuse est intact : elle
-     * ne touche jamais un constat qui porte déjà une référence, quelle qu'en soit l'origine.
+     * <p>The reference the sweep sets is written once and never erased: it is its deduplication
+     * key. This one may be replaced, because the case that exists is the typo — and because
+     * replacing it is recorded. The sweep's invariant is intact: it never touches a finding that
+     * already carries a reference, whatever its origin.
      *
-     * <p>Effet de bord voulu et dit ici : rattacher un ticket <b>empêche</b> la balayeuse d'en
-     * ouvrir un second pour le même constat.
+     * <p>A side effect that is intended and said here: attaching a ticket <b>stops</b> the sweep
+     * from opening a second one for the same finding.
      */
     @RequiresWriteAccount
     @PutMapping("/{id}/ticket")
@@ -391,7 +390,7 @@ public class IssuesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        // Vérifiée avant l'écriture, et 404 plutôt que 403 — voir `Visibilities`.
+        // Checked before the write, and 404 rather than 403 — see `Visibilities`.
         IssueEntity issue = issues.findById(id).orElse(null);
         Visibilities.requireVisible(
                 issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
@@ -416,8 +415,8 @@ public class IssuesController {
         String previous = issue.getTicketRef();
         issues.attachTicket(id, reference, url);
 
-        // Tracé comme une décision, parce que c'en est une : le webhook du traqueur peut
-        // désormais refermer ce constat, et remplacer la référence change qui a ce pouvoir.
+        // Recorded as a decision, because it is one: the tracker's webhook can now close this
+        // finding, and replacing the reference changes who holds that power.
         audit.record(new AuditLogService.Record(
                 AuditOperation.ISSUE_TRIAGED,
                 String.valueOf(id),

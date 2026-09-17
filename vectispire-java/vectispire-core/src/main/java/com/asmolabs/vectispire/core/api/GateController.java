@@ -223,10 +223,10 @@ public class GateController {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         int capped = Math.clamp(limit, 1, MAX_VERDICTS);
 
-        // **Un identifiant illisible ramène à la première page**, comme un curseur absent. Le
-        // record promet qu'un curseur inutilisable se lit comme « depuis le début » ; laisser
-        // `UUID.fromString` lever ici en ferait un 400 sur une valeur que le client n'a pas
-        // composée — il a renvoyé ce que le serveur lui avait donné.
+        // **An unreadable identifier goes back to the first page**, like an absent cursor. The
+        // record promises that an unusable cursor reads as "from the beginning"; letting
+        // `UUID.fromString` throw here would make it a 400 on a value the client did not compose —
+        // it sent back what the server had given it.
         List<GateVerdictEntity> read = RegisterCursor.parse(cursor)
                 .flatMap(from -> uuid(from.id()).map(id -> verdicts.pageAfter(from.at(), id, Limit.of(capped))))
                 .orElseGet(() -> verdicts.firstPage(Limit.of(capped)));

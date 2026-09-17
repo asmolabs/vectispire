@@ -14,26 +14,26 @@ import org.springframework.stereotype.Component;
 /**
  * Lets a reader read while a writer writes, which SQLite does not do by default.
  *
- * <p><b>Mesuré, et non supposé.</b> Une seule session de la suite navigateur a produit
- * <b>1015</b> {@code SQLITE_BUSY}, le premier neuf secondes après le démarrage. Chacun sort en
- * {@code 500} : une connexion refusée, un triage perdu, un écran qui dit « échec » sans raison
- * lisible. Ce n'est pas une fragilité de test — la suite ne fait qu'exposer ce qu'une deuxième
- * personne devant l'application déclencherait sur le déploiement en fichier unique.
+ * <p><b>Measured, not assumed.</b> A single session of the browser suite produced <b>1015</b>
+ * {@code SQLITE_BUSY}, the first nine seconds after start-up. Each leaves as a {@code 500}: a
+ * refused sign-in, a lost triage, a screen saying "failed" with no readable reason. This is not
+ * test flakiness — the suite only exposes what a second person in front of the application would
+ * trigger on the single-file deployment.
  *
- * <p><b>La cause est le mode de journal.</b> En {@code delete}, le mode par défaut, une écriture
- * prend un verrou exclusif sur tout le fichier : toute lecture concurrente attend, et au-delà du
- * délai d'attente elle échoue. En {@code WAL}, les lectures continuent pendant l'écriture, ce qui
- * supprime la quasi-totalité de ces collisions.
+ * <p><b>The cause is the journal mode.</b> In {@code delete}, the default, a write takes an
+ * exclusive lock on the whole file: every concurrent read waits, and past the busy timeout it
+ * fails. In {@code WAL}, reads carry on during the write, which removes nearly all of these
+ * collisions.
  *
- * <p><b>Une fois, et non par connexion.</b> Le mode de journal est une propriété <em>du fichier</em>
- * : posé une fois, il survit aux redémarrages. C'est pour cela qu'il n'est pas dans le
- * {@code connectionInitSql} de {@link SqliteForeignKeys} — et c'est aussi bien, parce que ce slot
- * ne peut porter qu'une instruction : {@code sqlite-jdbc} n'exécute que la première d'un
- * {@code execute} multi-instructions, silencieusement. Deux pragmas séparés par un point-virgule
- * y auraient laissé le second sans effet, en donnant l'impression du contraire.
+ * <p><b>Once, not per connection.</b> The journal mode is a property <em>of the file</em>: set
+ * once, it survives restarts. That is why it is not in {@link SqliteForeignKeys}'s
+ * {@code connectionInitSql} — and just as well, because that slot can carry only one statement:
+ * {@code sqlite-jdbc} runs only the first of a multi-statement {@code execute}, silently. Two
+ * pragmas separated by a semicolon would have left the second with no effect, while looking like
+ * the opposite.
  *
- * <p><b>Après le démarrage, et non pendant.</b> Poser le pragma au moment où la source de données
- * est construite ouvrirait la première connexion trop tôt, avant que Flyway n'ait migré.
+ * <p><b>After start-up, not during.</b> Setting the pragma as the data source is built would open
+ * the first connection too early, before Flyway has migrated.
  */
 @Component
 class SqliteWriteAheadLog {
@@ -57,9 +57,9 @@ class SqliteWriteAheadLog {
 
         try (Connection connection = pool.getConnection();
              Statement statement = connection.createStatement()) {
-            // Le pragma répond par le mode retenu, et c'est la seule preuve qu'il a pris : sur un
-            // fichier en lecture seule, ou sur un montage réseau, SQLite refuse WAL et reste en
-            // `delete` sans lever d'erreur.
+            // The pragma answers with the mode it settled on, and that is the only proof it took:
+            // on a read-only file, or on a network mount, SQLite refuses WAL and stays in `delete`
+            // without raising an error.
             var result = statement.executeQuery("PRAGMA journal_mode = WAL");
             String mode = result.next() ? result.getString(1) : "inconnu";
             if ("wal".equalsIgnoreCase(mode)) {

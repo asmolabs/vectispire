@@ -27,12 +27,11 @@ public class TeamMemberEntity {
     private Id id;
 
     /**
-     * Qui a posé cette ligne, et donc qui peut la retirer.
+     * Who set this row, and therefore who may remove it.
      *
-     * <p>{@code manual} pour une attribution humaine, {@code oidc} pour une revendication de
-     * groupe, {@code scim} pour un provisionnement. Chaque canal ne réconcilie que les siennes :
-     * une connexion ne doit pas emporter ce qu'un administrateur a décidé, et un annuaire ne doit
-     * pas défaire le travail d'un autre.
+     * <p>{@code manual} for a human assignment, {@code oidc} for a group claim, {@code scim} for
+     * provisioning. Each channel reconciles only its own: a sign-in must not carry away what an
+     * administrator decided, and one directory must not undo another's work.
      */
     @Column(name = "origin", nullable = false, length = 16)
     private String origin = Origin.MANUAL;
