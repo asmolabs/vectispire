@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Exceptions } from './exceptions';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * Le registre des exceptions, et la revue qui n'existait pas.
@@ -22,33 +23,33 @@ describe('le registre des exceptions', () => {
     let fixture: ComponentFixture<Exceptions>;
     let http: HttpTestingController;
 
-    const REGISTER = {
-        entries: [
-            {
-                issue_id: 41,
-                identifier: 'CVE-2026-0001',
-                severity: 'high',
-                target_kind: 'REPOSITORY',
-                target_id: 7,
-                target_name: 'paiement-api',
-                decision: 'not_affected',
-                justification: 'vulnerable_code_not_in_execute_path',
-                comment: null,
-                actor: 'c.moreau',
-                origin: 'manual',
-                decided_at: '2026-01-12T09:00:00Z',
-                expires_at: '2026-12-31T00:00:00Z',
-                lapsed: false,
-                last_reviewed_at: null,
-                last_reviewed_by: null
-            }
-        ],
-        granted: 1,
-        awaiting_approval: 0,
-        lapsed: 0,
-        never_reviewed: 1,
-        next_cursor: null
-    };
+    const REGISTER = asSchema('Register', {
+            entries: [
+                {
+                    issue_id: 41,
+                    identifier: 'CVE-2026-0001',
+                    severity: 'high',
+                    target_kind: 'REPOSITORY',
+                    target_id: 7,
+                    target_name: 'paiement-api',
+                    decision: 'not_affected',
+                    justification: 'vulnerable_code_not_in_execute_path',
+                    comment: null,
+                    actor: 'c.moreau',
+                    origin: 'manual',
+                    decided_at: '2026-01-12T09:00:00Z',
+                    expires_at: '2026-12-31T00:00:00Z',
+                    lapsed: false,
+                    last_reviewed_at: null,
+                    last_reviewed_by: null
+                }
+            ],
+            granted: 1,
+            awaiting_approval: 0,
+            lapsed: 0,
+            never_reviewed: 1,
+            next_cursor: null
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();

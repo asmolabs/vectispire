@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Inventory } from './inventory';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The component search.
@@ -16,20 +17,20 @@ describe('the component search', () => {
     let fixture: ComponentFixture<Inventory>;
     let http: HttpTestingController;
 
-    const OCCURRENCE = {
-        component: 'log4j-core',
-        componentVersion: '2.14.1',
-        purl: 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1',
-        type: 'java-archive',
-        direct: true,
-        targetKind: 'repository',
-        targetId: 5,
-        targetName: 'Arm Libs Spring',
-        branch: 'master',
-        projectVersion: '1.17.6',
-        scanId: 34,
-        scannedAt: '2026-08-21T05:03:00Z'
-    };
+    const OCCURRENCE = asSchema('Occurrence', {
+            component: 'log4j-core',
+            componentVersion: '2.14.1',
+            purl: 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1',
+            type: 'java-archive',
+            direct: true,
+            targetKind: 'repository',
+            targetId: 5,
+            targetName: 'Arm Libs Spring',
+            branch: 'master',
+            projectVersion: '1.17.6',
+            scanId: 34,
+            scannedAt: '2026-08-21T05:03:00Z'
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

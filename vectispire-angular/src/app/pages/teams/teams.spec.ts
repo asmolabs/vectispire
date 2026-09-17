@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Teams } from './teams';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The team screen, which is the authorization model with a form on it.
@@ -17,19 +18,21 @@ describe('the teams screen', () => {
     let fixture: ComponentFixture<Teams>;
     let http: HttpTestingController;
 
-    const TEAM = { id: 4, name: 'platform', description: null, memberCount: 1, targetCount: 2, notified: false };
+    const TEAM = asSchema('TeamSummary', {
+        id: 4, name: 'platform', description: null, memberCount: 1, targetCount: 2, notified: false
+    });
 
-    const ACCOUNTS = {
+    const ACCOUNTS = asSchema('UserListing', {
         users: [
             { id: 1, username: 'admin', email: null, displayName: 'The Administrator', role: 'ADMINISTRATOR', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 1 },
             { id: 2, username: 'reader', email: null, displayName: null, role: 'READER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }
         ]
-    };
+    });
 
-    const TARGETS = {
+    const TARGETS = asSchema('Targets', {
         repositories: [{ id: 7, label: 'ours' }],
         containers: [{ id: 3, label: 'registry.invalid/app:1.0' }]
-    };
+    });
 
     function settleBoot(accounts: object = ACCOUNTS): void {
         http.expectOne((call) => call.url === '/api/v1/teams').flush([TEAM]);

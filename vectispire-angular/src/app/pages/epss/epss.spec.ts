@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Epss } from './epss';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * L'écran où l'on regarde une CVE avant de savoir si elle vous concerne.
@@ -18,13 +19,13 @@ describe("la priorisation EPSS", () => {
     let fixture: ComponentFixture<Epss>;
     let http: HttpTestingController;
 
-    const RECORD = {
-        cveId: 'CVE-2021-44228',
-        epssScore: 0.97,
-        epssPercentile: 0.99,
-        isKev: true,
-        notes: null
-    };
+    const RECORD = asSchema('ThreatIntelRecord', {
+            cveId: 'CVE-2021-44228',
+            epssScore: 0.97,
+            epssPercentile: 0.99,
+            isKev: true,
+            notes: null
+    });
 
     /** Monte l'écran et répond aux deux appels de démarrage. */
     async function mount(aiEnabled: boolean): Promise<void> {

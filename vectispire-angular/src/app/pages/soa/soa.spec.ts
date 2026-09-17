@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Soa } from './soa';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * La déclaration d'applicabilité, et l'ordre dans lequel elle s'ouvre.
@@ -37,20 +38,20 @@ describe("la déclaration d'applicabilité", () => {
         };
     }
 
-    const STATEMENT = {
-        framework: 'ISO_27001',
-        total: 4,
-        declared: 3,
-        findings: 2,
-        reviewsOverdue: 0,
-        complete: false,
-        lines: [
-            line('ISO-A.5.15', 'CONSISTENT', true),
-            line('ISO-A.8.9', 'UNDECLARED', false),
-            line('ISO-A.8.28', 'OVERSTATED', true),
-            line('ISO-A.8.8', 'CONTRADICTED', true)
-        ]
-    };
+    const STATEMENT = asSchema('SoaStatement', {
+            framework: 'ISO_27001',
+            total: 4,
+            declared: 3,
+            findings: 2,
+            reviewsOverdue: 0,
+            complete: false,
+            lines: [
+                line('ISO-A.5.15', 'CONSISTENT', true),
+                line('ISO-A.8.9', 'UNDECLARED', false),
+                line('ISO-A.8.28', 'OVERSTATED', true),
+                line('ISO-A.8.8', 'CONTRADICTED', true)
+            ]
+    });
 
     /** Deux référentiels : la question se pose à l'échelle du système de management. */
     const OVERDUE = [

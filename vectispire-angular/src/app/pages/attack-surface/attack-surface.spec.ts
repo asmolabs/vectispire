@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AttackSurface } from './attack-surface';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The attack-surface screen, and the two things it gets wrong quietly.
@@ -42,34 +43,34 @@ describe('the attack surface screen', () => {
         createdAt: '2026-08-26T00:00:00Z'
     });
 
-    const GLOBAL = {
-        totalEndpoints: 40,
-        publicEndpoints: 12,
-        internalEndpoints: 28,
-        unauthenticatedEndpoints: 5,
-        shadowEndpoints: 2,
-        sensitiveUnprotectedEndpoints: 1,
-        frameworks: ['spring', 'express'],
-        highRiskEndpoints: []
-    };
+    const GLOBAL = asSchema('GlobalAttackSurface', {
+            totalEndpoints: 40,
+            publicEndpoints: 12,
+            internalEndpoints: 28,
+            unauthenticatedEndpoints: 5,
+            shadowEndpoints: 2,
+            sensitiveUnprotectedEndpoints: 1,
+            frameworks: ['spring', 'express'],
+            highRiskEndpoints: []
+    });
 
-    const REPO_OVERVIEW = {
-        repositoryId: 7,
-        endpoints: [
-            endpoint(1, 'GET', '/api/admin/users', false, 'PUBLIC'),
-            endpoint(2, 'POST', '/api/admin/users', true, 'PUBLIC'),
-            endpoint(3, 'GET', '/api/health', false, 'INTERNAL')
-        ],
-        contracts: [],
-        summary: {
-            totalEndpoints: 3,
-            publicEndpoints: 2,
-            internalEndpoints: 1,
-            unauthenticatedEndpoints: 2,
-            shadowEndpoints: 0,
-            sensitiveUnprotectedEndpoints: 1
-        }
-    };
+    const REPO_OVERVIEW = asSchema('RepositoryApisOverview', {
+            repositoryId: 7,
+            endpoints: [
+                endpoint(1, 'GET', '/api/admin/users', false, 'PUBLIC'),
+                endpoint(2, 'POST', '/api/admin/users', true, 'PUBLIC'),
+                endpoint(3, 'GET', '/api/health', false, 'INTERNAL')
+            ],
+            contracts: [],
+            summary: {
+                totalEndpoints: 3,
+                publicEndpoints: 2,
+                internalEndpoints: 1,
+                unauthenticatedEndpoints: 2,
+                shadowEndpoints: 0,
+                sensitiveUnprotectedEndpoints: 1
+            }
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();

@@ -40,7 +40,7 @@ type Schemas = components['schemas'];
  * not have is a fixture nobody can check, and silently accepting it would be the failure this
  * whole file is about.
  */
-export function asSchema<K extends keyof Schemas>(name: K, fixture: unknown): Schemas[K] {
+export function asSchema<K extends keyof Schemas, T>(name: K, fixture: T): T {
     const problems = check(name as string, fixture, name as string);
     if (problems.length > 0) {
         throw new Error(
@@ -51,11 +51,19 @@ export function asSchema<K extends keyof Schemas>(name: K, fixture: unknown): Sc
                 '-Dvectispire.openapi.write=true'
         );
     }
-    return fixture as Schemas[K];
+    return fixture;
 }
 
-/** The same, for a route that answers with a list. */
-export function asSchemaList<K extends keyof Schemas>(name: K, fixtures: unknown[]): Schemas[K][] {
+/**
+ * The same, for a route that answers with a list.
+ *
+ * <p><b>The fixture comes back as itself, not as the schema's type.</b> Every property the document
+ * declares is optional — springdoc marks only primitives — so returning `Schemas[K]` would hand
+ * every call site a shape where nothing is known to be present, and the specs would spend their
+ * lines asserting away a looseness that is an artefact of the generator. The literal already has
+ * the better type; what this adds is the check that it is also the true one.
+ */
+export function asSchemaList<K extends keyof Schemas, T>(name: K, fixtures: T[]): T[] {
     return fixtures.map((fixture) => asSchema(name, fixture));
 }
 

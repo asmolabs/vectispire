@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Users } from './users';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The account screen, and the refusal it must not swallow.
@@ -18,27 +19,33 @@ describe('the accounts screen', () => {
     let fixture: ComponentFixture<Users>;
     let http: HttpTestingController;
 
-    const account = (id: number, username: string, role: string, isActive = true) => ({
-        id,
-        username,
-        email: null,
-        displayName: null,
-        role,
-        isActive,
-        mustChangePassword: false,
-        createdAt: '2026-01-01T00:00:00Z',
-        activeSessions: 0
+    const account = (id: number, username: string, role: string, isActive = true) =>
+        asSchema('UserAdminSummary', {
+            id,
+            username,
+            email: null,
+            displayName: null,
+            role,
+            isActive,
+            mustChangePassword: false,
+            createdAt: '2026-01-01T00:00:00Z',
+            activeSessions: 0
+        });
+
+    const LIST = asSchema('UserListing', {
+        users: [account(1, 'admin', 'ADMINISTRATOR'), account(2, 'reader', 'READER')],
+        currentUserId: 1
     });
 
-    const LIST = { users: [account(1, 'admin', 'ADMINISTRATOR'), account(2, 'reader', 'READER')], currentUserId: 1 };
-
-    const TARGETS = {
+    const TARGETS = asSchema('Targets', {
         repositories: [{ id: 7, label: 'portail-client' }],
         containers: [{ id: 3, label: 'registry/service:1.4' }]
-    };
+    });
 
     /** Le mode restreint, qui est le défaut d'une installation neuve. */
-    const SETTINGS = { settings: [{ key: 'target_visibility', value: 'assigned' }] };
+    const SETTINGS = asSchema('Catalog', {
+        settings: [{ key: 'target_visibility', value: 'assigned', configured: true, governor_only: false }]
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();
