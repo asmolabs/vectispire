@@ -73,10 +73,10 @@ public class RuleSetsController {
     /**
      * @param languages how many rule files each holds, so a choice is made on a number rather
      *     than on a name
-     * @param categories how many rule files declare each OWASP category. <b>Répond avant l'import
-     *     à une question qu'on ne pouvait poser qu'après.</b> La grille marque une catégorie « non
-     *     couverte » quand aucune règle installée ne la déclare ; savoir ce que ce catalogue
-     *     contient dit si c'est une limite du produit ou un import qui n'a pas été fait
+     * @param categories how many rule files declare each OWASP category. <b>Answers before the
+     *     import a question that could only be asked after it.</b> The grid marks a category "not
+     *     covered" when no installed rule declares it; knowing what this catalogue holds says
+     *     whether that is a limit of the product or an import nobody made
      * @param licence the text at this tag, shown in full. Not summarised: a summary of a licence
      *     is an opinion about a licence
      * @param licenceSha256 echoed back on acceptance, which is what binds the two together

@@ -10,12 +10,11 @@ import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * La grille des dix, et la distinction qui la justifie.
+ * The grid of ten, and the distinction that justifies it.
  *
- * <p><b>« Rien trouvé » et « rien ne regarde » produisent le même vert.</b> Deux états ne peuvent
- * pas les séparer, d'où quatre — et les assertions ici portent sur les trois qui ne sont pas
- * « rien trouvé », parce que ce sont ceux qu'une grille à deux états se trompe en ayant l'air
- * juste.
+ * **"Nothing found" and "nothing looks" produce the same green.** Two states cannot separate them,
+ * hence four — and the assertions here are about the three that are not "nothing found", because
+ * those are the ones a two-state grid gets wrong while looking right.
  */
 describe('la grille OWASP', () => {
     let fixture: ComponentFixture<OwaspGridComponent>;
@@ -59,8 +58,8 @@ describe('la grille OWASP', () => {
     });
 
     it("n'affiche un compte que là où quelque chose a été compté", () => {
-        // Un « 0 » en face d'une catégorie que rien ne regarde est le chiffre que toute cette
-        // grille existe pour ne pas écrire.
+        // A "0" beside a category nothing looks at is the figure this whole grid exists not to
+        // write.
         const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
         expect([...cells].map((cell: HTMLElement) => cell.textContent!.trim()))
             .toEqual(['—', '3', '—', '—']);
@@ -82,22 +81,22 @@ describe('la grille OWASP', () => {
         client.expectOne((call) => call.url === '/api/v1/owasp/coverage').error(new ProgressEvent('failed'));
         failed.detectChanges();
 
-        // Le rapport en dessous porte ses propres erreurs ; une grille vide vaut mieux qu'un
-        // bandeau rouge au-dessus de données valides.
+        // The report below carries its own errors; an empty grid is better than a red banner above
+        // valid data.
         expect(failed.nativeElement.textContent.trim()).toBe('');
     });
 
     /**
-     * <b>Une case grise sans déclaration est un aveu que personne ne revoit.</b>
+     * **A grey square with no declaration is an admission nobody reviews.**
      *
-     * <p>Deux catégories du Top 10 ne sont atteignables par aucune analyse statique — la conception
-     * non sûre ne se lit pas dans du code, et l'absence de journal ne laisse par définition aucune
-     * trace. Le dire est honnête ; le laisser là indéfiniment ne l'est plus. La déclaration porte
-     * un nom, une preuve et une échéance, et c'est ce que cette ligne affiche.
+     * Two Top 10 categories are beyond any static analysis — insecure design cannot be read out of
+     * code, and a missing log leaves, by definition, no trace. Saying so is honest; leaving it
+     * there indefinitely is not. A declaration carries a name, evidence and a due date, and that is
+     * what this row shows.
      */
-    it('affiche ce que l\'organisation déclare d\'une catégorie que rien ne mesure', () => {
-        // Les libellés viennent du paquet : affirmer sur des clés non résolues prouverait que
-        // `t()` a été appelé et rien sur ce qu'un lecteur voit.
+    it('shows what the organisation states about a category nothing measures', () => {
+        // The labels come from the bundle: asserting on unresolved keys would prove `t()` was
+        // called and nothing about what a reader sees.
         TestBed.inject(I18nService).translations.set({
             owasp_grid: {
                 declared: { APPLICABLE: 'Declared applicable' },
@@ -108,8 +107,8 @@ describe('la grille OWASP', () => {
             }
         });
 
-        // Typée d'abord, vérifiée ensuite : l'annotation donne aux littéraux les unions étroites
-        // du client, et `asSchema` confronte la même valeur au document.
+        // Typed first, checked second: the annotation gives the literals the client's narrow
+        // unions, and `asSchema` confronts the same value with the document.
         const declared: OwaspGrid = {
                 lines: [
                 {
@@ -151,14 +150,14 @@ describe('la grille OWASP', () => {
     });
 
     /**
-     * Le formulaire de déclaration, et les deux endroits où il refuse.
+     * The declaration form, and the two places it refuses.
      *
-     * <p>Ce sont les refus du serveur, dits par un bouton éteint plutôt qu'après la frappe — et ce
-     * sont ceux d'ISO 27001, qui ne parlent d'aucun référentiel : une exclusion sans motif est une
-     * ligne qui sort du périmètre sans dire pourquoi, une preuve déclarée ailleurs sans dire où est
-     * la même omission déplacée.
+     * These are the server's refusals, said by a dead button rather than after the typing — and
+     * they are ISO 27001's, which name no framework: an exclusion with no reason is a line stepping
+     * out of scope without saying why, and evidence declared elsewhere without saying where is the
+     * same omission moved.
      */
-    describe('la déclaration', () => {
+    describe('the declaration', () => {
         function asSecurityLead(): void {
             TestBed.inject(SessionStore).open('a-token', {
                 username: 'c.moreau',
@@ -169,23 +168,23 @@ describe('la grille OWASP', () => {
             });
         }
 
-        it("ne s'offre que là où rien ne mesure", () => {
+        it('is offered only where nothing measures', () => {
             asSecurityLead();
             const component = fixture.componentInstance;
 
-            // A05 porte des constats : une déclaration posée à côté d'une mesure est une seconde
-            // source, et c'est la mesure qui perdrait.
+            // A05 carries findings: a declaration set beside a measurement is a second source, and
+            // it is the measurement that would lose.
             expect(component.declarable(component.lines()[1])).toBe(false);
             expect(component.declarable(component.lines()[0])).toBe(true);
         });
 
-        it("ne s'offre pas à qui ne peut pas l'écrire", () => {
-            // Le serveur refuse, et un bouton qui répond 403 dit que le produit est cassé plutôt
-            // que que l'action n'est pas la sienne.
+        it('is not offered to somebody who cannot write it', () => {
+            // The server refuses, and a button that answers 403 says the product is broken rather
+            // than that the action is not theirs.
             expect(fixture.componentInstance.declarable(fixture.componentInstance.lines()[0])).toBe(false);
         });
 
-        it('refuse une exclusion sans motif, et une preuve externe sans adresse', () => {
+        it('refuses an exclusion with no reason, and external evidence with no address', () => {
             asSecurityLead();
             const component = fixture.componentInstance;
             component.openDeclare(component.lines()[0]);
@@ -207,11 +206,11 @@ describe('la grille OWASP', () => {
         });
 
         /**
-         * <b>`EXTERNAL` par défaut, et non `VECTISPIRE`.</b> La catégorie déclarée est celle que ce
-         * produit ne mesure pas : proposer sa propre preuve par défaut inviterait à cocher la seule
-         * réponse que la case contredit.
+         * **`EXTERNAL` by default, not `VECTISPIRE`.** The category being declared is the one this
+         * product does not measure: offering its own evidence by default would invite ticking the
+         * one answer the square contradicts.
          */
-        it('propose une preuve externe par défaut, puisque ce produit ne la détient pas', () => {
+        it('defaults to external evidence, since this product does not hold it', () => {
             asSecurityLead();
             const component = fixture.componentInstance;
 
@@ -220,7 +219,7 @@ describe('la grille OWASP', () => {
             expect(component.evidenceSource).toBe('EXTERNAL');
         });
 
-        it('envoie la déclaration sur la catégorie de la ligne, et recharge la grille', () => {
+        it("sends the declaration on the row's category, and reloads the grid", () => {
             asSecurityLead();
             const component = fixture.componentInstance;
             component.openDeclare(component.lines()[0]);
@@ -236,8 +235,8 @@ describe('la grille OWASP', () => {
             expect(sent.request.body.external_evidence).toBe('Dossier QUAL-2026');
             sent.flush({});
 
-            // Rechargée plutôt que fusionnée sur place : la grille porte des compteurs, et les
-            // recalculer dans le navigateur en ferait une seconde implémentation.
+            // Reloaded rather than merged in place: the grid carries counters, and recomputing
+            // them in the browser would make a second implementation of them.
             http.expectOne((call) => call.url === '/api/v1/owasp/coverage').flush(GRID);
             expect(component.editing()).toBeNull();
         });

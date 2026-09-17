@@ -21,15 +21,15 @@ import type {
 } from '@/app/core/api.models';
 
 /**
- * Les dix catégories, répondues par règle plutôt que par un modèle.
+ * The ten categories, answered by rule rather than by a model.
  *
- * <p><b>Quatre états et non deux, parce que deux mentiraient.</b> Une catégorie sans constat et
- * une catégorie que rien ne regarde produisent le même vert. Sept des dix ne sont couvertes par
- * aucun scanner ici, et le dire est la chose la plus utile que cette grille fasse.
+ * **Four states and not two, because two would lie.** A category with nothing found and a category
+ * nothing looks at produce the same green. Several of the ten are covered by no scanner here, and
+ * saying so is the most useful thing this grid does.
  *
- * <p>Posée au-dessus du rapport écrit par le modèle, pas à sa place : le rapport produit la prose
- * qu'aucun moteur de règles n'écrit, et il ne sert pas de preuve. Les lire dans cet ordre est
- * l'ordre dans lequel ils valent quelque chose.
+ * Placed above the model-written report, not in its place: the report produces the prose no rules
+ * engine writes, and it does not serve as evidence. Reading them in that order is the order in
+ * which they are worth something.
  */
 @Component({
     selector: 'zs-owasp-grid',
@@ -54,12 +54,12 @@ export class OwaspGridComponent {
     readonly grid = signal<OwaspGrid | null>(null);
 
     /**
-     * La déclaration en cours d'écriture, et les champs qu'elle porte.
+     * The declaration being written, and the fields it carries.
      *
-     * <p><b>Le même formulaire que la SoA, parce que c'est la même chose.</b> Une catégorie
-     * qu'aucun scanner d'ici ne mesure n'a que la déclaration pour porter une revue : qui
-     * l'affirme, avec quelle preuve, et quand cela se revoit. Écrire un second modèle de saisie
-     * pour la même table donnerait deux formulaires qui divergeraient sur la première règle ajoutée.
+     * **The same form as the statement of applicability, because it is the same thing.** A category
+     * no scanner here measures has nothing but a declaration to carry a review: who asserts it, on
+     * what evidence, and when it is looked at again. Writing a second entry model for one table
+     * would give two forms that diverge on the first rule added to either.
      */
     readonly editing = signal<OwaspCoverageLine | null>(null);
     readonly busy = signal(false);
@@ -76,11 +76,11 @@ export class OwaspGridComponent {
     readonly canDeclare = computed(() => this.session.isSecurityLead());
 
     /**
-     * Déclarable là où la mesure s'arrête, et nulle part ailleurs.
+     * Declarable where measurement stops, and nowhere else.
      *
-     * <p>Une catégorie qu'un scanner d'ici sait lire n'a pas besoin d'être affirmée : elle est
-     * mesurée, et une déclaration posée à côté d'une mesure est une seconde source qui finira par
-     * la contredire. Le bouton n'apparaît donc que sur les cases que rien ne mesure.
+     * A category a scanner here can read does not need asserting: it is measured, and a declaration
+     * set beside a measurement is a second source that will end up contradicting it. The button
+     * therefore appears only on the squares nothing measures.
      */
     declarable(line: OwaspCoverageLine): boolean {
         return this.canDeclare() && line.state === 'NOT_COVERED';
@@ -90,8 +90,8 @@ export class OwaspGridComponent {
         const existing = line.declaration;
         this.applicability = existing?.applicability ?? 'APPLICABLE';
         this.implementation = existing?.implementation ?? 'IMPLEMENTED';
-        // `EXTERNAL` par défaut, et non `VECTISPIRE` : la catégorie est précisément celle que ce
-        // produit ne mesure pas, donc sa preuve vit ailleurs par construction.
+        // `EXTERNAL` by default, not `VECTISPIRE`: the category is precisely the one this product
+        // does not measure, so its evidence lives elsewhere by construction.
         this.evidenceSource = existing?.evidenceSource ?? 'EXTERNAL';
         this.justification = existing?.justification ?? '';
         this.externalEvidence = existing?.externalEvidence ?? '';
@@ -102,11 +102,11 @@ export class OwaspGridComponent {
     }
 
     /**
-     * Les deux refus du serveur, dits ici par un bouton éteint plutôt qu'après la frappe.
+     * The server's two refusals, said here by a dead button rather than after the typing.
      *
-     * <p>Ce sont les mêmes que sous ISO 27001, et ils ne parlent d'aucun référentiel : une
-     * exclusion sans motif est une ligne qui sort du périmètre sans dire pourquoi, et une preuve
-     * déclarée ailleurs sans dire où est la même omission à un autre endroit.
+     * They are the same as under ISO 27001, and they name no framework: an exclusion with no reason
+     * is a line stepping out of scope without saying why, and evidence declared elsewhere without
+     * saying where is the same omission moved.
      */
     incomplete(): boolean {
         if (this.applicability === 'EXCLUDED') {
@@ -137,8 +137,8 @@ export class OwaspGridComponent {
                 next: () => {
                     this.editing.set(null);
                     this.busy.set(false);
-                    // Rechargée plutôt que fusionnée sur place : la grille porte aussi des
-                    // compteurs, et les recalculer ici en ferait une seconde implémentation.
+                    // Reloaded rather than merged in place: the grid also carries counters, and
+                    // recomputing them here would make a second implementation of them.
                     this.reload();
                 },
                 error: (failure) => {
@@ -156,11 +156,11 @@ export class OwaspGridComponent {
     }
 
     /**
-     * L'ordre du standard, toujours.
+     * The standard's order, always.
      *
-     * <p>Trier par gravité mettrait les catégories actionnables en haut, ce qui est le bon réflexe
-     * d'un tableau de bord et le mauvais ici : un questionnaire d'audit pose A01 puis A02, et une
-     * grille réordonnée oblige à chercher chaque ligne.
+     * Sorting by severity would put the actionable categories on top, which is the right reflex for
+     * a dashboard and the wrong one here: an audit questionnaire asks A01 then A02, and a reordered
+     * grid forces the reader to hunt for every row.
      */
     readonly lines = computed<OwaspCoverageLine[]>(() => this.grid()?.lines ?? []);
 
@@ -169,10 +169,10 @@ export class OwaspGridComponent {
     }
 
     /**
-     * Un zéro qui va bien se peint en vert, pas en alarme.
+     * A zero that is good news is painted green, not as an alarm.
      *
-     * <p>« 0 couverte mais non mesurée » en orange était une bonne nouvelle affichée comme un
-     * problème. Un tableau où les bonnes nouvelles sont oranges apprend à ignorer l'orange.
+     * "0 covered but unmeasured" in orange was good news shown as a problem. A table where good
+     * news is orange teaches its reader to ignore orange.
      */
     alarming(count: number, tone: 'danger' | 'warn'): string {
         if (count === 0) {
@@ -181,7 +181,7 @@ export class OwaspGridComponent {
         return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
     }
 
-    /** Le gris de « non couvert » n'est pas le vert de « rien trouvé », et c'est tout le sujet. */
+    /** The grey of "not covered" is not the green of "nothing found", and that is the whole point. */
     colourOf(state: OwaspState): string {
         switch (state) {
             case 'FINDINGS':

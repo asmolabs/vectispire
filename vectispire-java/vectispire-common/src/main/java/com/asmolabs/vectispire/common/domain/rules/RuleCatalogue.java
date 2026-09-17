@@ -119,11 +119,11 @@ public final class RuleCatalogue {
      * @param languages how many rule files each top-level directory holds, ordered by name so
      *     two fetches of the same tag present the same list
      * @param categories how many rule files declare each OWASP category, read from their own
-     *     {@code metadata.owasp}. <b>C'est ce qui rend « hors de portée » vérifiable au lieu
-     *     d'affirmé.</b> La grille marque une catégorie non couverte quand aucune règle installée
-     *     ne la déclare — donc la question « peut-on couvrir A09 ici » n'est pas architecturale,
-     *     elle est empirique : ce catalogue en contient-il. Personne ne pouvait y répondre sans
-     *     importer d'abord, ce qui est l'ordre inverse de celui qu'on veut.
+     *     {@code metadata.owasp}. <b>This is what makes "out of reach" checkable rather than
+     *     asserted.</b> The grid marks a category uncovered when no installed rule declares it, so
+     *     the question "can A09 be covered here" is not architectural but empirical: does this
+     *     catalogue hold any. Nobody could answer without importing first, which is the reverse of
+     *     the order an operator wants.
      * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Vectispire: a
      *     licence can change between tags, and a copy would let somebody accept the wrong one
      */
@@ -166,7 +166,7 @@ public final class RuleCatalogue {
             if (language != null) {
                 byLanguage.merge(language, 1, Integer::sum);
             }
-            // Une règle peut en déclarer plusieurs ; chacune compte pour ce qu'elle couvre.
+            // A rule may declare several; each counts for what it covers.
             for (String category : OwaspTag.declaredIn(entry.content())) {
                 byCategory.merge(category, 1, Integer::sum);
             }

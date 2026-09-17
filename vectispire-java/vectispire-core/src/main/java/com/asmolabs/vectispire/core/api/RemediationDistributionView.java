@@ -6,43 +6,43 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * La distribution des délais, comme le fil l'épelle.
+ * The remediation distribution, as the wire spells it.
  *
- * <h2>Une seule différence avec le record du domaine, et elle a coûté un test</h2>
+ * <h2>One difference from the domain record, and it cost a test</h2>
  *
- * <p><b>La gravité en minuscules.</b> Le domaine porte l'énumération {@link Severity}, ordonnée du
- * pire au moins grave, et c'est ce qui la rend comparable. Sérialisée telle quelle, elle sort en
- * {@code CRITICAL} — alors que toutes les autres routes de cette API passent par
- * {@link Severity#wireName()} et envoient {@code critical}. Cette route était la seule à en
- * décider autrement, et rien ne le disait.
+ * <p><b>Severity in lowercase.</b> The domain carries the {@link Severity} enum, ordered worst
+ * first, which is what makes it comparable. Serialised as it stands it goes out as
+ * {@code CRITICAL} — while every other route in this API passes through
+ * {@link Severity#wireName()} and sends {@code critical}. This route was the only one deciding
+ * otherwise, and nothing said so.
  *
- * <p>Un client qui branche sur la gravité devait donc connaître deux orthographes. Le test de
- * l'écran cherchait {@code severity === 'low'} et ne trouvait aucune ligne ; sa fixture écrivait
- * {@code 'low'} aussi, donc l'absence ne levait pas et le test restait vert. <b>Deux erreurs qui
- * s'accordent font un test qui ne mesure rien.</b>
+ * <p>A client branching on severity therefore had to know two spellings. The screen's test looked
+ * for {@code severity === 'low'} and found no row; its fixture wrote {@code 'low'} as well, so the
+ * absence never threw and the test stayed green. <b>Two errors that agree make a test that measures
+ * nothing.</b>
  *
- * <h2>Pourquoi pas un {@code @JsonValue} sur l'énumération</h2>
+ * <h2>Why not {@code @JsonValue} on the enum</h2>
  *
- * <p>Il aurait corrigé les deux champs d'un coup, et bien davantage : Jackson applique
- * {@code @JsonValue} aux <em>clés</em> des cartes, et {@code countsBySeverity} comme
- * {@code backlogBySeverity} en sont. Les écrans les indexent par {@code ['CRITICAL']}. La
- * correction la plus élégante cassait le tableau de bord — vérifié avant d'être écartée, pas après.
+ * <p>It would have fixed both fields at once, and a great deal more: Jackson applies
+ * {@code @JsonValue} to map <em>keys</em>, and {@code countsBySeverity} and
+ * {@code backlogBySeverity} are maps. The screens index them by {@code ['CRITICAL']}. The most
+ * elegant fix broke the dashboard — checked before it was set aside, not after.
  *
- * <h2>Pourquoi une vue plutôt qu'une annotation sur le record</h2>
+ * <h2>Why a view rather than an annotation on the record</h2>
  *
- * <p>{@code vectispire-common} est le module domaine et ne dépend d'aucune annotation web : y
- * mettre {@code @Schema} aurait fait entrer springdoc dans une couche qui n'en veut pas.
- * {@link ViolationView} existe pour exactement cette raison, et dit exactement cela.
+ * <p>{@code vectispire-common} is the domain module and depends on no web annotation: putting
+ * {@code @Schema} there would have let springdoc into a layer that does not want it.
+ * {@link ViolationView} exists for exactly this reason, and says exactly that.
  *
- * <p>La liste des valeurs est recopiée dans {@code @Schema} parce qu'un accesseur qui rend une
- * {@code String} ne laisse rien à énumérer. Une liste recopiée dérive : c'est
- * {@code RemediationSeverityWireTest} qui l'en empêche, en comparant ce que le document publie à
+ * <p>The list of values is copied into {@code @Schema} because an accessor returning a
+ * {@code String} leaves nothing to enumerate. A copied list drifts:
+ * {@code RemediationSeverityWireTest} is what stops it, comparing what the document publishes to
  * {@code Severity.values()}.
  */
 public record RemediationDistributionView(
         int windowDays, List<BySeverityView> bySeverity, Long oldestOpenDays, String oldestOpenSeverity) {
 
-    /** Les six valeurs de {@link Severity}, dans la forme que cette API emploie partout. */
+    /** The six values of {@link Severity}, in the form this API uses everywhere. */
     static final String[] WIRE_SEVERITIES = {"critical", "high", "medium", "low", "negligible", "unknown"};
 
     public static RemediationDistributionView of(RemediationDistribution distribution) {
@@ -84,7 +84,7 @@ public record RemediationDistributionView(
         }
     }
 
-    /** La même énumération que ci-dessus, sur le champ du haut. */
+    /** The same enumeration as above, on the top-level field. */
     @Schema(allowableValues = {"critical", "high", "medium", "low", "negligible", "unknown"})
     @Override
     public String oldestOpenSeverity() {

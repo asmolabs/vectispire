@@ -42,11 +42,11 @@ export class Compliance {
     readonly summary = signal<ComplianceSummary | null>(null);
 
     /**
-     * La part du parc observée dans la fenêtre de fraîcheur.
+     * The share of the estate observed inside the freshness window.
      *
-     * **Cent pour cent sur un parc vide, et c'est délibéré.** Zéro se lirait comme une alarme là
-     * où il n'y a rien à observer, et une alarme qui se déclenche sur un déploiement neuf apprend
-     * à ignorer celle qui compte.
+     * **A hundred per cent on an empty estate, deliberately.** Zero would read as an alarm where
+     * there is nothing to observe, and an alarm that fires on a fresh deployment teaches its reader
+     * to ignore the one that matters.
      */
     readonly freshnessRate = computed(() => {
         const data = this.summary();
@@ -57,18 +57,18 @@ export class Compliance {
     });
 
     /**
-     * Les cibles dont aucune observation n'existe — pas « périmée », **absente**.
+     * Targets for which no observation exists — not "stale", **absent**.
      *
-     * Une observation périmée est datée : on sait ce qu'on ignore. Une cible jamais scannée ne
-     * présente aucune vulnérabilité connue, ce qui la rend verte sur tout tableau qui compte des
-     * constats. C'est le chiffre qui sépare « propre » de « jamais regardé ».
+     * A stale observation is dated: you know what you do not know. A target never scanned presents
+     * no known vulnerability, which makes it green on any table that counts findings. This is the
+     * figure that separates "clean" from "never looked at".
      */
     readonly neverObserved = computed(() => {
         const data = this.summary();
         return data ? Math.max(0, data.totalMonitoredTargets - data.observedTargets) : 0;
     });
 
-    /** Rouge dès qu'une cible n'a jamais été observée ; orange sous les trois quarts du parc. */
+    /** Red as soon as one target has never been observed; orange below three quarters of the estate. */
     readonly freshnessTone = computed(() => {
         if (this.neverObserved() > 0) {
             return 'text-red-500';

@@ -7,18 +7,17 @@ import { RuleSets } from './rule-sets';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Ce que l'aperçu du catalogue amont dit avant qu'on l'importe.
+ * What the upstream catalogue's preview says before it is imported.
  *
- * <p><b>Une case grise de la grille OWASP disait deux choses opposées.</b> Elle est posée quand
- * aucune règle installée ne déclare la catégorie — ce qui peut vouloir dire « aucun scanner d'ici
- * ne sait regarder là », ou « les règles qui savent n'ont pas été importées ». Distinguer les deux
- * demandait d'importer d'abord et de regarder ensuite, soit l'ordre inverse de celui qu'un
- * opérateur veut : il choisit ce qu'il importe.
+ * **A grey square on the OWASP grid said two opposite things.** It is set when no installed rule
+ * declares the category — which can mean "no scanner here knows how to look there", or "the rules
+ * that do were never imported". Telling them apart meant importing first and looking afterwards,
+ * the reverse of the order an operator wants: they choose what they import.
  *
- * <p>Le décompte est lu dans les règles elles-mêmes, par leur propre {@code metadata.owasp}, au
- * même passage que le décompte par langage.
+ * The count is read from the rules themselves, by their own `metadata.owasp`, in the same pass as
+ * the count by language.
  */
-describe("l'aperçu du catalogue", () => {
+describe('the catalogue preview', () => {
     let fixture: ComponentFixture<RuleSets>;
     let http: HttpTestingController;
 
@@ -44,7 +43,7 @@ describe("l'aperçu du catalogue", () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
 
-        // Ce que l'écran demande de lui-même au démarrage.
+        // What the screen asks for on its own at start-up.
         for (const request of http.match(() => true)) {
             request.flush(request.request.url.endsWith('/coverage') ? { state: 'COVERED', ruleFiles: 0 } : { ruleSets: [] });
         }
@@ -57,11 +56,11 @@ describe("l'aperçu du catalogue", () => {
         fixture.detectChanges();
     }
 
-    it('nomme les catégories du Top 10 que ces règles déclarent, avec leur nombre', () => {
+    it('names the Top 10 categories these rules declare, with their counts', () => {
         readCatalogue({ A03: 128, A01: 44, A10: 7 });
 
-        // Triées : deux lectures du même catalogue doivent présenter la même liste, et l'ordre
-        // d'une carte JSON n'est pas une garantie.
+        // Sorted: two readings of the same catalogue must present the same list, and the order of
+        // a JSON map is no guarantee.
         expect(fixture.componentInstance.categoriesOf(fixture.componentInstance.catalogue()!)).toEqual([
             { id: 'A01', count: 44 },
             { id: 'A03', count: 128 },
@@ -74,11 +73,11 @@ describe("l'aperçu du catalogue", () => {
     });
 
     /**
-     * <b>Le cas vide est une réponse, pas une absence d'affichage.</b> Un catalogue dont aucune
-     * règle ne déclare de catégorie ne fera bouger aucune case de la grille — le dire évite
-     * l'import qu'on ferait en espérant le contraire.
+     * **The empty case is an answer, not a failure to display.** A catalogue in which no rule
+     * declares a category will move no square of the grid — saying so avoids the import somebody
+     * would make hoping otherwise.
      */
-    it('dit qu\'un catalogue sans déclaration ne fera bouger aucune case', () => {
+    it('says a catalogue that declares nothing will move no square', () => {
         readCatalogue({});
 
         expect(fixture.componentInstance.categoriesOf(fixture.componentInstance.catalogue()!)).toEqual([]);

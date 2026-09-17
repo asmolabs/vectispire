@@ -892,10 +892,10 @@ export class ApiService {
     }
 
     /**
-     * Déclare ce qu'une catégorie devient quand aucun scanner d'ici ne la mesure.
+     * States what a category becomes when no scanner here measures it.
      *
-     * Le corps est celui de la SoA — mêmes règles, et elles ne parlent d'aucun référentiel en
-     * particulier : une déclaration doit dire ce qu'elle affirme et où vit sa preuve.
+     * The body is the statement of applicability's — same rules, and they name no framework in
+     * particular: a declaration must say what it asserts and where its evidence lives.
      */
     declareOwaspCategory(category: string, body: DeclarationRequest): Observable<ControlDeclaration> {
         return this.http.put<ControlDeclaration>(`/api/v1/owasp/coverage/${category}/declaration`, body);

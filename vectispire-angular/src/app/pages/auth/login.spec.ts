@@ -20,8 +20,8 @@ describe('the sign-in screen', () => {
     let http: HttpTestingController;
     let navigate: ReturnType<typeof vi.spyOn>;
 
-    // `id` n'existe pas sur cette forme : la réponse de connexion porte le compte connecté, pas
-    // la fiche d'administration. La fixture en inventait un depuis toujours.
+    // `id` does not exist on this shape: the login response carries the signed-in account, not the
+    // administration record. The fixture had been inventing one all along.
     const USER = asSchema('UserSummary', {
         username: 'admin',
         displayName: null,

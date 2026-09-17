@@ -46,11 +46,10 @@
                                     {{ line.because }}
                                 }
                                 <!--
-                                    Ce que l'organisation déclare d'une catégorie qu'aucun scanner
-                                    d'ici ne mesure. Une case grise sans déclaration est un aveu que
-                                    personne ne revoit ; avec, elle porte un nom, une preuve et une
-                                    échéance — c'est la différence entre constater une limite et
-                                    l'assumer.
+                                    What the organisation states about a category no scanner here
+                                    measures. A grey square with no declaration is an admission
+                                    nobody reviews; with one it carries a name, evidence and a due
+                                    date — the difference between noting a limit and owning it.
                                 -->
                                 @if (declarable(line)) {
                                     <div class="mt-1">
@@ -99,10 +98,10 @@
 }
 
 <!--
-    **Le même formulaire que la SoA, parce que c'est la même déclaration.** Une catégorie qu'aucun
-    scanner d'ici ne mesure n'a que cela pour porter une revue : qui l'affirme, avec quelle preuve,
-    et quand elle se revoit. Deux modèles de saisie sur une seule table divergeraient à la première
-    règle ajoutée d'un côté.
+    The same form as the statement of applicability, because it is the same declaration. A category
+    no scanner here measures has nothing else to carry a review: who asserts it, on what evidence,
+    and when it is looked at again. Two entry models over one table would diverge at the first rule
+    added to either.
 -->
 <p-dialog [visible]="!!editing()" (visibleChange)="editing.set(null)" [modal]="true" [style]="{ width: '38rem' }"
     [header]="'owasp_grid.dialog.title' | translate">

@@ -13,25 +13,24 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * La liste de gravités recopiée dans {@link RemediationDistributionView}, tenue à jour de force.
+ * The severity list copied into {@link RemediationDistributionView}, kept current by force.
  *
- * <p><b>Un accesseur qui rend une {@code String} ne laisse rien à énumérer à springdoc</b>, donc
- * les six valeurs sont écrites à la main dans {@code @Schema} pour que le document garde son
- * énumération. Une liste recopiée dérive : le jour où {@link Severity} gagne une constante, ce
- * document annoncerait un ensemble de valeurs que le serveur peut dépasser, et un client aurait
- * raison de s'y fier.
+ * <p><b>An accessor returning a {@code String} leaves springdoc nothing to enumerate</b>, so the
+ * six values are written by hand in {@code @Schema} to keep the document's enumeration. A copied
+ * list drifts: the day {@link Severity} gains a constant, this document would announce a set of
+ * values the server can exceed, and a client would be right to rely on it.
  *
- * <p>Ce test est la contrepartie de la recopie. Il ne vérifie pas que la liste est « correcte » au
- * sens d'une opinion : il vérifie qu'elle est exactement l'énumération du domaine, dans la forme
- * que cette API emploie.
+ * <p>This test is the counterpart of the copy. It does not check that the list is "correct" in the
+ * sense of an opinion: it checks that it is exactly the domain's enumeration, in the form this API
+ * uses.
  */
-@DisplayName("les gravités que la distribution publie")
+@DisplayName("the severities the distribution publishes")
 class RemediationSeverityWireTest extends ApiTestBase {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
-    @DisplayName("sont l'énumération du domaine, en minuscules, sur les deux champs")
+    @DisplayName("are the domain's enumeration, lowercase, on both fields")
     void match_the_domain_enum() throws Exception {
         JsonNode schemas = MAPPER.readTree(mvc.perform(authenticated(get("/v3/api-docs"), asReader()))
                         .andReturn()
@@ -44,20 +43,20 @@ class RemediationSeverityWireTest extends ApiTestBase {
                 Arrays.stream(Severity.values()).map(Severity::wireName).toList();
 
         assertThat(enumOf(schemas, "BySeverityView", "severity"))
-                .as("la gravité d'une ligne")
+                .as("a row's severity")
                 .containsExactlyInAnyOrderElementsOf(expected);
         assertThat(enumOf(schemas, "RemediationDistributionView", "oldestOpenSeverity"))
-                .as("la gravité du plus ancien élément ouvert")
+                .as("the oldest open item's severity")
                 .containsExactlyInAnyOrderElementsOf(expected);
     }
 
     /**
-     * <b>Minuscules, et le dire séparément.</b> L'assertion ci-dessus passerait encore si les deux
-     * listes étaient en majuscules et {@code wireName()} avec — or c'est précisément l'orthographe
-     * qui était fausse sur cette route, et elle seule.
+     * <b>Lowercase, said separately.</b> The assertion above would still pass if both lists were
+     * uppercase and {@code wireName()} with them — and the spelling is precisely what was wrong on
+     * this route, and on it alone.
      */
     @Test
-    @DisplayName("sont en minuscules, comme partout ailleurs dans cette API")
+    @DisplayName("are lowercase, as everywhere else in this API")
     void are_lowercase() {
         assertThat(Arrays.stream(Severity.values()).map(Severity::wireName))
                 .allSatisfy(name -> assertThat(name).isEqualTo(name.toLowerCase(java.util.Locale.ROOT)));
@@ -65,7 +64,7 @@ class RemediationSeverityWireTest extends ApiTestBase {
 
     private static List<String> enumOf(JsonNode schemas, String schema, String property) {
         JsonNode values = schemas.get(schema).get("properties").get(property).get("enum");
-        assertThat(values).as("%s.%s publie une énumération", schema, property).isNotNull();
+        assertThat(values).as("%s.%s publishes an enumeration", schema, property).isNotNull();
         List<String> names = new ArrayList<>();
         values.forEach(value -> names.add(value.asText()));
         return names;

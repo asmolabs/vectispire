@@ -82,15 +82,14 @@ public final class StatementOfApplicability {
      *     {@link EvidenceSource#EXTERNAL} and {@link EvidenceSource#BOTH}
      * @param owner the person accountable for the control, not for this row
      * @param reviewedAt when somebody last confirmed this line still holds
-     * @param framework la clé du référentiel, <b>et une chaîne parce qu'elle en est réellement
-     *     une</b>. Elle a porté {@link ComplianceFramework} tant que la table ne stockait que les
-     *     six référentiels que le moteur évalue. Le Top 10 OWASP s'y déclare aussi désormais — ses
-     *     catégories hors de portée d'une analyse statique n'ont que la déclaration pour porter une
-     *     revue — et il n'est pas un référentiel de conformité : l'ajouter à l'énumération le ferait
-     *     apparaître dans les évaluations et les résumés. La typer en énumération ne l'empêchait pas
-     *     de contenir autre chose : la conversion rendait {@code null} sur une valeur inconnue, ce
-     *     qui transforme un référentiel non prévu en ligne absente plutôt qu'en erreur. C'est le
-     *     type qui était faux, pas la donnée
+     * @param framework the framework's key, <b>and a string because it genuinely is one</b>. It
+     *     carried {@link ComplianceFramework} for as long as the table only held the six
+     *     frameworks the engine evaluates. The OWASP Top 10 is declared here too now — its
+     *     categories beyond any static analysis have nothing but a declaration to carry a review —
+     *     and it is not a compliance framework: adding it to the enum would make it appear in
+     *     evaluations and summaries. Typing it as an enum did not stop it holding something else:
+     *     the conversion returned {@code null} on an unknown value, which turns an unforeseen
+     *     framework into a missing row rather than an error. The type was wrong, not the data
      * @param reviewDueAt when it must be confirmed again
      */
     public record Declaration(

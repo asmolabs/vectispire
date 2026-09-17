@@ -91,8 +91,8 @@ export type MfaSetupResponse = Refine<
 export type MfaEnableResponse = Refine<Schema<'EnableResponse'>, { backupCodes: string[] }>;
 
 /**
- * `authHeader` n'est pas dans la réponse : il ne part qu'à l'aller, et le serveur ne le renvoie
- * jamais — `hasAuthHeader` dit s'il existe, ce qui est tout ce qu'un écran peut savoir d'un secret.
+ * `authHeader` is not in the response: it only travels outbound, and the server never sends it
+ * back — `hasAuthHeader` says whether one exists, which is all a screen can know of a secret.
  */
 export type SiemConfig = Refine<
     Schema<'SiemConfigResponse'>,
@@ -111,17 +111,16 @@ export type ThreatIntelSyncStatus = Refine<
     { status: string; lastSyncedAt: string | null }
 >;
 
-/** Un produit visé par une déclaration, tel que la norme le nomme : un objet, jamais une chaîne. */
+/** A product a statement is about, as the standard names it: an object, never a string. */
 export type OpenVexProduct = Refine<Schema<'Product'>, { '@id': string }>;
 
 /**
- * Une déclaration VEX.
+ * A VEX statement.
  *
- * <p><b>`products` portait ici des chaînes nues.</b> Le plan de contrôle a déjà réglé ce désaccord
- * de son côté — deux modèles OpenVEX y coexistaient, dont l'un modélisait les produits en chaînes,
- * si bien que la route d'ingestion ne pouvait pas relire ce que l'export produisait. Le client
- * gardait la moitié périmée ; aucun écran ne la lit, ce qui est exactement pourquoi personne ne
- * l'avait vue.
+ * **`products` held bare strings here.** The control plane already settled that disagreement on
+ * its side — two OpenVEX models coexisted there, one of which modelled products as strings, so the
+ * ingestion route could not read back what the export produced. The client kept the stale half; no
+ * screen reads it, which is exactly why nobody had seen it.
  */
 export type OpenVexStatement = Refine<
     Schema<'OpenVexStatement'>,
@@ -185,10 +184,10 @@ export type LicensePolicy = Refine<
 >;
 
 /**
- * `breakdownByRisk` ne porte que les catégories présentes dans le parc — `Partial`, donc, et non
- * `Record` complet. Le déclarer complet a fait dire au compilateur que les `?? 0` du gabarit
- * étaient superflus, alors qu'ils sont exactement ce qui empêche une somme de rendre `NaN` sur un
- * chiffre de conformité le jour où une catégorie est absente.
+ * `breakdownByRisk` carries only the categories present in the estate — `Partial`, therefore, not
+ * a complete `Record`. Declaring it complete made the compiler call the template's `?? 0` guards
+ * redundant, when they are exactly what stops a sum rendering `NaN` on a compliance figure the day
+ * a category is absent.
  */
 export type LicenseSummary = Refine<
     Schema<'LicenseSummary'>,
@@ -932,12 +931,12 @@ export type CataloguePreview = Refine<
         /** Language to rule count, so a choice is made on a number rather than on a name. */
         languages: Record<string, number>;
         /**
-         * Catégorie OWASP au nombre de règles qui la déclarent.
+         * OWASP category to the number of rules that declare it.
          *
-         * **Répond avant l'import à une question qu'on ne pouvait poser qu'après.** La grille
-         * marque une catégorie « non couverte » quand aucune règle installée ne la déclare — donc
-         * une case grise dit soit une limite du produit, soit un import qui n'a pas été fait, et
-         * rien ne permettait de savoir laquelle.
+         * **Answers before the import a question that could only be asked after it.** The grid
+         * marks a category "not covered" when no installed rule declares it — so a grey square
+         * means either a limit of the product or an import nobody made, and nothing told them
+         * apart.
          */
         categories: Record<string, number>;
     }
@@ -1208,13 +1207,13 @@ export type GatePolicies = Refine<
 >;
 
 /**
- * **Chaque champ est envoyé à chaque écriture**, sauf un. Le serveur refuse une politique partielle
- * plutôt que de compléter la moitié manquante, parce qu'une valeur stockée serait réinstallée en
- * silence sous un numéro de version affirmant que quelqu'un l'a choisie.
+ * **Every field is sent on every write**, except one. The server refuses a partial policy rather
+ * than filling in the missing half, because a stored value would be silently reinstated under a
+ * version number claiming somebody chose it.
  *
- * `fail_on_uncovered_languages` est l'exception : il n'existait pas avant, donc absent veut dire
- * « le comportement que vous aviez déjà ». Il reste envoyé ici pour que le formulaire dise ce qu'il
- * fait, mais le type l'autorise absent comme le serveur.
+ * `fail_on_uncovered_languages` is the exception: it did not exist before, so absent means "the
+ * behaviour you already had". It is still sent here so the form says what it does, but the type
+ * allows it absent as the server does.
  */
 export type GatePolicyRequest = Refine<
     Schema<'PolicyRequest'>,
@@ -1236,10 +1235,11 @@ export type ComplianceCategory = Schema<'ComplianceControl'>['category'];
 export type ComplianceStatus = 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
 
 /**
- * Les référentiels évalués, **lus dans le document**.
+ * The frameworks evaluated, **read from the document**.
  *
- * Ils étaient listés à la main, et `SOC_2` manquait : un `switch` exhaustif l'aurait omis sans que
- * le compilateur le signale, parce que l'exhaustivité se mesure au type et non à la réalité.
+ * They were listed by hand, and `SOC_2` was missing: an exhaustive `switch` would have omitted it
+ * with no word from the compiler, because exhaustiveness is measured against the type and not
+ * against reality.
  */
 export type ComplianceFramework = NonNullable<Schema<'ComplianceEvaluation'>['framework']>;
 
@@ -1450,13 +1450,13 @@ export type CompatibilityCell = Refine<
     }
 >;
 
-/** Un point de la série quotidienne : l'encours du jour, et ses deux mouvements. */
+/** One point of the daily series: the day's open backlog, and its two movements. */
 export type DailyPosturePoint = Refine<
     Schema<'DailyPosturePoint'>,
     { date: string; rollingMttrDays: number | null }
 >;
 
-/** Une cible au tableau de maturité, avec la note que le serveur calcule. */
+/** One target on the maturity scoreboard, with the score the server computes. */
 export type TargetMaturityScore = Refine<
     Schema<'TargetMaturityScore'>,
     {
@@ -1474,18 +1474,18 @@ export type PostureTrendAnalytics = Refine<
         mttrBySeverity: Record<string, number>;
         dailySeries: DailyPosturePoint[];
         targetScoreboard: TargetMaturityScore[];
-        /** `null` quand rien n'a été résolu dans la fenêtre, et non zéro. */
+        /** `null` when nothing was resolved in the window, and not zero. */
         overallMttrDays: number | null;
     }
 >;
 
-/** Qui peut l'atteindre. Le document type `visibility` en `string` sur cette vue-ci. */
+/** Who can reach it. The document types `visibility` as a plain `string` on this view. */
 export type EndpointVisibility = 'PUBLIC' | 'INTERNAL' | 'UNKNOWN';
 
 /**
- * Ce que la découverte conclut d'un point d'entrée face aux contrats déclarés.
+ * What discovery concludes about an endpoint set against the declared contracts.
  *
- * `SHADOW_API` est le cas qui justifie l'écran : une route servie que rien ne documente.
+ * `SHADOW_API` is the case that justifies the screen: a route being served that nothing documents.
  */
 export type ShadowStatus = 'DOCUMENTED' | 'SHADOW_API' | 'UNDOCUMENTED' | 'HIGH_RISK_EXPOSURE';
 
@@ -1525,7 +1525,7 @@ export type ApiContractView = Refine<
     }
 >;
 
-/** Six comptes, tous primitifs : le document les marque déjà tous « toujours envoyés ». */
+/** Six counts, all primitives: the document already marks every one of them always sent. */
 export type AttackSurfaceSummary = Schema<'AttackSurfaceSummary'>;
 
 export type RepositoryApisOverview = Refine<
@@ -1631,9 +1631,9 @@ export type AttackPathEdge = Refine<
 >;
 
 /**
- * Un chemin, et non un nœud : il porte `riskLevel` et `isDirectlyExploitable`, jamais `severity`
- * ni `isExploitable`. Les deux vocabulaires cohabitent sur le même écran, et les confondre dans
- * une fixture a suffi à faire rendre `undefined` à une étiquette pendant des mois.
+ * A path, not a node: it carries `riskLevel` and `isDirectlyExploitable`, never `severity` or
+ * `isExploitable`. The two vocabularies live on the same screen, and confusing them in a fixture
+ * was enough to have a tag render `undefined` for months.
  */
 export type AttackPath = Refine<
     Schema<'AttackPath'>,
@@ -1722,11 +1722,11 @@ export type ExceptionsRegister = Refine<
 export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';
 
 /**
- * La gravité arrive en minuscules, comme partout ailleurs dans cette API.
+ * Severity arrives lowercase, as everywhere else in this API.
  *
- * Cette route était la seule à rendre l'énumération Java telle quelle — `CRITICAL` là où le backlog
- * envoie `critical`. Une vue côté serveur l'épelle désormais comme le reste, et l'union vient du
- * document plutôt que d'une liste tenue ici.
+ * This route was the only one returning the Java enum as it stands — `CRITICAL` where the backlog
+ * sends `critical`. A server-side view now spells it like the rest, and the union comes from the
+ * document rather than from a list kept here.
  */
 export type RemediationBySeverity = Refine<
     Schema<'BySeverityView'>,
@@ -1760,17 +1760,17 @@ export type RuleCoverageAssessment = Refine<
     }
 >;
 
-/** Les quatre unions de la déclaration d'applicabilité viennent du document. */
+/** The four unions of an applicability declaration come from the document. */
 export type Applicability = NonNullable<Schema<'Declaration'>['applicability']>;
 export type Implementation = NonNullable<Schema<'Declaration'>['implementation']>;
 export type EvidenceSource = NonNullable<Schema<'Declaration'>['evidenceSource']>;
 
 /**
- * L'écart entre ce qu'une organisation déclare et ce que ce produit mesure.
+ * The gap between what an organisation declares and what this product measures.
  *
- * Le document type `divergence` en `string` sur la ligne : la liste est tenue ici, et
- * `NOT_MEASURED_HERE` est celle qui compte — elle dit qu'aucun désaccord n'est constaté parce que
- * rien n'a été observé, ce qui n'est pas un accord.
+ * The document types `divergence` as a plain `string` on the row, so the list is kept here — and
+ * `NOT_MEASURED_HERE` is the one that matters: it says no disagreement is observed *because
+ * nothing was looked at*, which is not agreement.
  */
 export type Divergence =
     | 'CONTRADICTED'
@@ -1786,11 +1786,11 @@ export type ControlDeclaration = Refine<
     Schema<'Declaration'>,
     {
         /**
-         * La clé du référentiel, **et une chaîne parce qu'elle en est réellement une**.
+         * The framework's key, **and a string because it genuinely is one**.
          *
-         * Elle était typée sur les six référentiels de conformité, ce qui était faux dès lors que
-         * le Top 10 OWASP se déclare dans la même table — `OWASP_2021` n'en fait pas partie, et
-         * l'énumération n'empêchait pas la valeur d'exister, elle empêchait seulement de la lire.
+         * It was typed against the six compliance frameworks, which became false the moment the
+         * OWASP Top 10 was declared in the same table — `OWASP_2021` is not one of them, and the
+         * enum did not stop the value existing, it only stopped it being read.
          */
         framework: string;
         controlId: string;
@@ -1840,10 +1840,10 @@ export type DeclarationRequest = Refine<
     }
 >;
 
-/** Cinq comptes, tous primitifs — le document les marque déjà tous « toujours envoyés ». */
+/** Five counts, all primitives — the document already marks every one of them always sent. */
 export type ScopeCoverage = Schema<'ScopeCoverage'>;
 
-/** Une cible du périmètre certifié, identifiée et qualifiée. */
+/** A target of the certified scope, identified and qualified. */
 export type ScopeTarget = Refine<Schema<'TargetRef'>, { kind: string; id: number }>;
 
 export type ScopeView = Refine<
@@ -1854,12 +1854,12 @@ export type ScopeView = Refine<
 export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
 
 /**
- * Une ligne de la grille, et ce que l'organisation en déclare.
+ * One row of the grid, and what the organisation states about it.
  *
- * `declaration` est nulle tant que personne n'a rien dit — c'est la case grise permanente que la
- * déclaration existe pour supprimer. Deux catégories du Top 10 ne sont atteignables par aucune
- * analyse statique : les laisser grises est honnête et ne porte aucune revue ; les déclarer dit qui
- * l'affirme, avec quelle preuve, et quand cela se revoit.
+ * `declaration` is null until somebody says something — that permanent grey square is what the
+ * declaration exists to remove. Two Top 10 categories are beyond any static analysis: leaving them
+ * grey is honest and carries no review; declaring them says who asserts it, on what evidence, and
+ * when it is looked at again.
  */
 export type OwaspCoverageLine = Refine<
     Schema<'DeclaredCoverageLine'>,

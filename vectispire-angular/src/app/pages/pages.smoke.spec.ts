@@ -44,8 +44,8 @@ describe('every screen', () => {
      */
     function emptyFor(url: string): Record<string, unknown> | unknown[] {
         if (url.endsWith('/settings')) return asSchema('Catalog', { settings: [] });
-        // Deux routes qui répondent une forme anonyme : le document n'en publie aucun schéma,
-        // donc il n'y a rien à quoi les adosser. C'est dit plutôt que caché.
+        // Two routes answering an anonymous shape: the document publishes no schema for either, so
+        // there is nothing to anchor them to. Said rather than hidden.
         if (url.endsWith('/ticket-token')) return { configured: false };
         if (url.endsWith('/webhook-secret')) return { configured: false };
         if (url.endsWith('/issues')) return asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 });
@@ -62,10 +62,10 @@ describe('every screen', () => {
                 openCount: 0, ruleCount: 0, fileCount: 0, topRules: [], topFiles: [], topTargets: []
             });
         }
-        // **`/dashboard/analytics` ne correspondait à aucune route.** La route est
-        // `/dashboard/posture-analytics` ; ce motif ne l'atteignait pas, et la requête tombait sur
-        // le tableau vide rendu par défaut — un tableau là où l'écran attend un objet. Une branche
-        // morte dans un fabricant de réponses ne lève jamais : elle rend simplement autre chose.
+        // **`/dashboard/analytics` matched no route.** The route is `/dashboard/posture-analytics`;
+        // this pattern never reached it, and the request fell through to the empty array returned
+        // by default — an array where the screen expects an object. A dead branch in a response
+        // factory never throws: it simply returns something else.
         if (url.includes('/dashboard/posture-analytics')) {
             return asSchema('PostureTrendAnalytics', {
                 windowDays: 30,
@@ -201,9 +201,9 @@ describe('every screen', () => {
                 disallowedCategories: [], explicitlyAllowedLicenses: [], explicitlyDisallowedLicenses: []
             });
         }
-        // **La matrice est un tableau, et ce fabricant rendait `{ entries: [] }`.** La route
-        // répond `CompatibilityCell[]` ; un objet à sa place est précisément le cas que le
-        // commentaire en tête de cette fonction dit vouloir éviter.
+        // **The matrix is an array, and this factory returned `{ entries: [] }`.** The route
+        // answers `CompatibilityCell[]`; an object in its place is precisely the case the comment
+        // at the top of this function says it wants to avoid.
         if (url.endsWith('/licenses/matrix')) return [];
         if (url.endsWith('/remediation/debt')) {
             return asSchema('SecurityDebtReport', {
@@ -290,8 +290,8 @@ describe('every screen', () => {
         }
         fixture.detectChanges();
 
-        // Le bandeau de couverture vit à l'intérieur du bloc qui attend le détail : il n'existe
-        // donc pas encore au passage ci-dessus, et sa requête n'arrive qu'une fois l'écran rendu.
+        // The coverage banner lives inside the block that waits for the data, so it does not exist
+        // yet at the pass above, and its request only arrives once the screen has rendered.
         for (const request of http.match(() => true)) {
             request.flush(emptyFor(request.request.url));
         }
@@ -342,8 +342,8 @@ describe('every screen', () => {
         }
         fixture.detectChanges();
 
-        // Même raison qu'au-dessus : le bandeau de couverture est à l'intérieur du bloc qui
-        // attend le détail, donc sa requête n'existe qu'une fois celui-ci rendu.
+        // Same reason as above: the coverage banner sits inside the block that waits for the
+        // detail, so its request only exists once that has rendered.
         for (const request of http.match(() => true)) {
             request.flush(emptyFor(request.request.url));
         }

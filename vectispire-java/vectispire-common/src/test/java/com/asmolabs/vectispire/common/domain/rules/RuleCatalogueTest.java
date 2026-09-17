@@ -16,7 +16,7 @@ class RuleCatalogueTest {
     /** A minimal rule file, in the shape the selection actually reads: a `rules:` block with an id. */
     private static final String RULE = "rules:\n  - id: a.rule\n    languages: [python]\n";
 
-    /** La même, avec la catégorie que son auteur déclare — les deux éditions, comme en amont. */
+    /** The same, with the category its author declares — both editions, as upstream carries them. */
     private static final String TAGGED_RULE = "rules:\n  - id: a.rule\n    languages: [python]\n"
             + "    metadata:\n      owasp:\n        - A01:2017 - Injection\n        - A03:2021 - Injection\n";
 
@@ -167,19 +167,19 @@ class RuleCatalogueTest {
         }
 
         /**
-         * <b>Ce que le catalogue couvre, avant de l'importer.</b>
+         * <b>What the catalogue covers, before importing it.</b>
          *
-         * <p>La grille OWASP marque une catégorie « non couverte » quand aucune règle installée ne
-         * la déclare. La question « peut-on couvrir A09 ici » n'est donc pas une limite du produit,
-         * c'est une propriété du catalogue — et on ne pouvait y répondre qu'après l'avoir importé,
-         * ce qui est l'ordre inverse de celui qu'un opérateur veut.
+         * <p>The OWASP grid marks a category "not covered" when no installed rule declares it. The
+         * question "can A09 be covered here" is therefore not a limit of the product but a property
+         * of the catalogue — and it could only be answered after importing, which is the reverse of
+         * the order an operator wants.
          *
-         * <p>Seule l'édition 2021 compte, pour la raison que {@code OwaspTag} donne : {@code A01}
-         * désigne l'injection en 2017 et le contrôle d'accès en 2021, et compter les deux placerait
-         * des règles d'injection sous une catégorie qu'elles ne couvrent pas.
+         * <p>Only the 2021 edition counts, for the reason {@code OwaspTag} gives: {@code A01} is
+         * injection in 2017 and broken access control in 2021, and counting both would file
+         * injection rules under a category they do not cover.
          */
         @Test
-        @DisplayName("compte les catégories OWASP que les règles déclarent, édition 2021 seule")
+        @DisplayName("counts the OWASP categories rules declare, 2021 edition only")
         void categoriesAreCounted() {
             RuleCatalogue.Contents contents = RuleCatalogue.describe(ARCHIVE, "LICENSE");
 

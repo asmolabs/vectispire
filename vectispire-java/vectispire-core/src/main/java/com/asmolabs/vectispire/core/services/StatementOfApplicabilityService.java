@@ -114,18 +114,17 @@ public class StatementOfApplicabilityService {
     }
 
     /**
-     * La même, pour un référentiel que {@link ComplianceFramework} ne décrit pas.
+     * The same, for a framework {@link ComplianceFramework} does not describe.
      *
-     * <p><b>Le Top 10 OWASP n'est pas un référentiel de conformité</b> — le moteur ne l'évalue pas,
-     * il n'a pas de contrôles notés, et l'ajouter à l'énumération le ferait apparaître dans les
-     * évaluations et les résumés où il n'a rien à faire. Mais deux de ses catégories ne sont
-     * atteignables par aucun scanner, et une case grise permanente est un aveu qu'aucune revue ne
-     * porte. La déclaration est exactement ce qui manque là : qui l'affirme, avec quelle preuve,
-     * revue quand.
+     * <p><b>The OWASP Top 10 is not a compliance framework</b> — the engine does not evaluate it,
+     * it has no scored controls, and adding it to the enum would make it appear in evaluations and
+     * summaries where it has no business. But two of its categories are beyond any scanner, and a
+     * permanent grey square is an admission no review carries. A declaration is exactly what is
+     * missing there: who asserts it, on what evidence, reviewed when.
      *
-     * <p>La colonne {@code framework} est une chaîne libre, et les règles de validation ci-dessous
-     * ne parlent d'aucun référentiel en particulier : elles disent qu'une déclaration doit dire ce
-     * qu'elle affirme et où se trouve sa preuve. Elles valent donc telles quelles.
+     * <p>The {@code framework} column is a free string, and the validation rules below name no
+     * framework in particular: they say a declaration must state what it asserts and where its
+     * evidence sits. They therefore hold as they are.
      */
     public Declaration declare(String framework, String controlId, Submission submission, String actor) {
 
@@ -192,10 +191,10 @@ public class StatementOfApplicabilityService {
     }
 
     /**
-     * Les déclarations d'un référentiel, quel qu'il soit.
+     * One framework's declarations, whatever it is.
      *
-     * <p>Prend la clé de stockage plutôt que l'énumération, pour la raison que {@link #declare}
-     * donne : le Top 10 OWASP se déclare ici sans être un référentiel de conformité.
+     * <p>Takes the storage key rather than the enum, for the reason {@link #declare} gives: the
+     * OWASP Top 10 is declared here without being a compliance framework.
      */
     @Transactional(readOnly = true)
     public List<Declaration> declarations(String framework) {
@@ -221,11 +220,11 @@ public class StatementOfApplicabilityService {
     }
 
     /**
-     * Le nom lisible d'un référentiel, ou la clé elle-même quand ce n'en est pas un.
+     * A framework's readable name, or the key itself when it is not one.
      *
-     * <p>L'entrée d'audit est lue par un humain : « Excluded A04 from OWASP_2021 » se comprend,
-     * mais une entrée qui lèverait parce que la clé n'est pas dans l'énumération ferait perdre la
-     * trace au lieu de la rendre imparfaite.
+     * <p>The audit entry is read by a person: "Excluded A04 from OWASP_2021" is understandable,
+     * whereas an entry that threw because the key is not in the enum would lose the trace rather
+     * than make it imperfect.
      */
     private static String titleOf(String framework) {
         try {

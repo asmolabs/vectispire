@@ -63,13 +63,12 @@ export class RuleSets {
     }
 
     /**
-     * Les catégories OWASP que ce catalogue couvre, triées par identifiant.
+     * The OWASP categories this catalogue covers, sorted by identifier.
      *
-     * **Ce que ça répond.** La grille OWASP marque une catégorie « non couverte » quand aucune
-     * règle installée ne la déclare. Une case grise disait donc deux choses très différentes — le
-     * produit ne sait pas regarder là, ou personne n'a importé les règles qui savent — et rien ne
-     * permettait de les distinguer sans importer d'abord, ce qui est l'ordre inverse de celui
-     * qu'un opérateur veut.
+     * **What it answers.** The OWASP grid marks a category "not covered" when no installed rule
+     * declares it. A grey square therefore said two very different things — the product cannot look
+     * there, or nobody imported the rules that can — and nothing told them apart without importing
+     * first, which is the reverse of the order an operator wants.
      */
     categoriesOf(preview: CataloguePreview): { id: string; count: number }[] {
         return Object.entries(preview.categories)

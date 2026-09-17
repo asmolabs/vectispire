@@ -34,10 +34,10 @@ describe('the attack path graph', () => {
                 { id: 'secret-1', label: 'aws-key', type: 'SECRET', severity: 'HIGH', isExploitable: false, subtitle: '', metadata: {} }
             ],
             edges: [],
-            // **Un chemin n'a ni `severity` ni `isExploitable` : ce sont les mots des nœuds.**
-            // La fixture les portait, et l'écran lit `riskLevel` et `isDirectlyExploitable` — donc
-            // l'étiquette de niveau de risque rendait `undefined` dans chaque test qui l'affichait,
-            // sans que rien n'échoue.
+            // **A path has neither `severity` nor `isExploitable`: those are the nodes' words.**
+            // The fixture carried them, and the screen reads `riskLevel` and
+            // `isDirectlyExploitable` — so the risk-level tag rendered `undefined` in every test
+            // that displayed it, without anything failing.
             attackPaths: [
                 {
                     id: 'path-1',

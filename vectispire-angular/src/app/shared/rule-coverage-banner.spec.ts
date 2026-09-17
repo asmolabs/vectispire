@@ -31,8 +31,8 @@ describe('le bandeau de couverture des règles', () => {
 
         const call = http.expectOne((request) => request.url === '/api/v1/rule-sets/coverage');
         if (body) {
-            // Adossé ici plutôt qu'à chaque appel : le fabricant est le seul point par lequel une
-            // réponse entre, donc c'est le seul endroit où la vérifier une fois les couvre toutes.
+            // Anchored here rather than at every call: the factory is the only point a response
+            // enters through, so checking it once here covers them all.
             call.flush(asSchema('Assessment', body));
         } else {
             call.error(new ProgressEvent('failed'));

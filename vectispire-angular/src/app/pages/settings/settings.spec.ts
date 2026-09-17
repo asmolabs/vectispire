@@ -21,9 +21,9 @@ describe('the settings screen', () => {
     /**
      * The catalogue as the server sends it: section labels, not enum constants.
      *
-     * <p>Il portait `description` et `sensitivity`, que ce document ne déclare pas — deux champs
-     * inventés qu'aucun écran ne lit, et qui auraient rendu une lecture muette si l'un d'eux avait
-     * fini dans un gabarit.
+     * It carried `description` and `sensitivity`, which this document does not declare — two
+     * invented fields no screen reads, and which would have made a read silently empty had either
+     * ended up in a template.
      */
     const CATALOGUE = asSchema('Catalog', {
             settings: [

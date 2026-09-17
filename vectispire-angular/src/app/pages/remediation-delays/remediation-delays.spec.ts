@@ -53,10 +53,10 @@ describe('les délais de correction', () => {
 
     it('ne prétend pas mesurer une gravité sans délai fixé', () => {
         const component = fixture.componentInstance;
-        // `low`, comme le reste de l'API. Ce test cherchait déjà cette orthographe et ne trouvait
-        // aucune ligne, parce que la route était la seule à envoyer `LOW` — et sa fixture était
-        // fausse de la même façon, ce qui rendait l'absence invisible. La route est corrigée ;
-        // l'assertion, elle, était juste depuis le début.
+        // `low`, like the rest of the API. This test already looked for that spelling and found no
+        // row, because the route was the only one sending `LOW` — and its fixture was wrong the
+        // same way, which made the absence invisible. The route is fixed; the assertion was right
+        // from the start.
         const low = component.rows().find((row) => row.severity === 'low')!;
 
         expect(component.hasDeadline(low)).toBe(false);

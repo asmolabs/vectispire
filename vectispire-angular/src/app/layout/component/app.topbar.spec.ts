@@ -59,7 +59,7 @@ describe('la barre du haut', () => {
         fixture.detectChanges();
     });
 
-    /** Le bouton, trouvé par son libellé comme un utilisateur le trouve. */
+    /** The button, found by its label the way a user finds it. */
     function button(): HTMLButtonElement {
         const match = Array.from(fixture.nativeElement.querySelectorAll('button'))
             .find((element) => (element as HTMLElement).textContent?.includes('Sign out'));
@@ -110,19 +110,18 @@ describe('la barre du haut', () => {
     });
 
     /**
-     * **Le nom accessible, et non le texte du DOM.**
+     * **The accessible name, not the DOM's text.**
      *
-     * <p>La feuille de style masque sans condition le libellé de ces boutons
-     * (`.layout-topbar-action span { display: none }`), si bien qu'ils n'avaient aucun nom : une
-     * aide à la lecture d'écran en annonçait trois, indistincts, dont celui qui ferme la session.
+     * The stylesheet hides these buttons' labels unconditionally
+     * (`.layout-topbar-action span { display: none }`), so they had no name at all: a screen reader
+     * announced three of them, indistinguishable, one of which ends the session.
      *
-     * <p>Rien ne le disait, et ce fichier est une raison. Il cherche le bouton par `textContent`,
-     * que jsdom expose parce qu'il n'applique aucune feuille de style — le test lisait un DOM que
-     * personne ne voit. Le navigateur, lui, l'a dit : la suite Playwright attendait cent vingt
-     * secondes un bouton nommé « Sign out », trois fois de suite, depuis le 15 septembre. Cette
-     * assertion-ci porte sur ce que les deux regardent.
+     * Nothing said so, and this file is one reason. It looks the button up by `textContent`, which
+     * jsdom exposes because it applies no stylesheet — the test was reading a DOM nobody sees. The
+     * browser did say so: the Playwright suite waited two minutes for a button named "Sign out",
+     * three times over, from 15 September. This assertion is about what both of them look at.
      */
-    it('nomme ses trois boutons pour autre chose que le DOM', () => {
+    it('names its three buttons for something other than the DOM', () => {
         const buttons: HTMLButtonElement[] = Array.from(
             (fixture.nativeElement as HTMLElement).querySelectorAll('.layout-topbar-menu button')
         );

@@ -86,23 +86,23 @@ describe('Compliance Page', () => {
     });
 
     /**
-     * La fraîcheur, et le seul vert qui devrait alerter.
+     * Freshness, and the one green that should raise an alarm.
      *
-     * <p>Une cible jamais scannée ne présente aucune vulnérabilité connue. Sur un tableau qui
-     * compte des constats, elle est verte — et le serveur envoyait déjà de quoi le dire,
-     * `observedTargets` et `freshTargets`, que rien ne lisait.
+     * A target never scanned presents no known vulnerability. On a table that counts findings it is
+     * green — and the server already sent what it takes to say so, `observedTargets` and
+     * `freshTargets`, which nothing read.
      */
-    it('sépare une observation périmée d\'une observation absente', () => {
+    it('separates a stale observation from an absent one', () => {
         http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
         fixture.detectChanges();
 
-        // 3 cibles fraîches sur 5 suivies, et 5 − 4 observées = 1 jamais regardée.
+        // 3 fresh targets of 5 monitored, and 5 − 4 observed = 1 never looked at.
         expect(fixture.componentInstance.freshnessRate()).toBe(60);
         expect(fixture.componentInstance.neverObserved()).toBe(1);
         expect(fixture.componentInstance.freshnessTone()).toBe('text-red-500');
     });
 
-    it('ne crie pas sur un parc vide : cent pour cent, pas zéro', () => {
+    it('does not shout on an empty estate: a hundred per cent, not zero', () => {
         http.expectOne('/api/v1/compliance/summary').flush({
             ...MOCK_SUMMARY,
             totalMonitoredTargets: 0,
@@ -112,8 +112,8 @@ describe('Compliance Page', () => {
         });
         fixture.detectChanges();
 
-        // Zéro se lirait comme une alarme là où il n'y a rien à observer, et une alarme qui se
-        // déclenche sur un déploiement neuf apprend à ignorer celle qui compte.
+        // Zero would read as an alarm where there is nothing to observe, and an alarm that fires
+        // on a fresh deployment teaches its reader to ignore the one that matters.
         expect(fixture.componentInstance.freshnessRate()).toBe(100);
         expect(fixture.componentInstance.neverObserved()).toBe(0);
     });

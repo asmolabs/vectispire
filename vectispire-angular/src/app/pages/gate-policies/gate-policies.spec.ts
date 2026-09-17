@@ -23,8 +23,8 @@ describe('the gate policy screen', () => {
     let fixture: ComponentFixture<GatePolicies>;
     let http: HttpTestingController;
 
-    // Lue contre le document : cette fixture a survécu à l'ajout d'un champ que le serveur envoie
-    // désormais toujours, et le formulaire l'a renvoyé `undefined` sans que rien ne le dise.
+    // Read against the document: this fixture survived the addition of a field the server now
+    // always sends, and the form sent it back as `undefined` without anything saying so.
     const BUILT_IN = asSchema('GatePolicyView', {
         kind: 'built_in',
         target_id: null,
