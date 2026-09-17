@@ -37,10 +37,19 @@ gh api /repos/asmolabs/vectispire/rules/branches/main
 | `required_linear_history` | Un commit de fusion sur `main` | Aucun : `main` avance déjà en avance rapide depuis `develop` |
 | `required_status_checks` | Avancer `main` sur un arbre que le pipeline n'a pas validé | Il faut attendre le pipeline |
 
-Les dix contextes listés sont les jobs de `verify` qui s'exécutent **toujours**. Les noms sont
+Dix des onze contextes listés sont les jobs de `verify` qui s'exécutent **toujours**. Les noms sont
 ceux des identifiants de job, aucun ne portant de `name:` — s'ils changent dans
 `.github/workflows/ci.yml`, ce fichier devient faux en silence et la protection s'affaiblit sans
 que rien ne le dise.
+
+**Le onzième est `e2e`, et il est conditionnel — c'est une expérience en cours.** Il a échoué du
+15 au 17 septembre sans que personne ne le lise, parce qu'il ne bloquait rien : trois boutons de la
+barre du haut sans nom accessible, dont la déconnexion, écrits en toutes lettres dans chaque log.
+Un contrôle qu'on n'écoute pas finit par ne plus rien dire. Il est donc ajouté aux contextes requis
+— et la question ouverte plus bas sur `engines` devient une question qu'on observe au lieu de la
+supposer : **ce dépôt ne sait pas encore si une règle GitHub traite un job ignoré comme satisfait.**
+Si une poussée qui ne touche pas le front se trouve bloquée, la réponse est non, et il faut passer
+au job-relais décrit ci-dessous plutôt que retirer le contrôle.
 
 ## Les deux règles absentes, et ce sont des décisions
 
@@ -49,8 +58,14 @@ multi-moteurs, et il est conditionnel : il est ignoré quand la modification ne 
 `db/migration/`. Exiger un contrôle qui n'apparaît pas toujours est le moyen classique de bloquer
 une pull request définitivement, l'attente d'un contrôle qui ne viendra jamais n'ayant pas de fin.
 GitHub traite en principe un job « ignoré » comme satisfait, mais **cela n'a pas été observé sur ce
-dépôt** : à ajouter après avoir vu une pull request où `engines` est ignoré et constaté que la
-fusion reste possible, pas avant.
+dépôt** : à ajouter après l'avoir constaté, pas avant. L'ajout de `e2e` ci-dessus est précisément
+l'observation — ce commit ne touche pas le front, `e2e` y sera donc ignoré, et la poussée de `main`
+qui suivra dira la réponse.
+
+**Si elle est « non », le remède n'est pas de retirer le contrôle** mais d'ajouter un job-relais qui
+s'exécute toujours et rapporte le verdict du job conditionnel : vert s'il a passé, vert s'il n'avait
+pas lieu d'être, rouge s'il a échoué. C'est lui qu'on rend requis. Le même remède vaut pour
+`engines`.
 
 **`pull_request` n'y est pas non plus, et c'est le vrai arbitrage.** L'ajouter interdirait la
 poussée directe sur `main` — c'est-à-dire la façon dont cette branche a été mise à jour jusqu'ici,
