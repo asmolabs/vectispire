@@ -28,10 +28,28 @@ on:
 permissions:
   contents: read
 
-# A superseded push has nothing to prove.
+# **A superseded push has nothing to prove — on a pull request. On a branch, it has everything.**
+#
+# This cancelled by ref, unconditionally, and that was true right up until `main` started requiring
+# these checks. A ruleset asks "does *this commit* have green checks", and a run cancelled by the
+# next push answers nothing for the commit it was verifying. Fifteen pushes to `develop` in one
+# afternoon produced fifteen cancelled runs and one survivor: `vulnerabilities` had been failing on
+# every one of them for forty runs, and nobody could see it, because a cancelled run reports no
+# verdict at all. Nothing was verified and nothing said so.
+#
+# So the behaviour now depends on what is being pushed:
+#
+#   - **Pull requests** keep the old behaviour. Only the head commit will ever be merged, so an
+#     older run is genuinely worthless and cancelling it buys minutes back.
+#   - **Branch pushes** each get a group of their own, keyed by commit. They neither cancel nor
+#     queue behind one another: every commit on `develop` gets its own verdict, which is exactly
+#     what `main` will later be asked to show for it.
+#
+# The cost is runner minutes on a burst of pushes. That is the price of the checks meaning
+# something, and it is smaller than the two days `e2e` spent red without a reader.
 concurrency:
-  group: verify-${{ github.ref }}
-  cancel-in-progress: true
+  group: verify-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false
