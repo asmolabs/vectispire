@@ -10,67 +10,67 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Le realm que le profil {@code sso} importe.
+ * The realm the {@code sso} profile imports.
  *
- * <p><b>Deux réglages y cassent en silence, et ce sont ceux que l'on rate en configurant Keycloak
- * à la main.</b> Le fichier est livré précisément pour éviter cette configuration manuelle ; s'il
- * porte lui-même l'erreur, il la répand au lieu de l'épargner, et rien ne le dit — la connexion
- * réussit, les équipes restent vides, et personne ne sait pourquoi.
+ * <p><b>Two settings in it break silently, and they are the ones people get wrong when configuring
+ * Keycloak by hand.</b> The file is shipped precisely to avoid that manual configuration; if it
+ * carries the mistake itself, it spreads it instead of sparing it, and nothing says so — sign-in
+ * succeeds, the teams stay empty, and nobody knows why.
  *
- * <p>Ce cas ne démarre pas Keycloak : {@code SingleSignOnIntegrationTest} conduit le flux complet
- * contre un vrai serveur, avec son propre realm à URI joker parce qu'il tourne sur un port
- * aléatoire. Celui-ci garde le contenu du fichier expédié, ce que l'autre ne peut pas faire.
+ * <p>This case does not start Keycloak: {@code SingleSignOnIntegrationTest} drives the full flow
+ * against a real server, with a realm of its own using a wildcard URI because it runs on a random
+ * port. This one pins the contents of the shipped file, which the other cannot do.
  */
-@DisplayName("le realm livré avec le profil sso")
+@DisplayName("the realm shipped with the sso profile")
 class ShippedRealmTest {
 
-    /** Depuis le répertoire du module, la racine du dépôt est deux crans plus haut. */
+    /** From the module's directory, the repository root is two levels up. */
     private static final Path REALM = Path.of("../../ci/keycloak/vectispire-realm.json");
 
     private static JsonNode realm() throws Exception {
         assertThat(Files.exists(REALM))
-                .as("le realm livré est introuvable en %s — un test qui ne trouve pas son sujet "
-                        + "passerait pour toujours", REALM.toAbsolutePath().normalize())
+                .as("the shipped realm is not at %s — a test that cannot find its subject would "
+                        + "pass forever", REALM.toAbsolutePath().normalize())
                 .isTrue();
         return new ObjectMapper().readTree(Files.readString(REALM));
     }
 
     @Test
-    @DisplayName("le mapper de groupes émet des noms simples, pas des chemins")
+    @DisplayName("the group mapper emits plain names, not paths")
     void theGroupMapperEmitsPlainNames() throws Exception {
         JsonNode mapper = realm().at("/clients/0/protocolMappers/0/config");
 
-        // **Le piège numéro un.** `ExternalIdentityService.syncGroups` apparie la valeur reçue au
-        // nom d'équipe. Chemin complet activé, Keycloak émet « /AppSec », aucune équipe ne
-        // s'appelle ainsi, et la synchronisation ne fait rien — sans erreur, sans journal, sans
-        // rien qui permette de deviner.
+        // **Trap number one.** `ExternalIdentityService.syncGroups` matches the value received
+        // against the team name. With full path switched on, Keycloak emits "/AppSec", no team is
+        // called that, and the synchronisation does nothing — no error, no log, nothing to guess
+        // from.
         assertThat(mapper.path("full.path").asText())
-                .as("chemin complet = aucune équipe ne correspond jamais")
+                .as("full path = no team ever matches")
                 .isEqualTo("false");
         assertThat(mapper.path("claim.name").asText()).isEqualTo("groups");
         assertThat(mapper.path("id.token.claim").asText())
-                .as("la revendication est lue sur le jeton d'identité")
+                .as("the claim is read from the identity token")
                 .isEqualTo("true");
     }
 
     @Test
-    @DisplayName("l'URI de redirection est celle que Spring Security écoute")
+    @DisplayName("the redirect URI is the one Spring Security listens on")
     void theRedirectUriMatchesTheFilterChain() throws Exception {
-        // **Le piège numéro deux.** Le chemin n'est pas au choix : c'est celui du filtre
-        // `oauth2Login`. Une URI approchante donne un « invalid redirect_uri » que l'on passe une
-        // demi-journée à imputer au client, au secret ou à l'issuer.
+        // **Trap number two.** The path is not a matter of choice: it is the `oauth2Login`
+        // filter's. A near-miss URI gives an "invalid redirect_uri" that people spend half a day
+        // blaming on the client, the secret or the issuer.
         assertThat(realm().at("/clients/0/redirectUris"))
                 .allSatisfy(uri -> assertThat(uri.asText()).endsWith("/login/oauth2/code/oidc"));
     }
 
     @Test
-    @DisplayName("le compte du realm porte le nom que l'amorçage crée par défaut")
+    @DisplayName("the realm's account carries the name bootstrap creates by default")
     void theRealmUserMatchesTheBootstrapAccount() throws Exception {
-        // Aucun compte n'est créé à la connexion : la première liaison se fait sur le nom
-        // d'utilisateur. Si les deux ne coïncident pas, personne n'entre une fois le mot de passe
-        // fermé — et c'est au moment de le fermer qu'on s'en aperçoit.
+        // No account is created at sign-in: the first binding is made on the username. If the two
+        // do not coincide, nobody gets in once the password door is closed — and closing it is when
+        // that gets noticed.
         assertThat(realm().at("/users/0/username").asText())
-                .as("doit valoir le défaut de VECTISPIRE_BOOTSTRAP_USERNAME dans docker-compose.yml")
+                .as("must equal the VECTISPIRE_BOOTSTRAP_USERNAME default in docker-compose.yml")
                 .isEqualTo("admin");
     }
 }

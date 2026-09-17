@@ -52,12 +52,12 @@ class ReachabilityAnalysisTest {
 
         analyzer.analyzeAndEnrich(scaFinding, List.of(scaFinding, sastFinding));
 
-        // **Ce cas exigeait UNREACHABLE, et c'était le cœur du défaut.** L'analyseur ne suit aucun
-        // graphe d'appels : il cherche le nom du paquet en sous-chaîne dans les constats Semgrep du
-        // scan. Ne rien trouver signifiait « non atteignable », donc `not_affected` dans OpenVEX et
-        // `known_not_affected` dans CSAF — l'absence de preuve publiée comme une preuve d'absence,
-        // sur un produit dont l'analyse de code est désactivée par défaut et qui ne livre qu'une
-        // règle Semgrep. Cet analyseur peut lever la main ; il ne peut disculper personne.
+        // **This case required UNREACHABLE, and that was the heart of the defect.** The analyser
+        // follows no call graph: it searches for the package name as a substring in the scan's
+        // Semgrep findings. Finding nothing meant "not reachable", hence `not_affected` in OpenVEX
+        // and `known_not_affected` in CSAF — absence of evidence published as evidence of absence,
+        // on a product whose code analysis is off by default and which ships a single Semgrep rule.
+        // This analyser can raise its hand; it cannot clear anybody.
         assertThat(scaFinding.getReachability()).isEqualTo("UNKNOWN");
         assertThat(scaFinding.getReachableSymbols()).isNull();
 

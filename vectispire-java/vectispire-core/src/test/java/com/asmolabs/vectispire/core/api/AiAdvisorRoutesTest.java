@@ -63,8 +63,8 @@ class AiAdvisorRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + issue.getId()), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.identifier").value("CVE-2022-42889"))
-                // La suggestion arrive pré-remplie devant la personne qui triage : elle ne peut pas
-                // proposer une exonération déduite d'une corrélation de texte restée muette.
+                // The suggestion arrives pre-filled in front of the person triaging: it cannot
+                // offer an exemption deduced from a text correlation that stayed silent.
                 .andExpect(jsonPath("$.vexSuggestion.status").value("under_investigation"))
                 .andExpect(jsonPath("$.vexSuggestion.justification").doesNotExist());
     }

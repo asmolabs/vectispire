@@ -58,8 +58,8 @@ class ComplianceCaptureTest extends VectispireContextTest {
         history.capture();
 
         assertThat(snapshots.findAll())
-                .as("le tick tourne toutes les heures : une ligne par passage ferait d'un mois "
-                        + "sept cents points, et d'un mois clos autre chose que son état de fin de mois")
+                .as("the tick runs hourly: one row per pass would make a month seven hundred "
+                        + "points, and a closed month something other than its end-of-month state")
                 .hasSize(captured);
     }
 
@@ -69,8 +69,8 @@ class ComplianceCaptureTest extends VectispireContextTest {
         history.capture();
 
         assertThat(snapshots.findAll()).allSatisfy(row -> {
-            // Sans ces colonnes, une note lue six mois plus tard ne se distingue pas d'une autre :
-            // la même valeur peut venir d'un parc propre ou d'un parc que personne n'a regardé.
+            // Without these columns, a score read six months later is indistinguishable from
+            // another: the same value can come from a clean estate or one nobody has looked at.
             assertThat(row.getFreshnessDays()).isNotNegative();
             assertThat(row.getTargets()).isNotNegative();
             assertThat(row.getControlsTotal()).isPositive();
@@ -90,8 +90,8 @@ class ComplianceCaptureTest extends VectispireContextTest {
                     assertThat(series.steps().getFirst().movement())
                             .isEqualTo(ComplianceHistory.Movement.FIRST);
                     assertThat(series.comparable())
-                            .as("un seul point n'est pas une tendance, et le dire vaut mieux que "
-                                    + "de tracer la ligne quand même")
+                            .as("a single point is not a trend, and saying so beats drawing the "
+                                    + "line anyway")
                             .isFalse();
                 });
     }
@@ -99,9 +99,8 @@ class ComplianceCaptureTest extends VectispireContextTest {
     @Test
     @DisplayName("keeps the maintenance tick alive when a capture cannot be written")
     void neverThrows() {
-        // Une capture qui échoue ne doit pas emporter le tick avec elle : un mois manquant est un
-        // trou dans un graphique, un tick arrêté est une purge, un outbox et une péremption de
-        // triage arrêtés.
+        // A capture that fails must not take the tick down with it: a missing month is a gap in a
+        // chart, a stopped tick is a purge, an outbox and a triage expiry all stopped.
         snapshots.deleteAll();
         assertThat(history.capture()).isNotNegative();
     }
@@ -114,8 +113,9 @@ class ComplianceCaptureTest extends VectispireContextTest {
         ghost.setFramework("A_STANDARD_NOBODY_PORTED");
         snapshots.save(ghost);
 
-        // Un cadre retiré de l'énumération entre deux versions rendrait sinon tout l'historique
-        // illisible — et un document qui ne s'ouvre pas est pire qu'un document incomplet.
+        // A framework dropped from the enumeration between two versions would otherwise make the
+        // whole history unreadable — and a document that will not open is worse than an incomplete
+        // one.
         assertThat(history.history()).isNotNull();
     }
 }

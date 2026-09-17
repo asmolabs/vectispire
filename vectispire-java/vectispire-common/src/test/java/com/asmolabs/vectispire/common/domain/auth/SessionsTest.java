@@ -103,25 +103,25 @@ class SessionsTest {
         Sessions.Policy policy = Sessions.Policy.DEFAULT;   // inactivité : soixante minutes
         Instant seen = Instant.parse("2026-09-04T10:00:00Z");
 
-        // L'économie : la deuxième requête d'un même écran ne réécrit pas la ligne que la
-        // première vient d'écrire. C'est tout l'objet du cadencement — trois appels parallèles se
-        // disputaient une ligne, et sur le moteur en fichier unique ils se bloquaient.
+        // The saving: a screen's second request does not rewrite the row the first has just
+        // written. That is the whole point of the throttle — three parallel calls fought over one
+        // row, and on the single-file engine they blocked one another.
         assertThat(Sessions.shouldRecordActivity(seen, seen.plusMillis(40), policy)).isFalse();
         assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(59), policy)).isFalse();
         assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(60), policy)).isTrue();
 
-        // **Et la garantie que l'économie ne coûte rien.** Ce qui est sauté est une écriture, pas
-        // une fermeture : une session dont l'activité n'a pas été notée paraît plus vieille
-        // qu'elle n'est, donc elle expire éventuellement tôt et jamais tard. Le cas qui compte est
-        // celui-ci — au bord de la fenêtre, l'activité est toujours notée, et un utilisateur
-        // présent n'est donc jamais déconnecté parce qu'on a cessé de l'écouter.
+        // **And the guarantee that the saving costs nothing.** What is skipped is a write, not a
+        // close: a session whose activity went unrecorded looks older than it is, so it expires
+        // possibly early and never late. This is the case that matters — at the window's edge,
+        // activity is always recorded, so a user who is present is never signed out because we
+        // stopped listening.
         Instant edge = seen.plus(policy.idleLifetime()).minusSeconds(1);
         assertThat(Sessions.shouldRecordActivity(seen, edge, policy)).isTrue();
         assertThat(Sessions.isActive(seen, seen, edge, policy)).isTrue();
 
-        // Une fenêtre très courte ne se cadence pas plus fin qu'une seconde : le grain vaudrait
-        // zéro, et `!now.isBefore(lastSeenAt)` serait vrai en permanence — le cadencement
-        // disparaîtrait sans que rien ne le dise.
+        // A very short window is not throttled finer than a second: the grain would be zero, and
+        // `!now.isBefore(lastSeenAt)` would be permanently true — the throttle would vanish with
+        // nothing saying so.
         Sessions.Policy strict = new Sessions.Policy(Duration.ofHours(1), Duration.ofSeconds(30));
         assertThat(Sessions.shouldRecordActivity(seen, seen.plusMillis(500), strict)).isFalse();
         assertThat(Sessions.shouldRecordActivity(seen, seen.plusSeconds(1), strict)).isTrue();

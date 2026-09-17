@@ -88,9 +88,9 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
 
         // One package across two repositories, so the CVE set has to deduplicate an identifier
         // seen twice while the target list keeps both names.
-        // Les versions correctrices sont posées dans le désordre, et l'une d'elles — 5.3.9 —
-        // passe après 5.3.21 dans un tri de chaînes. C'est le piège que `Versions` existe pour
-        // éviter : conseiller 5.3.9 laisserait ouvertes les failles corrigées après.
+        // The fix versions are set out of order, and one of them — 5.3.9 — sorts after 5.3.21 in a
+        // string comparison. That is the trap `Versions` exists to avoid: advising 5.3.9 would
+        // leave open the holes fixed after it.
         vulnerability(alpha, null, "fp-a1", "CVE-2023-0001", Severity.CRITICAL, "spring-core", "5.3.0", "5.3.9");
         vulnerability(alpha, null, "fp-a2", "CVE-2023-0002", Severity.HIGH, "spring-core", "5.3.0", "5.3.21, 5.2.22");
         vulnerability(alpha, null, "fp-a3", "CVE-2023-0003", Severity.MEDIUM, "spring-core", "5.3.0");
@@ -211,7 +211,7 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         assertThat(spring.packageName()).isEqualTo("spring-core");
         assertThat(spring.currentVersion()).isEqualTo("5.3.0");
         assertThat(spring.recommendedVersion())
-                .as("la plus haute des versions correctrices annoncées, et non la dernière lue")
+                .as("the highest of the fix versions announced, and not the last one read")
                 .isEqualTo("5.3.21");
         assertThat(spring.cveCountResolved())
                 .as("four issues, three distinct identifiers: the same CVE on two repositories is one fix")
@@ -227,8 +227,8 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         HighImpactFix openssl = fixes.get(1);
         assertThat(openssl.packageName()).isEqualTo("openssl");
         assertThat(openssl.recommendedVersion())
-                .as("aucun constat n'annonce de correctif : l'absence de réponse en est une, et "
-                        + "elle ne doit pas se dire comme « passez à celle-ci »")
+                .as("no finding announces a fix: the absence of an answer is one, and it must "
+                        + "not be said as \"upgrade to this one\"")
                 .isNull();
         assertThat(openssl.estimatedHours()).isEqualTo(1.1);
         assertThat(openssl.leverageScore()).isEqualTo(3.2);
@@ -242,16 +242,16 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("la borne demandée est respectée, et ramenée dans ses limites quand elle est absurde")
+    @DisplayName("the bound asked for is honoured, and clamped when it is absurd")
     void theWantedCountIsBounded() {
-        // **« Et après ces dix-là ? »** L'ordre de travail par défaut est court parce que c'est
-        // sa raison d'être, mais le refuser d'élargir revient à faire refaire le classement à la
-        // main sur un parc réel.
+        // **"And after those ten?"** The default work order is short because that is its whole
+        // purpose, but refusing to widen it amounts to making somebody redo the ranking by hand on
+        // a real estate.
         assertThat(debt.highImpactFixes(null, null, 1, Visibility.everything())).hasSize(1);
 
-        // Une valeur absurde est corrigée et non refusée : un plan n'est pas un endroit où
-        // répondre 400. Le plancher comme le plafond — la fixture n'a que deux paquets, donc
-        // demander cinq cents en rend deux, et non une erreur.
+        // An absurd value is corrected and not refused: a plan is no place to answer 400. The
+        // floor as much as the ceiling — the fixture has only two packages, so asking for five
+        // hundred returns two, not an error.
         assertThat(debt.highImpactFixes(null, null, 0, Visibility.everything())).hasSize(1);
         assertThat(debt.highImpactFixes(null, null, 500, Visibility.everything())).hasSize(2);
 
@@ -303,25 +303,25 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("l'aveu du plan : ce qu'une montée de version ne fermera pas, et de quelle famille")
+    @DisplayName("the plan's admission: what a version bump will not close, and of which family")
     void theCoverageNamesWhatThePlanCannotReach() {
-        // **Le constat d'usage qui a motivé ce calcul.** Le classement ne retient que des
-        // vulnérabilités portant un paquet ; un dépôt dont le retard est fait de secrets affiche
-        // donc une seule action face à des centaines de lignes, et rien ne disait pourquoi.
+        // **The usage report that prompted this calculation.** The ranking keeps only
+        // vulnerabilities carrying a package; a repository whose backlog is made of secrets
+        // therefore shows a single action against hundreds of lines, and nothing said why.
         RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
 
         assertThat(coverage.openFindings())
-                .as("le même parc ouvert que celui du rapport de dette, et non un sous-ensemble")
+                .as("the same open estate as the debt report's, and not a subset")
                 .isEqualTo(9);
         assertThat(coverage.addressableByUpgrade())
-                .as("cinq vulnérabilités nomment un paquet ; ce sont les seules qu'un plan peut fermer")
+                .as("five vulnerabilities name a package; they are the only ones a plan can close")
                 .isEqualTo(5);
         assertThat(coverage.beyondUpgrades()).isEqualTo(4);
         assertThat(coverage.openFindings())
                 .isEqualTo(coverage.addressableByUpgrade() + coverage.beyondUpgrades());
 
-        // Les manques, du plus nombreux au moins nombreux puis par nom : ici tous à un, donc
-        // l'ordre est alphabétique et deux lectures des mêmes données s'accordent.
+        // The gaps, from the most numerous to the least and then by name: here all at one, so the
+        // order is alphabetical and two readings of the same data agree.
         assertThat(coverage.gaps())
                 .extracting(RemediationGap::family, RemediationGap::findings)
                 .containsExactly(
@@ -332,11 +332,11 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("une vulnérabilité sans paquet est un manque à elle seule, et non une ligne classée trop bas")
+    @DisplayName("a vulnerability with no package is a gap of its own, not a line ranked too low")
     void anUnpackagedVulnerabilityIsItsOwnFamily() {
-        // La diluer dans `vulnerability` laisserait croire au lecteur qu'elle figure plus bas
-        // dans le plan. Il n'y a rien à monter : le scanner n'a pas dit de quel composant elle
-        // vient.
+        // Diluting it into `vulnerability` would let the reader believe it appears further down
+        // the plan. There is nothing to bump: the scanner did not say which component it comes
+        // from.
         vulnerability(beta, null, "fp-b9", "CVE-2023-7777", Severity.HIGH, "   ", null);
 
         RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
@@ -350,23 +350,23 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("l'aveu compte ce que la dette compte : ni la revue par modèle, ni le résolu")
+    @DisplayName("the admission counts what the debt counts: neither model review nor the resolved")
     void theCoverageCountsWhatTheDebtCounts() {
         issue(alpha, null, "fp-ai", "ai-1", FindingType.AI_REVIEW, Severity.CRITICAL, IssueState.OPEN);
 
         RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
 
         assertThat(coverage.openFindings())
-                .as("un dépôt ne doit pas pouvoir gonfler son propre reste-à-faire par un modèle local")
+                .as("a repository must not be able to inflate its own backlog through a local model")
                 .isEqualTo(9);
         assertThat(coverage.gaps()).extracting(RemediationGap::family).doesNotContain("ai_review");
         assertThat(coverage.openFindings())
-                .as("et c'est bien le total du rapport de dette, qui écarte la même chose")
+                .as("and it is indeed the debt report's total, which leaves out the same thing")
                 .isEqualTo(debt.calculateDebt(null, null, Visibility.everything()).totalOpenIssues());
     }
 
     @Test
-    @DisplayName("l'aveu est porté par la portée demandée et par ce que le lecteur a le droit de voir")
+    @DisplayName("the admission carries the scope asked for and what the reader may see")
     void theCoverageIsScopedAndVisible() {
         RemediationCoverage scoped = debt.coverage(alpha, null, Visibility.everything());
 
@@ -375,8 +375,8 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         assertThat(scoped.gaps()).extracting(RemediationGap::family)
                 .containsExactly("quality", "secret", RemediationCoverage.UNPACKAGED);
 
-        // L'inversion que `Visibility` existe pour empêcher, à l'endroit où elle se verrait : une
-        // habilitation vide est une habilitation, et non l'absence de filtre.
+        // The inversion `Visibility` exists to prevent, at the place where it would show: an empty
+        // clearance is a clearance, and not the absence of a filter.
         assertThat(debt.coverage(null, null, Visibility.only(List.of())).openFindings()).isZero();
         assertThat(debt.coverage(null, null, Visibility.only(List.of())).gaps()).isEmpty();
 

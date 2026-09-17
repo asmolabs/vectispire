@@ -201,11 +201,10 @@ class ComplianceEngineTest {
         ComplianceEngine.PlatformPosture passwordOnly =
                 new ComplianceEngine.PlatformPosture(true, true, true, true, false, true);
 
-        // **Le trou que ceci ferme.** La posture n'avait aucune opinion sur l'authentification :
-        // un déploiement pouvait être déclaré conforme à PCI DSS et SOC 2 — qui exigent tous deux
-        // un second facteur — en n'acceptant qu'un mot de passe local. La chaîne d'audit prouve
-        // qu'une entrée n'a pas été altérée ; elle ne prouve pas que le nom qu'elle porte est
-        // celui de la personne qui a agi.
+        // **The hole this closes.** The posture had no opinion about authentication: a deployment
+        // could be declared compliant with PCI DSS and SOC 2 — both of which require a second factor
+        // — while accepting nothing but a local password. The audit chain proves an entry was not
+        // altered; it does not prove that the name it carries is that of the person who acted.
         assertThat(auditControls(passwordOnly))
                 .allSatisfy(control -> {
                     assertThat(control.status()).isNotEqualTo(ComplianceControl.Status.COMPLIANT);
@@ -217,8 +216,8 @@ class ComplianceEngineTest {
     @Test
     @DisplayName("a provider beside an open password is better, and still not what it claims")
     void anOpenPasswordBesideAProviderIsStillABypass() {
-        // L'état que l'on manque : le fournisseur est là, la porte d'à côté aussi. Le second
-        // facteur du realm se contourne par elle.
+        // The state that gets missed: the provider is there, and so is the door next to it. The
+        // realm's second factor is bypassed through it.
         ComplianceEngine.PlatformPosture both =
                 new ComplianceEngine.PlatformPosture(true, true, true, true, true, true);
 
@@ -228,12 +227,12 @@ class ComplianceEngineTest {
                     assertThat(control.details()).contains("walked around");
                 });
 
-        // Et les deux portes réglées comme le contrôle le décrit : aucun plafond.
+        // And both doors set as the control describes: no ceiling.
         assertThat(auditControls(ComplianceEngine.PlatformPosture.FULLY_ENABLED))
                 .allSatisfy(control -> assertThat(control.details()).doesNotContain("walked around"));
     }
 
-    /** Les contrôles de journalisation de tous les référentiels, sous une posture donnée. */
+    /** Every framework's logging controls, under a given posture. */
     private static java.util.List<ComplianceEvaluation.ControlAssessment> auditControls(
             ComplianceEngine.PlatformPosture platform) {
         return ComplianceEngine.evaluateAll(CLEAN, platform).stream()

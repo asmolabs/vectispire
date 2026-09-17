@@ -22,13 +22,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * La réconciliation des équipes depuis l'annuaire.
+ * Reconciling teams from the directory.
  *
- * <p><b>Trois façons de se tromper, et une seule est bruyante.</b> Ne pas ajouter se voit à la
- * première connexion. Ne pas retirer ne se voit jamais — c'était le comportement d'origine, et il
- * rendait intenable la promesse qu'un départ de groupe révoque un accès. Retirer <em>trop</em> ne
- * se voit qu'après coup, quand les affectations d'un administrateur ont disparu sans que personne
- * n'ait rien fait. Chaque cas ci-dessous vise l'une des trois.
+ * <p><b>Three ways of getting it wrong, and only one of them is loud.</b> Failing to add shows at
+ * the first sign-in. Failing to remove never shows — that was the original behaviour, and it made
+ * the promise that leaving a group revokes an access untenable. Removing <em>too much</em> shows
+ * only afterwards, when an administrator's assignments have vanished without anybody doing
+ * anything. Each case below aims at one of the three.
  */
 @DisplayName("la synchronisation des groupes OIDC")
 class OidcGroupSyncTest {
@@ -68,7 +68,7 @@ class OidcGroupSyncTest {
     }
 
     @Test
-    @DisplayName("une équipe revendiquée est rejointe, et marquée comme venant de l'annuaire")
+    @DisplayName("a claimed team is joined, and marked as coming from the directory")
     void joinsAClaimedTeam() {
         teamNamed("AppSec", 5L);
         alreadyIn();
@@ -77,12 +77,12 @@ class OidcGroupSyncTest {
 
         assertThat(saved().getId()).isEqualTo(new TeamMemberEntity.Id(5L, 10L));
         assertThat(saved().getOrigin())
-                .as("sans cette marque, la réconciliation ne saurait pas quelles lignes sont les siennes")
+                .as("without this mark, reconciliation would not know which rows are its own")
                 .isEqualTo(TeamMemberEntity.Origin.OIDC);
     }
 
     @Test
-    @DisplayName("une appartenance déjà tenue n'est pas réécrite")
+    @DisplayName("a membership already held is not rewritten")
     void doesNotRewriteWhatIsAlreadyHeld() {
         teamNamed("AppSec", 5L);
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC));
@@ -93,11 +93,11 @@ class OidcGroupSyncTest {
     }
 
     @Test
-    @DisplayName("un groupe quitté dans l'annuaire retire l'équipe ici")
+    @DisplayName("a group left in the directory removes the team here")
     void leavingAGroupRevokesTheTeam() {
-        // **Le cas pour lequel cette phase existe.** La méthode n'ajoutait que : retirer quelqu'un
-        // d'un groupe ne lui retirait ni l'équipe ni la visibilité qui va avec, alors que c'est la
-        // raison même de déléguer.
+        // **The case this phase exists for.** The method only ever added: removing somebody from a
+        // group took away neither the team nor the visibility that comes with it, although that is
+        // the very reason for delegating.
         teamNamed("AppSec", 5L);
         TeamMemberEntity gone = new TeamMemberEntity(9L, 10L, TeamMemberEntity.Origin.OIDC);
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC), gone);
@@ -108,10 +108,10 @@ class OidcGroupSyncTest {
     }
 
     @Test
-    @DisplayName("ce qu'un administrateur a attribué survit à la connexion")
+    @DisplayName("what an administrator assigned survives the sign-in")
     void neverTouchesAManualAssignment() {
-        // **Le piège de l'autre côté.** Réconcilier tout aurait effacé, à chaque connexion et en
-        // silence, les équipes attribuées à la main — un défaut pire que celui qu'on répare.
+        // **The trap on the other side.** Reconciling everything would have silently erased, at
+        // every sign-in, the teams assigned by hand — a worse defect than the one being fixed.
         teamNamed("AppSec", 5L);
         TeamMemberEntity byHand = new TeamMemberEntity(7L, 10L, TeamMemberEntity.Origin.MANUAL);
         TeamMemberEntity byScim = new TeamMemberEntity(8L, 10L, TeamMemberEntity.Origin.SCIM);
@@ -124,11 +124,11 @@ class OidcGroupSyncTest {
     }
 
     @Test
-    @DisplayName("une revendication vide ne révoque rien")
+    @DisplayName("an empty claim revokes nothing")
     void anEmptyClaimIsNotARevocation() {
-        // Un mapper oublié, un jeton sans la revendication : l'absence de groupes est une panne de
-        // configuration, pas « cette personne n'est plus dans aucune équipe ». Révoquer là-dessus
-        // couperait tout le monde au premier réglage manqué.
+        // A forgotten mapper, a token without the claim: an absence of groups is a configuration
+        // failure, not "this person is no longer in any team". Revoking on that basis would cut
+        // everybody off at the first missed setting.
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC));
 
         service.syncGroups(user, List.of());
@@ -138,7 +138,7 @@ class OidcGroupSyncTest {
     }
 
     @Test
-    @DisplayName("un groupe sans équipe correspondante n'est pas une erreur")
+    @DisplayName("a group with no matching team is not an error")
     void anUnknownGroupIsIgnored() {
         // L'annuaire d'une organisation est plus large que ce que cet outil suit.
         when(teams.findByNameIgnoreCase("Comptabilité")).thenReturn(Optional.empty());

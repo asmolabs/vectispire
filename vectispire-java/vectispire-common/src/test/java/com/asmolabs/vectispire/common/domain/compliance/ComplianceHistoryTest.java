@@ -39,7 +39,7 @@ class ComplianceHistoryTest {
         ComplianceHistory.Step last = series.steps().getLast();
         assertThat(last.delta()).isEqualTo(-19);
         assertThat(last.movement())
-                .as("dix-neuf points perdus en surveillant quatre dépôts de plus n'est pas une régression")
+                .as("nineteen points lost by watching four more repositories is not a regression")
                 .isEqualTo(Movement.ESTATE_GREW);
         assertThat(last.because()).contains("4 target(s) more");
     }
@@ -52,7 +52,7 @@ class ComplianceHistoryTest {
                 snapshot("2026-08", 88, 9)));
 
         assertThat(series.steps().getLast().movement())
-                .as("une note qui monte en retirant des cibles a été achetée, pas gagnée")
+                .as("a score that rises by removing targets was bought, not earned")
                 .isEqualTo(Movement.ESTATE_SHRANK);
     }
 
@@ -68,7 +68,7 @@ class ComplianceHistoryTest {
 
         assertThat(last.movement()).isEqualTo(Movement.RULES_CHANGED);
         assertThat(last.because())
-                .as("le parc n'a pas bougé : c'est la règle qui le juge qui a changé")
+                .as("the estate has not moved: what changed is the rule judging it")
                 .contains("freshness window moved from 30 to 7");
     }
 
@@ -91,8 +91,8 @@ class ComplianceHistoryTest {
                 snapshot("2026-07", 74, 10),
                 snapshot("2026-08", 75, 10)));
 
-        // Une seule issue ouverte ou fermée déplace un pourcentage d'à peu près autant. Annoter
-        // chacune d'elles, c'est n'annoter rien.
+        // A single issue opened or closed moves a percentage by about as much. Annotating every
+        // one of them is annotating nothing.
         assertThat(series.steps().getLast().movement()).isEqualTo(Movement.STEADY);
     }
 
@@ -117,7 +117,7 @@ class ComplianceHistoryTest {
                         snapshot("2026-06", 90, 8),
                         snapshot("2026-07", 80, 10),
                         snapshot("2026-08", 75, 12))).comparable())
-                .as("trois mois, trois parcs différents : c'est une forme, pas une tendance")
+                .as("three months, three different estates: that is a shape, not a trend")
                 .isFalse();
 
         assertThat(ComplianceHistory.of(ISO, List.of(

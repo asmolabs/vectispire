@@ -97,11 +97,11 @@ class TicketingRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.matched").value(true))
                 .andExpect(jsonPath("$.ticketRef").value("SEC-99"));
 
-        // **Ces deux cas affirmaient `not_affected`, et c'était le défaut qu'ils décrivaient.**
-        // Le webhook est anonyme tant qu'aucun secret n'est configuré ; « le tracker a dit faux
-        // positif » ne pouvait donc pas rester une conclusion. La justification, elle, est bien
-        // enregistrée : ce qui change n'est pas ce que le tracker raconte mais qui le publie.
-        // Voir `TicketWebhookCannotSettleTest` pour la propriété elle-même.
+        // **These two cases asserted `not_affected`, and that was the defect they described.** The
+        // webhook is anonymous as long as no secret is configured; "the tracker said false
+        // positive" could therefore not remain a conclusion. The justification is still recorded:
+        // what changes is not what the tracker says but who publishes it. See
+        // `TicketWebhookCannotSettleTest` for the property itself.
         IssueEntity updated = issues.findByTicketRefOrIid("SEC-99").orElseThrow();
         org.junit.jupiter.api.Assertions.assertEquals("pending_approval", updated.getTriageStatus());
         org.junit.jupiter.api.Assertions.assertEquals("vulnerable_code_not_in_execute_path", updated.getTriageJustification());

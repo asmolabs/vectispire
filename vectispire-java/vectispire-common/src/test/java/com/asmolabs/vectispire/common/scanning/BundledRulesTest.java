@@ -37,15 +37,15 @@ class BundledRulesTest {
     }
 
     @Test
-    @DisplayName("déclarent la catégorie OWASP de la règle livrée, sans quoi la grille dirait qu'elle ne regarde rien")
+    @DisplayName("declare the shipped rule's OWASP category, without which the grid would say it looks at nothing")
     void theBundledRuleDeclaresItsCategory() {
         String rule = BundledRules.contentOf("semgrep/python/dangerous-eval.yaml");
 
-        // `eval` sur une entrée est une injection : A03. La déclarer fait passer la catégorie de
-        // « rien ici ne regarde ça » à « regardée », sur une instance qui n'a rien installé —
-        // c'est-à-dire là où la grille est le plus souvent lue.
+        // `eval` on an input is an injection: A03. Declaring it moves the category from "nothing
+        // here looks at that" to "looked at", on an instance that has installed nothing — that is,
+        // where the grid is most often read.
         assertThat(OwaspTag.declaredIn(rule))
-                .as("la règle que ce produit écrit lui-même doit dire où ses constats se rangent")
+                .as("the rule this product writes itself must say where its findings belong")
                 .containsExactly("A03");
     }
 

@@ -35,11 +35,11 @@ class TicketWebhookAuthRoutesTest extends ApiTestBase {
         // 200 rather than 401: this is the behaviour every existing deployment relies on, and
         // changing it on upgrade would stop their triage synchronising without anybody noticing.
         //
-        // **Ce cas épinglait une porte ouverte sans dire sur quoi elle donnait.** Il était juste
-        // sur ce qu'il affirmait et muet sur ce qui comptait : derrière ce 200, un appel anonyme
-        // réglait un `not_affected` qui partait dans les documents signés. Ce qui rend le 200
-        // acceptable n'est pas écrit ici mais dans `TicketWebhookCannotSettleTest`, et les deux
-        // se lisent ensemble.
+        // **This case pinned an open door without saying what it opened onto.** It was right about
+        // what it asserted and silent about what mattered: behind that 200, an anonymous call
+        // settled a `not_affected` that travelled into the signed documents. What makes the 200
+        // acceptable is not written here but in `TicketWebhookCannotSettleTest`, and the two are
+        // read together.
         mvc.perform(post("/api/v1/tickets/webhook/gitlab")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))

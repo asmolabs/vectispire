@@ -30,7 +30,7 @@ class StatementOfApplicabilityTest {
     private static final Instant NOW = Instant.parse("2026-09-14T10:00:00Z");
     private static final ComplianceFramework FRAMEWORK = ComplianceFramework.ISO_27001;
 
-    /** La même, telle que la déclaration la range — une chaîne, depuis que le Top 10 s'y déclare. */
+    /** The same, as the declaration stores it — a string, since the Top 10 declares itself there. */
     private static final String FRAMEWORK_KEY = FRAMEWORK.name();
     private static final String VULN = "ISO-A.8.8";
     private static final String SECRETS = "ISO-A.5.15";

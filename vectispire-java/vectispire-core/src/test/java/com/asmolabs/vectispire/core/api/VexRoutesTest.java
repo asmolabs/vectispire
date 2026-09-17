@@ -69,12 +69,12 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"scan-" + scan.getId() + "-openvex.json\""))
                 .andExpect(jsonPath("$.['@context']").value("https://openvex.dev/ns/v0.2.0"))
                 .andExpect(jsonPath("$.statements[0].vulnerability.name").value("CVE-2022-42889"))
-                // **Ce cas exigeait `not_affected` / `vulnerable_code_not_in_execute_path`.** Le
-                // document OpenVEX est lisible par machine et part chez un client ; il portait cette
-                // exonération parce que la colonne d'atteignabilité valait UNREACHABLE, valeur posée
-                // par une recherche de sous-chaîne dans les constats Semgrep qui n'avait rien trouvé.
-                // Aucun humain n'approuvait ce chemin. Disculper est désormais une décision de
-                // triage, et l'absence de constat vaut « en cours d'analyse ».
+                // **This case required `not_affected` / `vulnerable_code_not_in_execute_path`.**
+                // The OpenVEX document is machine-readable and travels to a customer; it carried
+                // that exemption because the reachability column read UNREACHABLE, a value set by a
+                // substring search through the Semgrep findings that had found nothing. No human
+                // approved that path. Clearing is now a triage decision, and the absence of a
+                // finding means "under investigation".
                 .andExpect(jsonPath("$.statements[0].status").value("under_investigation"))
                 .andExpect(jsonPath("$.statements[0].justification").doesNotExist());
     }

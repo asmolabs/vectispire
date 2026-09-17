@@ -15,27 +15,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 /**
- * Une porte anonyme ne règle pas un triage.
+ * An anonymous door does not settle a triage.
  *
- * <p><b>Le défaut que ceci ferme, reproduit avant d'être corrigé.</b> Un {@code POST} sans le
- * moindre identifiant — la route est {@code permitAll} dans la chaîne de filtres, le gestionnaire
- * porte {@code @OpenToAnonymous}, et aucun secret n'est configuré par défaut — faisait passer un
- * CVE critique en {@code not_affected} avec la justification
- * {@code vulnerable_code_not_in_execute_path}. La seule barrière était de deviner une référence de
- * ticket, du genre {@code SEC-1234}.
+ * <p><b>The defect this closes, reproduced before it was fixed.</b> A {@code POST} with no
+ * credential whatsoever — the route is {@code permitAll} in the filter chain, the handler carries
+ * {@code @OpenToAnonymous}, and no secret is configured by default — moved a critical CVE to
+ * {@code not_affected} with the justification {@code vulnerable_code_not_in_execute_path}. The
+ * only barrier was guessing a ticket reference, something like {@code SEC-1234}.
  *
- * <p><b>Ce que cela touchait.</b> Pas un écran : {@code CycloneDxGeneratorService.mapAnalysis}
- * rend {@code not_affected} en {@code analysis.state} de même nom, avec sa justification, dans des
- * documents CycloneDX, OpenVEX et CSAF signés et remis à des tiers. C'est exactement l'affirmation
- * que ce dépôt a déjà retirée une fois en rendant l'analyseur d'atteignabilité unidirectionnel,
- * et l'invariant est réécrit en commentaire juste au-dessus de cette fonction : « le triage vide
- * un composant ; l'atteignabilité, non ». Cette porte était le trou dedans.
+ * <p><b>What that reached.</b> Not a screen: {@code CycloneDxGeneratorService.mapAnalysis} renders
+ * {@code not_affected} as the {@code analysis.state} of the same name, with its justification, in
+ * signed CycloneDX, OpenVEX and CSAF documents handed to third parties. It is exactly the claim
+ * this repository has already withdrawn once, by making the reachability analyser one-way, and the
+ * invariant is written out as a comment directly above that function: "triage clears a component;
+ * reachability does not". This door was the hole in it.
  *
- * <p><b>Pourquoi ce cas ne se confond pas avec {@code TicketWebhookAuthRoutesTest}.</b> Celui-là
- * éprouve qui peut entrer, et affirme — à raison — que sans secret la porte reste ouverte, parce
- * que la fermer arrêterait la synchronisation de tous les déploiements existants. Il était juste
- * et muet sur ce qui comptait. Celui-ci éprouve ce qu'on peut faire une fois entré, et c'est lui
- * qui rend le 200 de l'autre acceptable.
+ * <p><b>Why this case is not the same as {@code TicketWebhookAuthRoutesTest}.</b> That one tests
+ * who can get in, and asserts — rightly — that without a secret the door stays open, because
+ * closing it would stop synchronisation on every existing deployment. It was right and silent
+ * about what mattered. This one tests what can be done once inside, and it is what makes the
+ * other's 200 acceptable.
  */
 @DisplayName("un webhook anonyme ne peut pas clore un triage")
 class TicketWebhookCannotSettleTest extends ApiTestBase {
@@ -54,7 +53,7 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
              "webhookEvent":"jira:issue_updated"}""";
 
     @Test
-    @DisplayName("sans secret, la décision part en approbation et jamais en « non affecté »")
+    @DisplayName("with no secret, the decision goes to approval and never to \"not affected\"")
     void anonymousCannotSettle() throws Exception {
         settings.set(Setting.TICKET_WEBHOOK_SECRET, "");
         IssueEntity issue = critical("fp-webhook-settle", "SEC-1234");
@@ -66,36 +65,36 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
 
         IssueEntity after = issues.findById(issue.getId()).orElseThrow();
 
-        // **`pending_approval`, et non `not_affected`.** Les deux ne se ressemblent que dans une
-        // table : le second se rend en `analysis.state = not_affected` dans les documents signés,
-        // le premier s'y rend « en cours d'examen ». C'est toute la différence entre enregistrer
-        // ce qu'un tracker dit et le publier à la place d'un humain.
+        // **`pending_approval`, and not `not_affected`.** The two resemble each other only in a
+        // table: the second renders as `analysis.state = not_affected` in the signed documents, the
+        // first renders there as "under review". That is the whole difference between recording
+        // what a tracker says and publishing it in a human's place.
         assertThat(after.getTriageStatus())
-                .as("un appel anonyme ne peut pas produire une déclaration « non affecté »")
+                .as("an anonymous call cannot produce a \"not affected\" declaration")
                 .isEqualTo("pending_approval");
 
-        // **L'auteur est l'intégration, pas ce que l'appelant a écrit.** Le nom venait de la
-        // charge utile et finissait dans le journal d'audit — inviolable, jamais purgé — comme
-        // l'identité de qui a décidé. La chaîne de hachage protège cette entrée d'une
-        // modification ultérieure ; elle ne la protège pas d'un mensonge qu'on lui a dicté.
+        // **The author is the integration, not what the caller wrote.** The name came from the
+        // payload and ended up in the audit log — tamper-evident, never purged — as the identity of
+        // whoever decided. The hash chain protects that entry against a later modification; it does
+        // not protect it against a lie dictated to it.
         assertThat(after.getTriagedBy())
-                .as("le nom annoncé par l'appelant ne doit pas devenir une identité")
+                .as("the name the caller announces must not become an identity")
                 .isEqualTo("JIRA_webhook");
 
-        // Il reste écrit, parce qu'il est utile à qui enquête — mais comme une donnée rapportée.
+        // It stays written, because it helps whoever investigates — but as reported data.
         assertThat(after.getTriageComment()).contains("Responsable Securite");
     }
 
     @Test
-    @DisplayName("même avec un secret vérifié : un tracker n'est pas un approbateur")
+    @DisplayName("even with a verified secret: a tracker is not an approver")
     void aVerifiedTrackerIsStillNotAnApprover() throws Exception {
         settings.set(Setting.TICKET_WEBHOOK_SECRET, "s3cr3t-partage");
         IssueEntity issue = critical("fp-webhook-verified", "SEC-9876");
 
-        // **Le secret authentifie, il n'autorise pas.** Il établit que l'appel vient bien du
-        // tracker ; il n'établit pas que quelqu'un a regardé la vulnérabilité. Faire dépendre la
-        // clôture du secret aurait déplacé la question au lieu de la trancher — et un tracker
-        // dont les transitions sont ouvertes à toute une entreprise n'est pas un contrôle.
+        // **The secret authenticates, it does not authorise.** It establishes that the call really
+        // comes from the tracker; it does not establish that somebody looked at the vulnerability.
+        // Making settlement depend on the secret would have moved the question rather than settled
+        // it — and a tracker whose transitions are open to a whole company is not a control.
         mvc.perform(post("/api/v1/tickets/webhook/jira")
                         .header("X-Vectispire-Token", "s3cr3t-partage")
                         .contentType(MediaType.APPLICATION_JSON)

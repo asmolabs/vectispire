@@ -190,9 +190,9 @@ class ScanIngestorTest {
                     .extracting(FindingEntity::getType)
                     .containsExactly(FindingType.SAST.wireName(), FindingType.QUALITY.wireName());
 
-            // **La catégorie déclarée par la règle voyage avec le constat**, et l'absence de
-            // déclaration reste une absence : lui donner une catégorie par défaut ferait entrer un
-            // constat dans une catégorie que personne n'a revendiquée.
+            // **The category the rule declares travels with the finding**, and an absent
+            // declaration stays absent: giving it a default category would put a finding into a
+            // category nobody claimed.
             assertThat(producedFindings())
                     .extracting(FindingEntity::getOwaspCategory)
                     .containsExactly("A03", null);

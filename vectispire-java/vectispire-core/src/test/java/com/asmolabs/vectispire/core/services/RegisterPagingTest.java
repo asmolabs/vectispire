@@ -79,7 +79,7 @@ class RegisterPagingTest extends VectispireContextTest {
         second.entries().forEach(entry -> seen.add(entry.issueId()));
 
         assertThat(seen)
-                .as("rien vu deux fois, rien sauté — c'est toute la propriété qu'un registre d'audit demande")
+                .as("nothing seen twice, nothing skipped — the whole property an audit register asks for")
                 .containsExactlyInAnyOrderElementsOf(all);
     }
 
@@ -89,10 +89,10 @@ class RegisterPagingTest extends VectispireContextTest {
         excepted(3, repository("app"));
 
         assertThat(register.register(10, null, Visibility.everything()).nextCursor())
-                .as("une lecture courte épuise le registre : il n'y a rien après où pointer")
+                .as("a short read exhausts the register: there is nothing after it to point at")
                 .isNull();
         assertThat(register.register(3, null, Visibility.everything()).nextCursor())
-                .as("une lecture pleine peut cacher une suite, même si elle tombe juste")
+                .as("a full read may hide a continuation, even when it lands exactly")
                 .isNotNull();
     }
 
@@ -101,9 +101,9 @@ class RegisterPagingTest extends VectispireContextTest {
     void anEmptyPageStillPointsFurtherOn() {
         long theirs = repository("theirs");
         long mine = repository("mine");
-        // **L'ordre du registre est décroissant, donc la dernière triée vient en tête.** Celle du
-        // lecteur est donc créée en premier pour se retrouver en dernier, derrière une fenêtre
-        // entière qui ne contient que l'estate d'un autre.
+        // **The register's order is descending, so the last sorted comes first.** The reader's is
+        // therefore created first so as to end up last, behind a whole window containing nothing
+        // but somebody else's estate.
         List<Long> visible = excepted(1, mine);
         excepted(2, theirs);
 
@@ -112,11 +112,11 @@ class RegisterPagingTest extends VectispireContextTest {
         ExceptionsRegisterService.Register page = register.register(2, null, restricted);
 
         assertThat(page.entries())
-                .as("cette fenêtre-là ne contient que l'estate d'un autre")
+                .as("that window contains nothing but somebody else's estate")
                 .isEmpty();
         assertThat(page.nextCursor())
-                .as("le curseur vient des lignes lues : sinon le client s'arrête ici et ne voit "
-                        + "jamais la sienne")
+                .as("the cursor comes from the rows read: otherwise the client stops here and "
+                        + "never sees its own")
                 .isNotNull();
 
         assertThat(register.register(2, page.nextCursor(), restricted).entries())
@@ -129,7 +129,7 @@ class RegisterPagingTest extends VectispireContextTest {
     void anUnusableCursorStartsOver() {
         excepted(2, repository("app"));
 
-        // Le client n'a pas composé cette valeur : il a renvoyé ce que le serveur lui a donné.
+        // The client did not compose this value: it sent back what the server gave it.
         assertThat(register.register(10, "pas-un-curseur", Visibility.everything()).entries())
                 .hasSize(2);
         assertThat(register.register(10, "1757836800000:pas-un-nombre", Visibility.everything()).entries())

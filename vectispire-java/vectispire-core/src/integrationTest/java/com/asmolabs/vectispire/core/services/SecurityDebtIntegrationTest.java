@@ -173,14 +173,14 @@ class SecurityDebtIntegrationTest {
     @Test
     @DisplayName("l'aveu du plan se groupe par type et compte le nommage sur le serveur")
     void theCoverageParses() {
-        // Deux `sum(case when …)` sur un même prédicat, groupés par type : la construction dont
-        // le type de retour appartient au pilote, et qui décide ici de ce qu'un lecteur comprend
-        // — un secret annoncé comme couvert par une montée de version serait un mensonge poli.
+        // Two `sum(case when …)` over one predicate, grouped by type: the construct whose return
+        // type belongs to the driver, and which decides here what a reader understands — a secret
+        // announced as covered by a version bump would be a polite lie.
         RemediationCoverage coverage = debt.coverage(null, null, Visibility.everything());
 
         assertThat(coverage.openFindings()).isEqualTo(7);
         assertThat(coverage.addressableByUpgrade())
-                .as("quatre vulnérabilités nomment un paquet ; un nom fait de blancs n'en est pas un, sur aucun moteur")
+                .as("four vulnerabilities name a package; a name made of blanks is not one, on any engine")
                 .isEqualTo(4);
         assertThat(coverage.beyondUpgrades()).isEqualTo(3);
         assertThat(coverage.gaps()).extracting(RemediationGap::family)
@@ -188,11 +188,11 @@ class SecurityDebtIntegrationTest {
     }
 
     @Test
-    @DisplayName("le regroupement par catégorie OWASP se fait sur le serveur, et n'y met que le code")
+    @DisplayName("grouping by OWASP category happens on the server, and admits only code findings")
     void theOwaspGroupingParses() {
-        // Un `group by` sur une colonne nullable, avec un `count` : la construction est simple et
-        // c'est précisément ce qui la rend facile à écrire d'une façon qui ne tient que sur un
-        // moteur. Les lignes sans catégorie ne doivent pas former un groupe.
+        // A `group by` over a nullable column, with a `count`: the construct is simple and that is
+        // precisely what makes it easy to write in a way that holds on one engine only. Rows
+        // without a category must not form a group.
         IssueEntity placed = build(alpha, "fp-owasp-1", "rule.injection", FindingType.SAST, Severity.HIGH);
         placed.setOwaspCategory("A03");
         issues.save(placed);
@@ -211,7 +211,7 @@ class SecurityDebtIntegrationTest {
                         IssueAggregates.OwaspCategoryCount::count));
 
         assertThat(byCategory)
-                .as("une catégorie absente n'est pas une catégorie vide : elle ne forme pas de groupe")
+                .as("an absent category is not an empty one: it forms no group")
                 .containsExactly(java.util.Map.entry("A03", 1L));
     }
 

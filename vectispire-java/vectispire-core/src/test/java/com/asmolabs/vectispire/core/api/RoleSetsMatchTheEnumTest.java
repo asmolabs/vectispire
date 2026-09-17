@@ -16,40 +16,40 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * L'écran et le serveur nomment les mêmes rôles, ou l'écran propose ce que le serveur refuse.
+ * The screen and the server name the same roles, or the screen offers what the server refuses.
  *
- * <p><b>Le défaut que ce test ferme.</b> {@link Role} porte les drapeaux et le front en tient une
- * copie, à la main, dans {@code session.store.ts}. La copie a divergé : {@code SUPERUSER} y
- * figurait parmi les rôles qui peuvent agir et parmi ceux dont le triage clôt, alors que l'énum
- * lui refuse les deux depuis la séparation entre gouverner et agir. Le compte d'amorçage voyait
- * donc le bouton « Trier », ouvrait la boîte, la remplissait, et récoltait un 403 à
- * l'enregistrement — exactement l'écran cassé que les gardes de rôle existaient pour supprimer.
+ * <p><b>The defect this test closes.</b> {@link Role} carries the flags and the front end keeps a
+ * copy of them, by hand, in {@code session.store.ts}. The copy drifted: {@code SUPERUSER} appeared
+ * there among the roles that can act and among those whose triage settles, although the enum has
+ * refused it both since governing was separated from acting. The bootstrap account therefore saw
+ * the "Triage" button, opened the dialog, filled it in, and collected a 403 on save — exactly the
+ * broken screen the role guards existed to remove.
  *
- * <p><b>Le défaut ne s'est pas vu pendant quatre jours</b>, parce que rien ne comparait les deux
- * listes : les specs du front vérifiaient la cohérence du front avec lui-même, et les tests Java
- * celle du serveur avec lui-même. Chacun était juste, séparément.
+ * <p><b>The defect went unseen for four days</b>, because nothing compared the two lists: the
+ * front-end specs checked the front end's consistency with itself, and the Java tests the server's
+ * with itself. Each was right, separately.
  *
- * <p><b>Pourquoi ici et non dans une spec du front.</b> C'est l'énum qui fait autorité, et elle
- * est ici. Un test côté front devrait recopier les drapeaux pour les comparer — soit une
- * troisième copie à maintenir, et le même défaut d'un cran plus loin.
+ * <p><b>Why here and not in a front-end spec.</b> The enum is authoritative, and it is here. A test
+ * on the front-end side would have to copy the flags in order to compare them — a third copy to
+ * maintain, and the same defect one step further along.
  */
-@DisplayName("les ensembles de rôles de l'écran")
+@DisplayName("the screen's role sets")
 class RoleSetsMatchTheEnumTest {
 
     /**
-     * Le magasin de session du front.
+     * The front end's session store.
      *
-     * <p>Déclaré comme entrée de la tâche `test` dans `build.gradle.kts` : sans cela Gradle
-     * considère la tâche à jour quand seul ce fichier change, et rejoue un succès périmé — la
-     * leçon de `ShippedRealmTest`, apprise en cassant le fichier et en voyant le vert tenir.
+     * <p>Declared as an input of the `test` task in `build.gradle.kts`: without that Gradle
+     * considers the task up to date when only this file changes, and replays a stale success — the
+     * lesson of `ShippedRealmTest`, learnt by breaking the file and watching the green hold.
      */
     private static final Path STORE =
             Path.of("../../vectispire-angular/src/app/core/session.store.ts");
 
     @Test
-    @DisplayName("nomment exactement les rôles que l'énum désigne")
+    @DisplayName("name exactly the roles the enum designates")
     void theyMatch() throws IOException {
-        assertThat(STORE).as("le magasin de session doit être lisible d'ici").isReadable();
+        assertThat(STORE).as("the session store must be readable from here").isReadable();
         String source = Files.readString(STORE);
 
         assertSet(source, "ADMIN_ROLES", Role::isAdministrative);
@@ -67,17 +67,17 @@ class RoleSetsMatchTheEnumTest {
                 .toList();
 
         assertThat(declared(source, constant))
-                .as("%s doit nommer les mêmes rôles que le drapeau correspondant de Role", constant)
+                .as("%s must name the same roles as the matching flag on Role", constant)
                 .containsExactlyElementsOf(expected);
     }
 
-    /** Les noms de rôles littéraux d'une constante, dans l'ordre alphabétique pour comparer. */
+    /** A constant's literal role names, in alphabetical order so they can be compared. */
     private static List<String> declared(String source, String constant) {
         Matcher declaration = Pattern
                 .compile("export const " + constant + "\\s*:[^=]+=\\s*\\[([^\\]]*)\\]")
                 .matcher(source);
         assertThat(declaration.find())
-                .as("%s doit être déclarée dans le magasin de session", constant)
+                .as("%s must be declared in the session store", constant)
                 .isTrue();
 
         Matcher names = Pattern.compile("'([A-Z_]+)'").matcher(declaration.group(1));

@@ -60,7 +60,7 @@ class SettingsCredentialWriteTest {
         settings = mock(SettingsService.class);
         AiReviewService aiReview = mock(AiReviewService.class);
         users = mock(com.asmolabs.vectispire.core.repositories.Users.class);
-        // Par défaut il existe des approbateurs : le cas contraire est le sujet d'un cas dédié.
+        // By default approvers exist: the opposite is the subject of a case of its own.
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(3L);
         controller = new SettingsController(
                 settings, mock(TicketService.class), mock(AuditLogService.class), aiReview,
@@ -92,22 +92,22 @@ class SettingsCredentialWriteTest {
     @Test
     @DisplayName("only the governor may lift the four-eyes rule, and an administrator may not")
     void theRuleBelongsToTheGovernor() {
-        // **Le contournement que ceci ferme.** Éteindre la double validation, régler seul,
-        // rallumer : une entrée d'audit pour toute trace. Retirer le droit d'approuver n'aurait
-        // rien changé — `IssueTriageService` règle la décision de tout le monde quand le réglage
-        // est éteint. Ce qui le ferme est que le seul rôle qui puisse lever la règle soit celui
-        // qui ne peut pas agir sous elle.
+        // **The bypass this closes.** Switch four-eyes off, settle alone, switch it back on: one
+        // audit entry for the whole trace. Removing the right to approve would have changed
+        // nothing — `IssueTriageService` settles everyone's decision when the setting is off. What
+        // closes it is that the only role that can lift the rule is the one that cannot act under
+        // it.
         assertThatThrownBy(() -> controller.update(
                 Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "false"), as(Role.ADMIN), request()))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
         assertThatThrownBy(() -> controller.update(
                 Map.of(Setting.TARGET_VISIBILITY.key(), "everyone"), as(Role.CISO), request()))
-                .as("qui voit quelles cibles est une règle, pas un réglage")
+                .as("who sees which targets is a rule, not a setting")
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
         verify(settings, never()).set(any(Setting.class), anyString());
 
-        // Et le gouverneur, lui, passe : une garde qui refuse tout le monde est aussi cassée
-        // qu'une garde qui ne refuse personne.
+        // And the governor does get through: a guard that refuses everybody is as broken as a
+        // guard that refuses nobody.
         controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "false"),
                 as(Role.SUPERUSER), request());
         verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
@@ -118,15 +118,14 @@ class SettingsCredentialWriteTest {
     void enablingNeedsSomebodyToApprove() {
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(0L);
 
-        // Sans ce garde, chaque décision réglée part dans une file que personne ne peut vider :
-        // un contrôle qui bloque au lieu de contrôler, et dont la panne ne se voit qu'au premier
-        // triage.
+        // Without this guard, every settled decision goes into a queue nobody can empty: a control
+        // that blocks instead of controlling, and whose failure shows only at the first triage.
         assertThatThrownBy(() -> controller.update(
                 Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Aucun compte actif ne peut approuver");
 
-        // L'éteindre reste possible : c'est l'activation qui demande un second, pas l'inverse.
+        // Switching it off stays possible: it is switching on that needs a second, not the other way.
         controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "false"),
                 as(Role.SUPERUSER), request());
         verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");

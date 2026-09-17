@@ -20,22 +20,21 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Comparer deux scans d'une cible ne doit pas lire l'historique du parc.
+ * Comparing two scans of one target must not read the estate's history.
  *
- * <p><b>Le défaut que ceci ferme.</b> {@code diffLatest} appelait {@code scans.findAll()}, puis
- * filtrait, triait et gardait deux lignes en Java. Toutes les lignes de scan du déploiement
- * étaient donc chargées comme entités pour en retenir deux identifiants — et une ligne de scan
- * transporte sa charge SBOM entière, des mégaoctets pièce. Demander le différentiel d'un dépôt
- * lisait les SBOM de tous les autres.
+ * <p><b>The defect this closes.</b> {@code diffLatest} called {@code scans.findAll()}, then
+ * filtered, sorted and kept two rows in Java. Every scan row in the deployment was therefore
+ * loaded as an entity to retain two identifiers — and a scan row carries its whole SBOM payload,
+ * megabytes apiece. Asking for one repository's diff read every other repository's SBOM.
  *
- * <p><b>Pourquoi un cas dédié et non le balayage.</b> {@code ReadCostSweepTest} parcourt toute la
- * surface GET et aurait dû l'attraper ; il exclut nommément {@code /api/v1/sbom/diff/latest},
- * parce que la route répond 404 tant que la fixture n'a pas deux scans à comparer. L'exclusion
- * était raisonnable et c'est elle qui a laissé passer le défaut : une route qu'on ne peut pas
- * mesurer là où on mesure tout le reste a besoin de sa propre mesure, sans quoi « non mesurée » se
- * lit comme « mesurée et acceptable ».
+ * <p><b>Why a dedicated case rather than the sweep.</b> {@code ReadCostSweepTest} walks the whole
+ * GET surface and should have caught it; it excludes {@code /api/v1/sbom/diff/latest} by name,
+ * because the route answers 404 until the fixture has two scans to compare. The exclusion was
+ * reasonable and it is what let the defect through: a route that cannot be measured where
+ * everything else is measured needs a measurement of its own, without which "not measured" reads
+ * as "measured and acceptable".
  */
-@DisplayName("le coût du différentiel de SBOM")
+@DisplayName("the cost of the SBOM diff")
 class SbomDiffCostDatabaseTest extends VectispireContextTest {
 
     @DynamicPropertySource
@@ -77,22 +76,22 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
 
         assertThat(sbomDiff.diffLatest(target, null)).isPresent();
 
-        // Deux cents scans étrangers à la question posée. Le seuil est bas et volontairement pas
-        // nul : le différentiel charge ensuite les deux scans qu'il compare et leurs constats, ce
-        // qui est le travail demandé. Ce qui est interdit est que le parc entre dans le compte.
+        // Two hundred scans that are foreign to the question asked. The threshold is low and
+        // deliberately not zero: the diff then loads the two scans it compares and their findings,
+        // which is the work asked for. What is forbidden is for the estate to enter the count.
         assertThat(statistics.getEntityLoadCount())
-                .as("comparer deux scans d'un dépôt ne doit pas lire ceux des autres")
+                .as("comparing two scans of one repository must not read the others'")
                 .isLessThan(50);
     }
 
     @Test
-    @DisplayName("un seul scan se compare à lui-même, plutôt que de répondre « rien »")
+    @DisplayName("a single scan compares with itself, rather than answering \"nothing\"")
     void oneScanIsStillAnAnswer() {
         long lonely = repository("https://example.invalid/lonely.git", "lonely");
         scan(lonely);
 
-        // « Rien n'a changé » et « aucune donnée » se ressemblent à l'écran et ne veulent pas dire
-        // la même chose ; la seconde se lit comme une panne.
+        // "Nothing changed" and "no data" look alike on screen and do not mean the same thing; the
+        // second reads as a failure.
         assertThat(sbomDiff.diffLatest(lonely, null)).isPresent();
     }
 
@@ -106,7 +105,7 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
 
         assertThat(sbomDiff.diffLatest(empty, null)).isEmpty();
         assertThat(statistics.getEntityLoadCount())
-                .as("aucun scan à comparer se répond par une requête, pas par une lecture du parc")
+                .as("no scan to compare is answered by one query, not by a read of the estate")
                 .isZero();
     }
 

@@ -22,20 +22,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 /**
- * Rattacher un ticket existant à un constat.
+ * Attaching an existing ticket to a finding.
  *
- * <h2>Pourquoi ce point d'entrée existe</h2>
+ * <h2>Why this endpoint exists</h2>
  *
- * <p><b>La balayeuse ouvrait des tickets, et personne d'autre ne pouvait en rattacher un.</b>
- * Elle ne s'occupe que des constats qui violent la barrière, avec le traqueur configuré
- * globalement. Une équipe qui suit un constat dans {@code SEC-1234} n'avait aucun moyen de le
- * dire — et le webhook de fermeture, qui cherche le constat <em>par sa référence</em>, ne pouvait
- * donc pas la reconnaître.
+ * <p><b>The sweep opened tickets, and nobody else could attach one.</b> It deals only with
+ * findings that breach the gate, using the globally configured tracker. A team tracking a finding
+ * in {@code SEC-1234} had no way of saying so — and the closing webhook, which looks the finding
+ * up <em>by its reference</em>, could therefore not recognise it.
  *
- * <p>Les cas portent sur le champ visé autant que sur l'écriture : c'est {@code ticketRef} que la
- * liste affiche, que le webhook cherche et que la balayeuse lit. Une seconde table existe pour
- * cela, avec son propre point d'entrée, et rien ne la lit — y écrire aurait livré un rattachement
- * que la synchronisation ignore.
+ * <p>The cases are about the field aimed at as much as about the write: {@code ticketRef} is what
+ * the list shows, what the webhook looks up and what the sweep reads. A second table exists for
+ * this, with an endpoint of its own, and nothing reads it — writing there would have shipped an
+ * attachment that synchronisation ignores.
  */
 @DisplayName("le rattachement d'un ticket")
 class AttachTicketRoutesTest extends ApiTestBase {
@@ -50,7 +49,7 @@ class AttachTicketRoutesTest extends ApiTestBase {
     private AuditLog auditLogs;
 
     @Test
-    @DisplayName("écrit la référence que le webhook cherchera, et la rend")
+    @DisplayName("writes the reference the webhook will look up, and returns it")
     void attachesTheReferenceTheWebhookLooksFor() throws Exception {
         long id = seedIssue();
 
@@ -60,16 +59,16 @@ class AttachTicketRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticketRef").value("SEC-1234"));
 
-        // Le champ, et non la seconde table : c'est celui-là que `findByTicketRefOrIid` cherche.
+        // The field, not the second table: it is the one `findByTicketRefOrIid` searches.
         assertThat(issues.findByTicketRefOrIid("SEC-1234"))
-                .as("le webhook du traqueur doit pouvoir retrouver ce constat par sa référence")
+                .as("the tracker's webhook must be able to find this finding by its reference")
                 .isPresent()
                 .get()
                 .satisfies(issue -> assertThat(issue.getId()).isEqualTo(id));
     }
 
     @Test
-    @DisplayName("accepte une référence sans URL, parce qu'un traqueur interne n'en a pas toujours")
+    @DisplayName("accepts a reference with no URL, because an internal tracker may not have one")
     void theUrlIsOptional() throws Exception {
         long id = seedIssue();
 
@@ -79,13 +78,13 @@ class AttachTicketRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticketRef").value("#87"));
 
-        // Exiger une URL ferait de la référence seule une saisie refusée, alors que la liste sait
-        // déjà l'afficher sans lien.
+        // Requiring a URL would make the reference alone a rejected entry, although the list
+        // already knows how to show it without a link.
         assertThat(issues.findById(id).orElseThrow().getTicketUrl()).isNull();
     }
 
     @Test
-    @DisplayName("refuse une référence vide plutôt que d'effacer celle qui existe")
+    @DisplayName("refuses an empty reference rather than erasing the one that exists")
     void anEmptyReferenceIsRefused() throws Exception {
         long id = seedIssue();
         issues.attachTicket(id, "SEC-1", "https://tracker.invalid/SEC-1");
@@ -95,13 +94,13 @@ class AttachTicketRoutesTest extends ApiTestBase {
                         .content(write(Map.of("reference", "   "))))
                 .andExpect(status().isBadRequest());
 
-        // Un champ vidé par mégarde rendrait le constat invisible au webhook *et* rouvrirait la
-        // porte à un second ticket de la balayeuse, sans que rien ne le dise.
+        // A field emptied by mistake would make the finding invisible to the webhook *and* reopen
+        // the door to a second ticket from the sweep, with nothing saying so.
         assertThat(issues.findById(id).orElseThrow().getTicketRef()).isEqualTo("SEC-1");
     }
 
     @Test
-    @DisplayName("laisse un humain corriger sa faute de frappe, et l'écrit au journal")
+    @DisplayName("lets a human correct their typo, and writes it to the log")
     void aHumanMayCorrectTheReference() throws Exception {
         long id = seedIssue();
         issues.attachTicket(id, "SEC-1233", null);
@@ -113,8 +112,8 @@ class AttachTicketRoutesTest extends ApiTestBase {
 
         assertThat(issues.findById(id).orElseThrow().getTicketRef()).isEqualTo("SEC-1234");
 
-        // Remplacer la référence change qui peut refermer ce constat depuis l'extérieur : c'est
-        // une décision, et elle se trace comme telle.
+        // Replacing the reference changes who can close this finding from outside: that is a
+        // decision, and it is recorded as one.
         assertThat(auditLogs.findAll())
                 .anySatisfy(entry -> assertThat(entry.getDescription())
                         .contains("changed from SEC-1233 to SEC-1234"));
@@ -134,7 +133,7 @@ class AttachTicketRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("répond 404 sur un constat qui n'existe pas")
+    @DisplayName("answers 404 for a finding that does not exist")
     void anAbsentIssueIsNotFound() throws Exception {
         mvc.perform(authenticated(put("/api/v1/issues/999999/ticket"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)

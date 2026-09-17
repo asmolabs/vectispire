@@ -58,8 +58,8 @@ class UnnamedTargetTest extends VectispireContextTest {
         vulnerability(repoId, "CVE-2026-0001", "log4j-core", "2.14.1", "2.17.1");
 
         assertThat(debt.highImpactFixes(repoId, null, 10, Visibility.everything()))
-                .as("le plan global répondait ; c'est en le restreignant à ce dépôt qu'il jetait, "
-                        + "soit exactement le geste qu'on fait quand la liste globale ne le mentionne pas")
+                .as("the global plan answered; it threw once restricted to this repository, which "
+                        + "is exactly the move one makes when the global list does not mention it")
                 .isNotNull();
     }
 
@@ -70,8 +70,8 @@ class UnnamedTargetTest extends VectispireContextTest {
         long repoId = unnamed(url);
         vulnerability(repoId, "CVE-2026-0002", "jackson-databind", "2.9.0", "2.15.0");
 
-        // La défense locale contre le null aurait suffi à ne plus jeter — et aurait laissé cet
-        // écran appeler le dépôt autrement que tous les autres.
+        // A local null guard would have been enough to stop the throw — and would have left this
+        // screen calling the repository differently from every other.
         assertThat(debt.highImpactFixes(repoId, null, 10, Visibility.everything()))
                 .allSatisfy(fix -> assertThat(fix.affectedTargetNames())
                         .allSatisfy(name -> assertThat(name).isEqualTo("common/common-libs")));
@@ -81,7 +81,7 @@ class UnnamedTargetTest extends VectispireContextTest {
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl(url);
         entity.setBranch("main");
-        // Aucun nom : la colonne est facultative, et c'est le cas par défaut.
+        // No name: the column is optional, and this is the default case.
         return repositories.save(entity).getId();
     }
 

@@ -276,18 +276,17 @@ class RouteAuthorizationTest extends ApiTestBase {
     @Test
     @DisplayName("the account that can lift the rule cannot act under it")
     void theGovernorCausesNoEffects() {
-        // **La propriété qui ferme la double validation, énoncée comme une invariante et non
-        // comme une liste.** Le contournement était : éteindre le contrôle, régler seul, rallumer.
-        // Retirer le droit d'approuver ne l'aurait pas fermé — le service règle la décision de
-        // tout le monde quand le réglage est éteint. Ce qui le ferme est qu'aucun rôle ne détienne
-        // les deux moitiés à la fois.
+        // **The property that closes four-eyes, stated as an invariant and not as a list.** The
+        // bypass was: switch the control off, settle alone, switch it back on. Removing the right to
+        // approve would not have closed it — the service settles everyone's decision when the
+        // setting is off. What closes it is that no role holds both halves at once.
         for (Role role : Role.values()) {
             if (role.governsPlatform()) {
                 assertThat(role.canCauseEffects())
-                        .as("%s peut lever la règle : il ne doit pas pouvoir agir sous elle", role)
+                        .as("%s can lift the rule: it must not be able to act under it", role)
                         .isFalse();
                 assertThat(role.canApproveTriage())
-                        .as("%s peut lever la règle : approuver serait la même faille", role)
+                        .as("%s can lift the rule: approving would be the same hole", role)
                         .isFalse();
             }
         }
@@ -349,11 +348,10 @@ class RouteAuthorizationTest extends ApiTestBase {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .status().isForbidden());
 
-        // **Les six routes qui faisaient mentir le rôle.** `AUDITOR` est documenté — dans son
-        // propre javadoc, dans la vue sécurité, dans le guide — comme ne changeant rien nulle
-        // part. Ces six-là ne portaient que `@RequiresAccount`, donc il pouvait régler une
-        // anomalie, ouvrir un ticket chez un client, et envoyer la liste des constats d'une cible
-        // vers un hôte de modèle.
+        // **The six routes that made the role a lie.** `AUDITOR` is documented — in its own
+        // javadoc, in the security view, in the guide — as changing nothing anywhere. Those six
+        // carried only `@RequiresAccount`, so it could settle an anomaly, open a ticket at a
+        // customer's, and send a target's list of findings to a model host.
         for (var route : java.util.List.of(
                 "/api/v1/issues/1/triage", "/api/v1/issues/triage",
                 "/api/v1/issues/1/tickets", "/api/v1/repositories/1/owasp-review",

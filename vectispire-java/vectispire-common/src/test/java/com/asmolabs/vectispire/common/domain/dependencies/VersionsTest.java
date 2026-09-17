@@ -11,18 +11,18 @@ import org.junit.jupiter.api.Test;
 class VersionsTest {
 
     @Test
-    @DisplayName("range 2.17.1 après 2.9.0, ce qu'un tri de chaînes fait à l'envers")
+    @DisplayName("sorts 2.17.1 after 2.9.0, which a string sort gets backwards")
     void numbersAreNumbers() {
-        // **Le cas qui justifie la classe.** Lexicographiquement « 2.9.0 » passe après
-        // « 2.17.1 », et l'écran de remédiation conseillerait alors une version qui laisse la
-        // faille ouverte — un conseil faux est pire qu'une absence de conseil.
+        // **The case that justifies the class.** Lexicographically "2.9.0" comes after "2.17.1",
+        // and the remediation screen would then advise a version that leaves the hole open — wrong
+        // advice is worse than no advice.
         assertThat(Versions.compare("2.17.1", "2.9.0")).isPositive();
         assertThat(Versions.compare("1.10", "1.9")).isPositive();
         assertThat(Versions.compare("1.0.0", "1.0.0")).isZero();
     }
 
     @Test
-    @DisplayName("lit 2.17 et 2.17.0 comme la même version")
+    @DisplayName("reads 2.17 and 2.17.0 as the same version")
     void missingSegmentsAreZero() {
         assertThat(Versions.compare("2.17", "2.17.0")).isZero();
         assertThat(Versions.compare("2.17.0.0", "2.17")).isZero();
@@ -30,10 +30,10 @@ class VersionsTest {
     }
 
     @Test
-    @DisplayName("préfère un chiffre à un mot, dans le sens sûr")
+    @DisplayName("prefers a digit to a word, the safe way round")
     void digitsOutrankWords() {
-        // Conseiller une version un cran trop haute est sans danger ; conseiller une
-        // pré-version à la place de la version finale laisse la faille.
+        // Advising a version one notch too high is harmless; advising a pre-release in place of the
+        // final version leaves the hole.
         assertThat(Versions.compare("2.0", "2.rc1")).isPositive();
         assertThat(Versions.compare("1.0.0", "1.0.0-alpha")).isPositive();
     }
@@ -44,19 +44,19 @@ class VersionsTest {
         assertThat(Versions.highest(List.of("2.12.2", "2.3.2", "2.17.1"))).contains("2.17.1");
         assertThat(Versions.highest(List.of("  2.17.1  ", ""))).contains("2.17.1");
 
-        // **Vide, et non un texte de remplacement.** « Aucune version corrigée publiée » et
-        // « passez à celle-ci » sont deux réponses différentes ; le champ portait la chaîne
-        // « latest-patch », affichée derrière une flèche sur le tableau de bord.
+        // **Empty, and not a placeholder text.** "No fixed version published" and "upgrade to this
+        // one" are two different answers; the field used to carry the string "latest-patch", shown
+        // behind an arrow on the dashboard.
         assertThat(Versions.highest(List.of())).isEmpty();
         assertThat(Versions.highest(List.of("", "   "))).isEmpty();
         assertThat(Versions.highest(null)).isEqualTo(Optional.empty());
     }
 
     @Test
-    @DisplayName("découpe la liste que les scanners remontent")
+    @DisplayName("splits the list the scanners report")
     void splitsWhatScannersReport() {
-        // `fix_versions` n'est pas une version mais une énumération : une branche de maintenance
-        // corrigée en même temps que la principale y met les deux.
+        // `fix_versions` is not a version but an enumeration: a maintenance branch fixed at the
+        // same time as the main one puts both in it.
         assertThat(Versions.split("2.12.2, 2.3.2,2.17.1"))
                 .containsExactly("2.12.2", "2.3.2", "2.17.1");
         assertThat(Versions.split(null)).isEmpty();
@@ -64,10 +64,10 @@ class VersionsTest {
     }
 
     @Test
-    @DisplayName("ne lève pas sur un segment plus grand qu'un long")
+    @DisplayName("does not throw on a segment larger than a long")
     void absurdSegmentsDoNotThrow() {
-        // Des identifiants de build compactés dépassent la capacité d'un long ; la comparaison
-        // retombe alors sur la longueur puis le texte, et surtout ne casse pas l'écran.
+        // Packed build identifiers exceed a long's capacity; the comparison then falls back on
+        // length and then text, and above all does not break the screen.
         assertThat(Versions.compare("1.99999999999999999999", "1.2")).isPositive();
         assertThat(Versions.highest(List.of("1.99999999999999999999", "1.2")))
                 .contains("1.99999999999999999999");
