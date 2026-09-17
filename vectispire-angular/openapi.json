@@ -1409,29 +1409,6 @@
         "required" : [ "scorePercentage" ],
         "type" : "object"
       },
-      "CoverageLine" : {
-        "properties" : {
-          "because" : {
-            "type" : "string"
-          },
-          "findings" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "id" : {
-            "type" : "string"
-          },
-          "state" : {
-            "enum" : [ "FINDINGS", "NOT_MEASURED", "NOT_COVERED", "NO_FINDING" ],
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "findings" ],
-        "type" : "object"
-      },
       "CreateTicketRequest" : {
         "properties" : {
           "provider" : {
@@ -1682,7 +1659,6 @@
             "type" : "string"
           },
           "framework" : {
-            "enum" : [ "NIS_2", "ISO_27001", "EU_CRA", "DORA", "PCI_DSS", "SOC_2" ],
             "type" : "string"
           },
           "implementation" : {
@@ -1749,6 +1725,56 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "DeclaredCoverageLine" : {
+        "properties" : {
+          "because" : {
+            "type" : "string"
+          },
+          "declaration" : {
+            "$ref" : "#/components/schemas/Declaration"
+          },
+          "findings" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "state" : {
+            "enum" : [ "FINDINGS", "NOT_MEASURED", "NOT_COVERED", "NO_FINDING" ],
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "findings" ],
+        "type" : "object"
+      },
+      "DeclaredGrid" : {
+        "properties" : {
+          "covered" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DeclaredCoverageLine"
+            },
+            "type" : "array"
+          },
+          "unmeasured" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "withFindings" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "covered", "unmeasured", "withFindings" ],
         "type" : "object"
       },
       "DependencyFinding" : {
@@ -2468,30 +2494,6 @@
           }
         },
         "required" : [ "isDirect", "riskScore" ],
-        "type" : "object"
-      },
-      "Grid" : {
-        "properties" : {
-          "covered" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "lines" : {
-            "items" : {
-              "$ref" : "#/components/schemas/CoverageLine"
-            },
-            "type" : "array"
-          },
-          "unmeasured" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "withFindings" : {
-            "format" : "int32",
-            "type" : "integer"
-          }
-        },
-        "required" : [ "covered", "unmeasured", "withFindings" ],
         "type" : "object"
       },
       "HelloRequest" : {
@@ -8116,7 +8118,7 @@
     "/api/v1/compliance/soa/{framework}/{controlId}" : {
       "put" : {
         "description" : "Writes or revises one line. An exclusion needs a justification; evidence held elsewhere must say where.",
-        "operationId" : "declare",
+        "operationId" : "declare_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "framework",
@@ -9612,7 +9614,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Grid"
+                  "$ref" : "#/components/schemas/DeclaredGrid"
                 }
               }
             },
@@ -9620,6 +9622,44 @@
           }
         },
         "summary" : "OWASP Top 10 coverage",
+        "tags" : [ "OWASP coverage" ]
+      }
+    },
+    "/api/v1/owasp/coverage/{category}/declaration" : {
+      "put" : {
+        "description" : "What the organisation states about a category no scanner here can measure.",
+        "operationId" : "declare",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "category",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeclarationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Declaration"
+                }
+              }
+            },
+            "description" : "Declaration written"
+          }
+        },
+        "summary" : "Declare a category",
         "tags" : [ "OWASP coverage" ]
       }
     },

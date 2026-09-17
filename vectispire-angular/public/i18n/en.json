@@ -1287,6 +1287,19 @@
     "update_failed": "The scope was not changed."
   },
   "owasp_grid": {
+    "declared": {
+      "APPLICABLE": "Declared applicable",
+      "EXCLUDED": "Declared out of scope"
+    },
+    "implementation": {
+      "IMPLEMENTED": "in place",
+      "PARTIALLY_IMPLEMENTED": "partially in place",
+      "PLANNED": "planned",
+      "NOT_IMPLEMENTED": "not in place"
+    },
+    "evidence": "Evidence:",
+    "reviewed": "Reviewed",
+    "due": "next",
     "title": "Top 10 coverage, by rule",
     "subtitle": "The same ten questions answered from the finding's type alone — every mapping is one sentence you can check. Where no rule applies the answer is “covered by no scanner here”, never a guess. The report below is written by a model and is not evidence.",
     "covered": "categories any scanner here can see",
@@ -1304,7 +1317,7 @@
       "NOT_COVERED": "No scanner here",
       "NO_FINDING": "Nothing found"
     },
-    "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places no finding: a Semgrep rule may declare its OWASP category in its own metadata, and this product does not read that metadata yet.",
+    "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places its findings by the category each rule declares in its own metadata, so a square depends on what is installed here — and a category no scanner measures can be declared rather than left grey.",
     "not_covered_note": "“No scanner here” means no scanner in this deployment produces a finding in that category at all — it is a property of the product, not a verdict on the estate."
   },
   "epss": {

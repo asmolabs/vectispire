@@ -1393,6 +1393,19 @@
     "update_failed": "Le périmètre n'a pas été modifié."
   },
   "owasp_grid": {
+    "declared": {
+      "APPLICABLE": "Déclarée applicable",
+      "EXCLUDED": "Déclarée hors périmètre"
+    },
+    "implementation": {
+      "IMPLEMENTED": "en place",
+      "PARTIALLY_IMPLEMENTED": "partiellement en place",
+      "PLANNED": "planifiée",
+      "NOT_IMPLEMENTED": "pas en place"
+    },
+    "evidence": "Preuve :",
+    "reviewed": "Revue le",
+    "due": "prochaine le",
     "title": "Couverture du Top 10, par règle",
     "subtitle": "Les mêmes dix questions répondues à partir du seul type du constat — chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
     "covered": "catégories qu'un scanner d'ici peut voir",
@@ -1410,7 +1423,7 @@
       "NOT_COVERED": "Aucun scanner ici",
       "NO_FINDING": "Rien trouvé"
     },
-    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code ne place aucun constat — une règle Semgrep peut déclarer sa catégorie OWASP dans ses propres métadonnées, et ce produit ne lit pas encore ces métadonnées.",
+    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code place ses constats par la catégorie que chaque règle déclare dans ses propres métadonnées — donc une case dépend de ce qui est installé ici, et une catégorie qu'aucun scanner ne mesure peut être déclarée plutôt que laissée grise.",
     "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc."
   },
   "epss": {

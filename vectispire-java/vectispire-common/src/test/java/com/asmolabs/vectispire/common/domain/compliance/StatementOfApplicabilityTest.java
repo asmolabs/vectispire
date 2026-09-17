@@ -29,6 +29,9 @@ class StatementOfApplicabilityTest {
 
     private static final Instant NOW = Instant.parse("2026-09-14T10:00:00Z");
     private static final ComplianceFramework FRAMEWORK = ComplianceFramework.ISO_27001;
+
+    /** La même, telle que la déclaration la range — une chaîne, depuis que le Top 10 s'y déclare. */
+    private static final String FRAMEWORK_KEY = FRAMEWORK.name();
     private static final String VULN = "ISO-A.8.8";
     private static final String SECRETS = "ISO-A.5.15";
 
@@ -63,7 +66,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("declines to judge a control whose evidence lives somewhere else")
     void externalEvidenceIsNotJudged() {
         Declaration elsewhere = new Declaration(
-                FRAMEWORK, SECRETS, Applicability.APPLICABLE, "Access control is run by IAM.",
+                FRAMEWORK_KEY, SECRETS, Applicability.APPLICABLE, "Access control is run by IAM.",
                 Implementation.IMPLEMENTED, EvidenceSource.EXTERNAL, "IAM quarterly access review, ref AR-2026-Q2",
                 "n.faure", "c.moreau", NOW, NOW, NOW.plusSeconds(86_400));
 
@@ -86,7 +89,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("judges a control evidenced both here and elsewhere, on the part measured here")
     void bothIsStillJudged() {
         Declaration both = new Declaration(
-                FRAMEWORK, VULN, Applicability.APPLICABLE, "Scanning here, patching in the change process.",
+                FRAMEWORK_KEY, VULN, Applicability.APPLICABLE, "Scanning here, patching in the change process.",
                 Implementation.IMPLEMENTED, EvidenceSource.BOTH, "Change management CAB minutes",
                 "n.faure", "c.moreau", NOW, NOW, NOW.plusSeconds(86_400));
 
@@ -100,7 +103,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("raises an exclusion carrying no justification")
     void exclusionNeedsAJustification() {
         Declaration bare = new Declaration(
-                FRAMEWORK, VULN, Applicability.EXCLUDED, "  ", null,
+                FRAMEWORK_KEY, VULN, Applicability.EXCLUDED, "  ", null,
                 EvidenceSource.EXTERNAL, null, "n.faure", "c.moreau", NOW, NOW, null);
 
         SoaStatement statement = reconcile(List.of(bare), measured(VULN, ComplianceControl.Status.COMPLIANT));
@@ -115,7 +118,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("stops at the exclusion, whatever the estate happens to measure")
     void exclusionEndsTheQuestion() {
         Declaration excluded = new Declaration(
-                FRAMEWORK, VULN, Applicability.EXCLUDED, "No development in the certified scope.",
+                FRAMEWORK_KEY, VULN, Applicability.EXCLUDED, "No development in the certified scope.",
                 null, EvidenceSource.EXTERNAL, null, "n.faure", "c.moreau", NOW, NOW, null);
 
         assertThat(divergenceOf(
@@ -167,7 +170,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("counts a lapsed review whatever the line otherwise says")
     void lapsedReviewIsCountedSeparately() {
         Declaration stale = new Declaration(
-                FRAMEWORK, VULN, Applicability.APPLICABLE, "In scope.", Implementation.IMPLEMENTED,
+                FRAMEWORK_KEY, VULN, Applicability.APPLICABLE, "In scope.", Implementation.IMPLEMENTED,
                 EvidenceSource.VECTISPIRE, null, "n.faure", "c.moreau",
                 NOW.minusSeconds(400L * 86_400), NOW.minusSeconds(400L * 86_400), NOW.minusSeconds(86_400));
 
@@ -196,7 +199,7 @@ class StatementOfApplicabilityTest {
     @DisplayName("ignores a declaration belonging to another framework")
     void otherFrameworksAreDropped() {
         Declaration elsewhere = new Declaration(
-                ComplianceFramework.SOC_2, VULN, Applicability.APPLICABLE, "In scope.",
+                ComplianceFramework.SOC_2.name(), VULN, Applicability.APPLICABLE, "In scope.",
                 Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE, null,
                 "n.faure", "c.moreau", NOW, NOW, null);
 
@@ -215,7 +218,7 @@ class StatementOfApplicabilityTest {
 
     private static Declaration declared(String controlId, Implementation implementation, EvidenceSource source) {
         return new Declaration(
-                FRAMEWORK, controlId, Applicability.APPLICABLE, "In scope.", implementation, source,
+                FRAMEWORK_KEY, controlId, Applicability.APPLICABLE, "In scope.", implementation, source,
                 source == EvidenceSource.VECTISPIRE ? null : "Named elsewhere",
                 "n.faure", "c.moreau", NOW, NOW, NOW.plusSeconds(86_400));
     }

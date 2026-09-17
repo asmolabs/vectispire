@@ -820,7 +820,7 @@ export interface paths {
          * Declare a control
          * @description Writes or revises one line. An exclusion needs a justification; evidence held elsewhere must say where.
          */
-        put: operations["declare"];
+        put: operations["declare_1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1549,6 +1549,26 @@ export interface paths {
          */
         get: operations["grid"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/owasp/coverage/{category}/declaration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Declare a category
+         * @description What the organisation states about a category no scanner here can measure.
+         */
+        put: operations["declare"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3158,15 +3178,6 @@ export interface components {
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
         };
-        CoverageLine: {
-            because?: string;
-            /** Format: int64 */
-            findings: number;
-            id?: string;
-            /** @enum {string} */
-            state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
-            title?: string;
-        };
         CreateTicketRequest: {
             provider?: string;
             ticketKey?: string;
@@ -3252,8 +3263,7 @@ export interface components {
             /** @enum {string} */
             evidenceSource?: "VECTISPIRE" | "EXTERNAL" | "BOTH";
             externalEvidence?: string;
-            /** @enum {string} */
-            framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
+            framework?: string;
             /** @enum {string} */
             implementation?: "IMPLEMENTED" | "PARTIALLY_IMPLEMENTED" | "PLANNED" | "NOT_IMPLEMENTED";
             justification?: string;
@@ -3281,6 +3291,25 @@ export interface components {
             id?: string;
             name?: string;
             secret?: string;
+        };
+        DeclaredCoverageLine: {
+            because?: string;
+            declaration?: components["schemas"]["Declaration"];
+            /** Format: int64 */
+            findings: number;
+            id?: string;
+            /** @enum {string} */
+            state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
+            title?: string;
+        };
+        DeclaredGrid: {
+            /** Format: int32 */
+            covered: number;
+            lines?: components["schemas"]["DeclaredCoverageLine"][];
+            /** Format: int32 */
+            unmeasured: number;
+            /** Format: int32 */
+            withFindings: number;
         };
         DependencyFinding: {
             description?: string;
@@ -3541,15 +3570,6 @@ export interface components {
             riskScore: number;
             type?: string;
             version?: string;
-        };
-        Grid: {
-            /** Format: int32 */
-            covered: number;
-            lines?: components["schemas"]["CoverageLine"][];
-            /** Format: int32 */
-            unmeasured: number;
-            /** Format: int32 */
-            withFindings: number;
         };
         HelloRequest: {
             capabilities?: string;
@@ -6231,7 +6251,7 @@ export interface operations {
             };
         };
     };
-    declare: {
+    declare_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7378,7 +7398,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Grid"];
+                    "*/*": components["schemas"]["DeclaredGrid"];
+                };
+            };
+        };
+    };
+    declare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclarationRequest"];
+            };
+        };
+        responses: {
+            /** @description Declaration written */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Declaration"];
                 };
             };
         };

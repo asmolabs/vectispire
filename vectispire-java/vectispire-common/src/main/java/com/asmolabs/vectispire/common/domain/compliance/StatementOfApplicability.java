@@ -82,10 +82,19 @@ public final class StatementOfApplicability {
      *     {@link EvidenceSource#EXTERNAL} and {@link EvidenceSource#BOTH}
      * @param owner the person accountable for the control, not for this row
      * @param reviewedAt when somebody last confirmed this line still holds
+     * @param framework la clé du référentiel, <b>et une chaîne parce qu'elle en est réellement
+     *     une</b>. Elle a porté {@link ComplianceFramework} tant que la table ne stockait que les
+     *     six référentiels que le moteur évalue. Le Top 10 OWASP s'y déclare aussi désormais — ses
+     *     catégories hors de portée d'une analyse statique n'ont que la déclaration pour porter une
+     *     revue — et il n'est pas un référentiel de conformité : l'ajouter à l'énumération le ferait
+     *     apparaître dans les évaluations et les résumés. La typer en énumération ne l'empêchait pas
+     *     de contenir autre chose : la conversion rendait {@code null} sur une valeur inconnue, ce
+     *     qui transforme un référentiel non prévu en ligne absente plutôt qu'en erreur. C'est le
+     *     type qui était faux, pas la donnée
      * @param reviewDueAt when it must be confirmed again
      */
     public record Declaration(
-            ComplianceFramework framework,
+            String framework,
             String controlId,
             Applicability applicability,
             String justification,
@@ -194,7 +203,7 @@ public final class StatementOfApplicability {
             ComplianceEvaluation evaluation, List<Declaration> declarations, Instant now) {
 
         Map<String, Declaration> byControl = declarations.stream()
-                .filter(declaration -> declaration.framework() == evaluation.framework())
+                .filter(declaration -> declaration.framework().equals(evaluation.framework().name()))
                 .collect(Collectors.toMap(
                         Declaration::controlId, Function.identity(), (first, second) -> second));
 

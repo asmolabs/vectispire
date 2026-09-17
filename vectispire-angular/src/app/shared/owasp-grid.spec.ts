@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { OwaspGridComponent } from './owasp-grid';
+import type { OwaspGrid } from '@/app/core/api.models';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -22,7 +24,7 @@ describe('la grille OWASP', () => {
         return { id, title: id, state, findings, because: 'parce que.' };
     }
 
-    const GRID = asSchema('Grid', {
+    const GRID = asSchema('DeclaredGrid', {
             lines: [
                 line('A01', 'NOT_COVERED'),
                 line('A05', 'FINDINGS', 3),
@@ -82,5 +84,68 @@ describe('la grille OWASP', () => {
         // Le rapport en dessous porte ses propres erreurs ; une grille vide vaut mieux qu'un
         // bandeau rouge au-dessus de données valides.
         expect(failed.nativeElement.textContent.trim()).toBe('');
+    });
+
+    /**
+     * <b>Une case grise sans déclaration est un aveu que personne ne revoit.</b>
+     *
+     * <p>Deux catégories du Top 10 ne sont atteignables par aucune analyse statique — la conception
+     * non sûre ne se lit pas dans du code, et l'absence de journal ne laisse par définition aucune
+     * trace. Le dire est honnête ; le laisser là indéfiniment ne l'est plus. La déclaration porte
+     * un nom, une preuve et une échéance, et c'est ce que cette ligne affiche.
+     */
+    it('affiche ce que l\'organisation déclare d\'une catégorie que rien ne mesure', () => {
+        // Les libellés viennent du paquet : affirmer sur des clés non résolues prouverait que
+        // `t()` a été appelé et rien sur ce qu'un lecteur voit.
+        TestBed.inject(I18nService).translations.set({
+            owasp_grid: {
+                declared: { APPLICABLE: 'Declared applicable' },
+                implementation: { PARTIALLY_IMPLEMENTED: 'partially in place' },
+                evidence: 'Evidence:',
+                reviewed: 'Reviewed',
+                due: 'next'
+            }
+        });
+
+        // Typée d'abord, vérifiée ensuite : l'annotation donne aux littéraux les unions étroites
+        // du client, et `asSchema` confronte la même valeur au document.
+        const declared: OwaspGrid = {
+                lines: [
+                {
+                    id: 'A04',
+                        title: 'Insecure Design',
+                        state: 'NOT_COVERED',
+                        findings: 0,
+                        because: 'No scanner in this deployment produces a finding in this category.',
+                        declaration: {
+                            framework: 'OWASP_2021',
+                            controlId: 'A04',
+                            applicability: 'APPLICABLE',
+                            implementation: 'PARTIALLY_IMPLEMENTED',
+                            justification: 'Revue de conception à chaque évolution majeure.',
+                            evidenceSource: 'EXTERNAL',
+                            externalEvidence: 'Comptes rendus de revue, dossier QUAL-2026',
+                            owner: 'c.moreau',
+                            decidedBy: 'c.moreau',
+                            decidedAt: '2026-09-01T00:00:00Z',
+                            reviewedAt: '2026-09-01T00:00:00Z',
+                            reviewDueAt: '2027-03-01T00:00:00Z'
+                        }
+                    }
+                ],
+            covered: 0,
+            withFindings: 0,
+            unmeasured: 0
+        };
+        asSchema('DeclaredGrid', declared);
+
+        fixture.componentInstance.grid.set(declared);
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Declared applicable');
+        expect(text).toContain('partially in place');
+        expect(text).toContain('c.moreau');
+        expect(text).toContain('QUAL-2026');
     });
 });

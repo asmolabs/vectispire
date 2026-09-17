@@ -110,6 +110,24 @@ public class StatementOfApplicabilityService {
      */
     public Declaration declare(
             ComplianceFramework framework, String controlId, Submission submission, String actor) {
+        return declare(framework.name(), controlId, submission, actor);
+    }
+
+    /**
+     * La même, pour un référentiel que {@link ComplianceFramework} ne décrit pas.
+     *
+     * <p><b>Le Top 10 OWASP n'est pas un référentiel de conformité</b> — le moteur ne l'évalue pas,
+     * il n'a pas de contrôles notés, et l'ajouter à l'énumération le ferait apparaître dans les
+     * évaluations et les résumés où il n'a rien à faire. Mais deux de ses catégories ne sont
+     * atteignables par aucun scanner, et une case grise permanente est un aveu qu'aucune revue ne
+     * porte. La déclaration est exactement ce qui manque là : qui l'affirme, avec quelle preuve,
+     * revue quand.
+     *
+     * <p>La colonne {@code framework} est une chaîne libre, et les règles de validation ci-dessous
+     * ne parlent d'aucun référentiel en particulier : elles disent qu'une déclaration doit dire ce
+     * qu'elle affirme et où se trouve sa preuve. Elles valent donc telles quelles.
+     */
+    public Declaration declare(String framework, String controlId, Submission submission, String actor) {
 
         // A body missing either enum would otherwise reach the reconciliation as a half-written
         // line and be reported as a divergence — a document defect dressed up as a disagreement
@@ -136,11 +154,11 @@ public class StatementOfApplicabilityService {
 
         Instant now = clock.instant();
         ControlDeclarationEntity row = declarations
-                .findByFrameworkAndControlId(framework.name(), controlId)
+                .findByFrameworkAndControlId(framework, controlId)
                 .orElseGet(() -> {
                     ControlDeclarationEntity fresh = new ControlDeclarationEntity();
                     fresh.setId(UUID.randomUUID());
-                    fresh.setFramework(framework.name());
+                    fresh.setFramework(framework);
                     fresh.setControlId(controlId);
                     return fresh;
                 });
@@ -166,11 +184,24 @@ public class StatementOfApplicabilityService {
 
         audit.record(AuditLogService.Record.of(
                 AuditOperation.CONTROL_DECLARED,
-                framework.name() + "/" + controlId,
-                describe(framework, controlId, submission),
+                framework + "/" + controlId,
+                describe(titleOf(framework), controlId, submission),
                 actor));
 
         return toDomain(saved);
+    }
+
+    /**
+     * Les déclarations d'un référentiel, quel qu'il soit.
+     *
+     * <p>Prend la clé de stockage plutôt que l'énumération, pour la raison que {@link #declare}
+     * donne : le Top 10 OWASP se déclare ici sans être un référentiel de conformité.
+     */
+    @Transactional(readOnly = true)
+    public List<Declaration> declarations(String framework) {
+        return declarations.findByFramework(framework).stream()
+                .map(StatementOfApplicabilityService::toDomain)
+                .toList();
     }
 
     /** Lines whose review has lapsed, across every framework. */
@@ -189,11 +220,25 @@ public class StatementOfApplicabilityService {
                 .toList();
     }
 
-    private static String describe(
-            ComplianceFramework framework, String controlId, Submission submission) {
+    /**
+     * Le nom lisible d'un référentiel, ou la clé elle-même quand ce n'en est pas un.
+     *
+     * <p>L'entrée d'audit est lue par un humain : « Excluded A04 from OWASP_2021 » se comprend,
+     * mais une entrée qui lèverait parce que la clé n'est pas dans l'énumération ferait perdre la
+     * trace au lieu de la rendre imparfaite.
+     */
+    private static String titleOf(String framework) {
+        try {
+            return ComplianceFramework.valueOf(framework).getTitle();
+        } catch (IllegalArgumentException notAComplianceFramework) {
+            return framework;
+        }
+    }
+
+    private static String describe(String frameworkTitle, String controlId, Submission submission) {
         return submission.applicability() == Applicability.EXCLUDED
-                ? "Excluded " + controlId + " from " + framework.getTitle() + ": " + submission.justification()
-                : "Declared " + controlId + " of " + framework.getTitle() + " applicable, "
+                ? "Excluded " + controlId + " from " + frameworkTitle + ": " + submission.justification()
+                : "Declared " + controlId + " of " + frameworkTitle + " applicable, "
                         + submission.implementation() + ", evidenced " + submission.evidenceSource();
     }
 
@@ -205,14 +250,8 @@ public class StatementOfApplicabilityService {
      * worse outcome than one missing a line for a standard nobody evaluates any more.
      */
     private static Declaration toDomain(ControlDeclarationEntity row) {
-        ComplianceFramework framework;
-        try {
-            framework = ComplianceFramework.valueOf(row.getFramework());
-        } catch (IllegalArgumentException unknown) {
-            return null;
-        }
         return new Declaration(
-                framework,
+                row.getFramework(),
                 row.getControlId(),
                 Applicability.valueOf(row.getApplicability()),
                 row.getJustification(),

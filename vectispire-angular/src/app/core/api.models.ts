@@ -1785,7 +1785,14 @@ export type Divergence =
 export type ControlDeclaration = Refine<
     Schema<'Declaration'>,
     {
-        framework: ComplianceFramework;
+        /**
+         * La clé du référentiel, **et une chaîne parce qu'elle en est réellement une**.
+         *
+         * Elle était typée sur les six référentiels de conformité, ce qui était faux dès lors que
+         * le Top 10 OWASP se déclare dans la même table — `OWASP_2021` n'en fait pas partie, et
+         * l'énumération n'empêchait pas la valeur d'exister, elle empêchait seulement de la lire.
+         */
+        framework: string;
         controlId: string;
         applicability: Applicability;
         evidenceSource: EvidenceSource;
@@ -1846,13 +1853,27 @@ export type ScopeView = Refine<
 
 export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
 
+/**
+ * Une ligne de la grille, et ce que l'organisation en déclare.
+ *
+ * `declaration` est nulle tant que personne n'a rien dit — c'est la case grise permanente que la
+ * déclaration existe pour supprimer. Deux catégories du Top 10 ne sont atteignables par aucune
+ * analyse statique : les laisser grises est honnête et ne porte aucune revue ; les déclarer dit qui
+ * l'affirme, avec quelle preuve, et quand cela se revoit.
+ */
 export type OwaspCoverageLine = Refine<
-    Schema<'CoverageLine'>,
-    { id: string; title: string; state: OwaspState; because: string }
+    Schema<'DeclaredCoverageLine'>,
+    {
+        id: string;
+        title: string;
+        state: OwaspState;
+        because: string;
+        declaration: ControlDeclaration | null;
+    }
 >;
 
 /** `covered` dit combien des dix un scanner d'ici peut seulement regarder. **À lire avant le reste.** */
-export type OwaspGrid = Refine<Schema<'Grid'>, { lines: OwaspCoverageLine[] }>;
+export type OwaspGrid = Refine<Schema<'DeclaredGrid'>, { lines: OwaspCoverageLine[] }>;
 
 export type ComplianceMovement = NonNullable<Schema<'Step'>['movement']>;
 

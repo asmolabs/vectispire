@@ -45,6 +45,37 @@
                                 @if (line.state !== 'NOT_COVERED') {
                                     {{ line.because }}
                                 }
+                                <!--
+                                    Ce que l'organisation déclare d'une catégorie qu'aucun scanner
+                                    d'ici ne mesure. Une case grise sans déclaration est un aveu que
+                                    personne ne revoit ; avec, elle porte un nom, une preuve et une
+                                    échéance — c'est la différence entre constater une limite et
+                                    l'assumer.
+                                -->
+                                @if (line.declaration; as declared) {
+                                    <div class="mt-1 text-sm">
+                                        <span class="font-medium">{{ 'owasp_grid.declared.' + declared.applicability | translate }}</span>
+                                        @if (declared.implementation) {
+                                            · {{ 'owasp_grid.implementation.' + declared.implementation | translate }}
+                                        }
+                                        @if (declared.owner) {
+                                            · {{ declared.owner }}
+                                        }
+                                        @if (declared.justification) {
+                                            <div class="mt-1">“{{ declared.justification }}”</div>
+                                        }
+                                        @if (declared.externalEvidence) {
+                                            <div class="mt-1">{{ 'owasp_grid.evidence' | translate }} {{ declared.externalEvidence }}</div>
+                                        }
+                                        <div class="mt-1 text-xs">
+                                            {{ 'owasp_grid.reviewed' | translate }}
+                                            {{ declared.reviewedAt | date: 'dd/MM/yyyy' }}
+                                            @if (declared.reviewDueAt) {
+                                                · {{ 'owasp_grid.due' | translate }} {{ declared.reviewDueAt | date: 'dd/MM/yyyy' }}
+                                            }
+                                        </div>
+                                    </div>
+                                }
                             </td>
                         </tr>
                     }
