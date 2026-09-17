@@ -19,9 +19,24 @@
 
 name: verify
 
+# **`main` n'est pas dans la liste, et c'est une conséquence de la règle de protection.**
+#
+# Cette branche n'avance que par avance rapide depuis un commit de `develop` — `required_linear_history`
+# l'impose, `non_fast_forward` interdit le reste. Le commit qui y arrive a donc déjà été vérifié, et
+# une règle GitHub lit le statut *du commit*, pas de la branche : les douze contrôles de `develop`
+# satisfont `main` sans être rejoués.
+#
+# Les rejouer coûtait douze jobs à chaque avance, sur un arbre identique. Pire depuis que la
+# concurrence est indexée par commit : les deux références partageant le même SHA partagent le même
+# groupe, donc le run de `main` attendait celui de `develop` au lieu de tourner à côté — du travail
+# en double, sérialisé.
+#
+# **L'effet de bord est voulu.** Un commit qui atteindrait `main` sans être passé par `develop`
+# n'aurait aucun contrôle à montrer, et la règle le refuserait. C'est exactement le flux qu'on veut,
+# et il est désormais tenu par la mécanique plutôt que par la discipline.
 on:
   push:
-    branches: [develop, main]
+    branches: [develop]
   pull_request:
 
 # Least privilege by default. The release workflow raises what it needs, where it needs it.

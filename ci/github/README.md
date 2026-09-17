@@ -41,6 +41,12 @@ gh api /repos/asmolabs/vectispire/rules/branches/main
 identifiants de job, aucun ne portant de `name:` — s'ils changent dans `.github/workflows/ci.yml`,
 ce fichier devient faux en silence et la protection s'affaiblit sans que rien ne le dise.
 
+**`verify` ne tourne plus sur `main`, et c'est cette règle qui le permet.** La branche n'avance que
+par avance rapide depuis un commit de `develop` déjà vérifié, et un contrôle requis se lit sur le
+commit et non sur la branche : les rejouer était douze jobs sur un arbre identique. Un commit qui
+atteindrait `main` sans passer par `develop` n'aurait donc aucun contrôle à montrer, et serait
+refusé — le flux est tenu par la mécanique plutôt que par la discipline.
+
 **Un job ignoré est traité comme satisfait, et ce dépôt l'a observé.** Le 17 septembre 2026, avec
 la règle active et `e2e` requis, un commit ne touchant que `ci/` a laissé `e2e` ignoré et
 la poussée de `main` est passée. C'est la question que ce fichier laissait ouverte depuis le
