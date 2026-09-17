@@ -87,29 +87,26 @@ export type MfaSetupResponse = Refine<
 /** `POST /api/v1/auth/mfa/enable` */
 export type MfaEnableResponse = Refine<Schema<'EnableResponse'>, { backupCodes: string[] }>;
 
-export interface SiemConfig {
-    enabled: boolean;
-    protocol: 'WEBHOOK' | 'SYSLOG_UDP' | 'SYSLOG_TCP' | 'SYSLOG_TLS';
-    endpoint: string | null;
-    hasAuthHeader: boolean;
-    minSeverity: string;
-    updatedAt: string | null;
-    authHeader?: string;
-}
+/**
+ * `authHeader` n'est pas dans la réponse : il ne part qu'à l'aller, et le serveur ne le renvoie
+ * jamais — `hasAuthHeader` dit s'il existe, ce qui est tout ce qu'un écran peut savoir d'un secret.
+ */
+export type SiemConfig = Refine<
+    Schema<'SiemConfigResponse'>,
+    {
+        protocol: 'WEBHOOK' | 'SYSLOG_UDP' | 'SYSLOG_TCP' | 'SYSLOG_TLS';
+        minSeverity: string;
+        endpoint: string | null;
+        updatedAt: string | null;
+    }
+> & { authHeader?: string };
 
-export interface SiemTestResult {
-    success: boolean;
-    message: string;
-    statusCode: number;
-}
+export type SiemTestResult = Refine<Schema<'TestResult'>, { message: string }>;
 
-export interface ThreatIntelSyncStatus {
-    lastSyncedAt: string | null;
-    totalCves: number;
-    totalKev: number;
-    status: string;
-    backlogUpdatedCount: number;
-}
+export type ThreatIntelSyncStatus = Refine<
+    Schema<'ThreatIntelSyncStatus'>,
+    { status: string; lastSyncedAt: string | null }
+>;
 
 export interface OpenVexStatement {
     vulnerability: { name: string };
@@ -1273,101 +1270,93 @@ export type ComplianceSummary = Refine<
     { evaluations: ComplianceEvaluation[]; mttr: ComplianceMttr; targets?: TargetCompliance[] }
 >;
 
-export interface GraphNode {
-    id: string;
-    label: string;
-    type: 'TARGET' | 'PACKAGE' | 'CVE';
-    version: string | null;
-    ecosystem: string | null;
-    riskScore: number;
-    isDirect: boolean;
-    cves: string[];
-}
+export type GraphNode = Refine<
+    Schema<'GraphNode'>,
+    {
+        id: string;
+        label: string;
+        type: 'TARGET' | 'PACKAGE' | 'CVE';
+        cves: string[];
+        version: string | null;
+        ecosystem: string | null;
+    }
+>;
 
-export interface GraphEdge {
-    source: string;
-    target: string;
-    relationship: string;
-}
+export type GraphEdge = Refine<
+    Schema<'GraphEdge'>,
+    { source: string; target: string; relationship: string }
+>;
 
-export interface DependencyGraph {
-    nodes: GraphNode[];
-    edges: GraphEdge[];
-}
+export type DependencyGraph = Refine<
+    Schema<'DependencyGraph'>,
+    { nodes: GraphNode[]; edges: GraphEdge[] }
+>;
 
-export interface TargetImpact {
-    targetId: number;
-    targetKind: 'REPOSITORY' | 'CONTAINER';
-    targetName: string;
-    targetContext: string;
-    sourceFile: string;
-    purl: string | null;
-    packageName: string;
-    packageVersion: string;
-    isDirect: boolean;
-    cves: string[];
-    reachability: string;
-    scanId: number;
-}
+export type TargetImpact = Refine<
+    Schema<'TargetImpact'>,
+    {
+        targetId: number;
+        targetKind: 'REPOSITORY' | 'CONTAINER';
+        targetName: string;
+        targetContext: string;
+        sourceFile: string;
+        packageName: string;
+        packageVersion: string;
+        reachability: string;
+        scanId: number;
+        cves: string[];
+        purl: string | null;
+    }
+>;
 
-export interface TopImpactPackage {
-    packageName: string;
-    ecosystem: string;
-    affectedTargetsCount: number;
-    directUsages: number;
-    transitiveUsages: number;
-    totalCves: number;
-    maxCvss: number;
-    blastRadiusScore: number;
-}
+export type TopImpactPackage = Refine<
+    Schema<'TopImpactPackage'>,
+    { packageName: string; ecosystem: string }
+>;
 
-export interface BlastRadiusReport {
-    query: string;
-    queryType: 'PACKAGE' | 'CVE';
-    totalTargetsAffected: number;
-    directUsages: number;
-    transitiveUsages: number;
-    totalAssociatedCves: number;
-    blastRadiusScore: number;
-    targets: TargetImpact[];
-    graph: DependencyGraph;
-}
+export type BlastRadiusReport = Refine<
+    Schema<'BlastRadiusReport'>,
+    {
+        query: string;
+        queryType: 'PACKAGE' | 'CVE';
+        targets: TargetImpact[];
+        graph: DependencyGraph;
+    }
+>;
 
-export interface ThreatIntelRecord {
-    cveId: string;
-    isKev: boolean;
-    epssScore: number | null;
-    epssPercentile: number | null;
-    dateAdded: string | null;
-    notes: string | null;
-}
+export type ThreatIntelRecord = Refine<
+    Schema<'ThreatIntelRecord'>,
+    {
+        cveId: string;
+        epssScore: number | null;
+        epssPercentile: number | null;
+        dateAdded: string | null;
+        notes: string | null;
+    }
+>;
 
-export interface EpssPrioritizedIssue {
-    issueId: number;
-    identifier: string;
-    title: string;
-    severity: string;
-    cvssScore: number | null;
-    epssScore: number | null;
-    epssPercentile: number | null;
-    isKev: boolean;
-    reachability: string;
-    targetName: string;
-    targetKind: string;
-    priorityScore: number;
-    priorityTier: 'CRITICAL_ARMED' | 'HIGH_PROBABLE' | 'MEDIUM_THEORETICAL' | 'LOW_PROBABILITY';
-    recommendedAction: string;
-}
+export type EpssPrioritizedIssue = Refine<
+    Schema<'EpssPrioritizedIssue'>,
+    {
+        issueId: number;
+        identifier: string;
+        title: string;
+        severity: string;
+        reachability: string;
+        targetName: string;
+        targetKind: string;
+        recommendedAction: string;
+        priorityTier: 'CRITICAL_ARMED' | 'HIGH_PROBABLE' | 'MEDIUM_THEORETICAL' | 'LOW_PROBABILITY';
+        cvssScore: number | null;
+        epssScore: number | null;
+        epssPercentile: number | null;
+    }
+>;
 
-export interface EpssFleetSummary {
-    totalVulnerabilities: number;
-    activeKevCount: number;
-    highEpssCount: number;
-    reachableEpssCount: number;
-    averageFleetEpss: number;
-    topPriorities: EpssPrioritizedIssue[];
-    breakdownByTier: Record<string, number>;
-}
+export type EpssFleetSummary = Refine<
+    Schema<'EpssFleetSummary'>,
+    { topPriorities: EpssPrioritizedIssue[]; breakdownByTier: Record<string, number> }
+>;
 
 export interface NotificationChannelStatus {
     type: string;
@@ -1567,101 +1556,77 @@ export interface SbomDiffReport {
     cveDeltas: CveDelta[];
 }
 
-export interface HighImpactFix {
-    packageName: string;
-    currentVersion: string;
-    recommendedVersion: string;
-    cveCountResolved: number;
-    criticalCveCount: number;
-    highCveCount: number;
-    estimatedHours: number;
-    leverageScore: number;
-    affectedCves: string[];
-    affectedTargetNames: string[];
-}
+export type HighImpactFix = Refine<
+    Schema<'HighImpactFix'>,
+    {
+        packageName: string;
+        currentVersion: string;
+        recommendedVersion: string;
+        affectedCves: string[];
+        affectedTargetNames: string[];
+    }
+>;
+
+export type RemediationGap = Refine<Schema<'RemediationGap'>, { family: string }>;
+
+export type RemediationCoverage = Refine<
+    Schema<'RemediationCoverage'>,
+    { gaps: RemediationGap[] }
+>;
+
+/** Tous les compteurs sont primitifs : seule la liste des correctifs demande une revendication. */
+export type SecurityDebtReport = Refine<
+    Schema<'SecurityDebtReport'>,
+    { topHighImpactFixes: HighImpactFix[] }
+>;
+
+/** Les six natures de nœud d'un chemin, telles que le document les énumère. */
+export type AttackPathNodeType = NonNullable<Schema<'AttackPathNode'>['type']>;
+
+export type AttackPathNode = Refine<
+    Schema<'AttackPathNode'>,
+    {
+        id: string;
+        label: string;
+        type: AttackPathNodeType;
+        severity: string;
+        subtitle?: string;
+        metadata?: Record<string, string>;
+    }
+>;
+
+export type AttackPathEdge = Refine<
+    Schema<'AttackPathEdge'>,
+    { id: string; source: string; target: string; label: string }
+>;
 
 /**
- * Un ensemble de constats ouverts qu'aucune montée de version ne fermera.
- *
- * `family` est un jeton — le type de constat, ou `unpackaged` — et non une phrase : la phrase qui
- * dit comment on referme cette famille-là est traduite, clé par clé, côté écran.
+ * Un chemin, et non un nœud : il porte `riskLevel` et `isDirectlyExploitable`, jamais `severity`
+ * ni `isExploitable`. Les deux vocabulaires cohabitent sur le même écran, et les confondre dans
+ * une fixture a suffi à faire rendre `undefined` à une étiquette pendant des mois.
  */
-export interface RemediationGap {
-    family: string;
-    findings: number;
-}
+export type AttackPath = Refine<
+    Schema<'AttackPath'>,
+    {
+        id: string;
+        title: string;
+        description: string;
+        riskLevel: string;
+        nodeIds: string[];
+        remediationAdvice: string;
+    }
+>;
 
-/**
- * Ce que le plan de remédiation atteint, et ce qu'il ne peut pas atteindre.
- *
- * Le classement ne retient que des vulnérabilités portant un nom de paquet, parce qu'une ligne du
- * plan est une montée de version. Un dépôt dont le retard est fait de secrets exposés affiche donc
- * une seule action face à des centaines de constats — exact, et illisible sans cet aveu.
- */
-export interface RemediationCoverage {
-    openFindings: number;
-    addressableByUpgrade: number;
-    beyondUpgrades: number;
-    gaps: RemediationGap[];
-}
-
-export interface SecurityDebtReport {
-    totalOpenIssues: number;
-    criticalIssues: number;
-    highIssues: number;
-    mediumIssues: number;
-    lowIssues: number;
-    totalEstimatedHours: number;
-    totalEstimatedPersonDays: number;
-    vulnerabilitiesDebtHours: number;
-    secretsDebtHours: number;
-    sastDebtHours: number;
-    iacDebtHours: number;
-    licenseDebtHours: number;
-    eolDebtHours: number;
-    topHighImpactFixes: HighImpactFix[];
-}
-
-export type AttackPathNodeType = 'INTERNET_INGRESS' | 'API_ENDPOINT' | 'VULNERABLE_COMPONENT' | 'SECRET' | 'DATABASE' | 'INFRASTRUCTURE';
-
-export interface AttackPathNode {
-    id: string;
-    label: string;
-    type: AttackPathNodeType;
-    severity: string;
-    isExploitable: boolean;
-    subtitle?: string;
-    metadata?: Record<string, string>;
-}
-
-export interface AttackPathEdge {
-    id: string;
-    source: string;
-    target: string;
-    label: string;
-    isCriticalPath: boolean;
-}
-
-export interface AttackPath {
-    id: string;
-    title: string;
-    description: string;
-    riskLevel: string;
-    isDirectlyExploitable: boolean;
-    nodeIds: string[];
-    remediationAdvice: string;
-}
-
-export interface AttackPathGraph {
-    targetId: number;
-    targetName: string;
-    totalPaths: number;
-    criticalExploitablePaths: number;
-    riskScore: number;
-    nodes: AttackPathNode[];
-    edges: AttackPathEdge[];
-    attackPaths: AttackPath[];
-}
+export type AttackPathGraph = Refine<
+    Schema<'AttackPathGraph'>,
+    {
+        targetId: number;
+        targetName: string;
+        nodes: AttackPathNode[];
+        edges: AttackPathEdge[];
+        attackPaths: AttackPath[];
+    }
+>;
 
 /* ------------------------------------------------------------------------- */
 /* Preuve de processus : ce qui montre qu'un contrôle a fonctionné.           */
