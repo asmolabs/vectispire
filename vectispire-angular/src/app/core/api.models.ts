@@ -1,30 +1,33 @@
 /**
  * The shapes the API returns.
  *
- * **Being replaced, area by area, by the schemas of `openapi.json`.** The note that used to stand
- * here described a NestJS control plane whose generator emitted operations with empty responses;
- * the backend has been Spring Boot for some time, and the document it produces now carries 252
- * component schemas across 136 paths, so that obstacle is gone. The auth area below is the first
- * one converted: `Schema<'…'>` names a shape the server declares, and nothing about it is
- * duplicated here any more.
+ * **Every response shape here now names a schema the control plane publishes.** This file used to
+ * redeclare them by hand, which is how a screen came to read `detail.id` on a response that nests
+ * its summary under `scan`, how three server shapes ended up under one name called `Issue`, and how
+ * a client kept modelling OpenVEX products as bare strings for months after the server stopped
+ * sending them that way. `Schema<'…'>` names a shape; `Refine<>` writes down what the document
+ * cannot say about it, checked against it.
  *
- * **What the document still does not say, and this file has to.** It used to say nothing at all
- * about which properties are present: not one schema carried a `required` list. A converter in the
- * control plane now marks every primitive record component — 115 schemas, 305 properties — because
- * a Java `boolean` has no absent value and no null one, so that much is provable rather than
- * intended. What it deliberately stops short of is reference types: a `String` that is always sent
- * in practice is a promise about the code, and nothing tells it apart from one that is genuinely
- * null sometimes. Nor does the document mark anything nullable, while this server does send
- * `displayName: null`.
+ * **Five interfaces remain hand-written, and they are meant to.** `Page<T>` is a client generic.
+ * `IssueFilters` and `AuditFilters` are query parameters, which a response schema never describes.
+ * `NewRepository` and `NewContainer` are form bodies the document does not publish. None of them
+ * has a schema to be adossé to, and inventing one would be the same mistake in the other direction.
  *
- * `Always<>` and the explicit `| null` below are where each remaining claim is written down, one
- * field at a time and visibly. Annotating the record removes the need for one; converting an area
- * means deciding these per field, which is why it is done deliberately rather than in one sweep.
+ * **What the document still does not say.** It marks a property required only when it is a
+ * primitive — a converter in the control plane does that much, because a Java `boolean` has no
+ * absent value and no null one, so it is provable rather than intended. It stops short of reference
+ * types: a `String` always sent in practice is a promise about the code, and nothing tells it apart
+ * from one genuinely null sometimes. Nor does it mark anything nullable, while this server does
+ * send `displayName: null`.
  *
- * The interfaces further down are still hand-written and hold shapes only, no logic.
+ * `Refine<>` is where each such claim is written down, one field at a time and visibly. A claim
+ * must name a key the schema has, and a scalar claim must respect the type it declares — so a
+ * property renamed upstream fails here rather than being shadowed by the claim about it.
  *
  * `openapi.json` beside this workspace is regenerated and *verified* by `ClientContractSpecTest`
- * in the control plane: a route whose shape changes fails that test rather than this screen.
+ * in the control plane: a route whose shape changes fails that test rather than this screen. And
+ * `asSchema` in `core/testing` reads the test fixtures against the same document, because a type
+ * check never looks at a literal.
  */
 
 import type { components } from './api.generated';
@@ -108,26 +111,43 @@ export type ThreatIntelSyncStatus = Refine<
     { status: string; lastSyncedAt: string | null }
 >;
 
-export interface OpenVexStatement {
-    vulnerability: { name: string };
-    products: string[];
-    status: 'not_affected' | 'affected' | 'fixed' | 'under_investigation';
-    justification?: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist';
-    impact_statement?: string;
-    action_statement?: string;
-    status_notes?: string;
-}
+/** Un produit visé par une déclaration, tel que la norme le nomme : un objet, jamais une chaîne. */
+export type OpenVexProduct = Refine<Schema<'Product'>, { '@id': string }>;
 
-export interface OpenVexDocument {
-    '@context': string;
-    '@id': string;
-    author: string;
-    role: string;
-    timestamp: string;
-    version: number;
-    tooling: string;
-    statements: OpenVexStatement[];
-}
+/**
+ * Une déclaration VEX.
+ *
+ * <p><b>`products` portait ici des chaînes nues.</b> Le plan de contrôle a déjà réglé ce désaccord
+ * de son côté — deux modèles OpenVEX y coexistaient, dont l'un modélisait les produits en chaînes,
+ * si bien que la route d'ingestion ne pouvait pas relire ce que l'export produisait. Le client
+ * gardait la moitié périmée ; aucun écran ne la lit, ce qui est exactement pourquoi personne ne
+ * l'avait vue.
+ */
+export type OpenVexStatement = Refine<
+    Schema<'OpenVexStatement'>,
+    {
+        vulnerability: { name: string };
+        products: OpenVexProduct[];
+        status: NonNullable<Schema<'OpenVexStatement'>['status']>;
+        justification?: NonNullable<Schema<'OpenVexStatement'>['justification']>;
+        impact_statement?: string;
+        action_statement?: string;
+        status_notes?: string;
+    }
+>;
+
+export type OpenVexDocument = Refine<
+    Schema<'OpenVexDocument'>,
+    {
+        '@context': string;
+        '@id': string;
+        author: string;
+        role: string;
+        timestamp: string;
+        tooling: string;
+        statements: OpenVexStatement[];
+    }
+>;
 
 /**
  * The document types `riskCategory` as a bare `string` with an enum, which the generator widens to
@@ -198,35 +218,54 @@ export type PinnedSigningKey = Refine<
     { id: string; privateKey: string | null }
 >;
 
-export interface InTotoAttestation {
-    _type: string;
-    subject: { name: string; digest: Record<string, string> }[];
-    predicateType: string;
-    predicate: {
-        builder: { id: string; version: string };
-        invocation: {
-            scanId: number;
-            targetKind: string;
-            targetName: string;
-            branch: string;
-            commitSha: string | null;
-            timestamp: string;
-        };
-        policy: {
-            gatePassed: boolean;
-            violations: string[];
-            enforcedPolicy: string;
-        };
-        findings: {
-            critical: number;
-            high: number;
-            medium: number;
-            low: number;
-            total: number;
-        };
+/** Ce qui a produit le résultat, et sur quoi il porte. */
+export type AttestationBuilder = Refine<Schema<'Builder'>, { id: string; version: string }>;
+
+export type AttestationSubject = Refine<
+    Schema<'Subject'>,
+    { name: string; digest: Record<string, string> }
+>;
+
+export type AttestationInvocation = Refine<
+    Schema<'Invocation'>,
+    {
+        scanId: number;
+        targetKind: string;
+        targetName: string;
+        branch: string;
+        timestamp: string;
+        commitSha: string | null;
+    }
+>;
+
+export type AttestationPolicy = Refine<
+    Schema<'PolicyAssessment'>,
+    { violations: string[]; enforcedPolicy: string }
+>;
+
+/** Les sept compteurs sont primitifs : le document les marque tous « toujours envoyés ». */
+export type AttestationFindings = Schema<'FindingsSummary'>;
+
+export type AttestationPredicate = Refine<
+    Schema<'Predicate'>,
+    {
+        builder: AttestationBuilder;
+        invocation: AttestationInvocation;
+        policy: AttestationPolicy;
+        findings: AttestationFindings;
         sbomDigestSha256: string | null;
-    };
-}
+    }
+>;
+
+export type InTotoAttestation = Refine<
+    Schema<'InTotoAttestation'>,
+    {
+        _type: string;
+        predicateType: string;
+        subject: AttestationSubject[];
+        predicate: AttestationPredicate;
+    }
+>;
 
 /**
  * A row of the backlog.
@@ -850,25 +889,18 @@ export type ScanDetail = Refine<
     }
 >;
 
-export interface SettingDefinition {
-    key: string;
-    type: 'boolean' | 'integer' | 'text' | 'severity';
-    section: string;
-    label: string;
-    help: string;
-    default: string;
-    value: string;
-    /** Has it been set, or is this only the default? The two are not said the same way. */
-    configured: boolean;
-    /**
-     * Ce réglage décide d'une règle, et seul le gouverneur de la plateforme peut l'écrire.
-     *
-     * <p>Le serveur le dit, l'écran ne le devine pas : la règle est un ensemble de sections côté
-     * serveur, et la recopier ici en ferait une seconde source qu'on ne comparerait à la première
-     * qu'au moment d'un 403.
-     */
-    governor_only: boolean;
-}
+export type SettingDefinition = Refine<
+    Schema<'SettingView'>,
+    {
+        key: string;
+        type: 'boolean' | 'integer' | 'text' | 'severity';
+        section: string;
+        label: string;
+        help: string;
+        default: string;
+        value: string;
+    }
+>;
 
 /** A stored Semgrep rule set, as the listing returns it — without its files. */
 export type RuleSetSummary = Refine<
@@ -1144,39 +1176,49 @@ export type SignInMethods = Refine<
  * as absent, and not the same as a threshold of "unknown": it is the policy that blocks on
  * actively exploited findings alone.
  */
-export interface GatePolicy {
-    kind: 'global' | 'repository' | 'container' | 'built_in';
-    target_id: number | null;
-    target_name: string | null;
-    version: number;
-    fail_on_severity: string | null;
-    fail_on_kev: boolean;
-    fixable_only: boolean;
-    include_triaged: boolean;
-    include_ai_review: boolean;
-    /** Refuse a verdict whose code analysis reached none of the target's ecosystems. */
-    fail_on_uncovered_languages: boolean;
-    note: string | null;
-    created_by: string | null;
-    created_at: string | null;
-}
+export type GatePolicy = Refine<
+    Schema<'GatePolicyView'>,
+    {
+        kind: 'global' | 'repository' | 'container' | 'built_in';
+        target_id: number | null;
+        target_name: string | null;
+        fail_on_severity: string | null;
+        note: string | null;
+        created_by: string | null;
+        created_at: string | null;
+    }
+>;
 
-export interface GatePolicies {
-    policies: GatePolicy[];
-    /** What applies where nothing is stored — shown so an operator sees what they depart from. */
-    built_in: GatePolicy;
-}
+export type GatePolicies = Refine<
+    Schema<'PoliciesResponse'>,
+    {
+        policies: GatePolicy[];
+        /** What applies where nothing is stored — shown so an operator sees what they depart from. */
+        built_in: GatePolicy;
+    }
+>;
 
-/** Every field is sent: the route replaces a policy whole and defaults nothing. */
-export interface GatePolicyRequest {
-    fail_on_severity: string;
-    fail_on_kev: boolean;
-    fixable_only: boolean;
-    include_triaged: boolean;
-    include_ai_review: boolean;
-    fail_on_uncovered_languages: boolean;
-    note: string | null;
-}
+/**
+ * **Chaque champ est envoyé à chaque écriture**, sauf un. Le serveur refuse une politique partielle
+ * plutôt que de compléter la moitié manquante, parce qu'une valeur stockée serait réinstallée en
+ * silence sous un numéro de version affirmant que quelqu'un l'a choisie.
+ *
+ * `fail_on_uncovered_languages` est l'exception : il n'existait pas avant, donc absent veut dire
+ * « le comportement que vous aviez déjà ». Il reste envoyé ici pour que le formulaire dise ce qu'il
+ * fait, mais le type l'autorise absent comme le serveur.
+ */
+export type GatePolicyRequest = Refine<
+    Schema<'PolicyRequest'>,
+    {
+        fail_on_severity: string;
+        fail_on_kev: boolean;
+        fixable_only: boolean;
+        include_triaged: boolean;
+        include_ai_review: boolean;
+        fail_on_uncovered_languages: boolean;
+        note: string | null;
+    }
+>;
 
 /** The category a control belongs to, as the document enumerates it. */
 export type ComplianceCategory = Schema<'ComplianceControl'>['category'];
