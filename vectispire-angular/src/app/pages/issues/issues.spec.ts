@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The backlog.
@@ -19,7 +20,7 @@ describe('the issue backlog', () => {
     let http: HttpTestingController;
 
     function issue(id: number, identifier: string): Record<string, unknown> {
-        return {
+        return asSchema('BacklogEntry', {
             id,
             repoId: 5,
             containerId: null,
@@ -36,7 +37,7 @@ describe('the issue backlog', () => {
             timesSeen: 1,
             triageStatus: 'under_review',
             isKev: false
-        };
+        });
     }
 
     beforeEach(async () => {
@@ -236,7 +237,19 @@ describe('triaging a selection', () => {
     let http: HttpTestingController;
 
     function row(id: number): Record<string, unknown> {
-        return { id, targetKind: 'repository', type: 'vulnerability', identifier: `CVE-2026-${id}`, severity: 'high', state: 'open', firstSeenAt: '2026-03-03T08:00:00Z', lastSeenAt: '2026-08-21T05:03:00Z', timesSeen: 1, triageStatus: 'under_review', isKev: false };
+        return asSchema('BacklogEntry', {
+            id,
+            targetKind: 'repository',
+            type: 'vulnerability',
+            identifier: `CVE-2026-${id}`,
+            severity: 'high',
+            state: 'open',
+            firstSeenAt: '2026-03-03T08:00:00Z',
+            lastSeenAt: '2026-08-21T05:03:00Z',
+            timesSeen: 1,
+            triageStatus: 'under_review',
+            isKev: false
+        });
     }
 
     beforeEach(async () => {

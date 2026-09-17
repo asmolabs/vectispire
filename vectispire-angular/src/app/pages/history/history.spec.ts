@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { History } from './history';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The detection-and-triage trail.
@@ -26,18 +27,18 @@ describe('the history screen', () => {
     let fixture: ComponentFixture<History>;
     let http: HttpTestingController;
 
-    const REPOSITORY = {
-        id: 5,
-        name: 'Arm Libs Spring',
-        url: 'ssh://git@example.com/art/arm.git',
-        branch: 'master',
-        version: '1.17.6',
-        projectType: 'maven',
-        scanCount: 3,
-        lastScanAt: '2026-08-21T05:03:00Z',
-        openIssues: 38,
-        decisions: 0
-    };
+    const REPOSITORY = asSchema('Repository', {
+            id: 5,
+            name: 'Arm Libs Spring',
+            url: 'ssh://git@example.com/art/arm.git',
+            branch: 'master',
+            version: '1.17.6',
+            projectType: 'maven',
+            scanCount: 3,
+            lastScanAt: '2026-08-21T05:03:00Z',
+            openIssues: 38,
+            decisions: 0
+    });
 
     function dossier(decisions: unknown[]): Record<string, unknown> {
         return {

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IssueDetailPage } from './issue-detail';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * One issue's detail.
@@ -18,51 +19,51 @@ describe('the issue detail', () => {
     let fixture: ComponentFixture<IssueDetailPage>;
     let http: HttpTestingController;
 
-    const ISSUE = {
-        id: 7,
-        repoId: 5,
-        containerId: null,
-        targetKind: 'repository',
-        targetName: 'Arm Libs Spring',
-        type: 'vulnerability',
-        identifier: 'CVE-2026-1234',
-        severity: 'high',
-        packageName: 'openssl',
-        packageVersion: '3.0.1',
-        purl: null,
-        filePath: null,
-        line: null,
-        cvssScore: 9.1,
-        epssScore: null,
-        isKev: false,
-        fixState: 'fixed',
-        fixVersions: '3.0.14',
-        link: null,
-        description: 'A flaw in the parser.',
-        state: 'open',
-        firstSeenAt: '2026-03-03T08:00:00Z',
-        lastSeenAt: '2026-08-21T05:03:00Z',
-        timesSeen: 4,
-        triageStatus: 'under_review',
-        triageJustification: null,
-        triageComment: null,
-        triagedBy: null,
-        triagedAt: null,
-        isDirectDependency: true,
-        ticketRef: null,
-        ticketUrl: null,
-        sightings: [
-            {
-                scanId: 34,
-                status: 'completed',
-                branch: 'master',
-                version: '1.17.6',
-                scannedAt: '2026-08-21T05:03:00Z',
-                severity: 'high'
-            }
-        ],
-        decisions: []
-    };
+    const ISSUE = asSchema('IssueDetail', {
+            id: 7,
+            repoId: 5,
+            containerId: null,
+            targetKind: 'repository',
+            targetName: 'Arm Libs Spring',
+            type: 'vulnerability',
+            identifier: 'CVE-2026-1234',
+            severity: 'high',
+            packageName: 'openssl',
+            packageVersion: '3.0.1',
+            purl: null,
+            filePath: null,
+            line: null,
+            cvssScore: 9.1,
+            epssScore: null,
+            isKev: false,
+            fixState: 'fixed',
+            fixVersions: '3.0.14',
+            link: null,
+            description: 'A flaw in the parser.',
+            state: 'open',
+            firstSeenAt: '2026-03-03T08:00:00Z',
+            lastSeenAt: '2026-08-21T05:03:00Z',
+            timesSeen: 4,
+            triageStatus: 'under_review',
+            triageJustification: null,
+            triageComment: null,
+            triagedBy: null,
+            triagedAt: null,
+            isDirectDependency: true,
+            ticketRef: null,
+            ticketUrl: null,
+            sightings: [
+                {
+                    scanId: 34,
+                    status: 'completed',
+                    branch: 'master',
+                    version: '1.17.6',
+                    scannedAt: '2026-08-21T05:03:00Z',
+                    severity: 'high'
+                }
+            ],
+            decisions: []
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

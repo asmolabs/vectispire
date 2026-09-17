@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Login } from './login';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The sign-in screen, and the four ways a failure can be described.
@@ -19,7 +20,15 @@ describe('the sign-in screen', () => {
     let http: HttpTestingController;
     let navigate: ReturnType<typeof vi.spyOn>;
 
-    const USER = { id: 1, username: 'admin', role: 'ADMINISTRATOR', mustChangePassword: false };
+    // `id` n'existe pas sur cette forme : la réponse de connexion porte le compte connecté, pas
+    // la fiche d'administration. La fixture en inventait un depuis toujours.
+    const USER = asSchema('UserSummary', {
+        username: 'admin',
+        displayName: null,
+        role: 'ADMINISTRATOR',
+        mustChangePassword: false,
+        mfaEnabled: false
+    });
 
     beforeEach(async () => {
         // **The runner's `localStorage` is not usable**, which surfaces here and nowhere else:

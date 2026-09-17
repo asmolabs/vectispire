@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './settings';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The settings screen, and the connection test that never appeared.
@@ -17,31 +18,37 @@ describe('the settings screen', () => {
     let fixture: ComponentFixture<Settings>;
     let http: HttpTestingController;
 
-    /** The catalogue as the server sends it: section labels, not enum constants. */
-    const CATALOGUE = {
-        settings: [
-            {
-                key: 'ai_review_model',
-                section: 'OWASP review',
-                label: 'Local model name',
-                description: '',
-                type: 'text',
-                value: 'gemma4:12b-it-qat',
-                default: 'gemma4:12b-it-qat',
-                sensitivity: 'normal'
-            },
-            {
-                key: 'notification_webhook_url',
-                section: 'Notifications',
-                label: 'Webhook URL',
-                description: '',
-                type: 'text',
-                value: '',
-                default: '',
-                sensitivity: 'normal'
-            }
-        ]
-    };
+    /**
+     * The catalogue as the server sends it: section labels, not enum constants.
+     *
+     * <p>Il portait `description` et `sensitivity`, que ce document ne déclare pas — deux champs
+     * inventés qu'aucun écran ne lit, et qui auraient rendu une lecture muette si l'un d'eux avait
+     * fini dans un gabarit.
+     */
+    const CATALOGUE = asSchema('Catalog', {
+            settings: [
+                {
+                    key: 'ai_review_model',
+                    section: 'OWASP review',
+                    label: 'Local model name',
+                    type: 'text',
+                    value: 'gemma4:12b-it-qat',
+                    default: 'gemma4:12b-it-qat',
+                    configured: false,
+                    governor_only: false
+                },
+                {
+                    key: 'notification_webhook_url',
+                    section: 'Notifications',
+                    label: 'Webhook URL',
+                    type: 'text',
+                    value: '',
+                    default: '',
+                    configured: false,
+                    governor_only: false
+                }
+            ]
+    });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

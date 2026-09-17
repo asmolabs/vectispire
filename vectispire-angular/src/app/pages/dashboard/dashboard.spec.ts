@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * The backlog trend, and the one figure that must not be rounded to zero.
@@ -18,13 +19,20 @@ describe('the backlog trend', () => {
     let fixture: ComponentFixture<Dashboard>;
     let http: HttpTestingController;
 
-    const OVERVIEW = {
-        posture: { failingCount: 0, totalCount: 2, kevCount: 0, neverScannedCount: 0, lastScanFailedCount: 0, overdueCount: 0 },
-        backlogBySeverity: {},
-        qualityTotal: 0,
-        failing: [],
-        recentScans: []
-    };
+    const OVERVIEW = asSchema('DashboardOverview', {
+            posture: {
+                failingCount: 0,
+                totalCount: 2,
+                kevCount: 0,
+                neverScannedCount: 0,
+                lastScanFailedCount: 0,
+                overdueCount: 0
+            },
+            backlogBySeverity: {},
+            qualityTotal: 0,
+            failing: [],
+            recentScans: []
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();
@@ -167,31 +175,39 @@ describe('the failing targets table', () => {
     let fixture: ComponentFixture<Dashboard>;
     let http: HttpTestingController;
 
-    const failing = (rule: string) => ({
-        posture: { failingCount: 1, totalCount: 2, kevCount: 1, neverScannedCount: 0, lastScanFailedCount: 0, overdueCount: 0 },
-        backlogBySeverity: { CRITICAL: 1 },
-        qualityTotal: 0,
-        failing: [
-            {
-                kind: 'repository',
-                targetId: 5,
-                name: 'Arm Libs Spring',
-                observed: true,
-                violations: [
-                    {
-                        rule,
-                        issueId: 7,
-                        identifier: 'CVE-2026-1234',
-                        severity: 'critical',
-                        package: 'openssl',
-                        fixVersions: '3.0.14',
-                        reason: 'known exploited'
-                    }
-                ]
-            }
-        ],
-        recentScans: []
-    });
+    const failing = (rule: string) =>
+        asSchema('DashboardOverview', {
+            posture: {
+                failingCount: 1,
+                totalCount: 2,
+                kevCount: 1,
+                neverScannedCount: 0,
+                lastScanFailedCount: 0,
+                overdueCount: 0
+            },
+            backlogBySeverity: { CRITICAL: 1 },
+            qualityTotal: 0,
+            failing: [
+                {
+                    kind: 'repository',
+                    targetId: 5,
+                    name: 'Arm Libs Spring',
+                    observed: true,
+                    violations: [
+                        {
+                            rule,
+                            issueId: 7,
+                            identifier: 'CVE-2026-1234',
+                            severity: 'critical',
+                            package: 'openssl',
+                            fixVersions: '3.0.14',
+                            reason: 'known exploited'
+                        }
+                    ]
+                }
+            ],
+            recentScans: []
+        });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import type { HighImpactFix, RemediationCoverage } from '@/app/core/api.models';
 import { Remediation } from './remediation';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * L'ordre de travail.
@@ -19,19 +20,20 @@ describe('le plan de remédiation', () => {
     let fixture: ComponentFixture<Remediation>;
     let http: HttpTestingController;
 
-    const fix = (over: Partial<HighImpactFix>): HighImpactFix => ({
-        packageName: 'log4j-core',
-        currentVersion: '2.14.1',
-        recommendedVersion: '2.17.1',
-        cveCountResolved: 3,
-        criticalCveCount: 1,
-        highCveCount: 2,
-        estimatedHours: 1.3,
-        leverageScore: 10.4,
-        affectedCves: ['CVE-2021-44228'],
-        affectedTargetNames: ['alpha'],
-        ...over
-    });
+    const fix = (over: Partial<HighImpactFix>): HighImpactFix =>
+        asSchema('HighImpactFix', {
+            packageName: 'log4j-core',
+            currentVersion: '2.14.1',
+            recommendedVersion: '2.17.1',
+            cveCountResolved: 3,
+            criticalCveCount: 1,
+            highCveCount: 2,
+            estimatedHours: 1.3,
+            leverageScore: 10.4,
+            affectedCves: ['CVE-2021-44228'],
+            affectedTargetNames: ['alpha'],
+            ...over
+        });
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

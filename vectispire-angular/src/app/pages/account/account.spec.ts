@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Account } from './account';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * L'enrôlement du second facteur.
@@ -51,7 +52,11 @@ describe("l'écran du compte", () => {
         fixture.detectChanges();
     }, 20_000);
 
-    const SETUP = { secret: 'JBSWY3DPEHPK3PXP', qrCodeUri: 'otpauth://totp/Vectispire:c.moreau?secret=JBSWY3DPEHPK3PXP', issuer: 'Vectispire' };
+    const SETUP = asSchema('SetupResponse', {
+        secret: 'JBSWY3DPEHPK3PXP',
+        qrCodeUri: 'otpauth://totp/Vectispire:c.moreau?secret=JBSWY3DPEHPK3PXP',
+        issuer: 'Vectispire'
+    });
 
     it("n'active rien tant que le premier code n'est pas vérifié", () => {
         const page = fixture.componentInstance;
