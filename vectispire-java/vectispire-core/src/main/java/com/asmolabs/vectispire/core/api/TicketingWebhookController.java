@@ -162,7 +162,7 @@ public class TicketingWebhookController {
             // reported data and not as an identity.
             String author = provider.name() + "_webhook";
             String claimed = event.author() != null && !event.author().isBlank()
-                    ? " (annoncé par le tracker comme : " + event.author() + ")"
+                    ? " (reported by the tracker as: " + event.author() + ")"
                     : "";
             String comment = (event.comment() != null && !event.comment().isBlank()
                     ? event.comment()

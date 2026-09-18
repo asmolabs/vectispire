@@ -61,12 +61,12 @@ class SqliteWriteAheadLog {
             // on a read-only file, or on a network mount, SQLite refuses WAL and stays in `delete`
             // without raising an error.
             var result = statement.executeQuery("PRAGMA journal_mode = WAL");
-            String mode = result.next() ? result.getString(1) : "inconnu";
+            String mode = result.next() ? result.getString(1) : "unknown";
             if ("wal".equalsIgnoreCase(mode)) {
-                log.info("SQLite: journal en WAL, les lectures ne bloquent plus derrière une écriture.");
+                log.info("SQLite: journal in WAL, reads no longer block behind a write.");
             } else {
-                log.warn("SQLite: WAL refusé, le journal reste en '{}' — les écritures concurrentes "
-                        + "continueront de produire des SQLITE_BUSY.", mode);
+                log.warn("SQLite: WAL refused, the journal stays in '{}' — concurrent writes will "
+                        + "go on producing SQLITE_BUSY.", mode);
             }
         } catch (SQLException failure) {
             log.warn("SQLite: impossible de passer le journal en WAL.", failure);

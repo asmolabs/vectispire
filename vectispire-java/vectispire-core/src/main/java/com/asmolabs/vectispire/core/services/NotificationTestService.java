@@ -49,7 +49,7 @@ public class NotificationTestService {
 
         for (NotificationChannel channel : channels) {
             String name = switch (channel.type()) {
-                case "scan_delta" -> "Webhook Générique / SIEM";
+                case "scan_delta" -> "Generic webhook / SIEM";
                 case "scan_delta_teams" -> "Microsoft Teams (Adaptive Cards)";
                 case "scan_delta_slack" -> "Slack (Block Kit)";
                 case "scan_delta_discord" -> "Discord (Rich Embeds)";

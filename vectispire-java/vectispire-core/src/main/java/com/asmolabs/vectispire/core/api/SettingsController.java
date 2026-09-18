@@ -203,9 +203,9 @@ public class SettingsController {
             // it.
             if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(principal)) {
                 throw new AccessDeniedException(
-                        setting.label() + " décide d'une règle et non d'un réglage : seul un "
-                                + "super-administrateur peut la changer, parce qu'il est le seul "
-                                + "qui ne puisse pas en tirer parti.");
+                        setting.label() + " decides a rule rather than a setting: only a platform "
+                                + "governor may change it, because it is the one role that cannot "
+                                + "act under it.");
             }
             // **Switching on a two-person control requires that there be two.** Without this
             // guard, switching it on where no approver is active puts every decision in a queue
@@ -213,10 +213,9 @@ public class SettingsController {
             // shows only at the first triage.
             if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value) && noApproverExists()) {
                 throw new IllegalArgumentException(
-                        "Aucun compte actif ne peut approuver un triage : activer la double "
-                                + "validation mettrait chaque décision dans une file que personne "
-                                + "ne peut vider. Créez d'abord un administrateur, un CISO ou un "
-                                + "référent sécurité.");
+                        "No active account can approve a triage: switching four-eyes on would put "
+                                + "every decision in a queue nobody can empty. Create an "
+                                + "administrator, a CISO or a security lead first.");
             }
             if (setting.isEncrypted()) {
                 throw new IllegalArgumentException(

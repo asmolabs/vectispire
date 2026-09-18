@@ -123,7 +123,7 @@ class SettingsCredentialWriteTest {
         assertThatThrownBy(() -> controller.update(
                 Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Aucun compte actif ne peut approuver");
+                .hasMessageContaining("No active account can approve");
 
         // Switching it off stays possible: it is switching on that needs a second, not the other way.
         controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "false"),
