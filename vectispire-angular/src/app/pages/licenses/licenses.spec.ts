@@ -57,8 +57,7 @@ describe('the licence inventory screen', () => {
             targetKind: 'repository',
             targetName: 'ours',
             compatibility,
-            legalRiskExplanation: '',
-            remediationAdvice: ''
+            verdict: 'PERMISSIVE'
         });
 
     const CONFLICTS = [

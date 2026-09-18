@@ -1382,7 +1382,7 @@ export type EpssPrioritizedIssue = Refine<
         reachability: string;
         targetName: string;
         targetKind: string;
-        recommendedAction: string;
+        recommendedAction: NonNullable<Schema<'EpssPrioritizedIssue'>['recommendedAction']>;
         priorityTier: 'CRITICAL_ARMED' | 'HIGH_PROBABLE' | 'MEDIUM_THEORETICAL' | 'LOW_PROBABILITY';
         cvssScore: number | null;
         epssScore: number | null;
@@ -1443,8 +1443,15 @@ export type LicenseConflict = Refine<
         targetKind: string;
         targetName: string;
         compatibility: LicenseCompatibility;
-        legalRiskExplanation: string;
-        remediationAdvice: string;
+        /**
+         * What the licence means here, as a token the screen turns into two sentences.
+         *
+         * The explanation and the advice used to arrive as French sentences and were printed as
+         * they stood, under headers that went through the bundle. One token rather than two
+         * fields: the server never chooses them separately, and two fields would have allowed a
+         * pair that says one thing and advises another.
+         */
+        verdict: NonNullable<Schema<'LicenseConflict'>['verdict']>;
     }
 >;
 
@@ -1454,7 +1461,7 @@ export type CompatibilityCell = Refine<
         targetLicenseType: string;
         dependencyLicenseCategory: string;
         compatibility: LicenseCompatibility;
-        ruleDescription: string;
+        note: NonNullable<Schema<'CompatibilityCell'>['note']>;
     }
 >;
 

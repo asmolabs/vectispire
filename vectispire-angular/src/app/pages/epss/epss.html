@@ -217,8 +217,24 @@
                             <span class="text-[10px] text-surface-400 font-mono">{{ p.targetKind }}</span>
                         </td>
                         <td>
+                            <!--
+                                **A token translated here, not a sentence from the server.** This
+                                cell used to print the string as it stood: the column header above
+                                went through the bundle and changed language, the sentence below it
+                                stayed French for everybody.
+
+                                The `@switch` carries literal keys because `check-i18n-keys` can
+                                only read those; a key built from the token would show as it stands
+                                the day it is missing.
+                            -->
                             <span class="text-xs font-medium text-surface-800 dark:text-surface-200">
-                                {{ p.recommendedAction }}
+                                @switch (p.recommendedAction) {
+                                    @case ('P0_KEV_24H') { {{ 'epss.action_p0_kev_24h' | translate }} }
+                                    @case ('P0_48H') { {{ 'epss.action_p0_48h' | translate }} }
+                                    @case ('P1_7D') { {{ 'epss.action_p1_7d' | translate }} }
+                                    @case ('P2_30D') { {{ 'epss.action_p2_30d' | translate }} }
+                                    @case ('P3_ROUTINE') { {{ 'epss.action_p3_routine' | translate }} }
+                                }
                             </span>
                         </td>
                     </tr>

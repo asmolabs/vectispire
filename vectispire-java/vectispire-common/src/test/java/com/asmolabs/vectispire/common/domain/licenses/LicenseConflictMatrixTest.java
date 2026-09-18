@@ -21,8 +21,9 @@ class LicenseConflictMatrixTest {
 
         assertThat(conflict.compatibility()).isEqualTo(LicenseConflictMatrix.Compatibility.INCOMPATIBLE_BLOCKING);
         assertThat(conflict.riskCategory()).isEqualTo(LicenseRiskCategory.STRONG_COPYLEFT);
-        assertThat(conflict.legalRiskExplanation()).contains("Contamination Copyleft Forte");
-        assertThat(conflict.remediationAdvice()).contains("Remplacer");
+        assertThat(conflict.verdict())
+                .as("strong copyleft linked into a proprietary target, which is the blocking case")
+                .isEqualTo(LicenseConflictMatrix.ConflictVerdict.STRONG_COPYLEFT_PROPRIETARY);
     }
 
     @Test
@@ -53,6 +54,6 @@ class LicenseConflictMatrixTest {
 
         assertThat(conflict.compatibility()).isEqualTo(LicenseConflictMatrix.Compatibility.CONDITIONAL);
         assertThat(conflict.riskCategory()).isEqualTo(LicenseRiskCategory.WEAK_COPYLEFT);
-        assertThat(conflict.legalRiskExplanation()).contains("dynamiquement");
+        assertThat(conflict.verdict()).isEqualTo(LicenseConflictMatrix.ConflictVerdict.WEAK_COPYLEFT);
     }
 }

@@ -139,7 +139,7 @@ public class EpssPrioritizationService {
 
             int score = EpssRiskMatrix.calculatePriorityScore(cvss, epssScore, isKev, reachability);
             String tier = EpssRiskMatrix.determineTier(cvss, epssScore, isKev, reachability);
-            String action = EpssRiskMatrix.determineAction(tier, isKev, reachability);
+            EpssRiskMatrix.RecommendedAction action = EpssRiskMatrix.determineAction(tier, isKev, reachability);
 
             tierBreakdown.put(tier, tierBreakdown.getOrDefault(tier, 0) + 1);
 

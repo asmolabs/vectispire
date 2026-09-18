@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.common.domain.licenses;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Cross-license compatibility analysis, copyleft contamination detection,
@@ -17,6 +16,31 @@ public final class LicenseConflictMatrix {
         INCOMPATIBLE_BLOCKING
     }
 
+    /**
+     * What the licence means for this target, as a token the screen turns into two sentences.
+     *
+     * <p><b>A token and not a sentence</b>, for the reason {@code RemediationGap} states: the
+     * legal explanation and the remediation advice are screen text, and screen text is translated
+     * on the client. Both used to be French sentences the licences screen printed as they stood,
+     * under column headers that went through the translation bundle.
+     *
+     * <p>One token rather than two: the explanation and the advice are never chosen separately —
+     * each branch below settles both at once — so two fields would have allowed a pair that says
+     * one thing and advises another.
+     */
+    public enum ConflictVerdict {
+        /** Non-commercial, or a paid licence nobody bought. */
+        FORBIDDEN_LICENCE,
+        /** Strong copyleft linked into a proprietary target: the reciprocal obligation bites. */
+        STRONG_COPYLEFT_PROPRIETARY,
+        /** Strong copyleft in a target that is itself distributed under a compatible licence. */
+        STRONG_COPYLEFT_RECIPROCAL,
+        WEAK_COPYLEFT,
+        PERMISSIVE,
+        /** Not a licence this matrix recognises — an open legal question, not a clean bill. */
+        UNKNOWN_LICENCE
+    }
+
     public record LicenseConflict(
             String packageName,
             String packageVersion,
@@ -25,31 +49,43 @@ public final class LicenseConflictMatrix {
             String targetKind,
             String targetName,
             Compatibility compatibility,
-            String legalRiskExplanation,
-            String remediationAdvice) {}
+            ConflictVerdict verdict) {}
+
+    /** The note a matrix cell carries, as a token; the sentence lives in the client's bundles. */
+    public enum RuleNote {
+        PERMISSIVE_IN_PROPRIETARY,
+        WEAK_COPYLEFT_IN_PROPRIETARY,
+        STRONG_COPYLEFT_IN_PROPRIETARY,
+        FORBIDDEN_IN_PROPRIETARY,
+        PERMISSIVE_IN_PERMISSIVE,
+        WEAK_COPYLEFT_IN_PERMISSIVE,
+        STRONG_COPYLEFT_IN_PERMISSIVE,
+        PERMISSIVE_IN_GPL,
+        STRONG_COPYLEFT_IN_GPL
+    }
 
     public record CompatibilityCell(
             String targetLicenseType,
             String dependencyLicenseCategory,
             Compatibility compatibility,
-            String ruleDescription) {}
+            RuleNote note) {}
 
     /**
      * Standard cross-compatibility matrix for commercial enterprise software.
      */
     public static List<CompatibilityCell> getStandardCompatibilityRules() {
         return List.of(
-                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "PERMISSIVE", Compatibility.COMPATIBLE, "Compatible sans obligation de divulgation de code source. Respecter l'attribution."),
-                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "WEAK_COPYLEFT", Compatibility.CONDITIONAL, "Liaison dynamique obligatoire (ex: JAR/DLL séparé). Les modifications directes de la librairie doivent être publiées."),
-                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "STRONG_COPYLEFT", Compatibility.INCOMPATIBLE_BLOCKING, "CONFLIT MAJEUR : Risque de contamination virale. Oblige légalement à divulguer l'intégralité du code source propriétaire."),
-                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "FORBIDDEN", Compatibility.INCOMPATIBLE_BLOCKING, "INTERDIT : Licence non commerciale ou commerciale payante non acquise."),
+                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "PERMISSIVE", Compatibility.COMPATIBLE, RuleNote.PERMISSIVE_IN_PROPRIETARY),
+                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "WEAK_COPYLEFT", Compatibility.CONDITIONAL, RuleNote.WEAK_COPYLEFT_IN_PROPRIETARY),
+                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "STRONG_COPYLEFT", Compatibility.INCOMPATIBLE_BLOCKING, RuleNote.STRONG_COPYLEFT_IN_PROPRIETARY),
+                new CompatibilityCell("PROPRIETARY_COMMERCIAL", "FORBIDDEN", Compatibility.INCOMPATIBLE_BLOCKING, RuleNote.FORBIDDEN_IN_PROPRIETARY),
 
-                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "PERMISSIVE", Compatibility.COMPATIBLE, "Totalement compatible."),
-                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "WEAK_COPYLEFT", Compatibility.CONDITIONAL, "Compatible avec conservation de la notice de licence séparée."),
-                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "STRONG_COPYLEFT", Compatibility.CONDITIONAL, "Le projet combiné doit être redistribué sous licence GPL/AGPL."),
+                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "PERMISSIVE", Compatibility.COMPATIBLE, RuleNote.PERMISSIVE_IN_PERMISSIVE),
+                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "WEAK_COPYLEFT", Compatibility.CONDITIONAL, RuleNote.WEAK_COPYLEFT_IN_PERMISSIVE),
+                new CompatibilityCell("OPEN_SOURCE_PERMISSIVE", "STRONG_COPYLEFT", Compatibility.CONDITIONAL, RuleNote.STRONG_COPYLEFT_IN_PERMISSIVE),
 
-                new CompatibilityCell("GPL_COMPLIANT", "PERMISSIVE", Compatibility.COMPATIBLE, "Compatible (MIT/BSD/Apache sont intégrables dans un projet GPL)."),
-                new CompatibilityCell("GPL_COMPLIANT", "STRONG_COPYLEFT", Compatibility.COMPATIBLE, "Compatible avec le même niveau de copyleft.")
+                new CompatibilityCell("GPL_COMPLIANT", "PERMISSIVE", Compatibility.COMPATIBLE, RuleNote.PERMISSIVE_IN_GPL),
+                new CompatibilityCell("GPL_COMPLIANT", "STRONG_COPYLEFT", Compatibility.COMPATIBLE, RuleNote.STRONG_COPYLEFT_IN_GPL)
         );
     }
 
@@ -65,38 +101,30 @@ public final class LicenseConflictMatrix {
             boolean isProprietaryTarget) {
 
         LicenseRiskCategory category = LicenseRiskCategory.classify(licenseExpression);
-        String normLic = licenseExpression != null ? licenseExpression.toUpperCase(Locale.ROOT) : "UNKNOWN";
 
         Compatibility compatibility;
-        String explanation;
-        String advice;
+        ConflictVerdict verdict;
 
         if (category == LicenseRiskCategory.FORBIDDEN) {
             compatibility = Compatibility.INCOMPATIBLE_BLOCKING;
-            explanation = String.format("La licence '%s' interdit l'usage commercial ou restreint la redistribution.", normLic);
-            advice = "Remplacer immédiatement ce composant par une alternative sous licence Open Source standard (MIT, Apache-2.0, BSD).";
+            verdict = ConflictVerdict.FORBIDDEN_LICENCE;
         } else if (category == LicenseRiskCategory.STRONG_COPYLEFT) {
             if (isProprietaryTarget) {
                 compatibility = Compatibility.INCOMPATIBLE_BLOCKING;
-                explanation = String.format("Contamination Copyleft Forte (%s) : Intégrer ce composant dans un produit propriétaire oblige légalement à ouvrir et publier le code source propriétaire de votre application.", normLic);
-                advice = "Remplacer la dépendance par un équivalent sous licence permissive (MIT, Apache-2.0, BSD) ou isoler le composant via un microservice / process tiers indépendant.";
+                verdict = ConflictVerdict.STRONG_COPYLEFT_PROPRIETARY;
             } else {
                 compatibility = Compatibility.CONDITIONAL;
-                explanation = String.format("Licence Copyleft Forte (%s) : Votre projet doit être distribué sous licence compatible GPL.", normLic);
-                advice = "Vérifier que la licence globale du dépôt est conforme aux exigences de réciprocité GPL/AGPL.";
+                verdict = ConflictVerdict.STRONG_COPYLEFT_RECIPROCAL;
             }
         } else if (category == LicenseRiskCategory.WEAK_COPYLEFT) {
             compatibility = Compatibility.CONDITIONAL;
-            explanation = String.format("Copyleft Faible (%s) : La bibliothèque peut être utilisée dans un logiciel propriétaire à condition de ne pas être modifiée directement et d'être liée dynamiquement.", normLic);
-            advice = "Conserver la dépendance sous forme de binaire non modifié (JAR/DLL) et inclure la notice de licence originale dans la documentation légale.";
+            verdict = ConflictVerdict.WEAK_COPYLEFT;
         } else if (category == LicenseRiskCategory.PERMISSIVE) {
             compatibility = Compatibility.COMPATIBLE;
-            explanation = String.format("Licence Permissive (%s) : Utilisable librement en contexte commercial et propriétaire.", normLic);
-            advice = "Conserver les mentions de copyright et les notices d'attribution dans le fichier THIRD-PARTY-NOTICES / SBOM.";
+            verdict = ConflictVerdict.PERMISSIVE;
         } else {
             compatibility = Compatibility.CONDITIONAL;
-            explanation = "Licence inconnue ou non standard. Risque juridique non qualifié.";
-            advice = "Effectuer une revue juridique du fichier de licence du composant.";
+            verdict = ConflictVerdict.UNKNOWN_LICENCE;
         }
 
         return new LicenseConflict(
@@ -107,7 +135,6 @@ public final class LicenseConflictMatrix {
                 targetKind,
                 targetName,
                 compatibility,
-                explanation,
-                advice);
+                verdict);
     }
 }

@@ -24,7 +24,7 @@ public final class EpssRiskMatrix {
             String targetKind,
             int priorityScore,
             String priorityTier,
-            String recommendedAction) {}
+            RecommendedAction recommendedAction) {}
 
     public record EpssFleetSummary(
             int totalVulnerabilities,
@@ -78,14 +78,35 @@ public final class EpssRiskMatrix {
         return "LOW_PROBABILITY";
     }
 
-    public static String determineAction(String tier, boolean isKev, String reachability) {
+    /**
+     * What to do about an issue, as a token the screen translates.
+     *
+     * <p><b>A token and not a sentence</b>, for the reason {@code RemediationGap} states: the
+     * sentence is screen text, and screen text is translated on the client. This field used to
+     * carry a French sentence that the EPSS screen printed as it stood — under a column header
+     * that went through the translation bundle, so the heading changed language and the cell
+     * below it did not.
+     *
+     * <p>An enum rather than a free string: springdoc enumerates it, so the document publishes
+     * the five values and the generated client type is exactly this set. A renamed constant
+     * fails the contract test rather than reaching a screen as an unresolved key.
+     */
+    public enum RecommendedAction {
+        /** Actively exploited, per the CISA KEV catalogue. */
+        P0_KEV_24H,
+        /** Exploit probability above 50 %, with no KEV listing. */
+        P0_48H,
+        P1_7D,
+        P2_30D,
+        P3_ROUTINE
+    }
+
+    public static RecommendedAction determineAction(String tier, boolean isKev, String reachability) {
         return switch (tier) {
-            case "CRITICAL_ARMED" -> isKev
-                    ? "P0 - Remédiation sous 24h (Catalogue CISA KEV - Exploitation active confirmée)"
-                    : "P0 - Remédiation sous 48h (Probabilité d'exploit critique > 50%)";
-            case "HIGH_PROBABLE" -> "P1 - Remédiation prioritaire sous 7 jours (Armement probable)";
-            case "MEDIUM_THEORETICAL" -> "P2 - Remédiation standard sous 30 jours (Sévérité haute mais exploit peu probable)";
-            default -> "P3 - Traitement au fil de l'eau (Probabilité d'exploitation négligeable)";
+            case "CRITICAL_ARMED" -> isKev ? RecommendedAction.P0_KEV_24H : RecommendedAction.P0_48H;
+            case "HIGH_PROBABLE" -> RecommendedAction.P1_7D;
+            case "MEDIUM_THEORETICAL" -> RecommendedAction.P2_30D;
+            default -> RecommendedAction.P3_ROUTINE;
         };
     }
 }

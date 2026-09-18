@@ -18,8 +18,9 @@ class EpssRiskMatrixTest {
         String tier = EpssRiskMatrix.determineTier(9.8, 0.75, true, "REACHABLE");
         assertThat(tier).isEqualTo("CRITICAL_ARMED");
 
-        String action = EpssRiskMatrix.determineAction(tier, true, "REACHABLE");
-        assertThat(action).contains("P0");
+        assertThat(EpssRiskMatrix.determineAction(tier, true, "REACHABLE"))
+                .as("listed in the KEV catalogue, so the shortest deadline of the two P0s")
+                .isEqualTo(EpssRiskMatrix.RecommendedAction.P0_KEV_24H);
     }
 
     @Test
@@ -31,7 +32,7 @@ class EpssRiskMatrixTest {
         String tier = EpssRiskMatrix.determineTier(8.0, 0.001, false, "UNREACHABLE");
         assertThat(tier).isEqualTo("MEDIUM_THEORETICAL");
 
-        String action = EpssRiskMatrix.determineAction(tier, false, "UNREACHABLE");
-        assertThat(action).contains("P2");
+        assertThat(EpssRiskMatrix.determineAction(tier, false, "UNREACHABLE"))
+                .isEqualTo(EpssRiskMatrix.RecommendedAction.P2_30D);
     }
 }

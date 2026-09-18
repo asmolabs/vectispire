@@ -3056,7 +3056,8 @@ export interface components {
             /** @enum {string} */
             compatibility?: "COMPATIBLE" | "CONDITIONAL" | "INCOMPATIBLE_BLOCKING";
             dependencyLicenseCategory?: string;
-            ruleDescription?: string;
+            /** @enum {string} */
+            note?: "PERMISSIVE_IN_PROPRIETARY" | "WEAK_COPYLEFT_IN_PROPRIETARY" | "STRONG_COPYLEFT_IN_PROPRIETARY" | "FORBIDDEN_IN_PROPRIETARY" | "PERMISSIVE_IN_PERMISSIVE" | "WEAK_COPYLEFT_IN_PERMISSIVE" | "STRONG_COPYLEFT_IN_PERMISSIVE" | "PERMISSIVE_IN_GPL" | "STRONG_COPYLEFT_IN_GPL";
             targetLicenseType?: string;
         };
         ComplianceControl: {
@@ -3413,7 +3414,8 @@ export interface components {
             priorityScore: number;
             priorityTier?: string;
             reachability?: string;
-            recommendedAction?: string;
+            /** @enum {string} */
+            recommendedAction?: "P0_KEV_24H" | "P0_48H" | "P1_7D" | "P2_30D" | "P3_ROUTINE";
             severity?: string;
             targetKind?: string;
             targetName?: string;
@@ -3799,15 +3801,15 @@ export interface components {
         LicenseConflict: {
             /** @enum {string} */
             compatibility?: "COMPATIBLE" | "CONDITIONAL" | "INCOMPATIBLE_BLOCKING";
-            legalRiskExplanation?: string;
             licenseExpression?: string;
             packageName?: string;
             packageVersion?: string;
-            remediationAdvice?: string;
             /** @enum {string} */
             riskCategory?: "PERMISSIVE" | "WEAK_COPYLEFT" | "STRONG_COPYLEFT" | "FORBIDDEN" | "UNKNOWN";
             targetKind?: string;
             targetName?: string;
+            /** @enum {string} */
+            verdict?: "FORBIDDEN_LICENCE" | "STRONG_COPYLEFT_PROPRIETARY" | "STRONG_COPYLEFT_RECIPROCAL" | "WEAK_COPYLEFT" | "PERMISSIVE" | "UNKNOWN_LICENCE";
         };
         LicenseEntry: {
             compliant: boolean;

@@ -1096,7 +1096,8 @@
           "dependencyLicenseCategory" : {
             "type" : "string"
           },
-          "ruleDescription" : {
+          "note" : {
+            "enum" : [ "PERMISSIVE_IN_PROPRIETARY", "WEAK_COPYLEFT_IN_PROPRIETARY", "STRONG_COPYLEFT_IN_PROPRIETARY", "FORBIDDEN_IN_PROPRIETARY", "PERMISSIVE_IN_PERMISSIVE", "WEAK_COPYLEFT_IN_PERMISSIVE", "STRONG_COPYLEFT_IN_PERMISSIVE", "PERMISSIVE_IN_GPL", "STRONG_COPYLEFT_IN_GPL" ],
             "type" : "string"
           },
           "targetLicenseType" : {
@@ -2061,6 +2062,7 @@
             "type" : "string"
           },
           "recommendedAction" : {
+            "enum" : [ "P0_KEV_24H", "P0_48H", "P1_7D", "P2_30D", "P3_ROUTINE" ],
             "type" : "string"
           },
           "severity" : {
@@ -3088,9 +3090,6 @@
             "enum" : [ "COMPATIBLE", "CONDITIONAL", "INCOMPATIBLE_BLOCKING" ],
             "type" : "string"
           },
-          "legalRiskExplanation" : {
-            "type" : "string"
-          },
           "licenseExpression" : {
             "type" : "string"
           },
@@ -3098,9 +3097,6 @@
             "type" : "string"
           },
           "packageVersion" : {
-            "type" : "string"
-          },
-          "remediationAdvice" : {
             "type" : "string"
           },
           "riskCategory" : {
@@ -3111,6 +3107,10 @@
             "type" : "string"
           },
           "targetName" : {
+            "type" : "string"
+          },
+          "verdict" : {
+            "enum" : [ "FORBIDDEN_LICENCE", "STRONG_COPYLEFT_PROPRIETARY", "STRONG_COPYLEFT_RECIPROCAL", "WEAK_COPYLEFT", "PERMISSIVE", "UNKNOWN_LICENCE" ],
             "type" : "string"
           }
         },

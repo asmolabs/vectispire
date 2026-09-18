@@ -307,9 +307,36 @@
                                 <p-tag [value]="conflict.compatibility" [severity]="compatSeverity(conflict.compatibility)" />
                             </td>
                             <td class="text-xs">{{ conflict.targetName }}</td>
-                            <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">{{ conflict.legalRiskExplanation }}</td>
+                            <!--
+                                **Two sentences from one token, translated here.** They arrived from
+                                the server as French prose and were printed as they stood, beneath
+                                the two headers directly above — which do go through the bundle. The
+                                licence name is interpolated from the row's own field rather than
+                                baked into the sentence on the server.
+
+                                Literal keys under a `@switch`, because `check-i18n-keys` reads only
+                                those: a key built from the token would ship as an unresolved key.
+                            -->
+                            <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">
+                                @switch (conflict.verdict) {
+                                    @case ('FORBIDDEN_LICENCE') { {{ 'licenses.verdict_forbidden' | translate: { licence: conflict.licenseExpression } }} }
+                                    @case ('STRONG_COPYLEFT_PROPRIETARY') { {{ 'licenses.verdict_strong_copyleft_proprietary' | translate: { licence: conflict.licenseExpression } }} }
+                                    @case ('STRONG_COPYLEFT_RECIPROCAL') { {{ 'licenses.verdict_strong_copyleft_reciprocal' | translate: { licence: conflict.licenseExpression } }} }
+                                    @case ('WEAK_COPYLEFT') { {{ 'licenses.verdict_weak_copyleft' | translate: { licence: conflict.licenseExpression } }} }
+                                    @case ('PERMISSIVE') { {{ 'licenses.verdict_permissive' | translate: { licence: conflict.licenseExpression } }} }
+                                    @case ('UNKNOWN_LICENCE') { {{ 'licenses.verdict_unknown' | translate }} }
+                                }
+                            </td>
                             <td class="text-xs font-medium text-purple-700 dark:text-purple-300 max-w-xs">
-                                <i class="pi pi-arrow-circle-right text-xs mr-1"></i>{{ conflict.remediationAdvice }}
+                                <i class="pi pi-arrow-circle-right text-xs mr-1"></i>
+                                @switch (conflict.verdict) {
+                                    @case ('FORBIDDEN_LICENCE') { {{ 'licenses.advice_forbidden' | translate }} }
+                                    @case ('STRONG_COPYLEFT_PROPRIETARY') { {{ 'licenses.advice_strong_copyleft_proprietary' | translate }} }
+                                    @case ('STRONG_COPYLEFT_RECIPROCAL') { {{ 'licenses.advice_strong_copyleft_reciprocal' | translate }} }
+                                    @case ('WEAK_COPYLEFT') { {{ 'licenses.advice_weak_copyleft' | translate }} }
+                                    @case ('PERMISSIVE') { {{ 'licenses.advice_permissive' | translate }} }
+                                    @case ('UNKNOWN_LICENCE') { {{ 'licenses.advice_unknown' | translate }} }
+                                }
                             </td>
                         </tr>
                     </ng-template>
@@ -362,7 +389,19 @@
                         <td class="font-semibold text-xs">{{ rule.targetLicenseType }}</td>
                         <td><p-tag [value]="rule.dependencyLicenseCategory" [severity]="riskSeverity(rule.dependencyLicenseCategory)" /></td>
                         <td><p-tag [value]="rule.compatibility" [severity]="compatSeverity(rule.compatibility)" /></td>
-                        <td class="text-xs text-surface-600 dark:text-surface-300">{{ rule.ruleDescription }}</td>
+                        <td class="text-xs text-surface-600 dark:text-surface-300">
+                            @switch (rule.note) {
+                                @case ('PERMISSIVE_IN_PROPRIETARY') { {{ 'licenses.note_permissive_in_proprietary' | translate }} }
+                                @case ('WEAK_COPYLEFT_IN_PROPRIETARY') { {{ 'licenses.note_weak_copyleft_in_proprietary' | translate }} }
+                                @case ('STRONG_COPYLEFT_IN_PROPRIETARY') { {{ 'licenses.note_strong_copyleft_in_proprietary' | translate }} }
+                                @case ('FORBIDDEN_IN_PROPRIETARY') { {{ 'licenses.note_forbidden_in_proprietary' | translate }} }
+                                @case ('PERMISSIVE_IN_PERMISSIVE') { {{ 'licenses.note_permissive_in_permissive' | translate }} }
+                                @case ('WEAK_COPYLEFT_IN_PERMISSIVE') { {{ 'licenses.note_weak_copyleft_in_permissive' | translate }} }
+                                @case ('STRONG_COPYLEFT_IN_PERMISSIVE') { {{ 'licenses.note_strong_copyleft_in_permissive' | translate }} }
+                                @case ('PERMISSIVE_IN_GPL') { {{ 'licenses.note_permissive_in_gpl' | translate }} }
+                                @case ('STRONG_COPYLEFT_IN_GPL') { {{ 'licenses.note_strong_copyleft_in_gpl' | translate }} }
+                            }
+                        </td>
                     </tr>
                 </ng-template>
             </p-table>
