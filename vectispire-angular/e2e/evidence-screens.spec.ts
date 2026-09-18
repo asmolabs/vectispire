@@ -42,7 +42,7 @@ test.describe('Evidence screens', () => {
         severity: 'critical',
         target_kind: 'REPOSITORY',
         target_id: 7,
-        target_name: 'portail-client',
+        target_name: 'helios-portal',
         decision: 'not_affected',
         justification: 'vulnerable_code_not_in_execute_path',
         comment: null,

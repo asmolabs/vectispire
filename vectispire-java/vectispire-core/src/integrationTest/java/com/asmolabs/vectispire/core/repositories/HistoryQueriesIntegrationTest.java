@@ -96,7 +96,7 @@ class HistoryQueriesIntegrationTest {
         repositories.deleteAll();
 
         RepositoryEntity repository = new RepositoryEntity();
-        repository.setUrl("ssh://git@example.com/art/arm-libs-spring.git");
+        repository.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
         repository.setName("Arm Libs Spring");
         repository.setBranch("master");
         repositoryId = repositories.save(repository).getId();

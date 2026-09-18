@@ -160,7 +160,7 @@ test.describe('documentation screenshots', () => {
             await stub(page, '**/api/v1/exceptions*', {
                 entries: [{
                     issue_id: 41, identifier: 'CVE-2026-0001', severity: 'critical',
-                    target_kind: 'REPOSITORY', target_id: 7, target_name: 'portail-client',
+                    target_kind: 'REPOSITORY', target_id: 7, target_name: 'helios-portal',
                     decision: 'not_affected', justification: 'vulnerable_code_not_in_execute_path',
                     comment: null, actor: 'c.moreau', origin: 'manual',
                     decided_at: '2026-01-12T09:00:00Z', expires_at: '2026-08-12T00:00:00Z',
@@ -316,14 +316,14 @@ test.describe('documentation screenshots', () => {
                     {
                         issueId: 41, identifier: 'CVE-2021-44228', title: 'Log4Shell',
                         severity: 'critical', cvssScore: 10.0, epssScore: 0.975, epssPercentile: 0.999,
-                        isKev: true, reachability: 'REACHABLE', targetName: 'portail-client',
+                        isKev: true, reachability: 'REACHABLE', targetName: 'helios-portal',
                         targetKind: 'REPOSITORY', priorityScore: 98, priorityTier: 'CRITICAL_ARMED',
                         recommendedAction: 'P0_KEV_24H'
                     },
                     {
                         issueId: 42, identifier: 'CVE-2024-1086', title: 'Kernel use-after-free',
                         severity: 'high', cvssScore: 7.8, epssScore: 0.41, epssPercentile: 0.97,
-                        isKev: false, reachability: 'UNKNOWN', targetName: 'arm-libs',
+                        isKev: false, reachability: 'UNKNOWN', targetName: 'basalt-libs',
                         targetKind: 'REPOSITORY', priorityScore: 64, priorityTier: 'HIGH_PROBABLE',
                         recommendedAction: 'P1_7D'
                     }
@@ -341,17 +341,17 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             await stub(page, '**/api/v1/repositories*', [
-                { id: 5, name: 'portail-client', url: 'ssh://git@example.invalid/portail.git', branch: 'main' }
+                { id: 5, name: 'helios-portal', url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main' }
             ]);
             // The history the two pickers read. It replaced two number fields asking for internal
             // identifiers, so a capture showing dates is the whole point of the change.
             await stub(page, '**/api/v1/scans*', [
                 { id: 34, status: 'completed', branch: 'main', targetKind: 'REPOSITORY',
-                  targetName: 'portail-client', createdAt: '2026-09-17T21:04:00Z', durationMs: 91_000,
+                  targetName: 'helios-portal', createdAt: '2026-09-17T21:04:00Z', durationMs: 91_000,
                   findingsCount: 7, newIssuesCount: 1, resolvedIssuesCount: 3, error: null,
                   claimedBy: null, attempts: 1, targetId: 5 },
                 { id: 33, status: 'completed', branch: 'main', targetKind: 'REPOSITORY',
-                  targetName: 'portail-client', createdAt: '2026-09-10T21:03:00Z', durationMs: 88_000,
+                  targetName: 'helios-portal', createdAt: '2026-09-10T21:03:00Z', durationMs: 88_000,
                   findingsCount: 9, newIssuesCount: 0, resolvedIssuesCount: 0, error: null,
                   claimedBy: null, attempts: 1, targetId: 5 }
             ]);
@@ -361,7 +361,7 @@ test.describe('documentation screenshots', () => {
             // The comparison is the second tab; by position, because the label is translated.
             await page.getByRole('button').filter({ hasText: /SBOM|diff|comparaison/i }).first().click();
             await page.locator('#diff-target').click();
-            await page.getByRole('option').filter({ hasText: 'portail-client' }).first().click();
+            await page.getByRole('option').filter({ hasText: 'helios-portal' }).first().click();
 
             // The two most recent are preselected, so the screen answers "since last time" before
             // anybody clicks. A capture of two empty pickers would be a capture of the old defect.
@@ -377,13 +377,13 @@ test.describe('documentation screenshots', () => {
                            neverScannedCount: 1, lastScanFailedCount: 1 },
                 backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
                 failing: [
-                    { kind: 'repository', targetId: 5, name: 'portail-client', violations: [] },
+                    { kind: 'repository', targetId: 5, name: 'helios-portal', violations: [] },
                     { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', violations: [] }
                 ],
                 recentScans: [
-                    { id: 34, status: 'completed', targetKind: 'repository', targetName: 'portail-client',
+                    { id: 34, status: 'completed', targetKind: 'repository', targetName: 'helios-portal',
                       repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z' },
-                    { id: 33, status: 'failed', targetKind: 'repository', targetName: 'arm-libs',
+                    { id: 33, status: 'failed', targetKind: 'repository', targetName: 'basalt-libs',
                       repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-17T03:10:00Z' }
                 ]
             });
@@ -404,7 +404,7 @@ test.describe('documentation screenshots', () => {
             await enterApp(page, locale);
             await openScreen(page, '/dashboard');
 
-            await expect(page.getByText('portail-client').first()).toBeVisible({ timeout: 15_000 });
+            await expect(page.getByText('helios-portal').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'dashboard', locale);
         });
 
@@ -421,9 +421,9 @@ test.describe('documentation screenshots', () => {
             });
             await stub(page, '**/api/v1/issues*', {
                 items: [
-                    issue(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'portail-client'),
+                    issue(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'helios-portal'),
                     issue(42, 'CVE-2024-1086', 'high', 'linux-libc-dev', '6.1.0', 'registry.example/api:1.4'),
-                    issue(43, 'CVE-2023-44487', 'medium', 'netty-codec-http2', '4.1.94', 'arm-libs')
+                    issue(43, 'CVE-2023-44487', 'medium', 'netty-codec-http2', '4.1.94', 'basalt-libs')
                 ],
                 total: 412, limit: 25, offset: 0
             });
@@ -440,13 +440,13 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             await stub(page, '**/api/v1/repositories*', [
-                { id: 5, url: 'ssh://git@example.invalid/portail.git', branch: 'main',
-                  displayName: 'portail-client', name: 'portail-client', subPath: null }
+                { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
+                  displayName: 'helios-portal', name: 'helios-portal', subPath: null }
             ]);
             // Node notes and the scenario are tokens since this week: the graph and its narrative
             // are written by the screen, so the two editions differ throughout.
             const graph = {
-                targetId: 5, targetName: 'portail-client',
+                targetId: 5, targetName: 'helios-portal',
                 nodes: [
                     { id: 'ingress', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS',
                       severity: 'INFO', isExploitable: true, note: 'PUBLIC_INGRESS', metadata: {} },
@@ -488,13 +488,13 @@ test.describe('documentation screenshots', () => {
             // criticality is `tier`. Reading the contract is how a fixture stops being a second
             // opinion about the server.
             await stub(page, '**/api/v1/repositories*', [
-                { id: 5, url: 'ssh://git@example.invalid/portail.git', branch: 'main',
-                  displayName: 'portail-client', name: 'portail-client', subPath: null,
+                { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
+                  displayName: 'helios-portal', name: 'helios-portal', subPath: null,
                   openIssues: 214, tier: 'TIER_1', scanIntervalMinutes: 1440, scanCron: null,
                   sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-17T21:00:00Z',
                   lastScan: { id: 34, status: 'completed', createdAt: '2026-09-17T21:04:00Z', error: null } },
-                { id: 6, url: 'ssh://git@example.invalid/arm-libs.git', branch: 'master',
-                  displayName: 'arm-libs', name: 'arm-libs', subPath: null,
+                { id: 6, url: 'ssh://git@example.invalid/basalt-libs.git', branch: 'master',
+                  displayName: 'basalt-libs', name: 'basalt-libs', subPath: null,
                   openIssues: 37, tier: 'TIER_3', scanIntervalMinutes: null, scanCron: '0 3 * * *',
                   sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-16T03:00:00Z',
                   lastScan: { id: 30, status: 'failed', createdAt: '2026-09-16T03:11:00Z',
@@ -503,7 +503,7 @@ test.describe('documentation screenshots', () => {
             await enterApp(page, locale);
             await openScreen(page, '/repositories');
 
-            await expect(page.getByText('arm-libs').first()).toBeVisible({ timeout: 15_000 });
+            await expect(page.getByText('basalt-libs').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'repositories', locale);
         });
 
@@ -516,13 +516,13 @@ test.describe('documentation screenshots', () => {
                 totalCount: 4, failingCount: 1, kevCount: 1,
                 neverScannedCount: 1, lastScanFailedCount: 1,
                 targets: [
-                    { targetId: 5, kind: 'repository', name: 'portail-client', observed: true,
+                    { targetId: 5, kind: 'repository', name: 'helios-portal', observed: true,
                       passed: false, lastScanAt: '2026-09-17T21:04:00Z', lastScanId: 34,
                       observation: 'FRESH',
                       policy: { source: 'built-in', version: null },
                       verdict: { passed: false, evaluated: 412, violations: [],
                                  countsBySeverity: { CRITICAL: 1, HIGH: 3 } } },
-                    { targetId: 6, kind: 'repository', name: 'arm-libs', observed: true,
+                    { targetId: 6, kind: 'repository', name: 'basalt-libs', observed: true,
                       passed: true, lastScanAt: '2026-09-16T03:11:00Z', lastScanId: 30,
                       observation: 'STALE',
                       policy: { source: 'built-in', version: null },
@@ -577,7 +577,7 @@ test.describe('documentation screenshots', () => {
                 items: [
                     { id: '0195f3a1-0001', timestamp: '2026-09-17T21:06:00Z', userId: 'c.moreau',
                       operationType: 'TRIAGE_DECIDED', resourceId: 'issue:41',
-                      description: 'CVE-2021-44228 marked under review on portail-client',
+                      description: 'CVE-2021-44228 marked under review on helios-portal',
                       ipAddress: '10.0.2.14', userAgent: 'Mozilla/5.0',
                       entryHash: '9f2c…a71b', previousHash: '4d81…ee02' },
                     { id: '0195f3a1-0002', timestamp: '2026-09-17T20:41:00Z', userId: 'n.faure',

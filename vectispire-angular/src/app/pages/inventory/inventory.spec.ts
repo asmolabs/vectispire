@@ -125,7 +125,7 @@ describe('the component search', () => {
 
     /** A scan as the history returns it: newest first, and what the pickers read. */
     const scan = (id: number, when: string) => ({
-        id, status: 'completed', branch: 'main', targetKind: 'REPOSITORY', targetName: 'portail-client',
+        id, status: 'completed', branch: 'main', targetKind: 'REPOSITORY', targetName: 'helios-portal',
         createdAt: when, durationMs: 1200, findingsCount: 7, newIssuesCount: 0, resolvedIssuesCount: 0,
         error: null, claimedBy: null, attempts: 1, targetId: 5
     });

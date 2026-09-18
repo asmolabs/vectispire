@@ -169,12 +169,12 @@ describe('the OWASP report screen', () => {
             blocks: [{ kind: 'CATEGORY', level: 2, marker: null, text: 'A03 — Injection' }],
             error: null,
             scanId: 34,
-            inputs: '=== DATA ===\nRepository: arm-libs\nOpen findings: 2',
+            inputs: '=== DATA ===\nRepository: basalt-libs\nOpen findings: 2',
             createdAt: '2026-09-17T09:00:00Z'
         });
 
         const text = fixture.nativeElement.textContent as string;
-        expect(text).toContain('Repository: arm-libs');
+        expect(text).toContain('Repository: basalt-libs');
         // Said where a reader sees it, not only in the code: the prose is a commentary, and nothing
         // it asserts becomes a finding or reaches a gate.
         expect(text).toContain('nothing it asserts becomes an issue');

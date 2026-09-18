@@ -38,7 +38,7 @@ describe('the accounts screen', () => {
     });
 
     const TARGETS = asSchema('Targets', {
-        repositories: [{ id: 7, label: 'portail-client' }],
+        repositories: [{ id: 7, label: 'helios-portal' }],
         containers: [{ id: 3, label: 'registry/service:1.4' }]
     });
 

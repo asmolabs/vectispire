@@ -20,7 +20,7 @@ describe('the repository list', () => {
 
     const REPOSITORY = asSchema('RepositorySummary', {
             id: 5,
-            url: 'ssh://git@bitbucket.example.com/art/arm-libs-spring.git',
+            url: 'ssh://git@bitbucket.example.com/art/basalt-libs-spring.git',
             branch: 'master',
             name: null,
             displayName: 'Arm Libs Spring',
@@ -59,7 +59,7 @@ describe('the repository list', () => {
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Arm Libs Spring');
-        expect(text).toContain('ssh://git@bitbucket.example.com/art/arm-libs-spring.git');
+        expect(text).toContain('ssh://git@bitbucket.example.com/art/basalt-libs-spring.git');
         expect(text).toContain('master');
         expect(text).toContain('38 outstanding');
     });
