@@ -1,5 +1,7 @@
 # Inventaire et licences
 
+![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
+
 ## Inventaire
 
 L'inventaire, c'est le parc vu du côté des paquets plutôt que du côté des cibles : quels

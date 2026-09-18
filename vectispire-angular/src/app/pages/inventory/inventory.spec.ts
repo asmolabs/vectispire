@@ -123,57 +123,79 @@ describe('the component search', () => {
         expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(true);
     });
 
-    it('asks for the latest pair of scans, with no number to type', () => {
-        // **The question as it is asked.** It took typing two internal identifiers no screen
-        // displays prominently, when the server could already answer "what changed on this target
-        // since last time".
+    /** A scan as the history returns it: newest first, and what the pickers read. */
+    const scan = (id: number, when: string) => ({
+        id, status: 'completed', branch: 'main', targetKind: 'REPOSITORY', targetName: 'portail-client',
+        createdAt: when, durationMs: 1200, findingsCount: 7, newIssuesCount: 0, resolvedIssuesCount: 0,
+        error: null, claimedBy: null, attempts: 1, targetId: 5
+    });
+
+    it('offers the target\'s own scans, and preselects the last two', () => {
+        // **The question as it is asked.** This screen took two internal identifiers — `ex: 10`,
+        // `ex: 12` — that no screen displays prominently, for a question that is almost always
+        // "what changed since last time". The server had listed a target's scans all along.
         const page = fixture.componentInstance;
         page.diffTarget = 'repo:5';
-        page.runLatestDiff();
+        page.onTargetChosen();
 
-        const call = http.expectOne((request) => request.url.includes('/sbom/diff/latest'));
-        expect(call.request.params.get('repoId')).toBe('5');
-        expect(call.request.params.get('containerId')).toBeNull();
-        call.flush({ fromScanId: 33, toScanId: 34, addedCount: 2, removedCount: 0, componentDeltas: [], cveDeltas: [] });
+        const call = http.expectOne((request) => request.url.includes('/api/v1/scans'));
+        expect(call.request.params.get('repo_id')).toBe('5');
+        expect(call.request.params.get('container_id')).toBeNull();
+        call.flush([scan(34, '2026-09-18T09:00:00Z'), scan(33, '2026-09-17T09:00:00Z')]);
         fixture.detectChanges();
 
-        expect(page.diffReport()?.toScanId).toBe(34);
+        // Newest into "to", the one before it into "from": the common case is answered by opening
+        // the screen rather than by a second click.
+        expect(page.toScanId).toBe(34);
+        expect(page.fromScanId).toBe(33);
+        expect(page.diffError()).toBeNull();
     });
 
-    it('carries the target\'s kind, an image not being compared like a repository', () => {
+    it('carries the target\'s kind, an image not being listed like a repository', () => {
         const page = fixture.componentInstance;
         page.diffTarget = 'container:3';
-        page.runLatestDiff();
+        page.onTargetChosen();
 
-        const call = http.expectOne((request) => request.url.includes('/sbom/diff/latest'));
-        expect(call.request.params.get('containerId')).toBe('3');
-        expect(call.request.params.get('repoId')).toBeNull();
-        call.flush({ fromScanId: 1, toScanId: 2, addedCount: 0, componentDeltas: [], cveDeltas: [] });
+        const call = http.expectOne((request) => request.url.includes('/api/v1/scans'));
+        expect(call.request.params.get('container_id')).toBe('3');
+        expect(call.request.params.get('repo_id')).toBeNull();
+        call.flush([]);
     });
 
-    it('tells "nothing to compare" apart from "the calculation failed"', () => {
-        // A target scanned only once has no pair. Returning the same error as a server that is down
-        // would send somebody looking for a failure that does not exist.
+    it('tells "nothing to compare" apart from "the listing failed"', () => {
+        // A target scanned once has no pair. Saying so is a different sentence from a server that
+        // is down, and only one of the two is about this repository.
         const page = fixture.componentInstance;
         page.diffTarget = 'repo:5';
-        page.runLatestDiff();
-        http.expectOne((request) => request.url.includes('/sbom/diff/latest'))
-            .flush(null, { status: 404, statusText: 'Not Found' });
+        page.onTargetChosen();
+        http.expectOne((request) => request.url.includes('/api/v1/scans'))
+            .flush([scan(34, '2026-09-18T09:00:00Z')]);
         fixture.detectChanges();
 
         expect(page.diffError()).toContain('nothing to compare yet');
+        expect(page.fromScanId).toBeNull();
 
-        page.runLatestDiff();
-        http.expectOne((request) => request.url.includes('/sbom/diff/latest'))
+        page.onTargetChosen();
+        http.expectOne((request) => request.url.includes('/api/v1/scans'))
             .flush(null, { status: 500, statusText: 'Server Error' });
         fixture.detectChanges();
 
         expect(page.diffError()).toContain('could not be computed');
     });
 
-    it("ne demande rien tant qu'aucune cible n'est choisie", () => {
-        fixture.componentInstance.runLatestDiff();
+    it('asks for nothing until a target is chosen', () => {
+        fixture.componentInstance.diffTarget = '';
+        fixture.componentInstance.onTargetChosen();
 
-        http.expectNone((request) => request.url.includes('/sbom/diff/latest'));
+        http.expectNone((request) => request.url.includes('/api/v1/scans'));
+    });
+
+    it('reads a scan as a date a human recognises, with its number kept at the end', () => {
+        // The identifier stays because it is what the API takes and what a support conversation
+        // quotes; it is simply no longer the only thing on offer.
+        const label = fixture.componentInstance.scanLabel(scan(34, '2026-09-18T09:00:00Z'));
+
+        expect(label).toContain('#34');
+        expect(label).toContain('main');
     });
 });

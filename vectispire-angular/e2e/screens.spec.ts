@@ -321,4 +321,36 @@ test.describe('documentation screenshots', () => {
             await shoot(page, 'epss', locale);
         });
 
+
+        test('SBOM comparison', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/repositories*', [
+                { id: 5, name: 'portail-client', url: 'ssh://git@example.invalid/portail.git', branch: 'main' }
+            ]);
+            // The history the two pickers read. It replaced two number fields asking for internal
+            // identifiers, so a capture showing dates is the whole point of the change.
+            await stub(page, '**/api/v1/scans*', [
+                { id: 34, status: 'completed', branch: 'main', targetKind: 'REPOSITORY',
+                  targetName: 'portail-client', createdAt: '2026-09-17T21:04:00Z', durationMs: 91_000,
+                  findingsCount: 7, newIssuesCount: 1, resolvedIssuesCount: 3, error: null,
+                  claimedBy: null, attempts: 1, targetId: 5 },
+                { id: 33, status: 'completed', branch: 'main', targetKind: 'REPOSITORY',
+                  targetName: 'portail-client', createdAt: '2026-09-10T21:03:00Z', durationMs: 88_000,
+                  findingsCount: 9, newIssuesCount: 0, resolvedIssuesCount: 0, error: null,
+                  claimedBy: null, attempts: 1, targetId: 5 }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/inventory');
+
+            // The comparison is the second tab; by position, because the label is translated.
+            await page.getByRole('button').filter({ hasText: /SBOM|diff|comparaison/i }).first().click();
+            await page.locator('#diff-target').click();
+            await page.getByRole('option').filter({ hasText: 'portail-client' }).first().click();
+
+            // The two most recent are preselected, so the screen answers "since last time" before
+            // anybody clicks. A capture of two empty pickers would be a capture of the old defect.
+            await expect(page.getByText('#34').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'sbom-comparison', locale);
+        });
     });

@@ -744,6 +744,7 @@
     "diff_new_components": "New components",
     "diff_new_version": "New version",
     "diff_old_version": "Old version",
+    "diff_pick_scan": "Pick a scan",
     "diff_pick_target": "Pick a repository or an image",
     "diff_since_last": "Since the previous scan",
     "diff_target": "Target",

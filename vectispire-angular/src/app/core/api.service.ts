@@ -57,6 +57,7 @@ import {
     OwaspReport,
     HistoryRepository,
     ScanDetail,
+    ScanSummary,
     SecurityOverview,
     ComplianceSummary,
     MfaSetupResponse,
@@ -802,11 +803,24 @@ export class ApiService {
         return this.http.get<SbomDiffReport>('/api/v1/sbom/diff', { params });
     }
 
-    getLatestSbomDiff(repoId?: number, containerId?: number): Observable<SbomDiffReport> {
-        let params = new HttpParams();
-        if (repoId) params = params.set('repoId', repoId);
-        if (containerId) params = params.set('containerId', containerId);
-        return this.http.get<SbomDiffReport>('/api/v1/sbom/diff/latest', { params });
+    /**
+     * A target's scan history, newest first.
+     *
+     * <p><b>The server has answered this since before the client asked.</b> `GET /api/v1/scans`
+     * takes `repo_id` or `container_id` and returns the summaries — id, date, branch, status,
+     * findings — and no screen called it. The SBOM comparison therefore asked its reader for two
+     * scan numbers that nothing displays prominently, which is a way of saying it asked them to
+     * read the database.
+     *
+     * <p>The limit is a plain bound rather than a paging cursor: this feeds a picker, and a picker
+     * that needs a second page is a picker nobody can use. Fifty is what a target scanned nightly
+     * accumulates in under two months, and the server caps it regardless.
+     */
+    scansOf(repoId?: number, containerId?: number, limit = 50): Observable<ScanSummary[]> {
+        let params = new HttpParams().set('limit', limit);
+        if (repoId) params = params.set('repo_id', repoId);
+        if (containerId) params = params.set('container_id', containerId);
+        return this.http.get<ScanSummary[]>('/api/v1/scans', { params });
     }
 
     getSecurityDebt(repoId?: number, containerId?: number): Observable<SecurityDebtReport> {

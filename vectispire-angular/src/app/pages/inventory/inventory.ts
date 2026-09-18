@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -10,7 +10,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ApiService } from '../../core/api.service';
 import { I18nService } from '../../core/i18n/i18n.service';
-import type { InventoryOccurrence, MonitoredContainer, MonitoredRepository, SbomDiffReport } from '../../core/api.models';
+import type { InventoryOccurrence, MonitoredContainer, MonitoredRepository, SbomDiffReport, ScanSummary } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
@@ -47,6 +47,17 @@ export class Inventory {
      */
     fromScanId: number | null = null;
     toScanId: number | null = null;
+    /**
+     * The chosen target's scans, newest first — what the two pickers offer.
+     *
+     * <p><b>This screen used to ask for two scan numbers.</b> `ex: 10`, `ex: 12`: internal
+     * identifiers no screen displays prominently, for a question that is almost always "what
+     * changed since last time". The server has listed a target's scans all along and nothing
+     * called it.
+     */
+    readonly scans = signal<ScanSummary[]>([]);
+    readonly scansLoading = signal(false);
+
     readonly diffReport = signal<SbomDiffReport | null>(null);
     readonly diffLoading = signal(false);
     readonly diffError = signal<string | null>(null);
@@ -56,8 +67,9 @@ export class Inventory {
     diffTarget = '';
 
     constructor() {
-        // Loaded separately: being unable to list them leaves the comparison by number, which was
-        // until now the only path.
+        // Loaded separately, and the comparison cannot start without them: picking a target is now
+        // the first move rather than an alternative to typing two scan numbers. A failure here
+        // leaves the search tab working, which is the other half of this screen.
         this.api.repositories().subscribe({
             next: (repositories: MonitoredRepository[]) => this.addTargets(
                 repositories.map((repository) => ({
@@ -102,34 +114,62 @@ export class Inventory {
     }
 
     /**
-     * What changed on a target since its second-to-last scan.
+     * Loads the target's scans and offers its two most recent, in that order.
      *
-     * <p>The refusal carries its cause: a target scanned only once has nothing to compare, and that
-     * is a different sentence from "the calculation failed". Without it, the screen returns the
-     * same error for a new repository and for a server that is down.
+     * <p><b>The common case is answered before anybody clicks.</b> "What changed since last time"
+     * is what this screen is opened for; preselecting the last two makes it the default rather
+     * than a second action, and the pickers are there for the other question — between the version
+     * we shipped and the one before.
+     *
+     * <p>A target with a single scan has no pair. The screen says so rather than leaving two empty
+     * pickers, because "nothing to compare" and "the comparison failed" are different sentences
+     * and only one of them is about this repository.
      */
-    runLatestDiff(): void {
+    onTargetChosen(): void {
+        this.scans.set([]);
+        this.fromScanId = null;
+        this.toScanId = null;
+        this.diffReport.set(null);
+        this.diffError.set(null);
         if (!this.diffTarget) return;
 
         const [kind, id] = this.diffTarget.split(':');
-        this.diffLoading.set(true);
-        this.diffError.set(null);
-        this.diffReport.set(null);
-
-        this.api.getLatestSbomDiff(
+        this.scansLoading.set(true);
+        this.api.scansOf(
                 kind === 'repo' ? Number(id) : undefined,
                 kind === 'container' ? Number(id) : undefined)
             .subscribe({
-                next: (report) => {
-                    this.diffReport.set(report);
-                    this.diffLoading.set(false);
+                next: (history) => {
+                    this.scans.set(history);
+                    this.scansLoading.set(false);
+                    if (history.length >= 2) {
+                        this.toScanId = history[0].id;
+                        this.fromScanId = history[1].id;
+                    } else {
+                        this.diffError.set(this.i18n.t('inventory.diff_needs_two_scans'));
+                    }
                 },
-                error: (response: { status?: number }) => {
-                    this.diffLoading.set(false);
-                    this.diffError.set(this.i18n.t(
-                        response?.status === 404 ? 'inventory.diff_needs_two_scans' : 'inventory.diff_failed'));
+                error: () => {
+                    this.scansLoading.set(false);
+                    this.diffError.set(this.i18n.t('inventory.diff_failed'));
                 }
             });
+    }
+
+    /**
+     * How a scan reads in the pickers: the date first, because that is what a reader recognises.
+     *
+     * <p>The identifier is kept at the end rather than dropped. It is what the API takes, what a
+     * support conversation quotes, and the only thing that tells two scans of the same minute
+     * apart.
+     */
+    readonly scanOptions = computed(() =>
+        this.scans().map((scan) => ({ label: this.scanLabel(scan), value: scan.id })));
+
+    scanLabel(scan: ScanSummary): string {
+        const when = scan.createdAt ? new Date(scan.createdAt).toLocaleString() : '—';
+        const branch = scan.branch ? ` · ${scan.branch}` : '';
+        return `${when}${branch} · ${scan.findingsCount ?? 0} · #${scan.id}`;
     }
 
     runDiff(): void {

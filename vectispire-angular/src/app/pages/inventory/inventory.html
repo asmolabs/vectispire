@@ -68,23 +68,35 @@
                 <label for="diff-target" class="text-xs text-muted-color font-semibold">{{ 'inventory.diff_target' | translate }}</label>
                 <p-select inputId="diff-target" [options]="targets()" optionLabel="label" optionValue="value"
                           [(ngModel)]="diffTarget" [filter]="true" [showClear]="true"
+                          (onChange)="onTargetChosen()" (onClear)="onTargetChosen()"
                           [placeholder]="'inventory.diff_pick_target' | translate" styleClass="w-full sm:w-80" />
             </div>
-            <p-button [label]="'inventory.diff_since_last' | translate" icon="pi pi-history"
-                      [disabled]="!diffTarget" [loading]="diffLoading()" (onClick)="runLatestDiff()" />
-        </div>
 
-        <div class="flex flex-wrap items-end gap-3 mt-3 p-4 bg-surface-50 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-700">
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-muted-color font-semibold">{{ 'inventory.diff_from' | translate }}</label>
-                <input pInputText type="number" [(ngModel)]="fromScanId" placeholder="ex: 10" class="w-40" />
-            </div>
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-muted-color font-semibold">{{ 'inventory.diff_to' | translate }}</label>
-                <input pInputText type="number" [(ngModel)]="toScanId" placeholder="ex: 12" class="w-40" />
-            </div>
-            <p-button [label]="'inventory.diff_compare' | translate" icon="pi pi-bolt" [outlined]="true"
-                      (onClick)="runDiff()" [loading]="diffLoading()" />
+            <!--
+                **The two scans are chosen from the target's own history, not typed.** These were
+                two number fields — `ex: 10`, `ex: 12` — asking for identifiers no screen displays
+                prominently. The server has listed a target's scans all along; nothing called it.
+
+                They are preselected on the two most recent, so "what changed since last time" is
+                answered by opening the screen rather than by a second button.
+            -->
+            @if (diffTarget) {
+                <div class="flex flex-col gap-1">
+                    <label for="diff-from" class="text-xs text-muted-color font-semibold">{{ 'inventory.diff_from' | translate }}</label>
+                    <p-select inputId="diff-from" [options]="scanOptions()" optionLabel="label" optionValue="value"
+                              [(ngModel)]="fromScanId" [loading]="scansLoading()"
+                              [placeholder]="'inventory.diff_pick_scan' | translate" styleClass="w-full sm:w-72" />
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="diff-to" class="text-xs text-muted-color font-semibold">{{ 'inventory.diff_to' | translate }}</label>
+                    <p-select inputId="diff-to" [options]="scanOptions()" optionLabel="label" optionValue="value"
+                              [(ngModel)]="toScanId" [loading]="scansLoading()"
+                              [placeholder]="'inventory.diff_pick_scan' | translate" styleClass="w-full sm:w-72" />
+                </div>
+                <p-button [label]="'inventory.diff_compare' | translate" icon="pi pi-bolt"
+                          [disabled]="!fromScanId || !toScanId || fromScanId === toScanId"
+                          (onClick)="runDiff()" [loading]="diffLoading()" />
+            }
         </div>
 
         @if (diffError(); as err) {

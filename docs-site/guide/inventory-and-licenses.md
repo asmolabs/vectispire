@@ -1,5 +1,7 @@
 # Inventory and licenses
 
+![The SBOM comparison: a target chosen first, then its own scans offered by date, with the two most recent already selected.](../assets/screens/en/sbom-comparison.png)
+
 ## Inventory
 
 The inventory is the estate seen from the package side rather than the target side: which
