@@ -65,7 +65,11 @@ async function stubEverything(page: Page): Promise<void> {
     // below it and serve `{}` to screens that need data.
     await page.route('**/api/v1/**', (route) => {
         const url = route.request().url();
-        const list = /\/(repositories|containers|issues|agents|teams|users|scans|rule-sets)(\?|$)/.test(url);
+        // **A collection answered as an object breaks the page before it renders.** `ssh-keys` was
+        // missing from this list, so the repositories screen — which loads them for its form —
+        // received `{}`, and the table never appeared while the heading did. The fixture was not
+        // at fault; this line was.
+        const list = /\/(repositories|containers|issues|agents|teams|users|scans|rule-sets|ssh-keys|api-keys|gate-policies|notifications|exceptions|verdicts|keys)(\?|\/|$)/.test(url);
         return route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -463,5 +467,124 @@ test.describe('documentation screenshots', () => {
 
             await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'attack-paths', locale);
+        });
+
+        test('repositories', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **Shaped from `openapi.json`, not from memory.** A first attempt guessed the fields
+            // and the table never rendered: `openIssues` is required and was missing, and the
+            // criticality is `tier`. Reading the contract is how a fixture stops being a second
+            // opinion about the server.
+            await stub(page, '**/api/v1/repositories*', [
+                { id: 5, url: 'ssh://git@example.invalid/portail.git', branch: 'main',
+                  displayName: 'portail-client', name: 'portail-client', subPath: null,
+                  openIssues: 214, tier: 'TIER_1', scanIntervalMinutes: 1440, scanCron: null,
+                  sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-17T21:00:00Z',
+                  lastScan: { id: 34, status: 'completed', createdAt: '2026-09-17T21:04:00Z', error: null } },
+                { id: 6, url: 'ssh://git@example.invalid/arm-libs.git', branch: 'master',
+                  displayName: 'arm-libs', name: 'arm-libs', subPath: null,
+                  openIssues: 37, tier: 'TIER_3', scanIntervalMinutes: null, scanCron: '0 3 * * *',
+                  sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-16T03:00:00Z',
+                  lastScan: { id: 30, status: 'failed', createdAt: '2026-09-16T03:11:00Z',
+                              error: 'clone refused' } }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/repositories');
+
+            await expect(page.getByText('arm-libs').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'repositories', locale);
+        });
+
+        test('security overview', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // The two cases no other screen names: a target never scanned, and one whose last scan
+            // failed. Both are green everywhere else, which is the point of this page.
+            await stub(page, '**/api/v1/security/overview*', {
+                totalCount: 4, failingCount: 1, kevCount: 1,
+                neverScannedCount: 1, lastScanFailedCount: 1,
+                targets: [
+                    { targetId: 5, kind: 'repository', name: 'portail-client', observed: true,
+                      passed: false, lastScanAt: '2026-09-17T21:04:00Z', lastScanId: 34,
+                      observation: 'FRESH',
+                      policy: { source: 'built-in', version: null },
+                      verdict: { passed: false, evaluated: 412, violations: [],
+                                 countsBySeverity: { CRITICAL: 1, HIGH: 3 } } },
+                    { targetId: 6, kind: 'repository', name: 'arm-libs', observed: true,
+                      passed: true, lastScanAt: '2026-09-16T03:11:00Z', lastScanId: 30,
+                      observation: 'STALE',
+                      policy: { source: 'built-in', version: null },
+                      verdict: { passed: true, evaluated: 37, violations: [], countsBySeverity: {} } },
+                    { targetId: 7, kind: 'repository', name: 'billing-legacy', observed: false,
+                      passed: true, lastScanAt: null, lastScanId: null,
+                      observation: 'NEVER_SCANNED',
+                      policy: { source: 'built-in', version: null }, verdict: null }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/security');
+
+            await expect(page.getByText('billing-legacy').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'security-overview', locale);
+        });
+
+        test('gate verdicts', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // A refusal is the only proof a control runs: "everything passes" does not tell a clean
+            // estate from a gate that never blocked anything.
+            await stub(page, '**/api/v1/gate/verdicts*', {
+                passed: 128, refused: 6, next_cursor: null,
+                verdicts: [
+                    { id: '0195f3a1-8a2b-7c4d-9e1f-2a3b4c5d6e7f', target_kind: 'repository', target_id: 5,
+                      passed: false, evaluated: 412, violations: 4, fail_on_severity: 'high',
+                      policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
+                      counts_by_severity: { CRITICAL: 1, HIGH: 3 },
+                      decided_at: '2026-09-17T21:05:00Z', decided_by: 'ci' },
+                    { id: '0195f3a1-8a2b-7c4d-9e1f-2a3b4c5d6e80', target_kind: 'repository', target_id: 6,
+                      passed: true, evaluated: 37, violations: 0, fail_on_severity: 'high',
+                      policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
+                      counts_by_severity: {},
+                      decided_at: '2026-09-16T03:12:00Z', decided_by: 'ci' }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/gate-verdicts');
+
+            await expect(page.getByText('412').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'gate-verdicts', locale);
+        });
+
+        test('audit log', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // Each entry carries the hash of the one before it, which is what makes a deletion
+            // visible rather than merely forbidden.
+            await stub(page, '**/api/v1/audit-log*', {
+                total: 3, limit: 25, offset: 0,
+                items: [
+                    { id: '0195f3a1-0001', timestamp: '2026-09-17T21:06:00Z', userId: 'c.moreau',
+                      operationType: 'TRIAGE_DECIDED', resourceId: 'issue:41',
+                      description: 'CVE-2021-44228 marked under review on portail-client',
+                      ipAddress: '10.0.2.14', userAgent: 'Mozilla/5.0',
+                      entryHash: '9f2c…a71b', previousHash: '4d81…ee02' },
+                    { id: '0195f3a1-0002', timestamp: '2026-09-17T20:41:00Z', userId: 'n.faure',
+                      operationType: 'SETTING_CHANGED', resourceId: 'four_eyes_approval_required',
+                      description: 'Four-eyes approval switched on',
+                      ipAddress: '10.0.2.9', userAgent: 'Mozilla/5.0',
+                      entryHash: '4d81…ee02', previousHash: '1a05…77c3' },
+                    { id: '0195f3a1-0003', timestamp: '2026-09-17T19:02:00Z', userId: 'ci',
+                      operationType: 'GATE_EVALUATED', resourceId: 'repository:5',
+                      description: 'Gate refused: 4 violations above high',
+                      ipAddress: '10.0.9.3', userAgent: 'vectispire-cli/0.9.0',
+                      entryHash: '1a05…77c3', previousHash: null }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/audit-log');
+
+            await expect(page.getByText('c.moreau').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'audit-log', locale);
         });
     });

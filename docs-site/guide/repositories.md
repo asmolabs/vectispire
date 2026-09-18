@@ -3,6 +3,8 @@
 A repository is a scan target: a clone URL, a branch, optionally a sub-path, and a
 recurrence.
 
+![The repositories list: two targets with their branch, criticality tier, open findings and the state of their last scan.](../assets/screens/en/repositories.png)
+
 ## Registering one
 
 **Repositories → add.**

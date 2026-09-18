@@ -7,6 +7,8 @@ Un registre immuable et chaîné par empreintes de ce qui a été fait, et par q
     nulle part. Avant que ce rôle existe, ouvrir le journal d'audit à quelqu'un revenait à lui
     donner aussi le droit de réécrire la politique qu'il venait vérifier.
 
+![Le journal d'audit : trois entrées, chacune portant l'empreinte de la précédente.](../assets/screens/fr/audit-log.png)
+
 ## Pourquoi une chaîne
 
 Chaque entrée est chaînée à la précédente, si bien qu'une entrée ne peut être modifiée ou

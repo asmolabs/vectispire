@@ -3,6 +3,8 @@
 Un dépôt est une cible de scan : une URL de clonage, une branche, éventuellement un
 sous-chemin, et une récurrence.
 
+![La liste des dépôts : deux cibles avec leur branche, leur palier de criticité, leurs constats ouverts et l'état de leur dernier scan.](../assets/screens/fr/repositories.png)
+
 ## En enregistrer un
 
 **Dépôts → ajouter.**
