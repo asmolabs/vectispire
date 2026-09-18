@@ -23,8 +23,8 @@
         </div>
 
         @if (!loaded().length) {
-            <!-- Un en-tête de tableau sans lignes est du mobilier mort : il demande au lecteur de
-                 parcourir six colonnes pour découvrir qu'elles sont vides. -->
+            <!-- A table header with no rows is dead furniture: it asks the reader to scan six
+                 columns to discover they are empty. -->
             <p class="text-muted-color py-6">{{ 'exceptions.empty' | translate }}</p>
         } @else {
         <div class="overflow-x-auto">

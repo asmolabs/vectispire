@@ -1,36 +1,35 @@
 import { DestroyRef, Signal, effect, inject } from '@angular/core';
 
-/** Les statuts de scan qui n'ont pas fini de bouger. Tout le reste est réglé. */
+/** The scan statuses that have not finished moving. Everything else is settled. */
 export const UNSETTLED_SCAN_STATUSES: readonly string[] = ['pending', 'scanning'];
 
-/** True dès qu'un des scans passés n'a pas fini. */
+/** True as soon as one of the scans passed in has not finished. */
 export function anyScanRunning(scans: readonly ({ status?: string } | null | undefined)[]): boolean {
     return scans.some((s) => !!s && UNSETTLED_SCAN_STATUSES.includes((s.status ?? '').toLowerCase()));
 }
 
 /**
- * Rafraîchit un écran <b>tant que quelque chose bouge</b>, et se tait dès que c'est fini.
+ * Refreshes a screen <b>as long as something is moving</b>, and goes quiet once it is over.
  *
- * <p><b>Pourquoi pas un flux SSE.</b> Le jeton de session vit en mémoire et non dans un cookie —
- * un choix délibéré de {@code SessionStore} — or {@code EventSource} ne sait pas poser d'en-tête
- * {@code Authorization} : il faudrait le porteur dans l'URL, donc dans les journaux d'accès et les
- * proxys. S'y ajoutent deux coûts que la pastille de statut ne justifie pas : un flux est épinglé à
- * une instance alors que le plan de contrôle en supporte plusieurs, et il faudrait le filtrer par
- * abonné à travers {@code VisibilityService}, sur une surface que les tests de routes ne voient
- * pas. Ce que l'on regarde change trois fois en dix minutes ; c'est un problème d'attente sur une
- * page, pas de donnée vivante.
+ * <p><b>Why not an SSE stream.</b> The session token lives in memory rather than in a cookie — a
+ * deliberate choice of {@code SessionStore} — and {@code EventSource} cannot set an
+ * {@code Authorization} header: the bearer would have to go in the URL, and therefore into access
+ * logs and proxies. On top of that come two costs a status pill does not justify: a stream is
+ * pinned to one instance although the control plane supports several, and it would have to be
+ * filtered per subscriber through {@code VisibilityService}, on a surface the route tests do not
+ * see. What is being watched changes three times in ten minutes; this is a problem of waiting on a
+ * page, not of live data.
  *
- * <p><b>Conditionnel, et c'est tout l'intérêt.</b> L'écran des agents interrogeait le serveur
- * toutes les cinq secondes en permanence — 720 requêtes par heure et par onglet ouvert, sur un parc
- * au repos. Le compteur ne redémarre ici que lorsque {@code active} redevient vrai, donc un parc
- * qui ne fait rien ne coûte rien.
+ * <p><b>Conditional, and that is the whole point.</b> The agents screen queried the server every
+ * five seconds permanently — 720 requests an hour per open tab, on an idle estate. The timer only
+ * restarts here when {@code active} becomes true again, so an estate doing nothing costs nothing.
  *
- * <p>À appeler dans un contexte d'injection. Le nettoyage suit la destruction du composant : un
- * intervalle qui survit à son écran continue d'appeler le serveur pour personne.
+ * <p>To be called in an injection context. Clean-up follows the component's destruction: an
+ * interval that outlives its screen goes on calling the server for nobody.
  *
- * @param active vrai tant qu'il reste quelque chose à attendre
- * @param refresh ce qu'il faut relire ; jamais appelé immédiatement, l'écran vient de charger
- * @param everyMs le pas, généreux par défaut : un scan dure des minutes, pas des millisecondes
+ * @param active true as long as there is something left to wait for
+ * @param refresh what to read again; never called immediately, the screen has just loaded
+ * @param everyMs the step, generous by default: a scan takes minutes, not milliseconds
  */
 export function pollWhile(active: Signal<boolean>, refresh: () => void, everyMs = 5000): void {
     const destroyRef = inject(DestroyRef);
@@ -44,7 +43,7 @@ export function pollWhile(active: Signal<boolean>, refresh: () => void, everyMs 
     };
 
     effect(() => {
-        // Lu dans l'effet : c'est ce qui fait redémarrer le compteur quand un scan est relancé.
+        // Read inside the effect: it is what restarts the timer when a scan is launched again.
         if (active()) {
             if (handle === null) {
                 handle = setInterval(refresh, everyMs);

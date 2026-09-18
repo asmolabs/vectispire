@@ -88,15 +88,15 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">
                     <!--
-                        aria-label sur les trois, parce que le libellé visible n'existe pas.
-                        La feuille de style masque sans condition le texte de ces boutons
-                        (.layout-topbar-action span { display: none }) : ils n'ont donc aucun nom
-                        accessible, et une aide à la lecture d'écran en annonce trois sans les
-                        distinguer — dont celui qui ferme la session. Les boutons voisins de cette
-                        même barre en portent déjà un ; ceux-ci l'avaient perdu en passant du
-                        libellé en dur au gabarit traduit. Le span reste : c'est lui que la feuille
-                        de style montrera le jour où elle cessera de le cacher, et les deux disent
-                        la même chose puisqu'ils lisent la même clé.
+                        aria-label on all three, because the visible label does not exist. The
+                        stylesheet unconditionally hides the text of these buttons
+                        (.layout-topbar-action span { display: none }): they therefore have no
+                        accessible name, and a screen reader announces three of them without telling
+                        them apart — including the one that ends the session. The neighbouring
+                        buttons on this same bar already carry one; these had lost it in the move
+                        from a hard-coded label to the translated template. The span stays: it is
+                        what the stylesheet will show the day it stops hiding it, and the two say
+                        the same thing since they read the same key.
                     -->
                     <button type="button" class="layout-topbar-action" routerLink="/account"
                             [attr.aria-label]="'topbar.account' | translate">
@@ -128,26 +128,25 @@ export class AppTopbar {
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
 
-    /** Le temps de l'aller-retour, pour qu'un second clic n'ouvre pas une seconde révocation. */
+    /** For the duration of the round trip, so a second click does not open a second revocation. */
     readonly signingOut = signal(false);
 
     /**
-     * Fermer la session, pour de vrai.
+     * Ending the session, for real.
      *
-     * <p><b>Ce bouton n'a jamais rien fait.</b> Il portait l'icône, le libellé traduit et aucun
-     * gestionnaire : on cliquait, la page ne bougeait pas, le jeton restait en mémoire et la
-     * session restait ouverte côté serveur. C'est le pire cas de figure pour un contrôle de
-     * sécurité — absent est visible, inerte ne l'est pas — et sur un poste partagé, le suivant
-     * n'avait qu'à revenir en arrière.
+     * <p><b>This button never did anything.</b> It carried the icon, the translated label and no
+     * handler: you clicked, the page did not move, the token stayed in memory and the session
+     * stayed open on the server. That is the worst case for a security control — absent is visible,
+     * inert is not — and on a shared workstation, the next person only had to go back.
      *
-     * <p><b>La session locale se ferme quoi qu'il arrive, même si le serveur n'a pas répondu.</b>
-     * L'ordre importe : si l'échec réseau laissait l'utilisateur connecté dans son navigateur, le
-     * bouton mentirait à nouveau, et cette fois seulement de temps en temps. Le jeton est en
-     * mémoire — le fermer ici le rend inutilisable pour ce navigateur ; ce qui peut survivre à un
-     * réseau coupé est la ligne de session côté serveur, que son expiration finit par emporter.
+     * <p><b>The local session closes whatever happens, even if the server did not answer.</b> The
+     * order matters: if a network failure left the user signed in in their browser, the button
+     * would lie again, and this time only occasionally. The token is in memory — closing it here
+     * makes it unusable for this browser; what can survive a broken network is the session row on
+     * the server, which its expiry eventually carries away.
      *
-     * <p>`replaceUrl`, comme dans l'intercepteur : la page quittée ne doit pas rester dans
-     * l'historique, sans quoi le bouton « précédent » ramène un écran vide.
+     * <p>`replaceUrl`, as in the interceptor: the page being left must not stay in the history,
+     * without which the "back" button brings back an empty screen.
      */
     signOut(): void {
         if (this.signingOut()) return;

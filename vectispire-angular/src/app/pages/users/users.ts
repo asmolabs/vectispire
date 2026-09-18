@@ -60,13 +60,12 @@ export class Users {
     resetPassword = '';
 
     /**
-     * La visibilité, compte par compte.
+     * Visibility, account by account.
      *
-     * <p><b>Cette moitié du modèle n'était administrable que par l'API.</b>
-     * {@code VisibilityService} lit les affectations directes pour décider de ce qu'un compte
-     * voit — c'est le champ de lecture de l'application entière — et les équipes avaient leur
-     * écran quand les comptes n'en avaient pas. Restreindre quelqu'un demandait un `curl`, ce qui
-     * revient à ne pas offrir la restriction du tout.
+     * <p><b>This half of the model could only be administered through the API.</b>
+     * {@code VisibilityService} reads the direct assignments to decide what an account sees — it is
+     * the read scope of the entire application — and teams had their screen when accounts had none.
+     * Restricting somebody took a `curl`, which amounts to not offering the restriction at all.
      */
     readonly accessVisible = signal(false);
     readonly accessUser = signal<UserSummary | null>(null);
@@ -74,12 +73,12 @@ export class Users {
     selectedTargets: string[] = [];
 
     /**
-     * Le mode de visibilité du déploiement, lu pour pouvoir se dénoncer.
+     * The deployment's visibility mode, read so the screen can denounce itself.
      *
-     * <p>En mode {@code everyone}, tout compte connecté voit tout le parc et ces affectations ne
-     * décident de rien. Un écran qui laisserait cocher des cibles sans le dire ferait croire à
-     * une restriction posée ; c'est la même faute que l'ordre de travail qui n'expliquait pas son
-     * unique ligne.
+     * <p>In {@code everyone} mode, every signed-in account sees the whole estate and these
+     * assignments decide nothing. A screen letting somebody tick targets without saying so would
+     * suggest a restriction had been applied; the same fault as the work order that did not explain
+     * its single line.
      */
     readonly visibilityMode = signal<string | null>(null);
 
@@ -87,12 +86,12 @@ export class Users {
     readonly restrictionsInactive = computed(() => this.visibilityMode() === 'everyone');
 
     /**
-     * Le rôle du compte ouvert ignore toute restriction.
+     * The open account's role ignores every restriction.
      *
-     * <p>Les rôles à portée globale sont exactement ceux qui lisent la gouvernance — c'est
-     * délibéré côté serveur : lire le journal d'audit ou la politique de barrière renseigne sur
-     * la posture de toutes les cibles, donc l'accorder à un compte restreint contournerait la
-     * portée au lieu d'en être une version réduite.
+     * <p>The globally scoped roles are exactly those that read governance — deliberately so on the
+     * server: reading the audit log or the gate policy tells you about every target's posture, so
+     * granting it to a restricted account would bypass the scope rather than be a reduced version
+     * of it.
      */
     readonly accessUnrestricted = computed(() => {
         const role = this.accessUser()?.role;
@@ -102,8 +101,8 @@ export class Users {
     constructor() {
         this.reload();
 
-        // Les cibles et le mode sont chargés à part : ne pas les obtenir dégrade la boîte de
-        // dialogue sans empêcher d'administrer les comptes, qui est le sujet de l'écran.
+        // The targets and the mode are loaded separately: failing to get them degrades the dialog
+        // without preventing the administration of accounts, which is the screen's subject.
         this.api.apiKeyTargets().subscribe({
             next: (targets) =>
                 this.targetOptions.set([
@@ -125,7 +124,7 @@ export class Users {
         });
     }
 
-    /** Ouvre la boîte de visibilité, en relisant ce que le compte a aujourd'hui. */
+    /** Opens the visibility dialog, reading again what the account has today. */
     openAccess(user: UserSummary): void {
         this.accessUser.set(user);
         this.formError.set(null);
@@ -140,11 +139,11 @@ export class Users {
     }
 
     /**
-     * Envoie l'ensemble tel qu'il est affiché, vide compris.
+     * Sends the set as it is shown, empty included.
      *
-     * <p>Le vide est une décision et non une absence de décision : c'est ainsi qu'on retire à
-     * quelqu'un tout ce qu'il voyait, et une garde « ne rien envoyer si rien n'est coché » aurait
-     * fait de ce retrait un bouton sans effet.
+     * <p>Empty is a decision and not the absence of one: it is how one takes away everything
+     * somebody could see, and a guard of "send nothing if nothing is ticked" would have made that
+     * removal a button with no effect.
      */
     saveAccess(): void {
         const user = this.accessUser();

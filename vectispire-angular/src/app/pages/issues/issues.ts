@@ -53,31 +53,31 @@ export class Issues {
 
     readonly session = inject(SessionStore);
     /**
-     * **Deux signaux, pas un.** `canCauseEffects` dit si le compte peut trier du tout — faux pour
-     * un auditeur seul. `canApproveTriage` dit si sa décision clôt ou part en file d'approbation.
-     * Les deux existaient dans `session.store` et n'étaient lus nulle part : le même écran
-     * s'affichait pour les six rôles, si bien qu'un auditeur se voyait offrir « Triage selected »
-     * et qu'un développeur lisait « Clore » sur un bouton qui ouvre une demande.
+     * **Two signals, not one.** `canCauseEffects` says whether the account can triage at all —
+     * false for an auditor alone. `canApproveTriage` says whether its decision settles or goes into
+     * an approval queue. Both existed in `session.store` and were read nowhere: the same screen was
+     * shown to all six roles, so an auditor was offered "Triage selected" and a developer read
+     * "Close" on a button that opens a request.
      */
     readonly canTriage = this.session.canCauseEffects;
     readonly canApprove = this.session.canApproveTriage;
 
     /**
-     * Le libellé du triage, qui dit ce que le clic va faire.
+     * The triage label, which says what the click is going to do.
      *
-     * <p><b>Trois exemplaires en dur, en français, dans une application bilingue.</b> Ce libellé
-     * est né avec la séparation entre gouverner et agir, après la passe qui avait sorti les
-     * quatre-vingt-sept libellés en dur : il est arrivé trop tard pour elle et personne ne l'a
-     * rattrapé. Un lecteur anglophone lisait « Envoyer pour approbation » au milieu d'un écran
-     * traduit.
+     * <p><b>Three hard-coded copies, in French, in a bilingual application.</b> This label was born
+     * with the separation between governing and acting, after the pass that had pulled out the
+     * eighty-seven hard-coded labels: it arrived too late for that pass and nobody caught up with
+     * it. An English-speaking reader read "Envoyer pour approbation" in the middle of a translated
+     * screen.
      *
-     * <p>Il est ici et non recopié parce que la distinction qu'il porte — ma décision clôt, ou
-     * elle part en file — doit se lire pareil sur les trois boutons qui la proposent.
+     * <p>It is here rather than copied because the distinction it carries — my decision settles, or
+     * it goes into a queue — must read the same on all three buttons that offer it.
      *
-     * <p>Le nom porte « action » parce que {@code triageLabel(status)} existait déjà et nomme
-     * autre chose : l'état d'un constat, pas ce qu'un clic ferait. Les deux ont d'abord porté le
-     * même nom, le module a cessé de compiler, et le serveur de développement a continué de
-     * servir le paquet précédent — trois exécutions de la suite ont donc jugé du code d'avant.
+     * <p>The name carries "action" because {@code triageLabel(status)} already existed and names
+     * something else: a finding's state, not what a click would do. The two first carried the same
+     * name, the module stopped compiling, and the development server went on serving the previous
+     * bundle — so three runs of the suite judged the code from before.
      */
     readonly triageActionLabel = computed(() => {
         this.i18n.translations();
@@ -240,9 +240,9 @@ export class Issues {
         this.loadTargets();
         this.reload(0);
 
-        // **Le conseiller n'est offert que s'il existe.** Sans modèle configuré, le bouton
-        // ouvrait une fenêtre qui ne pouvait rien dire ; un défaut de lecture — pas d'accès —
-        // donc un appel qui échoue laisse le bouton caché plutôt que d'en promettre un qui rate.
+        // **The advisor is offered only if it exists.** With no model configured, the button opened
+        // a dialog that could say nothing; a read failure — not an access one — so a call that fails
+        // leaves the button hidden rather than promising one that misses.
         this.api.getAiAdvisorStatus().subscribe({
             next: (status) => this.aiEnabled.set(status?.enabled === true),
             error: () => this.aiEnabled.set(false)
@@ -471,18 +471,16 @@ export class Issues {
     }
 
     /**
-     * Le conseiller, et les deux façons dont il mentait.
+     * The advisor, and the two ways it lied.
      *
-     * <p><b>Le bouton était offert à tout le monde, tout le temps.</b> Sans modèle configuré il
-     * ouvrait une fenêtre sur un service injoignable — et une option absente doit être absente,
-     * pas présente et refusante. `getAiAdvisorStatus` disait exactement cela et personne ne
-     * l'appelait.
+     * <p><b>The button was offered to everybody, all the time.</b> With no model configured it
+     * opened a dialog onto an unreachable service — and an absent option must be absent, not
+     * present and refusing. `getAiAdvisorStatus` said exactly that and nobody called it.
      *
-     * <p><b>Et l'échec ne s'affichait nulle part.</b> Le message posé dans `aiAdviceError`
-     * n'avait aucune branche dans le gabarit : la fenêtre s'ouvrait, le tourniquet s'arrêtait, et
-     * il ne restait rien. Le message lui-même promettait « génération locale de secours » — un
-     * repli que ce code n'a jamais écrit. Une erreur qui promet ce qui n'arrivera pas est pire
-     * qu'une erreur muette.
+     * <p><b>And the failure was shown nowhere.</b> The message set in `aiAdviceError` had no branch
+     * in the template: the dialog opened, the spinner stopped, and nothing was left. The message
+     * itself promised "local fallback generation" — a fallback this code never wrote. An error that
+     * promises what will not happen is worse than a silent one.
      */
     readonly aiEnabled = signal<boolean>(false);
     readonly aiAdviceLoading = signal<boolean>(false);

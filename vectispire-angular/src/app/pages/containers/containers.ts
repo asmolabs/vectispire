@@ -71,10 +71,10 @@ export class Containers {
     }
 
     /**
-     * **Un scan lancé doit se voir avancer.** Cet écran annonce « mis en file » puis ne bougeait
-     * plus : le bouton avait l'air sans effet, alors que le travail attendait un worker. Le
-     * compteur ne tourne que tant qu'un scan de cette liste n'est pas réglé, et s'arrête tout
-     * seul quand le dernier a fini — un parc au repos ne coûte rien.
+     * **A scan that has been launched must be seen to progress.** This screen announced "queued"
+     * and then stopped moving: the button looked to have no effect, when the work was waiting for a
+     * worker. The timer runs only while a scan in this list is unsettled, and stops by itself when
+     * the last one has finished — an idle estate costs nothing.
      */
     private readonly scanInFlight = computed(() =>
         anyScanRunning(this.containers().map((row) => row.lastScan)));

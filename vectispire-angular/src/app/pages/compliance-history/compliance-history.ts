@@ -8,19 +8,19 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app/core/api.models';
 
 /**
- * La progression de chaque cadre, mois par mois.
+ * Each framework's progress, month by month.
  *
- * <p><b>Une ligne seule tromperait.</b> La note baisse quand on enregistre un dépôt de plus, et
- * quand on allume un détecteur : dans les deux cas parce qu'on surveille plus large. Un graphique
- * tracé sans ça rapporte « on a régressé » le mois où quelqu'un a commencé à mieux surveiller, et
- * l'équipe qui le lit apprend à surveiller moins.
+ * <p><b>A line on its own would mislead.</b> The score drops when one more repository is
+ * registered, and when a detector is switched on: in both cases because the watch got wider. A
+ * chart drawn without that reports "we regressed" in the month somebody started watching better,
+ * and the team reading it learns to watch less.
  *
- * <p>Chaque mois porte donc sa cause plausible, et une série dont le parc a changé est annoncée
- * <em>non comparable</em> plutôt que tracée comme une tendance.
+ * <p>Every month therefore carries its plausible cause, and a series whose estate changed is
+ * announced <em>not comparable</em> rather than drawn as a trend.
  *
- * <p>Six cadres, six séries. Pas de note globale : un chiffre agrégé se fait piloter — on
- * l'améliore en ajoutant un cadre facile, et un chiffre qu'on peut améliorer sans toucher au parc
- * est un chiffre que quelqu'un finit par améliorer ainsi.
+ * <p>Six frameworks, six series. No overall score: an aggregate number gets gamed — one improves
+ * it by adding an easy framework, and a number one can improve without touching the estate is a
+ * number somebody eventually improves that way.
  */
 @Component({
     selector: 'zs-compliance-history',
@@ -43,10 +43,10 @@ export class ComplianceHistoryPage {
     }
 
     /**
-     * La hauteur d'une barre, en pourcentage de la plus haute du graphique.
+     * A bar's height, as a percentage of the chart's tallest.
      *
-     * <p>Rapportée à cent et non au maximum de la série : une échelle qui s'ajuste ferait passer
-     * une progression de deux points pour une envolée, et c'est la note qu'on lit, pas sa forme.
+     * <p>Against one hundred and not against the series maximum: a scale that adjusts itself would
+     * make a two-point gain look like a leap, and it is the score one reads, not its shape.
      */
     height(step: ComplianceStep): number {
         return Math.max(2, step.snapshot.score);

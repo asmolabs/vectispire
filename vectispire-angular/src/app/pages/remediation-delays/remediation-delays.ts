@@ -8,18 +8,17 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/api.models';
 
 /**
- * Les délais de correction, par la queue de distribution et non par la moyenne.
+ * Remediation times, by the distribution's tail and not by the mean.
  *
- * **Une moyenne est tirée par le volume des correctifs faciles.** Ce qui décrit un processus,
- * c'est la part qui a tenu son délai, le 90e centile, et l'âge du plus ancien élément encore
- * ouvert — les trois que cet écran met au même niveau.
+ * **A mean is dragged by the volume of easy fixes.** What describes a process is the share that
+ * met its deadline, the 90th percentile, and the age of the oldest item still open — the three
+ * this screen puts on the same footing.
  *
- * **Le plus ancien élément ouvert est en haut, pas dans une colonne.** C'est la ligne qu'aucune
- * moyenne ne peut montrer et la première qu'un évaluateur demande ; la ranger dans le tableau
- * en ferait une donnée parmi neuf.
+ * **The oldest open item is at the top, not in a column.** It is the line no mean can show and
+ * the first an assessor asks for; filing it in the table would make it one datum among nine.
  *
- * Une gravité sans délai fixé n'affiche pas de pourcentage. Un taux calculé contre une règle
- * absente n'en est pas un, et il serait cité.
+ * A severity with no deadline set shows no percentage. A rate computed against an absent rule is
+ * not one, and it would be quoted.
  */
 @Component({
     selector: 'zs-remediation-delays',
@@ -44,11 +43,11 @@ export class RemediationDelays {
     }
 
     /**
-     * Le plus ancien élément ouvert dépasse-t-il le délai de sa propre gravité.
+     * Whether the oldest open item is past its own severity's deadline.
      *
-     * <p><b>Vingt et un jours en rouge sur un délai de quatre-vingt-dix était une alarme fausse.</b>
-     * Le bandeau peignait l'âge, jamais le dépassement — or c'est le dépassement qui se signale,
-     * et l'âge d'un élément dans les temps est une information, pas un problème.
+     * <p><b>Twenty-one days in red against a ninety-day deadline was a false alarm.</b> The banner
+     * painted the age, never the overrun — and it is the overrun that is worth flagging; the age of
+     * an item that is on time is information, not a problem.
      */
     readonly oldestIsOverdue = computed(() => {
         const data = this.distribution();
@@ -66,23 +65,23 @@ export class RemediationDelays {
     }
 
     /**
-     * Une gravité que personne n'a dotée d'un délai n'a rien à tenir.
+     * A severity nobody has given a deadline has nothing to meet.
      *
-     * <p><b>Distinct de « rien à mesurer », et les deux étaient confondus.</b> La condition
-     * testait aussi le pourcentage, si bien qu'une gravité dotée d'un délai mais dont rien n'avait
-     * été résolu sur la fenêtre affichait « 15 j » en délai et « aucun délai fixé » juste à côté —
-     * deux phrases contradictoires sur la même ligne.
+     * <p><b>Distinct from "nothing to measure", and the two were conflated.</b> The condition also
+     * tested the percentage, so a severity that had a deadline but nothing resolved within the
+     * window showed "15 d" as its deadline and "no deadline set" right beside it — two
+     * contradictory sentences on the same row.
      */
     hasDeadline(row: RemediationBySeverity): boolean {
         return row.windowDays > 0;
     }
 
     /**
-     * Le délai existe, mais rien n'a été résolu sur la fenêtre pour le mesurer.
+     * The deadline exists, but nothing was resolved within the window to measure it against.
      *
-     * <p>Ce n'est ni un taux de zéro ni un délai absent : c'est l'absence de matière. Afficher
-     * `0 %` ferait lire « on ne tient jamais les délais » là où la phrase vraie est « rien n'a été
-     * clos sur ces quatre-vingt-dix jours ».
+     * <p>This is neither a rate of zero nor an absent deadline: it is the absence of material.
+     * Showing `0 %` would read as "we never meet the deadlines" where the true sentence is "nothing
+     * was closed in these ninety days".
      */
     nothingToMeasure(row: RemediationBySeverity): boolean {
         return row.windowDays > 0 && row.percentageWithinSla === null;

@@ -35,15 +35,15 @@ export class Inventory {
     readonly activeTab = signal<'search' | 'diff'>('search');
 
     /**
-     * Le différentiel entre deux inventaires.
+     * The difference between two inventories.
      *
-     * <p><b>Il fallait taper deux numéros de scan à la main.</b> « ex: 10 », « ex: 12 » — deux
-     * identifiants internes qu'aucun écran n'affiche en évidence, pour une question qui se pose
-     * presque toujours ainsi : « qu'est-ce qui a changé dans ce dépôt depuis la dernière fois ».
-     * `getLatestSbomDiff` répondait déjà exactement à celle-là, et aucun composant ne l'appelait.
+     * <p><b>It took typing two scan numbers by hand.</b> "e.g. 10", "e.g. 12" — two internal
+     * identifiers no screen shows prominently, for a question that is almost always asked like
+     * this: "what changed in this repository since last time". `getLatestSbomDiff` already answered
+     * exactly that one, and no component called it.
      *
-     * <p>La comparaison de deux scans nommés reste, parce qu'elle répond à une autre question —
-     * « entre la version qu'on a livrée et celle d'avant » — que la dernière paire ne couvre pas.
+     * <p>Comparing two named scans stays, because it answers a different question — "between the
+     * version we shipped and the one before" — that the latest pair does not cover.
      */
     fromScanId: number | null = null;
     toScanId: number | null = null;
@@ -51,13 +51,13 @@ export class Inventory {
     readonly diffLoading = signal(false);
     readonly diffError = signal<string | null>(null);
 
-    /** Les cibles comparables, dépôts et images ensemble : la question ne se pose pas autrement. */
+    /** The comparable targets, repositories and images together: the question is not asked otherwise. */
     readonly targets = signal<{ label: string; value: string }[]>([]);
     diffTarget = '';
 
     constructor() {
-        // Chargées à part : ne pas pouvoir les lister laisse la comparaison par numéros, qui
-        // était jusqu'ici le seul chemin.
+        // Loaded separately: being unable to list them leaves the comparison by number, which was
+        // until now the only path.
         this.api.repositories().subscribe({
             next: (repositories: MonitoredRepository[]) => this.addTargets(
                 repositories.map((repository) => ({
@@ -102,11 +102,11 @@ export class Inventory {
     }
 
     /**
-     * Ce qui a changé sur une cible depuis son avant-dernier scan.
+     * What changed on a target since its second-to-last scan.
      *
-     * <p>Le refus porte sa cause : une cible scannée une seule fois n'a rien à comparer, et c'est
-     * une phrase différente de « le calcul a échoué ». Sans elle, l'écran renvoie la même erreur
-     * pour un dépôt neuf et pour un serveur en panne.
+     * <p>The refusal carries its cause: a target scanned only once has nothing to compare, and that
+     * is a different sentence from "the calculation failed". Without it, the screen returns the
+     * same error for a new repository and for a server that is down.
      */
     runLatestDiff(): void {
         if (!this.diffTarget) return;

@@ -11,7 +11,7 @@
  * **Five interfaces remain hand-written, and they are meant to.** `Page<T>` is a client generic.
  * `IssueFilters` and `AuditFilters` are query parameters, which a response schema never describes.
  * `NewRepository` and `NewContainer` are form bodies the document does not publish. None of them
- * has a schema to be adossé to, and inventing one would be the same mistake in the other direction.
+ * has a schema to lean on, and inventing one would be the same mistake in the other direction.
  *
  * **What the document still does not say.** It marks a property required only when it is a
  * primitive — a converter in the control plane does that much, because a Java `boolean` has no
@@ -217,7 +217,7 @@ export type PinnedSigningKey = Refine<
     { id: string; privateKey: string | null }
 >;
 
-/** Ce qui a produit le résultat, et sur quoi il porte. */
+/** What produced the result, and what it is about. */
 export type AttestationBuilder = Refine<Schema<'Builder'>, { id: string; version: string }>;
 
 export type AttestationSubject = Refine<
@@ -242,7 +242,7 @@ export type AttestationPolicy = Refine<
     { violations: string[]; enforcedPolicy: string }
 >;
 
-/** Les sept compteurs sont primitifs : le document les marque tous « toujours envoyés ». */
+/** The seven counters are primitives: the document marks them all as always sent. */
 export type AttestationFindings = Schema<'FindingsSummary'>;
 
 export type AttestationPredicate = Refine<
@@ -1405,7 +1405,7 @@ export type NotificationTestResult = Refine<
     { type: string; message: string; testedAt: string }
 >;
 
-/** Ce que le modèle propose de faire, et ce qu'il propose de déclarer. Deux formes nommées. */
+/** What the model proposes to do, and what it proposes to declare. Two named shapes. */
 export type AiRemediationAdvice = Refine<
     Schema<'RemediationAdvice'>,
     { fixAction: string; suggestedVersion: string; codeSnippetOrDiff: string; cliCommand: string }
@@ -1618,7 +1618,7 @@ export type SecurityDebtReport = Refine<
     { topHighImpactFixes: HighImpactFix[] }
 >;
 
-/** Les six natures de nœud d'un chemin, telles que le document les énumère. */
+/** The six kinds of node on a path, as the document enumerates them. */
 export type AttackPathNodeType = NonNullable<Schema<'AttackPathNode'>['type']>;
 
 export type AttackPathNode = Refine<
@@ -1667,14 +1667,14 @@ export type AttackPathGraph = Refine<
 >;
 
 /* ------------------------------------------------------------------------- */
-/* Preuve de processus : ce qui montre qu'un contrôle a fonctionné.           */
+/* Process evidence: what shows that a control ran.                          */
 /*                                                                           */
-/* Ces types portent des noms de champs en snake_case parce que le serveur    */
-/* les publie ainsi : ils partent aussi dans un bundle de preuves qu'un       */
-/* évaluateur ouvre à la main, et `target_kind` s'y lit mieux que             */
-/* `targetKind`. Les recopier en camelCase ici aurait demandé une couche de   */
-/* conversion dont le seul effet serait de faire diverger l'écran du fichier  */
-/* que l'auditeur a sous les yeux.                                           */
+/* These types carry snake_case field names because the server publishes     */
+/* them that way: they also travel in an evidence bundle an assessor opens   */
+/* by hand, and `target_kind` reads better there than `targetKind`.          */
+/* Restating them in camelCase here would have needed a conversion layer     */
+/* whose only effect would be to make the screen diverge from the file the   */
+/* auditor has in front of them.                                             */
 /* ------------------------------------------------------------------------- */
 
 export type RegisteredVerdict = Refine<
@@ -1696,7 +1696,7 @@ export type VerdictRegister = Refine<
     Schema<'VerdictRegister'>,
     {
         verdicts: RegisteredVerdict[];
-        /** Où reprendre, ou `null` à la fin du registre. */
+        /** Where to resume, or `null` at the end of the register. */
         next_cursor: string | null;
     }
 >;
@@ -1829,7 +1829,7 @@ export type SoaStatement = Refine<
     Schema<'SoaStatement'>,
     {
         framework: ComplianceFramework;
-        /** Le nom de la norme. `framework` est la constante Java, pas un libellé. */
+        /** The standard's name. `framework` is the Java constant, not a label. */
         title: string;
         lines: SoaLine[];
     }
@@ -1880,7 +1880,7 @@ export type OwaspCoverageLine = Refine<
     }
 >;
 
-/** `covered` dit combien des dix un scanner d'ici peut seulement regarder. **À lire avant le reste.** */
+/** `covered` says how many of the ten a scanner here can even look at. **Read before the rest.** */
 export type OwaspGrid = Refine<Schema<'DeclaredGrid'>, { lines: OwaspCoverageLine[] }>;
 
 export type ComplianceMovement = NonNullable<Schema<'Step'>['movement']>;
@@ -1900,7 +1900,7 @@ export type ComplianceStep = Refine<
     {
         snapshot: ComplianceSnapshot;
         movement: ComplianceMovement;
-        /** Une phrase, destinée à être citée sous le point. */
+        /** One sentence, meant to be quoted under the item. */
         because: string;
     }
 >;

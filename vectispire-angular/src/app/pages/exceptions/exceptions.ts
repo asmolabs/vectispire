@@ -14,22 +14,19 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/core/api.models';
 
 /**
- * Ce que quelqu'un a décidé de ne pas corriger, et sous quelles conditions.
+ * What somebody decided not to fix, and on what conditions.
  *
- * **C'est la question qu'un évaluateur pose en premier et qu'aucun tableau de bord ne
- * répond.** Tous les autres écrans décrivent ce que le parc contient ; celui-ci décrit ce
- * qu'on a écarté — et un backlog vert veut dire deux choses opposées selon celle des deux
- * qui l'a produit.
+ * **This is the question an assessor asks first and no dashboard answers.** Every other screen
+ * describes what the estate contains; this one describes what has been waived — and a green
+ * backlog means two opposite things depending on which of the two produced it.
  *
- * **Deux chiffres portent l'écran, et ce ne sont pas les acceptations en vigueur.** Les
- * périmées — accordées pour une période, la période est passée, personne n'a rouvert — et
- * les jamais revues. La seconde est celle qui n'existait pas : une acceptation confirmée
- * chaque trimestre et une acceptation que personne n'a ouverte depuis janvier se lisaient à
- * l'identique.
+ * **Two numbers carry the screen, and they are not the acceptances in force.** The lapsed ones —
+ * granted for a period, the period has passed, nobody reopened them — and the never-reviewed. The
+ * second is the one that did not exist: an acceptance confirmed every quarter and an acceptance
+ * nobody has opened since January read identically.
  *
- * La revue est réservée au responsable sécurité, comme l'octroi. Confirmer est l'action qui
- * compte et ne change rien : c'est elle qui transforme « personne n'a regardé » en fait
- * daté.
+ * Reviewing is reserved to the security lead, as granting is. Confirming is the action that counts
+ * and changes nothing: it is what turns "nobody looked" into a dated fact.
  */
 @Component({
     selector: 'zs-exceptions',
@@ -47,12 +44,12 @@ export class Exceptions {
     readonly busy = signal(false);
 
     /**
-     * Les lignes déjà chargées, accumulées page après page.
+     * The rows already loaded, accumulated page by page.
      *
-     * <p><b>Les compteurs en sont dérivés plutôt que repris du serveur.</b> Le serveur compte ce
-     * qu'il a rendu sur *cette* page ; afficher « 23 acceptations en vigueur » au-dessus d'une
-     * page de deux serait un chiffre qui ne décrit ni la page ni le registre. Ceux-ci décrivent
-     * ce que le lecteur a sous les yeux, et le bouton « charger la suite » dit qu'il en reste.
+     * <p><b>The counters are derived from them rather than taken from the server.</b> The server
+     * counts what it returned on *this* page; showing "23 acceptances in force" above a page of two
+     * would be a number describing neither the page nor the register. These describe what the
+     * reader has in front of them, and the "load more" button says there are more.
      */
     readonly loaded = signal<ExceptionEntry[]>([]);
 
@@ -65,22 +62,20 @@ export class Exceptions {
         this.loaded().filter((entry) => entry.last_reviewed_at === null).length);
 
     /**
-     * Il reste des lignes à demander.
+     * There are rows left to ask for.
      *
-     * <p><b>Un curseur peut arriver avec une page vide, et c'est voulu.</b> La visibilité est
-     * appliquée après la lecture : une fenêtre entière peut n'appartenir qu'à d'autres. Masquer
-     * le bouton parce que la page est vide ferait s'arrêter le lecteur restreint juste avant ses
-     * propres lignes.
+     * <p><b>A cursor can arrive with an empty page, and that is intended.</b> Visibility is applied
+     * after the read: a whole window can belong to other people only. Hiding the button because the
+     * page is empty would make the restricted reader stop just before their own rows.
      */
     readonly hasMore = computed(() => this.register()?.next_cursor != null);
 
     /**
-     * La couleur suit le sens, pas la métrique.
+     * The colour follows the meaning, not the metric.
      *
-     * <p><b>« 0 périmée » en rouge était une bonne nouvelle peinte en alarme.</b> Un tableau où
-     * les bonnes nouvelles sont rouges apprend à ignorer le rouge, et c'est alors celui qui compte
-     * qui devient invisible — le même raisonnement que le bandeau de couverture, appliqué à un
-     * chiffre plutôt qu'à un avertissement.
+     * <p><b>"0 lapsed" in red was good news painted as an alarm.</b> A table where good news is red
+     * teaches people to ignore red, and it is then the red that matters that becomes invisible —
+     * the same reasoning as the coverage banner, applied to a number rather than to a warning.
      */
     alarming(count: number, tone: 'danger' | 'warn'): string {
         if (count === 0) {
@@ -89,7 +84,7 @@ export class Exceptions {
         return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
     }
 
-    /** Le filet de la carte disparaît avec l'alarme, pour la même raison. */
+    /** The card's border goes with the alarm, for the same reason. */
     rail(count: number, tone: 'danger' | 'warn'): string {
         if (count === 0) {
             return 'border-emerald-500';
@@ -139,10 +134,10 @@ export class Exceptions {
     }
 
     /**
-     * Prolonger sans date est refusé par le serveur ; le bouton l'est ici aussi.
+     * Extending with no date is refused by the server; the button is disabled here too.
      *
-     * Laisser partir la requête pour afficher son erreur marcherait, et ferait porter à un
-     * message d'erreur ce qu'une désactivation dit sans bruit.
+     * Letting the request go in order to show its error would work, and would make an error message
+     * carry what a disabled button says without noise.
      */
     readonly submittable = computed(() => !this.busy());
 
@@ -167,9 +162,10 @@ export class Exceptions {
             )
             .subscribe({
                 next: (data) => {
-                    // **Relu depuis le début plutôt que fusionné.** Une révocation retire la ligne
-                    // du registre : la fusionner dans ce qui est déjà chargé laisserait sur place
-                    // une exception qui n'en est plus une, ce que ce registre ne doit jamais faire.
+                    // **Read again from the beginning rather than merged.** A revocation removes
+                    // the row from the register: merging it into what is already loaded would leave
+                    // in place an exception that is no longer one, which this register must never
+                    // do.
                     this.register.set(data);
                     this.loaded.set(data.entries);
                     this.reviewing.set(null);

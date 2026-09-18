@@ -69,8 +69,8 @@ export class Attestation {
         });
         this.api.complianceSummary().subscribe({
             next: (s) => this.compliance.set(s),
-            // Volontairement séparé : une conformité indisponible ne doit pas effacer une chaîne
-            // vérifiée, qui est la partie démontrable de cette page.
+            // Deliberately separate: unavailable compliance must not erase a verified chain, which
+            // is the demonstrable part of this page.
             error: () => this.compliance.set(null)
         });
     }

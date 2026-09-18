@@ -14,31 +14,31 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 /**
- * Son propre compte, et le second facteur qu'on ne pouvait pas activer.
+ * One's own account, and the second factor nobody could switch on.
  *
- * <h2>Pourquoi cet écran existe</h2>
+ * <h2>Why this screen exists</h2>
  *
- * <p><b>Le second facteur était complet et inactivable.</b> {@code TotpService}, la table des
- * défis, les quatre routes {@code /auth/mfa/*}, et jusqu'à la page de connexion qui sait déjà
- * répondre à un défi : tout était livré. Les trois méthodes clientes existaient aussi. Aucun
- * écran ne les appelait — personne ne pouvait donc activer le second facteur d'un produit de
- * sécurité depuis son interface, et il n'y avait pas de moyen de le savoir en regardant l'écran.
+ * <p><b>The second factor was complete and could not be enabled.</b> {@code TotpService}, the
+ * challenge table, the four {@code /auth/mfa/*} routes, right down to a sign-in page that already
+ * knows how to answer a challenge: all of it shipped. The three client methods existed too. No
+ * screen called them — so nobody could switch on the second factor of a security product from its
+ * own interface, and there was no way of knowing that by looking at the screen.
  *
- * <h2>Ce que l'enrôlement doit dire, et quand</h2>
+ * <h2>What enrolment must say, and when</h2>
  *
- * <p>L'enrôlement se fait en deux temps parce que le serveur le fait en deux temps, et c'est la
- * bonne forme : le secret est proposé, puis <b>confirmé par un premier code</b>. Sans cette
- * confirmation, une horloge décalée ou un secret mal recopié n'apparaîtrait qu'à la déconnexion
- * suivante, c'est-à-dire au pire moment.
+ * <p>Enrolment happens in two steps because the server does it in two steps, and that is the right
+ * shape: the secret is offered, then <b>confirmed by a first code</b>. Without that confirmation, a
+ * clock that is out or a secret copied wrong would only show at the next sign-out, that is at the
+ * worst possible moment.
  *
- * <p><b>Les codes de secours ne sont montrés qu'une fois</b>, et l'écran le dit avant de les
- * afficher : le serveur les chiffre et ne les rend plus. Un écran qui les afficherait sans
- * avertissement laisserait quelqu'un fermer l'onglet en pensant les retrouver plus tard.
+ * <p><b>The recovery codes are shown once</b>, and the screen says so before showing them: the
+ * server hashes them and will not return them again. A screen showing them without that warning
+ * would let somebody close the tab thinking they could find them later.
  *
- * <p><b>Pas d'image QR, et c'est dit plutôt que caché.</b> Le serveur rend bien l'URI
- * {@code otpauth://}, mais la dessiner demande une dépendance de plus, ce qui est une décision
- * qui ne se prend pas en passant. Le secret est donc affiché en groupes de quatre — la saisie
- * manuelle que toute application d'authentification accepte — et l'URI reste copiable.
+ * <p><b>No QR image, and that is said rather than hidden.</b> The server does return the
+ * {@code otpauth://} URI, but drawing it takes one more dependency, which is a decision one does
+ * not make in passing. The secret is therefore shown in groups of four — the manual entry every
+ * authenticator application accepts — and the URI stays copyable.
  */
 @Component({
     selector: 'app-account',
@@ -57,24 +57,24 @@ export class Account {
     readonly busy = signal(false);
     readonly error = signal<string | null>(null);
 
-    /** Le secret proposé, tant qu'il n'est pas confirmé. Jamais conservé après l'activation. */
+    /** The secret offered, until it is confirmed. Never kept after activation. */
     readonly enrolment = signal<{ secret: string; qrCodeUri: string; issuer: string } | null>(null);
 
-    /** Montrés une fois, parce que le serveur les chiffre et ne les rendra plus. */
+    /** Shown once, because the server hashes them and will not return them again. */
     readonly backupCodes = signal<string[]>([]);
 
-    /** Ouvert seulement quand on retire le second facteur : le code est exigé pour cela aussi. */
+    /** Opened only when removing the second factor: a code is required for that too. */
     readonly removing = signal(false);
 
     code = '';
 
-    /** Le secret en groupes de quatre : recopié à la main, il l'est caractère par caractère. */
+    /** The secret in groups of four: copied by hand, it is copied character by character. */
     readonly readableSecret = computed(() => {
         const secret = this.enrolment()?.secret ?? '';
         return (secret.match(/.{1,4}/g) ?? []).join(' ');
     });
 
-    /** Commence l'enrôlement : le serveur propose un secret, rien n'est encore activé. */
+    /** Begins enrolment: the server offers a secret, nothing is switched on yet. */
     begin(): void {
         this.busy.set(true);
         this.error.set(null);
@@ -94,11 +94,11 @@ export class Account {
     }
 
     /**
-     * Confirme le secret par un premier code.
+     * Confirms the secret with a first code.
      *
-     * <p>Un refus garde l'enrôlement ouvert : le code a six chiffres et trente secondes de vie,
-     * se tromper est ordinaire, et renvoyer l'utilisateur au début lui donnerait un secret neuf
-     * à recopier pour une faute de frappe.
+     * <p>A refusal keeps enrolment open: the code has six digits and thirty seconds of life,
+     * getting it wrong is ordinary, and sending the user back to the start would give them a fresh
+     * secret to copy over a typo.
      */
     confirm(): void {
         const enrolment = this.enrolment();
@@ -121,7 +121,7 @@ export class Account {
         });
     }
 
-    /** Abandonne l'enrôlement. Rien n'a été activé, donc il n'y a rien à annuler côté serveur. */
+    /** Abandons enrolment. Nothing was switched on, so there is nothing to undo on the server. */
     cancel(): void {
         this.enrolment.set(null);
         this.code = '';
@@ -135,11 +135,11 @@ export class Account {
     }
 
     /**
-     * Retire le second facteur.
+     * Removes the second factor.
      *
-     * <p>Un code est exigé — courant ou de secours — et c'est le serveur qui l'exige : sans lui,
-     * un poste laissé déverrouillé une minute suffirait à désarmer le facteur qui protège le
-     * compte, ce qui viderait la protection de son sens.
+     * <p>A code is required — current or recovery — and it is the server that requires it: without
+     * one, a workstation left unlocked for a minute would be enough to disarm the factor protecting
+     * the account, which would empty the protection of its meaning.
      */
     remove(): void {
         if (!this.code.trim()) return;

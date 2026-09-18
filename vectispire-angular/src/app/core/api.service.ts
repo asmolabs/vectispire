@@ -528,10 +528,10 @@ export class ApiService {
     }
 
     /**
-     * Remplace l'ensemble en bloc.
+     * Replaces the whole set at once.
      *
-     * <p>En bloc et non par ajouts : l'opération qui compte est le <em>retrait</em>, et un écran
-     * qui n'enverrait que ce qu'il veut voir ajouté ferait d'une révocation un clic sans effet.
+     * <p>Wholesale and not by additions: the operation that matters is the <em>removal</em>, and a
+     * screen sending only what it wants added would make a revocation a click with no effect.
      */
     setUserTargets(id: number, targets: UserTargetAssignment[]): Observable<UserTargetAssignment[]> {
         return this.http.put<UserTargetAssignment[]>(`/api/v1/users/${id}/targets`, targets);
@@ -595,13 +595,13 @@ export class ApiService {
     }
 
     /**
-     * Rattache un ticket existant à un constat.
+     * Attaches an existing ticket to a finding.
      *
-     * **Sur `ticketRef`, et non sur `t_issue_ticket`.** Les deux méthodes qui visaient cette
-     * seconde table ont été retirées d'ici : rien ne la lit — ni le webhook entrant, qui cherche
-     * le constat par sa référence, ni la balayeuse, ni un écran. Y écrire aurait livré un
-     * rattachement que la synchronisation ignore, c'est-à-dire une fonctionnalité qui a l'air de
-     * marcher et ne se synchronise jamais.
+     * **Onto `ticketRef`, and not onto `t_issue_ticket`.** The two methods aiming at that second
+     * table have been removed from here: nothing reads it — not the inbound webhook, which looks
+     * the finding up by its reference, not the sweep, not a screen. Writing there would have
+     * shipped an attachment that synchronisation ignores, that is a feature that looks as though it
+     * works and never synchronises.
      */
     attachTicket(issueId: number, reference: string, url?: string | null): Observable<TriagedIssue> {
         return this.http.put<TriagedIssue>(`/api/v1/issues/${issueId}/ticket`, { reference, url: url ?? null });
@@ -817,11 +817,11 @@ export class ApiService {
     }
 
     /**
-     * L'ordre de travail classé par levier.
+     * The work order ranked by leverage.
      *
-     * <p>`limit` est facultatif : sans lui le serveur en rend dix, ce qui est la bonne réponse à
-     * « par quoi je commence ». L'écran le passe quand quelqu'un demande la suite, et le serveur
-     * ramène la valeur dans ses bornes plutôt que de refuser.
+     * <p>`limit` is optional: without it the server returns ten, which is the right answer to
+     * "where do I start". The screen passes it when somebody asks for more, and the server clamps
+     * the value into its bounds rather than refusing.
      */
     getHighImpactFixes(repoId?: number, containerId?: number, limit?: number): Observable<HighImpactFix[]> {
         let params = new HttpParams();
@@ -832,10 +832,10 @@ export class ApiService {
     }
 
     /**
-     * Ce que le plan ne peut pas fermer, et de quelle famille.
+     * What the plan cannot close, and of which family.
      *
-     * Appelé à part du plan : ne pas obtenir l'aveu n'empêche pas d'afficher l'ordre de travail,
-     * qui est le sujet de l'écran.
+     * Called separately from the plan: failing to get the admission does not prevent showing the
+     * work order, which is the screen's subject.
      */
     getRemediationCoverage(repoId?: number, containerId?: number): Observable<RemediationCoverage> {
         let params = new HttpParams();
@@ -857,10 +857,10 @@ export class ApiService {
     /* --------------------------------------------------------------------- */
 
     /**
-     * Les réponses de la barrière, la plus récente d'abord.
+     * The gate's answers, newest first.
      *
-     * Le serveur borne `limit` lui-même ; l'écran ne la valide pas une seconde fois, sinon les
-     * deux bornes divergent et c'est celle du client qu'on oublie de bouger.
+     * The server bounds `limit` itself; the screen does not validate it a second time, otherwise
+     * the two bounds drift and it is the client's that gets forgotten.
      */
     gateVerdicts(limit?: number, cursor?: string | null): Observable<VerdictRegister> {
         let params = new HttpParams();
@@ -918,11 +918,11 @@ export class ApiService {
     }
 
     /**
-     * Les déclarations dont la revue a expiré, tous référentiels confondus.
+     * The declarations whose review has lapsed, across all frameworks.
      *
-     * Sa propre route plutôt qu'un filtre sur un document : « qu'avons-nous cessé de regarder »
-     * se demande à l'échelle du système de management, et un écran qui devrait aller chercher six
-     * documents pour l'assembler ne poserait pas la question.
+     * A route of its own rather than a filter on a document: "what have we stopped looking at" is
+     * asked at the scale of the management system, and a screen that had to fetch six documents to
+     * assemble it would not ask the question.
      */
     overdueReviews(): Observable<ControlDeclaration[]> {
         return this.http.get<ControlDeclaration[]>('/api/v1/compliance/soa/reviews/overdue');

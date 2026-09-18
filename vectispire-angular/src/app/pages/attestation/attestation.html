@@ -25,10 +25,10 @@
 }
 
 <!--
-    **La chaîne d'abord.** C'est la seule affirmation de cette page qui se démontre sur-le-champ :
-    le reste est une mesure. `broken` nomme l'entrée où la chaîne rompt, `unverifiable` compte les
-    entrées antérieures au chaînage — ni une preuve ni une alarme, et les confondre ferait passer
-    un historique ancien pour une altération.
+    **The chain first.** It is the only claim on this page that proves itself on the spot: the rest
+    is a measurement. `broken` names the entry where the chain breaks, `unverifiable` counts the
+    entries predating the chaining — neither a proof nor an alarm, and conflating them would pass
+    an old history off as tampering.
 -->
 @if (chain(); as c) {
     <div class="rounded-lg border p-4 mb-4"
@@ -74,10 +74,10 @@
 </div>
 
 <!--
-    **Le contenu du paquet est décrit, pas listé.** Les neuf sections portent des noms de fichiers
-    que le serveur fixe ; les recopier ici créerait une seconde liste qui divergerait au premier
-    renommage, sans que rien ne le signale. Nommer ce qu'elles contiennent reste vrai plus
-    longtemps que nommer comment elles s'appellent.
+    **The bundle's contents are described, not listed.** The nine sections carry file names the
+    server fixes; copying them here would create a second list that would drift at the first
+    rename, with nothing reporting it. Naming what they contain stays true longer than naming what
+    they are called.
 -->
 <h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.bundle' | translate }}</h2>
 <div class="rounded-lg border p-4" style="border-color: var(--surface-border)">

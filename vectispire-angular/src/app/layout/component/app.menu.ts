@@ -35,23 +35,23 @@ export class AppMenu {
         this.i18n.translations();
 
         /**
-         * **L'état du parc : ce qui ne va pas, et ce qu'on en fait.**
+         * **The estate's state: what is wrong, and what is being done about it.**
          *
-         * Seize entrées s'y étaient accumulées, dont sept qui ne parlaient pas du parc mais de ce
-         * qu'on peut en montrer. Une section qu'on parcourt des yeux pour trouver son écran a
-         * cessé d'être un menu ; les deux questions sont maintenant deux sections.
+         * Sixteen entries had piled up here, seven of which spoke not about the estate but about
+         * what can be shown of it. A section you scan with your eyes to find your screen has
+         * stopped being a menu; the two questions are now two sections.
          */
         const securityItems = [
             { label: this.i18n.t('menu.posture'), icon: 'pi pi-fw pi-shield', routerLink: ['/security'] },
             { label: this.i18n.t('menu.issues'), icon: 'pi pi-fw pi-exclamation-triangle', routerLink: ['/issues'] },
 
-            // **Juste après la liste des constats, et pas ailleurs.** L'une dit ce qui ne va pas,
-            // l'autre ce qu'on en fait ; les séparer dans le menu séparait la question de sa
-            // réponse.
+            // **Directly after the list of findings, and nowhere else.** One says what is wrong,
+            // the other what is being done about it; separating them in the menu separated the
+            // question from its answer.
             { label: this.i18n.t('menu.remediation'), icon: 'pi pi-fw pi-wrench', routerLink: ['/remediation'] },
 
-            // **Juste après l'ordre de travail, parce que c'est sa mesure.** L'un dit par quoi
-            // commencer, l'autre si on a tenu les délais qu'on s'est donnés.
+            // **Directly after the work order, because it is its measurement.** One says where to
+            // start, the other whether the deadlines we set ourselves were met.
             { label: this.i18n.t('menu.delays'), icon: 'pi pi-fw pi-clock', routerLink: ['/remediation-delays'] },
             { label: this.i18n.t('menu.history'), icon: 'pi pi-fw pi-history', routerLink: ['/history'] },
             { label: this.i18n.t('menu.inventory'), icon: 'pi pi-fw pi-box', routerLink: ['/inventory'] },
@@ -63,46 +63,45 @@ export class AppMenu {
         ];
 
         /**
-         * **Ce qu'on peut montrer, et à qui.**
+         * **What can be shown, and to whom.**
          *
-         * <p>Ces écrans se lisaient dans deux sections éloignées : la matrice, les exceptions, la
-         * déclaration et le périmètre rangés avec l'état du parc, l'attestation, les verdicts et
-         * le journal d'audit rangés avec l'administration. Or ils répondent à une seule question,
-         * et un évaluateur les ouvre l'un après l'autre. Les séparer obligeait à connaître le
-         * produit pour trouver la suite de sa propre lecture.
+         * <p>These screens used to be read in two distant sections: the matrix, the exceptions, the
+         * statement and the scope filed with the estate's state; the attestation, the verdicts and
+         * the audit log filed with administration. Yet they answer a single question, and an
+         * assessor opens them one after another. Separating them forced a reader to know the
+         * product in order to find the continuation of their own reading.
          *
-         * <p><b>Chaque entrée porte sa propre condition, jamais la section.</b> Quatre de ces
-         * routes exigent la lecture de gouvernance ; les proposer à tout le monde serait offrir un
-         * lien qui mène à un refus — le défaut que les clés de déploiement ont déjà eu ici. Un
-         * compte ordinaire voit les trois premières, un auditeur les huit.
+         * <p><b>Every entry carries its own condition, never the section.</b> Four of these routes
+         * require governance read access; offering them to everybody would be offering a link that
+         * leads to a refusal — the defect the deployment keys already had here. An ordinary account
+         * sees the first three, an auditor all eight.
          */
         const evidenceItems = [
             { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] },
             { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
 
-            // **Sous la conformité, parce que c'est la question qu'un évaluateur pose juste
-            // après.** L'écran de conformité dit où on en est ; celui-ci dit ce qu'on a écarté
-            // pour y arriver.
+            // **Under compliance, because it is the question an assessor asks directly
+            // afterwards.** The compliance screen says where things stand; this one says what was
+            // waived to get there.
             { label: this.i18n.t('menu.exceptions'), icon: 'pi pi-fw pi-file-edit', routerLink: ['/exceptions'] },
 
             ...(this.session.canReadGovernance()
                 ? [
-                      // **Le document ISO 27001, et il ouvre sur ses écarts.** Ce qu'on déclare et
-                      // ce qu'on mesure se lisent ensemble ou pas du tout.
-                      // **Collée à la matrice, pas rangée ailleurs.** La matrice dit où on en
-                      // est, celle-ci dit si on progresse — c'est la question de la clause 9.3, et
-                      // les deux se lisent l'une après l'autre.
+                      // **The ISO 27001 document, and it opens on its divergences.** What is
+                      // declared and what is measured are read together or not at all.
+                      // **Next to the matrix, not filed elsewhere.** The matrix says where things
+                      // stand, this one says whether they are improving — that is clause 9.3's
+                      // question, and the two are read one after the other.
                       { label: this.i18n.t('menu.compliance_history'), icon: 'pi pi-fw pi-chart-line', routerLink: ['/compliance-history'] },
 
                       { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
 
-                      // Le périmètre est ce à quoi les contrôles s'appliquent, mais personne ne
-                      // vient le chercher : on y arrive parce qu'un chiffre de la déclaration ne
-                      // s'explique pas.
+                      // The scope is what the controls apply to, but nobody comes looking for it:
+                      // one arrives here because a number in the statement will not add up.
                       { label: this.i18n.t('menu.scope'), icon: 'pi pi-fw pi-map', routerLink: ['/certified-scope'] },
 
-                      // **Ce que la barrière a répondu.** Sa politique est un réglage et reste
-                      // côté administration ; ses refus sont une preuve et sont ici.
+                      // **What the gate answered.** Its policy is a setting and stays on the
+                      // administration side; its refusals are evidence and are here.
                       { label: this.i18n.t('menu.gate_verdicts'), icon: 'pi pi-fw pi-ban', routerLink: ['/gate-verdicts'] },
                       { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
                       { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
@@ -135,11 +134,11 @@ export class AppMenu {
                 items: [
                     { label: this.i18n.t('menu.notifications'), icon: 'pi pi-fw pi-bell', routerLink: ['/notifications'] },
 
-                    // **Réservé, comme la route et comme le serveur.** Une clé de déploiement est
-                    // administrative : `/ssh-keys` porte `requires('administrator')` et le
-                    // contrôleur `@RequiresAdministrator`. Le menu, lui, la proposait à tout le
-                    // monde — c'était le seul endroit de la barre latérale à offrir un lien qui
-                    // mène à un refus, et donc la seule façon d'atteindre `/forbidden` en cliquant.
+                    // **Restricted, like the route and like the server.** A deployment key is
+                    // administrative: `/ssh-keys` carries `requires('administrator')` and the
+                    // controller `@RequiresAdministrator`. The menu, however, offered it to
+                    // everybody — the one place in the sidebar offering a link that leads to a
+                    // refusal, and therefore the only way of reaching `/forbidden` by clicking.
                     ...(this.session.isAdmin()
                         ? [{ label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
                         : [])
@@ -155,10 +154,10 @@ export class AppMenu {
             // `isSecurityLead` would have left that account an empty sidebar in front of pages
             // that answer 200 — a permission granted on the server and withheld by the client.
             if (this.session.canReadGovernance()) {
-                // **Ce qui *règle* un contrôle reste ici ; ce qu'il *produit* est passé dans les
-                // preuves.** La politique de barrière dit ce qui serait refusé, les jeux de règles
-                // ce qui serait cherché : deux réglages. Les verdicts, l'attestation et le journal
-                // d'audit sont ce qu'on montre, et se lisent à la suite du reste des preuves.
+                // **What *sets* a control stays here; what it *produces* has moved to the
+                // evidence.** The gate policy says what would be refused, the rule sets what would
+                // be looked for: two settings. The verdicts, the attestation and the audit log are
+                // what gets shown, and are read following the rest of the evidence.
                 adminItems.push(
                     { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
                     { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] }
@@ -174,11 +173,11 @@ export class AppMenu {
                 );
             }
 
-            // **Les réglages suivent la règle du serveur, qui est `@RequiresSecurityLead`.**
-            // Ils étaient rangés avec les entrées d'administration, si bien qu'un CISO pouvait
-            // écrire un réglage — la route l'autorise — sans jamais voir le lien pour y aller.
-            // Le décalage n'était visible d'aucun côté : le serveur disait oui, le menu ne
-            // proposait rien, et personne ne se plaint d'une porte qu'il ne voit pas.
+            // **The settings follow the server's rule, which is `@RequiresSecurityLead`.** They
+            // were filed with the administration entries, so a CISO could write a setting — the
+            // route allows it — without ever seeing the link to get there. The mismatch was visible
+            // from neither side: the server said yes, the menu offered nothing, and nobody
+            // complains about a door they cannot see.
             if (this.session.isSecurityLead()) {
                 adminItems.push(
                     { label: this.i18n.t('menu.settings_general'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] },

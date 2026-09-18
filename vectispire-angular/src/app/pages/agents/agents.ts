@@ -62,12 +62,11 @@ export class Agents implements OnInit {
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
     /**
-     * **Ne compte que pendant qu'il y a quelque chose à attendre.**
+     * **Only counts while there is something to wait for.**
      *
-     * Cet écran interrogeait le serveur toutes les cinq secondes sans condition — 720 requêtes par
-     * heure et par onglet ouvert, y compris sur un parc où rien ne tourne. Le premier chargement
-     * dit s'il y a de l'activité ; le compteur ne démarre que si oui, et s'arrête dès que la file
-     * est vide.
+     * This screen queried the server every five seconds unconditionally — 720 requests an hour per
+     * open tab, including on an estate where nothing is running. The first load says whether there
+     * is activity; the timer starts only if there is, and stops as soon as the queue is empty.
      */
     private readonly hasActivity = computed(() => {
         const activity = this.activity();

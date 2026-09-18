@@ -14,20 +14,20 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { Applicability, ControlDeclaration, Divergence, EvidenceSource, Implementation, SoaLine, SoaStatement } from '@/app/core/api.models';
 
 /**
- * La déclaration d'applicabilité : ce qu'on affirme, confronté à ce qui est mesuré.
+ * The statement of applicability: what is claimed, set against what is measured.
  *
- * **L'artefact utile n'est ni la déclaration ni la mesure, c'est leur désaccord.** Un contrôle
- * déclaré en place que le parc mesure non conforme est exactement ce qu'un évaluateur relève,
- * et aucune des deux moitiés du produit ne pouvait le voir seule. L'écran trie donc par
- * gravité d'écart et non par identifiant de contrôle.
+ * **The useful artefact is neither the declaration nor the measurement, it is their
+ * disagreement.** A control declared in place that the estate measures non-compliant is exactly
+ * what an assessor writes up, and neither half of the product could see it alone. The screen
+ * therefore sorts by severity of divergence and not by control identifier.
  *
- * **Une instance neuve affiche vingt-quatre constats et c'est correct.** La clause 6.1.3 d
- * demande *chaque* contrôle traité ; le silence est le manque. Trier les non déclarés en bas
- * aurait fait passer le document vide pour un document propre.
+ * **A fresh instance shows twenty-four findings and that is correct.** Clause 6.1.3 d requires
+ * *every* control to be addressed; silence is the gap. Sorting the undeclared to the bottom would
+ * have made the empty document look like a clean one.
  *
- * **`evidence_source` est le champ qui empêche l'écran de mentir.** Vectispire mesure une
- * tranche de chaque contrôle ; une ligne dont la preuve vit ailleurs est affichée comme non
- * mesurée ici, ce qui est un renvoi vers l'autre document et pas un constat.
+ * **`evidence_source` is the field that stops the screen lying.** Vectispire measures a slice of
+ * each control; a row whose evidence lives elsewhere is shown as not measured here, which is a
+ * pointer to the other document and not a finding.
  */
 @Component({
     selector: 'zs-soa',
@@ -43,15 +43,15 @@ export class Soa {
     readonly statements = signal<SoaStatement[]>([]);
 
     /**
-     * Les revues expirées, tous référentiels confondus.
+     * The lapsed reviews, across all frameworks.
      *
-     * <p><b>Le compteur était là, la liste nulle part.</b> Chaque document affichait « n revues
-     * échues » et rien ne disait lesquelles : un chiffre qu'on ne peut pas ouvrir n'est pas une
-     * trace de revue, c'est un reproche. La route existait et personne ne l'appelait.
+     * <p><b>The counter was there, the list nowhere.</b> Every document displayed "n reviews
+     * overdue" and nothing said which: a number you cannot open is not a record of review, it is a
+     * reproach. The route existed and nobody called it.
      *
-     * <p>Rendue à part des documents, parce que la question se pose ainsi : un examen de
-     * direction demande ce que l'organisation a cessé de regarder, pas ce qu'un référentiel
-     * particulier a laissé filer.
+     * <p>Returned separately from the documents, because that is how the question is asked: a
+     * management review asks what the organisation has stopped looking at, not what one particular
+     * framework let slip.
      */
     readonly overdue = signal<ControlDeclaration[]>([]);
     readonly framework = signal<string | null>(null);
@@ -70,11 +70,10 @@ export class Soa {
     readonly canDeclare = computed(() => this.session.isSecurityLead());
 
     /**
-     * L'écran ouvre sur ISO 27001, pas sur le premier cadre de l'énumération.
+     * The screen opens on ISO 27001, not on the enumeration's first framework.
      *
-     * <p>Il ouvrait sur NIS 2 parce que c'est la première valeur déclarée — sur un écran dont le
-     * sous-titre parle de la clause 6.1.3 d d'ISO 27001. Le défaut de l'énumération n'est pas un
-     * choix d'écran.
+     * <p>It opened on NIS 2 because that is the first value declared — on a screen whose subtitle
+     * speaks of ISO 27001's clause 6.1.3 d. An enumeration's default is not a screen's choice.
      */
     private static readonly OPENS_ON = 'ISO_27001';
 
@@ -88,11 +87,11 @@ export class Soa {
     });
 
     /**
-     * Les écarts d'abord, du plus grave au moins grave, puis les lignes qui vont bien.
+     * The divergences first, most severe to least, then the rows that are fine.
      *
-     * Le serveur rend les lignes dans l'ordre du cadre, qui est celui du standard. C'est le bon
-     * ordre pour imprimer le document et le mauvais pour l'ouvrir : la question posée ici est
-     * « qu'est-ce qui ne va pas », et elle se répond en haut de l'écran.
+     * The server returns the rows in the framework's order, which is the standard's. That is the
+     * right order for printing the document and the wrong one for opening it: the question asked
+     * here is "what is wrong", and it is answered at the top of the screen.
      */
     private static readonly ORDER: Divergence[] = [
         'CONTRADICTED',
@@ -118,8 +117,8 @@ export class Soa {
     }
 
     load(): void {
-        // À part : ne pas obtenir la liste des revues expirées n'empêche pas de lire la
-        // déclaration, qui est le sujet de l'écran.
+        // Separately: failing to get the list of lapsed reviews does not prevent reading the
+        // statement, which is the screen's subject.
         this.api.overdueReviews().subscribe({
             next: (declarations) => this.overdue.set(declarations ?? []),
             error: () => this.overdue.set([])
@@ -161,10 +160,10 @@ export class Soa {
     }
 
     /**
-     * Les deux refus du serveur, dits ici par un bouton éteint.
+     * The server's two refusals, said here by a disabled button.
      *
-     * Laisser partir la requête pour afficher son message marcherait. Un bouton désactivé dit
-     * la même chose avant la frappe plutôt qu'après.
+     * Letting the request go in order to show its message would work. A disabled button says the
+     * same thing before the keystroke rather than after.
      */
     incomplete(): boolean {
         if (this.applicability === 'EXCLUDED') {
@@ -196,9 +195,9 @@ export class Soa {
                 next: () => {
                     this.editing.set(null);
                     this.busy.set(false);
-                    // Rechargé plutôt que fusionné localement : la ligne change de divergence,
-                    // et recalculer cette règle dans le navigateur en ferait une seconde
-                    // implémentation qui finirait par ne plus dire la même chose.
+                    // Reloaded rather than merged locally: the row changes divergence, and
+                    // recomputing that rule in the browser would make a second implementation that
+                    // would end up no longer saying the same thing.
                     this.load();
                 },
                 error: (failure) => {

@@ -351,19 +351,18 @@ export class Settings {
     readonly riskConfirmVisible = signal(false);
 
     /**
-     * L'onglet où une section s'affiche — et il y en a toujours un.
+     * The tab a section shows on — and there is always one.
      *
-     * <p><b>Trois sections ne s'affichaient nulle part.</b> Cette méthode était une liste blanche
-     * par onglet, terminée par un {@code return false} : une section qu'aucune règle ne réclamait
-     * disparaissait de l'écran sans erreur, sans onglet vide, sans rien. `Access`,
-     * `VEX Triage & Approval` et `Licenses` étaient dans ce cas — dont la double validation, qui
-     * décide si une décision de triage clôt ou part en approbation, et la visibilité des cibles.
-     * Deux règles de gouvernance auditées, réglables uniquement par appel d'API.
+     * <p><b>Three sections showed nowhere.</b> This method was a per-tab allow list ending in a
+     * {@code return false}: a section no rule claimed vanished from the screen with no error, no
+     * empty tab, nothing. `Access`, `VEX Triage & Approval` and `Licenses` were in that position —
+     * including four-eyes, which decides whether a triage decision settles or goes to approval, and
+     * target visibility. Two audited governance rules, settable only by an API call.
      *
-     * <p><b>Le dernier onglet rattrape au lieu de réclamer</b>, et c'est le correctif réel : le
-     * défaut n'était pas que ces trois sections manquent à une liste, c'est qu'une liste puisse en
-     * perdre. Une section ajoutée demain apparaîtra sous « Gouvernance » — à la mauvaise place
-     * peut-être, jamais nulle part.
+     * <p><b>The last tab catches instead of claiming</b>, and that is the real fix: the defect was
+     * not that these three sections were missing from a list, it was that a list could lose any. A
+     * section added tomorrow will appear under "Governance" — in the wrong place perhaps, never
+     * nowhere.
      */
     private tabOf(section: { name: string; settings: SettingDefinition[] }): SettingsTab {
         const firstKey = section.settings[0]?.key ?? '';
@@ -396,7 +395,7 @@ export class Settings {
         return this.tabOf(section) === this.activeTab();
     }
 
-    /** Ce réglage décide d'une règle, et ce compte ne gouverne pas la plateforme. */
+    /** This setting decides a rule, and this account does not govern the platform. */
     isReadOnlyHere(setting: SettingDefinition): boolean {
         return setting.governor_only && !this.session.governsPlatform();
     }

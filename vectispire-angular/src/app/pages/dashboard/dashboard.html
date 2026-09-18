@@ -69,11 +69,11 @@
                         <p class="text-muted-color m-0">{{ 'dashboard.no_issue_recorded' | translate }}</p>
                     } @else {
                         <!--
-                            **Deux graphiques, et non deux axes.** L'encours et les mouvements
-                            quotidiens diffèrent de deux ordres de grandeur ; un second axe à
-                            droite laissait lire un croisement dont la position vient du cadrage
-                            et non des données. Empilés, ils partagent l'axe des dates — porté par
-                            celui du bas — et ne suggèrent plus rien de faux.
+                            **Two charts, and not two axes.** The backlog and the daily movements
+                            differ by two orders of magnitude; a second axis on the right let a
+                            reader see a crossing whose position comes from the framing and not from
+                            the data. Stacked, they share the date axis — carried by the lower one —
+                            and no longer suggest anything false.
                         -->
                         <p-chart type="line" [data]="backlogChart()" [options]="backlogOptions()" height="12rem" />
                         <p-chart type="line" [data]="flowChart()" [options]="flowOptions()" height="7rem" />
@@ -124,7 +124,7 @@
         </div>
     </p-card>
 
-    <!-- Dette de Sécurité Estimée & Actions à Fort Impact (Remédiation Optimisée) -->
+    <!-- Estimated security debt & high-impact actions (optimised remediation) -->
     @if (securityDebt(); as debt) {
         <div id="security-debt" class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
             <p-card styleClass="xl:col-span-1 border-l-4 border-l-primary-500 h-full">

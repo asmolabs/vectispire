@@ -61,16 +61,15 @@ export class IssueDetailPage {
     readonly error = signal<string | null>(null);
 
     /**
-     * Le ticket qui suit ce constat.
+     * The ticket tracking this finding.
      *
-     * <p><b>La balayeuse ouvrait des tickets, et personne d'autre ne pouvait en rattacher un.</b>
-     * Elle ne s'occupe que des constats qui violent la barrière, avec le traqueur configuré
-     * globalement : une équipe qui suit celui-ci dans `SEC-1234` n'avait aucun moyen de le dire,
-     * et le webhook de fermeture — qui retrouve le constat *par sa référence* — ne pouvait donc
-     * pas la reconnaître.
+     * <p><b>The sweep opened tickets, and nobody else could attach one.</b> It deals only with
+     * findings that breach the gate, using the globally configured tracker: a team tracking this one
+     * in `SEC-1234` had no way of saying so, and the closing webhook — which finds the finding *by
+     * its reference* — could therefore not recognise it.
      *
-     * <p>Le formulaire n'est offert qu'aux comptes qui peuvent agir : le montrer à un auditeur
-     * serait offrir une porte que le serveur ferme.
+     * <p>The form is offered only to accounts that can act: showing it to an auditor would be
+     * offering a door the server closes.
      */
     readonly canAttach = computed(() => this.session.canCauseEffects());
     readonly editingTicket = signal(false);
@@ -101,7 +100,7 @@ export class IssueDetailPage {
         return type === 'sast' ? 'Vulnerable code' : type;
     }
 
-    /** Ouvre le formulaire, prérempli de ce qui est déjà rattaché. */
+    /** Opens the form, pre-filled with what is already attached. */
     editTicket(): void {
         const detail = this.issue();
         this.ticketReference = detail?.ticketRef ?? '';
@@ -111,12 +110,12 @@ export class IssueDetailPage {
     }
 
     /**
-     * Rattache, ou corrige.
+     * Attaches, or corrects.
      *
-     * <p>Une référence vide n'est pas envoyée : le serveur la refuse, et il a raison — un champ
-     * vidé par mégarde rendrait le constat invisible au webhook *et* rouvrirait la porte à un
-     * second ticket de la balayeuse, sans que rien ne le dise. L'écran ne propose donc pas le
-     * geste plutôt que de le faire refuser.
+     * <p>An empty reference is not sent: the server refuses it, and rightly — a field emptied by
+     * mistake would make the finding invisible to the webhook *and* reopen the door to a second
+     * ticket from the sweep, with nothing saying so. The screen therefore does not offer the move
+     * rather than having it refused.
      */
     saveTicket(): void {
         const detail = this.issue();
@@ -129,8 +128,8 @@ export class IssueDetailPage {
             next: (updated) => {
                 this.attaching.set(false);
                 this.editingTicket.set(false);
-                // Le constat rendu par le serveur porte la référence telle qu'elle a été écrite —
-                // rognée, éventuellement refusée — et c'est celle-là qu'il faut afficher.
+                // The finding the server returns carries the reference as it was written — trimmed,
+                // possibly refused — and that is the one to show.
                 this.issue.set({ ...detail, ticketRef: updated.ticketRef, ticketUrl: updated.ticketUrl });
             },
             error: (response) => {

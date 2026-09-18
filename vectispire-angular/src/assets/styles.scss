@@ -1,30 +1,30 @@
-/* Feuille de style globale.
+/* Global stylesheet.
  *
- * `layout/` et `tailwind.css` viennent du template Sakai (MIT, PrimeTek), plus
- * précisément de son sous-module d'assets `cetincakiroglu/sakai-assets` — ce qui
- * explique pourquoi ils sont absents d'un clone superficiel de `sakai-ng`.
+ * `layout/` and `tailwind.css` come from the Sakai template (MIT, PrimeTek), more
+ * precisely from its `cetincakiroglu/sakai-assets` asset submodule — which explains
+ * why they are absent from a shallow clone of `sakai-ng`.
  *
- * Deux écarts avec l'original, tous deux volontaires :
+ * Two departures from the original, both deliberate:
  *
- *  - `demo/demo.scss` n'est pas repris : il n'habille que la vitrine de composants,
- *    supprimée avec les pages de démonstration ;
- *  - les icônes restent `primeicons` **en 7.0.0**, la dernière version MIT. La 8.0.0
- *    est passée sous une licence propriétaire avec le reste de la famille PrimeNG,
- *    ce qui est précisément la raison pour laquelle l'interface s'appuie sur Optimus.
+ *  - `demo/demo.scss` is not taken: it only styles the component showcase, which was
+ *    removed along with the demonstration pages;
+ *  - the icons stay on `primeicons` **7.0.0**, the last MIT release. 8.0.0 moved to a
+ *    proprietary licence with the rest of the PrimeNG family, which is precisely why
+ *    this interface builds on Optimus.
  */
 @use 'primeicons/primeicons.css';
 @use './layout/layout.scss';
 
-/* Inter, servi localement.
+/* Inter, served locally.
  *
- * Sakai chargeait Lato depuis un CDN. La politique de sécurité de contenu de
- * Vectispire refuse toute feuille de style tierce, et c'est ainsi que la typographie
- * de la version Reflex n'a jamais atteint la production : la requête était bloquée,
- * la page retombait sur la police système, et rien ne le signalait.
+ * Sakai loaded Lato from a CDN. Vectispire's content security policy refuses every
+ * third-party stylesheet, and that is how the Reflex version's typography never
+ * reached production: the request was blocked, the page fell back to the system font,
+ * and nothing reported it.
  *
- * Deux fichiers plutôt qu'un : `unicode-range` fait que le sous-ensemble étendu
- * (85 ko) n'est téléchargé que si la page affiche réellement un caractère qui en
- * relève. Licence SIL OFL 1.1, dans `public/fonts/LICENSE.txt`.
+ * Two files rather than one: `unicode-range` means the extended subset (85 kB) is only
+ * downloaded if the page actually shows a character belonging to it. SIL OFL 1.1
+ * licence, in `public/fonts/LICENSE.txt`.
  */
 @font-face {
     font-family: 'Inter';
@@ -51,27 +51,27 @@
 
 body {
     font-family: var(--zs-font-family);
-    /* Chiffres à chasse fixe et zéro barré : les tableaux de Vectispire sont pleins de
-     * comptes, de scores CVSS et d'identifiants, et des chiffres de largeur variable
-     * font danser les colonnes d'une ligne à l'autre. */
+    /* Tabular figures and a slashed zero: Vectispire's tables are full of counts, CVSS
+     * scores and identifiers, and variable-width digits make the columns dance from one
+     * row to the next. */
     font-variant-numeric: tabular-nums slashed-zero;
     font-feature-settings:
         'tnum' 1,
         'zero' 1;
 }
 
-/* Les tableaux défilent à l'intérieur de leur carte, jamais la page.
+/* Tables scroll inside their card, never the page.
  *
- * Sans cette règle, un tableau de sept colonnes sur un écran étroit élargit le
- * document entier : la barre de défilement horizontale apparaît sur `body`, l'en-tête
- * et le menu se décalent avec, et chaque écran de l'application devient bancal à cause
- * d'un seul tableau. Le conteneur défile, le reste de la page ne bouge pas.
+ * Without this rule, a seven-column table on a narrow screen widens the whole
+ * document: the horizontal scrollbar appears on `body`, the header and the menu shift
+ * with it, and every screen in the application goes crooked because of one table. The
+ * container scrolls, the rest of the page does not move.
  *
- * Le `min-width` est ce qui fait la différence entre défiler et écraser. Sans lui, le
- * navigateur comprime les colonnes jusqu'à couper les mots caractère par caractère —
- * un tableau techniquement visible et illisible. Il ne s'applique qu'en dessous de
- * 40rem, donc il ne change rien sur un poste de travail : c'est exactement la largeur
- * en dessous de laquelle un tableau de données cesse de tenir.
+ * The `min-width` is what makes the difference between scrolling and crushing. Without
+ * it, the browser compresses the columns until it breaks words character by character
+ * — a table that is technically visible and unreadable. It applies only below 40rem,
+ * so it changes nothing on a workstation: that is exactly the width below which a data
+ * table stops fitting.
  */
 .p-datatable-table-container {
     overflow-x: auto;
@@ -81,9 +81,9 @@ body {
     min-width: 40rem;
 }
 
-/* Un tableau à deux ou trois colonnes n'a rien à faire défiler : la classe le dispense
- * du plancher ci-dessus. Posée sur les tableaux étroits plutôt que retirée des larges,
- * parce que l'oubli doit pencher du côté lisible. */
+/* A two- or three-column table has nothing to scroll: the class exempts it from the
+ * floor above. Put on the narrow tables rather than removed from the wide ones, because
+ * forgetting should err on the readable side. */
 .zs-table-narrow .p-datatable-table {
     min-width: 0;
 }

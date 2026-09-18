@@ -73,13 +73,13 @@ export class ScanDetailPage {
     }
 
     /**
-     * Les trois documents qu'un scan produit et que personne ne pouvait obtenir.
+     * The three documents a scan produces and nobody could obtain.
      *
-     * <p><b>L'attestation in-toto et les deux documents VEX étaient calculés, servis, et offerts
-     * nulle part.</b> Ce sont précisément les pièces qu'un évaluateur demande d'un scan : ce qui
-     * a produit ce résultat, et ce que l'éditeur dit de chaque vulnérabilité. Trois méthodes
-     * clientes typées existaient et n'étaient appelées par rien ; elles sont retirées au profit
-     * du chemin qui convient à un téléchargement, celui que le SBOM emprunte déjà.
+     * <p><b>The in-toto attestation and the two VEX documents were computed, served, and offered
+     * nowhere.</b> They are precisely the pieces an assessor asks for from a scan: what produced
+     * this result, and what the publisher says about each vulnerability. Three typed client methods
+     * existed and were called by nothing; they are removed in favour of the path that suits a
+     * download, the one the SBOM already takes.
      */
     downloadAttestation(id: number): void {
         this.download(`/api/v1/attestations/scans/${id}`, `vectispire-scan-${id}.attestation.json`);

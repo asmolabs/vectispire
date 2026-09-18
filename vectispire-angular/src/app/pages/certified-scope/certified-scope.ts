@@ -10,21 +10,20 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/core/api.models';
 
 /**
- * Ce que le périmètre certifié couvre, et combien de lui porte une preuve courante.
+ * What the certified scope covers, and how much of it carries current evidence.
  *
- * **Un outil qui mesure sa propre couverture annonce toujours cent pour cent.** Tous les autres
- * écrans répondent à une question sur les cibles que quelqu'un a enregistrées ; un système de
- * management a un périmètre déclaré dans un document, et les deux ne sont pas le même
- * ensemble. Un parc entièrement scanné fait de la moitié des actifs certifiés se lit comme un
- * résultat propre, et aucune requête ne peut s'en apercevoir.
+ * **A tool measuring its own coverage always announces one hundred per cent.** Every other screen
+ * answers a question about the targets somebody registered; a management system has a scope
+ * declared in a document, and the two are not the same set. An estate scanned in full but made of
+ * half the certified assets reads as a clean result, and no query can notice it.
  *
- * **D'où le chiffre en haut de l'écran, qui porte sur ce qui manque.** « Votre périmètre nomme
- * quarante actifs, cette instance en détient trente et un » est la phrase par laquelle un audit
- * commence, et elle ne se dérive pas : le nombre déclaré est recopié du document de périmètre.
+ * **Hence the number at the top of the screen, which is about what is missing.** "Your scope names
+ * forty assets, this instance holds thirty-one" is the sentence an audit begins with, and it is
+ * not derived: the declared number is copied from the scope document.
  *
- * **Rien n'est dans le périmètre par défaut.** Un périmètre que personne n'a tracé est un
- * périmètre non tracé, pas le parc entier — et l'écran dit « non déclaré » plutôt que de
- * produire un pourcentage contre un dénominateur inconnu.
+ * **Nothing is in scope by default.** A scope nobody has drawn is an undrawn scope, not the whole
+ * estate — and the screen says "not declared" rather than producing a percentage against an
+ * unknown denominator.
  */
 @Component({
     selector: 'zs-certified-scope',
@@ -47,12 +46,11 @@ export class CertifiedScope {
     readonly declared = computed(() => (this.scope()?.coverage.declaredAssets ?? 0) > 0);
 
     /**
-     * Les actifs que la déclaration revendique et dont l'instance n'a aucune ligne.
+     * The assets the declaration claims and for which the instance holds no row.
      *
-     * Zéro quand personne n'a déclaré de nombre — *pas* quand la couverture est complète. Les
-     * deux se distinguent par {@link declared}, et les confondre est tout le piège : un
-     * périmètre non déclaré ne rapporte aucun écart pour la même raison qu'une pièce vide ne
-     * rapporte aucun bruit.
+     * Zero when nobody declared a number — *not* when coverage is complete. The two are told apart
+     * by {@link declared}, and conflating them is the whole trap: an undeclared scope reports no
+     * gap for the same reason an empty room reports no noise.
      */
     readonly unaccountedFor = computed(() => {
         const coverage = this.scope()?.coverage;
@@ -63,10 +61,10 @@ export class CertifiedScope {
     });
 
     /**
-     * La part du périmètre *déclaré* qui porte une preuve fraîche, ou rien.
+     * The share of the *declared* scope carrying fresh evidence, or nothing.
      *
-     * Contre le nombre déclaré et non contre ce que l'instance détient : diviser par ce qu'on a
-     * est exactement la façon dont un outil annonce cent pour cent sur un dixième d'un parc.
+     * Against the declared number and not against what the instance holds: dividing by what one has
+     * is exactly how a tool announces one hundred per cent over a tenth of an estate.
      */
     readonly freshShare = computed<number | null>(() => {
         const coverage = this.scope()?.coverage;

@@ -11,23 +11,23 @@ import { FormsModule } from '@angular/forms';
 import type { HighImpactFix, MonitoredContainer, MonitoredRepository, RemediationCoverage, SecurityDebtReport } from '@/app/core/api.models';
 
 /**
- * Ce qu'il faut faire, dans l'ordre — et non ce qui ne va pas.
+ * What to do, in order — and not what is wrong.
  *
- * <p><b>Le calcul existait, l'écran n'existait pas.</b> {@code /api/v1/remediation/high-impact-fixes}
- * classe les mises à jour par ce qu'elles ferment sur ce qu'elles coûtent, et
- * {@code getHighImpactFixes} attendait dans le service front sans qu'aucun composant ne l'appelle.
- * Le produit savait donc répondre à « par quoi je commence » et ne le disait à personne : le
- * tableau de bord en montrait un extrait dans une carte, entre huit autres.
+ * <p><b>The calculation existed, the screen did not.</b> {@code /api/v1/remediation/high-impact-fixes}
+ * ranks upgrades by what they close against what they cost, and {@code getHighImpactFixes} sat
+ * waiting in the front-end service with no component calling it. The product could therefore answer
+ * "where do I start" and told nobody: the dashboard showed an extract of it in a card, among eight
+ * others.
  *
- * <p><b>Une action par ligne, et non une vulnérabilité par ligne.</b> C'est la différence avec la
- * liste des constats. Quatorze constats de la même bibliothèque sur six dépôts ne sont pas
- * quatorze décisions : c'est une montée de version. La liste des constats répond « qu'est-ce qui
- * ne va pas », celle-ci répond « qu'est-ce que je fais lundi matin », et une équipe qui n'a que la
- * première trie du bruit au lieu de réduire du risque.
+ * <p><b>One action per row, and not one vulnerability per row.</b> That is the difference from the
+ * list of findings. Fourteen findings from the same library across six repositories are not
+ * fourteen decisions: they are one version bump. The list of findings answers "what is wrong", this
+ * one answers "what do I do on Monday morning", and a team with only the first sorts noise instead
+ * of reducing risk.
  *
- * <p><b>La dette est en tête parce qu'elle donne l'échelle.</b> Un ordre de travail sans total se
- * lit comme une liste infinie ; savoir que les dix premières lignes ferment la moitié du parc est
- * ce qui fait commencer.
+ * <p><b>The debt is at the top because it gives the scale.</b> A work order with no total reads
+ * like an infinite list; knowing that the first ten rows close half the estate is what makes people
+ * start.
  */
 @Component({
     selector: 'app-remediation',
@@ -42,12 +42,12 @@ export class Remediation {
     readonly debt = signal<SecurityDebtReport | null>(null);
 
     /**
-     * L'aveu du plan : ce qu'une montée de version ne fermera pas.
+     * The plan's admission: what a version bump will not close.
      *
-     * <p><b>Parce qu'un utilisateur a lu une panne là où il y avait un calcul juste.</b> Un dépôt
-     * dont le retard est fait de secrets exposés affiche une seule action face à des centaines de
-     * constats ouverts — c'est exact, le classement ne retient que les vulnérabilités portant un
-     * paquet, et rien à l'écran ne le disait. Un chiffre faux se corrige ; une défiance se garde.
+     * <p><b>Because a user read a failure where there was a correct calculation.</b> A repository
+     * whose backlog is made of exposed secrets shows a single action against hundreds of open
+     * findings — which is accurate, the ranking keeps only vulnerabilities carrying a package, and
+     * nothing on the screen said so. A wrong number gets corrected; mistrust is kept.
      */
     readonly coverage = signal<RemediationCoverage | null>(null);
     readonly loading = signal(true);
@@ -55,35 +55,34 @@ export class Remediation {
     readonly expanded = signal<string | null>(null);
 
     /**
-     * La cible sur laquelle porte le plan, ou tout le parc.
+     * The target the plan covers, or the whole estate.
      *
-     * <p>Une seule liste déroulante pour les dépôts et les images : la question est « de quoi
-     * suis-je responsable lundi », et elle ne se pose pas différemment selon qu'on livre un dépôt
-     * ou une image. La valeur porte son genre pour que l'appel sache quel paramètre poser.
+     * <p>A single dropdown for repositories and images: the question is "what am I responsible for
+     * on Monday", and it is not asked differently depending on whether one ships a repository or an
+     * image. The value carries its kind so the call knows which parameter to set.
      */
     readonly targets = signal<{ label: string; value: string }[]>([]);
     scope = '';
 
     /**
-     * Combien de lignes sont demandées.
+     * How many rows are asked for.
      *
-     * <p><b>Dix par défaut, et non « tout ».</b> Un ordre de travail court est ce qui fait
-     * commencer ; c'est aussi pour cela que ceci grandit par paliers au lieu d'offrir une
-     * pagination — personne ne veut la page 4 d'un plan de remédiation, on veut savoir ce qui
-     * vient après les dix premières.
+     * <p><b>Ten by default, and not "everything".</b> A short work order is what makes people
+     * start; that is also why this grows in steps instead of offering pagination — nobody wants
+     * page 4 of a remediation plan, one wants to know what comes after the first ten.
      */
     readonly wanted = signal(10);
     readonly CEILING = 50;
 
-    /** Vrai tant que le serveur en a rendu autant qu'on en demandait : il y a peut-être la suite. */
+    /** True as long as the server returned as many as were asked for: there may be more. */
     readonly mayHaveMore = computed(() =>
         this.wanted() < this.CEILING && this.fixes().length >= this.wanted());
 
     /**
-     * Ce que les lignes affichées ferment, additionné.
+     * What the rows shown close, added up.
      *
-     * <p>Un même CVE peut apparaître sous deux paquets ; ce total compte donc des constats et non
-     * des vulnérabilités distinctes, et le libellé le dit.
+     * <p>One CVE can appear under two packages; this total therefore counts findings and not
+     * distinct vulnerabilities, and the label says so.
      */
     readonly closedByTheList = computed(() =>
         this.fixes().reduce((sum, fix) => sum + fix.cveCountResolved, 0));
@@ -94,8 +93,8 @@ export class Remediation {
     constructor() {
         this.load();
 
-        // Les cibles sont chargées à part : ne pas pouvoir les lister n'empêche pas de lire le
-        // plan du parc entier, qui est ce que la page montre par défaut.
+        // The targets are loaded separately: being unable to list them does not prevent reading the
+        // whole estate's plan, which is what the page shows by default.
         this.api.repositories().subscribe({
             next: (repositories: MonitoredRepository[]) => this.addTargets(
                 repositories.map((repository) => ({
@@ -118,7 +117,7 @@ export class Remediation {
         this.targets.update((current) => [...current, ...more]);
     }
 
-    /** Recharge le plan pour la portée et la taille demandées. */
+    /** Reloads the plan for the scope and size asked for. */
     load(): void {
         this.loading.set(true);
         this.error.set(null);
@@ -135,19 +134,19 @@ export class Remediation {
             }
         });
 
-        // Séparément : une dette indisponible ne doit pas effacer un ordre de travail qui, lui,
-        // est arrivé. C'est le contexte de la page, pas son sujet.
+        // Separately: an unavailable debt figure must not erase a work order that did arrive. It is
+        // the page's context, not its subject.
         this.api.getSecurityDebt(repoId, containerId)
             .subscribe({ next: (debt) => this.debt.set(debt), error: () => {} });
 
-        // Et l'aveu de même : ne pas savoir ce que le plan laisse de côté vaut mieux que ne pas
-        // voir le plan. Remis à zéro d'abord, pour qu'une portée ne garde pas l'aveu de l'autre.
+        // And the admission likewise: not knowing what the plan leaves out beats not seeing the
+        // plan. Reset first, so that one scope does not keep the other's admission.
         this.coverage.set(null);
         this.api.getRemediationCoverage(repoId, containerId)
             .subscribe({ next: (coverage) => this.coverage.set(coverage), error: () => {} });
     }
 
-    /** Change de cible : la taille demandée repart à dix, le plan n'étant plus le même. */
+    /** Changes target: the size asked for goes back to ten, the plan no longer being the same. */
     changeScope(): void {
         this.wanted.set(10);
         this.expanded.set(null);
@@ -168,10 +167,10 @@ export class Remediation {
     }
 
     /**
-     * La sévérité qui commande la ligne, pour la teinte.
+     * The severity that governs the row, for the tint.
      *
-     * <p>Une seule critique décide de la couleur : c'est elle qui décide de l'urgence, et une
-     * moyenne l'aurait diluée dans le nombre.
+     * <p>A single critical decides the colour: it is what decides the urgency, and an average would
+     * have diluted it in the count.
      */
     severityOf(fix: HighImpactFix): 'danger' | 'warn' | 'info' {
         if (fix.criticalCveCount > 0) return 'danger';

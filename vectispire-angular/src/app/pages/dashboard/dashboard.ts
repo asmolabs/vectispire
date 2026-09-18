@@ -152,24 +152,23 @@ export class Dashboard {
     }
 
     /**
-     * L'encours, sur son propre graphique.
+     * The backlog, on a chart of its own.
      *
-     * <h2>Pourquoi deux graphiques et non deux axes</h2>
+     * <h2>Why two charts and not two axes</h2>
      *
-     * <p>L'encours et les mouvements quotidiens diffèrent de deux ordres de grandeur sur un parc
-     * réel : sur un seul axe, « ouverts » et « résolus » s'écrasent sur zéro et le panneau montre
-     * une courbe qui prétend en être trois. Le diagnostic était juste ; le remède — un second axe
-     * à droite — ne l'était pas.
+     * <p>The backlog and the daily movements differ by two orders of magnitude on a real estate: on
+     * a single axis, "opened" and "resolved" flatten onto zero and the panel shows one curve
+     * claiming to be three. The diagnosis was right; the remedy — a second axis on the right — was
+     * not.
      *
-     * <p><b>Un double axe laisse lire un croisement qui ne veut rien dire.</b> La position
-     * relative des deux courbes est fixée par le cadrage que la bibliothèque a choisi, pas par
-     * les données : un lecteur voit « les résolutions passent au-dessus du retard » et en conclut
-     * quelque chose, alors qu'il suffit d'un jour de plus dans la fenêtre pour déplacer le
-     * croisement. Sur le panneau qu'on projette en réunion, c'est la faute qui coûte le plus
-     * cher.
+     * <p><b>A dual axis lets a reader see a crossing that means nothing.</b> The relative position
+     * of the two curves is fixed by the framing the library chose, not by the data: a reader sees
+     * "resolutions rise above the backlog" and concludes something from it, when one more day in
+     * the window is enough to move the crossing. On the panel projected in a meeting, that is the
+     * costliest mistake of all.
      *
-     * <p>Deux graphiques empilés partageant l'axe des dates : rien n'est perdu, et plus aucun
-     * croisement n'est suggéré.
+     * <p>Two stacked charts sharing the date axis: nothing is lost, and no crossing is suggested
+     * any more.
      */
     readonly backlogChart = computed(() => {
         const points = this.trends()?.points ?? [];
@@ -190,7 +189,7 @@ export class Dashboard {
         };
     });
 
-    /** Les mouvements du jour, sur la même fenêtre et les mêmes dates que l'encours. */
+    /** The day's movements, over the same window and the same dates as the backlog. */
     readonly flowChart = computed(() => {
         const points = this.trends()?.points ?? [];
         return {
@@ -215,11 +214,11 @@ export class Dashboard {
     });
 
     /**
-     * L'encours en haut, sans étiquettes de dates.
+     * The backlog on top, without date labels.
      *
-     * <p>Elles sont portées par le graphique du dessous : deux jeux de dates l'un sous l'autre
-     * répètent la même information et volent la hauteur qui sert à lire les courbes. C'est ce qui
-     * fait des deux panneaux une seule lecture plutôt que deux graphiques voisins.
+     * <p>They are carried by the chart below: two sets of dates one under the other repeat the same
+     * information and steal the height used to read the curves. That is what makes the two panels a
+     * single reading rather than two neighbouring charts.
      */
     readonly backlogOptions = computed(() => this.options(this.i18n.t('dashboard.chart.open_backlog'), false));
 

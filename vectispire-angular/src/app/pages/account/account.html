@@ -37,9 +37,9 @@
             </div>
 
             <!--
-                **L'enrôlement est en deux temps parce que le serveur l'est.** Le secret est
-                proposé, puis confirmé par un premier code : sans cette confirmation, une horloge
-                décalée ou un secret mal recopié ne se verrait qu'à la déconnexion suivante.
+                **Enrolment is in two steps because the server is.** The secret is offered, then
+                confirmed by a first code: without that confirmation, a clock that is out or a
+                secret copied wrong would only show at the next sign-out.
             -->
             @if (!mfaEnabled() && !enrolment()) {
                 <p class="text-sm text-muted-color m-0">{{ 'account.mfa_help' | translate }}</p>
@@ -54,9 +54,9 @@
                     <p class="text-sm m-0">{{ 'account.mfa_scan' | translate }}</p>
 
                     <!--
-                        Pas d'image QR : la dessiner demande une dépendance de plus, et c'est une
-                        décision qui ne se prend pas en passant. Le secret en groupes de quatre est
-                        la saisie manuelle que toute application d'authentification accepte.
+                        No QR image: drawing it takes one more dependency, and that is a decision one
+                        does not make in passing. The secret in groups of four is the manual entry
+                        every authenticator application accepts.
                     -->
                     <div class="font-mono text-lg tracking-wide break-all p-3 rounded bg-surface-100 dark:bg-surface-800">
                         {{ readableSecret() }}
@@ -76,9 +76,9 @@
             }
 
             <!--
-                Montrés une fois, et l'écran le dit avant de les afficher : le serveur les chiffre
-                et ne les rendra plus. Sans cet avertissement, on ferme l'onglet en pensant les
-                retrouver plus tard.
+                Shown once, and the screen says so before showing them: the server hashes them and
+                will not return them again. Without that warning, one closes the tab thinking they
+                can be found later.
             -->
             @if (backupCodes().length > 0) {
                 <p-message severity="warn" [closable]="false" styleClass="w-full">

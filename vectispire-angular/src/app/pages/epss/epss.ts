@@ -51,16 +51,15 @@ export class Epss implements OnInit {
     readonly lookupDialogOpen = signal<boolean>(false);
 
     /**
-     * L'explication d'une CVE qu'on regarde avant de savoir si elle vous concerne.
+     * The explanation of a CVE one looks at before knowing whether it concerns them.
      *
-     * <p><b>C'est ici que la question se pose, et il n'y avait aucun endroit pour la poser.</b>
-     * Le conseiller n'était atteignable que depuis un constat du parc ; cet écran est celui où
-     * l'on tape une CVE lue ailleurs — dans un bulletin, dans la presse — pour décider si elle
-     * mérite qu'on s'y arrête. La route existait, avec un repli déterministe pour les CVE que le
-     * parc ne porte pas, et aucun composant ne l'appelait.
+     * <p><b>This is where the question is asked, and there was nowhere to ask it.</b> The advisor
+     * was reachable only from a finding in the estate; this screen is where one types a CVE read
+     * elsewhere — in a bulletin, in the press — to decide whether it deserves attention. The route
+     * existed, with a deterministic fallback for CVEs the estate does not carry, and no component
+     * called it.
      *
-     * <p>Comme sur la liste des constats, l'explication n'est offerte que si un modèle est
-     * configuré.
+     * <p>As on the list of findings, the explanation is offered only if a model is configured.
      */
     readonly aiEnabled = signal<boolean>(false);
     readonly advice = signal<AiVulnerabilityAdvice | null>(null);
@@ -75,7 +74,7 @@ export class Epss implements OnInit {
         });
     }
 
-    /** Demande l'explication de la CVE affichée. */
+    /** Asks for the explanation of the CVE on screen. */
     explain(): void {
         const record = this.lookupResult();
         if (!record) return;
@@ -136,8 +135,8 @@ export class Epss implements OnInit {
         this.lookupError.set(null);
         this.lookupDialogOpen.set(true);
 
-        // Une recherche neuve efface l'explication de la précédente : la garder afficherait
-        // l'analyse d'une CVE sous les chiffres d'une autre.
+        // A fresh search clears the previous explanation: keeping it would show one CVE's analysis
+        // under another's numbers.
         this.advice.set(null);
         this.adviceError.set(null);
 

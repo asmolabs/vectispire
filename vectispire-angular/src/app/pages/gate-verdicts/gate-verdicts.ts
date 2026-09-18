@@ -11,16 +11,16 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
 
 /**
- * Ce que la barrière a répondu, du plus récent au plus ancien.
+ * What the gate answered, newest first.
  *
- * **Un refus est la seule preuve qu'un contrôle s'exécute.** « Toutes les cibles passent » ne
- * distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué, et c'est la
- * distinction que cet écran existe pour faire. D'où le filtre « refus seulement » : c'est la
- * vue qu'on ouvre devant un auditeur, pas une commodité.
+ * **A refusal is the only proof that a control runs.** "Every target passes" does not distinguish
+ * a clean estate from a gate that has never blocked anything, and that is the distinction this
+ * screen exists to make. Hence the "refusals only" filter: it is the view one opens in front of
+ * an auditor, not a convenience.
  *
- * **Le nombre d'issues examinées est affiché à côté du verdict, toujours.** Un passage après
- * examen de quatre cents issues et un passage après examen de zéro sont la même ligne sans
- * lui, et seul le premier prouve quelque chose.
+ * **The number of issues examined is shown beside the verdict, always.** A pass after examining
+ * four hundred issues and a pass after examining zero are the same row without it, and only the
+ * first proves anything.
  */
 @Component({
     selector: 'zs-gate-verdicts',
@@ -38,30 +38,29 @@ export class GateVerdicts {
     readonly loadingMore = signal(false);
 
     /**
-     * Les lignes déjà chargées, accumulées page après page.
+     * The rows already loaded, accumulated page by page.
      *
-     * <p><b>Séparées du registre parce que les compteurs, eux, ne s'accumulent pas.</b> Le serveur
-     * compte ce qu'il a rendu sur *cette* page ; additionner les pages donnerait un total qui
-     * grandit à mesure qu'on lit, ce qui n'est le total de rien.
+     * <p><b>Kept apart from the register because the counters do not accumulate.</b> The server
+     * counts what it returned on *this* page; adding the pages up would give a total that grows as
+     * one reads, which is the total of nothing.
      */
     readonly loaded = signal<RegisteredVerdict[]>([]);
 
     /**
-     * Il reste des lignes à demander.
+     * There are rows left to ask for.
      *
-     * <p><b>Un curseur peut arriver avec une page vide, et c'est voulu.</b> La visibilité est
-     * appliquée après la lecture : une fenêtre entière peut n'appartenir qu'à d'autres. Masquer
-     * le bouton parce que la page est vide ferait s'arrêter le lecteur restreint juste avant ses
-     * propres lignes.
+     * <p><b>A cursor can arrive with an empty page, and that is intended.</b> Visibility is applied
+     * after the read: a whole window can belong to other people only. Hiding the button because the
+     * page is empty would make the restricted reader stop just before their own rows.
      */
     readonly hasMore = computed(() => this.register()?.next_cursor != null);
 
     /**
-     * Le taux de refus, ou rien.
+     * The refusal rate, or nothing.
      *
-     * Zéro verdict ne fait pas zéro pour cent : il ne fait pas de pourcentage du tout, et en
-     * afficher un sur une instance neuve donnerait à lire « la barrière ne refuse rien » là où
-     * la phrase est « la barrière n'a pas encore répondu ».
+     * Zero verdicts do not make zero per cent: they make no percentage at all, and showing one on
+     * a fresh instance would read as "the gate refuses nothing" where the sentence is "the gate has
+     * not answered yet".
      */
     readonly refusalRate = computed(() => {
         const data = this.register();
@@ -105,7 +104,7 @@ export class GateVerdicts {
         });
     }
 
-    /** Les gravités dans l'ordre du pire au moins pire, et seulement celles qui portent un compte. */
+    /** The severities from worst to least bad, and only those carrying a count. */
     counts(row: RegisteredVerdict): { severity: string; count: number }[] {
         return ['critical', 'high', 'medium', 'low']
             .map((severity) => ({ severity, count: row.counts_by_severity?.[severity] ?? 0 }))

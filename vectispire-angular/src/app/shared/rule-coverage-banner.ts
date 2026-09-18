@@ -7,20 +7,20 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RuleCoverageAssessment } from '@/app/core/api.models';
 
 /**
- * Dit quand une absence de constat est une absence de recherche.
+ * Says when an absence of findings is an absence of looking.
  *
- * **Sans lui, une instance sans règle pour ses langages affiche « 0 » en vert.** Le produit
- * embarque une seule règle Semgrep, en Python — les jeux publics ne sont pas
- * redistribuables — donc un parc en Java et TypeScript rapporte zéro constat de code et le
- * lit comme une bonne nouvelle. C'est toute la différence que ce composant introduit.
+ * **Without it, an instance with no rule for its languages shows "0" in green.** The product
+ * ships a single Semgrep rule, in Python — the public sets are not redistributable — so an
+ * estate in Java and TypeScript reports zero code findings and reads that as good news. That is
+ * the whole difference this component introduces.
  *
- * **Il nomme la conséquence, jamais le réglage.** « L'analyse de code ne couvre qu'un motif,
- * en Python » se comprend sans savoir ce qu'est un jeu de règles ; « aucun jeu actif » ne se
- * comprend qu'en le sachant déjà.
+ * **It names the consequence, never the setting.** "Code analysis covers a single pattern, in
+ * Python" is understood without knowing what a rule set is; "no active set" is understood only
+ * by somebody who knows already.
  *
- * **Rien quand la couverture est complète.** Un avertissement affiché quand tout va bien perd
- * son sens en quelques jours, et alors celui qui compte devient invisible aussi. C'est la
- * raison pour laquelle l'état `COVERED` ne rend rien du tout.
+ * **Nothing when coverage is complete.** A warning shown when all is well loses its meaning
+ * within days, and then the one that matters becomes invisible too. That is why the `COVERED`
+ * state renders nothing at all.
  */
 @Component({
     selector: 'zs-rule-coverage-banner',
@@ -34,11 +34,11 @@ export class RuleCoverageBanner {
     readonly coverage = signal<RuleCoverageAssessment | null>(null);
 
     /**
-     * Rien tant que la réponse n'est pas là, et rien si elle n'arrive pas.
+     * Nothing until the answer is there, and nothing if it never arrives.
      *
-     * Un bandeau d'erreur sur un écran qui a par ailleurs chargé dirait « quelque chose ne va
-     * pas » sans dire quoi, au-dessus de données valides. L'écran hôte porte ses propres
-     * erreurs ; celui-ci se tait.
+     * An error banner on a screen that otherwise loaded would say "something is wrong" without
+     * saying what, above valid data. The host screen carries its own errors; this one stays
+     * quiet.
      */
     readonly visible = computed(() => {
         const state = this.coverage()?.state;

@@ -61,10 +61,10 @@
         batch to explain.
     -->
     <!--
-        **Le bouton dit ce qui va réellement se passer.** Un compte sans droit d'approbation peut
-        trier — sa décision part en file au lieu de clore — et l'écran annonçait « Triage » aux
-        deux, si bien qu'il découvrait la file après coup, en voyant le tag passer en « En attente
-        d'approbation ». L'information arrivait ; elle arrivait après la décision.
+        **The button says what is actually going to happen.** An account without approval rights can
+        triage — its decision goes into a queue instead of settling — and the screen announced
+        "Triage" to both, so such an account discovered the queue afterwards, on seeing the tag turn
+        to "Pending approval". The information did arrive; it arrived after the decision.
     -->
     @if (selected().length > 0 && canTriage()) {
         <div class="flex items-center gap-3 mb-3">
@@ -80,8 +80,8 @@
         </div>
     }
     <!--
-        Absents et non désactivés pour un compte en lecture seule : un bouton grisé invite à
-        chercher pourquoi, une absence accompagnée de sa raison explique d'elle-même.
+        Absent rather than disabled for a read-only account: a greyed-out button invites the reader
+        to work out why, an absence accompanied by its reason explains itself.
     -->
     @if (selected().length > 0 && !canTriage()) {
         <div class="flex items-center gap-3 mb-3 text-muted-color text-sm">
@@ -95,10 +95,10 @@
         header checkbox lit over objects that no longer exist.
     -->
     <!--
-        **Le tableau défile dans son propre conteneur, et la page jamais.** Sans lui, un chemin de
-        fichier long élargit la colonne au-delà de la carte et c'est la colonne de gravité, à
-        l'autre bout, qui sort de l'écran : la donnée sur laquelle on trie mentalement est celle
-        qu'on perd, et rien n'indique qu'il manque quelque chose à droite.
+        **The table scrolls in its own container, and the page never does.** Without it, a long file
+        path widens the column past the card and it is the severity column, at the far end, that
+        leaves the screen: the datum one sorts by mentally is the one that gets lost, and nothing
+        indicates that anything is missing on the right.
     -->
     <div class="overflow-x-auto">
     <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()"
@@ -193,19 +193,18 @@
                 <td class="text-right">
                     <div class="flex items-center justify-end gap-1">
                         <!--
-                            Offert seulement si un modèle est configuré : une option absente doit
-                            être absente, pas présente et refusante.
+                            Offered only if a model is configured: an absent option must be absent,
+                            not present and refusing.
                         -->
                         @if (aiEnabled()) {
                             <p-button icon="pi pi-sparkles" size="small" [text]="true" severity="help"
                                       [title]="'issues.ai_explain' | translate" (onClick)="openAiAdvisor(issue)" />
                         }
                         <!--
-                            **Gardé comme le bouton groupé, et il ne l'était pas.** Le contrôle par
-                            ligne avait été oublié quand le triage est devenu conscient du rôle :
-                            un auditeur le voyait, ouvrait la boîte, la remplissait, et récoltait
-                            un 403 à l'enregistrement — précisément l'écran cassé que les gardes de
-                            route venaient de supprimer ailleurs.
+                            **Guarded like the bulk button, and it was not.** The per-row control had
+                            been forgotten when triage became role-aware: an auditor saw it, opened
+                            the dialog, filled it in, and collected a 403 on save — precisely the
+                            broken screen the route guards had just removed elsewhere.
                         -->
                         @if (canTriage()) {
                             <p-button [label]="triageActionLabel()"
@@ -278,9 +277,9 @@
         </div>
     } @else if (aiAdviceError(); as message) {
         <!--
-            **Cette branche n'existait pas.** Le message était posé dans le signal et le gabarit
-            n'en avait aucun usage : la fenêtre s'ouvrait, le tourniquet s'arrêtait, et il ne
-            restait rien à lire.
+            **This branch did not exist.** The message was set in the signal and the template made
+            no use of it: the dialog opened, the spinner stopped, and there was nothing left to
+            read.
         -->
         <p-message severity="warn" [closable]="false" styleClass="w-full my-4">{{ message }}</p-message>
     } @else if (aiAdvice()) {

@@ -12,12 +12,12 @@ export const SECURITY_LEAD_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CI
  */
 export const GOVERNANCE_READER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN', 'CISO', 'AUDITOR'];
 /**
- * Les rôles dont une décision de triage **clôt** au lieu de partir en file d'approbation.
+ * The roles whose triage decision **settles** instead of going into an approval queue.
  *
- * <p><b>`SUPERUSER` n'y est pas, et c'est la décision du 2 septembre.</b> Ce compte est le seul
- * à pouvoir lever la règle de la double validation ; s'il pouvait aussi trancher sous elle, il
- * suffirait de l'éteindre, de régler seul et de la rallumer. La séparation ne tient que si le
- * rôle qui gouverne la règle ne peut pas agir sous elle.
+ * <p><b>`SUPERUSER` is not among them, and that is the decision of 2 September.</b> That account is
+ * the only one able to lift the four-eyes rule; if it could also decide under it, one would only
+ * have to switch the rule off, settle alone, and switch it back on. The separation holds only if
+ * the role governing the rule cannot act under it.
  */
 export const TRIAGE_APPROVER_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION'];
 /**
@@ -27,8 +27,8 @@ export const TRIAGE_APPROVER_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECUR
  * user belongs here. Only `AUDITOR`, whose whole purpose is to look, sits outside.
  */
 /**
- * Le rôle qui gouverne la plateforme — celui qui peut lever une règle, et qui pour cette raison
- * ne peut pas agir sous elle. Voir [[TRIAGE_APPROVER_ROLES]].
+ * The role that governs the platform — the one that can lift a rule, and which for that reason
+ * cannot act under it. See [[TRIAGE_APPROVER_ROLES]].
  */
 export const PLATFORM_GOVERNOR_ROLES: readonly string[] = ['SUPERUSER'];
 export const EFFECT_CAUSING_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER'];
@@ -73,17 +73,17 @@ export class SessionStore {
      */
     readonly canApproveTriage = computed(() => TRIAGE_APPROVER_ROLES.includes(this.role()));
     /**
-     * Ils peuvent agir, tout court.
+     * They can act, full stop.
      *
-     * <p><b>Faux pour deux rôles, et l'un des deux manquait.</b> L'auditeur, qui vient constater,
-     * et le compte d'amorçage, qui gouverne la plateforme sans y agir — {@code Role.SUPERUSER}
-     * porte {@code canCauseEffects = false} côté serveur depuis la séparation entre gouverner et
-     * agir. L'écran, lui, l'a laissé dans l'ensemble : le compte d'amorçage voyait donc le bouton
-     * de triage, ouvrait la boîte, et récoltait un 403 à l'enregistrement — l'écran cassé que
-     * tout ce travail sur les rôles existait pour supprimer.
+     * <p><b>False for two roles, and one of the two was missing.</b> The auditor, who comes to
+     * observe, and the bootstrap account, which governs the platform without acting on it —
+     * {@code Role.SUPERUSER} has carried {@code canCauseEffects = false} on the server since
+     * governing was separated from acting. The screen, however, left it in the set: the bootstrap
+     * account therefore saw the triage button, opened the dialog, and collected a 403 on save — the
+     * broken screen all this work on roles existed to remove.
      */
     readonly canCauseEffects = computed(() => EFFECT_CAUSING_ROLES.includes(this.role()));
-    /** Ils peuvent changer une règle de la plateforme, et non seulement un réglage. */
+    /** They can change a rule of the platform, and not merely a setting. */
     readonly governsPlatform = computed(() => PLATFORM_GOVERNOR_ROLES.includes(this.role()));
     readonly isCiso = computed(() => this.role() === 'CISO');
     /** The account must change its password before reaching anything else. */
@@ -102,11 +102,11 @@ export class SessionStore {
     }
 
     /**
-     * Le second facteur vient d'être activé ou retiré.
+     * The second factor has just been switched on or removed.
      *
-     * <p>Le jeton ne change pas — la session en cours reste la même — mais l'écran du compte
-     * doit dire l'état nouveau, et le relire par `/auth/me` demanderait un aller-retour pour une
-     * information que la réponse vient de donner.
+     * <p>The token does not change — the current session stays the same — but the account screen
+     * must state the new state, and reading it again through `/auth/me` would take a round trip for
+     * information the response has just given.
      */
     setMfaEnabled(enabled: boolean): void {
         const user = this.user();

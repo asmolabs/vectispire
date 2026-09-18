@@ -68,7 +68,7 @@
         <p-message severity="error" [text]="error()!"></p-message>
     }
 
-    <!-- 1. VUE D'ENSEMBLE INITIALE : PALMARÈS DES COMPOSANTS À RISQUE (SI AUCUNE RECHERCHE ACTIVE) -->
+    <!-- 1. Initial overview: the ranking of components at risk (when no search is active) -->
     @if (!loading() && !report()) {
         <div class="flex flex-col gap-5">
             <div class="p-4 rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50/40 dark:bg-primary-950/20 text-xs text-primary-900 dark:text-primary-200 flex items-start gap-3">
@@ -129,7 +129,7 @@
         </div>
     }
 
-    <!-- 2. VUE DÉTAILLÉE : AFFICHÉE UNIQUEMENT LORSQU'UN COMPOSANT OU UNE RECHERCHE EST SÉLECTIONNÉE -->
+    <!-- 2. Detailed view: shown only when a component or a search is selected -->
     @if (!loading() && report()) {
         <!-- Metrics Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

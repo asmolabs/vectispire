@@ -117,15 +117,15 @@ export class Licenses {
     }
 
     /**
-     * La politique de licences : lue, et désormais modifiable.
+     * The licence policy: read, and now editable.
      *
-     * <p><b>Elle était chargée et affichée nulle part.</b> C'est elle qui décide de ce que
-     * l'écran appelle « non conforme » — sur le compteur en tête, sur chaque ligne de
-     * l'inventaire, dans les conflits — et personne ne pouvait ni la voir ni la changer. Un
-     * décompte de violations dont la règle est invisible ne se discute pas : on le subit.
+     * <p><b>It was loaded and shown nowhere.</b> It is what decides what the screen calls
+     * "non-compliant" — on the counter at the top, on every row of the inventory, in the conflicts
+     * — and nobody could either see it or change it. A count of violations whose rule is invisible
+     * cannot be argued with: it is simply endured.
      *
-     * <p>Réservée au responsable sécurité, comme le serveur l'exige, et tracée par lui : changer
-     * ce qui est interdit change la conformité de tout le parc d'un coup.
+     * <p>Reserved to the security lead, as the server requires, and recorded by it: changing what
+     * is forbidden changes the whole estate's compliance at once.
      */
     readonly CATEGORIES: LicenseRiskCategory[] =
         ['PERMISSIVE', 'WEAK_COPYLEFT', 'STRONG_COPYLEFT', 'FORBIDDEN', 'UNKNOWN'];
@@ -171,9 +171,8 @@ export class Licenses {
                 this.savingPolicy.set(false);
                 this.editingPolicy.set(false);
                 this.policy.set(updated);
-                // La conformité de chaque ligne vient d'être recalculée par le serveur : la
-                // garder à l'écran telle qu'elle était afficherait la règle d'hier sous la
-                // politique d'aujourd'hui.
+                // Every row's compliance has just been recomputed by the server: keeping it on
+                // screen as it was would show yesterday's verdict under today's policy.
                 this.loadData();
             },
             error: (response) => {
@@ -276,10 +275,10 @@ export class Licenses {
 }
 
 /**
- * Une liste d'identifiants SPDX saisie à la main.
+ * A list of SPDX identifiers typed by hand.
  *
- * <p>Séparés par des virgules ou des espaces, les vides écartés : une virgule finale est la
- * façon dont on tape une liste, pas une licence nommée « ».
+ * <p>Separated by commas or spaces, blanks dropped: a trailing comma is how one types a list, not
+ * a licence named "".
  */
 function identifiers(raw: string): string[] {
     return raw.split(/[,\s]+/).map((entry) => entry.trim()).filter((entry) => entry.length > 0);

@@ -139,11 +139,11 @@
 </p-dialog>
 
 <!--
-    **La visibilité d'un compte, enfin administrable.** `VisibilityService` lit ces affectations
-    pour décider de ce que le compte voit ; l'API existait, l'écran non, et restreindre quelqu'un
-    demandait un `curl`. Les libellés passent par les traductions, contrairement au reste de cet
-    écran — l'anglais figé qu'il porte est une dette antérieure, et l'élargir au prétexte de la
-    cohérence serait l'aggraver sans le dire.
+    **An account's visibility, administrable at last.** `VisibilityService` reads these assignments
+    to decide what the account sees; the API existed, the screen did not, and restricting somebody
+    took a `curl`. The labels go through the translations, unlike the rest of this screen — the
+    hard-coded English it carries is an older debt, and widening it in the name of consistency would
+    make it worse without saying so.
 -->
 <p-dialog [(visible)]="accessVisible" [modal]="true" [style]="{ width: '34rem' }"
           [header]="('users.access_header' | translate) + ' — ' + (accessUser()?.username ?? '')">
@@ -152,9 +152,9 @@
     }
 
     <!--
-        L'écran se dénonce avant de laisser cocher : en mode « tout le monde », ces cases ne
-        décident de rien, et un réglage qui annule silencieusement une action se lit comme une
-        panne le jour où l'on vérifie.
+        The screen denounces itself before letting anyone tick: in "everyone" mode these boxes decide
+        nothing, and a setting that silently cancels an action reads as a failure the day somebody
+        checks.
     -->
     @if (restrictionsInactive()) {
         <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">

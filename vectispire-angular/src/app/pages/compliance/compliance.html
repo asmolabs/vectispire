@@ -155,12 +155,12 @@
             </div>
 
             <!--
-                **La fraîcheur de couverture, que le serveur calculait sans que rien ne l'affiche.**
-                `freshTargets` et `observedTargets` sont envoyés par `/compliance/summary` depuis
-                que le moteur sait distinguer une observation périmée d'une observation absente —
-                et aucun écran ne les lisait. Une cible jamais scannée ne présente aucune
-                vulnérabilité connue : sur un tableau qui ne compte que les constats, elle est
-                verte, et c'est le seul vert qui devrait alerter.
+                **Coverage freshness, which the server computed with nothing showing it.**
+                `freshTargets` and `observedTargets` have been sent by `/compliance/summary` ever
+                since the engine learnt to tell a stale observation from an absent one — and no
+                screen read them. A target never scanned presents no known vulnerability: on a table
+                that counts only findings, it is green, and that is the one green that should raise
+                an alarm.
             -->
             <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
                 <div class="flex items-center justify-between">
@@ -285,7 +285,7 @@
             </div>
         }
 
-        <!-- Framework Cards Selector (Rangée 1: NIS 2, ISO 27001, Cyber | Rangée 2: DORA, PCI-DSS, SOC 2) -->
+        <!-- Framework card selector (row 1: NIS 2, ISO 27001, Cyber | row 2: DORA, PCI-DSS, SOC 2) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
             @for (fw of orderedEvaluations(); track fw.framework) {
                 <div

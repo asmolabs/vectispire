@@ -44,10 +44,10 @@
     </div>
 
     <!--
-        **Les documents que ce scan a produits.** L'attestation in-toto et les deux documents VEX
-        étaient calculés et servis, et aucun écran ne les offrait : ce sont pourtant les pièces
-        qu'un évaluateur demande d'un scan — ce qui a produit ce résultat, et ce que l'éditeur dit
-        de chaque vulnérabilité.
+        **The documents this scan produced.** The in-toto attestation and the two VEX documents were
+        computed and served, and no screen offered them: yet they are the pieces an assessor asks
+        for from a scan — what produced this result, and what the publisher says about each
+        vulnerability.
     -->
     <div class="mb-4 flex flex-wrap gap-2">
         @if (detail.hasSbom) {
@@ -82,9 +82,9 @@
     </div>
 
     <!--
-        **Juste au-dessus de la liste, parce que c'est là que le vide se lit.** Une liste de
-        constats vide sur un dépôt dont aucune règle ne couvre le langage dit « ce scan n'a rien
-        trouvé » là où il faut lire « ce scan n'a rien cherché ».
+        **Directly above the list, because that is where the emptiness is read.** An empty list of
+        findings on a repository whose language no rule covers says "this scan found nothing" where
+        it must be read as "this scan looked for nothing".
     -->
     <zs-rule-coverage-banner />
 

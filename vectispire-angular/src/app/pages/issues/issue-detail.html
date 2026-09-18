@@ -105,10 +105,10 @@
     </p-card>
 
     <!--
-        **Le ticket qui suit ce constat.** La balayeuse en ouvre pour les constats qui violent la
-        barrière ; pour tous les autres, personne ne pouvait dire « celui-ci est suivi dans
-        SEC-1234 ». C'est la référence que le webhook du traqueur cherche pour refermer le
-        constat, donc la rattacher ne fait pas que documenter : elle branche la synchronisation.
+        **The ticket tracking this finding.** The sweep opens them for findings that breach the
+        gate; for all the others, nobody could say "this one is tracked in SEC-1234". It is the
+        reference the tracker's webhook looks up to close the finding, so attaching it does more
+        than document: it wires up the synchronisation.
     -->
     <p-card styleClass="mb-4">
         <ng-template #title>{{ 'issues.ticket' | translate }}</ng-template>
