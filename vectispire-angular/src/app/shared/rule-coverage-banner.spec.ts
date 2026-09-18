@@ -7,14 +7,13 @@ import { RuleCoverageBanner } from './rule-coverage-banner';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Le bandeau qui dit qu'une absence de constat est une absence de recherche.
+ * The banner that says an absence of findings is an absence of looking.
  *
- * **Le cas qui compte le plus est celui où il ne s'affiche pas.** Un avertissement montré
- * quand tout va bien perd son sens en quelques jours, et alors celui qui compte devient
- * invisible aussi — c'est la raison pour laquelle `COVERED` ne rend rien, et c'est ce que le
- * premier test verrouille.
+ * **The case that matters most is the one where it does not show.** A warning displayed when all
+ * is well loses its meaning within days, and then the one that matters becomes invisible too —
+ * that is why `COVERED` renders nothing, and it is what the first test pins.
  */
-describe('le bandeau de couverture des règles', () => {
+describe('the rule coverage banner', () => {
     let fixture: ComponentFixture<RuleCoverageBanner>;
     let http: HttpTestingController;
 
@@ -44,27 +43,27 @@ describe('le bandeau de couverture des règles', () => {
         await mount({ state: 'COVERED', languagesWithRules: ['java'], ecosystemsInEstate: ['maven'], uncovered: [], ruleFiles: 40 });
     }, 20_000);
 
-    it('ne dit rien quand chaque écosystème du parc a des règles', () => {
+    it('says nothing when every ecosystem in the estate has rules', () => {
         expect(fixture.componentInstance.visible()).toBe(false);
         expect(fixture.nativeElement.textContent.trim()).toBe('');
     });
 
-    it("avertit quand seule la règle embarquée est là", async () => {
+    it('warns when only the shipped rule is there', async () => {
         await mount({ state: 'UNCONFIGURED', languagesWithRules: ['python'], ecosystemsInEstate: ['maven'], uncovered: ['java'], ruleFiles: 1 });
 
         expect(fixture.componentInstance.visible()).toBe(true);
     });
 
-    it('nomme les écosystèmes sans règle quand la couverture est partielle', async () => {
+    it('names the ecosystems with no rule when coverage is partial', async () => {
         await mount({ state: 'PARTIAL', languagesWithRules: ['java'], ecosystemsInEstate: ['maven', 'go'], uncovered: ['go'], ruleFiles: 40 });
 
         expect(fixture.componentInstance.uncovered()).toEqual(['go']);
         expect(fixture.nativeElement.textContent).toContain('go');
     });
 
-    it("se tait quand la couverture n'a pas pu être lue", async () => {
-        // Un bandeau d'erreur au-dessus de données valides dirait « quelque chose ne va pas »
-        // sans dire quoi. L'écran hôte porte ses propres erreurs.
+    it('stays quiet when coverage could not be read', async () => {
+        // An error banner above valid data would say "something is wrong" without saying what. The
+        // host screen carries its own errors.
         await mount(null);
 
         expect(fixture.componentInstance.visible()).toBe(false);

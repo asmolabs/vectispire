@@ -7,20 +7,19 @@ import { ComplianceHistoryPage } from './compliance-history';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * La progression, et la couleur qu'elle refuse de donner à une baisse.
+ * Progress, and the colour it refuses to give a drop.
  *
- * <h2>La moitié cliente d'une règle du domaine</h2>
+ * <h2>The client half of a domain rule</h2>
  *
- * <p>Le domaine attribue déjà chaque mois à sa cause : une baisse survenue alors que le parc a
- * grandi est un {@code ESTATE_GREW}, pas un {@code DECLINED}. Mais cette distinction ne sert à
- * rien si l'écran peint les deux en rouge — un lecteur regarde la couleur avant de lire la
- * colonne « pourquoi », et un graphique où surveiller plus large est rouge apprend à surveiller
- * moins.
+ * <p>The domain already attributes each month to its cause: a drop that happened while the estate
+ * grew is an {@code ESTATE_GREW}, not a {@code DECLINED}. But that distinction is useless if the
+ * screen paints both red — a reader looks at the colour before reading the "why" column, and a
+ * chart where watching wider is red teaches people to watch less.
  *
- * <p>C'est pour cela que le premier cas porte sur la couleur et non sur le texte : le texte est
- * déjà éprouvé côté domaine, la couleur ne l'est nulle part ailleurs.
+ * <p>That is why the first case is about the colour and not about the text: the text is already
+ * tested on the domain side, the colour nowhere else.
  */
-describe('la progression de la conformité', () => {
+describe('compliance progress', () => {
     let fixture: ComponentFixture<ComplianceHistoryPage>;
     let http: HttpTestingController;
 
@@ -61,7 +60,7 @@ describe('la progression de la conformité', () => {
         }]);
     }, 20_000);
 
-    it('ne peint pas comme une régression une baisse due à un parc plus large', () => {
+    it('does not paint a drop caused by a wider estate as a regression', () => {
         const component = fixture.componentInstance;
 
         expect(component.colourOf('ESTATE_GREW')).not.toBe(component.colourOf('DECLINED'));
@@ -69,28 +68,28 @@ describe('la progression de la conformité', () => {
         expect(component.colourOf('RULES_CHANGED')).not.toBe(component.colourOf('DECLINED'));
     });
 
-    it("dit qu'une série au parc mouvant n'est pas une tendance", () => {
-        // Sans cette mention, deux points reliés se lisent comme une trajectoire, quelle que soit
-        // la distance entre les deux parcs qui les ont produits.
+    it('says a series over a moving estate is not a trend', () => {
+        // Without that note, two joined points read as a trajectory, whatever the distance between
+        // the two estates that produced them.
         expect(fixture.nativeElement.textContent).toContain('history_compliance.not_comparable');
     });
 
-    it('ne montre aucun écart sur la première capture', () => {
-        // Un « 0 » en face du premier mois se lirait « on n'a pas bougé » là où la phrase vraie
-        // est « il n'y a rien à quoi se comparer ».
+    it('shows no delta on the first capture', () => {
+        // A "0" against the first month would read as "we did not move" where the true sentence is
+        // "there is nothing to compare with".
         const changes = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
         expect([...changes].map((c: HTMLElement) => c.textContent!.trim())).toEqual(['—', '0']);
     });
 
-    it('échelonne la barre sur cent et non sur le maximum de la série', async () => {
-        // Une échelle qui s'ajuste ferait passer une progression de deux points pour une envolée.
+    it('scales the bar against one hundred and not against the series maximum', async () => {
+        // A scale that adjusts itself would make a two-point gain look like a leap.
         const component = fixture.componentInstance;
         expect(component.height(step('2026-08', 50, 'STEADY') as never)).toBe(50);
         expect(component.height(step('2026-08', 0, 'STEADY') as never))
             .toBeGreaterThan(0);
     });
 
-    it("annonce l'absence de capture plutôt qu'un graphique vide", async () => {
+    it('announces the absence of captures rather than an empty chart', async () => {
         await mount([]);
 
         expect(fixture.nativeElement.textContent).toContain('history_compliance.empty');

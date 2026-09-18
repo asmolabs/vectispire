@@ -7,12 +7,11 @@ import { GateVerdicts } from './gate-verdicts';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Le registre des verdicts, et le chiffre qu'il ne doit pas inventer.
+ * The verdict register, and the number it must not invent.
  *
- * **Zéro verdict ne fait pas zéro pour cent.** Sur une instance neuve, un taux de refus à
- * `0 %` se lit « la barrière ne refuse rien » alors que la phrase vraie est « la barrière n'a
- * pas encore répondu » — et c'est exactement la confusion que tout cet écran existe pour
- * empêcher.
+ * **Zero verdicts do not make zero per cent.** On a fresh instance, a refusal rate of `0 %` reads
+ * as "the gate refuses nothing" when the true sentence is "the gate has not answered yet" — and
+ * that is exactly the confusion this whole screen exists to prevent.
  */
 describe('le registre des verdicts', () => {
     let fixture: ComponentFixture<GateVerdicts>;
@@ -53,14 +52,14 @@ describe('le registre des verdicts', () => {
         await mount({ verdicts: [row('a', true), row('b', false)], passed: 1, refused: 1 });
     }, 20_000);
 
-    it('ne produit pas de taux de refus quand la barrière n’a jamais répondu', async () => {
+    it('produces no refusal rate when the gate has never answered', async () => {
         await mount({ verdicts: [], passed: 0, refused: 0 });
 
         expect(fixture.componentInstance.refusalRate())
             .toBeNull();
     });
 
-    it('calcule le taux sur le total des réponses', () => {
+    it('computes the rate over the total of answers', () => {
         expect(fixture.componentInstance.refusalRate()).toBe(50);
     });
 
@@ -73,9 +72,9 @@ describe('le registre des verdicts', () => {
         expect(component.shown().map((r) => r.id)).toEqual(['b']);
     });
 
-    it('n’affiche que les gravités qui portent un compte', () => {
-        // Une ligne de gravités dont trois valent zéro se lit comme un bruit et cache la
-        // quatrième, qui est la seule à dire pourquoi la barrière a refusé.
+    it('shows only the severities that carry a count', () => {
+        // A severity row where three read zero is noise and hides the fourth, which is the only one
+        // saying why the gate refused.
         const refusal = fixture.componentInstance.shown().find((r) => !r.passed)!;
 
         expect(fixture.componentInstance.counts(refusal)).toEqual([{ severity: 'critical', count: 1 }]);

@@ -7,15 +7,14 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * L'écran où l'on regarde une CVE avant de savoir si elle vous concerne.
+ * The screen where one looks at a CVE before knowing whether it concerns them.
  *
- * <p><b>C'est ici que la question « qu'est-ce que c'est » se pose, et il n'y avait aucun endroit
- * pour la poser.</b> Le conseiller n'était atteignable que depuis un constat du parc — c'est-à-dire
- * seulement quand la réponse était déjà « oui, elle vous concerne ». La route qui explique une CVE
- * quelconque existait, avec un repli déterministe pour celles que le parc ne porte pas, et aucun
- * composant ne l'appelait.
+ * <p><b>This is where the question "what is it" gets asked, and there was nowhere to ask it.</b>
+ * The advisor was reachable only from a finding in the estate — that is, only once the answer was
+ * already "yes, it concerns you". The route explaining an arbitrary CVE existed, with a
+ * deterministic fallback for those the estate does not carry, and no component called it.
  */
-describe("la priorisation EPSS", () => {
+describe('EPSS prioritisation', () => {
     let fixture: ComponentFixture<Epss>;
     let http: HttpTestingController;
 
@@ -27,7 +26,7 @@ describe("la priorisation EPSS", () => {
             notes: null
     });
 
-    /** Monte l'écran et répond aux deux appels de démarrage. */
+    /** Mounts the screen and answers the two start-up calls. */
     async function mount(aiEnabled: boolean): Promise<void> {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
@@ -54,7 +53,7 @@ describe("la priorisation EPSS", () => {
         fixture.detectChanges();
     }
 
-    /** Cherche une CVE et rend la fiche. */
+    /** Searches for a CVE and renders the card. */
     function lookup(): void {
         fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
         fixture.componentInstance.searchCve();
@@ -66,11 +65,11 @@ describe("la priorisation EPSS", () => {
         await mount(true);
     }, 20_000);
 
-    it("explique la CVE affichée, et non celle qui est tapée dans le champ", () => {
+    it('explains the CVE on screen, and not the one typed in the field', () => {
         lookup();
 
-        // La fiche fait foi : le champ peut avoir été modifié depuis la recherche, et expliquer
-        // une CVE sous les chiffres d'une autre est le pire des deux mondes.
+        // The card is authoritative: the field may have been edited since the search, and
+        // explaining one CVE under another's numbers is the worst of both worlds.
         fixture.componentInstance.cveSearchQuery = 'CVE-2000-0000';
         fixture.componentInstance.explain();
 
@@ -85,12 +84,12 @@ describe("la priorisation EPSS", () => {
         });
         fixture.detectChanges();
 
-        // Sur le signal et non sur le DOM : la fenêtre est rendue \, donc hors
-        // de l'élément du composant.
+        // On the signal and not on the DOM: the dialog renders into an overlay attached outside the
+        // component's own element.
         expect(fixture.componentInstance.advice()?.summaryExplanation).toBe('Remote code execution.');
     });
 
-    it("efface l'explication quand on cherche une autre CVE", () => {
+    it('clears the explanation when another CVE is searched for', () => {
         lookup();
         fixture.componentInstance.explain();
         http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
@@ -101,12 +100,12 @@ describe("la priorisation EPSS", () => {
             references: []
         });
 
-        // Une analyse laissée sous les chiffres d'une autre CVE se lit comme la sienne.
+        // An analysis left under another CVE's numbers reads as that CVE's own.
         lookup();
         expect(fixture.componentInstance.advice()).toBeNull();
     });
 
-    it("dit que le modèle n'a pas répondu, plutôt que de ne rien montrer", () => {
+    it('says the model did not answer, rather than showing nothing', () => {
         lookup();
         fixture.componentInstance.explain();
         http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'))
@@ -117,11 +116,11 @@ describe("la priorisation EPSS", () => {
         expect(fixture.componentInstance.adviceLoading()).toBe(false);
     });
 
-    it("n'offre rien à expliquer quand aucun modèle n'est configuré", async () => {
+    it('offers nothing to explain when no model is configured', async () => {
         await mount(false);
         lookup();
 
-        // Une option absente doit être absente, pas présente et refusante.
+        // An absent option must be absent, not present and refusing.
         expect(fixture.componentInstance.aiEnabled()).toBe(false);
         expect(document.body.textContent).not.toContain('Explain this CVE');
     });

@@ -9,17 +9,17 @@ import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
- * Le bouton de déconnexion.
+ * The sign-out button.
  *
- * <p><b>Ce cas existe parce que le bouton n'a jamais rien fait.</b> Il portait son icône, son
- * libellé traduit et aucun gestionnaire : on cliquait, rien ne bougeait, le jeton restait en
- * mémoire et la session restait ouverte côté serveur. Aucune suite ne pouvait le voir — le
- * gabarit affichait bien quelque chose, et c'est tout ce qu'on lui demandait.
+ * <p><b>This case exists because the button never did anything.</b> It carried its icon, its
+ * translated label and no handler: you clicked, nothing moved, the token stayed in memory and the
+ * session stayed open on the server. No suite could see it — the template did show something, and
+ * that was all anybody asked of it.
  *
- * <p>Ce qui est éprouvé ici n'est donc pas qu'un bouton s'affiche, mais les trois effets qu'il
- * doit produire : <b>le serveur est prévenu</b>, <b>le navigateur oublie</b> et <b>l'écran part
- * ailleurs</b> — y compris quand le serveur ne répond pas, cas où les deux derniers comptent le
- * plus.
+ * <p>What is tested here is therefore not that a button is displayed, but the three effects it
+ * must produce: <b>the server is told</b>, <b>the browser forgets</b> and <b>the screen goes
+ * elsewhere</b> — including when the server does not answer, the case where the last two matter
+ * most.
  */
 describe('la barre du haut', () => {
     let fixture: ComponentFixture<AppTopbar>;
@@ -63,25 +63,25 @@ describe('la barre du haut', () => {
     function button(): HTMLButtonElement {
         const match = Array.from(fixture.nativeElement.querySelectorAll('button'))
             .find((element) => (element as HTMLElement).textContent?.includes('Sign out'));
-        expect(match, 'aucun bouton ne porte le libellé de déconnexion').toBeTruthy();
+        expect(match, 'no button carries the sign-out label').toBeTruthy();
         return match as HTMLButtonElement;
     }
 
-    it('prévient le serveur, oublie la session et quitte la page', () => {
+    it('tells the server, forgets the session and leaves the page', () => {
         button().click();
         fixture.detectChanges();
 
-        // **Le serveur d'abord.** Sans cet appel, la ligne de session survit à la déconnexion et
-        // un onglet resté ouvert ailleurs continue de fonctionner.
+        // **The server first.** Without this call, the session row survives the sign-out and a tab
+        // left open elsewhere goes on working.
         expect(logout).toHaveBeenCalledOnce();
         expect(session.isAuthenticated()).toBe(false);
         expect(router.navigate).toHaveBeenCalledWith(['/login'], { replaceUrl: true });
     });
 
-    it('oublie la session même quand le serveur ne répond pas', () => {
-        // Si un échec réseau laissait l'utilisateur connecté dans son navigateur, le bouton
-        // mentirait à nouveau — et cette fois seulement de temps en temps, ce qui est pire.
-        logout.mockReturnValue(throwError(() => new Error('réseau')));
+    it('forgets the session even when the server does not answer', () => {
+        // If a network failure left the user signed in in their browser, the button would lie
+        // again — and this time only occasionally, which is worse.
+        logout.mockReturnValue(throwError(() => new Error('network')));
 
         button().click();
         fixture.detectChanges();
@@ -90,10 +90,10 @@ describe('la barre du haut', () => {
         expect(router.navigate).toHaveBeenCalledWith(['/login'], { replaceUrl: true });
     });
 
-    it('ne révoque pas deux fois quand on clique deux fois', () => {
-        // Le bouton se désactive le temps de l'aller-retour, mais la garde est dans la méthode :
-        // un second clic parti avant le rendu enverrait sinon une seconde révocation, et la
-        // seconde échouerait sur une session que la première vient de fermer.
+    it('does not revoke twice when clicked twice', () => {
+        // The button disables itself for the round trip, but the guard is in the method: a second
+        // click fired before the render would otherwise send a second revocation, and the second
+        // would fail against a session the first has just closed.
         const pending = new Subject<void>();
         logout.mockReturnValue(pending);
 

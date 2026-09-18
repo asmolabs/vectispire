@@ -99,7 +99,7 @@ describe('the backlog trend', () => {
         expect(fixture.nativeElement.textContent).toContain('9 issue(s) resolved');
     });
 
-    it('sépare l\'encours des mouvements, sur deux graphiques et non deux axes', () => {
+    it('separates the backlog from the movements, on two charts and not two axes', () => {
         flushTrends({
             points: [
                 { day: '2026-08-20', open: 5, opened: 2, resolved: 1 },
@@ -111,19 +111,19 @@ describe('the backlog trend', () => {
 
         const page = fixture.componentInstance;
 
-        // **Un double axe laissait lire un croisement qui ne veut rien dire** : la position
-        // relative des courbes venait du cadrage choisi par la bibliothèque, pas des données.
+        // **A dual axis let a reader see a crossing that means nothing**: the relative position of
+        // the curves came from the framing the library chose, not from the data.
         expect(page.backlogChart().datasets.map((set) => set.label)).toEqual(['Open backlog']);
         expect(page.backlogChart().datasets[0].data).toEqual([5, 6]);
         expect(page.flowChart().datasets.map((set) => set.label)).toEqual(['Opened', 'Resolved']);
         expect(page.flowChart().datasets[0].data).toEqual([2, 1]);
 
-        // Les mêmes dates, dans le même ordre : c'est ce qui fait des deux panneaux une seule
-        // lecture. Un décalage d'un jour entre les deux ferait mentir la superposition.
+        // The same dates, in the same order: it is what makes the two panels a single reading. A
+        // one-day shift between them would make the alignment lie.
         expect(page.flowChart().labels).toEqual(page.backlogChart().labels);
     });
 
-    it("ne répète pas les dates d'un graphique à l'autre", () => {
+    it('does not repeat the dates from one chart to the other', () => {
         flushTrends({
             points: [{ day: '2026-08-20', open: 5, opened: 2, resolved: 1 }],
             mean_days_to_resolve: 3,
@@ -131,8 +131,8 @@ describe('the backlog trend', () => {
         });
 
         const page = fixture.componentInstance;
-        // Portées par le graphique du bas seulement : deux jeux de dates l'un sous l'autre
-        // répètent la même information et volent la hauteur qui sert à lire les courbes.
+        // Carried by the lower chart only: two sets of dates one under the other repeat the same
+        // information and steal the height used to read the curves.
         expect(page.backlogOptions().scales.x.ticks.display).toBe(false);
         expect(page.flowOptions().scales.x.ticks.display).toBe(true);
         expect(page.backlogOptions().scales.y.title.text).toBe('Open backlog');

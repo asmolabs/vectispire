@@ -42,7 +42,7 @@ describe('the accounts screen', () => {
         containers: [{ id: 3, label: 'registry/service:1.4' }]
     });
 
-    /** Le mode restreint, qui est le défaut d'une installation neuve. */
+    /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
         settings: [{ key: 'target_visibility', value: 'assigned', configured: true, governor_only: false }]
     });
@@ -59,9 +59,9 @@ describe('the accounts screen', () => {
         fixture.detectChanges();
         http.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
 
-        // La liste des cibles et le mode de visibilité, demandés par le constructeur pour la
-        // boîte de visibilité. Vidés ici pour que les cas qui n'en parlent pas restent lisibles —
-        // et le mode par défaut est le mode restreint, celui où les affectations comptent.
+        // The target list and the visibility mode, asked for by the constructor for the visibility
+        // dialog. Emptied here so cases that are not about them stay readable — and the default is
+        // restricted mode, the one where the assignments count.
         http.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
         http.expectOne((call) => call.url === '/api/v1/settings').flush(SETTINGS);
     }, 20_000);
@@ -114,20 +114,19 @@ describe('the accounts screen', () => {
         expect(page.busy()).toBeNull();
     });
 
-    it("relit les cibles du compte à l'ouverture, plutôt que de partir d'une case vide", () => {
+    it('reads the account\'s targets again on opening, rather than starting from empty boxes', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
 
         http.expectOne((call) => call.url === '/api/v1/users/2/targets')
             .flush([{ kind: 'repository', id: 7 }]);
 
-        // Une boîte qui s'ouvrirait vide ferait de chaque enregistrement une révocation totale :
-        // l'administrateur coche ce qu'il veut ajouter, envoie, et retire tout le reste sans
-        // l'avoir voulu.
+        // A dialog that opened empty would make every save a total revocation: the administrator
+        // ticks what they want to add, sends, and removes everything else without meaning to.
         expect(page.selectedTargets).toEqual(['repository:7']);
     });
 
-    it("envoie l'ensemble tel quel, vide compris, parce que le vide est la révocation", () => {
+    it('sends the set as it stands, empty included, because empty is the revocation', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets')
@@ -137,16 +136,16 @@ describe('the accounts screen', () => {
         page.saveAccess();
 
         const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
-        // **Le corps vide est une décision.** Une garde « ne rien envoyer si rien n'est coché »
-        // ferait du retrait de tout accès un bouton sans effet — l'opération qui compte est
-        // précisément celle-là.
+        // **The empty body is a decision.** A guard of "send nothing if nothing is ticked" would
+        // make the removal of all access a button with no effect — and that is precisely the
+        // operation that matters.
         expect(put.request.body).toEqual([]);
         put.flush([]);
 
         expect(page.accessVisible()).toBe(false);
     });
 
-    it('découpe la valeur de la case en genre et identifiant, sans confondre les deux genres', () => {
+    it('splits the box value into kind and identifier, without conflating the two kinds', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
@@ -155,13 +154,13 @@ describe('the accounts screen', () => {
         page.saveAccess();
 
         const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
-        // L'identifiant est un nombre : envoyé en chaîne, le serveur ne rapproche plus la ligne
-        // d'aucune cible et l'affectation disparaît sans erreur.
+        // The identifier is a number: sent as a string, the server no longer matches the row to any
+        // target and the assignment vanishes without an error.
         expect(put.request.body).toEqual([{ kind: 'container', id: 3 }, { kind: 'repository', id: 7 }]);
         put.flush([]);
     });
 
-    it("garde la boîte ouverte et dit pourquoi quand l'enregistrement est refusé", () => {
+    it('keeps the dialog open and says why when the save is refused', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
@@ -171,16 +170,16 @@ describe('the accounts screen', () => {
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets')
             .flush({ message: 'Account not found.' }, { status: 404, statusText: 'Not Found' });
 
-        // Fermée, la boîte emporterait la sélection avec le message : il faudrait tout recocher
-        // pour lire la raison d'un refus.
+        // Closed, the dialog would carry the selection away with the message: one would have to
+        // tick everything again in order to read the reason for a refusal.
         expect(page.accessVisible()).toBe(true);
         expect(page.formError()).toContain('Account not found.');
     });
 
-    it('se dénonce quand le réglage rend toute affectation sans effet', async () => {
-        // **Le réglage annule silencieusement l'écran.** En mode « tout le monde », chaque compte
-        // connecté voit tout le parc : cocher des cibles ici ne restreint personne, et un écran
-        // qui ne le dirait pas se lirait comme une panne le jour où quelqu'un vérifie.
+    it('denounces itself when the setting makes every assignment pointless', async () => {
+        // **The setting silently cancels the screen.** In "everyone" mode, every signed-in account
+        // sees the whole estate: ticking targets here restricts nobody, and a screen that did not
+        // say so would read as a failure the day somebody checks.
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Users],
@@ -198,7 +197,7 @@ describe('the accounts screen', () => {
         expect(wide.componentInstance.restrictionsInactive()).toBe(true);
     });
 
-    it('dit qu\'un rôle à portée globale ignore ces cases', () => {
+    it('says a globally scoped role ignores these boxes', () => {
         const page = fixture.componentInstance;
 
         page.openAccess(LIST.users[1]);
@@ -207,8 +206,8 @@ describe('the accounts screen', () => {
 
         page.openAccess({ ...LIST.users[1], role: 'AUDITOR' });
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
-        // L'auditeur voit tout le parc sans affectation — c'est la contrepartie de son droit de
-        // lire la gouvernance, et l'écran doit le dire plutôt que de laisser croire au contraire.
+        // The auditor sees the whole estate with no assignment — that is the counterpart of their
+        // right to read governance, and the screen must say so rather than suggest otherwise.
         expect(page.accessUnrestricted()).toBe(true);
     });
 });

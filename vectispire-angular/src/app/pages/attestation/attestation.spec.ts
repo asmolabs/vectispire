@@ -24,8 +24,8 @@ describe('the attestation', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
-        // Les libellés que la page affiche : sans eux le pipe rend la clé, et une assertion sur
-        // « attestation.chain_broken » ne prouve pas qu'un lecteur verrait quoi que ce soit.
+        // The labels the page shows: without them the pipe renders the key, and an assertion on
+        // "attestation.chain_broken" does not prove a reader would see anything at all.
         TestBed.inject(I18nService).translations.set({
             attestation: {
                 title: 'Attestation', established: 'État établi le', targets: 'cibles suivies',
@@ -44,9 +44,9 @@ describe('the attestation', () => {
 
     function chain(intact: boolean, broken: string | null = null): void {
         http.expectOne('/api/v1/audit-log/verify').flush(
-            // `mirrorConfigured` n'existe pas : le champ s'appelle `mirrored`, et trois compteurs
-            // que le serveur envoie toujours manquaient. Cet écran n'en lit aucun — la fixture
-            // décrivait simplement une réponse qui n'arrive jamais.
+            // `mirrorConfigured` does not exist: the field is called `mirrored`, and three counters
+            // the server always sends were missing. This screen reads none of them — the fixture
+            // simply described a response that never arrives.
             asSchema('Verification', {
                 total: 48219,
                 unverifiable: 0,
@@ -91,8 +91,8 @@ describe('the attestation', () => {
     });
 
     it('a broken chain is impossible to miss, and names where it broke', () => {
-        // **Le cas qui justifie la page.** Une chaîne rompue affichée comme un détail vaut une
-        // chaîne non vérifiée : l'écran doit le dire, et dire où.
+        // **The case that justifies the page.** A broken chain shown as a detail is worth as much
+        // as an unverified chain: the screen must say so, and say where.
         chain(false, 'entry 41207 does not match its predecessor');
         compliance();
         fixture.detectChanges();
@@ -108,8 +108,8 @@ describe('the attestation', () => {
         compliance();
         fixture.detectChanges();
 
-        // Rendus dans l'ordre fixe, pas dans celui du serveur : une grille dont les colonnes
-        // bougent entre deux chargements ne se compare pas au relevé du mois dernier.
+        // Rendered in the fixed order, not in the server's: a grid whose columns move between two
+        // loads does not compare with last month's printout.
         expect(fixture.componentInstance.frameworks().map((f) => f.framework))
             .toEqual(['NIS_2', 'PCI_DSS', 'SOC_2']);
     });

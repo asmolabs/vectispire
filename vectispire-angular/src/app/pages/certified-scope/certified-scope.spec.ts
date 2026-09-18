@@ -7,18 +7,17 @@ import { CertifiedScope } from './certified-scope';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Le périmètre certifié, et les deux façons de mal lire un nombre absent.
+ * The certified scope, and the two ways of misreading an absent number.
  *
- * **Un périmètre non déclaré ne rapporte aucun écart, pour la même raison qu'une pièce vide ne
- * rapporte aucun bruit.** Zéro actif manquant et une couverture complète produisent le même
- * chiffre ; les distinguer est toute la valeur de cet écran, et c'est ce que les deux premiers
- * cas verrouillent.
+ * **An undeclared scope reports no gap, for the same reason an empty room reports no noise.** Zero
+ * missing assets and complete coverage produce the same number; telling them apart is this
+ * screen's entire value, and it is what the first two cases pin.
  *
- * Le troisième porte sur le dénominateur : la part fraîche se calcule contre le périmètre
- * déclaré, pas contre ce que l'instance détient. Diviser par ce qu'on a est exactement la
- * façon dont un outil annonce cent pour cent sur un dixième d'un parc.
+ * The third is about the denominator: the fresh share is computed against the declared scope, not
+ * against what the instance holds. Dividing by what one has is exactly how a tool announces one
+ * hundred per cent over a tenth of an estate.
  */
-describe('le périmètre certifié', () => {
+describe('the certified scope', () => {
     let fixture: ComponentFixture<CertifiedScope>;
     let http: HttpTestingController;
 
@@ -48,12 +47,12 @@ describe('le périmètre certifié', () => {
         await mount({ declaredAssets: 40, inScope: 31, scannedRecently: 20, stale: 8, neverScanned: 3 });
     }, 20_000);
 
-    it("nomme les actifs revendiqués dont l'instance n'a aucune ligne", () => {
+    it('names the claimed assets for which the instance holds no row', () => {
         expect(fixture.componentInstance.unaccountedFor()).toBe(9);
         expect(fixture.componentInstance.declared()).toBe(true);
     });
 
-    it("dit « non déclaré » plutôt que de rapporter un écart de zéro", async () => {
+    it('says "not declared" rather than reporting a gap of zero', async () => {
         await mount({ declaredAssets: 0, inScope: 31, scannedRecently: 20, stale: 8, neverScanned: 3 });
 
         expect(fixture.componentInstance.declared()).toBe(false);
@@ -62,13 +61,13 @@ describe('le périmètre certifié', () => {
             .toBeNull();
     });
 
-    it('calcule la part fraîche contre le périmètre déclaré, pas contre ce qu’il détient', () => {
-        // 20 sur 40 déclarés, pas 20 sur 31 détenus : le second dirait 65 % là où la moitié du
-        // périmètre seulement porte une preuve.
+    it('computes the fresh share against the declared scope, not against what it holds', () => {
+        // 20 of 40 declared, not 20 of 31 held: the second would say 65 % where only half the scope
+        // carries evidence.
         expect(fixture.componentInstance.freshShare()).toBe(50);
     });
 
-    it('sait quelles cibles sont dans le périmètre', () => {
+    it('knows which targets are in scope', () => {
         expect(fixture.componentInstance.inScope('REPOSITORY', 7)).toBe(true);
         expect(fixture.componentInstance.inScope('REPOSITORY', 8)).toBe(false);
         expect(fixture.componentInstance.inScope('CONTAINER', 7)).toBe(false);

@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { anyScanRunning, pollWhile } from './poll-while';
 
 /**
- * Le compteur conditionnel.
+ * The conditional timer.
  *
- * <p>Deux façons de se tromper, et une seule se voit. Un compteur qui ne démarre jamais se
- * remarque au premier scan lancé. Un compteur qui ne s'arrête <em>jamais</em> ne se remarque pas
- * du tout : l'écran marche, et le serveur reçoit sept cent vingt requêtes par heure et par onglet.
- * C'est le défaut que cet utilitaire remplace, donc chaque cas vérifie les deux sens.
+ * <p>Two ways of getting it wrong, and only one of them shows. A timer that never starts is
+ * noticed at the first scan launched. A timer that <em>never</em> stops is not noticed at all: the
+ * screen works, and the server receives seven hundred and twenty requests an hour per tab. That is
+ * the defect this utility replaces, so every case checks both directions.
  */
 describe('pollWhile', () => {
     beforeEach(() => vi.useFakeTimers());
@@ -35,7 +35,7 @@ describe('pollWhile', () => {
         expect(refresh).not.toHaveBeenCalled();
     });
 
-    it("rafraîchit tant que ça bouge, et se tait dès que c'est réglé", () => {
+    it('refreshes while things move, and goes quiet once they are settled', () => {
         const refresh = vi.fn();
         const active = signal(true);
         const fixture = mount(active, refresh);
@@ -49,7 +49,7 @@ describe('pollWhile', () => {
         expect(refresh).toHaveBeenCalledTimes(3);
     });
 
-    it('redémarre quand un nouveau scan est lancé', () => {
+    it('restarts when a new scan is launched', () => {
         const refresh = vi.fn();
         const active = signal(false);
         const fixture = mount(active, refresh);
@@ -63,9 +63,9 @@ describe('pollWhile', () => {
         expect(refresh).toHaveBeenCalledTimes(2);
     });
 
-    it("s'arrête avec l'écran, pas après lui", () => {
-        // Un intervalle qui survit à son composant continue d'appeler le serveur pour personne,
-        // et rien à l'écran ne le montre.
+    it('stops with the screen, not after it', () => {
+        // An interval that outlives its component goes on calling the server for nobody, and
+        // nothing on screen shows it.
         const refresh = vi.fn();
         const fixture = mount(signal(true), refresh);
 
@@ -83,8 +83,8 @@ describe('anyScanRunning', () => {
         expect(anyScanRunning([{ status: 'completed' }, { status: 'failed' }])).toBe(false);
         expect(anyScanRunning([{ status: 'completed' }, { status: 'pending' }])).toBe(true);
         expect(anyScanRunning([{ status: 'SCANNING' }])).toBe(true);
-        // Une cible jamais scannée n'attend rien : sans ce cas, une liste neuve interrogerait le
-        // serveur pour toujours.
+        // A target never scanned is waiting for nothing: without this case, a fresh list would
+        // query the server forever.
         expect(anyScanRunning([null, undefined, {}])).toBe(false);
         expect(anyScanRunning([])).toBe(false);
     });

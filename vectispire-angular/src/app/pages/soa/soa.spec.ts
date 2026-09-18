@@ -7,17 +7,17 @@ import { Soa } from './soa';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * La déclaration d'applicabilité, et l'ordre dans lequel elle s'ouvre.
+ * The statement of applicability, and the order it opens in.
  *
- * **Le serveur rend les lignes dans l'ordre du standard, qui est le bon pour imprimer le
- * document et le mauvais pour l'ouvrir.** La question posée devant cet écran est « qu'est-ce
- * qui ne va pas », et elle se répond en haut. Un contrôle contredit rangé en douzième position
- * parce que son identifiant commence par un huit est un constat que personne ne voit.
+ * **The server returns the rows in the standard's order, which is right for printing the document
+ * and wrong for opening it.** The question asked in front of this screen is "what is wrong", and
+ * it is answered at the top. A contradicted control filed twelfth because its identifier begins
+ * with an eight is a finding nobody sees.
  *
- * Le second cas verrouille les deux refus que le serveur oppose, dits ici par un bouton éteint
- * plutôt que par un message après la frappe.
+ * The second case pins the two refusals the server makes, said here by a disabled button rather
+ * than by a message after the keystroke.
  */
-describe("la déclaration d'applicabilité", () => {
+describe('the statement of applicability', () => {
     let fixture: ComponentFixture<Soa>;
     let http: HttpTestingController;
 
@@ -53,7 +53,7 @@ describe("la déclaration d'applicabilité", () => {
             ]
     });
 
-    /** Deux référentiels : la question se pose à l'échelle du système de management. */
+    /** Two frameworks: the question is asked at the scale of the management system. */
     const OVERDUE = [
         {
             framework: 'ISO_27001', controlId: 'ISO-A.8.8', applicability: 'APPLICABLE',
@@ -84,24 +84,23 @@ describe("la déclaration d'applicabilité", () => {
         fixture.detectChanges();
     }, 20_000);
 
-    it('ouvre sur les écarts, du plus grave au moins grave', () => {
+    it('opens on the divergences, most severe to least', () => {
         expect(fixture.componentInstance.lines().map((l) => l.control.id))
             .toEqual(['ISO-A.8.8', 'ISO-A.8.9', 'ISO-A.8.28', 'ISO-A.5.15']);
     });
 
-    it('ne compte comme constat que ce qu’une évaluation relève', () => {
+    it('counts as a finding only what an assessment would write up', () => {
         const component = fixture.componentInstance;
         const [contradicted, undeclared, overstated, consistent] = component.lines();
 
         expect(component.isFinding(contradicted)).toBe(true);
         expect(component.isFinding(undeclared)).toBe(true);
-        // Un document en avance sur la pratique n'est pas la même classe de problème
-        // qu'une affirmation fausse.
+        // A document ahead of the practice is not the same class of problem as a false claim.
         expect(component.isFinding(overstated)).toBe(false);
         expect(component.isFinding(consistent)).toBe(false);
     });
 
-    it('refuse une exclusion sans justification, avant la requête', () => {
+    it('refuses an exclusion with no justification, before the request', () => {
         const component = fixture.componentInstance;
         component.openDeclare(component.lines()[0]);
         component.applicability = 'EXCLUDED';
@@ -113,7 +112,7 @@ describe("la déclaration d'applicabilité", () => {
         http.expectNone((call) => call.method === 'PUT');
     });
 
-    it('refuse une preuve déclarée ailleurs qui ne nomme nulle part', () => {
+    it('refuses evidence declared elsewhere that names nowhere', () => {
         const component = fixture.componentInstance;
         component.openDeclare(component.lines()[0]);
         component.applicability = 'APPLICABLE';
@@ -123,7 +122,7 @@ describe("la déclaration d'applicabilité", () => {
         expect(component.incomplete()).toBe(true);
     });
 
-    it('envoie la déclaration et relit le document plutôt que de recalculer l’écart', () => {
+    it('sends the declaration and reads the document again rather than recomputing the divergence', () => {
         const component = fixture.componentInstance;
         component.openDeclare(component.lines()[0]);
         component.submit();
@@ -133,25 +132,24 @@ describe("la déclaration d'applicabilité", () => {
         expect(call.request.body.applicability).toBe('APPLICABLE');
         call.flush({});
 
-        // Recalculer la divergence dans le navigateur en ferait une seconde implémentation
-        // de la règle, qui finirait par ne plus dire la même chose que le bundle de preuves.
+        // Recomputing the divergence in the browser would make a second implementation of the
+        // rule, which would end up no longer saying the same thing as the evidence bundle.
         http.expectOne((request) => request.url === '/api/v1/compliance/soa').flush([STATEMENT]);
     });
 
-    it('ouvre le compteur de revues échues sur la liste, tous référentiels confondus', () => {
-        // **Un chiffre qu'on ne peut pas ouvrir n'est pas une trace de revue, c'est un
-        // reproche.** Chaque document affichait « n revues échues » et rien ne disait lesquelles,
-        // alors que la route existait.
+    it('opens the overdue-review counter onto the list, across all frameworks', () => {
+        // **A number you cannot open is not a record of review, it is a reproach.** Every document
+        // displayed "n reviews overdue" and nothing said which, although the route existed.
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('ISO-A.8.8');
         expect(text).toContain('NIS2-ART21-2-E');
-        // Le référentiel est nommé sur chaque ligne : la liste traverse les documents, et une
-        // ligne sans son cadre ne se rattache à rien.
+        // The framework is named on every row: the list crosses documents, and a row without its
+        // framework attaches to nothing.
         expect(text).toContain('NIS_2');
         expect(text).toContain('c.moreau');
     });
 
-    it("n'affiche aucune section quand aucune revue n'a expiré", async () => {
+    it('shows no section when no review has lapsed', async () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Soa],
@@ -165,13 +163,13 @@ describe("la déclaration d'applicabilité", () => {
         calls.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush([]);
         clean.detectChanges();
 
-        // Un encart affiché quand tout va bien perd son sens en quelques jours, et alors celui
-        // qui compte devient invisible aussi.
+        // A panel shown when all is well loses its meaning within days, and then the one that
+        // matters becomes invisible too.
         expect(clean.nativeElement.textContent).not.toContain('Reviews overdue');
         expect(clean.componentInstance.overdue()).toEqual([]);
     });
 
-    it('affiche la déclaration même quand la liste des revues échoue', async () => {
+    it('shows the statement even when the list of reviews fails', async () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Soa],
@@ -186,7 +184,7 @@ describe("la déclaration d'applicabilité", () => {
             .error(new ProgressEvent('failed'));
         degraded.detectChanges();
 
-        // Le sujet de l'écran est la déclaration ; une liste indisponible ne doit pas l'emporter.
+        // The screen's subject is the statement; an unavailable list must not carry it away.
         expect(degraded.componentInstance.lines().length).toBeGreaterThan(0);
         expect(degraded.componentInstance.error()).toBeNull();
     });

@@ -7,14 +7,13 @@ import { RemediationDelays } from './remediation-delays';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Les délais, et le pourcentage que l'écran refuse d'afficher.
+ * The deadlines, and the percentage the screen refuses to show.
  *
- * **Une gravité sans délai fixé n'a rien à tenir.** Une barre à zéro pour cent en face d'elle
- * se lirait « on ne tient jamais les délais sur les faibles » alors que la phrase vraie est
- * « personne n'a fixé de délai pour les faibles » — et c'est le chiffre qui serait cité en
- * réunion.
+ * **A severity with no deadline set has nothing to meet.** A bar at zero per cent against it would
+ * read as "we never meet the deadlines on the low ones" when the true sentence is "nobody set a
+ * deadline for the low ones" — and it is the number that would be quoted in a meeting.
  */
-describe('les délais de correction', () => {
+describe('remediation times', () => {
     let fixture: ComponentFixture<RemediationDelays>;
     let http: HttpTestingController;
 
@@ -51,7 +50,7 @@ describe('les délais de correction', () => {
         http.expectOne((call) => call.url === '/api/v1/remediation/distribution').flush(DISTRIBUTION);
     }, 20_000);
 
-    it('ne prétend pas mesurer une gravité sans délai fixé', () => {
+    it('does not claim to measure a severity with no deadline set', () => {
         const component = fixture.componentInstance;
         // `low`, like the rest of the API. This test already looked for that spelling and found no
         // row, because the route was the only one sending `LOW` — and its fixture was wrong the
@@ -68,7 +67,7 @@ describe('les délais de correction', () => {
         expect(component.hasDeadline(component.rows()[0])).toBe(true);
     });
 
-    it('passe la barre au rouge sous les trois quarts, à l’ambre sous quatre-vingt-dix', () => {
+    it('turns the bar red below three quarters, amber below ninety', () => {
         const component = fixture.componentInstance;
         const [critical, high] = component.rows();
 

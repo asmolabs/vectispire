@@ -7,17 +7,16 @@ import { Exceptions } from './exceptions';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * Le registre des exceptions, et la revue qui n'existait pas.
+ * The exceptions register, and the review that did not exist.
  *
- * **Ce qui est couvert ici n'est pas l'affichage mais la seule action dont l'effet est
- * invisible.** Confirmer une exception ne change ni sa décision, ni son échéance, ni son
- * auteur : la seule chose qui bouge est la preuve que quelqu'un a regardé. Un écran qui
- * n'enverrait rien dans ce cas aurait exactement la même apparence, et c'est précisément le
- * défaut que cette fonctionnalité corrige côté serveur.
+ * **What is covered here is not the display but the one action whose effect is invisible.**
+ * Confirming an exception changes neither its decision, nor its deadline, nor its author: the only
+ * thing that moves is the evidence that somebody looked. A screen sending nothing in that case
+ * would look exactly the same, and that is precisely the defect this feature fixes on the server.
  *
- * Le second cas verrouille le refus local de prolonger sans date. Le serveur le refuse aussi ;
- * ce qui est asserté ici est que l'écran ne laisse pas partir la requête pour afficher son
- * erreur — un bouton désactivé dit la même chose sans bruit.
+ * The second case pins the local refusal to extend with no date. The server refuses it too; what
+ * is asserted here is that the screen does not let the request go in order to show its error — a
+ * disabled button says the same thing without noise.
  */
 describe('le registre des exceptions', () => {
     let fixture: ComponentFixture<Exceptions>;
@@ -74,9 +73,9 @@ describe('le registre des exceptions', () => {
         expect(call.request.body.outcome).toBe('CONFIRMED');
         expect(call.request.body.new_expiry).toBeNull();
 
-        // **La ligne revient datée**, comme le serveur la renverrait : les compteurs sont dérivés
-        // des lignes et non repris du serveur, si bien qu'un jeu de données où le compteur bouge
-        // sans que la ligne bouge ne décrit plus rien de réel.
+        // **The row comes back dated**, as the server would return it: the counters are derived
+        // from the rows rather than taken from the server, so a data set where the counter moves
+        // without the row moving describes nothing real any more.
         call.flush({
             ...REGISTER,
             entries: [{ ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }],
@@ -98,11 +97,11 @@ describe('le registre des exceptions', () => {
         http.expectNone('/api/v1/exceptions/41/reviews');
     });
 
-    it('propose la suite même quand la page ne contenait rien de visible', () => {
-        // **La moitié cliente du même défaut que côté serveur.** La visibilité s'applique après la
-        // lecture : une fenêtre entière peut n'appartenir qu'à d'autres. Masquer le bouton parce
-        // que la page est vide ferait s'arrêter le lecteur restreint juste avant ses propres
-        // lignes — et il est le seul à ne pas pouvoir s'en apercevoir.
+    it('offers more even when the page contained nothing visible', () => {
+        // **The client half of the same defect as on the server.** Visibility applies after the
+        // read: a whole window can belong to other people only. Hiding the button because the page
+        // is empty would make the restricted reader stop just before their own rows — and they are
+        // the one person who cannot notice it.
         const component = fixture.componentInstance;
         component.load();
         http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
@@ -122,7 +121,7 @@ describe('le registre des exceptions', () => {
         expect(component.hasMore()).toBe(false);
     });
 
-    it('accumule les pages et recompte sur ce qui est chargé', () => {
+    it('accumulates the pages and recounts over what is loaded', () => {
         const component = fixture.componentInstance;
         expect(component.granted()).toBe(1);
 
@@ -136,16 +135,16 @@ describe('le registre des exceptions', () => {
             next_cursor: null
         });
 
-        // Les compteurs viennent des lignes chargées et non du serveur : additionner les pages
-        // donnerait un total qui grandit à mesure qu'on lit, ce qui n'est le total de rien.
+        // The counters come from the loaded rows rather than from the server: adding the pages up
+        // would give a total that grows as one reads, which is the total of nothing.
         expect(component.loaded()).toHaveLength(2);
         expect(component.granted()).toBe(2);
     });
 
-    it("compte les jamais revues comme un chiffre à part des périmées", () => {
-        // Les deux disent « personne ne s'en occupe » et ne sont pas la même phrase : une
-        // exception périmée a eu une échéance qui est passée, une jamais revue peut être
-        // parfaitement en cours et n'avoir jamais été rouverte.
+    it('counts the never-reviewed as a figure apart from the lapsed', () => {
+        // Both say "nobody is dealing with it" and they are not the same sentence: a lapsed
+        // exception had a deadline that has passed, a never-reviewed one may be perfectly current
+        // and simply never have been reopened.
         expect(fixture.componentInstance.lapsed()).toBe(0);
         expect(fixture.componentInstance.neverReviewed()).toBe(1);
     });

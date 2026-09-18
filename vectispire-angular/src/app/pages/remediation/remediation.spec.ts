@@ -9,14 +9,14 @@ import { Remediation } from './remediation';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * L'ordre de travail.
+ * The work order.
  *
- * <p>Trois choses doivent tenir, sans quoi la page conseille mal — ce qui est pire que se taire.
- * L'ordre du serveur doit être celui de l'écran ; une mise à jour sans version corrigée connue
- * doit se dire autrement qu'une mise à jour disponible ; et une dette indisponible ne doit pas
- * emporter le plan, qui est le sujet de la page.
+ * <p>Three things must hold, without which the page advises badly — which is worse than staying
+ * quiet. The server's order must be the screen's; an upgrade with no known fixed version must be
+ * said differently from an available upgrade; and an unavailable debt figure must not carry away
+ * the plan, which is the page's subject.
  */
-describe('le plan de remédiation', () => {
+describe('the remediation plan', () => {
     let fixture: ComponentFixture<Remediation>;
     let http: HttpTestingController;
 
@@ -41,8 +41,8 @@ describe('le plan de remédiation', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
-        // Sans dictionnaire, le pipe rend la clé : une assertion sur « aucune version corrigée »
-        // ne prouverait alors rien de ce qu'un lecteur voit.
+        // With no dictionary, the pipe renders the key: an assertion about "no fixed version"
+        // would then prove nothing about what a reader sees.
         TestBed.inject(I18nService).translations.set({
             common: { loading: 'Chargement…' },
             severities: { critical: 'critiques' },
@@ -68,7 +68,7 @@ describe('le plan de remédiation', () => {
         fixture.detectChanges();
     });
 
-    /** Le plan, la dette, l'aveu et les deux listes de cibles — dans l'ordre où la page les demande. */
+    /** The plan, the debt, the admission and the two target lists — in the order the page asks for them. */
     function answer(
         fixes: HighImpactFix[],
         debt: Record<string, unknown> = { totalOpenIssues: 9 },
@@ -77,8 +77,8 @@ describe('le plan de remédiation', () => {
         plan().flush(fixes);
         http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt);
 
-        // L'aveu est facultatif dans ces essais : les cas qui ne portent pas dessus doivent
-        // pouvoir l'ignorer, exactement comme la page le fait quand le serveur ne répond pas.
+        // The admission is optional in these runs: cases that are not about it must be able to
+        // ignore it, exactly as the page does when the server does not answer.
         const admission = http.expectOne((request) => request.url.includes('/remediation/coverage'));
         if (coverage) {
             admission.flush(coverage);
@@ -92,7 +92,7 @@ describe('le plan de remédiation', () => {
         fixture.detectChanges();
     }
 
-    /** La requête de plan, quels que soient les paramètres qu'elle porte. */
+    /** The plan request, whatever parameters it carries. */
     function plan() {
         return http.expectOne((request) => request.url.includes('/remediation/high-impact-fixes'));
     }
@@ -103,18 +103,18 @@ describe('le plan de remédiation', () => {
             fix({ packageName: 'openssl', leverageScore: 3.2 })
         ], { totalOpenIssues: 9, criticalIssues: 2 });
 
-        // **L'ordre est l'information.** Une page qui range par levier puis réordonne par nom,
-        // ou qu'un `track` ferait glisser, transforme un ordre de travail en liste.
+        // **The order is the information.** A page that ranks by leverage and then reorders by
+        // name, or that a `track` would shuffle, turns a work order into a list.
         const text = fixture.nativeElement.textContent as string;
         expect(text.indexOf('log4j-core')).toBeLessThan(text.indexOf('openssl'));
         expect(text).toContain('2.14.1');
         expect(text).toContain('2.17.1');
     });
 
-    it("dit qu'aucune version ne corrige, au lieu de conseiller une mise à jour inexistante", () => {
-        // **Le défaut que ceci ferme, un cran plus loin.** Le serveur renvoyait la chaîne
-        // « latest-patch » pour tout le monde, et le tableau de bord l'affichait derrière une
-        // flèche. Maintenant qu'il peut ne rien renvoyer, l'écran doit dire quoi.
+    it('says no version fixes it, instead of advising an upgrade that does not exist', () => {
+        // **The defect this closes, one step further along.** The server returned the string
+        // "latest-patch" for everybody, and the dashboard showed it behind an arrow. Now that it
+        // can return nothing, the screen has to say what.
         answer([fix({ recommendedVersion: null as unknown as string })], { totalOpenIssues: 1 });
 
         const text = fixture.nativeElement.textContent as string;
@@ -122,7 +122,7 @@ describe('le plan de remédiation', () => {
         expect(text).not.toContain('latest-patch');
     });
 
-    it('survit à une dette indisponible, parce que le plan est le sujet', () => {
+    it('survives an unavailable debt figure, because the plan is the subject', () => {
         plan().flush([fix({})]);
         http.expectOne((request) => request.url.includes('/remediation/debt'))
             .error(new ProgressEvent('failed'));
@@ -137,16 +137,16 @@ describe('le plan de remédiation', () => {
         expect(fixture.componentInstance.error()).toBeNull();
     });
 
-    it('demande la suite par paliers, sans dépasser le plafond', () => {
+    it('asks for more in steps, without passing the ceiling', () => {
         answer(Array.from({ length: 10 }, (_, index) => fix({ packageName: `pkg-${index}` })));
 
-        // Dix rendus sur dix demandés : il y a peut-être une suite, donc le bouton est là.
+        // Ten returned out of ten asked for: there may be more, so the button is there.
         expect(fixture.componentInstance.mayHaveMore()).toBe(true);
         fixture.componentInstance.showMore();
         fixture.detectChanges();
 
-        // **Le palier est passé au serveur**, sans quoi le bouton rechargerait les mêmes dix
-        // lignes et l'écran donnerait l'impression d'être bloqué.
+        // **The step is passed to the server**, without which the button would reload the same ten
+        // rows and the screen would look stuck.
         const second = plan();
         expect(second.request.params.get('limit')).toBe('25');
         second.flush(Array.from({ length: 25 }, (_, index) => fix({ packageName: `pkg-${index}` })));
@@ -165,16 +165,16 @@ describe('le plan de remédiation', () => {
         fixture.componentInstance.scope = 'repo:7';
         fixture.componentInstance.changeScope();
 
-        // La portée est passée au serveur, et la taille repart à dix : le plan n'est plus le
-        // même, et garder le palier précédent ferait croire à une continuité qui n'existe pas.
+        // The scope is passed to the server, and the size goes back to ten: the plan is no longer
+        // the same, and keeping the previous step would suggest a continuity that does not exist.
         const scoped = plan();
         expect(scoped.request.params.get('repoId')).toBe('7');
         expect(scoped.request.params.get('limit')).toBe('10');
         scoped.flush([]);
         http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 0 });
 
-        // **La portée est passée à l'aveu aussi.** Un aveu du parc entier posé sous le plan d'un
-        // seul dépôt dirait « il en reste quatre cents » sous une liste qui en couvre trois.
+        // **The scope is passed to the admission too.** A whole-estate admission placed under one
+        // repository's plan would say "four hundred left" beneath a list covering three.
         const admission = http.expectOne((request) => request.url.includes('/remediation/coverage'));
         expect(admission.request.params.get('repoId')).toBe('7');
         admission.error(new ProgressEvent('failed'));
@@ -183,10 +183,10 @@ describe('le plan de remédiation', () => {
         expect(fixture.componentInstance.wanted()).toBe(10);
     });
 
-    it("dit pourquoi une seule action face à un retard chargé", () => {
-        // **Le constat d'usage qui a motivé cet encart.** Une action, des centaines de constats
-        // ouverts : le calcul est juste et l'écran avait l'air cassé. Il doit maintenant nommer
-        // ce qui ne se ferme pas par une montée de version, et par quel geste on le referme.
+    it('says why a single action faces a heavy backlog', () => {
+        // **The usage report that prompted this panel.** One action, hundreds of open findings:
+        // the calculation is right and the screen looked broken. It must now name what does not
+        // close by a version bump, and by which move it does close.
         answer([fix({})], { totalOpenIssues: 412 }, {
             openFindings: 412,
             addressableByUpgrade: 12,
@@ -203,7 +203,7 @@ describe('le plan de remédiation', () => {
         expect(text).toContain("il n'y a rien à monter");
     });
 
-    it("se tait quand tout le retard se ferme par une montée de version", () => {
+    it('stays quiet when the whole backlog closes by a version bump', () => {
         answer([fix({})], { totalOpenIssues: 12 }, {
             openFindings: 12, addressableByUpgrade: 12, beyondUpgrades: 0, gaps: []
         });
@@ -213,9 +213,9 @@ describe('le plan de remédiation', () => {
         expect(text).toContain('Les 12 constats ouverts se ferment tous');
     });
 
-    it("nomme une famille qu'il ne connaît pas plutôt que d'afficher une clé", () => {
-        // Un neuvième type de constat livré par un serveur plus récent que cet écran : il doit
-        // être compté et dit faute de mieux, jamais rendu comme `remediation.gap_neuvieme`.
+    it('names a family it does not know rather than showing a key', () => {
+        // A ninth finding type shipped by a server newer than this screen: it must be counted and
+        // named for want of better, never rendered as `remediation.gap_ninth`.
         answer([fix({})], { totalOpenIssues: 5 }, {
             openFindings: 5, addressableByUpgrade: 4, beyondUpgrades: 1,
             gaps: [{ family: 'runtime_drift', findings: 1 }]
@@ -226,7 +226,7 @@ describe('le plan de remédiation', () => {
         expect(text).not.toContain('remediation.gap');
     });
 
-    it("n'affiche aucun aveu quand le serveur n'a pas répondu, et garde le plan", () => {
+    it('shows no admission when the server did not answer, and keeps the plan', () => {
         answer([fix({})], { totalOpenIssues: 9 });
 
         const text = fixture.nativeElement.textContent as string;
@@ -235,11 +235,11 @@ describe('le plan de remédiation', () => {
         expect(fixture.componentInstance.error()).toBeNull();
     });
 
-    it('distingue « rien à faire » de « rien de calculable »', () => {
+    it('tells "nothing to do" apart from "nothing computable"', () => {
         answer([], { totalOpenIssues: 4 });
 
-        // Quatre constats ouverts et aucune ligne de plan : le message doit expliquer que le
-        // plan ne classe que ce qu'une montée de version ferme, sans quoi l'écran a l'air cassé.
+        // Four open findings and no plan row: the message must explain that the plan ranks only
+        // what a version bump closes, without which the screen looks broken.
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Rien à monter de version.');
         expect(text).toContain('4');

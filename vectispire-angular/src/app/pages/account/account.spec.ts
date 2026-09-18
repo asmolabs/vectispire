@@ -9,18 +9,18 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
- * L'enrôlement du second facteur.
+ * Enrolling the second factor.
  *
- * <p><b>Ces cas existent parce que le facteur était complet et inactivable.</b> Le service TOTP,
- * la table des défis, les quatre routes et la page de connexion qui sait répondre à un défi :
- * tout était livré, et aucun écran n'appelait quoi que ce soit. Rien ne pouvait le voir — le
- * produit n'était pas cassé, il était muet.
+ * <p><b>These cases exist because the factor was complete and could not be enabled.</b> The TOTP
+ * service, the challenge table, the four routes and a sign-in page that knows how to answer a
+ * challenge: all of it shipped, and no screen called any of it. Nothing could see it — the product
+ * was not broken, it was silent.
  *
- * <p>Ce qui est éprouvé ici est la forme en deux temps, qui est ce qui rend l'enrôlement sûr :
- * <b>rien n'est activé tant qu'un premier code n'a pas été vérifié</b>, et un refus garde
- * l'enrôlement ouvert au lieu de redistribuer un secret pour une faute de frappe.
+ * <p>What is tested here is the two-step shape, which is what makes enrolment safe: <b>nothing is
+ * switched on until a first code has been verified</b>, and a refusal keeps enrolment open instead
+ * of reissuing a secret over a typo.
  */
-describe("l'écran du compte", () => {
+describe('the account screen', () => {
     let fixture: ComponentFixture<Account>;
     let http: HttpTestingController;
     let session: SessionStore;
@@ -58,14 +58,14 @@ describe("l'écran du compte", () => {
         issuer: 'Vectispire'
     });
 
-    it("n'active rien tant que le premier code n'est pas vérifié", () => {
+    it('switches nothing on until the first code is verified', () => {
         const page = fixture.componentInstance;
         page.begin();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
         fixture.detectChanges();
 
-        // **Le secret proposé n'est pas un facteur activé.** Une horloge décalée ou un secret mal
-        // recopié ne se verrait sinon qu'à la déconnexion suivante, c'est-à-dire trop tard.
+        // **The secret offered is not a factor switched on.** A clock that is out or a secret
+        // copied wrong would otherwise show only at the next sign-out, that is too late.
         expect(page.mfaEnabled()).toBe(false);
         expect(fixture.nativeElement.textContent).toContain('JBSW Y3DP EHPK 3PXP');
 
@@ -98,7 +98,7 @@ describe("l'écran du compte", () => {
         expect(text).toContain('bbbb-2222');
     });
 
-    it("garde l'enrôlement ouvert quand le code est refusé", () => {
+    it('keeps enrolment open when the code is refused', () => {
         const page = fixture.componentInstance;
         page.begin();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
@@ -109,8 +109,8 @@ describe("l'écran du compte", () => {
             .flush({ message: 'Invalid TOTP verification code.' }, { status: 400, statusText: 'Bad Request' });
         fixture.detectChanges();
 
-        // Six chiffres et trente secondes de vie : se tromper est ordinaire. Redistribuer un
-        // secret neuf pour une faute de frappe obligerait à tout recopier.
+        // Six digits and thirty seconds of life: getting it wrong is ordinary. Reissuing a fresh
+        // secret over a typo would mean copying everything again.
         expect(page.enrolment()).not.toBeNull();
         expect(page.mfaEnabled()).toBe(false);
         expect(page.error()).toContain('Invalid TOTP verification code.');
@@ -123,8 +123,8 @@ describe("l'écran du compte", () => {
         const page = fixture.componentInstance;
         page.askRemoval();
 
-        // Sans code, rien ne part : c'est le serveur qui l'exige, et un écran qui enverrait une
-        // demande vide ferait d'un poste déverrouillé une minute un désarmement.
+        // With no code, nothing is sent: the server requires it, and a screen sending an empty
+        // request would turn a workstation unlocked for a minute into a disarming.
         page.code = '';
         page.remove();
         http.expectNone((call) => call.url === '/api/v1/auth/mfa/disable');
@@ -138,7 +138,7 @@ describe("l'écran du compte", () => {
         expect(page.removing()).toBe(true);
     });
 
-    it('retire le facteur quand le code est accepté', () => {
+    it('removes the factor when the code is accepted', () => {
         session.setMfaEnabled(true);
         fixture.detectChanges();
 

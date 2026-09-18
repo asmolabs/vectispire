@@ -50,14 +50,14 @@ describe('la grille OWASP', () => {
         fixture.detectChanges();
     }, 20_000);
 
-    it('ne peint pas « aucun scanner ici » de la couleur de « rien trouvé »', () => {
+    it('does not paint "no scanner here" the colour of "nothing found"', () => {
         const component = fixture.componentInstance;
 
         expect(component.colourOf('NOT_COVERED')).not.toBe(component.colourOf('NO_FINDING'));
         expect(component.colourOf('NOT_MEASURED')).not.toBe(component.colourOf('NO_FINDING'));
     });
 
-    it("n'affiche un compte que là où quelque chose a été compté", () => {
+    it('shows a count only where something was counted', () => {
         // A "0" beside a category nothing looks at is the figure this whole grid exists not to
         // write.
         const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
@@ -69,7 +69,7 @@ describe('la grille OWASP', () => {
         expect(fixture.componentInstance.lines().map((l) => l.id)).toEqual(['A01', 'A05', 'A06', 'A07']);
     });
 
-    it('se tait quand la grille ne peut pas être lue', async () => {
+    it('stays quiet when the grid cannot be read', async () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [OwaspGridComponent],

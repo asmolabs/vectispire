@@ -87,8 +87,8 @@ describe('the licence inventory screen', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
-        // Un responsable sécurité : c'est le rôle que le serveur exige pour écrire la politique,
-        // et l'écran ne doit pas offrir le bouton à quelqu'un d'autre.
+        // A security lead: it is the role the server requires in order to write the policy, and the
+        // screen must not offer the button to anybody else.
         TestBed.inject(SessionStore).open('a-token', {
             username: 'ciso', displayName: null, role: 'CISO', mustChangePassword: false, mfaEnabled: false
         });
@@ -164,12 +164,12 @@ describe('the licence inventory screen', () => {
         expect(options.map((option) => option.value)).toEqual(['ALL', 'repo:7', 'container:3']);
     });
 
-    it("envoie la politique telle que le formulaire la porte, listes nettoyées", () => {
+    it('sends the policy as the form carries it, lists cleaned up', () => {
         const page = fixture.componentInstance;
         page.editPolicy();
 
-        // Prérempli de l'existant : partir d'un formulaire vide ferait de chaque enregistrement
-        // un effacement de la règle en place.
+        // Pre-filled from what exists: starting from an empty form would make every save an erasure
+        // of the rule in place.
         expect(page.draftDisallowed).toEqual(['FORBIDDEN']);
         expect(page.draftAllowedLicenses).toBe('Apache-2.0');
 
@@ -178,7 +178,7 @@ describe('the licence inventory screen', () => {
         page.savePolicy();
 
         const call = http.expectOne((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy');
-        // Une virgule finale est la façon dont on tape une liste, pas une licence nommée « ».
+        // A trailing comma is how one types a list, not a licence named "".
         expect(call.request.body).toEqual({
             disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'],
             explicitlyAllowedLicenses: ['Apache-2.0'],
@@ -190,15 +190,15 @@ describe('the licence inventory screen', () => {
         expect(page.policy()?.disallowedCategories)
             .toContain('STRONG_COPYLEFT');
 
-        // **Et tout l'écran est rechargé.** La conformité de chaque ligne vient d'être recalculée
-        // par le serveur ; garder l'inventaire tel quel afficherait la règle d'hier sous la
-        // politique d'aujourd'hui.
+        // **And the whole screen is reloaded.** Every row's compliance has just been recomputed by
+        // the server; keeping the inventory as it stands would show yesterday's verdict under
+        // today's policy.
         expect(http.match((request) => request.url === '/api/v1/licenses/inventory'))
             .toHaveLength(1);
         settle();
     });
 
-    it('décoche une catégorie sans toucher aux autres', () => {
+    it('unticks one category without touching the others', () => {
         const page = fixture.componentInstance;
         page.editPolicy();
         page.toggleCategory('STRONG_COPYLEFT', true);
@@ -220,14 +220,14 @@ describe('the licence inventory screen', () => {
         expect(page.policyError()).toContain('Forbidden.');
     });
 
-    it("n'offre pas la modification à un compte qui ne gouverne rien", async () => {
+    it('does not offer the edit to an account that governs nothing', async () => {
         TestBed.inject(SessionStore).open('a-token', {
             username: 'reader', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
         });
         fixture.detectChanges();
 
-        // Le serveur exige le responsable sécurité ; offrir le bouton à un autre serait offrir
-        // une porte qu'il ferme.
+        // The server requires the security lead; offering the button to anybody else would be
+        // offering a door it closes.
         expect(fixture.componentInstance.canEditPolicy()).toBe(false);
     });
 });

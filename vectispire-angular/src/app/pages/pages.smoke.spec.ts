@@ -93,20 +93,20 @@ describe('every screen', () => {
                 recentScans: []
             });
         }
-        // La couverture est un verdict, pas une collection : `COVERED` fait taire le bandeau,
-        // ce qui est l'état d'un serveur vide autant que celui d'un serveur bien réglé.
+        // Coverage is a verdict, not a collection: `COVERED` silences the banner, which is the
+        // state of an empty server as much as of a well-configured one.
         if (url.endsWith('/rule-sets/coverage')) {
             return asSchema('Assessment', {
                 state: 'COVERED', languagesWithRules: [], ecosystemsInEstate: [], uncovered: [], ruleFiles: 0
             });
         }
         if (url.endsWith('/rule-sets')) return asSchema('RuleSetListing', { ruleSets: [] });
-        // La déclaration est une liste de documents, un par cadre : vide, c'est un tableau.
+        // The statement is a list of documents, one per framework: empty, it is an array.
         if (url.endsWith('/compliance/soa')) return [];
-        // Une série par cadre : rendue à vide, c'est un tableau, jamais un objet.
+        // One series per framework: returned empty, it is an array, never an object.
         if (url.endsWith('/compliance/history')) return [];
-        // La grille est un verdict par catégorie : rendue à vide, c'est un objet à dix lignes,
-        // jamais une liste nue.
+        // The grid is one verdict per category: returned empty, it is an object of ten rows, never
+        // a bare list.
         if (url.endsWith('/owasp/coverage')) {
             return asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0 });
         }
@@ -160,11 +160,11 @@ describe('every screen', () => {
             });
         }
 
-        // **Quatre formes que ce fichier ne connaissait pas**, parce qu'il ne montait pas les
-        // écrans qui les demandent. Elles sont arrivées avec la dérivation depuis les routes :
-        // aucune n'est un défaut d'écran — le serveur envoie toujours ces cartes, jamais nulles —
-        // mais un gabarit qui lit `sommaire.repartition['X']` sur le tableau vide que ce
-        // fabricant rendait par défaut lève avant d'afficher quoi que ce soit.
+        // **Four shapes this file did not know about**, because it did not mount the screens that
+        // ask for them. They arrived with the derivation from the route table: none is a screen
+        // defect — the server always sends these maps, never null — but a template reading
+        // `summary.breakdown['X']` on the empty array this factory returned by default throws
+        // before showing anything at all.
         if (url.endsWith('/epss/priorities')) {
             return asSchema('EpssFleetSummary', {
                 totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0,
@@ -219,33 +219,32 @@ describe('every screen', () => {
     }
 
     /**
-     * Les écrans montés à part, avec la raison — et la raison est vérifiée.
+     * The screens mounted apart, with the reason — and the reason is checked.
      *
-     * <p>Chacun a besoin de plus qu'un `createComponent` : une entrée de route obligatoire, ou
-     * une réponse serveur d'une forme que ce fichier ne sait pas fabriquer à vide. Les exempter
-     * est légitime ; les exempter en silence ne l'est pas, et c'est ce que faisait la liste
-     * écrite à la main — elle ne disait pas ce qu'elle omettait.
+     * <p>Each needs more than a `createComponent`: a mandatory route input, or a server response of
+     * a shape this file cannot manufacture empty. Exempting them is legitimate; exempting them
+     * silently is not, and that is what the hand-written list did — it did not say what it left
+     * out.
      */
     const MOUNTED_APART: Record<string, string> = {
-        'scans/:id': "prend son identifiant de la route : une entrée obligatoire non posée lève NG0950 avant le gabarit",
-        'login': "hors du layout, et son propre fichier de spec l'éprouve",
-        'change-password': "hors du layout, éprouvé par la suite navigateur",
-        'error': "une page statique sans appel serveur",
-        'issues/:id': "prend son identifiant de la route, comme le détail de scan"
+        'scans/:id': 'takes its id from the route: a required input left unset throws NG0950 before the template',
+        'login': 'outside the layout, and its own spec file tests it',
+        'change-password': 'outside the layout, tested by the browser suite',
+        'error': 'a static page with no server call',
+        'issues/:id': 'takes its id from the route, like the scan detail'
     };
 
     /**
-     * Tous les écrans que la table des routes déclare, et non ceux dont quelqu'un s'est souvenu.
+     * Every screen the route table declares, and not the ones somebody remembered.
      *
-     * <p><b>Ce fichier s'appelle « every screen » et en montait dix-sept sur trente et un.</b>
-     * `blast-radius`, `epss`, `notifications`, `forbidden` et `notfound` n'étaient montés par
-     * aucun test, nulle part — dont l'explorateur de rayon d'impact, l'écran le plus lourd du
-     * produit. Une liste recopiée à la main couvre ce dont on s'est souvenu le jour où on l'a
-     * écrite ; c'est un garde-fou qui a l'air d'en être un, exactement ce que
-     * `ReadCostSweepTest` dit de la table des routes un étage plus bas.
+     * <p><b>This file is called "every screen" and mounted seventeen out of thirty-one.</b>
+     * `blast-radius`, `epss`, `notifications`, `forbidden` and `notfound` were mounted by no test,
+     * anywhere — including the blast-radius explorer, the heaviest screen in the product. A list
+     * copied by hand covers what was remembered on the day it was written; it is a guard rail that
+     * looks like one, exactly what `ReadCostSweepTest` says of the route table one floor below.
      *
-     * <p>Un écran ajouté demain est donc monté demain, sans que personne y pense — et un écran
-     * qu'on veut exempter doit être nommé dans `MOUNTED_APART`, avec sa raison.
+     * <p>A screen added tomorrow is therefore mounted tomorrow, without anybody thinking about it —
+     * and a screen to be exempted must be named in `MOUNTED_APART`, with its reason.
      */
     function routedScreens(): { path: string; load: () => Promise<Type<unknown>> }[] {
         const found: { path: string; load: () => Promise<Type<unknown>> }[] = [];
@@ -269,12 +268,12 @@ describe('every screen', () => {
         .filter((screen) => !(screen.path in MOUNTED_APART))
         .map((screen) => [screen.path, screen.load]);
 
-    it('exempte des écrans qui existent, et seulement ceux-là', () => {
-        // Une exemption périmée est pire qu'aucune : elle nomme un écran disparu et laisse croire
-        // que le reste est couvert. Celle-ci tombe le jour où le chemin change.
+    it('exempts screens that exist, and only those', () => {
+        // A stale exemption is worse than none: it names a screen that is gone and suggests the
+        // rest is covered. This one falls the day the path changes.
         const routed = new Set(ALL.map((screen) => screen.path));
         for (const path of Object.keys(MOUNTED_APART)) {
-            expect(routed.has(path), `${path} n'est plus une route : l'exemption est périmée`).toBe(true);
+            expect(routed.has(path), `${path} is no longer a route: the exemption is stale`).toBe(true);
         }
         expect(SCREENS.length).toBeGreaterThan(20);
     });

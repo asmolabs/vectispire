@@ -71,8 +71,8 @@ describe('the issue detail', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
-        // Un compte qui peut agir : le formulaire de rattachement n'est offert qu'à ceux-là,
-        // et un auditeur qui le verrait se ferait refuser par le serveur.
+        // An account that can act: the attach form is offered only to those, and an auditor who saw
+        // it would be refused by the server.
         TestBed.inject(SessionStore).open('a-token', {
             username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
         });
@@ -150,17 +150,17 @@ describe('the issue detail', () => {
     });
 
 
-    it("dit qu'aucun ticket ne suit ce constat, plutôt que de laisser la case vide", async () => {
+    it('says no ticket tracks this finding, rather than leaving the box empty', async () => {
         await load();
 
-        // « Aucun ticket » et « la carte n'a rien affiché » se ressemblent à l'écran et ne
-        // veulent pas dire la même chose ; c'est la phrase qui fait cliquer sur « rattacher ».
+        // "No ticket" and "the card showed nothing" look alike on screen and do not mean the same
+        // thing; it is the sentence that makes somebody click "attach".
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('No ticket attached.');
         expect(text).toContain('Attach a ticket');
     });
 
-    it('rattache la référence sur le champ que le webhook cherche', async () => {
+    it('attaches the reference onto the field the webhook looks up', async () => {
         await load();
 
         const page = fixture.componentInstance;
@@ -171,8 +171,8 @@ describe('the issue detail', () => {
 
         const call = http.expectOne('/api/v1/issues/7/ticket');
         expect(call.request.method).toBe('PUT');
-        // Rognée ici plutôt que sur le serveur : une référence entourée d'espaces ne serait
-        // retrouvée par aucun webhook.
+        // Trimmed here rather than on the server: a reference surrounded by spaces would be found
+        // by no webhook.
         expect(call.request.body).toEqual({ reference: 'SEC-1234', url: 'https://tracker.invalid/SEC-1234' });
         call.flush({ ...ISSUE, ticketRef: 'SEC-1234', ticketUrl: 'https://tracker.invalid/SEC-1234' });
         fixture.detectChanges();
@@ -183,7 +183,7 @@ describe('the issue detail', () => {
         expect(page.editingTicket()).toBe(false);
     });
 
-    it('envoie une URL nulle plutôt que vide, un traqueur interne pouvant ne pas en avoir', async () => {
+    it('sends a null URL rather than an empty one, an internal tracker may have none', async () => {
         await load();
 
         const page = fixture.componentInstance;
@@ -196,7 +196,7 @@ describe('the issue detail', () => {
         call.flush({ ...ISSUE, ticketRef: '#87', ticketUrl: null });
     });
 
-    it("n'envoie rien sur une référence vide, au lieu de faire refuser le geste", async () => {
+    it('sends nothing for an empty reference, instead of having the move refused', async () => {
         await load();
 
         const page = fixture.componentInstance;
@@ -204,8 +204,8 @@ describe('the issue detail', () => {
         page.ticketReference = '   ';
         page.saveTicket();
 
-        // Le serveur refuse, et il a raison : un champ vidé par mégarde rendrait le constat
-        // invisible au webhook et rouvrirait la porte à un second ticket de la balayeuse.
+        // The server refuses, and rightly: a field emptied by mistake would make the finding
+        // invisible to the webhook and reopen the door to a second ticket from the sweep.
         http.expectNone('/api/v1/issues/7/ticket');
     });
 
@@ -224,14 +224,14 @@ describe('the issue detail', () => {
         expect(page.ticketError()).toContain('Issue not found.');
     });
 
-    it("n'offre pas le rattachement à un compte qui ne peut rien changer", async () => {
+    it('does not offer the attachment to an account that can change nothing', async () => {
         TestBed.inject(SessionStore).open('a-token', {
             username: 'audit', displayName: null, role: 'AUDITOR', mustChangePassword: false, mfaEnabled: false
         });
         await load();
 
-        // Offrir une porte que le serveur ferme est pire que ne rien offrir : l'auditeur clique,
-        // reçoit un refus, et apprend à se méfier de l'écran.
+        // Offering a door the server closes is worse than offering nothing: the auditor clicks,
+        // gets a refusal, and learns to distrust the screen.
         expect(fixture.componentInstance.canAttach()).toBe(false);
         expect(fixture.nativeElement.textContent).not.toContain('Attach a ticket');
     });

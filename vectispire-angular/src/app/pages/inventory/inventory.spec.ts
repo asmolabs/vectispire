@@ -50,7 +50,7 @@ describe('the component search', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
 
-        // Les deux listes de cibles, demandées par le constructeur pour le sélecteur.
+        // The two target lists, asked for by the constructor for the picker.
         for (const request of http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers'))) {
             request.flush([]);
         }
@@ -123,10 +123,10 @@ describe('the component search', () => {
         expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(true);
     });
 
-    it('demande le différentiel de la dernière paire de scans, sans numéro à taper', () => {
-        // **La question telle qu'elle se pose.** Il fallait saisir deux identifiants internes
-        // qu'aucun écran n'affiche en évidence, alors que le serveur savait déjà répondre à
-        // « qu'est-ce qui a changé sur cette cible depuis la dernière fois ».
+    it('asks for the latest pair of scans, with no number to type', () => {
+        // **The question as it is asked.** It took typing two internal identifiers no screen
+        // displays prominently, when the server could already answer "what changed on this target
+        // since last time".
         const page = fixture.componentInstance;
         page.diffTarget = 'repo:5';
         page.runLatestDiff();
@@ -140,7 +140,7 @@ describe('the component search', () => {
         expect(page.diffReport()?.toScanId).toBe(34);
     });
 
-    it('porte le genre de la cible, une image ne se comparant pas comme un dépôt', () => {
+    it('carries the target\'s kind, an image not being compared like a repository', () => {
         const page = fixture.componentInstance;
         page.diffTarget = 'container:3';
         page.runLatestDiff();
@@ -151,9 +151,9 @@ describe('the component search', () => {
         call.flush({ fromScanId: 1, toScanId: 2, addedCount: 0, componentDeltas: [], cveDeltas: [] });
     });
 
-    it("distingue « rien à comparer » de « le calcul a échoué »", () => {
-        // Une cible scannée une seule fois n'a pas de paire. Rendre la même erreur qu'un serveur
-        // en panne enverrait quelqu'un chercher une panne qui n'existe pas.
+    it('tells "nothing to compare" apart from "the calculation failed"', () => {
+        // A target scanned only once has no pair. Returning the same error as a server that is down
+        // would send somebody looking for a failure that does not exist.
         const page = fixture.componentInstance;
         page.diffTarget = 'repo:5';
         page.runLatestDiff();

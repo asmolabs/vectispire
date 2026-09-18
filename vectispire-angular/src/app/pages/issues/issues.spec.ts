@@ -54,8 +54,8 @@ describe('the issue backlog', () => {
         http.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         http.expectOne((call) => call.url === '/api/v1/containers').flush([]);
 
-        // Et la disponibilité du modèle, qui décide si le bouton d'explication existe. Un modèle
-        // configuré par défaut dans ces essais : l'absence a son propre cas.
+        // And the model's availability, which decides whether the explain button exists. A model is
+        // configured by default in these runs: its absence has a case of its own.
         http.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
             .flush({ enabled: true, selectedModel: 'llama3', availableModels: ['llama3'] });
     }, 20_000);
@@ -158,9 +158,9 @@ describe('the issue backlog', () => {
         expect(url).not.toContain('triage_status');
     });
 
-    it("n'offre pas le conseiller quand aucun modèle n'est configuré", async () => {
-        // **Une option absente doit être absente, pas présente et refusante.** Le bouton était
-        // offert à tout le monde ; sans modèle il ouvrait une fenêtre sur un service injoignable.
+    it('does not offer the advisor when no model is configured', async () => {
+        // **An absent option must be absent, not present and refusing.** The button was offered to
+        // everybody; with no model it opened a dialog onto an unreachable service.
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Issues],
@@ -181,9 +181,9 @@ describe('the issue backlog', () => {
         expect(offline.componentInstance.aiEnabled()).toBe(false);
     });
 
-    it("cache le conseiller aussi quand la disponibilité elle-même ne répond pas", async () => {
-        // Un défaut de lecture n'est pas un accès : promettre un bouton dont on ne sait pas s'il
-        // marchera est exactement ce que ce garde-fou empêche.
+    it('hides the advisor too when availability itself does not answer', async () => {
+        // A read failure is not an access: promising a button one does not know will work is
+        // exactly what this guard prevents.
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Issues],
@@ -204,7 +204,7 @@ describe('the issue backlog', () => {
         expect(broken.componentInstance.aiEnabled()).toBe(false);
     });
 
-    it("dit que le modèle n'a pas répondu, au lieu d'ouvrir une fenêtre vide", () => {
+    it('says the model did not answer, instead of opening an empty dialog', () => {
         firstPage(1);
 
         const page = fixture.componentInstance;
@@ -213,9 +213,9 @@ describe('the issue backlog', () => {
             .error(new ProgressEvent('failed'));
         fixture.detectChanges();
 
-        // **L'erreur était posée dans un signal que le gabarit n'utilisait pas** : la fenêtre
-        // s'ouvrait, le tourniquet s'arrêtait, et il ne restait rien. Le message promettait par
-        // ailleurs une « génération locale de secours » que ce code n'a jamais écrite.
+        // **The error was set in a signal the template did not use**: the dialog opened, the
+        // spinner stopped, and nothing was left. The message moreover promised a "local fallback
+        // generation" that this code never wrote.
         expect(page.aiAdviceError()).toBeTruthy();
         expect(page.aiAdviceError()).not.toContain('secours');
         expect(page.aiAdviceLoading()).toBe(false);
@@ -364,10 +364,10 @@ describe('triaging a selection', () => {
         const as = (role: string) =>
             session.user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
 
-        // **Un dictionnaire de test, parce que le libellé passe maintenant par l'i18n.** Il
-        // était écrit en dur, en français, dans une application bilingue — trois fois. Ce que ce
-        // cas éprouve reste le même : que la promesse du bouton change avec le rôle. Que la
-        // traduction existe pour de vrai est le travail de `check-i18n-keys.mjs`.
+        // **A test dictionary, because the label now goes through i18n.** It was hard-coded, in
+        // French, in a bilingual application — three times. What this case tests is unchanged: that
+        // the button's promise changes with the role. Whether the translation really exists is
+        // `check-i18n-keys.mjs`'s job.
         TestBed.inject(I18nService).translations.set({
             issues: { triage_action: 'Trier', triage_request: 'Envoyer pour approbation' }
         });
@@ -381,20 +381,20 @@ describe('triaging a selection', () => {
         // The count is on the button because "Save" looks the same for one row and for forty.
         expect(fixture.nativeElement.textContent).toContain('Trier (2)');
 
-        // **Le libellé est la promesse.** Un compte sans droit d'approbation peut trier, mais sa
-        // décision part en file : l'écran l'annonçait « Triage » comme aux autres, et il le
-        // découvrait après coup en voyant le tag passer en « En attente d'approbation ».
+        // **The label is the promise.** An account without approval rights can triage, but its
+        // decision goes into a queue: the screen announced "Triage" to it as to the others, and it
+        // found out afterwards on seeing the tag turn to "Pending approval".
         as('USER');
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).toContain('Envoyer pour approbation (2)');
         expect(fixture.nativeElement.textContent).not.toContain('Trier (2)');
 
-        // Un auditeur constate et ne décide pas : le contrôle est absent, pas grisé.
+        // An auditor observes and does not decide: the control is absent, not greyed out.
         //
-        // **Asserté sur la clé et non sur la phrase.** Le libellé était en dur en français dans un
-        // gabarit par ailleurs anglais ; il passe maintenant par les bundles, et une assertion sur
-        // le texte traduit dirait quelle langue la suite a chargée plutôt que ce que l'écran
-        // montre.
+        // **Asserted on the key and not on the sentence.** The label was hard-coded in French in an
+        // otherwise English template; it now goes through the bundles, and an assertion on the
+        // translated text would say which language the suite loaded rather than what the screen
+        // shows.
         as('AUDITOR');
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).not.toContain('(2)');
