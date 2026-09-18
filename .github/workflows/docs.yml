@@ -1,32 +1,31 @@
-# Le site de documentation, publié sur https://asmolabs.github.io/vectispire/
+# The documentation site, published at https://asmolabs.github.io/vectispire/
 #
-# **Séparé de `verify` exprès.** La pipeline de vérification tourne sur chaque push et chaque
-# merge request ; publier depuis elle voudrait dire soit publier depuis une branche, soit ajouter
-# une condition de branche à un job qui n'en a pas besoin. Un workflow qui ne se déclenche que
-# sur `main` et seulement quand la source du site a changé dit ce qu'il fait dans son `on:`.
+# **Separate from `verify` on purpose.** The verification pipeline runs on every push and every
+# merge request; publishing from it would mean either publishing from a branch, or adding a branch
+# condition to a job that does not need one. A workflow that fires only on `main`, and only when
+# the site's source has changed, says what it does in its `on:`.
 #
-# Chaque `uses:` est épinglé à un SHA de commit, la version en commentaire de fin, comme dans
-# `ci.yml`. Un tag est mutable : `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` désigne ce que son propriétaire décide
-# aujourd'hui, et ce workflow détient `pages: write` et un jeton OIDC.
+# Every `uses:` is pinned to a commit SHA, with the version in a trailing comment, as in `ci.yml`.
+# A tag is mutable: `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` means whatever its owner decides today, and this
+# workflow holds `pages: write` and an OIDC token.
 
-# **Ce workflow est le seul à déployer sur Pages, et il y a une raison de le dire ici.**
-# Le 30 août, `static.yml` — le modèle « Deploy static content to Pages » proposé par GitHub — a
-# été ajouté pour activer le site. Il téléverse `path: '.'`, c'est-à-dire *le dépôt entier*, sans
-# construire mkdocs. Trois conséquences, dans l'ordre de gravité :
+# **This workflow is the only one that deploys to Pages, and there is a reason to say so here.**
+# On 30 August, `static.yml` — GitHub's "Deploy static content to Pages" template — was added in
+# order to switch the site on. It uploads `path: '.'`, that is *the whole repository*, without
+# building mkdocs. Three consequences, in order of severity:
 #
-#   1. `docs/` s'est retrouvé publié : 30 rapports d'audit datés, deux modèles de menaces STRIDE,
-#      la liste des faiblesses connues et l'état de leur remédiation. L'en-tête de `mkdocs.yml`
-#      explique que `docs_dir` ne voit pas `docs/` précisément pour que cela ne puisse pas
-#      arriver « pas même en devinant son URL ». Téléverser la racine contourne la protection en
-#      un `path:`.
-#   2. Le site ne fonctionnait pas : sans `mkdocs build`, la racine n'a pas d'`index.html`, donc
-#      `/vectispire/` répondait 404 pendant que `/vectispire/README.md` répondait 200.
-#   3. Deux workflows visaient l'environnement `github-pages` avec le même groupe de concurrence
-#      `pages` : le dernier arrivé écrase l'autre.
+#   1. `docs/` got published: 30 dated audit reports, two STRIDE threat models, the list of known
+#      weaknesses and the state of their remediation. `mkdocs.yml`'s header explains that
+#      `docs_dir` does not see `docs/` precisely so that this cannot happen, "not even by guessing
+#      the URL". Uploading the root works around the protection in one `path:`.
+#   2. The site did not work: without `mkdocs build`, the root has no `index.html`, so
+#      `/vectispire/` answered 404 while `/vectispire/README.md` answered 200.
+#   3. Two workflows targeted the `github-pages` environment with the same `pages` concurrency
+#      group: the last to arrive overwrites the other.
 #
-# Pour activer Pages, la source doit être **GitHub Actions** dans les réglages du dépôt ; c'est
-# tout ce qui manquait. Aucun second workflow n'est nécessaire, et un second workflow est
-# exactement ce qui casse celui-ci.
+# To switch Pages on, the source must be **GitHub Actions** in the repository settings; that was
+# all that was missing. No second workflow is needed, and a second workflow is exactly what breaks
+# this one.
 
 name: docs
 
@@ -38,17 +37,17 @@ on:
       - 'mkdocs.yml'
       - 'ci/docs/requirements.txt'
       - '.github/workflows/docs.yml'
-  # Pour republier sans commit — après avoir activé Pages, par exemple.
+  # To republish without a commit — after switching Pages on, for instance.
   workflow_dispatch:
 
-# Lecture du dépôt, écriture sur Pages, et un jeton OIDC parce que `deploy-pages` s'authentifie
-# avec, sans secret à détenir.
+# Read the repository, write to Pages, and an OIDC token because `deploy-pages` authenticates with
+# one, with no secret to hold.
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Une publication en cours n'est pas annulée : la page à moitié déployée serait servie.
+# A publication in flight is not cancelled: the half-deployed page would be served.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -65,9 +64,8 @@ jobs:
           cache: pip
           cache-dependency-path: ci/docs/requirements.txt
       - run: pip install -r ci/docs/requirements.txt
-      # `--strict` transforme les avertissements en échec : un lien mort ou une page absente de
-      # la navigation arrête la publication au lieu de partir en ligne sans que personne ne lise
-      # le log.
+      # `--strict` turns warnings into failure: a dead link or a page missing from the navigation
+      # stops the publication instead of going live with nobody reading the log.
       - run: mkdocs build --strict
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

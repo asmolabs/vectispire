@@ -18,13 +18,13 @@ vectispire:
     heartbeat: ${VECTISPIRE_AGENT_HEARTBEAT:60s}
     version: ${VECTISPIRE_VERSION:1}
 
-    # **La moitié privée de la clé qu'un administrateur a épinglée sur la ligne de cet agent.**
-    # Vide : les résultats sont acceptés sur la seule clé API, ce qui est le comportement
-    # antérieur et celui de tout agent tant que personne n'épingle rien.
+    # **The private half of the key an administrator pinned on this agent's row.** Empty: results
+    # are accepted on the API key alone, which is the prior behaviour and every agent's behaviour
+    # until somebody pins anything.
     #
-    # C'est une *configuration*, jamais une annonce, et l'asymétrie avec la clé de scellement est
-    # tout l'intérêt : une signature vérifiée contre une clé que le signataire a lui-même publiée
-    # sur le même canal ne prouve rien de plus que le jeton porteur. Voir `ResultAttestation`.
+    # This is *configuration*, never an announcement, and the asymmetry with the sealing key is the
+    # whole point: a signature verified against a key the signer published itself over the same
+    # channel proves nothing more than the bearer token does. See `ResultAttestation`.
     signing-key: ${VECTISPIRE_AGENT_SIGNING_KEY:}
 
     # **The scanner images.** Blank keeps the pinned digest. An agent runs on somebody else's

@@ -1,15 +1,15 @@
-# Le site de documentation publique, publié sur https://asmolabs.github.io/vectispire/
+# The public documentation site, published at https://asmolabs.github.io/vectispire/
 #
-# **Le site n'est pas le dépôt.** `docs/` est le dossier de travail interne : 30 rapports d'audit
-# sécurité datés, deux modèles de menaces STRIDE, une revue sécurité/qualité, un dossier de
-# conformité, le registre d'architecture. Rien de tout cela n'est publié, et ce n'est pas une
-# question de longueur : un site public qui expose la liste des faiblesses connues et l'état de
-# leur remédiation rend un service à la mauvaise personne.
+# **The site is not the repository.** `docs/` is the internal working folder: 30 dated security
+# audit reports, two STRIDE threat models, a security/quality review, a compliance file, the
+# architecture register. None of that is published, and it is not a question of length: a public
+# site exposing the list of known weaknesses and the state of their remediation does a favour to
+# the wrong person.
 #
-# Le site a donc sa propre source, `docs-site/`, écrite pour un lecteur qui *utilise* Vectispire
-# plutôt que pour quelqu'un qui le construit. Les deux arbres ne se croisent pas : `docs_dir` ne
-# voit pas `docs/`, donc aucun document interne ne peut se retrouver publié par accident — pas
-# même en devinant son URL, ce qu'une simple exclusion de navigation n'aurait pas empêché.
+# The site therefore has its own source, `docs-site/`, written for a reader who *uses* Vectispire
+# rather than for somebody building it. The two trees do not cross: `docs_dir` does not see
+# `docs/`, so no internal document can end up published by accident — not even by guessing its
+# URL, which a mere navigation exclusion would not have prevented.
 
 site_name: Vectispire
 site_description: How to install, operate and administer Vectispire
@@ -45,9 +45,9 @@ theme:
       accent: indigo
       toggle:
         icon: material/weather-night
-        # **Traduite par langue plus bas, dans `languages:`.** Cette chaîne-là n'appartient
-        # pas au thème : elle est écrite ici, donc `reconfigure_material` ne la voit pas et
-        # « Rechercher » se retrouvait en français à côté de « Switch to dark mode ».
+        # **Translated per language below, in `languages:`.** This string does not belong to the
+        # theme: it is written here, so `reconfigure_material` does not see it and "Rechercher"
+        # ended up in French next to "Switch to dark mode".
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
@@ -58,20 +58,19 @@ theme:
         name: Switch to light mode
 
 plugins:
-  # **La recherche vient d'abord et l'i18n ensuite** : `static-i18n` reconstruit l'index de
-  # recherche par langue, ce qu'il ne peut faire que si `search` est déjà enregistré.
+  # **Search comes first and i18n second**: `static-i18n` rebuilds the search index per language,
+  # which it can only do if `search` is already registered.
   - search
-  # Le site en deux langues, avec une URL par langue plutôt qu'un basculement côté client.
+  # The site in two languages, with one URL per language rather than a client-side switch.
   #
-  # **Le suffixe est dans le nom du fichier.** `installation.md` est l'anglais,
-  # `installation.fr.md` le français ; la page anglaise reste à `/getting-started/installation/`
-  # et la française arrive à `/fr/getting-started/installation/`. Aucune page ne bouge d'URL,
-  # donc aucun lien existant ne casse.
+  # **The suffix is in the file name.** `installation.md` is the English, `installation.fr.md` the
+  # French; the English page stays at `/getting-started/installation/` and the French one lands at
+  # `/fr/getting-started/installation/`. No page changes URL, so no existing link breaks.
   #
-  # `fallback_to_default: true` sert la version anglaise sous l'URL française tant que la
-  # traduction n'existe pas. C'est une dégradation choisie, pas un oubli : l'alternative est un
-  # 404 sur une page que le sélecteur de langue vient de proposer, ce qui est pire. Le bandeau
-  # ci-dessous le dit au lecteur au lieu de le lui laisser deviner.
+  # `fallback_to_default: true` serves the English version under the French URL as long as the
+  # translation does not exist. That is a chosen degradation, not an oversight: the alternative is
+  # a 404 on a page the language switcher has just offered, which is worse. The banner below says
+  # so to the reader instead of leaving them to work it out.
   - i18n:
       docs_structure: suffix
       fallback_to_default: true
@@ -85,7 +84,7 @@ plugins:
         - locale: fr
           name: Français
           build: true
-          # Ce que le plugin ne peut pas déduire : les chaînes que ce fichier écrit lui-même.
+          # What the plugin cannot infer: the strings this file writes itself.
           site_name: Vectispire
           site_description: Installer, exploiter et administrer Vectispire
           copyright: Apache-2.0 — Asmolabs

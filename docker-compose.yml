@@ -38,48 +38,48 @@ services:
       - vectispire-net
 
   # --- Vectispire Control Plane (Spring Boot Backend + Angular UI) ---------------------------
-  # --- Le seul service qui touche le socket Docker ------------------------------------------
+  # --- The only service that touches the Docker socket --------------------------------------
   #
-  # **Monter `/var/run/docker.sock` dans le plan de contrôle, c'est lui donner root sur l'hôte.**
-  # L'API du démon n'a pas de notion de privilège partiel : qui l'atteint peut lancer
-  # `docker run -v /:/host`, et aucune capability n'est nécessaire pour cela. Or c'est ce même
-  # processus qui détient `ENCRYPTION_KEY` — la clé qui déchiffre toutes les clés de déploiement
-  # du parc — et les identifiants de la base. La compromission de l'un donnait l'autre.
+  # **Mounting `/var/run/docker.sock` into the control plane gives it root on the host.** The
+  # daemon's API has no notion of partial privilege: whoever reaches it can run
+  # `docker run -v /:/host`, and no capability is needed for that. Yet this is the same process
+  # that holds `ENCRYPTION_KEY` — the key that decrypts every deployment key in the estate — and
+  # the database credentials. Compromising one gave the other.
   #
-  # L'architecture avait pourtant démonté cette concentration : l'agent distant existe pour que
-  # l'exécution des scans et la clé de chiffrement ne soient jamais au même endroit, et le module
-  # `vectispire-agent` ne peut pas compiler contre un driver JDBC (décision 0003). La composition
-  # par défaut les remettait ensemble.
+  # The architecture had taken that concentration apart: the remote agent exists so that scan
+  # execution and the encryption key are never in the same place, and the `vectispire-agent`
+  # module cannot compile against a JDBC driver (decision 0003). The default composition put them
+  # back together.
   #
-  # **Ce que ce proxy retire, et ce qu'il ne retire pas.** Il retire le fichier socket du système
-  # de fichiers du conteneur, et il retire de l'API tout ce que Vectispire n'appelle jamais :
-  # `exec` dans un conteneur existant, les secrets, les volumes, les réseaux, Swarm, `/system`.
-  # Il ne retire pas `POST /containers/create` avec ses `Binds` — c'est l'appel dont Vectispire
-  # vit, et qui suffit à monter l'hôte. **Le proxy réduit la surface, il ne pose pas de
-  # frontière.** La frontière, c'est de mettre l'exécution sur une autre machine : profil
-  # `with-agent`, `VECTISPIRE_EMBEDDED_WORKER=false` sur le plan de contrôle.
+  # **What this proxy removes, and what it does not.** It removes the socket file from the
+  # container's filesystem, and it removes from the API everything Vectispire never calls: `exec`
+  # into an existing container, secrets, volumes, networks, Swarm, `/system`. It does not remove
+  # `POST /containers/create` with its `Binds` — that is the call Vectispire lives on, and it is
+  # enough to mount the host. **The proxy reduces the surface, it does not draw a boundary.** The
+  # boundary is putting execution on another machine: the `with-agent` profile, with
+  # `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane.
   #
-  # Épinglé par digest de l'index multi-architecture, comme les images de scanners : ce conteneur
-  # parle au démon, un tag mutable ici vaudrait un tag mutable sur le socket.
+  # Pinned by the multi-architecture index digest, like the scanner images: this container talks to
+  # the daemon, and a mutable tag here would be a mutable tag on the socket.
   docker-proxy:
     image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
     container_name: vectispire-docker-proxy
     environment:
-      # Ce que `ContainerRunner` appelle réellement, et rien d'autre.
+      # What `ContainerRunner` actually calls, and nothing else.
       PING: 1          # isAvailable(), avant de réclamer un scan
       VERSION: 1       # la négociation d'API du client
       INFO: 1          # infoCmd().getNCPU(), pour le quota CPU
       CONTAINERS: 1    # create, start, wait, logs, inspect, rm
       IMAGES: 1        # pull, save, inspect
       POST: 1          # create/start/pull sont des POST ; sans cela tout est en lecture seule
-      # Nommés bien qu'ils soient déjà à 0 par défaut : une ligne absente se lit comme un oubli,
-      # une ligne à 0 se lit comme une décision.
+      # Named although they already default to 0: an absent line reads as an oversight, a line set
+      # to 0 reads as a decision.
       #
-      # **`EXEC: 0` ne fait pas tout à fait ce que son nom dit, et c'est mesuré.** Il gouverne les
-      # points d'entrée `/exec/*` ; `POST /containers/{id}/exec`, qui *crée* l'instance, est couvert
-      # par `CONTAINERS` et répond 201. Le démarrage — `POST /exec/{id}/start` — répond 403, donc
-      # l'instance créée reste inerte. La capacité est fermée, pas là où on la cherche : voir la
-      # décision 0018 pour les codes relevés.
+      # **`EXEC: 0` does not quite do what its name says, and that was measured.** It governs the
+      # `/exec/*` endpoints; `POST /containers/{id}/exec`, which *creates* the instance, is covered
+      # by `CONTAINERS` and answers 201. Starting it — `POST /exec/{id}/start` — answers 403, so the
+      # instance created stays inert. The capability is closed, just not where one looks for it: see
+      # decision 0018 for the codes observed.
       EXEC: 0
       AUTH: 0
       SECRETS: 0
@@ -97,13 +97,13 @@ services:
       COMMIT: 0
       SESSION: 0
     volumes:
-      # En lecture seule : le proxy lui-même n'a aucune raison d'écrire dans le fichier socket.
+      # Read-only: the proxy itself has no reason to write to the socket file.
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
     networks:
-      # **Uniquement sur le réseau interne.** Sur `vectispire-net` il serait joignable par tout
-      # ce qui y vit — Keycloak compris — et un proxy vers le démon joignable par un service
-      # tiers est exactement ce que l'on vient d'enlever au plan de contrôle.
+      # **On the internal network only.** On `vectispire-net` it would be reachable by everything
+      # living there — Keycloak included — and a proxy to the daemon reachable by a third-party
+      # service is exactly what was just taken away from the control plane.
       - vectispire-docker
 
   control-plane:
@@ -114,12 +114,12 @@ services:
     container_name: vectispire-control-plane
     ports:
       - "${VECTISPIRE_PORT:-3180}:3180"
-    # **Les variables OIDC arrivent par un fichier, jamais par une valeur vide.**
-    # `@ConditionalOnProperty("vectispire.oidc.issuer")` s'active dès que la propriété *existe* —
-    # une chaîne vide comprise — et la découverte échouerait alors sur un issuer vide, au
-    # démarrage, sur une installation qui n'a jamais demandé de SSO. Un `env_file` optionnel n'a
-    # pas ce défaut : absent, aucune variable n'est posée et la fonctionnalité reste absente
-    # plutôt que présente et refusant. Copiez `.env.oidc.example` pour l'activer.
+    # **The OIDC variables arrive through a file, never as an empty value.**
+    # `@ConditionalOnProperty("vectispire.oidc.issuer")` activates as soon as the property *exists*
+    # — an empty string included — and discovery would then fail on an empty issuer, at start-up, on
+    # an installation that never asked for SSO. An optional `env_file` does not have that defect:
+    # absent, no variable is set and the feature stays absent rather than present and refusing. Copy
+    # `.env.oidc.example` to switch it on.
     env_file:
       - path: .env.oidc
         required: false
@@ -153,9 +153,9 @@ services:
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
       # Lets the control plane clone over SSH with the host operator's keys (mounted below).
       VECTISPIRE_HOST_SSH: ${VECTISPIRE_HOST_SSH:-true}
-      # **Le démon se parle par le proxy, jamais par le fichier.** `ContainerRunner` honore
-      # `DOCKER_HOST` avant toute autodétection, donc rien à changer dans le code : il n'y a plus
-      # de socket à détecter dans ce conteneur.
+      # **The daemon is spoken to through the proxy, never through the file.** `ContainerRunner`
+      # honours `DOCKER_HOST` before any autodetection, so nothing changes in the code: there is no
+      # socket left to detect in this container.
       DOCKER_HOST: tcp://docker-proxy:2375
     volumes:
       # Read-only, and only what git needs: the deploy keys the operator already uses.
@@ -164,9 +164,9 @@ services:
       # entries, and the image creates the directory owned by its unprivileged user so the
       # volume inherits that owner instead of arriving root-owned.
       - vectispire_audit:/var/lib/vectispire/audit
-    # `group_add: docker` a disparu avec le montage du socket : il n'y a plus de fichier dont il
-    # faille posséder le groupe. C'est aussi une ligne de configuration hôte en moins à deviner —
-    # elle valait un nom sur certains hôtes et un GID numérique sur d'autres.
+    # `group_add: docker` went with the socket mount: there is no longer a file whose group has to
+    # be held. It is also one less piece of host configuration to guess — it was a name on some
+    # hosts and a numeric GID on others.
     depends_on:
       db:
         condition: service_healthy
@@ -178,19 +178,19 @@ services:
       - vectispire-docker
 
   # --- Optional: Remote Agent (for isolated container worker nodes) --------------------------
-  # **Keycloak, en profil et pour l'évaluation.** `docker compose --profile sso up`.
+  # **Keycloak, behind a profile and for evaluation.** `docker compose --profile sso up`.
   #
-  # Il n'est pas dans la composition par défaut, et ce n'est pas de la timidité : embarquer un
-  # fournisseur d'identité, c'est en hériter les montées de version et les CVE. Ce que ce service
-  # livre est un exemple qui marche — un realm avec le client déjà réglé et le mapper de groupes
-  # correctement configuré, ce qui est précisément ce que l'on rate en le faisant à la main. Un
-  # déploiement réel pointe `VECTISPIRE_OIDC_ISSUER` vers le Keycloak de l'organisation.
+  # It is not in the default composition, and that is not timidity: embedding an identity provider
+  # means inheriting its upgrades and its CVEs. What this service ships is a working example — a
+  # realm with the client already set up and the group mapper correctly configured, which is
+  # precisely what people get wrong doing it by hand. A real deployment points
+  # `VECTISPIRE_OIDC_ISSUER` at the organisation's own Keycloak.
   #
-  # `start-dev` le dit lui-même au démarrage : stockage en mémoire, pas de HTTPS, pas pour la
-  # production. Le secret client et le mot de passe du realm sont dans
-  # `ci/keycloak/vectispire-realm.json`, en clair et nommés pour ce qu'ils sont — **l'import de
-  # realm ne substitue pas `${env.…}`**, vérifié : le marqueur ressort littéral. Un realm de
-  # production porte donc ses propres secrets, posés autrement.
+  # `start-dev` says so itself at start-up: in-memory storage, no HTTPS, not for production. The
+  # client secret and the realm password are in `ci/keycloak/vectispire-realm.json`, in the clear
+  # and named for what they are — **realm import does not substitute `${env.…}`**, which was
+  # checked: the marker comes back literal. A production realm therefore carries its own secrets,
+  # set some other way.
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: vectispire-keycloak
@@ -198,8 +198,8 @@ services:
       - sso
     command: ["start-dev", "--import-realm"]
     environment:
-      # Pas `:?` — Compose interpole tout le fichier même pour un profil inactif, comme le dit
-      # déjà le service `agent` plus bas.
+      # Not `:?` — Compose interpolates the whole file even for an inactive profile, as the `agent`
+      # service below already says.
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     volumes:
@@ -225,8 +225,8 @@ services:
       # runs an agent. An empty token is not a weak secret, it is an agent that fails to enrol
       # and says so.
       VECTISPIRE_AGENT_TOKEN: ${VECTISPIRE_AGENT_TOKEN:-}
-      # Vide : les résultats de cet agent sont acceptés sur sa seule clé API. Épinglez une clé
-      # depuis l'écran des agents et posez ici la moitié privée qu'il vous rend une fois.
+      # Empty: this agent's results are accepted on its API key alone. Pin a key from the agents
+      # screen and put here the private half it returns to you once.
       VECTISPIRE_AGENT_SIGNING_KEY: ${VECTISPIRE_AGENT_SIGNING_KEY:-}
       # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
       VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
@@ -234,10 +234,10 @@ services:
       VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
       VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
-      # Par le proxy ici aussi. **Sur un déploiement réel l'agent ne tourne pas sur cette machine**
-      # — c'est sa raison d'être — et il y parle alors au démon de la sienne, qui ne détient ni la
-      # base ni `ENCRYPTION_KEY`. Cette composition met les deux sur un hôte pour l'évaluation, et
-      # le proxy est ce qui garde la même règle dans les deux cas.
+      # Through the proxy here too. **On a real deployment the agent does not run on this machine**
+      # — that is its whole purpose — and it then talks to its own host's daemon, which holds
+      # neither the database nor `ENCRYPTION_KEY`. This composition puts both on one host for
+      # evaluation, and the proxy is what keeps the same rule in both cases.
       DOCKER_HOST: tcp://docker-proxy:2375
     volumes:
       - ${HOME}/.ssh:/home/vectispire/.ssh:ro
@@ -262,9 +262,9 @@ networks:
     name: vectispire-net
     driver: bridge
 
-  # **`internal: true`, et c'est la moitié du contrôle.** Un réseau interne n'a pas de route vers
-  # l'extérieur : le proxy vers le démon n'est joignable que par les deux services qui y sont
-  # explicitement rattachés, et il ne peut lui-même appeler nulle part.
+  # **`internal: true`, and that is half the control.** An internal network has no route out: the
+  # proxy to the daemon is reachable only by the two services explicitly attached to it, and it
+  # cannot itself call anywhere.
   vectispire-docker:
     name: vectispire-docker
     driver: bridge

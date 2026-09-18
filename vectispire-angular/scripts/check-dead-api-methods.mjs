@@ -1,28 +1,27 @@
 #!/usr/bin/env node
 /**
- * Refuse une méthode d'`api.service` que plus aucun écran n'appelle.
+ * Refuses an `api.service` method no screen calls any more.
  *
- * **Pourquoi ce garde existe.** Quatre fonctionnalités complètes côté serveur ont vécu des
- * semaines sans le moindre écran : le plan de remédiation classé par levier, l'activation du
- * second facteur, l'affectation des cibles par compte, et la déconnexion elle-même. Dans chaque
- * cas la méthode cliente existait, personne ne l'appelait, et rien ne pouvait le voir — une
- * méthode morte ne casse pas la compilation, ne fait pas rougir une suite, et ne se signale à
- * personne. Il a fallu chercher pour les trouver.
+ * **Why this guard exists.** Four complete server-side features lived for weeks with no screen at
+ * all: the remediation plan ranked by leverage, switching on the second factor, per-account target
+ * assignment, and signing out itself. In each case the client method existed, nobody called it,
+ * and nothing could see it — a dead method does not break compilation, does not turn a suite red,
+ * and reports itself to nobody. Finding them took looking.
  *
- * C'est le même défaut que les libellés en dur et les collisions de schémas : un produit qui
- * sait répondre à une question et ne le dit à personne. Et comme pour eux, la réponse est un
- * cliquet plutôt qu'une interdiction — la dette existe, elle se résorbe, et une règle qui échoue
- * dès sa première exécution est une règle qu'on désactive.
+ * It is the same defect as the hard-coded labels and the schema collisions: a product that can
+ * answer a question and tells nobody. And as with those, the answer is a ratchet rather than a
+ * prohibition — the debt exists, it is being paid down, and a rule that fails on its first run is
+ * a rule people switch off.
  *
- * **La liste est épinglée, pas comptée.** Un simple nombre laisserait passer l'échange : une
- * méthode branchée, une autre laissée morte, le compte ne bouge pas et la dette se déplace. Les
- * noms sont donc écrits ici, et tout écart — un nom en plus, un nom en moins — demande une
- * décision dans le commit qui la prend.
+ * **The list is pinned, not counted.** A plain number would let a swap through: one method wired
+ * up, another left dead, the count does not move and the debt relocates. The names are therefore
+ * written here, and any divergence — one name more, one name fewer — asks for a decision in the
+ * commit that makes it.
  *
- * **Ce que ce script ne voit pas, et le dire vaut mieux que de laisser croire.** Seuls les
- * appels littéraux `.nom(` sont reconnus. Une méthode atteinte par un nom construit à
- * l'exécution passerait pour morte ; il n'y en a aucune aujourd'hui, et le jour où il y en aura
- * une, l'exemption est une ligne ici plutôt qu'un garde désactivé.
+ * **What this script does not see, and saying so beats letting people assume.** Only literal
+ * `.name(` calls are recognised. A method reached through a name built at runtime would look dead;
+ * there is none today, and the day there is one, the exemption is a line here rather than a
+ * disabled guard.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -32,17 +31,17 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVICE = 'src/app/core/api.service.ts';
 
 /**
- * Les méthodes qu'aucun écran n'appelle, et qu'on tolère malgré tout.
+ * The methods no screen calls, and that are tolerated all the same.
  *
- * **Vide, et c'est l'état qu'on voulait.** Quinze le matin du 15 septembre 2026 ; zéro le soir.
- * Neuf ont trouvé leur écran — la déconnexion, le second facteur, la visibilité d'un compte, le
- * rattachement d'un ticket, le différentiel de la dernière paire, la politique de licences,
- * l'explication d'une CVE, la disponibilité du modèle, les revues échues — et six ont été
- * retirées au profit du chemin qui convenait, ou parce que leur écran n'aurait rien apporté.
+ * **Empty, and that is the state we wanted.** Fifteen on the morning of 15 September 2026; zero by
+ * the evening. Nine found their screen — signing out, the second factor, an account's visibility,
+ * attaching a ticket, the latest-pair diff, the licence policy, explaining a CVE, model
+ * availability, the overdue reviews — and six were removed in favour of the path that suited, or
+ * because a screen for them would have added nothing.
  *
- * Le cliquet devient donc une interdiction, comme celui des libellés en dur avant lui : une
- * méthode cliente que rien n'appelle fait échouer la suite, et l'ajouter ici est un geste
- * délibéré qui se justifie dans le commit qui le fait.
+ * The ratchet therefore becomes a prohibition, like the hard-coded labels' before it: a client
+ * method nothing calls fails the suite, and adding one here is a deliberate move that justifies
+ * itself in the commit that makes it.
  */
 const DEAD = new Set([]);
 
@@ -52,14 +51,14 @@ const walk = (dir) =>
         return statSync(path).isDirectory() ? walk(path) : [path];
     });
 
-// Une méthode publique du service : quatre espaces d'indentation, un nom, une parenthèse.
+// A public method of the service: four spaces of indentation, a name, a parenthesis.
 const DECLARED = /^ {4}([a-zA-Z0-9_]+)\(/gm;
 
 const service = readFileSync(join(root, SERVICE), 'utf8');
 const declared = [...service.matchAll(DECLARED)].map(([, name]) => name).filter((name) => name !== 'constructor');
 
-// Les specs sont exclues : un appel qui n'existe que dans un essai n'est pas un écran, et une
-// méthode maintenue en vie par son propre test est exactement ce que ce garde cherche.
+// The specs are excluded: a call that exists only in a test is not a screen, and a method kept
+// alive by its own test is exactly what this guard is looking for.
 let callers = '';
 for (const file of walk(join(root, 'src/app'))) {
     if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts') || file.endsWith('api.service.ts')) continue;
@@ -73,21 +72,21 @@ const connected = [...DEAD].filter((name) => !unused.includes(name));
 
 if (appeared.length > 0) {
     console.error(
-        `${appeared.length} méthode(s) d'api.service que plus aucun écran n'appelle : ${appeared.join(', ')}.`);
+        `${appeared.length} api.service method(s) no screen calls any more: ${appeared.join(', ')}.`);
     console.error(
-        `Un calcul livré que personne ne peut atteindre. Donnez-lui un écran, ou retirez-le — et si ` +
-        `c'est délibéré, ajoutez son nom à DEAD dans le même commit.`);
+        `A shipped calculation nobody can reach. Give it a screen, or remove it — and if it is ` +
+        `deliberate, add its name to DEAD in the same commit.`);
     process.exit(1);
 }
 
 if (connected.length > 0) {
     console.error(
-        `${connected.length} méthode(s) ne sont plus mortes : ${connected.join(', ')}.`);
+        `${connected.length} method(s) are no longer dead: ${connected.join(', ')}.`);
     console.error(
-        `Bonne nouvelle, et le cliquet doit descendre dans le même commit : retirez-les de DEAD.`);
+        `Good news, and the ratchet must come down in the same commit: remove them from DEAD.`);
     process.exit(1);
 }
 
 console.log(
-    `Vérification des méthodes d'API : ${declared.length} déclarées, ${unused.length} sans écran ` +
-    `(cliquet à ${DEAD.size}).`);
+    `API method check: ${declared.length} declared, ${unused.length} with no screen ` +
+    `(ratchet at ${DEAD.size}).`);

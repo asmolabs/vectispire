@@ -120,15 +120,14 @@ vectispire:
     # public demo, or a deployment behind a gateway that already authenticates.
     anonymous-api-docs: ${VECTISPIRE_ANONYMOUS_API_DOCS:false}
 
-    # **Un plafond sur les jetons porteurs refusés**, que le mot de passe avait et que les clés
-    # n'avaient pas. Sessions, clés API d'agent et jeton SCIM comptent ensemble, par adresse, et
-    # seuls les échecs comptent : un agent qui long-poll avec une clé valide n'entame rien.
+    # **A ceiling on refused bearer tokens**, which the password had and the keys did not. Sessions,
+    # agent API keys and the SCIM token count together, per address, and only failures count: an
+    # agent long-polling with a valid key spends nothing.
     #
-    # Volontairement généreux. Ces jetons sont longs et aléatoires, donc la menace n'est pas le
-    # devinement mais le silence : un balayage ne laissait aucune trace distincte d'un agent mal
-    # configuré qui réessaie. L'essentiel de la valeur du contrôle est l'entrée d'audit écrite
-    # quand le plafond est atteint, pas le refus lui-même — d'où un seuil qui ne verrouille pas un
-    # opérateur hors de son propre plan de contrôle.
+    # Deliberately generous. These tokens are long and random, so the threat is not guessing but
+    # silence: a sweep left no trace distinguishable from a misconfigured agent retrying. Most of
+    # the control's value is the audit entry written when the ceiling is reached, not the refusal
+    # itself — hence a threshold that does not lock an operator out of their own control plane.
     bearer-failures-per-window: ${VECTISPIRE_BEARER_FAILURES_PER_WINDOW:60}
     bearer-failure-window: ${VECTISPIRE_BEARER_FAILURE_WINDOW:PT5M}
 

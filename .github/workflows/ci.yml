@@ -19,21 +19,20 @@
 
 name: verify
 
-# **`main` n'est pas dans la liste, et c'est une conséquence de la règle de protection.**
+# **`main` is not in the list, and that is a consequence of the protection rule.**
 #
-# Cette branche n'avance que par avance rapide depuis un commit de `develop` — `required_linear_history`
-# l'impose, `non_fast_forward` interdit le reste. Le commit qui y arrive a donc déjà été vérifié, et
-# une règle GitHub lit le statut *du commit*, pas de la branche : les douze contrôles de `develop`
-# satisfont `main` sans être rejoués.
+# That branch only advances by fast-forward from a commit on `develop` — `required_linear_history`
+# requires it, `non_fast_forward` forbids the rest. The commit arriving there has therefore already
+# been verified, and a GitHub rule reads *the commit's* status, not the branch's: `develop`'s twelve
+# checks satisfy `main` without being replayed.
 #
-# Les rejouer coûtait douze jobs à chaque avance, sur un arbre identique. Pire depuis que la
-# concurrence est indexée par commit : les deux références partageant le même SHA partagent le même
-# groupe, donc le run de `main` attendait celui de `develop` au lieu de tourner à côté — du travail
-# en double, sérialisé.
+# Replaying them cost twelve jobs on every advance, over an identical tree. Worse since concurrency
+# became keyed by commit: the two refs sharing one SHA share one group, so `main`'s run waited for
+# `develop`'s instead of running beside it — duplicate work, serialised.
 #
-# **L'effet de bord est voulu.** Un commit qui atteindrait `main` sans être passé par `develop`
-# n'aurait aucun contrôle à montrer, et la règle le refuserait. C'est exactement le flux qu'on veut,
-# et il est désormais tenu par la mécanique plutôt que par la discipline.
+# **The side effect is intended.** A commit reaching `main` without having gone through `develop`
+# would have no checks to show, and the rule would refuse it. That is exactly the flow we want, and
+# it is now held by the mechanism rather than by discipline.
 on:
   push:
     branches: [develop]
@@ -371,23 +370,20 @@ jobs:
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
 
-  # **La campagne moteurs, sur le changement qui touche au schéma.**
+  # **The engine campaign, on any change that touches the schema.**
   #
-  # Elle ne vivait que dans `nightly.yml`, et GitHub ne déclenche un workflow planifié que depuis
-  # la branche par défaut : une migration fusionnée dans `develop` attendait donc que `main`
-  # rattrape son retard avant qu'un moteur ne l'exécute une seule fois. Le 2 septembre, trois
-  # migrations se trouvaient dans cet écart en même temps, dont une posant vingt-quatre clés
-  # étrangères et supprimant des lignes orphelines. Le nocturne reste ; ceci fait qu'il n'est plus
-  # le seul endroit où la campagne existe.
+  # It lived only in `nightly.yml`, and GitHub triggers a scheduled workflow only from the default
+  # branch: a migration merged into `develop` therefore waited for `main` to catch up before any
+  # engine ran it even once. On 2 September, three migrations sat in that gap at the same time, one
+  # of them adding twenty-four foreign keys and deleting orphan rows. The nightly stays; this makes
+  # it no longer the only place the campaign exists.
   #
-  # **Elle se déclenche aussi sur les poussées directes, pas seulement sur les pull requests.**
-  # L'écart ci-dessus a précisément été creusé par des commits poussés droit sur `develop` : ne
-  # filtrer que les pull requests aurait laissé passer chacun d'eux, c'est-à-dire exactement la
-  # panne que ce job existe pour empêcher.
+  # **It also fires on direct pushes, not only on pull requests.** The gap above was dug precisely
+  # by commits pushed straight to `develop`: filtering on pull requests alone would have let every
+  # one of them through, which is exactly the failure this job exists to prevent.
   #
-  # Pas de `container:` ici, contrairement à `jvm` plus haut : Testcontainers a besoin du démon du
-  # runner, qu'un conteneur de job ne peut pas atteindre. Même forme que le job `databases` de
-  # `nightly.yml`, délibérément.
+  # No `container:` here, unlike `jvm` above: Testcontainers needs the runner's daemon, which a job
+  # container cannot reach. The same shape as `nightly.yml`'s `databases` job, deliberately.
   migration-changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -399,13 +395,13 @@ jobs:
           fetch-depth: 0
       - id: detect
         env:
-          # Par l'environnement plutôt qu'interpolé dans le script : ces valeurs viennent de
-          # GitHub et non d'un contributeur, mais la règle ne souffre pas d'exception locale.
+          # Through the environment rather than interpolated into the script: these values come
+          # from GitHub and not from a contributor, but the rule takes no local exception.
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          # **Indéterminé veut dire « exécuter ».** Une plage qu'on ne sait pas résoudre — une
-          # branche nouvelle, une poussée forcée, un historique tronqué — n'est pas une preuve
-          # qu'aucune migration n'a changé. Le repli va donc vers la campagne, pas vers le silence.
+          # **Undetermined means "run".** A range that cannot be resolved — a new branch, a force
+          # push, a truncated history — is not evidence that no migration changed. The fallback
+          # therefore goes to the campaign, not to silence.
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "plage non résoluble — la campagne est exécutée par défaut"
@@ -424,8 +420,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: [migration-changes]
-    # Ignoré plutôt qu'exécuté à vide : un job qui rapporte vert sans rien avoir fait est un
-    # signal que personne ne peut lire, et ce fichier tient qu'« inattendu » n'est pas un signal.
+    # Skipped rather than run empty: a job reporting green having done nothing is a signal nobody
+    # can read, and this file holds that "unexpected" is not a signal.
     if: needs.migration-changes.outputs.touched == 'true'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -442,19 +438,19 @@ jobs:
           path: vectispire-java/vectispire-core/build/reports/tests/
           retention-days: 7
 
-  # **La suite navigateur, sur le changement qui touche l'interface.**
+  # **The browser suite, on any change that touches the interface.**
   #
-  # Elle ne vivait que dans `nightly.yml`, et un workflow planifié ne part que depuis la branche
-  # par défaut : les parcours navigateur n'étaient donc vérifiés qu'*après* la fusion dans `main`,
-  # sur une branche où plus personne ne travaille quand le résultat tombe. Même écart que celui
-  # que le job `engines` ci-dessus a refermé pour les migrations, et la même réponse — le nocturne
-  # reste, ceci fait qu'il n'est plus le seul endroit où la suite existe.
+  # It lived only in `nightly.yml`, and a scheduled workflow starts only from the default branch:
+  # the browser journeys were therefore checked only *after* the merge into `main`, on a branch
+  # nobody is working on by the time the result lands. The same gap the `engines` job above closed
+  # for migrations, and the same answer — the nightly stays, this makes it no longer the only place
+  # the suite exists.
   #
-  # **Ce que ce déclencheur ne couvre pas, et c'est délibéré.** Il regarde `vectispire-angular/`
-  # et rien d'autre. Un champ de réponse renommé côté API casse l'interface sans toucher un seul
-  # fichier du front, et ce cas-là n'est pas à payer ici : trente minutes sur chaque poussée
-  # backend est précisément le coût qui apprend aux gens à contourner la CI. C'est le contrat
-  # OpenAPI qui doit l'attraper, en diff plutôt qu'en navigateur.
+  # **What this trigger does not cover, deliberately.** It watches `vectispire-angular/` and nothing
+  # else. A response field renamed on the API side breaks the interface without touching a single
+  # front-end file, and that case is not to be paid for here: thirty minutes on every backend push
+  # is precisely the cost that teaches people to route around CI. It is the OpenAPI contract that
+  # must catch it, as a diff rather than in a browser.
   frontend-changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -466,11 +462,11 @@ jobs:
           fetch-depth: 0
       - id: detect
         env:
-          # Par l'environnement plutôt qu'interpolé dans le script, comme `migration-changes`.
+          # Through the environment rather than interpolated into the script, like `migration-changes`.
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          # **Indéterminé veut dire « exécuter »**, pour la raison donnée plus haut : une plage
-          # qu'on ne sait pas résoudre n'est pas une preuve que l'interface n'a pas bougé.
+          # **Undetermined means "run"**, for the reason given above: a range that cannot be
+          # resolved is not evidence that the interface has not moved.
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "plage non résoluble — la suite est exécutée par défaut"
@@ -485,35 +481,34 @@ jobs:
             echo "touched=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # L'interface, pilotée comme un analyste la pilote : connexion y compris MFA, approbation à
-  # quatre yeux, journal des réglages, et triage VEX.
+  # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
+  # the settings log, and VEX triage.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [frontend-changes]
-    # Ignoré plutôt qu'exécuté à vide, comme `engines` : un job vert qui n'a rien fait est un
-    # signal que personne ne peut lire.
+    # Skipped rather than run empty, like `engines`: a green job that did nothing is a signal
+    # nobody can read.
     if: needs.frontend-changes.outputs.touched == 'true'
     container:
-      # **Doit correspondre à `@playwright/test` dans `package-lock.json`** — actuellement 1.62.1.
-      # Playwright livre ses navigateurs dans cette image et refuse d'en lancer un qu'il n'a pas
-      # construit. L'étape de contrôle plus bas est ce qui rend l'écart lisible plutôt que fatal
-      # au milieu de la suite.
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
+      # ships its browsers inside this image and refuses to launch one it did not build. The check
+      # step below is what makes a mismatch readable rather than fatal in the middle of the suite.
       image: mcr.microsoft.com/playwright:v1.62.1-noble
     env:
       VECTISPIRE_DB_URL: jdbc:sqlite:/tmp/e2e.db
-      # SQLite ne démarre pas sous le `ddl-auto: validate` livré — ses affinités rendent une
-      # colonne d'horodatage comme FLOAT, ce qui dit quelque chose de SQLite et rien du mapping.
-      # La parité de schéma est l'affaire du job `engines`.
+      # SQLite does not start under the shipped `ddl-auto: validate` — its affinities render a
+      # timestamp column as FLOAT, which says something about SQLite and nothing about the mapping.
+      # Schema parity is the `engines` job's business.
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.community.dialect.SQLiteDialect
       ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
       VECTISPIRE_BOOTSTRAP_USERNAME: admin
       VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!
       VECTISPIRE_EMBEDDED_WORKER: 'false'
-      # Treize connexions navigateur en une minute sont une rafale selon la seule définition dont
-      # le serveur dispose, et tous les cas d'une exécution viennent d'une adresse. Relevé ici,
-      # sur un runner détruit à la fin du job ; le défaut livré de dix n'est pas touché.
+      # Thirteen browser sign-ins in a minute are a burst by the only definition the server has,
+      # and every case in a run comes from one address. Raised here, on a runner destroyed at the
+      # end of the job; the shipped default of ten is untouched.
       VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -529,9 +524,9 @@ jobs:
           java -jar vectispire-java/vectispire-core/build/libs/vectispire-core.jar \
             > control-plane.log 2>&1 &
           echo $! > control-plane.pid
-          # L'endpoint de santé de l'actuator, pas le port : le processus accepte des connexions
-          # avant de savoir répondre quoi que ce soit, et une suite qui démarre dans cette fenêtre
-          # échoue sur du timing plutôt que sur du comportement.
+          # The actuator's health endpoint, not the port: the process accepts connections before it
+          # can answer anything at all, and a suite starting in that window fails on timing rather
+          # than on behaviour.
           for attempt in $(seq 1 90); do
             if curl -sf http://localhost:3180/actuator/health > /dev/null; then
               echo "control plane up after ${attempt}s"; break
@@ -543,8 +538,8 @@ jobs:
             fi
             sleep 1
           done
-      # Contrôlé avant d'avoir besoin des navigateurs : l'écart serait sinon découvert après
-      # `npm ci` et un build Angular complet, et rapporté contre l'image plutôt que contre ceci.
+      # Checked before the browsers are needed: the mismatch would otherwise be discovered after
+      # `npm ci` and a full Angular build, and reported against the image rather than against this.
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"

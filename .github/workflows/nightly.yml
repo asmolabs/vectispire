@@ -91,13 +91,13 @@ jobs:
       # has**, and every test in a run comes from one address. Raised here, on a runner destroyed
       # at the end of the job; the shipped default of ten is untouched.
       #
-      # **Ce que cette variable ne relève pas.** Elle atteint le seau par adresse de
-      # `LoginRateLimitFilter`, et rien d'autre. `LoginThrottle` compte séparément, par compte —
-      # cinq échecs sur quinze minutes glissantes — et ces seuils sont des constantes de
-      # compilation qu'aucun réglage n'atteint. C'est ce second compteur qui faisait échouer des
-      # cas sans rapport avec celui qui l'avait dépensé, puisque le refus tombe sur le suivant :
-      # les suites le remettent donc à zéro elles-mêmes avant chaque cas, et les helpers de
-      # connexion retiennent le mot de passe accepté au lieu de les essayer tous.
+      # **What this variable does not raise.** It reaches `LoginRateLimitFilter`'s per-address
+      # bucket, and nothing else. `LoginThrottle` counts separately, per account — five failures
+      # over a fifteen-minute sliding window — and those thresholds are compile-time constants no
+      # setting reaches. It is that second counter that made cases fail unrelated to the one that
+      # had spent it, since the refusal lands on the next: the suites therefore reset it themselves
+      # before each case, and the sign-in helpers remember the accepted password instead of trying
+      # them all.
       VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

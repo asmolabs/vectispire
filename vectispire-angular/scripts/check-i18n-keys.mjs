@@ -1,32 +1,29 @@
 #!/usr/bin/env node
 /**
- * Vérifie que chaque clé de traduction demandée par un écran existe dans les deux bundles.
+ * Checks that every translation key a screen asks for exists in both bundles.
  *
- * Pourquoi ce script existe : le sélecteur de fournisseur d'IA proposait deux libellés
- * anglais en dur — `'Ollama — a model on a host you run'`, `'OpenAI-compatible API'` — sur
- * un écran où tous les autres libellés passaient par `i18n.t`. Trois audits successifs l'ont
- * signalé sans que rien ne puisse le voir. Les avoir routés par les bundles règle cet
- * écran-là ; ceci empêche la *prochaine* clé d'être référencée sans jamais être ajoutée, ce
- * qui affiche la clé elle-même à l'opérateur et ressemble à une faute de frappe plutôt qu'à
- * une traduction manquante.
+ * Why this script exists: the AI provider picker offered two hard-coded English labels —
+ * `'Ollama — a model on a host you run'`, `'OpenAI-compatible API'` — on a screen where every
+ * other label went through `i18n.t`. Three successive audits reported it with nothing able to
+ * see it. Routing them through the bundles fixed that screen; this prevents the *next* key from
+ * being referenced and never added, which shows the key itself to the operator and looks like a
+ * typo rather than a missing translation.
  *
- * Ce que ce script vérifie, depuis le 30 août : que le *nombre* de clés référencées est celui
- * attendu — un plancher à 40 avait laissé passer une chute de 54 à 52 sans un mot, c'est-à-dire
- * le retour exact du défaut ci-dessus — et que le nombre de libellés écrits en dur ne monte pas.
- * Le second est un cliquet, pas une interdiction : l'interface n'est traduite qu'en partie, et
- * une règle qui échoue à sa première exécution est une règle qu'on désactive.
+ * What this script checks, since 30 August: that the *number* of referenced keys is the expected
+ * one — a floor at 40 had let a fall from 54 to 52 through without a word, that is the exact
+ * return of the defect above — and that the number of hard-coded labels does not rise. The second
+ * is a ratchet, not a prohibition: the interface is only partly translated, and a rule that fails
+ * on its first run is a rule people switch off.
  *
- * Ce que ce script ne vérifie délibérément pas : que le bundle français reflète l'anglais. Il
- * ne le fait pas, et c'est voulu — `settings.ts` retombe sur le libellé anglais du serveur
- * quand une clé se résout à elle-même, donc 52 clés existent en français sans contrepartie
- * anglaise. Exiger la parité échouerait sur un arbre correct, et c'est ainsi que commence une
- * liste d'exemptions.
+ * What this script deliberately does not check: that the French bundle mirrors the English. It
+ * does not, and that is intended — `settings.ts` falls back on the server's English label when a
+ * key resolves to itself, so 52 keys exist in French with no English counterpart. Requiring parity
+ * would fail on a correct tree, and that is how an exemption list begins.
  *
- * Seuls les appels littéraux sont vérifiables : une clé construite depuis une variable n'est
- * pas une clé que ce script peut lire.
+ * Only literal calls are checkable: a key built from a variable is not a key this script can read.
  *
- * Exécuté par `npm test` avant la suite unitaire, comme `check-assets.mjs` : c'est une
- * vérification de fichiers, elle n'a pas besoin d'un navigateur.
+ * Run by `npm test` before the unit suite, like `check-assets.mjs`: it is a file check, it needs
+ * no browser.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -51,12 +48,12 @@ const walk = (dir) =>
 const bundle = (lang) =>
     new Set(flatten(JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'))));
 
-// **Les deux écritures, parce qu'une seule était vue.** Ce script ne reconnaissait que
-// `t('clé')`. Or un gabarit Angular traduit au pipe — `{{ 'clé' | translate }}`, la forme
-// recommandée et la plus employée ici — n'en contient aucun : une page entière écrite ainsi
-// n'était ni comptée ni vérifiée, et une clé mal orthographiée y serait passée sans un mot,
-// rendue telle quelle à l'écran. Le fichier `.html` était pourtant bien lu, ce qui donnait
-// l'apparence d'une couverture.
+// **Both spellings, because only one was being seen.** This script recognised `t('key')` only.
+// But an Angular template translating through the pipe — `{{ 'key' | translate }}`, the
+// recommended form and the one most used here — contains none of those: a whole page written that
+// way was neither counted nor checked, and a misspelt key would have gone through without a word,
+// rendered as it stands on screen. The `.html` file was being read all the same, which gave the
+// appearance of coverage.
 const CALL = /\bt\(\s*['"]([a-z0-9_.]+)['"]/g;
 const PIPE = /['"]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"]\s*\|\s*translate\b/g;
 
@@ -71,45 +68,43 @@ for (const file of walk(join(root, 'src/app'))) {
     }
 }
 
-// **Le compte est épinglé, pas planché, et il l'est parce que le plancher n'a rien vu.**
-// Ce fichier a d'abord porté `if (referenced.size < 40)`. Un audit a remis les deux libellés
-// en dur que ce script avait été écrit pour empêcher : le compte est tombé de 54 à 52, 40 est
-// resté franchi, la suite est passée verte et le défaut était de retour sans un mot. Un
-// plancher qu'on ne peut pas atteindre ne se déclenche jamais ; c'est un garde-fou qui a
-// l'air d'en être un.
+// **The count is pinned, not floored, and it is pinned because the floor saw nothing.** This file
+// first carried `if (referenced.size < 40)`. An audit put back the two hard-coded labels this
+// script had been written to prevent: the count fell from 54 to 52, 40 stayed cleared, the suite
+// went green and the defect was back without a word. A floor that cannot be reached never fires;
+// it is a guard rail that looks like one.
 //
-// Un nombre exact se met à jour dans le même commit que la clé qu'on ajoute ou qu'on retire,
-// donc il pose la question au moment où quelqu'un peut y répondre. Le changer est un geste
-// d'une ligne — mais c'est un geste *délibéré*, et c'est toute la différence.
+// An exact number is updated in the same commit as the key being added or removed, so it asks the
+// question at the moment somebody can answer it. Changing it is a one-line move — but it is a
+// *deliberate* move, and that is the whole difference.
 const EXPECTED_KEYS = 1041;
 if (referenced.size !== EXPECTED_KEYS) {
-    const direction = referenced.size < EXPECTED_KEYS ? 'disparu' : 'apparu';
+    const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
-        `${referenced.size} clés référencées dans src/app, ${EXPECTED_KEYS} attendues : ` +
-        `${Math.abs(referenced.size - EXPECTED_KEYS)} ont ${direction}.`);
+        `${referenced.size} keys referenced in src/app, ${EXPECTED_KEYS} expected: ` +
+        `${Math.abs(referenced.size - EXPECTED_KEYS)} ${direction}.`);
     console.error(
-        `Si c'est voulu, mettez EXPECTED_KEYS à jour dans le même commit. Si ça ne l'est pas, ` +
-        `un libellé vient de repasser en dur — c'est exactement ce qui est arrivé le 30 août, ` +
-        `et le plancher de 40 que portait ce fichier ne l'a pas vu.`);
+        `If that is intended, update EXPECTED_KEYS in the same commit. If it is not, a label has ` +
+        `just gone hard-coded again — which is exactly what happened on 30 August, and the floor ` +
+        `of 40 this file used to carry did not see it.`);
     process.exit(1);
 }
 
-// **Plus aucun libellé en dur, et le plafond est à zéro.**
+// **No hard-coded labels left, and the ceiling is zero.**
 //
-// Ce fichier a d'abord porté un cliquet à 89 : `src/app` en comptait autant, sur 14 fichiers,
-// et une règle qui échoue dès sa première exécution est une règle qu'on désactive. Le cliquet
-// était la bonne forme tant que la dette existait — il bloquait le *prochain* sans exiger que
-// les 89 soient traduits le jour même.
+// This file first carried a ratchet at 89: `src/app` held that many, across 14 files, and a rule
+// that fails on its very first run is a rule people switch off. The ratchet was the right shape
+// while the debt existed — it blocked the *next* one without demanding that all 89 be translated
+// the same day.
 //
-// Ils l'ont été. Le plafond descend donc à 0, et le cliquet devient une interdiction : c'est
-// la règle qu'on voulait depuis le début, et elle n'est tenable que maintenant.
+// They were. The ceiling therefore drops to 0, and the ratchet becomes a prohibition: it is the
+// rule we wanted from the start, and it is only tenable now.
 //
-// Ce que les 89 cachaient, et qui ne se voyait pas en les comptant : l'écran n'était pas
-// « anglais en dur », il était **bilingue en dur dans les deux mauvais sens**. La surface
-// d'attaque, la conformité et les licences portaient des libellés français figés, que le
-// lecteur anglophone recevait tels quels ; les constats, le tableau de bord et les rôles
-// portaient de l'anglais figé, que le lecteur francophone recevait tels quels. Aucune
-// préférence de langue n'en changeait un seul.
+// What the 89 hid, and what counting them did not show: the interface was not "hard-coded
+// English", it was **hard-coded bilingual in both wrong directions**. The attack surface,
+// compliance and licences carried frozen French labels, which the English-speaking reader received
+// as they stood; the findings, the dashboard and the roles carried frozen English, which the
+// French-speaking reader received as they stood. No language preference changed a single one.
 const HARDCODED_LABEL_CEILING = 0;
 const literalLabel = /\b(?:label|title|placeholder|header|hint)\s*:\s*'([^']{2,})'/g;
 let hardcoded = 0;
@@ -122,24 +117,23 @@ for (const file of walk(join(root, 'src/app'))) {
         worstOffenders.set(file.slice(root.length + 1), hits.length);
     }
 }
-// **Le second cliquet : les libellés figés dans les *gabarits*, que le premier ne voit pas.**
+// **The second ratchet: the labels frozen in the *templates*, which the first does not see.**
 //
-// Le plafond ci-dessus ne lit que les fichiers `.ts` et n'y cherche que `label: '…'`. Il
-// annonçait donc zéro libellé en dur pendant que douze gabarits en portaient cent quarante-trois,
-// en français, dans une interface anglaise : le tableau de bord enchaînait « Failing targets » et
-// « Dette de Sécurité Estimée », et une colonne « Cibles Affectées » voisinait une colonne
-// « Target ». Une règle qui regarde à côté est pire qu'une règle absente — elle rassure.
+// The ceiling above reads only `.ts` files and looks in them only for `label: '…'`. It therefore
+// reported zero hard-coded labels while twelve templates carried a hundred and forty-three, in
+// French, inside an English interface: the dashboard ran "Failing targets" straight into "Dette de
+// Sécurité Estimée", and a "Cibles Affectées" column sat next to a "Target" column. A rule that
+// looks in the wrong place is worse than an absent rule — it reassures.
 //
-// **Ce qui est détectable, et ce qui ne l'est pas.** Un nœud de texte accentué est du français
-// figé, mécaniquement : aucune clé de traduction n'en contient. L'anglais figé ne se détecte pas
-// de la même façon — n'importe quel mot en est — donc ce cliquet ne couvre qu'une moitié du
-// problème, et le dire ici vaut mieux que de laisser croire qu'il les couvre toutes deux.
+// **What is detectable, and what is not.** An accented text node is frozen French, mechanically:
+// no translation key contains one. Frozen English is not detected the same way — any word at all
+// is English — so this ratchet covers one half of the problem, and saying so here beats letting
+// people believe it covers both.
 //
-// **Les accents seuls ne suffisaient pas non plus.** Le compteur est passé à zéro alors que le
-// tableau de bord affichait encore « Composant », « Score de Levier (ROI) », « Critiques
-// Ouvertes » — du français sans un seul accent. Une liste de mots comble l'écart là où les
-// accents s'arrêtent ; elle ne sera jamais complète, mais chaque mot ajouté est un mot qui ne
-// repassera plus.
+// **Accents alone were not enough either.** The counter reached zero while the dashboard still
+// showed "Composant", "Score de Levier (ROI)", "Critiques Ouvertes" — French without a single
+// accent. A word list fills the gap where accents stop; it will never be complete, but every word
+// added is a word that will not come back.
 const FRENCH_IN_TEMPLATES_CEILING = 0;
 const accented = /[éèêàùûôîçÉÈÊÀÇ]/;
 const frenchWords = new RegExp(
@@ -149,12 +143,12 @@ const frenchWords = new RegExp(
     'Élevée|Élevé|Score de|Total Chemins|Liées|Impactées|Ajoutés|Supprimés|Calculer|Différentiel|Nouveaux|Nouvelle|Ancienne|Licence|Licences|Changement|Solde)\\b');
 const textNode = />([^<>{}]{3,}?)</g;
 
-// **Et les libellés d'attributs, que le nœud de texte ne voit pas.** `label="Matrice de
-// Compatibilité Légale"` n'est pas entre deux chevrons : il échappait aux deux cliquets — au
-// premier parce qu'il ne lit que les `.ts`, au second parce qu'il ne lit que les nœuds de texte.
-// C'est pourtant la forme que prend un bouton PrimeNG, donc l'endroit le plus probable pour un
-// libellé figé. Seules les valeurs statiques sont lues : `[label]="…"` est une expression, et une
-// expression passe déjà par le dictionnaire ou n'y passera jamais.
+// **And the attribute labels, which the text node does not see.** `label="Matrice de
+// Compatibilité Légale"` is not between two angle brackets: it escaped both ratchets — the first
+// because it reads only `.ts`, the second because it reads only text nodes. Yet that is the shape
+// a PrimeNG button takes, and so the likeliest place for a frozen label. Only static values are
+// read: `[label]="…"` is an expression, and an expression either already goes through the
+// dictionary or never will.
 const staticAttribute = /\s(?:label|placeholder|header|title|ariaLabel)="([^"{}]{3,}?)"/g;
 let frozenFrench = 0;
 const frenchOffenders = new Map();
@@ -171,11 +165,11 @@ for (const file of walk(join(root, 'src/app'))) {
 }
 if (frozenFrench > FRENCH_IN_TEMPLATES_CEILING) {
     console.error(
-        `${frozenFrench} libellé(s) français figés dans les gabarits, alors que le plafond est ` +
+        `${frozenFrench} frozen French label(s) in the templates, against a ceiling of ` +
         `${FRENCH_IN_TEMPLATES_CEILING}.`);
     console.error(
-        `Un libellé écrit en clair s'affiche dans la langue où il a été tapé, à tout le monde. ` +
-        `Routez-le par le pipe translate et ajoutez la clé aux deux bundles.`);
+        `A label written in plain text shows in the language it was typed in, to everybody. Route ` +
+        `it through the translate pipe and add the key to both bundles.`);
     for (const [file, count] of [...frenchOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
         console.error(`  ${String(count).padStart(3)}  ${file}`);
     }
@@ -183,18 +177,18 @@ if (frozenFrench > FRENCH_IN_TEMPLATES_CEILING) {
 }
 if (frozenFrench < FRENCH_IN_TEMPLATES_CEILING) {
     console.error(
-        `${frozenFrench} libellé(s) français figés, contre un plafond de ` +
-        `${FRENCH_IN_TEMPLATES_CEILING} : abaissez FRENCH_IN_TEMPLATES_CEILING dans le même ` +
-        `commit. Un cliquet qu'on ne resserre pas cesse d'être une dette et devient une permission.`);
+        `${frozenFrench} frozen French label(s), against a ceiling of ` +
+        `${FRENCH_IN_TEMPLATES_CEILING}: lower FRENCH_IN_TEMPLATES_CEILING in the same commit. A ` +
+        `ratchet nobody tightens stops being a debt and becomes a permission.`);
     process.exit(1);
 }
 
 if (hardcoded > HARDCODED_LABEL_CEILING) {
-    console.error(`${hardcoded} libellé(s) en dur dans src/app, alors que le plafond est 0.`);
+    console.error(`${hardcoded} hard-coded label(s) in src/app, against a ceiling of 0.`);
     console.error(
-        `Un libellé écrit en clair est un libellé que la préférence de langue ne touche pas : ` +
-        `il s'affichera dans la langue où il a été tapé, à tout le monde. Routez-le par ` +
-        `i18n.t et ajoutez la clé aux deux bundles.`);
+        `A label written in plain text is a label the language preference does not touch: it will ` +
+        `show in the language it was typed in, to everybody. Route it through i18n.t and add the ` +
+        `key to both bundles.`);
     for (const [file, count] of [...worstOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
         console.error(`  ${count.toString().padStart(3)}  ${file}`);
     }
@@ -207,17 +201,17 @@ for (const lang of ['en', 'fr']) {
     const missing = [...referenced].filter((key) => !known.has(key)).sort();
     if (missing.length > 0) {
         failed = true;
-        console.error(`Clés absentes de public/i18n/${lang}.json :`);
+        console.error(`Keys missing from public/i18n/${lang}.json:`);
         for (const key of missing) console.error(`  - ${key}`);
     }
 }
 
 if (failed) {
-    console.error("Ajoutez-les dans les deux bundles : une clé non résolue s'affiche telle quelle.");
+    console.error('Add them to both bundles: an unresolved key is shown as it stands.');
     process.exit(1);
 }
 
 console.log(
-    `Vérification i18n : ${referenced.size} clés référencées, toutes présentes en français et ` +
-    `en anglais ; ${hardcoded} libellés en dur (plafond ${HARDCODED_LABEL_CEILING}) ; ` +
-    `${frozenFrench} libellés français figés dans les gabarits (plafond ${FRENCH_IN_TEMPLATES_CEILING}).`);
+    `i18n check: ${referenced.size} keys referenced, all present in French and English; ` +
+    `${hardcoded} hard-coded labels (ceiling ${HARDCODED_LABEL_CEILING}); ` +
+    `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}).`);
