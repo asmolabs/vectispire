@@ -1,7 +1,5 @@
 # Inventory and licenses
 
-![The SBOM comparison: a target chosen first, then its own scans offered by date, with the two most recent already selected.](../assets/screens/en/sbom-comparison.png)
-
 ## Inventory
 
 The inventory is the estate seen from the package side rather than the target side: which
@@ -30,6 +28,21 @@ permissive dependency that acquired a copyleft transitive is visible as such rat
 as a name nobody recognised.
 
 ## SBOM drift and diff
+
+![The SBOM comparison: a target chosen first, then its own scans offered by date, with the two most recent already selected.](../assets/screens/en/sbom-comparison.png)
+
+**In the interface, the target comes first.** Choosing a repository or an image fills two
+pickers with that target's own scans — the date, the branch and how many findings each one
+carried — and preselects the two most recent, which is the comparison almost everybody wants:
+what changed since last time. The other question, between the version you shipped and the one
+before it, is two clicks away in the same pickers.
+
+The scan's number is still shown, at the end of each line. It is what the API takes and what a
+support conversation quotes; it is simply no longer the only thing on offer. This screen used to
+ask for two of them, typed, and nothing displayed them prominently.
+
+A target scanned once has no pair, and the screen says so rather than leaving two empty pickers.
+
 
 `GET /api/v1/sbom/diff` — and the equivalent viewer — compares two SBOMs and reports:
 

@@ -1,7 +1,5 @@
 # Inventaire et licences
 
-![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
-
 ## Inventaire
 
 L'inventaire, c'est le parc vu du côté des paquets plutôt que du côté des cibles : quels
@@ -30,6 +28,22 @@ chaînes de caractères : une dépendance permissive qui a acquis une transitive
 visible comme telle, et non comme un nom que personne n'a reconnu.
 
 ## Dérive et différentiel de SBOM
+
+![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
+
+**Dans l'interface, la cible vient d'abord.** Choisir un dépôt ou une image remplit deux listes
+avec les scans de cette cible — la date, la branche et le nombre de constats de chacun — et
+présélectionne les deux plus récents, qui sont la comparaison que presque tout le monde cherche :
+ce qui a changé depuis la dernière fois. L'autre question, entre la version livrée et la
+précédente, est à deux clics dans les mêmes listes.
+
+Le numéro du scan reste affiché, en fin de ligne. C'est ce que l'API prend et ce qu'on cite en
+support ; il n'est simplement plus la seule chose proposée. Cet écran en demandait deux, tapés à
+la main, qu'aucun écran n'affichait en évidence.
+
+Une cible analysée une seule fois n'a pas de paire, et l'écran le dit plutôt que de laisser deux
+listes vides.
+
 
 `GET /api/v1/sbom/diff` — et la visionneuse équivalente — compare deux SBOM et rapporte :
 
