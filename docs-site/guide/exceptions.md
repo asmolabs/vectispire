@@ -6,6 +6,8 @@ This is the question an assessor asks first and no dashboard answers. Every othe
 what the estate contains; this one describes what was waived — and a green backlog means two
 opposite things depending on which of the two produced it.
 
+![The exceptions register: the lapsed and never-reviewed counters above the register itself, with one lapsed acceptance shown in full.](../assets/screens/en/exceptions.png)
+
 ## The two numbers that carry the screen
 
 They are not the acceptances in force.

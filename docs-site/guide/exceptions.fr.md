@@ -6,6 +6,8 @@ C'est la question qu'un évaluateur pose en premier et qu'aucun tableau de bord 
 autres écrans décrivent ce que le parc contient ; celui-ci décrit ce qu'on a écarté — et un backlog
 vert veut dire deux choses opposées selon celle des deux qui l'a produit.
 
+![Le registre des exceptions : les compteurs « périmées » et « jamais revues » au-dessus du registre, avec une acceptation périmée détaillée.](../assets/screens/fr/exceptions.png)
+
 ## Les deux chiffres qui portent l'écran
 
 Ce ne sont pas les acceptations en vigueur.

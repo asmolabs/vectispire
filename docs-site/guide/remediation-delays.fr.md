@@ -3,6 +3,8 @@
 Le temps que mettent les constats à se fermer, lu par la queue de la distribution plutôt que par la
 moyenne.
 
+![Les délais de correction : le plus ancien élément ouvert au-dessus du tableau, et une gravité qui affiche « aucun délai fixé » plutôt qu'un pourcentage.](../assets/screens/fr/remediation-times.png)
+
 ## Pourquoi pas une moyenne
 
 **Une moyenne est tirée par le volume des correctifs faciles.** Fermez quarante montées de version

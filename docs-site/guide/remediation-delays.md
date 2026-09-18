@@ -2,6 +2,8 @@
 
 How long findings take to close, read from the tail of the distribution rather than from the mean.
 
+![Remediation times: the oldest open item above the table, and one severity showing no deadline set rather than a percentage.](../assets/screens/en/remediation-times.png)
+
 ## Why not an average
 
 **A mean is dragged down by the volume of easy fixes.** Close forty dependency bumps in a day and

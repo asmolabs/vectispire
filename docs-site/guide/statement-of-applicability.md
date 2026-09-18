@@ -7,6 +7,8 @@ ISO/IEC 27001 clause 6.1.3 d requires a statement of applicability: for every co
 applies, whether it is implemented, and why an excluded one is excluded. Vectispire stores that
 declaration and reconciles it, control by control, with what it can observe.
 
+![The statement of applicability: a contradicted control sorted above a consistent one, each row carrying its declaration and what was measured.](../assets/screens/en/statement-of-applicability.png)
+
 ## Why the disagreement is the point
 
 A control declared *implemented* that the estate measures *non-compliant* is exactly what an

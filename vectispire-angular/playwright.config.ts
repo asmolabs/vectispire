@@ -58,8 +58,29 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      // The behaviour suites. They exclude the screenshot generator, which writes files into the
+      // documentation rather than asserting anything.
+      testIgnore: /(^|\/)screens\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] }
+    },
 
-  use: { ...devices['Desktop Chrome'] }
+    // **The documentation's screenshots, one project per language.**
+    //
+    // Separate projects rather than a loop inside one spec: the locale is a context property, and
+    // a context is what a project configures. It also means `--project=screens-fr` regenerates one
+    // edition without touching the other.
+    //
+    // The viewport is fixed and a little narrow on purpose: a 1920-wide capture of a table is
+    // unreadable once the documentation scales it into a column of text.
+    {
+      name: 'screens-en',
+      testMatch: /(^|\/)screens\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], locale: 'en-US', viewport: { width: 1280, height: 860 } }
+    },
+    {
+      name: 'screens-fr',
+      testMatch: /(^|\/)screens\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], locale: 'fr-FR', viewport: { width: 1280, height: 860 } }
     }
   ],
   webServer: {

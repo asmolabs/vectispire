@@ -7,6 +7,8 @@ La clause 6.1.3 d de l'ISO/IEC 27001 exige une déclaration d'applicabilité : p
 s'il s'applique, s'il est en place, et pourquoi un contrôle exclu l'est. Vectispire conserve cette
 déclaration et la rapproche, contrôle par contrôle, de ce qu'il peut observer.
 
+![La déclaration d'applicabilité : un contrôle contredit classé au-dessus d'un contrôle cohérent, chaque ligne portant sa déclaration et ce qui est mesuré.](../assets/screens/fr/statement-of-applicability.png)
+
 ## Pourquoi le désaccord est le sujet
 
 Un contrôle déclaré *en place* que le parc mesure *non conforme* est exactement ce qu'un
