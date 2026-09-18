@@ -13,6 +13,8 @@ Un parc entièrement analysé, mais fait de la moitié des actifs certifiés, se
 propre — et aucune requête à l'intérieur du produit ne peut s'en apercevoir. C'est l'écart que cet
 écran comble.
 
+![Le périmètre certifié : quarante actifs déclarés contre trente et un détenus, et la part du périmètre déclaré qui porte une preuve fraîche.](../assets/screens/fr/certified-scope.png)
+
 ## Le chiffre en haut porte sur ce qui manque
 
 « Votre périmètre nomme quarante actifs, cette instance en détient trente et un » est la phrase par

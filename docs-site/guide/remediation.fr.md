@@ -2,6 +2,8 @@
 
 La liste des constats dit ce qui ne va pas. Cette page dit ce qu'on en fait, et dans quel ordre.
 
+![Le plan de remédiation : une montée de version qui ferme douze constats, au-dessus de l'aveu que quatre cents autres se referment autrement.](../assets/screens/fr/remediation-plan.png)
+
 ## Une ligne est une action
 
 La différence avec la [liste des vulnérabilités](issues.fr.md) tient à ce qu'une ligne désigne.

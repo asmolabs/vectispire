@@ -2,6 +2,8 @@
 
 The findings list says what is wrong. This page says what to do about it, in order.
 
+![The remediation plan: one upgrade closing twelve findings, above an admission that four hundred more are closed by another move.](../assets/screens/en/remediation-plan.png)
+
 ## One row is one action
 
 The difference from the [findings list](issues.md) is what a row means. There, a row is a

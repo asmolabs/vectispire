@@ -12,6 +12,8 @@ résultat en preuve signée.
 | **Cyber Resilience Act (EU CRA)** | Obligations de sécurité des produits |
 | **SOC 2 Type II** | Trust services criteria |
 
+![La progression de la conformité : une chute de dix-neuf points attribuée à un parc plus large plutôt qu'à une régression, et une série annoncée non comparable.](../assets/screens/fr/compliance-progress.png)
+
 ## Évaluation déterministe
 
 Le même parc au même instant produit le même verdict, à chaque fois. C'est une exigence et non

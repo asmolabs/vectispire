@@ -12,6 +12,8 @@ result as signed evidence.
 | **Cyber Resilience Act (EU CRA)** | Product security obligations |
 | **SOC 2 Type II** | Trust services criteria |
 
+![Compliance progress: a nineteen-point fall attributed to a wider estate rather than to a regression, and a series marked not comparable.](../assets/screens/en/compliance-progress.png)
+
 ## Deterministic evaluation
 
 The same estate at the same moment produces the same verdict, every time. That is a

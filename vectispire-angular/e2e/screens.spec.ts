@@ -212,4 +212,79 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('ISO-A.8.8').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'statement-of-applicability', locale);
         });
+
+        test('remediation plan', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/remediation/high-impact-fixes*', [{
+                packageName: 'log4j-core', currentVersion: '2.14.1', recommendedVersion: '2.17.1',
+                cveCountResolved: 12, criticalCveCount: 4, highCveCount: 8,
+                estimatedHours: 1.3, leverageScore: 9.2,
+                affectedCves: ['CVE-2021-44228'], affectedTargetNames: ['common-libs']
+            }]);
+            await stub(page, '**/api/v1/remediation/debt*', {
+                totalOpenIssues: 412, criticalIssues: 4, highIssues: 8, mediumIssues: 0, lowIssues: 400,
+                totalEstimatedHours: 812.3, totalEstimatedPersonDays: 101.5,
+                vulnerabilitiesDebtHours: 12.3, secretsDebtHours: 798, sastDebtHours: 0,
+                iacDebtHours: 2, licenseDebtHours: 0, eolDebtHours: 0, topHighImpactFixes: []
+            });
+            // The disproportion this screen exists to explain: one action, and four hundred
+            // findings no upgrade closes.
+            await stub(page, '**/api/v1/remediation/coverage*', {
+                openFindings: 412, addressableByUpgrade: 12, beyondUpgrades: 400,
+                gaps: [{ family: 'secret', findings: 399 }, { family: 'unpackaged', findings: 1 }]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/remediation');
+
+            await expect(page.getByText('log4j-core').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'remediation-plan', locale);
+        });
+
+        test('compliance progress', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            const month = (period: string, score: number, targets: number, delta: number,
+                           movement: string, because: string) => ({
+                snapshot: {
+                    period, framework: 'ISO_27001', score, status: 'PARTIAL',
+                    targets, observed: targets, fresh: targets, freshnessDays: 30,
+                    endOfLifeEnabled: true, codeAnalysisReaches: true,
+                    controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
+                    capturedAt: `${period}-28T00:00:00Z`
+                },
+                delta, movement, because
+            });
+            await stub(page, '**/api/v1/compliance/history', [{
+                framework: 'ISO_27001',
+                comparable: false,
+                steps: [
+                    month('2026-07', 90, 10, 0, 'FIRST', 'First capture for this framework.'),
+                    month('2026-08', 71, 14, -19, 'ESTATE_GREW',
+                          '4 target(s) more than last month. A score that falls here is the cost of watching wider, not a regression.')
+                ]
+            }]);
+            await enterApp(page, locale);
+            await openScreen(page, '/compliance-history');
+
+            await expect(page.getByText('2026-08').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'compliance-progress', locale);
+        });
+
+        test('certified scope', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // Forty declared against thirty-one held: the sentence an audit begins with, and the one
+            // no query inside the product can produce on its own.
+            await stub(page, '**/api/v1/compliance/scope', {
+                statement: 'The customer portal, its build pipeline and the images it ships.',
+                coverage: { declaredAssets: 40, inScope: 31, scannedRecently: 20, stale: 11, neverScanned: 0 },
+                targets: []
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/certified-scope');
+
+            await expect(page.getByText('40').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'certified-scope', locale);
+        });
     });

@@ -12,6 +12,8 @@ declared in a document, and the two are not the same set.
 An estate scanned in full, made of half the certified assets, reads as a clean result — and no
 query inside the product can notice it. That is the gap this screen is for.
 
+![The certified scope: forty assets declared against thirty-one held, and the share of the declared scope carrying fresh evidence.](../assets/screens/en/certified-scope.png)
+
 ## The number at the top is about what is missing
 
 "Your scope names forty assets, this instance holds thirty-one" is the sentence an audit begins
