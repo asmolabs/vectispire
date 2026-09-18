@@ -15,6 +15,8 @@ been observed. A KEV entry outranks a high EPSS, which outranks a high CVSS.
 
 ## Attack paths
 
+![An attack path: an unauthenticated route reaching a vulnerable component, reaching the data store — with the narrative the chain produces.](../assets/screens/en/attack-paths.png)
+
 The attack path visualiser chains findings into routes rather than listing them
 individually: an exposed component, a vulnerability that reaches it, a credential that was
 committed near it. A route made of three medium findings can matter more than any one high

@@ -2,6 +2,8 @@
 
 An issue is one problem, tracked across scans. It is where the work actually happens.
 
+![The findings list: three vulnerabilities with their severity, package and target, above a backlog of four hundred.](../assets/screens/en/issues.png)
+
 ## What identifies an issue
 
 The fingerprint deliberately **ignores the package version**. A dependency that stays

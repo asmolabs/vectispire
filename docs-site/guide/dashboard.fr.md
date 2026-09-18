@@ -10,6 +10,8 @@ conteneurs. Tout ce qui est ici peut faire échouer une construction.
 clairement que rien de tout cela ne peut faire échouer une construction. Voir
 [Qualité du code](quality.md).
 
+![Le tableau de bord : l'encours et les mouvements quotidiens sur deux graphiques empilés, les cibles en échec nommées en dessous.](../assets/screens/fr/dashboard.png)
+
 ## La vue d'ensemble Sécurité
 
 Par cible : le verdict de barrière, le backlog courant par gravité, et la date du dernier scan.

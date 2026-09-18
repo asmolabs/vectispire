@@ -17,6 +17,8 @@ CVSS élevé.
 
 ## Chemins d'attaque
 
+![Un chemin d'attaque : une route non authentifiée atteignant un composant vulnérable, puis la base — avec le récit que la chaîne produit.](../assets/screens/fr/attack-paths.png)
+
 La visionneuse de chemins d'attaque enchaîne les constats en itinéraires plutôt que de les
 énumérer un à un : un composant exposé, une vulnérabilité qui l'atteint, un identifiant commité
 à côté. Un itinéraire fait de trois constats moyens peut compter davantage que n'importe quel

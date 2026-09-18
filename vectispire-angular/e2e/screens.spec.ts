@@ -353,4 +353,115 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('#34').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'sbom-comparison', locale);
         });
+
+        test('dashboard', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/dashboard', {
+                posture: { totalCount: 14, failingCount: 3, kevCount: 2, overdueCount: 5,
+                           neverScannedCount: 1, lastScanFailedCount: 1 },
+                backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+                failing: [
+                    { kind: 'repository', targetId: 5, name: 'portail-client', violations: [] },
+                    { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', violations: [] }
+                ],
+                recentScans: [
+                    { id: 34, status: 'completed', targetKind: 'repository', targetName: 'portail-client',
+                      repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z' },
+                    { id: 33, status: 'failed', targetKind: 'repository', targetName: 'arm-libs',
+                      repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-17T03:10:00Z' }
+                ]
+            });
+            // Two charts rather than two axes: the backlog and the daily movements differ by two
+            // orders of magnitude, so the capture has to show both curves readable.
+            await stub(page, '**/api/v1/dashboard/trends*', {
+                points: [
+                    { day: '2026-09-12', open: 402, opened: 9, resolved: 2 },
+                    { day: '2026-09-13', open: 405, opened: 5, resolved: 2 },
+                    { day: '2026-09-14', open: 399, opened: 1, resolved: 7 },
+                    { day: '2026-09-15', open: 404, opened: 8, resolved: 3 },
+                    { day: '2026-09-16', open: 410, opened: 9, resolved: 3 },
+                    { day: '2026-09-17', open: 412, opened: 6, resolved: 4 }
+                ],
+                mean_days_to_resolve: 11.4,
+                resolved_in_window: 21
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/dashboard');
+
+            await expect(page.getByText('portail-client').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'dashboard', locale);
+        });
+
+        test('issues', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            const issue = (id: number, identifier: string, severity: string, pkg: string,
+                           version: string, target: string) => ({
+                id, targetKind: 'repository', type: 'vulnerability', state: 'open',
+                firstSeenAt: '2026-08-21T07:57:53Z', lastSeenAt: '2026-09-17T21:04:00Z',
+                triageStatus: 'under_review', repoId: 5, containerId: null, targetName: target,
+                identifier, severity, packageName: pkg, packageVersion: version,
+                purl: `pkg:maven/${pkg}@${version}`, filePath: null, line: null
+            });
+            await stub(page, '**/api/v1/issues*', {
+                items: [
+                    issue(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'portail-client'),
+                    issue(42, 'CVE-2024-1086', 'high', 'linux-libc-dev', '6.1.0', 'registry.example/api:1.4'),
+                    issue(43, 'CVE-2023-44487', 'medium', 'netty-codec-http2', '4.1.94', 'arm-libs')
+                ],
+                total: 412, limit: 25, offset: 0
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/issues');
+
+            await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'issues', locale);
+        });
+
+
+
+        test('attack paths', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/repositories*', [
+                { id: 5, url: 'ssh://git@example.invalid/portail.git', branch: 'main',
+                  displayName: 'portail-client', name: 'portail-client', subPath: null }
+            ]);
+            // Node notes and the scenario are tokens since this week: the graph and its narrative
+            // are written by the screen, so the two editions differ throughout.
+            const graph = {
+                targetId: 5, targetName: 'portail-client',
+                nodes: [
+                    { id: 'ingress', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS',
+                      severity: 'INFO', isExploitable: true, note: 'PUBLIC_INGRESS', metadata: {} },
+                    { id: 'ep-1', label: 'GET /api/admin/users', type: 'API_ENDPOINT',
+                      severity: 'CRITICAL', isExploitable: true, note: 'UNAUTHENTICATED_ROUTE', metadata: {} },
+                    { id: 'vuln-1', label: 'CVE-2021-44228', type: 'VULNERABLE_COMPONENT',
+                      severity: 'CRITICAL', isExploitable: true, note: 'RCE_ACTIVELY_EXPLOITED',
+                      metadata: { cvss: '10.0' } },
+                    { id: 'db', label: 'Database / Production Data Sink', type: 'DATABASE',
+                      severity: 'CRITICAL', isExploitable: true, note: 'SENSITIVE_DATA_STORE', metadata: {} }
+                ],
+                edges: [
+                    { id: 'e1', source: 'ingress', target: 'ep-1', label: 'REACHES', isCritical: true },
+                    { id: 'e2', source: 'ep-1', target: 'vuln-1', label: 'INVOKES', isCritical: true },
+                    { id: 'e3', source: 'vuln-1', target: 'db', label: 'EXFILTRATES_DATA', isCritical: true }
+                ],
+                attackPaths: [{
+                    id: 'path-rce-exfil', scenario: 'UNAUTH_RCE_CHAIN',
+                    params: { method: 'GET', path: '/api/admin/users',
+                              identifier: 'CVE-2021-44228', package: 'log4j-core' },
+                    riskLevel: 'CRITICAL', isDirectlyExploitable: true,
+                    nodeIds: ['ingress', 'ep-1', 'vuln-1', 'db']
+                }]
+            };
+            await stub(page, '**/api/v1/attack-paths/overview', [graph]);
+            await stub(page, '**/api/v1/attack-paths/repositories/**', graph);
+            await enterApp(page, locale);
+            await openScreen(page, '/attack-paths');
+
+            await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'attack-paths', locale);
+        });
     });

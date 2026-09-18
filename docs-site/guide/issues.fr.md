@@ -3,6 +3,8 @@
 Une issue est un problème, suivi d'un scan à l'autre. C'est là que le travail se fait
 réellement.
 
+![La liste des constats : trois vulnérabilités avec leur gravité, leur paquet et leur cible, au-dessus d'un retard de quatre cents.](../assets/screens/fr/issues.png)
+
 ## Ce qui identifie une issue
 
 L'empreinte **ignore délibérément la version du paquet**. Une dépendance qui reste vulnérable

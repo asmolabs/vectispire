@@ -9,6 +9,8 @@ containers. Anything here can fail a build.
 **Quality** ranks the code-quality backlog by rule, file and repository, and says plainly
 that none of it can fail a build. See [Code quality](quality.md).
 
+![The dashboard: the backlog and the daily movements on two stacked charts, the failing targets named beneath them.](../assets/screens/en/dashboard.png)
+
 ## The security overview
 
 Per target: the gate verdict, the standing backlog by severity, and when it was last
