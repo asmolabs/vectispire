@@ -118,11 +118,16 @@ plugins:
             Scans: Scans
             Issues and triage: Constats et triage
             Remediation plan: Plan de remédiation
+            Remediation times: Délais de correction
             Code quality: Qualité du code
             Inventory and licenses: Inventaire et licences
             Risk analysis: Analyse de risque
             Compliance: Conformité
+            Statement of applicability: Déclaration d'applicabilité
+            Certified scope: Périmètre certifié
+            Exceptions: Exceptions
             History and evidence: Historique et preuves
+            Attestation: Attestation
             Exports: Exports
             Integrations: Intégrations
             CI policy gate: Barrière CI
@@ -130,6 +135,8 @@ plugins:
             Tracker tickets: Tickets
             Administration: Administration
             Users and teams: Utilisateurs et équipes
+            Your account and MFA: Votre compte et le second facteur
+            Four-eyes approval: Double validation
             Single sign-on: Authentification unique
             API keys: Clés d'API
             SSH keys: Clés SSH
@@ -184,11 +191,16 @@ nav:
       - Scans: guide/scans.md
       - Issues and triage: guide/issues.md
       - Remediation plan: guide/remediation.md
+      - Remediation times: guide/remediation-delays.md
       - Code quality: guide/quality.md
       - Inventory and licenses: guide/inventory-and-licenses.md
       - Risk analysis: guide/risk-analysis.md
       - Compliance: guide/compliance.md
+      - Statement of applicability: guide/statement-of-applicability.md
+      - Certified scope: guide/certified-scope.md
+      - Exceptions: guide/exceptions.md
       - History and evidence: guide/history.md
+      - Attestation: guide/attestation.md
       - Exports: guide/exports.md
   - Integrations:
       - CI policy gate: integrations/ci-gate.md
@@ -196,6 +208,8 @@ nav:
       - Tracker tickets: integrations/ticketing.md
   - Administration:
       - Users and teams: administration/users-and-teams.md
+      - Your account and MFA: administration/account.md
+      - Four-eyes approval: administration/four-eyes.md
       - Single sign-on: administration/sso.md
       - API keys: administration/api-keys.md
       - SSH keys: administration/ssh-keys.md

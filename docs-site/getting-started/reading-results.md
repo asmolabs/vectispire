@@ -78,6 +78,31 @@ The Security overview names the two cases that no other screen did:
 Both look green everywhere else. Check them before concluding anything from a clean
 dashboard.
 
+## Where to find what
+
+The sidebar answers two different questions, and they are two sections for that reason.
+
+**The estate** is what is wrong and what is being done about it: the dashboard, the targets, the
+scans, the findings, the [remediation plan](../guide/remediation.md) and the
+[times it takes](../guide/remediation-delays.md), the inventory, the risk views.
+
+**Evidence** is what you can show, and to whom: [compliance](../guide/compliance.md), the
+[statement of applicability](../guide/statement-of-applicability.md), the
+[certified scope](../guide/certified-scope.md), the [exceptions](../guide/exceptions.md), the
+[attestation](../guide/attestation.md), the gate verdicts and the audit log. An assessor opens
+these one after another, which is why they sit together rather than being filed by the part of the
+product that produces them.
+
+Four of those entries need governance read access, so an ordinary account sees the first three and
+an auditor sees all of them. **Settings** stay under Administration, with one distinction worth
+knowing: what *configures* a control is a setting, what a control *produces* is evidence. The gate
+policy is a setting; its refusals are evidence.
+
+The interface follows your language: the toggle in the top bar switches between English and
+French, and the choice is remembered in that browser. Prose written by a language model — the
+explanations on a finding, when one is configured — arrives in the model's own words and is not
+translated.
+
 ## Next
 
 [Triaging issues →](../guide/issues.md) · [Failing a build on this →](../integrations/ci-gate.md)
