@@ -41,9 +41,20 @@ import { expect, test, type Page } from '@playwright/test';
 /** Midday, fixed. Any instant would do; what matters is that it never moves. */
 const FROZEN = new Date('2026-09-18T12:00:00Z');
 
+/**
+ * The account these captures are taken under.
+ *
+ * <p><b>`ADMIN` rather than `CISO`, and the menu decided it.</b> A CISO reads governance and
+ * settles a triage but is not an administrator, so `/users` and `/teams` have no sidebar entry for
+ * them — and these captures navigate by clicking, which is the point. `ADMIN` is in all three
+ * vocabularies: administrator, security lead, governance reader.
+ *
+ * <p>It is not `SUPERUSER`: that role governs the platform without acting on it, so a capture
+ * taken under it would show a product with its triage missing.
+ */
 const SESSION = {
     token: 'screens-token',
-    user: { username: 'c.moreau', role: 'CISO', displayName: 'Claire Moreau', mustChangePassword: false }
+    user: { username: 'c.moreau', role: 'ADMIN', displayName: 'Claire Moreau', mustChangePassword: false }
 };
 
 /** A JSON response for a route, without repeating the envelope each time. */
@@ -586,5 +597,66 @@ test.describe('documentation screenshots', () => {
 
             await expect(page.getByText('c.moreau').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'audit-log', locale);
+        });
+
+        test('users', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/users*', {
+                currentUserId: 2,
+                users: [
+                    { id: 1, username: 'admin', displayName: 'Bootstrap account', email: null,
+                      role: 'SUPERUSER', isActive: true, mustChangePassword: false,
+                      activeSessions: 0, createdAt: '2026-04-23T08:00:00Z' },
+                    { id: 2, username: 'c.moreau', displayName: 'Claire Moreau',
+                      email: 'c.moreau@example.invalid', role: 'CISO', isActive: true,
+                      mustChangePassword: false, activeSessions: 1, createdAt: '2026-05-02T09:10:00Z' },
+                    { id: 3, username: 'n.faure', displayName: 'Noé Faure',
+                      email: 'n.faure@example.invalid', role: 'AUDITOR', isActive: true,
+                      mustChangePassword: false, activeSessions: 0, createdAt: '2026-06-11T14:25:00Z' }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/users');
+
+            await expect(page.getByText('c.moreau').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'users', locale);
+        });
+
+        test('teams', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/teams*', [
+                { id: 1, name: 'AppSec', description: 'Reviews and triage', memberCount: 4,
+                  targetCount: 11, notified: true },
+                { id: 2, name: 'Paiements', description: 'Tier 1 payment path', memberCount: 6,
+                  targetCount: 3, notified: false }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/teams');
+
+            await expect(page.getByText('AppSec').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'teams', locale);
+        });
+
+        test('attestation', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // The chain leads because it is the only claim on that page which demonstrates itself.
+            // `unverifiable` counts entries written before chaining existed: history, not tampering.
+            await stub(page, '**/api/v1/audit-log/verify', {
+                intact: true, broken: null, total: 1284, verified: 1240, unverifiable: 44,
+                mirrored: true, missingFromMirror: 0, missingFromTable: 0
+            });
+            await stub(page, '**/api/v1/compliance/summary*', {
+                totalMonitoredTargets: 14, observedTargets: 13, freshTargets: 11,
+                passingGateTargets: 11, overdueCount: 5, dueSoonCount: 2,
+                mttr: null, evaluations: [], targets: []
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/attestation');
+
+            await expect(page.getByText('1284').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'attestation', locale);
         });
     });

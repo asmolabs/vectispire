@@ -2,6 +2,8 @@
 
 What the estate looked like, at an hour, with the proof attached.
 
+![The attestation: the audit chain verified first, with the entries that predate chaining counted separately.](../assets/screens/en/attestation.png)
+
 ## Why a page rather than a fifth link
 
 The four screens an auditor needs already exist — the audit log and its chain check, the

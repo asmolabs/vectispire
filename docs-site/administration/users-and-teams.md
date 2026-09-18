@@ -1,5 +1,7 @@
 # Users and teams
 
+![Accounts and their roles, with the bootstrap account among them.](../assets/screens/en/users.png)
+
 ## Accounts
 
 There is **no self-registration page**. An administrator creates every account.

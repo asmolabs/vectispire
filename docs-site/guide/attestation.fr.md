@@ -2,6 +2,8 @@
 
 À quoi ressemblait le parc, à une heure donnée, preuve jointe.
 
+![L'attestation : la chaîne d'audit vérifiée d'abord, les entrées antérieures au chaînage comptées à part.](../assets/screens/fr/attestation.png)
+
 ## Pourquoi une page et non un cinquième lien
 
 Les quatre écrans dont un auditeur a besoin existent déjà — le journal d'audit et sa vérification de

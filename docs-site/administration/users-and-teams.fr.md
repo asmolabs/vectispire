@@ -1,5 +1,7 @@
 # Utilisateurs et équipes
 
+![Les comptes et leurs rôles, dont le compte d'amorçage.](../assets/screens/fr/users.png)
+
 ## Comptes
 
 Il n'y a **aucune page d'inscription**. Un administrateur crée chaque compte.
